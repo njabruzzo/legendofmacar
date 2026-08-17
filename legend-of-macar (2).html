@@ -93,6 +93,9 @@ const SPRITE_FILES={
   drow:'assets/mon_drow.png', drow_mage:'assets/mon_drow_mage.png',
   duergar:'assets/mon_duergar.png', duergar_overseer:'assets/mon_duergar_overseer.png',
   gnome:'assets/mon_gnome.png', gnome_sapper:'assets/mon_gnome_sapper.png',
+  gnome_good:'assets/mon_gnome_good.png', gnome_tinker:'assets/mon_gnome_tinker.png',
+  umberhulk:'assets/mon_umberhulk.png', hookedhorror:'assets/mon_hookedhorror.png',
+  beholder:'assets/mon_beholder.png',
   lantern:'assets/prop_lantern.png', pillar:'assets/prop_pillar.png', cart:'assets/prop_cart.png',
   brazier:'assets/prop_brazier.png', shroom:'assets/prop_shroom.png', rubydoor:'assets/prop_rubydoor.png',
   tunnel:'assets/prop_tunnel.png', crate:'assets/prop_crate.png', bones:'assets/prop_bones.png',
@@ -131,7 +134,8 @@ function entSpriteKey(e){
 }
 function entSpriteH(e,z){
   if(e.kind==='dwarf') return 78*z;
-  if(e.boss||e.kind==='king'||e.kind==='warden'||e.kind==='drake'||e.kind==='horror') return 128*z;
+  if(e.boss||e.kind==='king'||e.kind==='warden'||e.kind==='drake'||e.kind==='horror'||e.kind==='beholder') return 128*z;
+  if(e.kind==='umberhulk'||e.kind==='hookedhorror') return 112*z;
   if(e.kind==='golem'||e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 108*z;
   if(e.kind==='drow') return 86*z;
   if(e.kind==='gnome'||e.kind==='rat'||e.kind==='bat'||e.kind==='beetle') return 48*z;
@@ -166,6 +170,11 @@ function shotStyle(e){
   if(e.kind==='drake') return ['flame','#ff6a3a',10];
   if(e.sprite==='drow_mage'||(e.kind==='drow'&&e.ranged)) return ['hex','#c07bff',10];
   if(e.sprite==='gnome_sapper') return ['bomb','#ff8a3a',8];
+  if(e.sprite==='gnome_tinker') return ['bolt','#ffd27a',11];
+  if(e.kind==='beholder'){
+    const rays=[['charm','#ff7ad9',9],['fear','#80d0ff',10],['death','#c07bff',11],['fire','#ff6a3a',10]];
+    return rays[((G.elapsed*4)|0)%rays.length];
+  }
   return ['bolt','#e8dcc0',11];
 }
 
@@ -475,9 +484,17 @@ const FOE={
   duergarX:()=>ent({kind:'duergar',sprite:'duergar_overseer',hp:160,sp:1.9,dmg:17,range:1.2,cd:1.25,scale:1.22,name:'Duergar Overseer',glow:'#ff3b3b'}),
   gnome:()=>ent({kind:'gnome',sprite:'gnome',hp:28,sp:3.6,dmg:8,range:.75,cd:.7,scale:.78,r:.28,name:'Deep Gnome',glow:'#a35bff'}),
   gnomeBomber:()=>ent({kind:'gnome',sprite:'gnome_sapper',hp:34,sp:2.8,dmg:12,range:5.0,cd:2.0,scale:.82,r:.3,ranged:1,name:'Gnome Sapper',glow:'#ff8a3a'}),
+  umberhulk:()=>ent({kind:'umberhulk',sprite:'umberhulk',hp:240,sp:1.75,dmg:20,range:1.35,cd:1.35,scale:1.55,r:.55,name:'Umber Hulk',glow:'#c08040'}),
+  hookedhorror:()=>ent({kind:'hookedhorror',sprite:'hookedhorror',hp:150,sp:2.6,dmg:16,range:1.2,cd:1.05,scale:1.35,r:.45,name:'Hooked Horror',glow:'#c07bff'}),
+  beholder:()=>ent({kind:'beholder',sprite:'beholder',hp:520,sp:1.8,dmg:18,range:6.4,cd:1.05,scale:1.55,r:.5,ranged:1,boss:1,name:'THE EYE',glow:'#ff7ad9'}),
 };
 FOE.thinone=FOE.statue; FOE.myconid=FOE.fungi; FOE.elder=FOE.fungiElder; FOE.barrow=FOE.undeadX;
 FOE.dueger=FOE.duergar; FOE.duegerX=FOE.duergarX; FOE.golem=FOE.golemBrass;
+
+const ALLY={
+  gnome:()=>ent({kind:'gnome',sprite:'gnome_good',team:'party',ally:1,hp:95,sp:3.4,dmg:11,range:.9,cd:.85,scale:.82,r:.28,name:'PIP',glow:'#ffe08a'}),
+  gnomeTinker:()=>ent({kind:'gnome',sprite:'gnome_tinker',team:'party',ally:1,hp:80,sp:2.9,dmg:13,range:5.4,cd:1.55,scale:.84,r:.28,ranged:1,name:'BRAMBLE',glow:'#ffc061'}),
+};
 
 /* ---------------------------- abilities ---------------------------- */
 const ABIL=[
@@ -581,10 +598,12 @@ function makeChapter(n){
         wave([['spider',26,20],['spider',30,22],['bat',24,30],['spider',31,31],['beetle',27,26],['spitter',22,24],['crawler',28,28]]);}
       if(L.flags.w1&&!L.flags.w2&&p.x>36&&p.y<24){L.flags.w2=1;
         say('The second hollow is a nest.','#c79bff');
-        wave([['spider',44,10],['crawler',48,12],['drow',41,18],['bat',47,19],['beetle',44,15],['spitter',50,10],['gnome',39,13]]);}
+        wave([['spider',44,10],['crawler',48,12],['drow',41,18],['hookedhorror',47,19],['beetle',44,15],['spitter',50,10],['gnome',39,13]]);}
       if(L.flags.w2&&!L.flags.w3&&p.y>32&&p.x>39){L.flags.w3=1;L.objs[1].d=1;
         say('Deep gnomes in the ring. They laugh like powder catching.','#d8a6ff');
-        wave([['fungi',44,38],['gnome',49,36],['gnomeBomber',46,44],['fungi',52,42],['gnome',41,42],['fungiElder',50,40]]);}
+        wave([['fungi',44,38],['gnome',49,36],['gnomeBomber',46,44],['umberhulk',52,42],['gnome',41,42],['fungiElder',50,40]]);
+        joinAllies([['gnome',40,36],['gnomeTinker',43,35]]);
+        say('Rock gnomes from the lower seam. Pip and Bramble will stand with you.','#ffe08a');}
       if(L.flags.w3&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('Ahead: cut stone. Dwarf work. Very old.','#8fd8ff');}
       if(L.flags.done&&dist(p,{x:57,y:40})<2.5) interact('Open the gate',()=>{L.objs[3].d=1;endChapter();});
@@ -612,13 +631,14 @@ function makeChapter(n){
     L.tick=()=>{
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
-        wave([['duergar',22,23],['wraith',28,24],['duergar',24,34],['construct',30,33],['duergar',26,28],['duergarX',31,28]]);}
+        wave([['duergar',22,23],['hookedhorror',28,24],['duergar',24,34],['construct',30,33],['duergar',26,28],['duergarX',31,28]]);}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
-        say('Drow in the Hall of Names. They came for the oath, not the dead.','#c79bff');
-        wave([['drow',42,14],['drowMage',50,15],['undead',44,24],['drow',51,23],['undeadX',46,19],['duergarX',41,20]]);}
+        say('An eye opens in the Hall of Names.','#ff7ad9');
+        const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
+        wave([['drow',42,14],['drowMage',50,15],['hookedhorror',44,24],['drow',51,23],['duergarX',41,20]]);}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
-        wave([['undead',42,44],['construct',54,44],['burrower',48,46]]);
+        wave([['undead',42,44],['umberhulk',54,44],['burrower',48,46]]);
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
         hint('Keep moving. GUARD when he winds up.',5);}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
@@ -654,9 +674,9 @@ function makeChapter(n){
       const k=G.ents.find(e=>e.kind==='king'&&!e.dead);
       if(k){ const f=k.hp/k.maxhp;
         if(f<.66&&!L.flags.p2){L.flags.p2=1; say('Gold steps down from the colonnade.','#ffd24a');
-          wave([['golemGold',20,14],['drowMage',38,14],['duergar',20,32],['gnomeBomber',38,32]]); shake(12);}
+          wave([['golemGold',20,14],['drowMage',38,14],['hookedhorror',20,32],['gnomeBomber',38,32]]); shake(12);}
         if(f<.33&&!L.flags.p3){L.flags.p3=1; say('Platinum holds the dais. The last metal of the temple.','#e8f0ff');
-          wave([['golemPlatinum',24,12],['duergarX',34,12],['drow',29,34],['golemBrass',24,32],['drowMage',34,32]]); shake(16);}
+          wave([['golemPlatinum',24,12],['duergarX',34,12],['umberhulk',29,34],['golemBrass',24,32],['drowMage',34,32]]); shake(16);}
       }
       if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
         L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
@@ -668,10 +688,16 @@ function makeChapter(n){
 function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead); }
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
   e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
+function joinAllies(list){
+  list.forEach(([k,x,y])=>{
+    const e=ALLY[k](); e.x=x+rnd(.4,-.4); e.y=y+rnd(.4,-.4); e.stun=.25;
+    G.ents.push(e); burst(e.x,e.y,'#ffe08a',14);
+  });
+}
 
 /* ---------------------------- flow ---------------------------- */
-const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The Way Is Open',s:'Purple Light, Many Legs'},
-  3:{t:'The Ruin',s:'Duergar, Drow, and Our Own Dead'},4:{t:'The Dead City',s:'not yet written',locked:1},
+const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The Way Is Open',s:'Gnomes, Hulks, and Purple Light'},
+  3:{t:'The Ruin',s:'The Eye in the Hall of Names'},4:{t:'The Dead City',s:'not yet written',locked:1},
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CHAPTERS=[1,2,3,4,5];
 
@@ -1738,8 +1764,14 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
-  if(!e.dead&&e.glow&&(e.boss||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'))
-    emit(s.x,s.y-(e.boss||e.kind==='golem'?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
+  if(!e.dead&&e.glow&&(e.boss||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
+    emit(s.x,s.y-(e.boss||e.kind==='golem'||e.kind==='beholder'?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
+
+  if(!e.dead&&e.ally&&e.hp<e.maxhp){
+    const w=32*ZOOM,h=3.6*ZOOM, yy=s.y-48*ZOOM*e.scale;
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(s.x-w/2-1,yy-1,w+2,h+2);
+    ctx.fillStyle='#6ecf6a'; ctx.fillRect(s.x-w/2,yy,w*clamp(e.hp/e.maxhp,0,1),h);
+  }
 
   if(!e.dead&&e.team==='foe'&&(e.hp<e.maxhp||e.boss)){
     const w=(e.boss?122:38)*ZOOM,h=(e.boss?8:4.4)*ZOOM, yy=s.y-(e.boss?106:62)*ZOOM*e.scale;
@@ -2153,7 +2185,8 @@ function foeDrop(e){
     troll:['ironstone',0.55], construct:['ironstone',0.50], wraith:['deepsilver',0.22],
     burrower:['ironstone',0.55], champion:['starmetal',0.35], horror:['starmetal',0.40],
     drake:['starmetal',0.45], warden:['starmetal',1], king:['starmetal',1],
-    golem:['starmetal',0.40], drow:['silk',0.50], duergar:['ironstone',0.50], gnome:['powder',0.45]
+    golem:['starmetal',0.40], drow:['silk',0.50], duergar:['ironstone',0.50], gnome:['powder',0.45],
+    umberhulk:['ironstone',0.55], hookedhorror:['silk',0.45], beholder:['starmetal',1]
   };
   const t=table[e.kind]; if(!t) return;
   if(e.boss){ gain(t[0],3); gain('ironstone',6); gain('powder',4);
