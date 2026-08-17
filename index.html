@@ -104,17 +104,25 @@ const SPRITE_FILES={
   trap_spikes:'assets/props/prop_trap_spikes.png', trap_runes:'assets/props/prop_trap_runes.png', trap_pit:'assets/props/prop_trap_pit.png',
   floor_mine:'assets/tiles/tile_floor_mine.png', floor_fungi:'assets/tiles/tile_floor_fungi.png',
   floor_ruin:'assets/tiles/tile_floor_ruin.png', floor_hall:'assets/tiles/tile_floor_hall.png',
-  wall_cave:'assets/tiles/tile_wall_cave.png'
+  wall_cave:'assets/tiles/tile_wall_cave.png',
+  skill_icons:'assets/ui/ui_skill_icons.png',
+  icon_sword:'assets/ui/icon_sword.png', icon_dwarf:'assets/ui/icon_dwarf.png',
+  icon_flask:'assets/ui/icon_flask.png', icon_shield:'assets/ui/icon_shield.png',
+  icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png'
 };
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk)\.png$/.test(src)) return;
-  if(!/(dwarf_|mon_|prop_|tile_)/.test(src)) return;
+  if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   SPRITE_FILES[k+'_w1']=stem+'_w1.png';
   SPRITE_FILES[k+'_w2']=stem+'_w2.png';
   SPRITE_FILES[k+'_atk']=stem+'_atk.png';
 });
+const ICON_SPR={
+  sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
+  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_pack', horn:'icon_cross'
+};
 function loadSprites(done){
   const keys=Object.keys(SPRITE_FILES); let left=keys.length;
   if(!left){ done(); return; }
@@ -2672,6 +2680,19 @@ function icon(g,kind,x,y,s,col){
   g.restore();
 }
 
+function slotAnimImg(b){
+  const ico=b.ico||(b.key==='attack'?'sword':((ABIL.find(a=>a.key===b.key)||{}).ico));
+  const k=ICON_SPR[ico];
+  if(!k) return null;
+  const ab=ABIL.find(a=>a.key===b.key);
+  if(b.hold && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if(ab && cds[ab.key]>0 && cds[ab.key]>ab.cd-0.22 && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if(!(ab && cds[ab.key]>0)){
+    const a=SPR[k+'_w1'], c=SPR[k+'_w2']||SPR[k];
+    if(a) return ((G.elapsed*5)|0)%2 ? (c||a) : a;
+  }
+  return SPR[k]||null;
+}
 function drawSlot(g,b,s){
   const R=b.r, x=b.x-R, y=b.y-R, w=R*2, h=R*2;
   const ab=ABIL.find(a=>a.key===b.key);
@@ -2680,7 +2701,17 @@ function drawSlot(g,b,s){
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
-  icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, col);
+  const simg=slotAnimImg(b);
+  if(simg){
+    g.save();
+    roundPath(g,x+3*s,y+3*s,w-6*s,h-6*s,3); g.clip();
+    const pad=3.2*s;
+    g.globalAlpha=ready?1:0.42;
+    g.drawImage(simg, x+pad, y+pad, w-pad*2, h-pad*2);
+    g.globalAlpha=1; g.restore();
+  } else {
+    icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, col);
+  }
   if(b.num){
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='left';
     g.fillStyle='rgba(232,212,172,0.85)'; g.fillText(String(b.num), x+5*s, y+12*s);
