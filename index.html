@@ -482,7 +482,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   cam:{x:0,y:0}, log:[], shake:0, flash:null, hitstop:0, hurt:0,
   cleared:{}, unlocked:1, elapsed:0, kills:0, hint:null, introT:0, taught:{},
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
-  thrown:[], aim:null, campScroll:0 };
+  thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
+  inv:{potions:[],herbs:{}}, fightOn:0, carryEffects:[] };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -782,7 +783,8 @@ function applyBestiary(){
       range:b.rng!=null?b.rng:(b.ranged?5.8:Math.max(.7,.82+(b.at||1)*.08)),
       ranged:b.ranged||0, scale:b.sc||1, r:b.r||.38,
       ac:b.ac, sa:b.sa||'', sd:b.sd||'', treasure:b.tt||'Nil', drop:b.dc||0,
-      glow:b.g||'#c9b895', boss:b.boss||0, regen:b.regen||0, rust:b.rust||0, poison:b.poison||0
+      glow:b.g||'#c9b895', boss:b.boss||0, regen:b.regen||0, rust:b.rust||0, poison:b.poison||0,
+      hd:Math.max(0.5, b.hp/8), dice:b.dice||null
     });
   });
 }
@@ -1063,20 +1065,30 @@ const CHAPTERS=[1,2,3,4,5];
 function startChapter(n){
   G.ch=n; G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   ABIL.forEach(a=>cds[a.key]=0); G.hint=null; G.hurt=0; G.decals=[];
-  G.thrown=[]; G.aim=null; G.sang=false;
+  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
   G.lvl=makeChapter(n);
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
+    const lv=partyLevel();
+    const cls=r.role==='faith'?'c':r.role==='bolt'?'t':'f';
     const e=ent({kind:'dwarf',team:'party',x:sp.x+(hero?0:Math.cos(i*1.3)*1.5),y:sp.y+(hero?0:Math.sin(i*1.3)*1.5),
       hp:hero?280:160, sp:hero?4.3:4.0, dmg:hero?18:11, range:hero?1.4:1.15, cd:hero?.6:.95,
-      r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key]});
-    if(r.role==='bolt'){e.ranged=1;e.range=6.5;e.cd=1.5;e.dmg=15;}
-    if(r.role==='faith'){e.range=1.05;e.dmg=8;e.heals=1;}
+      r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key],
+      lvl:lv, cls, ac:5, dice:hero?'1d8+1':r.role==='bolt'?'1d6':r.role==='faith'?'1d6':'1d6+1'});
+    e.ac=partyAC(e);
+    if(r.role==='bolt'){e.ranged=1;e.range=6.5;e.cd=1.5;e.dmg=15;e.dice='1d6';}
+    if(r.role==='faith'){e.range=1.05;e.dmg=8;e.heals=1;e.cls='c';}
     G.ents.push(e);
   });
+  (G.carryEffects||[]).forEach(x=>{
+    const e=G.ents.find(z=>z.hero)||G.ents[0];
+    if(x.t==='potion') drinkPotion(x.p,e);
+    if(x.t==='herb'){ G.inv.herbs[x.n]=(G.inv.herbs[x.n]||0)+1; useHerb(x.n,e); }
+  });
+  G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
   say('Shaft 3. Fourth bell. Nothing unusual.','#c9b895');
 }
@@ -1094,12 +1106,568 @@ function burst(x,y,c,n,spd){ spd=spd||3;
       life:rnd(.85,.35),max:.85,c,s:rnd(4,1.6)}); } }
 function ftext(x,y,txt,c,big){ G.texts.push({x,y,txt,c,life:.95,big:!!big}); }
 
+
+/* ==========================================================================
+   AD&D 1st Edition rules — to-hit, saves, treasure, potions, herbs
+   ========================================================================== */
+const ADD_SCALE=4;
+function d20(){ return ri(1,20); }
+function d100(){ return ri(1,100); }
+function d10000(){ return ri(1,10000); }
+function rollDice(n,s,b){ let t=b||0; for(let i=0;i<n;i++) t+=ri(1,s); return t; }
+function rollExpr(expr){
+  if(!expr) return rollDice(1,6,0);
+  let tot=0;
+  String(expr).split('/').forEach(part=>{
+    const m=part.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+    if(m) tot+=rollDice(+m[1],+m[2], m[3]?+m[3]:0);
+    else { const n=parseFloat(part); if(!isNaN(n)) tot+=Math.max(1,Math.round(n)); }
+  });
+  return Math.max(1,tot);
+}
+function partyLevel(){
+  const ch=Object.keys(G.cleared||{}).length;
+  return clamp(1+ch+Math.floor((G.kills||0)/28)+(G.gear&&G.gear.macar?G.gear.macar.wt:0),1,17);
+}
+function partyAC(e){
+  const g=e.gear||{};
+  let ac=5;
+  if(e.role==='shield') ac=4;
+  if(e.role==='bolt') ac=6;
+  if(e.role==='faith') ac=5;
+  ac-=Math.floor((g.at||0)/2);
+  if((g.cd||0)>55) ac-=1;
+  if(e.guard) ac-=2;
+  if(e.hero&&g.rune) ac-=1;
+  return clamp(ac,-8,10);
+}
+function monsterHD(e){
+  if(e.hd) return e.hd;
+  const raw=e.maxhp||e.hp||8;
+  return Math.max(0.5, +(raw/32).toFixed(1));
+}
+const THAC_F=[
+  [25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10],
+  [24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9],
+  [23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8],
+  [22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7],
+  [21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6],
+  [20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5],
+  [20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4],
+  [20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3],
+  [20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2],
+  [20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1],
+  [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+  [19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1],
+  [18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2],
+  [17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3],
+  [16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4],
+  [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4,-5],
+  [14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4,-5,-6]
+];
+const THAC_M=[
+  [26,25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11],
+  [25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10],
+  [24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9],
+  [23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8],
+  [21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6],
+  [20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5],
+  [20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3],
+  [20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2],
+  [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+  [19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1],
+  [18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2],
+  [17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3]
+];
+const THAC_C=[
+  [25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10],
+  [23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8],
+  [21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6],
+  [20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4],
+  [20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2],
+  [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+  [19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1]
+];
+const THAC_T=[
+  [26,25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11],
+  [24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9],
+  [21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6],
+  [20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4],
+  [20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2],
+  [20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1]
+];
+function acCol(ac){ return clamp((ac|0)+10,0,20); }
+function thacNeed(atk, ac){
+  const col=acCol(ac);
+  if(atk.team==='party'){
+    const lv=clamp(atk.lvl||partyLevel(),1,17);
+    const cls=atk.cls||(atk.role==='faith'?'c':atk.role==='bolt'?'t':'f');
+    if(cls==='c'){ const row=clamp(Math.floor((lv-1)/3),0,6); return THAC_C[row][col]; }
+    if(cls==='t'){ const row=clamp(Math.floor((lv-1)/4),0,5); return THAC_T[row][col]; }
+    return THAC_F[lv-1][col];
+  }
+  const hd=monsterHD(atk);
+  let row=0;
+  if(hd<1) row=0; else if(hd<1.01) row=2; else if(hd<2) row=3;
+  else if(hd<4) row=4; else if(hd<6) row=5; else if(hd<8) row=6;
+  else if(hd<10) row=7; else if(hd<12) row=8; else if(hd<14) row=9;
+  else if(hd<16) row=10; else row=11;
+  if(hd<=0.5) row=0; else if(hd<1) row=1;
+  return THAC_M[row][col];
+}
+function hitBonus(e){
+  let b=0;
+  if(e.team==='party'){
+    const g=e.gear||{};
+    b+=(g.wt||0);
+    if(g.rune) b+=1;
+    if(e.hero) b+=1;
+    if(e.buff>0) b+=2;
+    if((g.wd||1)<=0) b-=2;
+  } else {
+    if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
+  }
+  if(e.strMul>1) b+=2;
+  return b;
+}
+function effectiveAC(e){
+  let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
+  if(e.team==='party') ac=partyAC(e);
+  if(e.stun>0||e.prone) ac=Math.min(10, ac+4);
+  if(e.stoneskin>0) ac-=2;
+  return ac;
+}
+function addAttack(atk, def){
+  if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
+  const ac=effectiveAC(def);
+  const need=thacNeed(atk, ac);
+  const roll=d20();
+  const bonus=hitBonus(atk);
+  const tot=roll+bonus;
+  if(roll===1){ ftext(def.x,def.y,'miss','#9a8a78'); return 0; }
+  const extra=need<0?-need:0;
+  const hit=roll===20 || tot>=need;
+  if(!hit){ ftext(def.x,def.y,'miss '+roll,'#8a7a68'); return 0; }
+  let raw;
+  if(atk.dice) raw=rollExpr(atk.dice);
+  else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8+1':atk.ranged?'1d6':'1d6+1');
+  else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
+  raw+=extra;
+  if(atk.strMul) raw=Math.round(raw*atk.strMul);
+  raw=Math.round(raw*ADD_SCALE*wepMult(atk));
+  if(atk.buff>0) raw=Math.round(raw*1.25);
+  return Math.max(1, raw);
+}
+const SAVE_F=[
+  [14,15,16,17,17],[13,14,15,16,16],[11,12,13,13,14],[10,11,12,12,13],
+  [8,9,10,9,11],[7,8,9,8,10],[5,6,7,5,8],[4,5,6,4,7],[3,4,5,4,6]
+];
+const SAVE_C=[
+  [10,13,14,16,15],[9,12,13,15,14],[7,10,11,13,12],[6,9,10,12,11],
+  [5,8,9,11,10],[4,7,8,10,9],[2,5,6,8,7]
+];
+function saveNeed(e, kind){
+  const idx={poison:0,death:0,petrify:1,rod:2,breath:3,spell:4}[kind]||4;
+  if(e.team==='party'){
+    const lv=clamp(e.lvl||partyLevel(),1,17);
+    if(e.cls==='c'||e.role==='faith') return SAVE_C[clamp(Math.floor((lv-1)/3),0,6)][idx];
+    return SAVE_F[clamp(Math.floor((lv-1)/2),0,8)][idx];
+  }
+  const hd=monsterHD(e);
+  const row=hd<1?0:hd<3?1:hd<5?2:hd<7?3:hd<9?4:hd<11?5:hd<13?6:hd<15?7:hd<17?8:8;
+  return SAVE_F[Math.min(row,8)][idx];
+}
+function savingThrow(e, kind){
+  const need=saveNeed(e,kind)-(e.juice||0);
+  const roll=d20();
+  const ok=roll===20||roll>=need;
+  ftext(e.x,e.y+(ok?0.15:0),(ok?'save':'fail')+' '+roll,'#cfe3ff');
+  return ok;
+}
+function beginFight(foe){
+  G.fightOn=1;
+  let pSeg=ri(1,6), fSeg=ri(1,6);
+  const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
+  const pSur=pSeg<=(sneak?4:2), fSur=fSeg<=(sneak?1:2);
+  if(pSur&&!fSur){
+    G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.stun=Math.max(e.stun||0, pSeg*0.55); });
+    say('Surprise — they have '+pSeg+' segments on you.','#ff6a5a');
+  } else if(fSur&&!pSur){
+    G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0, fSeg*0.55); });
+    say('Surprise — you have '+fSeg+' segments.','#ffd27a');
+  }
+  const ip=ri(1,6), iff=ri(1,6);
+  G.initWin=ip>=iff?'party':'foe';
+  say('Initiative '+(G.initWin==='party'?'ours':'theirs')+' ('+ip+' vs '+iff+').','#c9b895');
+  if(G.initWin==='party') G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0,.28); });
+  else G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.stun=Math.max(e.stun||0,.22); });
+}
+function endFightIfClear(){
+  if(G.fightOn && !G.ents.some(e=>e.team==='foe'&&!e.dead)) G.fightOn=0;
+}
+
+const POTIONS=[
+{a:1,b:129,n:'Acid Resistance (Oil)',gp:300,d:'As per Unearthed Arcana pg 90',k:'oil'},
+{a:130,b:172,n:'Animal Communication',gp:900,d:'Speak with animals for hrs/lvl.',k:'buff'},
+{a:173,b:269,n:'Animal Control',gp:400,d:'Empathize with and control animals.',k:'buff'},
+{a:270,b:307,n:'Animal Familiarity',gp:1000,d:'Familiarizes animal or mount.',k:'buff'},
+{a:308,b:333,n:'Animal Growth',gp:1500,d:'Grows an animal to its potential.',k:'buff'},
+{a:334,b:462,n:'Animal Senses',gp:300,d:'+25% Sight, Scent, Hearing for 1 hour.',k:'sense'},
+{a:463,b:591,n:'Animate Dead (Oil)',gp:300,d:'Animates a corpse into undead.',k:'oil'},
+{a:592,b:617,n:'Anti-Magic (Perfume)',gp:1500,d:'30\' area where no magic functions.',k:'buff'},
+{a:618,b:660,n:'Awaken (Perfume)',gp:900,d:'Awakens all sleepers within 30 feet.',k:'cure'},
+{a:661,b:703,n:'Blackshine (Oil)',gp:900,d:'Coats metal; protects against 4 breaks.',k:'oil'},
+{a:704,b:960,n:'Blackwater (Oil)',gp:150,d:'Taints water; drowns aquatic creatures.',k:'oil'},
+{a:961,b:1218,n:'Blinding (powder)',gp:150,d:'Blinds until washed away.',k:'atk'},
+{a:1219,b:1261,n:'Blink',gp:900,d:'Blink for 1 rnd/level.',k:'buff'},
+{a:1262,b:1304,n:'Break Charm (Perfume)',gp:900,d:'Breaks charm within 30 feet.',k:'cure'},
+{a:1305,b:1433,n:'Chance',gp:300,d:'Creates a random effect.',k:'rand'},
+{a:1434,b:1562,n:'Charisma',gp:300,d:'+1 Charisma for 3 hours.',k:'stat'},
+{a:1563,b:1594,n:'Charm (Perfume)',gp:1200,d:'Charms all within 10\' unless they save.',k:'atk'},
+{a:1595,b:1659,n:'Climbing',gp:600,d:'+50% climbing for hours/level.',k:'buff'},
+{a:1660,b:1702,n:'Command (Perfume)',gp:900,d:'Commands summoned creatures, 60\'.',k:'buff'},
+{a:1703,b:1745,n:'Courage (Perfume)',gp:900,d:'Protects from fear 1 rnd/lvl, 30\'.',k:'buff'},
+{a:1746,b:1873,n:'Crossbow Bolt of Blinding (Oil)',gp:300,d:'Arrowhead causes blindness.',k:'oil'},
+{a:1874,b:1899,n:'Crossbow Bolt of Disintegration (Oil)',gp:1500,d:'Arrowhead disintegrates.',k:'oil'},
+{a:1900,b:1942,n:'Crossbow Bolt of Dispel Magic (Oil)',gp:900,d:'Arrowhead dispels magic.',k:'oil'},
+{a:1943,b:1974,n:'Crossbow Bolt of Enchantment (Oil)',gp:1200,d:'Arrowhead +4 hit and damage.',k:'oil'},
+{a:1975,b:2017,n:'Crossbow Bolt of Penetration (Oil)',gp:900,d:'Passes supernatural barriers.',k:'oil'},
+{a:2018,b:2060,n:'Crossbow Bolt of Sever Tie (Oil)',gp:900,d:'Severs magical ties.',k:'oil'},
+{a:2061,b:2189,n:'Crossbow Bolt of Weakness (Oil)',gp:300,d:'Causes weakness.',k:'oil'},
+{a:2190,b:2213,n:'Cure Critical Wounds',gp:1600,d:'Cures 40 hp.',k:'heal40'},
+{a:2214,b:2310,n:'Cure Light Wounds',gp:400,d:'Cures 10 hp.',k:'heal10'},
+{a:2311,b:2439,n:'Cure Serious Bleeding Wounds',gp:300,d:'Cures 20 hp of bleeding.',k:'heal20'},
+{a:2440,b:2568,n:'Cure Serious Mysterious Wounds',gp:300,d:'Cures 20 hp mysterious wounds.',k:'heal20'},
+{a:2569,b:2616,n:'Cure Serious Wounds',gp:800,d:'Cures 20 hp.',k:'heal20'},
+{a:2617,b:2659,n:'Curse (Mild)',gp:900,d:'Curses the victim of imbiber\'s choice.',k:'atk'},
+{a:2660,b:2681,n:'Curse (Moderate)',gp:1800,d:'Curses the victim of imbiber\'s choice.',k:'atk'},
+{a:2682,b:2691,n:'Curse (Severe)',gp:3600,d:'Curses the victim of imbiber\'s choice.',k:'atk'},
+{a:2692,b:2717,n:'Cut through Supernatural Barriers (Oil)',gp:1500,d:'Weapon cuts supernatural barriers.',k:'oil'},
+{a:2718,b:2743,n:'Damage reversal',gp:1500,d:'Reverses opponent damage 1 rnd/level.',k:'buff'},
+{a:2744,b:2775,n:'Death (Perfume)',gp:1200,d:'Death within 60\' after 10 rnds.',k:'atk'},
+{a:2776,b:2840,n:'Diminution',gp:600,d:'Shrink to 5% of normal size.',k:'buff'},
+{a:2841,b:2883,n:'Disenchantment (Oil)',gp:900,d:'Removes enchantments on living things.',k:'cure'},
+{a:2884,b:2926,n:'Disguise',gp:900,d:'Disguise as humanoid for hrs/lvl.',k:'buff'},
+{a:2927,b:2990,n:'Dispel Magic (powder)',gp:600,d:'Dispel contest; roll to hit.',k:'atk'},
+{a:2991,b:3033,n:'Displacement',gp:900,d:'Displacer beast power.',k:'buff'},
+{a:3034,b:3076,n:'Dodginess',gp:900,d:'Dodge at +25% for hours/level.',k:'buff'},
+{a:3077,b:3094,n:'Dream Vision (Elixir)',gp:2100,d:'Dream vision through the night.',k:'buff'},
+{a:3095,b:3116,n:'Elf-Boost',gp:1800,d:'Elves +10% percentile abilities.',k:'buff'},
+{a:3117,b:3148,n:'Enchant Armour (Oil)',gp:1200,d:'Enchant armour +4; shield +2.',k:'gear'},
+{a:3149,b:3174,n:'Enchant Item (Oil)',gp:1500,d:'Enchant one item.',k:'gear'},
+{a:3175,b:3206,n:'Enchant Weapon (Oil)',gp:1200,d:'Enchant one weapon.',k:'gear'},
+{a:3207,b:3249,n:'ESP',gp:900,d:'Read thoughts for 5d8 rounds.',k:'sense'},
+{a:3250,b:3292,n:'Etherealness (Oil)',gp:900,d:'Pass through solid objects.',k:'buff'},
+{a:3293,b:3550,n:'Explosive (Oil)',gp:150,d:'Causes d20 damage.',k:'atk'},
+{a:3551,b:3808,n:'Fast Heal',gp:150,d:'Doubles healing rate for one week.',k:'regen'},
+{a:3809,b:3872,n:'Fertility',gp:600,d:'Increases fertility for one evening.',k:'buff'},
+{a:3873,b:3937,n:'Fiery Burning (Oil)',gp:600,d:'10d6 fire on exposure to air.',k:'atk'},
+{a:3938,b:3988,n:'Firebreath (pill)',gp:750,d:'Breathe fire, 50 points.',k:'atk'},
+{a:3989,b:4031,n:'Fly',gp:900,d:'Flight for hours/level.',k:'fly'},
+{a:4032,b:4057,n:'Free Action',gp:1500,d:'Free action for hours/level.',k:'buff'},
+{a:4058,b:4100,n:'Gaseous Form',gp:900,d:'Gaseous form for level/rnds.',k:'buff'},
+{a:4101,b:4358,n:'Glow (powder)',gp:150,d:'Reveals edges with luminescent dust.',k:'sense'},
+{a:4359,b:4487,n:'Grease (Oil)',gp:300,d:'Makes a surface slippery.',k:'oil'},
+{a:4488,b:4530,n:'Greenshine (Oil)',gp:900,d:'Protects wood against 4 breaks.',k:'oil'},
+{a:4531,b:4572,n:'Haste',gp:900,d:'Doubles actions for lvl/rounds.',k:'haste'},
+{a:4573,b:4585,n:'Heal Wounds',gp:3000,d:'Fully heals mysterious injuries.',k:'healall'},
+{a:4586,b:4843,n:'Hiding',gp:150,d:'+10% Hide for 1 hour.',k:'buff'},
+{a:4844,b:4886,n:'Impact (Oil)',gp:900,d:'Enhances blunt weapons.',k:'oil'},
+{a:4887,b:4951,n:'Inspiration (Perfume)',gp:600,d:'+4 bonuses within 60\'.',k:'buff'},
+{a:4952,b:5080,n:'Intelligence',gp:300,d:'+1 Intelligence for 3 hours.',k:'stat'},
+{a:5081,b:5122,n:'Invisibility',gp:900,d:'Invisible for 1 rnd/level.',k:'invis'},
+{a:5123,b:5155,n:'Invulnerability',gp:1200,d:'Invulnerable for 1 rnd/level.',k:'invuln'},
+{a:5156,b:5180,n:'Item Amalgamation (Oil)',gp:1500,d:'Amalgamates two magic items.',k:'gear'},
+{a:5181,b:5309,n:'Juice (+1)',gp:300,d:'Reduces saving throws by 1.',k:'juice'},
+{a:5310,b:5374,n:'Juice (+2)',gp:600,d:'Reduces saving throws by 2.',k:'juice'},
+{a:5375,b:5417,n:'Juice (+3)',gp:900,d:'Reduces saving throws by 3.',k:'juice'},
+{a:5418,b:5449,n:'Juice (+4)',gp:1200,d:'Reduces saving throws by 4.',k:'juice'},
+{a:5450,b:5475,n:'Juice (+5)',gp:1500,d:'Reduces saving throws by 5.',k:'juice'},
+{a:5476,b:5604,n:'Levitation',gp:300,d:'Levitate for 3 hours.',k:'fly'},
+{a:5605,b:5605,n:'Life (Elixir)',gp:30000,d:'A raise dead potion.',k:'life'},
+{a:5606,b:5631,n:'Locate Target',gp:1500,d:'Draws imbiber to a known target.',k:'sense'},
+{a:5632,b:5632,n:'Longevity (Elixir)',gp:30000,d:'Stops aging for 10 years.',k:'buff'},
+{a:5633,b:5654,n:'Love (Elixir)',gp:1800,d:'Fall in love with the first person seen.',k:'buff'},
+{a:5655,b:5679,n:'Magic Resistance',gp:1500,d:'Protects against magic for hours/level.',k:'mr'},
+{a:5680,b:5712,n:'Mending (Oil)',gp:1200,d:'Repairs 25% of an item.',k:'gear'},
+{a:5713,b:5737,n:'Missile Deflection (Perfume)',gp:1500,d:'Protects from missiles.',k:'buff'},
+{a:5738,b:5780,n:'Nature\'s Power',gp:900,d:'Nature abilities +5% for days/level.',k:'buff'},
+{a:5781,b:5845,n:'Neutralize Poison',gp:600,d:'Neutralizes any poison.',k:'antidote'},
+{a:5846,b:5877,n:'Non-Fumbling (Oil)',gp:1200,d:'Prevents weapon fumbling 30 days.',k:'oil'},
+{a:5878,b:5920,n:'Passwall',gp:900,d:'Pass through physical matter.',k:'buff'},
+{a:5921,b:6178,n:'Paut',gp:150,d:'d20 acid damage on target.',k:'atk'},
+{a:6179,b:6221,n:'Plant Growth (Oil)',gp:900,d:'Causes a plant to bloom.',k:'oil'},
+{a:6222,b:6285,n:'Polymorph Self',gp:600,d:'Change shape into a seen creature.',k:'buff'},
+{a:6286,b:6317,n:'Positive Energy',gp:1200,d:'Nimbus vs negative energy.',k:'buff'},
+{a:6318,b:6343,n:'Positoxin (Gas)',gp:1500,d:'10d/lvl vs undead.',k:'atk'},
+{a:6344,b:6369,n:'Protection from Beheading',gp:1500,d:'Protects from one beheading.',k:'buff'},
+{a:6370,b:6401,n:'Protection from Charm',gp:1200,d:'Protects from one charm.',k:'buff'},
+{a:6402,b:6427,n:'Protection from Charming',gp:1500,d:'Protects against charm hours/level.',k:'buff'},
+{a:6428,b:6466,n:'Protection from Cold',gp:1000,d:'Protects against cold.',k:'buff'},
+{a:6467,b:6491,n:'Protection from Disintegration',gp:1500,d:'Protects from one disintegration.',k:'buff'},
+{a:6492,b:6556,n:'Protection from Fear',gp:600,d:'Protects against fear.',k:'buff'},
+{a:6557,b:6595,n:'Protection from Fire',gp:1000,d:'Protects against fire.',k:'buff'},
+{a:6596,b:6620,n:'Protection from Petrification',gp:1500,d:'Protects from one petrification.',k:'buff'},
+{a:6621,b:6646,n:'Protection from Psionics',gp:1500,d:'Protects against psionics.',k:'buff'},
+{a:6647,b:6650,n:'Protection from Undead Special Effects',gp:9000,d:'Protects from undead specials.',k:'buff'},
+{a:6651,b:6663,n:'Protection from Wounds',gp:3000,d:'Heals all wounds at 0 hp.',k:'prot0'},
+{a:6664,b:6706,n:'Rainbow Hues',gp:900,d:'Change color at will.',k:'buff'},
+{a:6707,b:6739,n:'Safe Birth',gp:1200,d:'Safety of wife and child.',k:'buff'},
+{a:6740,b:6803,n:'Samurai Entourage (Perfume)',gp:600,d:'Hallucination of six samurai.',k:'buff'},
+{a:6804,b:6811,n:'Samurai in a Bottle',gp:5000,d:'Illusion of a samurai.',k:'buff'},
+{a:6812,b:7069,n:'Scentbreaker (Material)',gp:150,d:'Confounds sense of smell.',k:'buff'},
+{a:7070,b:7076,n:'Scentlessness (Lotion)',gp:5000,d:'Scentless vs a creature type.',k:'buff'},
+{a:7077,b:7205,n:'Scentlessness (Perfume)',gp:300,d:'Scentless for hour/level.',k:'buff'},
+{a:7206,b:7334,n:'Sensory (Powder)',gp:300,d:'Heightens senses; no sleep.',k:'sense'},
+{a:7335,b:7398,n:'Sever Tie (Powder)',gp:600,d:'Severs magical ties.',k:'atk'},
+{a:7399,b:7527,n:'Shield (Perfume)',gp:300,d:'Stationary full shield.',k:'guard'},
+{a:7528,b:7553,n:'Shriek (Bomb)',gp:1500,d:'Stuns all in the area one round.',k:'atk'},
+{a:7554,b:7596,n:'Silver (Oil)',gp:900,d:'Weapon harms silver-only foes.',k:'oil'},
+{a:7597,b:7609,n:'Skaven Go-Juice',gp:3000,d:'Frenzy: twice as many swings.',k:'haste'},
+{a:7610,b:7673,n:'Sleeping (Powder)',gp:600,d:'Sleep on inhalation.',k:'atk'},
+{a:7674,b:7716,n:'Slipperiness (Oil)',gp:900,d:'Cannot be grabbed or constricted.',k:'buff'},
+{a:7717,b:8490,n:'Smokescreen (Gas)',gp:50,d:'Obscures vision.',k:'buff'},
+{a:8491,b:8516,n:'Speak with Dead (Powder)',gp:1500,d:'Commune with one deceased.',k:'sense'},
+{a:8517,b:8541,n:'Spiritual Resistance',gp:1500,d:'Protects against prayers.',k:'mr'},
+{a:8542,b:8670,n:'Stabilize',gp:300,d:'Prevents death checks if still.',k:'cure'},
+{a:8671,b:8703,n:'Stone to Flesh (Paste)',gp:1200,d:'Turns petrified target to flesh.',k:'cure'},
+{a:8704,b:8728,n:'Stoneskin',gp:1500,d:'4+1d4 physical blows for one month.',k:'stoneskin'},
+{a:8729,b:8771,n:'Strength-Double',gp:900,d:'Str 18, double damage lvl/rnds.',k:'str2'},
+{a:8772,b:8814,n:'Strength-Triple',gp:900,d:'Str 20, triple damage lvl/rnds.',k:'str3'},
+{a:8815,b:8943,n:'Striking (Oil)',gp:300,d:'+1 striking for rounds/lvl.',k:'oil'},
+{a:8944,b:9008,n:'Sunburst (Pellet)',gp:600,d:'Sunlight; stun one round.',k:'atk'},
+{a:9009,b:9265,n:'Swimming',gp:150,d:'Swimming for 3 hours.',k:'buff'},
+{a:9266,b:9298,n:'Tattoo (Ink)',gp:1200,d:'Tattoo stores an object.',k:'buff'},
+{a:9299,b:9427,n:'The Prankster',gp:300,d:'Illusion that a concoction is something else.',k:'buff'},
+{a:9428,b:9470,n:'Tongues',gp:900,d:'Speak any language heard.',k:'buff'},
+{a:9471,b:9486,n:'Transportation Paint',gp:2400,d:'Portal to a predetermined location.',k:'buff'},
+{a:9487,b:9511,n:'Treasure Finding',gp:1500,d:'Draws to nearest large treasure.',k:'sense'},
+{a:9512,b:9544,n:'True Seeing',gp:1200,d:'True seeing for hours/lvl.',k:'sense'},
+{a:9545,b:9673,n:'Truth (Elixir)',gp:300,d:'Speak the truth minutes/level.',k:'buff'},
+{a:9674,b:9716,n:'Warrior Vitality',gp:900,d:'Double hit points rounds/level.',k:'vital'},
+{a:9717,b:9759,n:'Water Breathing',gp:900,d:'Breathe water as air.',k:'buff'},
+{a:9760,b:9784,n:'Weather Control',gp:1500,d:'Control one weather pattern.',k:'buff'},
+{a:9785,b:9827,n:'Whispering Wind',gp:900,d:'Conversation across winds.',k:'buff'},
+{a:9828,b:9870,n:'White Sanguine (Spray)',gp:900,d:'Prevents clotting and healing.',k:'atk'},
+{a:9871,b:9999,n:'Wisdom',gp:300,d:'+1 Wisdom for 3 hours.',k:'stat'},
+{a:10000,b:10000,n:'Youth (Elixir)',gp:45000,d:'Reduces age by 10 years.',k:'buff'}
+];
+function potionByRoll(r){
+  for(const p of POTIONS) if(r>=p.a&&r<=p.b) return p;
+  return POTIONS[POTIONS.length-1];
+}
+function rollPotion(){ return potionByRoll(d10000()); }
+function givePotion(p, silent){
+  if(!G.inv) G.inv={potions:[],herbs:{}};
+  G.inv.potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
+  if(!silent) say('Potion: '+p.n+'.','#e0d2ff');
+}
+
+const HERBS=[
+  {n:'Bearded Fang',diff:40,uses:'1',cost:50,k:'food',d:'Mushroom. Eat for nutrition.'},
+  {n:'Black Cackler',diff:40,uses:'1',cost:20,k:'laugh',d:'Eat: 4-7 hours of laughter.'},
+  {n:'Buttonhead',diff:50,uses:'100',cost:100,k:'weary',d:'Dispels weariness 12 hours, then must rest.'},
+  {n:'Carpet Moss',diff:70,uses:'1',cost:5000,k:'regen',d:'Poultice: double fracture healing.'},
+  {n:'Crowtongue',diff:40,uses:'1',cost:1000,k:'hide',d:'Paste: cold skin, hidden from night vision.'},
+  {n:"Dragon's Claw",diff:15,uses:'1-4',cost:50,k:'food',d:'Nutritious fungus; hallucinogen.'},
+  {n:'Flameroot',diff:50,uses:'1',cost:5000,k:'regen',d:'Infusion doubles concussion healing.'},
+  {n:'Giant Blackling',diff:60,uses:'1-8',cost:0,k:'food',d:'Bland, nutritious. Common in orc stew.'},
+  {n:'Glow Moss',diff:80,uses:'1',cost:100,k:'light',d:'Six hours of light.'},
+  {n:"Goat's Stinkhorn",diff:10,uses:'1-10',cost:0,k:'orc',d:'Makes the eater attractive to orcs.'},
+  {n:"Goblin's Lantern",diff:60,uses:'1',cost:2000,k:'light',d:'Green glow in the dark for 24 hours.'},
+  {n:'Great Ironstem',diff:70,uses:'1',cost:1000,k:'wood',d:'Stem used like wood.'},
+  {n:'Grodloth',diff:5,uses:'3-7',cost:0,k:'heal40',d:'Preserves tissue, eases pain, restores life.'},
+  {n:'Gulperwash',diff:20,uses:'1',cost:10000,k:'heal20',d:'Swallow raw: heals 20 hp.'},
+  {n:'Lenhafn',diff:40,uses:'1',cost:3000,k:'food',d:'1 lb feeds a man for a week.'},
+  {n:'Luminous Vrak',diff:50,uses:'1',cost:3500,k:'tickheal',d:'Apply: 1-4 hp/rnd for 5 rnds.'},
+  {n:'Madarch',diff:30,uses:'1',cost:20000,k:'healall',d:'Full heal within 2 hours if prepared.'},
+  {n:'Margarth',diff:40,uses:'1',cost:0,k:'heal4',d:'Heals 4 hp.'},
+  {n:'Moonthumb',diff:20,uses:'1',cost:2000,k:'heal10',d:'Eat: restore 10 hp. Better near water.'},
+  {n:'Nightrod',diff:60,uses:'1-4',cost:700,k:'heal2',d:'Eat fresh: restore 2 hp.'},
+  {n:'Other Eyes',diff:40,uses:'1',cost:5000,k:'see',d:'See hidden things for 2 hours.'},
+  {n:'Plant-like Stone',diff:30,uses:'1',cost:7500,k:'heal40',d:'Sap on a wound heals 40 hp.'},
+  {n:'Purple Trumpet',diff:10,uses:'1-4',cost:1000,k:'food',d:'Orc delicacy. Unknown effect.'},
+  {n:'Shadowvine',diff:40,uses:'4',cost:1000,k:'antidote',d:'Leaf oil: antidote for most poisons.'},
+  {n:'Slimy Gorkin',diff:50,uses:'25-50',cost:1,k:'food',d:'Disgusting fungus. Sustenance.'},
+  {n:'Spiderwort',diff:20,uses:'3',cost:5000,k:'antidote',d:'Neutralizes spider poison.'},
+  {n:'Stout-heart',diff:40,uses:'1',cost:3000,k:'heal10',d:'Good for dwarves. Heals 10 hp.'},
+  {n:"Viper's Bane",diff:15,uses:'1',cost:5000,k:'antidote',d:'Neutralizes any toxin.'},
+  {n:'Zulsendra',diff:50,uses:'1',cost:1000,k:'haste',d:'Haste 3 rounds, then rest 5.'},
+  {n:'Zur',diff:50,uses:'1-2',cost:1000,k:'sense',d:'Foul tea. Enhances hearing and smell 1 hour.'}
+];
+function forageChance(){ return 10+(skillLvl('forage')-1)*5; }
+function forageHerbs(src){
+  if(!G.inv) G.inv={potions:[],herbs:{}};
+  const ch=forageChance(), roll=d100();
+  learn('forage',2);
+  if(src) src.picked=(src.picked||0)+1;
+  if(roll>ch){
+    say('Search '+roll+' vs '+ch+'% — no herbs.','#9a8a78');
+    hint('Forage '+ch+'%. Rank up to add 5%.',3.2);
+    return false;
+  }
+  const herb=HERBS[ri(0,HERBS.length-1)];
+  const find=d100();
+  say('Herb roll: '+herb.n+' — d100 '+find+' vs '+herb.diff+'%.','#c9b895');
+  if(find>herb.diff){
+    say(herb.n+' was here, but the sample was no good.','#9a8a78');
+    return false;
+  }
+  G.inv.herbs[herb.n]=(G.inv.herbs[herb.n]||0)+1;
+  say('You take '+herb.n+'.','#6aff8a');
+  ftext((src||player()||{x:0,y:0}).x,(src||player()||{x:0,y:0}).y,herb.n,'#6aff8a');
+  return true;
+}
+
+const LAIR={
+  A:{cp:[25,1,3,1000],sp:[30,200,2000,1],ep:[40,1,6,1000],gp:[35,300,1800,1],pp:[25,50,300,1],gem:[60,10,40],jew:[50,2,12],mag:[30,'any',3]},
+  B:{cp:[50,1,6,1000],sp:[25,1,3,1000],ep:[25,200,2000,1],gp:[25,500,1000,1],pp:null,gem:[30,1,8],jew:[20,1,4],mag:[10,'saw',1]},
+  C:{cp:[20,1,10,1000],sp:[30,1,6,1000],ep:null,gp:null,pp:null,gem:[25,1,6],jew:[20,1,3],mag:[10,'any',2]},
+  D:{cp:[10,1,4,1000],sp:[15,1,8,1000],ep:null,gp:[60,1,6,1000],pp:[15,100,800,1],gem:[30,1,10],jew:[25,1,6],mag:[15,'anyp',2]},
+  E:{cp:[5,1,6,1000],sp:[30,1,10,1000],ep:[25,1,4,1000],gp:[50,1,8,1000],pp:null,gem:[10,1,12],jew:[10,1,4],mag:[25,'anys',3]},
+  F:{cp:null,sp:[20,1,2,1000],ep:[10,1,3,1000],gp:[45,1,10,1000],pp:[30,500,3000,1],gem:[20,2,20],jew:[10,1,8],mag:[30,'anynos',3]},
+  G:{cp:null,sp:null,ep:null,gp:[75,2,20,1000],pp:[25,1,4,1000],gem:[25,3,18],jew:[25,1,10],mag:[35,'any',5]},
+  H:{cp:[25,3,18,1000],sp:[50,1,30,1000],ep:[50,1,10,1000],gp:[55,1,60,1000],pp:[25,500,4000,1],gem:[50,1,100],jew:[50,10,40],mag:[15,'anyps',4]},
+  I:{cp:null,sp:null,ep:null,gp:null,pp:[30,1,6,1000],gem:[55,2,16],jew:[50,1,8],mag:[15,'any',1]}
+};
+function chanceOk(pct){ return d100()<=pct; }
+function rngAmt(a,b){ return a+ri(0,Math.max(0,b-a)); }
+function addCoin(k,n){
+  if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
+  G.coin[k]=(G.coin[k]||0)+n;
+}
+function convertHoard(coins, gems, jew, magN, magKind, where){
+  const notes=[];
+  if(coins.cp){ addCoin('cp',coins.cp); const n=Math.min(6,Math.max(1,Math.round(coins.cp/1500))); gain('ironstone',n); notes.push(coins.cp+' cp'); }
+  if(coins.sp){ addCoin('sp',coins.sp); const n=Math.min(6,Math.max(1,Math.round(coins.sp/1000))); gain('ironstone',n); notes.push(coins.sp+' sp'); }
+  if(coins.ep){ addCoin('ep',coins.ep); const n=Math.min(5,Math.max(1,Math.round(coins.ep/600))); gain('deepsilver',n); notes.push(coins.ep+' ep'); }
+  if(coins.gp){ addCoin('gp',coins.gp); const n=Math.min(6,Math.max(1,Math.round(coins.gp/700))); gain('deepsilver',n); notes.push(coins.gp+' gp'); }
+  if(coins.pp){ addCoin('pp',coins.pp); const n=Math.min(4,Math.max(1,Math.round(coins.pp/200))); gain('starmetal',n); notes.push(coins.pp+' pp'); }
+  if(gems){ gain(gems>=8?'starmetal':'deepsilver', Math.min(4,Math.max(1,Math.round(gems/8)))); notes.push(gems+' gems'); }
+  if(jew){ gain('silk', Math.min(4,Math.max(1,Math.round(jew/3)))); notes.push(jew+' jewelry'); }
+  for(let i=0;i<magN;i++){
+    const cat=magKind||'any';
+    const r=d100();
+    const potion=cat==='potion'||cat==='anyp'||(cat.indexOf('any')===0&&r<=20)||(cat==='saw'&&r<=50);
+    if(potion){ const p=rollPotion(); givePotion(p,1); notes.push('potion: '+p.n); }
+    else if(r<=35){ learn('forage',8); learn('song',4); notes.push('a scroll'); }
+    else if(r<=40){ const p=player(); if(p&&p.gear){ p.gear.at=(p.gear.at||0)+1; } notes.push('a ring of protection'); }
+    else if(r<=55){ Object.values(G.gear||{}).forEach(x=>x.at=(x.at||0)+1); notes.push('enchanted mail'); }
+    else { const p=player(); if(p&&p.gear){ p.gear.wt=(p.gear.wt||0)+1; } notes.push('a magic weapon'); }
+  }
+  if(notes.length){
+    say(((where&&where.name)?where.name+' drops':'Treasure')+': '+notes.join(', ')+'.','#ffd27a');
+    if(where&&where.x!=null) ftext(where.x, where.y-0.4, notes[0], '#ffd27a');
+  }
+  return notes;
+}
+function rollLair(letter){
+  const T=LAIR[letter]; if(!T) return null;
+  const coins={}; let gems=0,jew=0,magN=0,magKind='any';
+  const coin= (key,row)=>{
+    if(!row) return;
+    if(chanceOk(row[0])) coins[key]=rngAmt(row[1],row[2])*(row[3]||1);
+  };
+  coin('cp',T.cp); coin('sp',T.sp); coin('ep',T.ep); coin('gp',T.gp); coin('pp',T.pp);
+  if(T.gem&&chanceOk(T.gem[0])) gems=rngAmt(T.gem[1],T.gem[2]);
+  if(T.jew&&chanceOk(T.jew[0])) jew=rngAmt(T.jew[1],T.jew[2]);
+  if(T.mag&&chanceOk(T.mag[0])){ magN=T.mag[2]||1; magKind=T.mag[1]; }
+  return {coins,gems,jew,magN,magKind};
+}
+function rollIndividual(letter){
+  const coins={};
+  if(letter==='J') coins.cp=rollDice(3,8,0);
+  else if(letter==='K') coins.sp=rollDice(3,6,0);
+  else if(letter==='L') coins.ep=rollDice(2,6,0);
+  else if(letter==='M') coins.gp=rollDice(2,4,0);
+  else if(letter==='N') coins.pp=rollDice(1,6,0);
+  else if(letter==='Q') return {coins:{},gems:chanceOk(50)?ri(1,4):0,jew:0,magN:0};
+  else if(letter==='R') return {coins:{},gems:0,jew:chanceOk(50)?ri(2,8):0,magN:0};
+  else if(letter==='S') return {coins:{},gems:0,jew:0,magN:chanceOk(40)?ri(1,8):0,magKind:'potion'};
+  else if(letter==='T') return {coins:{},gems:0,jew:0,magN:chanceOk(50)?ri(1,4):0,magKind:'scroll'};
+  else if(letter==='X') return {coins:{},gems:0,jew:0,magN:chanceOk(60)?2:0,magKind:'potion'};
+  else if(letter==='Y'){ if(chanceOk(70)) coins.gp=rollDice(2,6,0)*100; }
+  else return null;
+  return {coins,gems:0,jew:0,magN:0,magKind:'any'};
+}
+function applyHeal(e, n){
+  if(!e||e.dead) return 0;
+  const amt=Math.round(n*ADD_SCALE);
+  e.hp=Math.min(e.maxhp, e.hp+amt);
+  ftext(e.x,e.y,'+'+amt,'#e0c169',e.hero);
+  burst(e.x,e.y,'#c9a24a',10,2);
+  return amt;
+}
+function clearPoison(e){ e.poisonT=0; e._pt=0; }
+function drinkPotion(p, e){
+  e=e||player(); if(!e||!p) return;
+  const k=p.k, lv=e.lvl||partyLevel();
+  say(e.name+' drinks '+p.n+'.','#e0d2ff');
+  if(k==='heal10') applyHeal(e,10);
+  else if(k==='heal20') applyHeal(e,20);
+  else if(k==='heal40') applyHeal(e,40);
+  else if(k==='healall'){ e.hp=e.maxhp; applyHeal(e,1); say('Wounds close.','#ffe08a'); }
+  else if(k==='antidote'){ clearPoison(e); say('The poison leaves.','#6aff8a'); }
+  else if(k==='haste'){ e.buff=Math.max(e.buff||0, lv*0.6); e.cd=Math.max(.28,(e.cd||1)*0.5); e.sp=(e.sp||3)*1.35; }
+  else if(k==='invis'){ e.invis=lv*0.6; e.aggro=2; }
+  else if(k==='invuln'){ e.guardT=Math.max(e.guardT||0, lv*0.6); }
+  else if(k==='fly'){ e.sp=Math.max(e.sp,5.2); e.buff=Math.max(e.buff||0,8); }
+  else if(k==='regen'||k==='fast'){ e.potionRegen=60; }
+  else if(k==='str2'){ e.strMul=2; e.buff=Math.max(e.buff||0, lv*0.6); }
+  else if(k==='str3'){ e.strMul=3; e.buff=Math.max(e.buff||0, lv*0.6); }
+  else if(k==='vital'){ e.hp=Math.min(e.maxhp*2, e.hp+e.maxhp); e.maxhp=Math.round(e.maxhp*1.35); }
+  else if(k==='stoneskin'){ e.stoneskin=4+ri(1,4); }
+  else if(k==='guard'){ e.guardT=Math.max(e.guardT||0, lv); }
+  else if(k==='mr'){ e.mr=1; }
+  else if(k==='prot0'){ e.prot0=1; }
+  else if(k==='life'){ G.ents.forEach(x=>{ if(x.team==='party'&&x.dead){ x.dead=0; x.hp=Math.round(x.maxhp*.5); }}); say('The dead kin draw breath.','#ffe08a'); }
+  else if(k==='gear'){
+    if(e.gear){ e.gear.wd=e.gear.wmax; e.gear.ad=e.gear.amax; e.gear.wt=(e.gear.wt||0)+1; }
+    say('The oil takes on the kit.','#cfe3ff');
+  }
+  else if(k==='atk'){
+    const t=nearestFoe(e,7);
+    if(t){ const dmg=rollExpr(k==='unused'?'1d20':'1d20')*ADD_SCALE; damage(t,dmg,'#ff8a3a'); }
+    else applyHeal(e,8);
+  }
+  else if(k==='juice'){ e.juice=(e.juice||0)+1; }
+  else if(k==='sense'||k==='see'){ e.trueSee=30; }
+  else { e.buff=Math.max(e.buff||0,6); applyHeal(e,6); }
+}
+function useHerb(name, e){
+  e=e||player(); const h=HERBS.find(x=>x.n===name); if(!h||!e) return;
+  if(!G.inv.herbs[name]) return;
+  G.inv.herbs[name]--; if(G.inv.herbs[name]<=0) delete G.inv.herbs[name];
+  say(e.name+' uses '+name+'.','#6aff8a');
+  const k=h.k;
+  if(k==='heal2') applyHeal(e,2);
+  else if(k==='heal4') applyHeal(e,4);
+  else if(k==='heal10') applyHeal(e,10);
+  else if(k==='heal20') applyHeal(e,20);
+  else if(k==='heal40') applyHeal(e,40);
+  else if(k==='healall'){ e.hp=e.maxhp; applyHeal(e,1); }
+  else if(k==='antidote'){ clearPoison(e); say('The toxin fades.','#6aff8a'); }
+  else if(k==='haste'){ e.buff=3; e.cd=Math.max(.3,(e.cd||1)*0.5); e.sp=(e.sp||3)*1.3; e.stun=Math.max(e.stun||0,0); e.afterHaste=5; }
+  else if(k==='regen'||k==='tickheal'){ e.potionRegen=8; }
+  else if(k==='light'){ e.glow='#c8fff0'; }
+  else if(k==='hide'){ e.invis=12; }
+  else if(k==='see'){ e.trueSee=20; }
+  else if(k==='food'){ applyHeal(e,6); }
+  else if(k==='wood'){ gain('ironstone',1); }
+  else if(k==='laugh'){ e.stun=Math.max(e.stun||0,3.2); say('The cackler will not stop.','#ffd27a'); }
+  else if(k==='weary'){ e.buff=12; e.afterHaste=4; }
+  else if(k==='orc'){ G.ents.forEach(x=>{ if(!x.dead&&/orc|goblin|hobgob/i.test(x.kind||'')) x.aggro=99; }); }
+  else if(k==='sense'){ e.trueSee=16; }
+  else applyHeal(e,4);
+}
+
+
 /* ---------------------------- combat ---------------------------- */
 function damage(e,amt,col){
   if(e.dead) return;
+  if(e.stoneskin>0){ e.stoneskin--; ftext(e.x,e.y,'stoneskin','#cfe3ff'); return; }
   if(e.guard) amt*=.5;
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
-  if(e.team==='foe' && typeof e.ac==='number') amt*=(1-clamp((7-e.ac)*0.04,0,0.38));
   amt=Math.round(amt); e.hp-=amt; e.flash=.18;
   ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),e.boss);
   burst(e.x,e.y, e.glow||(e.kind==='statue'?'#b8b0a0':e.kind==='undead'?'#7cff9c':e.kind==='spider'?'#9a6bff':'#a3241f'),7,2.2);
@@ -1110,34 +1678,57 @@ function damage(e,amt,col){
       addDecal(e.x,e.y,(e.boss?2.6:1)*rnd(1.5,.9));
       if(e.boss) for(let i=0;i<5;i++) addDecal(e.x+rnd(1.6,-1.6),e.y+rnd(1.6,-1.6),rnd(2,1.2));
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; }
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero) G.scene='dead'; } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else G.scene='dead'; } } }
 }
 function onHitFx(atk,o,dmg){
-  if(atk&&atk.sa&&/Energy Drain/i.test(atk.sa)) dmg*=1.2;
-  if(atk&&atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
-  if(atk&&atk.poison) o.poisonT=Math.max(o.poisonT||0,3.4);
+  if(!atk||!o) return dmg;
+  const sa=atk.sa||'';
+  if(atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
+  if(atk.poison||/Poison/i.test(sa)){
+    if(!savingThrow(o,'poison')) o.poisonT=Math.max(o.poisonT||0,4.2);
+    else ftext(o.x,o.y+0.25,'poison save','#6aff8a');
+  }
+  if(/Energy Drain/i.test(sa)){
+    if(!savingThrow(o,'death')){ dmg=Math.round(dmg*1.35); o.maxhp=Math.max(20,o.maxhp-ADD_SCALE*4); }
+  }
+  if(/Petrif|Gaze|Cockatrice/i.test(sa)){
+    if(!savingThrow(o,'petrify')){ o.stun=Math.max(o.stun||0,2.8); dmg=Math.round(dmg*1.25); ftext(o.x,o.y,'held','#c8d4e0'); }
+  }
+  if(/Breath/i.test(sa)){
+    if(savingThrow(o,'breath')) dmg=Math.max(1,Math.round(dmg*0.5));
+  }
+  if(/Paralys|Paralyz/i.test(sa)){
+    if(!savingThrow(o,'poison')) o.stun=Math.max(o.stun||0,2.4);
+  }
+  if(/Confusion|Mind Blast|Spore/i.test(sa)){
+    if(o.mr||savingThrow(o,'spell')) {}
+    else o.stun=Math.max(o.stun||0,1.6);
+  }
   return dmg;
 }
 function meleeSwing(e,arc,reach,dmg,col){
-  dmg*=wepMult(e);
   const fa=ang(e.fdx,e.fdy); let hit=0;
   for(const o of G.ents){ if(o.dead||o.team===e.team) continue;
     const d=dist(e,o); if(d>reach+o.r) continue;
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
-    if(df<=arc/2){ damage(o,onHitFx(e,o,dmg*rnd(1.15,.88)),col);
-      wear(e.gear,0.35,0);
-      const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; } }
+    if(df<=arc/2){
+      const rolled=addAttack(e,o);
+      if(rolled){ damage(o,onHitFx(e,o,rolled),col);
+        wear(e.gear,0.35,0);
+        const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; }
+    } }
   const L=G.lvl;
+  const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
-    L.plug.hp-=dmg; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
-  if(!hit && e.hero && digSwing(e,dmg)) hit=1;
+    L.plug.hp-=rock; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
+  if(!hit && e.hero && digSwing(e,rock)) hit=1;
   if(hit){ shake(4); G.hitstop=Math.max(G.hitstop,.035); }
   return hit;
 }
 function shoot(from,tx,ty,dmg,kind,col,spd){
   const a=ang(tx-from.x,ty-from.y);
   G.shots.push({x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
-    rust:from.rust,poison:from.poison,sa:from.sa});
+    rust:from.rust,poison:from.poison,sa:from.sa,from});
 }
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='foe'||o.dead) continue; const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
@@ -1253,6 +1844,7 @@ window.addEventListener('keydown',e=>{
   if(k==='q') fire('swing');
   if(k==='r') fire('throw');
   if(k==='b') fire('bomb');
+  if(k==='f') fire('search');
   if(e.key==='Escape') G.paused=!G.paused;
 });
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
@@ -1265,6 +1857,12 @@ function fire(key){
   const p=player(); if(!p) return;
   if(key==='attack'){ if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return; }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
+  if(key==='search'){
+    if((p.searchCd||0)>0){ hint('Still looking. Herb Lore '+forageChance()+'%.',2.2); return; }
+    p.searchCd=7;
+    forageHerbs(p);
+    return;
+  }
   if(key==='bomb'){
     if(G.aim){ G.aim=null; return; }
     if(G.bombs<=0){ hint('No bombs. Pack more at the bench.',2.6); return; }
@@ -1352,6 +1950,11 @@ function update(dt){
     const ci=p.x|0,cj=p.y|0;
     for(let j=cj-10;j<=cj+10;j++) for(let i=ci-10;i<=ci+10;i++)
       if(L.seen[j]&&L.seen[j][i]!==undefined&&(i-p.x)*(i-p.x)+(j-p.y)*(j-p.y)<100) L.seen[j][i]=1;
+    p.searchCd=Math.max(0,(p.searchCd||0)-dt);
+    if(!PROMPT){
+      const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
+      if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
+    }
     for(const pr of G.props){
       if(pr.sprung>0) pr.sprung=Math.max(0,pr.sprung-dt);
       if(pr.k!=='trap') continue;
@@ -1376,6 +1979,9 @@ function update(dt){
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
     if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
+    if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+    if(e.afterHaste>0 && (e.buff||0)<=0){ e.afterHaste-=dt; e.sp=Math.max(1.2,(e.sp||3)*0.985); }
+    if(e.invis>0){ e.invis-=dt; if(e.invis<=0) e.aggro=7.5; }
     if(e.poisonT>0){
       e.poisonT-=dt; e._pt=(e._pt||0)+dt;
       if(e._pt>=0.7){ e._pt=0; damage(e,2,'#6aff8a'); }
@@ -1426,7 +2032,10 @@ function update(dt){
     s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team) continue;
-      if(dist(s,o)<o.r+.35){ damage(o,onHitFx(s,o,s.dmg),s.col); s.life=0; burst(s.x,s.y,s.col,9,2.5); break; } }
+      if(dist(s,o)<o.r+.35){
+        const rolled=s.from?addAttack(s.from,o):(s.dmg||8);
+        if(rolled) damage(o,onHitFx(s.from||s,o,rolled),s.col);
+        s.life=0; burst(s.x,s.y,s.col,9,2.5); break; } }
   }
   G.shots=G.shots.filter(s=>s.life>0);
   for(const q of G.parts){ q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.vz-=11*dt;
@@ -1444,6 +2053,7 @@ function update(dt){
   if(G.songBuff>0 && p){ const rg=G.songBuff*0.5*dt;
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.hp=Math.min(e.maxhp,e.hp+rg); }); }
   if(L.tick) L.tick(dt);
+  endFightIfClear();
   if(G.ents.length>44) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&(e.deadT||0)>2.2));
 }
 
@@ -1484,6 +2094,7 @@ function render(){
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='intro') drawIntro(g);
   if(G.scene==='camp') drawCamp(g);
+  if(G.scene==='pack') drawPack(g);
   if(G.scene==='dead') drawDead(g);
   if(G.scene==='win') drawWin(g);
   if(G.paused&&G.scene==='play') drawPause(g);
@@ -2544,6 +3155,7 @@ const SKILLS=[
   {k:'cloth', n:'Clothing Tailor',who:'TALPOR'},
   {k:'song',  n:'Singing',        who:'TALPOR'},
   {k:'mining',n:'Mining',         who:'MACAR'},
+  {k:'forage',n:'Herb Lore',      who:'TALPOR'},
 ];
 function skillLvl(k){ return clamp(1+Math.floor(Math.sqrt((G.xp[k]||0)/7)),1,10); }
 function skillNext(k){ const l=skillLvl(k); return l>=10?1:clamp(((G.xp[k]||0)-7*(l-1)*(l-1))/(7*(l*l-(l-1)*(l-1))),0,1); }
@@ -2557,32 +3169,22 @@ function spend(cost){ for(const k in cost) G.res[k]-=cost[k]; }
 function costText(cost){ const p=[]; for(const k in cost) p.push(cost[k]+' '+RESMETA[k].n); return p.length?p.join(' + '):'free'; }
 
 function foeDrop(e){
-  const TREASURE_LOOT={
-    J:['ironstone',1], K:['powder',1], C:['ironstone',2],
-    E:['silk',2], F:['deepsilver',2], H:['starmetal',3], I:['starmetal',4]
-  };
-  const letter=(e.treasure||'')[0];
-  const loot=TREASURE_LOOT[letter];
-  const chance=(e.drop||0)/100;
-  if(!loot){
-    if(e.boss){ gain('starmetal',3); gain('ironstone',6); gain('powder',3);
-      ftext(e.x,e.y-1,'+3 Starmetal',RESMETA.starmetal.c,1); return; }
-    if(Math.random()<0.32){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
+  const raw=(e.treasure||'Nil').toString().trim();
+  if(!raw || /^nil$/i.test(raw)){
+    if(e.boss){
+      const hoard=rollLair('H')||{coins:{},gems:0,jew:0,magN:1,magKind:'anyp'};
+      convertHoard(hoard.coins,hoard.gems,hoard.jew,hoard.magN,hoard.magKind,e);
+    } else if(Math.random()<0.18){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
     return;
   }
-  if(e.boss){
-    gain(loot[0], loot[1]+2); gain('ironstone',6); gain('powder',3);
-    ftext(e.x,e.y-1,'+'+ (loot[1]+2)+' '+RESMETA[loot[0]].n, RESMETA[loot[0]].c,1);
-    return;
+  const letter=raw[0];
+  let hoard=('ABCDEFGHI'.indexOf(letter)>=0)?rollLair(letter):rollIndividual(letter);
+  if(!hoard){
+    if(e.boss) hoard=rollLair('C')||{coins:{gp:ri(20,80)},gems:0,jew:0,magN:0};
+    else return;
   }
-  if(Math.random()>chance){
-    if(Math.random()<0.06){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
-    return;
-  }
-  const n=loot[1]+(Math.random()<0.25?1:0);
-  gain(loot[0], n);
-  ftext(e.x,e.y,'+'+n+' '+RESMETA[loot[0]].n, RESMETA[loot[0]].c);
-  if(letter==='J' && Math.random()<0.45){ gain('powder',1); ftext(e.x,e.y-0.35,'+1 Blackpowder',RESMETA.powder.c); }
+  if(e.boss && !hoard.magN && chanceOk(40)){ hoard.magN=1; hoard.magKind='anyp'; }
+  convertHoard(hoard.coins, hoard.gems, hoard.jew, hoard.magN||0, hoard.magKind||'any', e);
 }
 function newGear(){ return {wt:0,wd:100,wmax:100,rune:0, at:0,ad:100,amax:100, cd:100}; }
 function initEconomy(){
@@ -2590,6 +3192,9 @@ function initEconomy(){
   G.xp={}; G.skillSnap={}; SKILLS.forEach(s=>{G.xp[s.k]=0;G.skillSnap[s.k]=1;});
   G.gear={}; ROSTER.forEach(r=>G.gear[r.key]=newGear());
   G.bombs=2; G.ales=2; G.songBuff=0;
+  G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
+  G.inv={potions:[],herbs:{}};
+  G.fightOn=0; G.carryEffects=G.carryEffects||[];
 }
 function wepMult(e){ const g=e.gear; if(!g) return 1;
   let m=1+g.wt*0.18+(g.rune?0.12:0); if(g.wd<=0) m*=0.6; return m; }
@@ -2744,6 +3349,13 @@ function campActions(){
     info:'Heal all + regen through the next chapter',
     fn:()=>{ G.sang=1; learn('song',10); G.songBuff=skillLvl('song');
       say('Five voices, one drone. The stone listens.','#ffd27a'); }});
+  a.push({grp:'VERGE',t:'Search the cavern verge for herbs',cost:{},
+    info:'Herb Lore '+forageChance()+'%  ·  then d30 and d100 vs the plant',
+    fn:()=>{ forageHerbs(); }});
+  a.push({grp:'PACK',t:'Open the pack (potions & herbs)',cost:{},
+    info:(G.inv&&G.inv.potions?G.inv.potions.length:0)+' potions, '+
+      Object.values((G.inv&&G.inv.herbs)||{}).reduce((n,v)=>n+v,0)+' herbs',
+    fn:()=>{ G.scene='pack'; }});
   return a;
 }
 
@@ -3308,7 +3920,8 @@ function drawIntro(g){
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
     if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
-    else if(!G.taught.dig){ G.taught.dig=1; hint('Face bare rock and swing \u2014 you can dig anywhere',6); } });
+    else if(!G.taught.dig){ G.taught.dig=1; hint('Face bare rock and swing \u2014 you can dig anywhere',6); }
+    else if(!G.taught.herb){ G.taught.herb=1; hint('F searches for herbs. 10% + 5% per Herb Lore rank.',6); } });
 }
 
 function drawBetween(g){
@@ -3397,8 +4010,11 @@ function drawCamp(g){
   const gm=G.gear.macar, k0=G.gear.pordoom;
   g.font='600 '+(9.5*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
   g.fillStyle='rgba(186,166,130,0.75)';
+  const coin=G.coin||{};
   g.fillText('Hammer T'+gm.wt+(gm.rune?' + rune':'')+'  \u00b7  Armour T'+k0.at+
-    '  \u00b7  Bombs '+G.bombs+'  \u00b7  Ale '+G.ales+(G.songBuff?'  \u00b7  Song +'+G.songBuff:''),
+    '  \u00b7  Bombs '+G.bombs+'  \u00b7  Ale '+G.ales+
+    '  \u00b7  F'+partyLevel()+'  \u00b7  gp '+(coin.gp||0)+
+    (G.songBuff?'  \u00b7  Song +'+G.songBuff:''),
     VW/2, VH-46*s);
   g.textAlign='left';
   const nxt=G.ch===3?5:G.ch+1;
@@ -3433,12 +4049,60 @@ function drawWin(g){
   menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{G.scene='chapters';});
 }
 
+function drawPack(g){
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
+  g.textAlign='center';
+  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
+  g.fillText('PACK  \u00b7  POTIONS & UNDERGROUND HERBS', VW/2, VH*.07);
+  g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.75)';
+  const c=G.coin||{};
+  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.11);
+  g.textAlign='left';
+  if(!G.inv) G.inv={potions:[],herbs:{}};
+  const pots=G.inv.potions||[];
+  const herbs=Object.keys(G.inv.herbs||{});
+  const rows=[];
+  pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d}));
+  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(G.inv.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||''}));
+  const top=VH*.145, bot=VH-58*s, h=Math.min(PORT?36*s:40*s, Math.max(28*s,(bot-top)/Math.max(1,rows.length||1)));
+  if(!rows.length){
+    g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
+    g.fillText('The pack is empty. Search the verge, or take a lair.', VW/2, VH*.4);
+    g.textAlign='left';
+  }
+  rows.slice(0,12).forEach((r,i)=>{
+    const y=top+i*h, x=10*s, w=VW-20*s;
+    plate(g,x,y,w,h-3*s,5,.8);
+    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle=r.kind==='potion'?'#e0d2ff':'#6aff8a';
+    g.fillText(r.kind==='potion'?'POTION':'HERB', x+10*s, y+12*s);
+    g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle='#f4e2b8'; g.fillText(r.t, x+10*s, y+h*0.58);
+    g.font='600 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle='rgba(190,170,130,0.7)'; g.fillText((r.info||'').slice(0,72), x+10*s, y+h-8*s);
+    menuHits.push({x,y,w,h:h-3*s,fn:()=>{
+      if(r.kind==='potion'){
+        const p=G.inv.potions.splice(r.i,1)[0];
+        if(!p) return;
+        if(G.scene==='play') drinkPotion(p, player());
+        else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p}); say('Set aside for the next descent: '+p.n,'#e0d2ff'); }
+      } else {
+        if(G.scene==='play') useHerb(r.n, player());
+        else { if(G.inv.herbs[r.n]){ G.inv.herbs[r.n]--; if(G.inv.herbs[r.n]<=0) delete G.inv.herbs[r.n]; }
+          G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'herb',n:r.n}); say('Herb packed: '+r.n,'#6aff8a'); }
+      }
+    }});
+  });
+  menuBtn(g,'Back to camp',VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{G.scene='camp';});
+}
+
 function drawPause(g){
   menuHits=[]; const s=UIS; darken(g,.72);
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('Drag left side to walk \u00b7 tap ground to travel \u00b7 hold the sword to keep swinging',VW/2,VH*.31);
+  g.fillText('F searches for herbs  \u00b7  d20 vs AC  \u00b7  drag left to walk',VW/2,VH*.31);
   g.textAlign='left';
   menuBtn(g,'Resume',VW/2,VH*.44,Math.min(230*s,VW*.66),48*s,()=>{G.paused=false;});
   menuBtn(g,'Effects: '+(QUALITY?'High':'Fast'),VW/2,VH*.555,Math.min(230*s,VW*.66),42*s,()=>{QUALITY=QUALITY?0:1;});
