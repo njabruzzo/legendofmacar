@@ -106,6 +106,15 @@ const SPRITE_FILES={
   floor_ruin:'assets/tile_floor_ruin.png', floor_hall:'assets/tile_floor_hall.png',
   wall_cave:'assets/tile_wall_cave.png'
 };
+Object.keys(SPRITE_FILES).forEach(k=>{
+  const src=SPRITE_FILES[k];
+  if(!/^assets\/(dwarf_|mon_)/.test(src)) return;
+  if(/_(w1|w2|atk)\.png$/.test(src)) return;
+  const stem=src.replace(/\.png$/,'');
+  SPRITE_FILES[k+'_w1']=stem+'_w1.png';
+  SPRITE_FILES[k+'_w2']=stem+'_w2.png';
+  SPRITE_FILES[k+'_atk']=stem+'_atk.png';
+});
 function loadSprites(done){
   const keys=Object.keys(SPRITE_FILES); let left=keys.length;
   if(!left){ done(); return; }
@@ -131,6 +140,16 @@ function entSpriteKey(e){
   if(e.kind==='dwarf') return e.col && e.col.key;
   if(e.sprite) return e.sprite;
   return e.kind;
+}
+function entAnimImg(e){
+  const k=entSpriteKey(e);
+  if(!k) return null;
+  if(!e.dead && e.atk>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if(!e.dead && e.moving){
+    const a=SPR[k+'_w1'], b=SPR[k+'_w2']||SPR[k];
+    if(a) return ((e.anim*8)|0)%2 ? (b||a) : a;
+  }
+  return SPR[k]||null;
 }
 function entSpriteH(e,z){
   if(e.kind==='dwarf') return 78*z;
@@ -1738,10 +1757,10 @@ function drawEnt(g,e){
 
   const left=(e.fdx-e.fdy)<0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
-  const squash=1+sw*0.06;
+  const img=entAnimImg(e);
+  const squash=img?1:(1+sw*0.06);
   g.save(); g.translate(0,-bob0); g.scale(left?-1:1,1); g.scale(1/squash,squash);
-  const sk=entSpriteKey(e);
-  if(!(SPR[sk] && drawBillboard(g,SPR[sk],entSpriteH(e,z)))){
+  if(!(img && drawBillboard(g,img,entSpriteH(e,z)))){
     if(e.kind==='dwarf') drawDwarf(g,e,z,sw);
     else if(e.kind==='statue') drawStatue(g,e,z,sw);
     else if(e.kind==='spider') drawSpider(g,e,z,sw);
