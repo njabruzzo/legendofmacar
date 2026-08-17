@@ -80,36 +80,36 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
 const SPRITE_FILES={
-  macar:'assets/dwarf_macar.png', pordoom:'assets/dwarf_pordoom.png', fendur:'assets/dwarf_fendur.png',
-  orbo:'assets/dwarf_orbo.png', talpor:'assets/dwarf_talpor.png',
-  rat:'assets/mon_rat.png', bat:'assets/mon_bat.png', spider:'assets/mon_spider.png', spitter:'assets/mon_spitter.png',
-  beetle:'assets/mon_beetle.png', myconid:'assets/mon_myconid.png', thinone:'assets/mon_thinone.png',
-  crawler:'assets/mon_crawler.png', undead:'assets/mon_undead.png', elder:'assets/mon_elder.png',
-  barrow:'assets/mon_barrow.png', troll:'assets/mon_troll.png', construct:'assets/mon_construct.png',
-  wraith:'assets/mon_wraith.png', burrower:'assets/mon_burrower.png', champion:'assets/mon_champion.png',
-  warden:'assets/mon_warden.png', horror:'assets/mon_horror.png', drake:'assets/mon_drake.png', king:'assets/mon_king.png',
-  golem_brass:'assets/mon_golem_brass.png', golem_silver:'assets/mon_golem_silver.png',
-  golem_gold:'assets/mon_golem_gold.png', golem_platinum:'assets/mon_golem_platinum.png',
-  drow:'assets/mon_drow.png', drow_mage:'assets/mon_drow_mage.png',
-  duergar:'assets/mon_duergar.png', duergar_overseer:'assets/mon_duergar_overseer.png',
-  gnome:'assets/mon_gnome.png', gnome_sapper:'assets/mon_gnome_sapper.png',
-  gnome_good:'assets/mon_gnome_good.png', gnome_tinker:'assets/mon_gnome_tinker.png',
-  umberhulk:'assets/mon_umberhulk.png', hookedhorror:'assets/mon_hookedhorror.png',
-  beholder:'assets/mon_beholder.png',
-  lantern:'assets/prop_lantern.png', pillar:'assets/prop_pillar.png', cart:'assets/prop_cart.png',
-  brazier:'assets/prop_brazier.png', shroom:'assets/prop_shroom.png', rubydoor:'assets/prop_rubydoor.png',
-  tunnel:'assets/prop_tunnel.png', crate:'assets/prop_crate.png', bones:'assets/prop_bones.png',
-  altar:'assets/prop_altar.png', gate:'assets/prop_gate.png', lift:'assets/prop_lift.png',
-  names:'assets/prop_names.png', throne:'assets/prop_throne.png',
-  trap_spikes:'assets/prop_trap_spikes.png', trap_runes:'assets/prop_trap_runes.png', trap_pit:'assets/prop_trap_pit.png',
-  floor_mine:'assets/tile_floor_mine.png', floor_fungi:'assets/tile_floor_fungi.png',
-  floor_ruin:'assets/tile_floor_ruin.png', floor_hall:'assets/tile_floor_hall.png',
-  wall_cave:'assets/tile_wall_cave.png'
+  macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
+  orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
+  rat:'assets/creatures/mon_rat.png', bat:'assets/creatures/mon_bat.png', spider:'assets/creatures/mon_spider.png', spitter:'assets/creatures/mon_spitter.png',
+  beetle:'assets/creatures/mon_beetle.png', myconid:'assets/creatures/mon_myconid.png', thinone:'assets/creatures/mon_thinone.png',
+  crawler:'assets/creatures/mon_crawler.png', undead:'assets/creatures/mon_undead.png', elder:'assets/creatures/mon_elder.png',
+  barrow:'assets/creatures/mon_barrow.png', troll:'assets/creatures/mon_troll.png', construct:'assets/creatures/mon_construct.png',
+  wraith:'assets/creatures/mon_wraith.png', burrower:'assets/creatures/mon_burrower.png', champion:'assets/creatures/mon_champion.png',
+  warden:'assets/creatures/mon_warden.png', horror:'assets/creatures/mon_horror.png', drake:'assets/creatures/mon_drake.png', king:'assets/creatures/mon_king.png',
+  golem_brass:'assets/creatures/mon_golem_brass.png', golem_silver:'assets/creatures/mon_golem_silver.png',
+  golem_gold:'assets/creatures/mon_golem_gold.png', golem_platinum:'assets/creatures/mon_golem_platinum.png',
+  drow:'assets/creatures/mon_drow.png', drow_mage:'assets/creatures/mon_drow_mage.png',
+  duergar:'assets/creatures/mon_duergar.png', duergar_overseer:'assets/creatures/mon_duergar_overseer.png',
+  gnome:'assets/creatures/mon_gnome.png', gnome_sapper:'assets/creatures/mon_gnome_sapper.png',
+  gnome_good:'assets/creatures/mon_gnome_good.png', gnome_tinker:'assets/creatures/mon_gnome_tinker.png',
+  umberhulk:'assets/creatures/mon_umberhulk.png', hookedhorror:'assets/creatures/mon_hookedhorror.png',
+  beholder:'assets/creatures/mon_beholder.png',
+  lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
+  brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png', rubydoor:'assets/props/prop_rubydoor.png',
+  tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', bones:'assets/props/prop_bones.png',
+  altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
+  names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
+  trap_spikes:'assets/props/prop_trap_spikes.png', trap_runes:'assets/props/prop_trap_runes.png', trap_pit:'assets/props/prop_trap_pit.png',
+  floor_mine:'assets/tiles/tile_floor_mine.png', floor_fungi:'assets/tiles/tile_floor_fungi.png',
+  floor_ruin:'assets/tiles/tile_floor_ruin.png', floor_hall:'assets/tiles/tile_floor_hall.png',
+  wall_cave:'assets/tiles/tile_wall_cave.png'
 };
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
-  if(!/^assets\/(dwarf_|mon_)/.test(src)) return;
   if(/_(w1|w2|atk)\.png$/.test(src)) return;
+  if(!/(dwarf_|mon_|prop_|tile_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   SPRITE_FILES[k+'_w1']=stem+'_w1.png';
   SPRITE_FILES[k+'_w2']=stem+'_w2.png';
@@ -166,6 +166,16 @@ function propSpriteKey(p){
   if(k==='trap') return p.trap||'trap_spikes';
   if(k==='barrel'||k==='sack') return 'crate';
   return k;
+}
+function propAnimImg(p){
+  const k=propSpriteKey(p);
+  if((p.sprung||0)>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
+  const a=SPR[k+'_w1'], b=SPR[k+'_w2']||SPR[k];
+  if(a){
+    const f=((G.elapsed*5+(p.x||0)*2.7)|0)%2;
+    return f?(b||a):a;
+  }
+  return SPR[k]||null;
 }
 function propSpriteH(p,z){
   const k=p.k;
@@ -1005,6 +1015,7 @@ function update(dt){
     for(let j=cj-10;j<=cj+10;j++) for(let i=ci-10;i<=ci+10;i++)
       if(L.seen[j]&&L.seen[j][i]!==undefined&&(i-p.x)*(i-p.x)+(j-p.y)*(j-p.y)<100) L.seen[j][i]=1;
     for(const pr of G.props){
+      if(pr.sprung>0) pr.sprung=Math.max(0,pr.sprung-dt);
       if(pr.k!=='trap') continue;
       pr.cd=(pr.cd||0)-dt;
       if(pr.cd>0) continue;
@@ -1015,7 +1026,7 @@ function update(dt){
           damage(e, pit?16:rune?13:11, rune?'#c07bff':'#ff6a4a');
           burst(pr.x,pr.y, rune?'#c07bff':'#c2452e', 12, 2.4);
           say((e.name||'Kin')+' hits a trap.','#ff6a6a');
-          pr.cd=pit?2.8:rune?1.6:2.2; shake(8); break;
+          pr.cd=pit?2.8:rune?1.6:2.2; pr.sprung=0.55; shake(8); break;
         }
       }
     }
@@ -1187,8 +1198,11 @@ function drawWorld(g,L){
           const arr = vein?TEX.wallVein:TEX.wall;
           g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
           if(SPR.wall_cave){
+            const wv=[SPR.wall_cave, SPR.wall_cave_w1, SPR.wall_cave_w2, SPR.wall_cave_atk].filter(Boolean);
+            const rk=L.wallHP[x+','+y];
+            const wallImg=(rk&&rk.hp<rk.max&&SPR.wall_cave_atk)?SPR.wall_cave_atk:wv[(h2(x+3,y)*wv.length)|0];
             g.save(); g.globalAlpha=0.42;
-            g.drawImage(SPR.wall_cave, s.x-TW/2, s.y-WH-FH/2, TW, SH);
+            g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
             g.restore(); g.globalAlpha=1;
           }
           if(vein) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
@@ -1202,7 +1216,9 @@ function drawWorld(g,L){
           const arr = t===3?TEX.floorA:TEX.floor;
           g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-FH/2, TW, FH);
         } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
-        const fl=SPR[palFloorKey(pal)];
+        const key=palFloorKey(pal);
+        const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
+        const fl=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
         if(fl){
           g.save(); diamondPath(g,s.x,s.y); g.clip();
           g.globalAlpha=0.78;
@@ -1512,7 +1528,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
   g.save(); g.translate(s.x,s.y);
-  const sk=propSpriteKey(p), img=SPR[sk];
+  const img=propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
     drawBillboard(g,img,propSpriteH(p,z));
