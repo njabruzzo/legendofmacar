@@ -88,6 +88,11 @@ const SPRITE_FILES={
   barrow:'assets/mon_barrow.png', troll:'assets/mon_troll.png', construct:'assets/mon_construct.png',
   wraith:'assets/mon_wraith.png', burrower:'assets/mon_burrower.png', champion:'assets/mon_champion.png',
   warden:'assets/mon_warden.png', horror:'assets/mon_horror.png', drake:'assets/mon_drake.png', king:'assets/mon_king.png',
+  golem_brass:'assets/mon_golem_brass.png', golem_silver:'assets/mon_golem_silver.png',
+  golem_gold:'assets/mon_golem_gold.png', golem_platinum:'assets/mon_golem_platinum.png',
+  drow:'assets/mon_drow.png', drow_mage:'assets/mon_drow_mage.png',
+  duergar:'assets/mon_duergar.png', duergar_overseer:'assets/mon_duergar_overseer.png',
+  gnome:'assets/mon_gnome.png', gnome_sapper:'assets/mon_gnome_sapper.png',
   lantern:'assets/prop_lantern.png', pillar:'assets/prop_pillar.png', cart:'assets/prop_cart.png',
   brazier:'assets/prop_brazier.png', shroom:'assets/prop_shroom.png', rubydoor:'assets/prop_rubydoor.png',
   tunnel:'assets/prop_tunnel.png', crate:'assets/prop_crate.png', bones:'assets/prop_bones.png',
@@ -127,8 +132,9 @@ function entSpriteKey(e){
 function entSpriteH(e,z){
   if(e.kind==='dwarf') return 78*z;
   if(e.boss||e.kind==='king'||e.kind==='warden'||e.kind==='drake'||e.kind==='horror') return 128*z;
-  if(e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 104*z;
-  if(e.kind==='rat'||e.kind==='bat'||e.kind==='beetle') return 46*z;
+  if(e.kind==='golem'||e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 108*z;
+  if(e.kind==='drow') return 86*z;
+  if(e.kind==='gnome'||e.kind==='rat'||e.kind==='bat'||e.kind==='beetle') return 48*z;
   return 70*z;
 }
 function propSpriteKey(p){
@@ -158,6 +164,8 @@ function shotStyle(e){
   if(e.kind==='fungi') return ['spore','#d07bff',7];
   if(e.kind==='wraith'||e.kind==='bat') return ['wisp','#80d0ff',10];
   if(e.kind==='drake') return ['flame','#ff6a3a',10];
+  if(e.sprite==='drow_mage'||(e.kind==='drow'&&e.ranged)) return ['hex','#c07bff',10];
+  if(e.sprite==='gnome_sapper') return ['bomb','#ff8a3a',8];
   return ['bolt','#e8dcc0',11];
 }
 
@@ -457,8 +465,19 @@ const FOE={
   horror:()=>ent({kind:'horror',sprite:'horror',hp:380,sp:1.9,dmg:22,range:1.5,cd:1.35,scale:1.55,name:'Seam Horror',glow:'#ff40a0'}),
   drake:()=>ent({kind:'drake',sprite:'drake',hp:420,sp:2.1,dmg:22,range:5.8,cd:1.9,scale:1.6,ranged:1,name:'Ruby Drake',glow:'#ff5a3a'}),
   king:()=>ent({kind:'king',sprite:'king',hp:1150,sp:2.3,dmg:24,range:1.7,cd:1.2,scale:1.85,boss:1,name:'THE UNDYING KING',glow:'#ffd24a'}),
+  golemBrass:()=>ent({kind:'golem',sprite:'golem_brass',hp:180,sp:1.45,dmg:16,range:1.25,cd:1.45,scale:1.4,name:'Brass Guardian',glow:'#c48a3a'}),
+  golemSilver:()=>ent({kind:'golem',sprite:'golem_silver',hp:220,sp:1.55,dmg:17,range:1.3,cd:1.4,scale:1.42,name:'Silver Guardian',glow:'#c8d4e0'}),
+  golemGold:()=>ent({kind:'golem',sprite:'golem_gold',hp:280,sp:1.5,dmg:19,range:1.35,cd:1.35,scale:1.48,name:'Gold Guardian',glow:'#ffd24a'}),
+  golemPlatinum:()=>ent({kind:'golem',sprite:'golem_platinum',hp:360,sp:1.5,dmg:21,range:1.4,cd:1.3,scale:1.55,name:'Platinum Guardian',glow:'#e8f0ff'}),
+  drow:()=>ent({kind:'drow',sprite:'drow',hp:68,sp:3.3,dmg:13,range:.95,cd:.85,scale:1.08,name:'Drow Blade',glow:'#c07bff'}),
+  drowMage:()=>ent({kind:'drow',sprite:'drow_mage',hp:52,sp:2.4,dmg:14,range:6.2,cd:1.7,scale:1.08,ranged:1,name:'Drow Priestess',glow:'#d07bff'}),
+  duergar:()=>ent({kind:'duergar',sprite:'duergar',hp:95,sp:2.1,dmg:14,range:1.05,cd:1.15,scale:1.05,name:'Duergar',glow:'#ff5a48'}),
+  duergarX:()=>ent({kind:'duergar',sprite:'duergar_overseer',hp:160,sp:1.9,dmg:17,range:1.2,cd:1.25,scale:1.22,name:'Duergar Overseer',glow:'#ff3b3b'}),
+  gnome:()=>ent({kind:'gnome',sprite:'gnome',hp:28,sp:3.6,dmg:8,range:.75,cd:.7,scale:.78,r:.28,name:'Deep Gnome',glow:'#a35bff'}),
+  gnomeBomber:()=>ent({kind:'gnome',sprite:'gnome_sapper',hp:34,sp:2.8,dmg:12,range:5.0,cd:2.0,scale:.82,r:.3,ranged:1,name:'Gnome Sapper',glow:'#ff8a3a'}),
 };
 FOE.thinone=FOE.statue; FOE.myconid=FOE.fungi; FOE.elder=FOE.fungiElder; FOE.barrow=FOE.undeadX;
+FOE.dueger=FOE.duergar; FOE.duegerX=FOE.duergarX; FOE.golem=FOE.golemBrass;
 
 /* ---------------------------- abilities ---------------------------- */
 const ABIL=[
@@ -562,10 +581,10 @@ function makeChapter(n){
         wave([['spider',26,20],['spider',30,22],['bat',24,30],['spider',31,31],['beetle',27,26],['spitter',22,24],['crawler',28,28]]);}
       if(L.flags.w1&&!L.flags.w2&&p.x>36&&p.y<24){L.flags.w2=1;
         say('The second hollow is a nest.','#c79bff');
-        wave([['spider',44,10],['crawler',48,12],['spider',41,18],['bat',47,19],['beetle',44,15],['spitter',50,10],['spitter',39,13]]);}
+        wave([['spider',44,10],['crawler',48,12],['drow',41,18],['bat',47,19],['beetle',44,15],['spitter',50,10],['gnome',39,13]]);}
       if(L.flags.w2&&!L.flags.w3&&p.y>32&&p.x>39){L.flags.w3=1;L.objs[1].d=1;
-        say('The fungus stands up and walks.','#d8a6ff');
-        wave([['fungi',44,38],['fungi',49,36],['crawler',46,44],['fungi',52,42],['beetle',41,42],['fungiElder',50,40]]);}
+        say('Deep gnomes in the ring. They laugh like powder catching.','#d8a6ff');
+        wave([['fungi',44,38],['gnome',49,36],['gnomeBomber',46,44],['fungi',52,42],['gnome',41,42],['fungiElder',50,40]]);}
       if(L.flags.w3&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('Ahead: cut stone. Dwarf work. Very old.','#8fd8ff');}
       if(L.flags.done&&dist(p,{x:57,y:40})<2.5) interact('Open the gate',()=>{L.objs[3].d=1;endChapter();});
@@ -592,11 +611,11 @@ function makeChapter(n){
     L.guide=()=>!L.flags.w1?{x:26,y:28}:!L.flags.w2?{x:46,y:20}:!L.flags.boss?{x:48,y:40}:null;
     L.tick=()=>{
       const p=player(); if(!p) return;
-      if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('They still wear the mark of the Deep Vein.','#9de8a8');
-        wave([['undead',22,23],['wraith',28,24],['undead',24,34],['construct',30,33],['undead',26,28],['undeadX',31,28]]);}
+      if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
+        wave([['duergar',22,23],['wraith',28,24],['duergar',24,34],['construct',30,33],['duergar',26,28],['duergarX',31,28]]);}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
-        say('Every name on this wall is scratched out.','#e8c08a');
-        wave([['undead',42,14],['wraith',50,15],['undead',44,24],['troll',51,23],['undeadX',46,19],['champion',41,20]]);}
+        say('Drow in the Hall of Names. They came for the oath, not the dead.','#c79bff');
+        wave([['drow',42,14],['drowMage',50,15],['undead',44,24],['drow',51,23],['undeadX',46,19],['duergarX',41,20]]);}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
         wave([['undead',42,44],['construct',54,44],['burrower',48,46]]);
@@ -629,15 +648,15 @@ function makeChapter(n){
       const p=player(); if(!p) return;
       if(!L.flags.start&&p.y<34){L.flags.start=1;L.objs[0].d=1;
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
-        say('MORDAIN heard the oath. MORDAIN answered it.','#ff6a4a');
+        say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
         const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
-        wave([['undeadX',22,20],['champion',36,20],['horror',29,24]]);}
+        wave([['golemBrass',22,20],['golemSilver',36,20],['drow',29,24]]);}
       const k=G.ents.find(e=>e.kind==='king'&&!e.dead);
       if(k){ const f=k.hp/k.maxhp;
-        if(f<.66&&!L.flags.p2){L.flags.p2=1; say('"You will not take what I paid for!"','#ffd24a');
-          wave([['wraith',20,14],['drake',38,14],['undead',20,32],['construct',38,32]]); shake(12);}
-        if(f<.33&&!L.flags.p3){L.flags.p3=1; say('The curse peels off him in sheets.','#ff6a4a');
-          wave([['undeadX',24,12],['champion',34,12],['horror',29,34],['burrower',24,32],['troll',34,32]]); shake(16);}
+        if(f<.66&&!L.flags.p2){L.flags.p2=1; say('Gold steps down from the colonnade.','#ffd24a');
+          wave([['golemGold',20,14],['drowMage',38,14],['duergar',20,32],['gnomeBomber',38,32]]); shake(12);}
+        if(f<.33&&!L.flags.p3){L.flags.p3=1; say('Platinum holds the dais. The last metal of the temple.','#e8f0ff');
+          wave([['golemPlatinum',24,12],['duergarX',34,12],['drow',29,34],['golemBrass',24,32],['drowMage',34,32]]); shake(16);}
       }
       if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
         L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
@@ -1719,8 +1738,8 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
-  if(!e.dead&&e.glow&&(e.boss||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'))
-    emit(s.x,s.y-(e.boss?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
+  if(!e.dead&&e.glow&&(e.boss||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'))
+    emit(s.x,s.y-(e.boss||e.kind==='golem'?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
 
   if(!e.dead&&e.team==='foe'&&(e.hp<e.maxhp||e.boss)){
     const w=(e.boss?122:38)*ZOOM,h=(e.boss?8:4.4)*ZOOM, yy=s.y-(e.boss?106:62)*ZOOM*e.scale;
@@ -2133,7 +2152,8 @@ function foeDrop(e){
     fungi:['barley',0.55], crawler:['silk',0.50], undead:['ironstone',0.40], statue:['ironstone',0.45],
     troll:['ironstone',0.55], construct:['ironstone',0.50], wraith:['deepsilver',0.22],
     burrower:['ironstone',0.55], champion:['starmetal',0.35], horror:['starmetal',0.40],
-    drake:['starmetal',0.45], warden:['starmetal',1], king:['starmetal',1]
+    drake:['starmetal',0.45], warden:['starmetal',1], king:['starmetal',1],
+    golem:['starmetal',0.40], drow:['silk',0.50], duergar:['ironstone',0.50], gnome:['powder',0.45]
   };
   const t=table[e.kind]; if(!t) return;
   if(e.boss){ gain(t[0],3); gain('ironstone',6); gain('powder',4);
