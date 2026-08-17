@@ -119,7 +119,15 @@ const UNDERDARK=[
   'earthelem','magmaelem','blackpudding','dao','vampire','mindflayer','galebduhr',
   'lurker','ghost','tenebrous','roper','lich','trapper','giantslug','shadowdragon',
   'fomorian','deathtyrant','stonegiant','deepdragon','deepspawn','purpleworm',
-  'neothelid','firegiant','mustardjelly','elderbrain'
+  'neothelid','firegiant','mustardjelly','elderbrain',
+  'urophion','neootyugh','spectator','piercer_huge','piercer_small',
+  'deepdragon_wyrm','deepdragon_young','basilisk_greater','margoyle',
+  'pudding_brown','pudding_white','pudding_dun','beetle_boring',
+  'spider_giant','spider_huge','myconid_king','myconid_junior',
+  'xorn_elder','xorn_minor','earthelem_elder','magmaelem_elder',
+  'kobold_emperor','goblin_king','orc_overlord','gibberling_abom',
+  'duergar_thane','drow_matron','grimlock_champ','troglodyte_avatar',
+  'kuotoa_leviathan','quaggoth_beastlord','svirfneblin_king','bugbear_tyrant'
 ];
 UNDERDARK.forEach(k=>{ SPRITE_FILES[k]='assets/creatures/mon_'+k+'.png'; });
 Object.keys(SPRITE_FILES).forEach(k=>{
@@ -608,9 +616,182 @@ const FOE={
   mustardjelly:()=>ent({kind:'mustardjelly',sprite:'mustardjelly',hp:220,sp:1.5,dmg:17,range:4.8,cd:1.6,scale:1.2,r:.45,ranged:1,name:'Mustard Jelly',glow:'#d4a04a'}),
   elderbrain:()=>ent({kind:'elderbrain',sprite:'elderbrain',hp:720,sp:1.4,dmg:22,range:7.0,cd:1.15,scale:1.7,r:.6,ranged:1,boss:1,name:'ELDER BRAIN',glow:'#ff7ad9'}),
 };
-FOE.thinone=FOE.statue; FOE.myconid=FOE.fungi; FOE.elder=FOE.fungiElder; FOE.barrow=FOE.undeadX;
+function hpG(h){ return Math.max(8, Math.round(h*4)); }
+function dmgG(d){ return Math.max(3, Math.round(d*1.65)); }
+function mvSp(m){ return +(1.12+Math.min(24,m||9)*0.145).toFixed(2); }
+function atkCd(a){
+  if(a>=4) return .52; if(a>=3) return .62; if(a>=2.4) return .72;
+  if(a>=2) return .85; if(a>=1.4) return .95; return 1.15;
+}
+const BESTIARY={
+  elderbrain:{n:'ELDER BRAIN',spr:'elderbrain',hp:160,ac:5,mv:9,at:2,dmg:7,tt:'I',dc:100,g:'#ff7ad9',sc:1.7,r:.6,ranged:1,rng:7,boss:1,sa:'Mind blast'},
+  beholder:{n:'THE EYE',spr:'beholder',hp:112,ac:0,mv:3,at:1,dmg:5,tt:'I',dc:100,g:'#ff7ad9',sc:1.55,r:.5,ranged:1,rng:6.4,boss:1,sa:'10 Eye Rays'},
+  deepspawn:{n:'Deepspawn',spr:'deepspawn',hp:112,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#ff40a0',sc:1.6,r:.55,sa:'Spawn'},
+  neothelid:{n:'Neothelid',spr:'neothelid',hp:120,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#c07bff',sc:1.7,r:.6},
+  trapper:{n:'Trapper',spr:'trapper',hp:96,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:1.3,r:.5},
+  urophion:{n:'Urophion',spr:'urophion',hp:96,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#c07bff',sc:1.4,sa:'Mind blast'},
+  roper:{n:'Roper',spr:'roper',hp:88,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#c9b895',sc:1.4},
+  neootyugh:{n:'Neo-Otyugh',spr:'neootyugh',hp:88,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.45,r:.55},
+  gauth:{n:'Gauth',spr:'gauth',hp:81,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#c48a3a',sc:1.25,ranged:1,rng:6},
+  lurker:{n:'Lurker Above',spr:'lurker',hp:80,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:1.35},
+  umberhulk:{n:'Umber Hulk',spr:'umberhulk',hp:72,ac:2,mv:6,at:3,dmg:21,tt:'Nil',dc:0,g:'#c08040',sc:1.55,r:.55,sa:'Confusion Gaze'},
+  mindflayer:{n:'Mind Flayer',spr:'mindflayer',hp:68,ac:5,mv:12,at:4,dmg:8,tt:'F',dc:100,g:'#c07bff',sc:1.2,ranged:1,rng:6.2,sa:'Mind Blast'},
+  aboleth:{n:'Aboleth',spr:'aboleth',hp:64,ac:4,mv:18,at:4,dmg:14,tt:'Nil',dc:0,g:'#7ad0ff',sc:1.5,r:.55,ranged:1,rng:6.2,sa:'Slime'},
+  otyugh:{n:'Otyugh',spr:'otyugh',hp:56,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.35,r:.5},
+  morkoth:{n:'Morkoth',spr:'morkoth',hp:56,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#7ad0ff',sc:1.25,ranged:1,rng:5.8},
+  drider:{n:'Drider',spr:'drider',hp:51,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#c07bff',sc:1.35,sa:'Poison',poison:1},
+  cloaker:{n:'Cloaker',spr:'cloaker',hp:48,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#5a3a8a',sc:1.2},
+  rustmonster:{n:'Rust Monster',spr:'rustmonster',hp:40,ac:2,mv:12,at:2,dmg:3,tt:'Nil',dc:0,g:'#ff8a3a',sc:1.1,sa:'Rust Metal',rust:1},
+  spectator:{n:'Spectator',spr:'spectator',hp:36,ac:5,mv:9,at:2,dmg:7,tt:'I',dc:100,g:'#c48a3a',sc:1.15,ranged:1,rng:5.8},
+  piercerHuge:{n:'Huge Piercer',spr:'piercer_huge',hp:32,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:1.25,k:'piercer'},
+  crawler:{n:'Carrion Crawler',spr:'crawler',hp:25,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#c06bff',sc:1.05,sa:'Paralysis'},
+  piercer:{n:'Piercer',spr:'piercer',hp:24,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:.95,r:.3},
+  piercerMed:{n:'Medium Piercer',spr:'piercer',hp:16,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:.85,r:.28,k:'piercer'},
+  ixzan:{n:'Ixzan',spr:'ixzan',hp:9,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#7a5cff',sc:1.05,ranged:1,rng:5.2},
+  piercerSmall:{n:'Small Piercer',spr:'piercer_small',hp:8,ac:5,mv:9,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a7a6a',sc:.7,r:.24,k:'piercer'},
+  deepdragonWyrm:{n:'Deep Dragon Wyrm',spr:'deepdragon_wyrm',hp:160,ac:0,mv:24,at:3,dmg:22.5,tt:'H',dc:100,g:'#a35bff',sc:1.85,ranged:1,rng:6.6,boss:1,sa:'Breath Weapon'},
+  deepdragon:{n:'Deep Dragon',spr:'deepdragon',hp:112,ac:0,mv:24,at:3,dmg:22.5,tt:'H',dc:100,g:'#a35bff',sc:1.65,ranged:1,rng:6.3,sa:'Breath Weapon'},
+  shadowdragon:{n:'Shadow Dragon',spr:'shadowdragon',hp:104,ac:0,mv:24,at:3,dmg:22.5,tt:'H',dc:100,g:'#5a3a8a',sc:1.6,ranged:1,rng:6.2,sa:'Breath Weapon'},
+  deepdragonYoung:{n:'Young Deep Dragon',spr:'deepdragon_young',hp:48,ac:0,mv:24,at:3,dmg:22.5,tt:'H',dc:100,g:'#a35bff',sc:1.15,ranged:1,rng:5.6,sa:'Breath Weapon'},
+  earthelemElder:{n:'Earth Elemental Lord',spr:'earthelem_elder',hp:160,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:1.7,sd:'+2 weapon to hit',k:'earthelem'},
+  earthelem16:{n:'Greater Earth Elemental',spr:'earthelem_elder',hp:128,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:1.55,k:'earthelem'},
+  magmaelemElder:{n:'Magma Elemental Lord',spr:'magmaelem_elder',hp:128,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#ff6a3a',sc:1.6,k:'magmaelem'},
+  xornElder:{n:'Elder Xorn',spr:'xorn_elder',hp:120,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:1.5,k:'xorn'},
+  earthelem12:{n:'Earth Elemental',spr:'earthelem',hp:96,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:1.4,k:'earthelem'},
+  magmaelem12:{n:'Magma Elemental',spr:'magmaelem',hp:96,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#ff6a3a',sc:1.4,k:'magmaelem'},
+  galebduhr:{n:'Galeb Duhr',spr:'galebduhr',hp:72,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#9a9084',sc:1.25},
+  dao:{n:'Dao',spr:'dao',hp:67,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c4a060',sc:1.35},
+  earthelem:{n:'Earth Elemental',spr:'earthelem',hp:64,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:1.5},
+  magmaelem:{n:'Magma Elemental',spr:'magmaelem',hp:64,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#ff6a3a',sc:1.5},
+  xorn:{n:'Xorn',spr:'xorn',hp:63,ac:-2,mv:9,at:4,dmg:21,tt:'Nil',dc:0,g:'#c08040',sc:1.2,sa:'Surprise'},
+  khargra:{n:'Khargra',spr:'khargra',hp:48,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c8d4e0',sc:1.05},
+  pech:{n:'Pech',spr:'pech',hp:32,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c4a060',sc:.88},
+  sandling:{n:'Sandling',spr:'sandling',hp:32,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#d4b06a',sc:1.05},
+  xornMinor:{n:'Minor Xorn',spr:'xorn_minor',hp:24,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c08040',sc:.85,k:'xorn'},
+  crysmal:{n:'Crysmal',spr:'crysmal',hp:24,ac:2,mv:6,at:1,dmg:18,tt:'Nil',dc:0,g:'#c8d4e0',sc:.95},
+  stonegiant:{n:'Stone Giant',spr:'stonegiant',hp:112,ac:4,mv:12,at:1,dmg:9,tt:'Nil',dc:0,g:'#9a9084',sc:1.7,ranged:1,rng:5.5,sa:'Hurl Rocks'},
+  firegiant:{n:'Fire Giant',spr:'firegiant',hp:120,ac:4,mv:12,at:1,dmg:9,tt:'Nil',dc:0,g:'#ff6a3a',sc:1.7,sa:'Hurl Rocks'},
+  fomorian:{n:'Fomorian',spr:'fomorian',hp:107,ac:4,mv:12,at:1,dmg:9,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.65,sa:'Hurl Rocks'},
+  troll:{n:'Cave Troll',spr:'troll',hp:54,ac:4,mv:12,at:3,dmg:19,tt:'Nil',dc:0,g:'#6aff8a',sc:1.4,sa:'Rend',regen:1,sd:'Regeneration'},
+  koboldEmperor:{n:'Kobold Emperor',spr:'kobold_emperor',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#c07040',sc:1.15,boss:1,k:'kobold'},
+  goblinKing:{n:'Goblin King',spr:'goblin_king',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#6a8a4a',sc:1.2,boss:1,k:'goblin'},
+  orcOverlord:{n:'Orc Overlord',spr:'orc_overlord',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#6a8a3a',sc:1.45,boss:1,k:'orc'},
+  gibberlingAbom:{n:'Gibberling Abomination',spr:'gibberling_abom',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#c9b895',sc:1.4,boss:1,k:'gibberling'},
+  duergarThane:{n:'Duergar Thane',spr:'duergar_thane',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#ff5a48',sc:1.35,boss:1,k:'duergar'},
+  drowMatron:{n:'Drow Matron',spr:'drow_matron',hp:160,ac:-2,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#d07bff',sc:1.28,ranged:1,rng:6.2,boss:1,k:'drow',sa:'Spells, Poison',poison:1},
+  grimlockChamp:{n:'Grimlock Champion',spr:'grimlock_champ',hp:160,ac:-1,mv:12,at:3,dmg:9.5,tt:'H',dc:100,g:'#a09080',sc:1.4,boss:1,k:'grimlock',sa:'Surprise'},
+  troglodyteAvatar:{n:'Avatar of Laogzed',spr:'troglodyte_avatar',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#6aff8a',sc:1.45,boss:1,k:'troglodyte'},
+  kuotoaLeviathan:{n:'Sea Mother',spr:'kuotoa_leviathan',hp:160,ac:-2,mv:18,at:3,dmg:9.5,tt:'H',dc:100,g:'#7ad0ff',sc:1.5,ranged:1,rng:6,boss:1,k:'kuotoa',sa:'Lightning'},
+  quaggothBeastlord:{n:'Quaggoth Beastlord',spr:'quaggoth_beastlord',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#e8e0d0',sc:1.4,boss:1,k:'quaggoth'},
+  svirfneblinKing:{n:'Svirfneblin King',spr:'svirfneblin_king',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#c4a060',sc:1.05,boss:1,k:'gnome'},
+  bugbearTyrant:{n:'Bugbear Tyrant',spr:'bugbear_tyrant',hp:160,ac:0,mv:12,at:3,dmg:10.5,tt:'H',dc:100,g:'#8a6a4a',sc:1.5,boss:1,k:'bugbear'},
+  koboldKing:{n:'Kobold King',spr:'kobold_emperor',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#c07040',sc:1.05,k:'kobold'},
+  goblinWarlord:{n:'Goblin Warlord',spr:'goblin_king',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#6a8a4a',sc:1.1,k:'goblin'},
+  orcWarlord:{n:'Orc Warlord',spr:'orc_overlord',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#6a8a3a',sc:1.32,k:'orc'},
+  gibberlingHorde:{n:'Horde-caller',spr:'gibberling_abom',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#c9b895',sc:1.25,k:'gibberling'},
+  duergarPriest:{n:'Duergar High Priest',spr:'duergar_thane',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#ff5a48',sc:1.22,k:'duergar'},
+  drowCaptain:{n:'Drow House Captain',spr:'drow_matron',hp:120,ac:-1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#d07bff',sc:1.18,k:'drow',sa:'Spells, Poison',poison:1},
+  grimlockElder:{n:'Grimlock Elder',spr:'grimlock_champ',hp:120,ac:0,mv:12,at:2.5,dmg:8.5,tt:'F',dc:80,g:'#a09080',sc:1.25,k:'grimlock'},
+  troglodyteShaman:{n:'Troglodyte Shaman',spr:'troglodyte_avatar',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#6aff8a',sc:1.28,ranged:1,rng:5.5,k:'troglodyte'},
+  kuotoaDuke:{n:'Kuo-Toa Duke',spr:'kuotoa_leviathan',hp:120,ac:-1,mv:18,at:2.5,dmg:8.5,tt:'F',dc:80,g:'#7ad0ff',sc:1.32,k:'kuotoa',sa:'Lightning'},
+  quaggothAlpha:{n:'Quaggoth Alpha',spr:'quaggoth_beastlord',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#e8e0d0',sc:1.28,k:'quaggoth'},
+  svirfneblinIllus:{n:'Deep Illusionist',spr:'svirfneblin_king',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#c4a060',sc:.98,ranged:1,rng:5.8,k:'gnome'},
+  bugbearWarlord:{n:'Bugbear Warlord',spr:'bugbear_tyrant',hp:120,ac:1,mv:12,at:2.5,dmg:9.5,tt:'F',dc:80,g:'#8a6a4a',sc:1.38,k:'bugbear'},
+  koboldWarlord:{n:'Kobold Warlord',spr:'kobold_emperor',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#c07040',sc:.95,k:'kobold'},
+  goblinChieftain:{n:'Goblin Chieftain',spr:'goblin_king',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#6a8a4a',sc:1.0,k:'goblin'},
+  orcChief:{n:'Orc Chief',spr:'orc_overlord',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#6a8a3a',sc:1.18,k:'orc'},
+  gibberlingBrood:{n:'Broodlord',spr:'gibberling_abom',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#c9b895',sc:1.12,k:'gibberling'},
+  duergarX:{n:'Duergar Taskmaster',spr:'duergar_overseer',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#ff3b3b',sc:1.22,k:'duergar'},
+  drowMage:{n:'Drow Mage',spr:'drow_mage',hp:80,ac:1,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#d07bff',sc:1.08,ranged:1,rng:6.2,k:'drow',sa:'Spells, Poison',poison:1},
+  grimlockChief:{n:'Grimlock Chieftain',spr:'grimlock_champ',hp:80,ac:2,mv:12,at:2,dmg:6.5,tt:'E',dc:60,g:'#a09080',sc:1.15,k:'grimlock'},
+  troglodyteChief:{n:'Troglodyte Chief',spr:'troglodyte',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#6aff8a',sc:1.18,k:'troglodyte'},
+  kuotoaWhip:{n:'Kuo-Toa Whip',spr:'kuotoa',hp:80,ac:1,mv:18,at:2,dmg:6.5,tt:'E',dc:60,g:'#7ad0ff',sc:1.15,k:'kuotoa',sa:'Lightning'},
+  quaggothThonot:{n:'Quaggoth Thonot',spr:'quaggoth',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#e8e0d0',sc:1.22,k:'quaggoth'},
+  svirfneblinWarden:{n:'Burrow Warden',spr:'svirfneblin_king',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#c4a060',sc:.9,k:'gnome'},
+  bugbearChief:{n:'Bugbear Chief',spr:'bugbear_tyrant',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#8a6a4a',sc:1.32,k:'bugbear'},
+  koboldChief:{n:'Kobold Chief',spr:'kobold',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c07040',sc:.86,k:'kobold'},
+  goblinBoss:{n:'Goblin Boss',spr:'goblin',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#6a8a4a',sc:.9,k:'goblin'},
+  orcSergeant:{n:'Orc Sergeant',spr:'orc',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#6a8a3a',sc:1.12,k:'orc'},
+  gibberlingAlpha:{n:'Gibberling Alpha',spr:'gibberling',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c9b895',sc:.98,k:'gibberling'},
+  duergarCaptain:{n:'Duergar Captain',spr:'duergar',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#ff5a48',sc:1.12,k:'duergar'},
+  drowElite:{n:'Drow Elite',spr:'drow',hp:40,ac:3,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c07bff',sc:1.12,k:'drow',sa:'Spells, Poison',poison:1},
+  grimlockHunter:{n:'Grimlock Hunter',spr:'grimlock',hp:40,ac:4,mv:12,at:1.5,dmg:4.5,tt:'C',dc:50,g:'#a09080',sc:1.12,k:'grimlock'},
+  troglodyteSub:{n:'Troglodyte Sub-chief',spr:'troglodyte',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#6aff8a',sc:1.14,k:'troglodyte'},
+  kuotoaMonitor:{n:'Kuo-Toa Monitor',spr:'kuotoa',hp:40,ac:3,mv:18,at:1.5,dmg:4.5,tt:'C',dc:50,g:'#7ad0ff',sc:1.12,k:'kuotoa'},
+  quaggothJarl:{n:'Quaggoth Jarl',spr:'quaggoth',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#e8e0d0',sc:1.2,k:'quaggoth'},
+  svirfneblinOverseer:{n:'Svirfneblin Overseer',spr:'gnome_good',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c4a060',sc:.86,k:'gnome'},
+  bugbearLeader:{n:'Bugbear Leader',spr:'bugbear',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#8a6a4a',sc:1.32,k:'bugbear'},
+  bugbear:{n:'Bugbear',spr:'bugbear',hp:25,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#8a6a4a',sc:1.28},
+  svirfneblin:{n:'Svirfneblin',spr:'gnome_good',hp:24,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#c4a060',sc:.82,r:.28,k:'gnome'},
+  quaggoth:{n:'Quaggoth',spr:'quaggoth',hp:18,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#e8e0d0',sc:1.18},
+  drow:{n:'Drow Blade',spr:'drow',hp:16,ac:4,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#c07bff',sc:1.08,sa:'Spells, Poison',poison:1},
+  grimlock:{n:'Grimlock',spr:'grimlock',hp:16,ac:5,mv:12,at:1,dmg:3.5,tt:'J',dc:40,g:'#a09080',sc:1.08,sa:'Surprise'},
+  troglodyte:{n:'Troglodyte',spr:'troglodyte',hp:16,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#6aff8a',sc:1.1},
+  kuotoa:{n:'Kuo-Toa',spr:'kuotoa',hp:16,ac:4,mv:18,at:1,dmg:3.5,tt:'J',dc:40,g:'#7ad0ff',sc:1.08,sa:'Lightning'},
+  kobold:{n:'Kobold',spr:'kobold',hp:4,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#c07040',sc:.78,r:.28},
+  duergar:{n:'Duergar',spr:'duergar',hp:10,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#ff5a48',sc:1.05},
+  gibberling:{n:'Gibberling',spr:'gibberling',hp:8,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#c9b895',sc:.88},
+  goblin:{n:'Goblin',spr:'goblin',hp:7,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#6a8a4a',sc:.82,r:.3},
+  orc:{n:'Orc',spr:'orc',hp:8,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#6a8a3a',sc:1.05},
+  purpleworm:{n:'PURPLE WORM',spr:'purpleworm',hp:120,ac:6,mv:9,at:2,dmg:18,tt:'Nil',dc:0,g:'#a35bff',sc:1.75,r:.6,boss:1,sa:'Swallow Whole'},
+  giantslug:{n:'Giant Slug',spr:'giantslug',hp:96,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#c9b895',sc:1.45,r:.55,ranged:1,rng:5.5},
+  basiliskGreater:{n:'Greater Basilisk',spr:'basilisk_greater',hp:80,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a9a6a',sc:1.4,k:'basilisk',sa:'Petrifying gas'},
+  tenebrous:{n:'Tenebrous Worm',spr:'tenebrous',hp:80,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#5a3a8a',sc:1.35},
+  minotaur:{n:'Minotaur',spr:'minotaur',hp:51,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#c48a3a',sc:1.4},
+  medusa:{n:'Medusa',spr:'medusa',hp:48,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#6aff8a',sc:1.15,ranged:1,rng:5.6,sa:'Gaze'},
+  margoyle:{n:'Margoyle',spr:'margoyle',hp:48,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#6e6254',sc:1.3,k:'gargoyle'},
+  basilisk:{n:'Basilisk',spr:'basilisk',hp:49,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#8a9a6a',sc:1.25,sa:'Gaze'},
+  phasespider:{n:'Phase Spider',spr:'phasespider',hp:45,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#80d0ff',sc:1.2,sa:'Poison',poison:1},
+  hookedhorror:{n:'Hooked Horror',spr:'hookedhorror',hp:40,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#c07bff',sc:1.35,r:.45},
+  cockatrice:{n:'Cockatrice',spr:'cockatrice',hp:40,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#c9b895',sc:1.0,sa:'Petrify'},
+  gargoyle:{n:'Gargoyle',spr:'gargoyle',hp:36,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#9a9084',sc:1.22},
+  mustardjelly:{n:'Mustard Jelly',spr:'mustardjelly',hp:112,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#d4a04a',sc:1.2,r:.45,ranged:1,rng:4.8,sa:'Acid',k:'mustardjelly'},
+  puddingBrown:{n:'Brown Pudding',spr:'pudding_brown',hp:88,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#8a6240',sc:1.3,r:.5,sa:'Acid',k:'ooze'},
+  blackpudding:{n:'Black Pudding',spr:'blackpudding',hp:80,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#3a3a3a',sc:1.4,r:.55,sa:'Acid'},
+  puddingWhite:{n:'White Pudding',spr:'pudding_white',hp:72,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#e8e0d0',sc:1.25,r:.48,sa:'Acid',k:'ooze'},
+  puddingDun:{n:'Dun Pudding',spr:'pudding_dun',hp:65,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#c4a060',sc:1.2,r:.46,sa:'Acid',k:'ooze'},
+  ochrejelly:{n:'Ochre Jelly',spr:'ochrejelly',hp:48,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#d4a04a',sc:1.15,r:.42,sa:'Acid'},
+  slithertracker:{n:'Slithering Tracker',spr:'slithertracker',hp:40,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#ff7ad9',sc:1.0,r:.36,sa:'Acid'},
+  gelcube:{n:'Gelatinous Cube',spr:'gelcube',hp:32,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#c8fff0',sc:1.35,r:.55,sa:'Acid, Paralysis'},
+  grayooze:{n:'Gray Ooze',spr:'grayooze',hp:27,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#9a9a9a',sc:1.05,r:.4,sa:'Acid'},
+  greenslime:{n:'Green Slime',spr:'greenslime',hp:16,ac:8,mv:3,at:1,dmg:5,tt:'Nil',dc:0,g:'#6aff4a',sc:.95,r:.34,sa:'Acid'},
+  myconidKing:{n:'Myconid King',spr:'myconid_king',hp:48,ac:8,mv:1,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#d07bff',sc:1.5,ranged:1,rng:6,sa:'Spores',k:'fungi'},
+  shrieker:{n:'Shrieker',spr:'shrieker',hp:24,ac:8,mv:1,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#c07bff',sc:1.05,ranged:1,rng:5.4,sa:'Spores'},
+  violetfungus:{n:'Violet Fungus',spr:'violetfungus',hp:24,ac:8,mv:1,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#a35bff',sc:1.12,sa:'Spores'},
+  myconid:{n:'Myconid',spr:'myconid',hp:24,ac:8,mv:1,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#a35bff',sc:1.15,sa:'Spores',k:'fungi'},
+  myconidJunior:{n:'Myconid Junior',spr:'myconid_junior',hp:8,ac:8,mv:1,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#c07bff',sc:.7,r:.26,sa:'Spores',k:'fungi'},
+  deathtyrant:{n:'DEATH TYRANT',spr:'deathtyrant',hp:112,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#7cff9c',sc:1.55,r:.5,ranged:1,rng:6.4,boss:1,sa:'Energy Drain'},
+  lich:{n:'Lich',spr:'lich',hp:88,ac:0,mv:6,at:1,dmg:5.5,tt:'F',dc:100,g:'#7cff9c',sc:1.3,ranged:1,rng:6.4,sa:'Paralyzing Touch, Spells'},
+  ghost:{n:'Ghost',spr:'ghost',hp:80,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#80d0ff',sc:1.15,ranged:1,rng:5.4,sa:'Energy Drain'},
+  vampire:{n:'Vampire',spr:'vampire',hp:67,ac:3,mv:12,at:1,dmg:4.5,tt:'F',dc:100,g:'#ff2e3c',sc:1.22,sa:'Energy Drain'},
+  wraith:{n:'Mine Wraith',spr:'wraith',hp:43,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#80d0ff',sc:1.1,ranged:1,rng:5.2,sa:'Energy Drain'},
+  beetleBoring:{n:'Boring Beetle',spr:'beetle_boring',hp:40,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.15,sa:'Poison',poison:1,k:'beetle'},
+  spiderGiant:{n:'Giant Spider',spr:'spider_giant',hp:36,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.25,sa:'Poison',poison:1,k:'spider'},
+  spiderHuge:{n:'Huge Spider',spr:'spider_huge',hp:18,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.05,sa:'Poison',poison:1,k:'spider'},
+  rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
+  centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
+  beetle:{n:'Fire Beetle',spr:'beetle',hp:10,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.0,sa:'Poison',poison:1},
+  spider:{n:'Cave Spider',spr:'spider',hp:9,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1}
+};
+function applyBestiary(){
+  Object.keys(BESTIARY).forEach(k=>{
+    const b=BESTIARY[k];
+    FOE[k]=()=>ent({
+      kind:b.k||k, sprite:b.spr, name:b.n,
+      hp:hpG(b.hp), sp:mvSp(b.mv), dmg:dmgG(b.dmg), cd:atkCd(b.at),
+      range:b.rng!=null?b.rng:(b.ranged?5.8:Math.max(.7,.82+(b.at||1)*.08)),
+      ranged:b.ranged||0, scale:b.sc||1, r:b.r||.38,
+      ac:b.ac, sa:b.sa||'', sd:b.sd||'', treasure:b.tt||'Nil', drop:b.dc||0,
+      glow:b.g||'#c9b895', boss:b.boss||0, regen:b.regen||0, rust:b.rust||0, poison:b.poison||0
+    });
+  });
+}
+applyBestiary();
+
+FOE.thinone=FOE.statue; FOE.myconid=FOE.myconid; FOE.fungi=FOE.myconid; FOE.fungiElder=FOE.myconidKing; FOE.elder=FOE.myconidKing; FOE.barrow=FOE.undeadX;
 FOE.dueger=FOE.duergar; FOE.duegerX=FOE.duergarX; FOE.golem=FOE.golemBrass;
-FOE.illithid=FOE.mindflayer; FOE.spectator=FOE.gauth; FOE.svirfneblin=FOE.pech;
+FOE.illithid=FOE.mindflayer; FOE.svirfneblin=FOE.svirfneblin;
+
 
 const ALLY={
   gnome:()=>ent({kind:'gnome',sprite:'gnome_good',team:'party',ally:1,hp:95,sp:3.4,dmg:11,range:.9,cd:.85,scale:.82,r:.28,name:'PIP',glow:'#ffe08a'}),
@@ -678,7 +859,8 @@ function makeChapter(n){
           [[29,14],[29,29],[41,14],[41,29],[35,12],[35,31]].forEach((s,i)=>{
             const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
           wave([['rat',32,16],['rat',38,26],['beetle',34,21],['bat',40,18],
-            ['centipede',30,18],['kobold',36,24],['goblin',33,28],['piercer',41,16],['greenslime',38,20]]);
+            ['centipede',30,18],['kobold',36,24],['goblin',33,28],['piercer',41,16],['greenslime',38,20],
+            ['koboldChief',31,22],['goblinBoss',37,27],['piercerSmall',39,19]]);
           say('The thin statues step down from their plinths.','#d8cbb0');
           hint('Six of them. Use SWING when they crowd you.',5);
         });
@@ -718,7 +900,7 @@ function makeChapter(n){
       if(!L.flags.w1&&p.x>19){L.flags.w1=1;L.objs[0].d=1;
         say('Silk drags across the stone. They heard the lift.','#c79bff');
         wave([['spider',26,20],['spider',30,22],['bat',24,30],['spider',31,31],['beetle',27,26],['spitter',22,24],['crawler',28,28],
-          ['gibberling',24,22],['kobold',29,28],['shrieker',32,20]]);}
+          ['gibberling',24,22],['kobold',29,28],['shrieker',32,20],['beetleBoring',25,26],['spiderGiant',30,24]]);}
       if(L.flags.w1&&!L.flags.w2&&p.x>36&&p.y<24){L.flags.w2=1;
         say('The second hollow is a nest.','#c79bff');
         wave([['spider',44,10],['crawler',48,12],['drow',41,18],['hookedhorror',47,19],['beetle',44,15],['spitter',50,10],['gnome',39,13],
@@ -726,7 +908,8 @@ function makeChapter(n){
       if(L.flags.w2&&!L.flags.w3&&p.y>32&&p.x>39){L.flags.w3=1;L.objs[1].d=1;
         say('Deep gnomes in the ring. They laugh like powder catching.','#d8a6ff');
         wave([['fungi',44,38],['gnome',49,36],['gnomeBomber',46,44],['umberhulk',52,42],['gnome',41,42],['fungiElder',50,40],
-          ['violetfungus',43,42],['shrieker',48,38],['bugbear',51,44],['kuotoa',46,40]]);
+          ['violetfungus',43,42],['shrieker',48,38],['bugbear',51,44],['kuotoa',46,40],
+          ['myconidJunior',44,40],['bugbearLeader',50,36],['spiderHuge',47,42]]);
         joinAllies([['gnome',40,36],['gnomeTinker',43,35]]);
         say('Rock gnomes from the lower seam. Pip and Bramble will stand with you.','#ffe08a');}
       if(L.flags.w3&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
@@ -762,10 +945,12 @@ function makeChapter(n){
         say('An eye opens in the Hall of Names.','#ff7ad9');
         const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
         wave([['drow',42,14],['drowMage',50,15],['hookedhorror',44,24],['drow',51,23],['duergarX',41,20],
-          ['drider',47,16],['cloaker',43,22],['minotaur',50,20],['gauth',45,18]]);}
+          ['drider',47,16],['cloaker',43,22],['minotaur',50,20],['gauth',45,18],
+          ['drowElite',43,18],['spectator',48,12],['margoyle',52,22]]);}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
-        wave([['undead',42,44],['umberhulk',54,44],['burrower',48,46],['otyugh',45,42],['roper',51,46],['gelcube',48,40]]);
+        wave([['undead',42,44],['umberhulk',54,44],['burrower',48,46],['otyugh',45,42],['roper',51,46],['gelcube',48,40],
+          ['puddingBrown',44,42],['basiliskGreater',52,40]]);
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
         hint('Keep moving. GUARD when he winds up.',5);}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
@@ -802,12 +987,14 @@ function makeChapter(n){
       if(L.flags.w1&&!L.flags.w2&&p.x>40&&p.y<26){L.flags.w2=1;L.objs[0].d=1;
         say('Illithids. They have been farming this city for minds.','#c07bff');
         wave([['mindflayer',46,12],['mindflayer',54,14],['gauth',50,18],['vampire',44,20],['ghost',56,16],
-          ['lich',48,10],['medusa',52,22],['neothelid',50,14]]);}
+          ['lich',48,10],['medusa',52,22],['neothelid',50,14],
+          ['drowMatron',47,16],['urophion',53,12],['neootyugh',45,20]]);}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.elderbrain(); b.x=52; b.y=42; G.ents.push(b);
         const t=FOE.deathtyrant(); t.x=46; t.y=40; G.ents.push(t);
         wave([['deepspawn',56,46],['lurker',48,48],['trapper',54,38],['blackpudding',50,44],['mustardjelly',58,42],
-          ['galebduhr',44,44],['tenebrous',58,48],['earthelem',50,38]]);
+          ['galebduhr',44,44],['tenebrous',58,48],['earthelem',50,38],
+          ['xornElder',46,42],['puddingWhite',54,44],['magmaelemElder',48,38]]);
         say('ELDER BRAIN - the pool that rules the dead city.','#ff7ad9'); shake(22);
         hint('Kill the Death Tyrant first if the rays pin you.',5);}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
@@ -847,7 +1034,8 @@ function makeChapter(n){
             ['firegiant',18,18],['magmaelem',40,18],['basilisk',22,28]]); shake(12);}
         if(f<.33&&!L.flags.p3){L.flags.p3=1; say('Platinum holds the dais. The last metal of the temple.','#e8f0ff');
           wave([['golemPlatinum',24,12],['duergarX',34,12],['umberhulk',29,34],['golemBrass',24,32],['drowMage',34,32],
-            ['deepdragon',18,16],['shadowdragon',40,16],['fomorian',20,30],['stonegiant',38,30],['purpleworm',29,28]]); shake(16);}
+            ['deepdragon',18,16],['shadowdragon',40,16],['fomorian',20,30],['stonegiant',38,30],['purpleworm',29,28],
+            ['duergarThane',22,14],['orcOverlord',36,14],['deepdragonWyrm',29,10]]); shake(16);}
       }
       if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
         L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
@@ -911,6 +1099,7 @@ function damage(e,amt,col){
   if(e.dead) return;
   if(e.guard) amt*=.5;
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
+  if(e.team==='foe' && typeof e.ac==='number') amt*=(1-clamp((7-e.ac)*0.04,0,0.38));
   amt=Math.round(amt); e.hp-=amt; e.flash=.18;
   ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),e.boss);
   burst(e.x,e.y, e.glow||(e.kind==='statue'?'#b8b0a0':e.kind==='undead'?'#7cff9c':e.kind==='spider'?'#9a6bff':'#a3241f'),7,2.2);
@@ -923,13 +1112,19 @@ function damage(e,amt,col){
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; }
     } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero) G.scene='dead'; } }
 }
+function onHitFx(atk,o,dmg){
+  if(atk&&atk.sa&&/Energy Drain/i.test(atk.sa)) dmg*=1.2;
+  if(atk&&atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
+  if(atk&&atk.poison) o.poisonT=Math.max(o.poisonT||0,3.4);
+  return dmg;
+}
 function meleeSwing(e,arc,reach,dmg,col){
   dmg*=wepMult(e);
   const fa=ang(e.fdx,e.fdy); let hit=0;
   for(const o of G.ents){ if(o.dead||o.team===e.team) continue;
     const d=dist(e,o); if(d>reach+o.r) continue;
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
-    if(df<=arc/2){ damage(o,dmg*rnd(1.15,.88),col);
+    if(df<=arc/2){ damage(o,onHitFx(e,o,dmg*rnd(1.15,.88)),col);
       wear(e.gear,0.35,0);
       const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; } }
   const L=G.lvl;
@@ -941,7 +1136,8 @@ function meleeSwing(e,arc,reach,dmg,col){
 }
 function shoot(from,tx,ty,dmg,kind,col,spd){
   const a=ang(tx-from.x,ty-from.y);
-  G.shots.push({x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0});
+  G.shots.push({x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
+    rust:from.rust,poison:from.poison,sa:from.sa});
 }
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='foe'||o.dead) continue; const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
@@ -1179,6 +1375,11 @@ function update(dt){
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
+    if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
+    if(e.poisonT>0){
+      e.poisonT-=dt; e._pt=(e._pt||0)+dt;
+      if(e._pt>=0.7){ e._pt=0; damage(e,2,'#6aff8a'); }
+    }
     if(e.buff>0) e.buff-=dt;
     if(e.ct>0) e.ct-=dt;
     if(e.atk>0){
@@ -1225,7 +1426,7 @@ function update(dt){
     s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team) continue;
-      if(dist(s,o)<o.r+.35){ damage(o,s.dmg,s.col); s.life=0; burst(s.x,s.y,s.col,9,2.5); break; } }
+      if(dist(s,o)<o.r+.35){ damage(o,onHitFx(s,o,s.dmg),s.col); s.life=0; burst(s.x,s.y,s.col,9,2.5); break; } }
   }
   G.shots=G.shots.filter(s=>s.life>0);
   for(const q of G.parts){ q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.vz-=11*dt;
@@ -2356,38 +2557,32 @@ function spend(cost){ for(const k in cost) G.res[k]-=cost[k]; }
 function costText(cost){ const p=[]; for(const k in cost) p.push(cost[k]+' '+RESMETA[k].n); return p.length?p.join(' + '):'free'; }
 
 function foeDrop(e){
-  const table={
-    rat:['ironstone',0.25], bat:['silk',0.30], spider:['silk',0.55], beetle:['ironstone',0.40],
-    fungi:['barley',0.55], crawler:['silk',0.50], undead:['ironstone',0.40], statue:['ironstone',0.45],
-    troll:['ironstone',0.55], construct:['ironstone',0.50], wraith:['deepsilver',0.22],
-    burrower:['ironstone',0.55], champion:['starmetal',0.35], horror:['starmetal',0.40],
-    drake:['starmetal',0.45], warden:['starmetal',1], king:['starmetal',1],
-    golem:['starmetal',0.40], drow:['silk',0.50], duergar:['ironstone',0.50], gnome:['powder',0.45],
-    umberhulk:['ironstone',0.55], hookedhorror:['silk',0.45], beholder:['starmetal',1],
-    kobold:['ironstone',0.30], goblin:['ironstone',0.32], orc:['ironstone',0.40], centipede:['silk',0.28],
-    piercer:['ironstone',0.30], gibberling:['powder',0.25], ixzan:['silk',0.40], grimlock:['ironstone',0.40],
-    troglodyte:['barley',0.35], greenslime:['powder',0.30], kuotoa:['silk',0.40], quaggoth:['ironstone',0.45],
-    shrieker:['barley',0.50], violetfungus:['barley',0.50], bugbear:['ironstone',0.45],
-    xorn:['deepsilver',0.35], crysmal:['deepsilver',0.30], grayooze:['powder',0.35], gelcube:['ironstone',0.40],
-    pech:['ironstone',0.40], sandling:['powder',0.30], gargoyle:['ironstone',0.40], rustmonster:['ironstone',0.55],
-    cockatrice:['silk',0.35], phasespider:['silk',0.50], medusa:['starmetal',0.25], ochrejelly:['powder',0.35],
-    cloaker:['silk',0.45], basilisk:['ironstone',0.45], minotaur:['ironstone',0.50], drider:['silk',0.50],
-    otyugh:['powder',0.40], morkoth:['silk',0.45], slithertracker:['silk',0.40], khargra:['deepsilver',0.30],
-    gauth:['starmetal',0.40], aboleth:['starmetal',0.45], earthelem:['ironstone',0.55], magmaelem:['starmetal',0.35],
-    blackpudding:['powder',0.40], dao:['deepsilver',0.40], vampire:['starmetal',0.40], mindflayer:['starmetal',0.45],
-    galebduhr:['ironstone',0.50], lurker:['silk',0.40], ghost:['deepsilver',0.30], tenebrous:['silk',0.40],
-    roper:['ironstone',0.50], lich:['starmetal',0.50], trapper:['ironstone',0.45], giantslug:['barley',0.35],
-    shadowdragon:['starmetal',0.55], fomorian:['ironstone',0.50], deathtyrant:['starmetal',1],
-    stonegiant:['ironstone',0.55], deepdragon:['starmetal',0.55], deepspawn:['starmetal',0.45],
-    purpleworm:['starmetal',1], neothelid:['starmetal',0.50], firegiant:['starmetal',0.45],
-    mustardjelly:['powder',0.40], elderbrain:['starmetal',1]
+  const TREASURE_LOOT={
+    J:['ironstone',1], K:['powder',1], C:['ironstone',2],
+    E:['silk',2], F:['deepsilver',2], H:['starmetal',3], I:['starmetal',4]
   };
-  const t=table[e.kind]; if(!t) return;
-  if(e.boss){ gain(t[0],3); gain('ironstone',6); gain('powder',4);
-    ftext(e.x,e.y-1,'+3 '+RESMETA[t[0]].n,RESMETA[t[0]].c,1); return; }
-  if(Math.random()<t[1]){ const n=1+(Math.random()<0.25?1:0); gain(t[0],n);
-    ftext(e.x,e.y,'+'+n+' '+RESMETA[t[0]].n,RESMETA[t[0]].c); }
-  if(Math.random()<0.10){ gain('powder',1); ftext(e.x,e.y-0.4,'+1 Blackpowder',RESMETA.powder.c); }
+  const letter=(e.treasure||'')[0];
+  const loot=TREASURE_LOOT[letter];
+  const chance=(e.drop||0)/100;
+  if(!loot){
+    if(e.boss){ gain('starmetal',3); gain('ironstone',6); gain('powder',3);
+      ftext(e.x,e.y-1,'+3 Starmetal',RESMETA.starmetal.c,1); return; }
+    if(Math.random()<0.32){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
+    return;
+  }
+  if(e.boss){
+    gain(loot[0], loot[1]+2); gain('ironstone',6); gain('powder',3);
+    ftext(e.x,e.y-1,'+'+ (loot[1]+2)+' '+RESMETA[loot[0]].n, RESMETA[loot[0]].c,1);
+    return;
+  }
+  if(Math.random()>chance){
+    if(Math.random()<0.06){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
+    return;
+  }
+  const n=loot[1]+(Math.random()<0.25?1:0);
+  gain(loot[0], n);
+  ftext(e.x,e.y,'+'+n+' '+RESMETA[loot[0]].n, RESMETA[loot[0]].c);
+  if(letter==='J' && Math.random()<0.45){ gain('powder',1); ftext(e.x,e.y-0.35,'+1 Blackpowder',RESMETA.powder.c); }
 }
 function newGear(){ return {wt:0,wd:100,wmax:100,rune:0, at:0,ad:100,amax:100, cd:100}; }
 function initEconomy(){
