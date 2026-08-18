@@ -98,6 +98,7 @@ const SPRITE_FILES={
   beholder:'assets/creatures/mon_beholder.png',
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png', rubydoor:'assets/props/prop_rubydoor.png',
+  bronzedoor:'assets/props/prop_bronzedoor.png',
   tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', bones:'assets/props/prop_bones.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
@@ -198,6 +199,7 @@ function entSpriteH(e,z){
 function propSpriteKey(p){
   const k=p.k;
   if(k==='rubywall'||k==='rubydoor') return 'rubydoor';
+  if(k==='bronzedoor') return 'bronzedoor';
   if(k==='trap') return p.trap||'trap_spikes';
   if(k==='barrel'||k==='sack') return 'crate';
   return k;
@@ -217,7 +219,7 @@ function propSpriteH(p,z){
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
-  if(k==='gate'||k==='tunnel') return 120*z;
+  if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 120*z;
   if(k==='lantern') return 102*z;
   if(k==='lift') return 72*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z;
@@ -799,6 +801,7 @@ FOE.illithid=FOE.mindflayer; FOE.svirfneblin=FOE.svirfneblin;
 const ALLY={
   gnome:()=>ent({kind:'gnome',sprite:'gnome_good',team:'party',ally:1,hp:95,sp:3.4,dmg:11,range:.9,cd:.85,scale:.82,r:.28,name:'PIP',glow:'#ffe08a'}),
   gnomeTinker:()=>ent({kind:'gnome',sprite:'gnome_tinker',team:'party',ally:1,hp:80,sp:2.9,dmg:13,range:5.4,cd:1.55,scale:.84,r:.28,ranged:1,name:'BRAMBLE',glow:'#ffc061'}),
+  nim:()=>ent({kind:'gnome',sprite:'gnome_good',team:'neutral',npc:1,sleeping:1,hp:48,sp:4.8,dmg:8,range:.7,cd:.85,scale:.86,r:.28,name:'Nim',glow:'#ffe08a'}),
 };
 
 /* ---------------------------- abilities ---------------------------- */
@@ -879,45 +882,93 @@ function makeChapter(n){
   }
 
   if(n===2){
-    L.title='Chapter II'; L.sub='The Way Is Open'; L.pal=PAL.fungi;
-    L.w=64; L.h=52; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,4,22,10,8,3); corridor(g,12,26,22,26,4,0); rect(g,20,18,14,16,0);
-    corridor(g,33,26,42,14,4,0); rect(g,38,8,14,14,0); corridor(g,45,21,45,34,4,0);
-    rect(g,38,32,18,16,0); rect(g,54,38,6,5,3);
-    L.spawn={x:8,y:26};
-    L.objs=[{t:'Follow the purple light',d:0},{t:'Clear the spider hollows',d:0},
-            {t:'Break the myconid ring',d:0},{t:'Reach the dwarf-cut gate',d:0}];
-    L.lights=[{x:8,y:26,c:'#ffb45c',r:5,f:1},{x:26,y:26,c:'#a06cff',r:9,f:1.3},
-      {x:44,y:14,c:'#a06cff',r:9,f:1.3},{x:46,y:40,c:'#a06cff',r:10,f:1.4},{x:57,y:40,c:'#7cf0ff',r:7,f:1.2}];
-    G.props=[{x:8,y:23,k:'lantern'},{x:57,y:40,k:'gate'},
-      {x:16.5,y:26,k:'tunnel'},{x:34,y:22,k:'tunnel'},{x:45,y:28,k:'tunnel'},
-      {x:22,y:26,k:'trap',trap:'trap_spikes'},{x:28,y:22,k:'trap',trap:'trap_runes'},
-      {x:42,y:14,k:'trap',trap:'trap_pit'},{x:46,y:38,k:'trap',trap:'trap_runes'},
-      {x:24,y:20,k:'crate'},{x:30,y:30,k:'bones'},{x:40,y:10,k:'pillar'},{x:50,y:16,k:'pillar'},
-      {x:42,y:36,k:'brazier'},{x:52,y:44,k:'bones'}];
-    for(let i=0;i<90;i++){ const x=ri(16,60),y=ri(6,48);
-      if(g[y]&&g[y][x]===0&&Math.random()<.5) G.props.push({x:x+rnd(1),y:y+rnd(1),k:'shroom'}); }
-    L.guide=()=>!L.flags.w1?{x:26,y:26}:!L.flags.w2?{x:44,y:14}:!L.flags.w3?{x:46,y:40}:{x:57,y:40};
+    L.title='Chapter II'; L.sub='The First Floor'; L.pal=PAL.mine;
+    L.w=62; L.h=48; const g=newGrid(L.w,L.h,1); L.grid=g;
+    rect(g,4,18,14,12,3);
+    rect(g,17,22,8,5,0);
+    rect(g,24,16,18,14,0);
+    rect(g,36,8,4,10,0);
+    rect(g,38,8,12,6,0);
+    rect(g,50,6,8,10,4);
+    rect(g,28,29,6,4,0);
+    rect(g,26,32,10,3,1);
+    rect(g,26,35,10,7,3);
+    L.spawn={x:10,y:24};
+    L.door={x:49.2,y:11};
+    L.camp={x:32,y:22};
+    L.stair={x:31,y:38};
+    L.objs=[{t:'Scout the first floor',d:0},{t:'Break the goblin band',d:0},
+            {t:'Free the sleeping gnome',d:0},{t:'See him to the bronze door',d:0},
+            {t:'Trade, then take the deeper stair',d:0}];
+    L.lights=[{x:9,y:23,c:'#ff2f3a',r:9.5,f:1.7},{x:10,y:20,c:'#ffb45c',r:5,f:1},
+      {x:32,y:20,c:'#ff8a3a',r:7.2,f:1.15},{x:49,y:11,c:'#d4a04a',r:8,f:1.4},
+      {x:31,y:38,c:'#ffb45c',r:5,f:0.9},{x:27,y:18,c:'#ffb45c',r:4.4,f:0.85}];
+    G.props=[{x:9,y:23,k:'lift'},{x:7,y:20,k:'lantern'},{x:15,y:26,k:'lantern'},
+      {x:32,y:19,k:'brazier'},{x:27,y:18,k:'crate'},{x:34,y:26,k:'bones'},{x:29,y:27,k:'sack'},
+      {x:26,y:21,k:'cart'},{x:36,y:17,k:'crate'},{x:49.2,y:11,k:'bronzedoor'},
+      {x:31,y:38,k:'gate'},{x:18,y:24,k:'tunnel'},{x:37,y:14,k:'tunnel'},
+      {x:12,y:22,k:'shroom'},{x:33,y:16.5,k:'shroom'},{x:41,y:10,k:'shroom'},
+      {x:28,y:24,k:'trap',trap:'trap_spikes'},{x:8.2,y:27,k:'crate'}];
+    L.guide=()=>!L.flags.fought?L.camp:!L.flags.freed?{x:36.2,y:18.6}:!L.flags.home?L.door:!L.flags.traded?L.door:L.stair;
     L.tick=()=>{
       const p=player(); if(!p) return;
-      if(!L.flags.w1&&p.x>19){L.flags.w1=1;L.objs[0].d=1;
-        say('Silk drags across the stone. They heard the lift.','#c79bff');
-        wave([['spider',26,20],['spider',30,22],['bat',24,30],['spider',31,31],['beetle',27,26],['spitter',22,24],['crawler',28,28],
-          ['gibberling',24,22],['kobold',29,28],['shrieker',32,20],['beetleBoring',25,26],['spiderGiant',30,24]]);}
-      if(L.flags.w1&&!L.flags.w2&&p.x>36&&p.y<24){L.flags.w2=1;
-        say('The second hollow is a nest.','#c79bff');
-        wave([['spider',44,10],['crawler',48,12],['drow',41,18],['hookedhorror',47,19],['beetle',44,15],['spitter',50,10],['gnome',39,13],
-          ['grimlock',46,16],['quaggoth',42,12],['troglodyte',49,18],['phasespider',48,14]]);}
-      if(L.flags.w2&&!L.flags.w3&&p.y>32&&p.x>39){L.flags.w3=1;L.objs[1].d=1;
-        say('Deep gnomes in the ring. They laugh like powder catching.','#d8a6ff');
-        wave([['fungi',44,38],['gnome',49,36],['gnomeBomber',46,44],['umberhulk',52,42],['gnome',41,42],['fungiElder',50,40],
-          ['violetfungus',43,42],['shrieker',48,38],['bugbear',51,44],['kuotoa',46,40],
-          ['myconidJunior',44,40],['bugbearLeader',50,36],['spiderHuge',47,42]]);
-        joinAllies([['gnome',40,36],['gnomeTinker',43,35]]);
-        say('Rock gnomes from the lower seam. Pip and Bramble will stand with you.','#ffe08a');}
-      if(L.flags.w3&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
-        say('Ahead: cut stone. Dwarf work. Very old.','#8fd8ff');}
-      if(L.flags.done&&dist(p,{x:57,y:40})<2.5) interact('Open the gate',()=>{L.objs[3].d=1;endChapter();});
+      if(!L.flags.placed){
+        L.flags.placed=1; G.gnomeGift=0;
+        wave([['goblin',28,21],['goblin',30,25],['goblin',33,23],['goblin',27,24],['goblin',34,19],['goblinBoss',31,22]]);
+        G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'){ e.aggro=5.5; e.sprite=e.sprite||'goblin'; } });
+        const nim=ALLY.nim(); nim.x=36.2; nim.y=18.6; G.ents.push(nim);
+        say('Goblin-talk carries from the east. Someone small is breathing who is not a goblin.','#c9b895');
+      }
+      if(!L.flags.scouted&&p.x>16){ L.flags.scouted=1; L.objs[0].d=1;
+        hint('A small goblin band. A gnome sleeps bound by their fire.',5); }
+      if(p.x>22) G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'&&!e.dead) e.aggro=99; });
+      if(L.flags.placed&&!L.flags.fought&&!foesLeft()){
+        L.flags.fought=1; L.objs[1].d=1;
+        say('The last goblin drops. The gnome by the fire still sleeps.','#ffe08a');
+        hint('Cut his bonds.',4);
+      }
+      const nim=G.ents.find(e=>e.name==='Nim'&&!e.dead);
+      if(nim&&nim.sleeping&&L.flags.fought&&dist(p,nim)<1.85){
+        interact('Cut the gnome free',()=>{
+          nim.sleeping=0; nim.team='party'; nim.ally=1; nim.npc=1;
+          L.flags.freed=1; L.objs[2].d=1;
+          say('Nim wakes. "Goblin spit. Dwarves. I run home."','#ffe08a');
+          hint('He makes for the bronze door. Follow.',5);
+          nim.fleeTo={x:L.door.x-1.15,y:L.door.y};
+          nim.onArrive=()=>{
+            if(L.flags.home) return;
+            L.flags.home=1; L.objs[3].d=1;
+            say('The bronze runes lift for him. "Only gnomes pass. Wait."','#d4a04a');
+            nim.fleeTo={x:54,y:10};
+            nim.onArrive=()=>{ nim.hidden=1; nim.sp=0; };
+            const vesk=ent({kind:'gnome',sprite:'gnome_good',team:'neutral',npc:1,
+              hp:90,sp:0,dmg:0,range:.5,cd:9,scale:.88,r:.28,name:'Vesk',glow:'#ffd27a'});
+            vesk.x=47.4; vesk.y=11.4; G.ents.push(vesk);
+            const ril=ent({kind:'gnome',sprite:'gnome_tinker',team:'neutral',npc:1,
+              hp:80,sp:0,dmg:0,range:.5,cd:9,scale:.86,r:.28,name:'Ril',glow:'#ffc061'});
+            ril.x=47.8; ril.y=9.8; G.ents.push(ril);
+            burst(L.door.x,L.door.y,'#d4a04a',20,3);
+            say('A hatch in the bronze. Two deep gnomes look you over.','#ffd27a');
+            say('"You pulled Nim off a goblin spit. We trade."','#ffe08a');
+          };
+        });
+      }
+      if(!L.flags.home&&dist(p,L.door)<2.2){
+        interact('The bronze door',()=>{ say('The runes hold fast. Only gnomes may pass.','#d4a04a'); });
+      }
+      if(L.flags.home&&dist(p,L.door)<2.5){
+        interact('Trade with the svirfneblin',()=>{
+          if(!L.flags.traded){ L.flags.traded=1; L.objs[4].d=1; }
+          G.scene='trade';
+        });
+      }
+      if(L.flags.freed&&!L.flags.stairOpen){
+        L.flags.stairOpen=1; rect(L.grid,26,32,10,3,0);
+        say('South of the camp, a shuttered stair scrapes open.','#c9b895');
+      }
+      if(L.flags.freed&&dist(p,L.stair)<2.3){
+        interact(L.flags.traded?'Take the deeper stair':'Leave the first floor',()=>{ endChapter(); });
+      }
     };
   }
 
@@ -1047,7 +1098,7 @@ function makeChapter(n){
   L.seen=newGrid(L.w,L.h,0);
   return L;
 }
-function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead); }
+function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc); }
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
   e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
 function joinAllies(list){
@@ -1058,7 +1109,7 @@ function joinAllies(list){
 }
 
 /* ---------------------------- flow ---------------------------- */
-const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The Way Is Open',s:'Gnomes, Hulks, and Purple Light'},
+const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The First Floor',s:'Goblins, a sleeping gnome, a bronze door'},
   3:{t:'The Ruin',s:'The Eye in the Hall of Names'},4:{t:'The Dead City',s:'Illithids in the drowned streets'},
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CHAPTERS=[1,2,3,4,5];
@@ -1093,7 +1144,11 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
-  say('Shaft 3. Fourth bell. Nothing unusual.','#c9b895');
+  say(({1:'Shaft 3. Fourth bell. Nothing unusual.',
+    2:'The ruby cage stops. Hundreds of feet of dark hang above you.',
+    3:'Purple light. The stone sweats.',
+    4:'Cut stone. Dwarf work. Very old.',
+    5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
@@ -2197,7 +2252,7 @@ function onHitFx(atk,o,dmg){
 }
 function meleeSwing(e,arc,reach,dmg,col){
   const fa=ang(e.fdx,e.fdy); let hit=0;
-  for(const o of G.ents){ if(o.dead||o.team===e.team) continue;
+  for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
     const d=dist(e,o); if(d>reach+o.r) continue;
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
     if(df<=arc/2){
@@ -2226,16 +2281,19 @@ function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
     const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
 
 /* ---------------------------- movement ---------------------------- */
-function walk(x,y){ const L=G.lvl; if(!L) return false;
+function walk(x,y,e){ const L=G.lvl; if(!L) return false;
   const i=x|0,j=y|0; if(j<0||j>=L.h||i<0||i>=L.w) return false;
-  const t=L.grid[j][i]; return t===0||t===3; }
-function canBe(x,y,r){
-  return walk(x+r,y)&&walk(x-r,y)&&walk(x,y+r)&&walk(x,y-r)&&
-         walk(x+r*.7,y+r*.7)&&walk(x-r*.7,y-r*.7)&&walk(x+r*.7,y-r*.7)&&walk(x-r*.7,y+r*.7); }
+  const t=L.grid[j][i];
+  if(t===0||t===3) return true;
+  if(t===4) return !!(e && e.kind==='gnome');
+  return false; }
+function canBe(x,y,r,e){
+  return walk(x+r,y,e)&&walk(x-r,y,e)&&walk(x,y+r,e)&&walk(x,y-r,e)&&
+         walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e); }
 function move(e,dx,dy,dt){
   const nx=e.x+dx*dt, ny=e.y+dy*dt; let moved=0;
-  if(canBe(nx,e.y,e.r)){ e.x=nx; moved=1; }
-  if(canBe(e.x,ny,e.r)){ e.y=ny; moved=1; }
+  if(canBe(nx,e.y,e.r,e)){ e.x=nx; moved=1; }
+  if(canBe(e.x,ny,e.r,e)){ e.y=ny; moved=1; }
   return moved;
 }
 
@@ -2488,6 +2546,20 @@ function update(dt){
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
     if(e.hero) continue;
+    if(e.hidden){ e.moving=0; continue; }
+    if(e.sleeping){ e.moving=0; continue; }
+    if(e.fleeTo){
+      const t=e.fleeTo, d=dist(e,t), a=ang(t.x-e.x,t.y-e.y);
+      if(d>0.55){
+        e.fdx=Math.cos(a); e.fdy=Math.sin(a); e.moving=1;
+        move(e,e.fdx*e.sp,e.fdy*e.sp,dt);
+      } else {
+        e.moving=0; e.x=t.x; e.y=t.y; e.fleeTo=null;
+        if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
+      }
+      continue;
+    }
+    if(e.npc && e.team!=='party'){ e.moving=0; continue; }
 
     let tgt=null, want=e.range;
     if(e.team==='party'){
@@ -2520,7 +2592,7 @@ function update(dt){
   for(const s of G.shots){
     s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); continue; }
-    for(const o of G.ents){ if(o.dead||o.team===s.team) continue;
+    for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
       if(dist(s,o)<o.r+.35){
         const rolled=s.from?addAttack(s.from,o):(s.dmg||8);
         if(rolled) damage(o,onHitFx(s.from||s,o,rolled),s.col);
@@ -2584,6 +2656,7 @@ function render(){
   if(G.scene==='intro') drawIntro(g);
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='pack') drawPack(g);
+  if(G.scene==='trade') drawTrade(g);
   if(G.scene==='dead') drawDead(g);
   if(G.scene==='win') drawWin(g);
   if(G.paused&&G.scene==='play') drawPause(g);
@@ -2629,8 +2702,8 @@ function drawWorld(g,L){
       if(t===2||!L.seen[y][x]) continue;
       const s=w2s(x,y);
       if(t===1){
-        const oS=L.grid[y+1]&&(L.grid[y+1][x]===0||L.grid[y+1][x]===3);
-        const oE=L.grid[y]&&(L.grid[y][x+1]===0||L.grid[y][x+1]===3);
+        const oS=L.grid[y+1]&&(L.grid[y+1][x]===0||L.grid[y+1][x]===3||L.grid[y+1][x]===4);
+        const oE=L.grid[y]&&(L.grid[y][x+1]===0||L.grid[y][x+1]===3||L.grid[y][x+1]===4);
         if(!oS&&!oE) continue;
         // fade walls that stand between the camera and Macar
         let a=1;
@@ -2997,6 +3070,9 @@ function drawProp(g,p,pal){
       if(on){ emit(s.x,s.y-78*z,110*z,'#ff2a3c',1.35); ray(s.x,s.y-110*z,86*z,'#ff4058',0.9); }
     }else if(k==='gate'){
       emit(s.x,s.y-54*z,80*z,'#6fd0ff',0.75);
+    }else if(k==='bronzedoor'){
+      const b=.55+Math.sin(G.elapsed*2.4)*.2;
+      emit(s.x,s.y-54*z,80*z,'#d4a04a',b);
     }else if(k==='lift'){
       const on=G.lvl&&G.lvl.flags.cleared;
       if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
@@ -3135,7 +3211,7 @@ function drawProp(g,p,pal){
     const gemB=drawFacetGem(g,0,-78*z,26*z,34*z,on,z);
     if(on){ emit(s.x,s.y-78*z,110*z*gemB,'#ff2a3c',1.45); ray(s.x,s.y-110*z,86*z,'#ff4058',0.95); }
     break; }
-  case 'lift':{ const on=G.lvl&&G.lvl.flags.cleared;
+  case 'lift':{ const on=G.lvl&&(G.lvl.flags.cleared||G.lvl.n===2);
     softShadow(g,0,0,54*z,26*z,.6);
     g.beginPath(); g.ellipse(0,0,46*z,23*z,0,0,TAU); sc(g,'#4a3a26',-16*z,20*z,3);
     for(let i=0;i<8;i++){ const a=i*TAU/8;
@@ -3155,6 +3231,14 @@ function drawProp(g,p,pal){
     for(let i=0;i<4;i++){ g.strokeStyle='rgba(127,216,255,0.16)'; g.lineWidth=2*z;
       g.beginPath(); g.moveTo(-20*z,-22*z-i*18*z); g.lineTo(20*z,-22*z-i*18*z); g.stroke(); }
     emit(s.x,s.y-54*z,80*z,'#6fd0ff',0.75); break; }
+  case 'bronzedoor':{ drawCarvedArch(g,z,36*z,124*z,'#3a2a1c');
+    g.beginPath(); g.moveTo(-22*z,-10*z); g.lineTo(-22*z,-88*z); g.quadraticCurveTo(0,-114*z,22*z,-88*z);
+    g.lineTo(22*z,-10*z); g.closePath(); sc(g,'#8a6230',-114*z,-10*z,2.2);
+    g.strokeStyle='rgba(212,160,74,0.7)'; g.lineWidth=2.6*z;
+    g.beginPath(); g.moveTo(-16*z,-18*z); g.lineTo(-16*z,-80*z); g.quadraticCurveTo(0,-100*z,16*z,-80*z); g.lineTo(16*z,-18*z); g.stroke();
+    g.fillStyle='rgba(212,160,74,0.28)';
+    g.beginPath(); g.arc(0,-52*z,8*z,0,TAU); g.fill();
+    emit(s.x,s.y-54*z,80*z,'#d4a04a',0.75); break; }
   case 'names':{ g.beginPath(); g.rect(-50*z,-104*z,100*z,104*z); sc(g,'#4a3c30',-104*z,0,2.4);
     for(let i=0;i<9;i++){ g.strokeStyle='rgba(226,200,152,0.26)'; g.lineWidth=2.4*z;
       g.beginPath(); g.moveTo(-42*z,-94*z+i*10.4*z); g.lineTo(42*z,-94*z+i*10.4*z); g.stroke();
@@ -3191,9 +3275,58 @@ function drawProp(g,p,pal){
 /* ==========================================================================
    CHARACTERS  -  sculpted: form gradients, ink, rim light, contact shadow
    ========================================================================== */
+function drawGoblin(g,e,z,sw){
+  const step=Math.sin(e.anim*10)*(e.moving?1:0);
+  for(const sgn of [-1,1]){ const off=step*2.2*z*sgn;
+    g.beginPath(); g.rect(sgn<0?-9*z:1.6*z,-16*z+off,7.4*z,15*z); sc(g,'#4a6234',-16*z+off,-1*z+off,1.4);
+    g.beginPath(); g.moveTo(sgn<0?-10*z:1*z,-2*z+off); g.lineTo(sgn<0?-1*z:10*z,-2*z+off);
+    g.lineTo(sgn<0?0:11*z,3*z+off); g.lineTo(sgn<0?-11*z:0,3*z+off); g.closePath();
+    sc(g,'#2a2218',-2*z+off,3*z+off,1.3); }
+  g.beginPath(); g.moveTo(-11*z,-38*z); g.lineTo(11*z,-38*z); g.lineTo(9*z,-14*z); g.lineTo(-9*z,-14*z); g.closePath();
+  sc(g,'#5a6e3a',-38*z,-14*z,1.8);
+  g.beginPath(); g.rect(-10*z,-20*z,20*z,8*z); sc(g,'#6a4a2a',-20*z,-12*z,1.4);
+  g.beginPath(); g.ellipse(0,-48*z,10*z,9.4*z,0,0,TAU); sc(g,'#6a8a4a',-58*z,-38*z,1.7);
+  for(const sgn of [-1,1]){
+    g.beginPath(); g.moveTo(sgn*8*z,-50*z); g.quadraticCurveTo(sgn*18*z,-52*z,sgn*16*z,-44*z);
+    g.quadraticCurveTo(sgn*10*z,-46*z,sgn*8*z,-48*z); g.closePath(); sc(g,'#5a7a3a',-52*z,-44*z,1.3); }
+  g.fillStyle='#1a120c';
+  g.beginPath(); g.ellipse(-3.6*z,-50*z,1.7*z,2.2*z,0,0,TAU); g.fill();
+  g.beginPath(); g.ellipse(3.6*z,-50*z,1.7*z,2.2*z,0,0,TAU); g.fill();
+  g.fillStyle='#c9a070';
+  g.beginPath(); g.moveTo(-2*z,-46*z); g.lineTo(2*z,-46*z); g.lineTo(0,-42*z); g.closePath(); g.fill();
+  g.save(); g.translate(10*z,-32*z); g.rotate(-.4+sw*2.1);
+  g.beginPath(); g.rect(-1.2*z,-2.4*z,16*z,4.6*z); sc(g,'#6a5340',-2.4*z,2.2*z,1.2);
+  g.beginPath(); g.moveTo(14*z,-6*z); g.lineTo(26*z,-1*z); g.lineTo(14*z,5*z); g.closePath(); sc(g,'#8a9088',-6*z,5*z,1.3);
+  g.restore();
+}
+function drawGnome(g,e,z,sw){
+  const step=Math.sin(e.anim*9)*(e.moving?1:0);
+  const friend=e.sprite==='gnome_good'||e.sprite==='gnome_tinker'||e.npc||e.ally;
+  const cloth=friend?'#c4a04a':'#6a4a88', vest=friend?'#5a3a24':'#3a2a4a';
+  for(const sgn of [-1,1]){ const off=step*1.8*z*sgn;
+    g.beginPath(); g.rect(sgn<0?-8*z:1.4*z,-14*z+off,6.6*z,13*z); sc(g,vest,-14*z+off,0,1.3);
+    g.beginPath(); g.rect(sgn<0?-9*z:1*z,-2*z+off,7.6*z,3.6*z); sc(g,'#3a2a18',-2*z+off,1.6*z+off,1.2); }
+  g.beginPath(); g.moveTo(-10*z,-34*z); g.lineTo(10*z,-34*z); g.lineTo(8.4*z,-12*z); g.lineTo(-8.4*z,-12*z); g.closePath();
+  sc(g,cloth,-34*z,-12*z,1.7);
+  g.beginPath(); g.rect(-9*z,-18*z,18*z,5.4*z); sc(g,vest,-18*z,-12*z,1.3);
+  g.beginPath(); g.ellipse(0,-42*z,8.6*z,8.2*z,0,0,TAU); sc(g,'#c98f63',-50*z,-34*z,1.6);
+  g.beginPath(); g.moveTo(-7*z,-40*z); g.quadraticCurveTo(0,-28*z,7*z,-40*z); g.closePath(); sc(g,friend?'#c4a070':'#8a6a9a',-40*z,-28*z,1.3);
+  g.beginPath(); g.arc(0,-46*z,9*z,Math.PI,0); g.lineTo(9*z,-42*z); g.lineTo(-9*z,-42*z); g.closePath();
+  sc(g,friend?'#6a4a2a':'#4a3060',-56*z,-42*z,1.5);
+  g.fillStyle='#1b120d';
+  g.beginPath(); g.ellipse(-3.2*z,-44*z,1.5*z,1.9*z,0,0,TAU); g.fill();
+  g.beginPath(); g.ellipse(3.2*z,-44*z,1.5*z,1.9*z,0,0,TAU); g.fill();
+  g.save(); g.translate(9*z,-28*z); g.rotate(-.5+sw*1.8);
+  g.beginPath(); g.rect(-1*z,-2*z,14*z,4*z); sc(g,'#6a5340',-2*z,2*z,1.2);
+  g.beginPath(); g.moveTo(12*z,-7*z); g.lineTo(18*z,0); g.lineTo(12*z,6*z); g.closePath(); sc(g,'#a0a8b0',-7*z,6*z,1.2);
+  g.restore();
+}
+
 function drawEnt(g,e){
+  if(e.hidden) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
+  if(e.sleeping){ g.translate(8*z, 6*z); g.rotate(1.18); }
   if(e.dead){ g.globalAlpha=clamp(1-(e.deadT||0)/1.3,0,1); g.translate(0,(e.deadT||0)*7); g.rotate(clamp((e.deadT||0)*1.5,0,.95)); }
   const p=player();
   if(!e.dead&&p&&p.aim===e){
@@ -3211,7 +3344,7 @@ function drawEnt(g,e){
     g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
   }
   // contact shadow, offset away from the key light
-  const bob0=Math.sin(e.anim*9)*(e.moving?2.6:.9)*z;
+  const bob0=e.sleeping?0:Math.sin(e.anim*9)*(e.moving?2.6:.9)*z;
   softShadow(g,2.5*z,1*z,17*z+bob0*0.4,8*z,0.52);
 
   const left=(e.fdx-e.fdy)<0;
@@ -3226,6 +3359,8 @@ function drawEnt(g,e){
     else if(e.kind==='fungi') drawFungi(g,e,z,sw);
     else if(e.kind==='undead') drawUndead(g,e,z,sw,null);
     else if(e.kind==='warden') drawWarden(g,e,z,sw);
+    else if(e.kind==='goblin') drawGoblin(g,e,z,sw);
+    else if(e.kind==='gnome') drawGnome(g,e,z,sw);
     else if(e.kind==='king') drawKing(g,e,z,sw);
     else drawStatue(g,e,z,sw);
   }
@@ -3242,7 +3377,7 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
-  if(!e.dead&&e.glow&&(e.team==='foe'||e.boss||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
+  if(!e.dead&&e.glow&&(e.team==='foe'||e.boss||e.npc||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
     emit(s.x,s.y-(e.boss||e.kind==='golem'||e.kind==='beholder'?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
 
   if(!e.dead&&e.ally&&e.hp<e.maxhp){
@@ -3262,6 +3397,13 @@ function drawEnt(g,e){
       ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
       ctx.strokeText(e.name,s.x,yy-7*ZOOM);
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
+  }
+  if(!e.dead&&e.npc&&e.name){
+    ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    const label=e.sleeping?e.name+'  (asleep)':e.name;
+    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.75)';
+    ctx.strokeText(label,s.x,s.y-52*ZOOM*e.scale);
+    ctx.fillStyle='#ffe08a'; ctx.fillText(label,s.x,s.y-52*ZOOM*e.scale); ctx.textAlign='left';
   }
 }
 
@@ -3653,6 +3795,31 @@ function learn(k,n){ G.xp[k]=(G.xp[k]||0)+n;
   if(now>before){ G.skillSnap[k]=now;
     say(SKILLS.find(s=>s.k===k).n+' is now rank '+now+'.','#ffd27a'); } }
 function gain(r,n){ G.res[r]=(G.res[r]||0)+n; }
+function gpTotal(){
+  const c=G.coin||{};
+  return (c.pp||0)*5+(c.gp||0)+Math.floor((c.ep||0)/2)+Math.floor((c.sp||0)/10)+Math.floor((c.cp||0)/100);
+}
+function spendGp(n){
+  if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
+  const c=G.coin; let left=n;
+  const take=(k,rate)=>{
+    if(left<=0) return;
+    const have=c[k]||0, need=Math.ceil(left/rate), use=Math.min(have,need);
+    if(!use) return;
+    c[k]-=use; left-=use*rate;
+  };
+  take('gp',1); take('pp',5); take('ep',0.5); take('sp',0.1); take('cp',0.01);
+  if(left>0.01) c.gp=Math.max(0,(c.gp||0)-Math.ceil(left));
+}
+function giveGnomeThanks(){
+  if(G.gnomeGift) return;
+  G.gnomeGift=1;
+  addCoin('gp',80); addCoin('sp',40);
+  gain('deepsilver',2); gain('silk',1);
+  const p=rollPotion(); givePotion(p,1);
+  say('Vesk sets a pouch on the sill. Payment for Nim.','#ffd27a');
+  say('Inside: coin, metal, silk, and a potion — '+p.n+'.','#e0d2ff');
+}
 function afford(cost){ for(const k in cost) if((G.res[k]||0)<cost[k]) return false; return true; }
 function spend(cost){ for(const k in cost) G.res[k]-=cost[k]; }
 function costText(cost){ const p=[]; for(const k in cost) p.push(cost[k]+' '+RESMETA[k].n); return p.length?p.join(' + '):'free'; }
@@ -3964,7 +4131,7 @@ function drawMinimap(g,s){
   for(let j=Math.max(0,(p.y-16)|0);j<Math.min(L.h,p.y+16);j++)
     for(let i=Math.max(0,(p.x-16)|0);i<Math.min(L.w,p.x+16);i++){
       if(!L.seen[j][i]) continue; const t=L.grid[j][i]; if(t===1||t===2) continue;
-      g.fillStyle=t===3?'rgba(200,168,104,0.7)':'rgba(110,98,82,0.55)';
+      g.fillStyle=t===4?'rgba(212,160,74,0.75)':t===3?'rgba(200,168,104,0.7)':'rgba(110,98,82,0.55)';
       g.fillRect(ox+i*cell,oy+j*cell,cell+.7,cell+.7); }
   const MAPC={macar:'#ffe08a',pordoom:'#ff8a4a',fendur:'#8ec8ff',orbo:'#d4b06a',talpor:'#d0d4e8'};
   g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
@@ -4403,7 +4570,7 @@ function drawIntro(g){
   bigTitle(g,L.sub,VH*.44,(PORT?24:32)*s);
   g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,188,145,0.8)';
-  const fl={1:'Fourth bell. The seam sounds hollow.',2:'The lift does not stop where lifts should stop.',
+  const fl={1:'Fourth bell. The seam sounds hollow.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
     3:'They kept working. Nobody told them to stop.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
   g.fillText(fl,VW/2,VH*.51);
   g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.75)';
@@ -4412,7 +4579,8 @@ function drawIntro(g){
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
     if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Face bare rock and swing \u2014 you can dig anywhere',6); }
-    else if(!G.taught.herb){ G.taught.herb=1; hint('F searches for herbs. 10% + 5% per Herb Lore rank.',6); } });
+    else if(!G.taught.herb){ G.taught.herb=1; hint('F searches for herbs. 10% + 5% per Herb Lore rank.',6); }
+    else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Goblins east of the lift. A gnome sleeps in their camp.',6); } });
 }
 
 function drawBetween(g){
@@ -4608,6 +4776,48 @@ function drawPack(g){
     }});
   });
   menuBtn(g,'Back to camp',VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{G.scene='camp';});
+}
+
+function gnomeWares(){
+  return [
+    {t:'3 Ironstone',info:'Gnomish pig-iron, stacked for the next descent',gp:18,fn:()=>gain('ironstone',3)},
+    {t:'Deepsilver',info:'A thumb of metal from their own seam',gp:55,fn:()=>gain('deepsilver',1)},
+    {t:'Silk',info:'Underdark weave. Better padding than wool',gp:40,fn:()=>gain('silk',1)},
+    {t:'A bottle from their still',info:'Rolled on the campaign d10,000 potion list',gp:35,fn:()=>givePotion(rollPotion())},
+    {t:'A svirfneblin scroll',info:'Ink that only deep gnomes keep',gp:70,fn:()=>giveMagic(rollDmgScroll())},
+    {t:'Gnomish Dagger +1',info:'Short blade. +1 to hit and damage',gp:90,fn:()=>giveMagic(magItem({cat:'Weapon',n:'Gnomish Dagger +1',d:'+1 to hit and damage. Forged behind the bronze door.',k:'weapon',plus:1}))}
+  ];
+}
+function drawTrade(g){
+  menuHits=[]; const s=UIS;
+  giveGnomeThanks();
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
+  g.textAlign='center';
+  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(255,210,122,0.95)';
+  g.fillText('SVIRFNEBLIN TRADE  \u00b7  FOR NIM', VW/2, VH*.07);
+  g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.8)';
+  const c=G.coin||{};
+  g.fillText(gpTotal()+' gp   \u00b7   '+(c.gp||0)+' gp  '+(c.sp||0)+' sp  '+(c.pp||0)+' pp', VW/2, VH*.115);
+  g.textAlign='left';
+  const rows=gnomeWares();
+  const top=VH*.16, bot=VH-58*s, h=Math.min(PORT?38*s:42*s, Math.max(30*s,(bot-top)/rows.length));
+  rows.forEach((r,i)=>{
+    const y=top+i*h, x=10*s, w=VW-20*s;
+    const ok=gpTotal()>=r.gp;
+    plate(g,x,y,w,h-3*s,5,ok?.85:.55);
+    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle=ok?'#d4a04a':'#8a7a60';
+    g.fillText(r.gp+' GP', x+10*s, y+12*s);
+    g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle=ok?'#f4e2b8':'#9a8a78'; g.fillText(r.t, x+10*s, y+h*0.58);
+    g.font='600 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle='rgba(190,170,130,0.7)'; g.fillText(r.info, x+10*s, y+h-8*s);
+    menuHits.push({x,y,w,h:h-3*s,fn:()=>{
+      if(gpTotal()<r.gp){ say('Not enough coin. The gnomes wait.','#9a8a78'); return; }
+      spendGp(r.gp); r.fn(); say('Bought: '+r.t+'.','#ffd27a');
+    }});
+  });
+  menuBtn(g,'Back to the door',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
 }
 
 function drawPause(g){
