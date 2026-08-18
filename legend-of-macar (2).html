@@ -752,9 +752,9 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
   pordoom:{x:15.05,y:20.15,seed:3,stone:1.22,kit:{bombs:4,rations:7},spr:'boulder'},
-  fendur:{x:15.35,y:23.35,seed:11,stone:1.18,spr:'boulder2'},
-  orbo:{x:16.75,y:20.08,seed:19,stone:1.24,spr:'boulder'},
-  talpor:{x:17.05,y:23.42,seed:7,stone:1.16,spr:'boulder2'}
+  fendur:{x:15.35,y:23.35,seed:11,stone:1.18,kit:{ammo:12,torches:4},spr:'boulder2'},
+  orbo:{x:16.75,y:20.08,seed:19,stone:1.24,kit:{ales:3,gp:18},spr:'boulder'},
+  talpor:{x:17.05,y:23.42,seed:7,stone:1.16,kit:{torches:3,rations:5},spr:'boulder2'}
 };
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
@@ -1085,14 +1085,14 @@ function makeChapter(n){
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
 
   if(n===1){
-    L.title='Chapter I'; L.sub='An Unusual Discovery'; L.pal=PAL.mine;
+    L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
     L.w=54; L.h=44; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,14,19,12,6,0); rect(g,25,10,22,22,0);
     rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
     L.spawn={x:18.7,y:21.5}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
-    L.objs=[{t:'Loot Pordoom under the stone',d:0},{t:'Touch the ruby in the wall',d:0},
-            {t:'Destroy the Thin Ones',d:0},{t:'Ride the lift down',d:0}];
+    L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby on the far wall',d:0},
+            {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
@@ -1116,35 +1116,70 @@ function makeChapter(n){
       {x:13.35,y:19.6,k:'boulder',spr:'boulder2',s:1.08},
       {x:13.45,y:23.4,k:'boulder',spr:'boulder',s:1.12},
       {x:14.15,y:21.0,k:'rubble',n:12,s:1.15,seed:3},
-      {x:14.25,y:22.8,k:'rubble',n:10,s:1.05,seed:7}];
+      {x:14.25,y:22.8,k:'rubble',n:10,s:1.05,seed:7},
+      {x:14.6,y:19.7,k:'rubble',n:11,s:1.12,seed:9},
+      {x:14.8,y:24.2,k:'rubble',n:9,s:1.08,seed:13},
+      {x:15.6,y:21.6,k:'rubble',n:8,s:0.95,seed:17},
+      {x:16.2,y:19.5,k:'boulder',spr:'boulder',s:0.95},
+      {x:16.4,y:24.3,k:'boulder',spr:'boulder2',s:1.02},
+      {x:16.9,y:21.9,k:'rubble',n:10,s:1.0,seed:19},
+      {x:17.6,y:19.6,k:'rubble',n:8,s:0.98,seed:23},
+      {x:17.8,y:24.1,k:'rubble',n:11,s:1.1,seed:29},
+      {x:18.4,y:20.2,k:'boulder',spr:'boulder2',s:0.88},
+      {x:18.9,y:23.6,k:'rubble',n:9,s:1.0,seed:31},
+      {x:19.5,y:19.7,k:'rubble',n:10,s:1.06,seed:37},
+      {x:19.7,y:24.2,k:'boulder',spr:'boulder',s:0.96},
+      {x:20.3,y:20.5,k:'rubble',n:8,s:0.92,seed:41},
+      {x:20.6,y:23.4,k:'rubble',n:12,s:1.08,seed:43},
+      {x:21.2,y:19.6,k:'boulder',spr:'boulder2',s:1.0},
+      {x:21.4,y:24.0,k:'rubble',n:9,s:1.02,seed:47},
+      {x:21.8,y:22.6,k:'rubble',n:7,s:0.9,seed:53},
+      {x:22.3,y:20.3,k:'rubble',n:11,s:1.05,seed:59},
+      {x:22.6,y:23.8,k:'boulder',spr:'boulder',s:0.94},
+      {x:23.0,y:19.8,k:'rubble',n:8,s:0.96,seed:61},
+      {x:23.2,y:22.3,k:'rubble',n:10,s:1.0,seed:67},
+      {x:23.6,y:24.1,k:'rubble',n:9,s:1.04,seed:71},
+      {x:23.8,y:20.8,k:'boulder',spr:'boulder2',s:0.9},
+      {x:25.3,y:20.5,k:'rubble',n:9,s:1.0,seed:73},
+      {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
       G.props.push({x:s.x+0.08,y:s.y+0.12,k:'boulder',spr:s.spr||'boulder',s:s.stone||1.2,pin:1,seed:s.seed});
     });
     L.guide=()=>{
-      const body=(G.ents||[]).find(e=>e.corpse&&!e.looted);
-      if(body) return {x:body.x,y:body.y};
-      return !L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+      const p=player();
+      const bodies=(G.ents||[]).filter(e=>e.corpse&&!e.looted);
+      if(bodies.length){
+        if(!p) return {x:bodies[0].x,y:bodies[0].y};
+        bodies.sort((a,b)=>dist(p,a)-dist(p,b));
+        return {x:bodies[0].x,y:bodies[0].y};
+      }
+      return !L.flags.touched?{x:47,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
+      if(!L.flags.sawHall && p.x>=24.8){
+        L.flags.sawHall=1;
+        say('The collapse opened a chamber. A ruby burns on the far wall.','#ff6a6a');
+      }
       if(!L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
         interact('Touch the ruby',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby is warm. It knows your name.','#ff6a6a');
           [[29,14],[29,29],[41,14],[41,29],[35,12],[35,31]].forEach((s,i)=>{
             const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
-          say('The thin statues step down from their plinths.','#d8cbb0');
-          hint('Six guardians. Each drops a ruby. Walk to it and pick it up.',6);
+          say('The guardians wake and step down from their plinths.','#d8cbb0');
+          hint('Six guardians. Kill them, then the elevator will descend.',6);
         });
       }
       if(L.flags.touched && !L.flags.cleared && !foesLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
-        say('Every ruby in the chamber cracks at once.','#ff8a5a');
-        say('Below the lift, chains begin to turn.','#ffd27a');
+        say('The last guardian falls. Every ruby in the chamber cracks.','#ff8a5a');
+        say('The elevator groans and begins its descent into the depths.','#ffd27a');
         L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
+        hint('Ride the elevator down.',5);
       }
-      if(L.flags.cleared && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the lift',()=>{L.objs[3].d=1; endChapter();});
+      if(L.flags.cleared && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
     };
   }
 
@@ -1366,7 +1401,7 @@ function makeChapter(n){
   if(n===1){
     for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
       const t=L.grid[j][i];
-      if(t!==1 && t!==2) L.seen[j][i]=1;
+      if(t!==1 && t!==2 && i<25) L.seen[j][i]=1;
     }
   }
   return L;
@@ -1403,9 +1438,14 @@ function lootCorpse(e){
   ftext(e.x,e.y-0.35,bits[0]||'Looted','#ffd27a');
   burst(e.x,e.y,'#ffd27a',10,2.2);
   const L=G.lvl;
-  if(L&&L.n===1&&e.col&&e.col.key==='pordoom'){
-    L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
-    hint('Four bombs and a week of rations. The ruby waits east.',5);
+  if(L&&L.n===1){
+    const left=(G.ents||[]).filter(z=>z.corpse&&!z.looted).length;
+    if(!left){
+      L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
+      hint('A chamber has opened east. The ruby waits on the far wall.',6);
+    } else {
+      hint('More kin still lie under the stone.',4);
+    }
   }
 }
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
@@ -1418,7 +1458,7 @@ function joinAllies(list){
 }
 
 /* ---------------------------- flow ---------------------------- */
-const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The First Floor',s:'Goblins, a sleeping gnome, a bronze door'},
+const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new chamber'},2:{t:'The First Floor',s:'Goblins, a sleeping gnome, a bronze door'},
   3:{t:'The Ruin',s:'The Eye in the Hall of Names'},4:{t:'The Dead City',s:'Illithids in the drowned streets'},
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CHAPTERS=[1,2,3,4,5];
@@ -1457,8 +1497,8 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
+      e.kit=crush.kit||{}; e.corpse=1; e.looted=0;
       if(crush.kit){
-        e.kit=crush.kit; e.corpse=1; e.looted=0;
         const pk=packOf(r.key);
         Object.keys(crush.kit).forEach(k=>{ if(typeof pk[k]==='number') pk[k]=0; });
         syncPackTotals();
@@ -1482,7 +1522,7 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
-  say(({1:'The tunnel behind you is gone. Your kin are under the stones. The old chamber stands open east.',
+  say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. East, a chamber has opened.',
     2:'The ruby cage stops. Hundreds of feet of dark hang above you.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
@@ -3472,9 +3512,10 @@ function drawWorld(g,L){
 
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const M=TW*2, near=o=>{const s=w2s(o.x,o.y); return s.x>-M&&s.x<VW+M&&s.y>-M*2.6&&s.y<VH+M;};
+  const seenAt=o=>{ const i=o.x|0, j=o.y|0; return !!(L.seen[j]&&L.seen[j][i]); };
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const e of G.ents)  if(e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
-  for(const p of G.props) if(near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const p of G.props) if(near(p)&&seenAt(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
   for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
@@ -3660,6 +3701,7 @@ function gatherLights(L){
   for(const e of G.ents) if(!e.dead&&e.boss&&e.glow) out.push({x:e.x,y:e.y,c:e.glow,r:7,f:1.3,fl:1});
   for(const s of G.shots) out.push({x:s.x,y:s.y,c:s.col,r:2.6,f:1.1,fl:0});
   for(const pr of G.props){
+    if(L&&L.seen){ const i=pr.x|0, j=pr.y|0; if(!(L.seen[j]&&L.seen[j][i])) continue; }
     if(pr.k==='shroom') out.push({x:pr.x,y:pr.y,c:'#b06cff',r:3.4,f:0.72,fl:1});
     if(pr.k==='rubywall'||pr.k==='rubydoor') out.push({x:pr.x,y:pr.y,c:'#ff2a3c',r:8.2,f:1.35,fl:1});
     if(pr.k==='brazier') out.push({x:pr.x,y:pr.y,c:'#ff8a3a',r:5.5,f:1.1,fl:1});
@@ -5745,16 +5787,16 @@ function drawIntro(g){
   bigTitle(g,L.sub,VH*.20,(PORT?22:30)*s);
   g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,188,145,0.88)';
-  const fl={1:'The way back is stone. Pordoom, Fendur, Orbo and Talpor lie under the fall.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
+  const fl={1:'The tunnel is choked with rubble. Your kin lie dead under the boulders.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
     3:'They kept working. Nobody told them to stop.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
   g.fillText(fl,VW/2,VH*.28);
   g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.8)';
-  g.fillText(L.n===1?'You are MACAR. East is the only road. Loot the red cap.':
+  g.fillText(L.n===1?'You are MACAR. Loot the fallen. East, a newly opened chamber waits.':
     L.n===2?'You are MACAR. The kin stay in the cave-in. You walk the first floor alone.':
     'You are MACAR.',VW/2,VH*.335);
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.86,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Loot Pordoom. Four bombs and a week of rations.',6); }
+    if(G.ch===1){ hint('Loot the kin under the boulders. Then walk east.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
