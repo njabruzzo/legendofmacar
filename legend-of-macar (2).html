@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=14">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=14" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -193,43 +194,67 @@ function leaveCredits(){
   if(from==='pause'){ G.scene='play'; G.paused=true; }
   else G.scene=from;
 }
-let musicEl=null, musicKey=null, musicUnlocked=false;
+let musicEl=null, musicKey=null, musicUnlocked=false, musicRetryAt=0, musicPlayP=null;
+function musicIsPlaying(){
+  return !!(musicEl && !musicEl.paused && !musicEl.ended);
+}
+function ensureMusic(){
+  if(musicEl) return musicEl;
+  musicEl=new Audio();
+  musicEl.loop=true;
+  musicEl.preload='auto';
+  musicEl.playsInline=true;
+  musicEl.setAttribute('playsinline','');
+  musicEl.setAttribute('webkit-playsinline','');
+  musicEl.volume=0.55;
+  musicEl.addEventListener('canplay', tryPlayMusic);
+  musicEl.addEventListener('canplaythrough', tryPlayMusic);
+  return musicEl;
+}
+function tryPlayMusic(){
+  if(!musicUnlocked || !musicEl || !musicEl.src) return;
+  if(musicIsPlaying() || musicPlayP) return;
+  musicPlayP=musicEl.play();
+  if(musicPlayP&&musicPlayP.then){
+    musicPlayP.then(()=>{ musicPlayP=null; }).catch(()=>{ musicPlayP=null; });
+  } else musicPlayP=null;
+}
 function unlockMusic(){
   musicUnlocked=true;
-  if(musicEl) musicEl.play().catch(()=>{});
+  ensureMusic();
+  tryPlayMusic();
 }
 function playMusic(key){
   const src=MUSIC[key];
-  if(!src){
-    musicKey=null;
-    if(musicEl){ musicEl.pause(); musicEl.removeAttribute('src'); }
-    return;
-  }
-  if(musicKey===key && musicEl){
-    if(musicUnlocked && musicEl.paused) musicEl.play().catch(()=>{});
-    return;
-  }
+  if(!src) return;
+  const el=ensureMusic();
+  if(musicKey===key) return;
   musicKey=key;
-  if(!musicEl){
-    musicEl=new Audio();
-    musicEl.loop=true;
-    musicEl.preload='auto';
-    musicEl.volume=0.42;
-  }
-  try{ musicEl.pause(); }catch(_){}
-  musicEl.src=assetUrl(src);
-  musicEl.loop=true;
-  musicEl.volume=0.42;
-  const start=()=>{ if(musicUnlocked) musicEl.play().catch(()=>{}); };
-  musicEl.addEventListener('canplay', start, {once:true});
-  start();
+  musicPlayP=null;
+  el.src=assetUrl(src);
+  el.loop=true;
+  el.volume=0.55;
+  tryPlayMusic();
+}
+function wantedMusic(){
+  if(!G || !G.scene) return 'title';
+  const sc=G.scene;
+  if(sc==='title' || sc==='chapters' || sc==='credits') return 'title';
+  return (G.ch===1 || (G.lvl && G.lvl.n===1)) ? 'ch1' : 'ch2';
 }
 function syncMusic(){
-  if(!G || !G.scene){ playMusic('title'); return; }
-  const sc=G.scene;
-  if(sc==='title' || sc==='chapters' || sc==='credits') playMusic('title');
-  else playMusic((G.ch===1 || (G.lvl && G.lvl.n===1)) ? 'ch1' : 'ch2');
+  playMusic(wantedMusic());
+  if(musicUnlocked && musicEl && !musicIsPlaying() && G && G.t>=musicRetryAt){
+    musicRetryAt=G.t+1;
+    tryPlayMusic();
+  }
 }
+['pointerdown','touchstart','mousedown','keydown','click'].forEach(ev=>{
+  window.addEventListener(ev, unlockMusic, {capture:true});
+});
+Object.keys(MUSIC).forEach(k=>{
+  const a=new Audio(); a.preload='auto'; a.src=assetUrl(MUSIC[k]);
+});
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
@@ -5598,7 +5623,7 @@ function drawTitle(g){
   g.fillText('He went down a miner. Something else came back up.', VW/2, bar+(PORT?54:70)*s);
   g.font='600 '+((PORT?8.5:10)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.62)';
-  g.fillText('Music: Song of the Forge \u2014 Scott Buckley', VW/2, bar+(PORT?68:86)*s);
+  g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, bar+(PORT?68:86)*s);
   g.globalAlpha=1;
   const bw=Math.min(280*s, VW*.62);
   menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
