@@ -507,7 +507,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
-  fightOn:0, carryEffects:[], searching:0, digging:0, dig:null };
+  fightOn:0, carryEffects:[], searching:0, digging:0, dig:null,
+  abil:null, abilSaid:0 };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -1145,19 +1146,28 @@ function startChapter(n){
   G.lvl=makeChapter(n);
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
+  ensurePartySheets();
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
-    const lv=partyLevel();
-    const cls=r.role==='faith'?'c':r.role==='bolt'?'t':'f';
+    const sheet=G.abil[r.key];
+    const cls=sheet.cls;
+    const hp=sheet.maxhp*ADD_SCALE;
     const e=ent({kind:'dwarf',team:'party',x:sp.x+(hero?0:Math.cos(i*1.3)*1.5),y:sp.y+(hero?0:Math.sin(i*1.3)*1.5),
-      hp:hero?280:160, sp:hero?4.3:4.0, dmg:hero?18:11, range:hero?1.4:1.15, cd:hero?.6:.95,
+      hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:hero?.6:.95,
       r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key],
-      lvl:lv, cls, ac:5, dice:hero?'1d8+1':r.role==='bolt'?'1d6':r.role==='faith'?'1d6':'1d6+1'});
+      lvl:PARTY_LVL, cls, race:'dwarf', abil:sheet, ac:5, dice:sheet.dice});
     e.ac=partyAC(e);
-    if(r.role==='bolt'){e.ranged=1;e.range=6.5;e.cd=1.5;e.dmg=15;e.dice='1d6';}
-    if(r.role==='faith'){e.range=1.05;e.dmg=8;e.heals=1;e.cls='c';}
+    if(r.role==='bolt'){e.ranged=1;e.range=6.5;e.cd=1.5;}
+    if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     G.ents.push(e);
   });
+  if(!G.abilSaid){
+    G.abilSaid=1;
+    ROSTER.forEach(r=>{
+      const a=G.abil[r.key];
+      say(r.name+'  '+clsLabel(a.cls)+PARTY_LVL+'  HP '+a.maxhp+' (max HD + CON)  '+fmtAbil(a),'#c9b895');
+    });
+  }
   applyEquipped();
   (G.carryEffects||[]).forEach(x=>{
     const e=G.ents.find(z=>z.hero)||G.ents[0];
@@ -1192,6 +1202,10 @@ function ftext(x,y,txt,c,big){ G.texts.push({x,y,txt,c,life:.95,big:!!big}); }
    AD&D 1st Edition rules — to-hit, saves, treasure, potions, herbs
    ========================================================================== */
 const ADD_SCALE=4;
+const PARTY_LVL=3;
+/* Macar — AD&D 1e dwarf fighter 3 (assigned sheet). War hammer 1d8.
+   Companions: Method I, 4d6 keep the highest three, then dwarf CON+1 / CHA-1. */
+const MACAR_SHEET={str:18,exc:76,int:10,wis:12,dex:11,con:18,cha:10,cls:'f',dice:'1d8'};
 function d20(){ return ri(1,20); }
 function d100(){ return ri(1,100); }
 function d10000(){ return ri(1,10000); }
@@ -1206,16 +1220,134 @@ function rollExpr(expr){
   });
   return Math.max(1,tot);
 }
-function partyLevel(){
-  const ch=Object.keys(G.cleared||{}).length;
-  return clamp(1+ch+Math.floor((G.kills||0)/28)+(G.gear&&G.gear.macar?G.gear.macar.wt:0),1,17);
+function partyLevel(){ return PARTY_LVL; }
+function clsLabel(cls){ return cls==='c'?'C':cls==='t'?'T':'F'; }
+function rosterCls(r){ return r.role==='faith'?'c':r.role==='bolt'?'t':'f'; }
+function rosterDice(r){
+  if(r.role==='hero') return '1d8';
+  if(r.role==='bolt') return '1d6';
+  if(r.role==='faith') return '1d6';
+  if(r.role==='pick') return '1d6+1';
+  return '1d6+1';
 }
+function roll4d6Top3(){
+  const d=[ri(1,6),ri(1,6),ri(1,6),ri(1,6)].sort((a,b)=>b-a);
+  return d[0]+d[1]+d[2];
+}
+function dwarfCaps(ab, cls){
+  ab.con=clamp((ab.con|0)+1, 12, 19);
+  ab.cha=clamp((ab.cha|0)-1, 3, 16);
+  ab.str=clamp(ab.str|0, 8, 18);
+  ab.dex=clamp(ab.dex|0, 3, 17);
+  ab.int=clamp(ab.int|0, 3, 18);
+  ab.wis=clamp(ab.wis|0, 3, 18);
+  if(cls==='f') ab.str=Math.max(9, ab.str);
+  if(cls==='c') ab.wis=Math.max(9, ab.wis);
+  if(cls==='t') ab.dex=Math.max(9, ab.dex);
+  return ab;
+}
+function conHpAdj(con, cls){
+  const f=cls==='f';
+  if(con<=3) return -2;
+  if(con<=6) return -1;
+  if(con<=14) return 0;
+  if(con===15) return 1;
+  if(con===16) return 2;
+  if(con===17) return f?3:2;
+  if(con>=19) return f?5:2;
+  return f?4:2;
+}
+function hitDieSize(cls){ return cls==='c'?8:cls==='t'?6:10; }
+function maxHp1e(cls, lvl, con){
+  const die=hitDieSize(cls), adj=conHpAdj(con, cls);
+  return Math.max(lvl, lvl*(die+adj));
+}
+function strMods(ab, cls){
+  const s=(ab&&ab.str)|0, exc=(cls==='f'&&s>=18)?((ab&&ab.exc)|0):0;
+  let hit=0, dmg=0;
+  if(s<=3){ hit=-3; dmg=-1; }
+  else if(s<=5){ hit=-2; dmg=-1; }
+  else if(s<=7){ hit=-1; dmg=0; }
+  else if(s<=15){ hit=0; dmg=0; }
+  else if(s===16){ hit=0; dmg=1; }
+  else if(s===17){ hit=1; dmg=1; }
+  else {
+    hit=1; dmg=2;
+    if(exc>=1 && exc<=50){ hit=1; dmg=3; }
+    else if(exc<=75){ hit=2; dmg=3; }
+    else if(exc<=90){ hit=2; dmg=4; }
+    else if(exc<=99){ hit=2; dmg=5; }
+    else if(exc>=100){ hit=3; dmg=6; }
+  }
+  return {hit, dmg};
+}
+function dexDefAdj(dex){
+  dex=dex|0;
+  if(dex<=3) return 4;
+  if(dex===4) return 3;
+  if(dex===5) return 2;
+  if(dex===6) return 1;
+  if(dex<=14) return 0;
+  if(dex===15) return -1;
+  if(dex===16) return -2;
+  if(dex===17) return -3;
+  return -4;
+}
+function dexMissile(dex){
+  dex=dex|0;
+  if(dex<=5) return -1;
+  if(dex<=15) return 0;
+  if(dex===16) return 1;
+  if(dex===17) return 2;
+  return 3;
+}
+function finishSheet(ab, r){
+  const cls=rosterCls(r);
+  ab.cls=cls;
+  ab.dice=rosterDice(r);
+  if(cls==='f' && (ab.str|0)>=18){ if(ab.exc==null) ab.exc=ri(1,100); }
+  else if(ab.exc==null) ab.exc=0;
+  ab.maxhp=maxHp1e(cls, PARTY_LVL, ab.con);
+  ab.lvl=PARTY_LVL;
+  return ab;
+}
+function rollCompanionSheet(r){
+  const raw={
+    str:roll4d6Top3(), int:roll4d6Top3(), wis:roll4d6Top3(),
+    dex:roll4d6Top3(), con:roll4d6Top3(), cha:roll4d6Top3()
+  };
+  dwarfCaps(raw, rosterCls(r));
+  return finishSheet(raw, r);
+}
+function ensurePartySheets(){
+  if(!G.abil) G.abil={};
+  ROSTER.forEach(r=>{
+    if(G.abil[r.key]) return;
+    if(r.key==='macar') G.abil[r.key]=finishSheet(Object.assign({}, MACAR_SHEET), r);
+    else G.abil[r.key]=rollCompanionSheet(r);
+  });
+}
+function strLabel(a){
+  if(!a) return '—';
+  if(!(a.exc>0) || (a.str|0)<18) return String(a.str);
+  if(a.exc>=100) return '18/00';
+  return '18/'+String(a.exc).padStart(2,'0');
+}
+function fmtAbil(a){
+  return 'S'+strLabel(a)+' I'+a.int+' W'+a.wis+' D'+a.dex+' C'+a.con+' Ch'+a.cha;
+}
+function sheetHpNow(e){ return Math.max(0, Math.ceil((e.hp||0)/ADD_SCALE)); }
+function sheetHpMax(e){ return Math.max(1, Math.round((e.maxhp||ADD_SCALE)/ADD_SCALE)); }
+function entityAbil(e){ return e.abil||(e.col&&G.abil&&G.abil[e.col.key])||null; }
 function partyAC(e){
   const g=e.gear||{};
-  let ac=5;
-  if(e.role==='shield') ac=4;
-  if(e.role==='bolt') ac=6;
-  if(e.role==='faith') ac=5;
+  const ab=entityAbil(e)||{};
+  const cls=e.cls||(e.role==='faith'?'c':e.role==='bolt'?'t':'f');
+  let ac=10;
+  if(cls==='t') ac=8;
+  else ac=5;
+  if(e.role==='shield') ac-=1;
+  ac+=dexDefAdj(ab.dex||10);
   ac-=Math.floor((g.at||0)/2);
   ac-=(g.magicAc||0);
   if((g.cd||0)>55) ac-=1;
@@ -1301,11 +1433,13 @@ function hitBonus(e){
   let b=0;
   if(e.team==='party'){
     const g=e.gear||{};
+    const ab=entityAbil(e);
     b+=(g.wt||0)+(g.magicAtk||0);
     if(g.rune) b+=1;
-    if(e.hero) b+=1;
     if(e.buff>0) b+=2;
     if((g.wd||1)<=0) b-=2;
+    if(e.ranged) b+=dexMissile(ab&&ab.dex);
+    else b+=strMods(ab, e.cls||'f').hit;
   } else {
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
   }
@@ -1332,8 +1466,9 @@ function addAttack(atk, def){
   if(!hit){ ftext(def.x,def.y,'miss '+roll,'#8a7a68'); return 0; }
   let raw;
   if(atk.dice) raw=rollExpr(atk.dice);
-  else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8+1':atk.ranged?'1d6':'1d6+1');
+  else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8':atk.ranged?'1d6':'1d6+1');
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
+  if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   raw+=extra;
   if(atk.strMul) raw=Math.round(raw*atk.strMul);
   raw=Math.round(raw*ADD_SCALE*wepMult(atk));
@@ -1348,16 +1483,32 @@ const SAVE_C=[
   [10,13,14,16,15],[9,12,13,15,14],[7,10,11,13,12],[6,9,10,12,11],
   [5,8,9,11,10],[4,7,8,10,9],[2,5,6,8,7]
 ];
+const SAVE_T=[
+  [13,12,14,16,15],[12,11,12,15,13],[11,10,10,14,11],
+  [10,9,8,13,9],[9,8,6,12,7],[8,7,4,11,5]
+];
+function dwarfSaveBonus(e, kind){
+  if(!(e.team==='party'||e.race==='dwarf')) return 0;
+  const con=(entityAbil(e)&&entityAbil(e).con)||0;
+  if(!con) return 0;
+  if(kind==='poison'||kind==='rod'||kind==='spell') return Math.floor(con/3.5);
+  return 0;
+}
 function saveNeed(e, kind){
   const idx={poison:0,death:0,petrify:1,rod:2,breath:3,spell:4}[kind]||4;
+  let need;
   if(e.team==='party'){
     const lv=clamp(e.lvl||partyLevel(),1,17);
-    if(e.cls==='c'||e.role==='faith') return SAVE_C[clamp(Math.floor((lv-1)/3),0,6)][idx];
-    return SAVE_F[clamp(Math.floor((lv-1)/2),0,8)][idx];
+    const cls=e.cls||(e.role==='faith'?'c':e.role==='bolt'?'t':'f');
+    if(cls==='c'||e.role==='faith') need=SAVE_C[clamp(Math.floor((lv-1)/3),0,6)][idx];
+    else if(cls==='t') need=SAVE_T[clamp(Math.floor((lv-1)/4),0,5)][idx];
+    else need=SAVE_F[clamp(Math.floor((lv-1)/2),0,8)][idx];
+  } else {
+    const hd=monsterHD(e);
+    const row=hd<1?0:hd<3?1:hd<5?2:hd<7?3:hd<9?4:hd<11?5:hd<13?6:hd<15?7:hd<17?8:8;
+    need=SAVE_F[Math.min(row,8)][idx];
   }
-  const hd=monsterHD(e);
-  const row=hd<1?0:hd<3?1:hd<5?2:hd<7?3:hd<9?4:hd<11?5:hd<13?6:hd<15?7:hd<17?8:8;
-  return SAVE_F[Math.min(row,8)][idx];
+  return need-dwarfSaveBonus(e, kind);
 }
 function savingThrow(e, kind){
   const need=saveNeed(e,kind)-(e.juice||0);
@@ -4199,7 +4350,7 @@ function drawPortraitStack(g,s){
   const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key)).filter(Boolean);
   const x=8*s, y=8*s, w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
-  const h=Math.min(PORT?42*s:46*s, (avail-y)/Math.max(1,party.length)-gap);
+  const h=Math.min(PORT?46*s:50*s, (avail-y)/Math.max(1,party.length)-gap);
   party.forEach((e,i)=>{
     const yy=y+i*(h+gap);
     carveFrame(g,x,yy,w,h,6,.88);
@@ -4209,10 +4360,11 @@ function drawPortraitStack(g,s){
     const tx=cx+rr+8*s;
     g.font='800 '+(PORT?11*s:12.5*s)+'px '+FONT_UI;
     g.fillStyle=e.dead?'#6b5b48':'#f2e0b6';
-    g.fillText(e.col.name, tx, yy+16*s);
+    g.fillText(e.col.name+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
     g.font='700 '+(PORT?8*s:8.5*s)+'px '+FONT_UI;
     g.fillStyle='rgba(200,170,120,0.78)';
-    g.fillText('INIT '+e.col.init+(e.hero?'  ·  YOU':''), tx, yy+27*s);
+    const ab=entityAbil(e);
+    g.fillText(sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e)+(ab?'  CON '+ab.con:''), tx, yy+27*s);
     const bx=tx, by=yy+h-14*s, bw=w-(tx-x)-12*s, bh=7*s, f=clamp(e.hp/e.maxhp,0,1);
     g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(bx,by,bw,bh);
     const gr=g.createLinearGradient(bx,by,bx,by+bh);
@@ -4794,7 +4946,7 @@ function drawCamp(g){
   const coin=G.coin||{};
   g.fillText('Hammer T'+gm.wt+(gm.rune?' + rune':'')+'  \u00b7  Armour T'+k0.at+
     '  \u00b7  Bombs '+G.bombs+'  \u00b7  Ale '+G.ales+
-    '  \u00b7  F'+partyLevel()+'  \u00b7  gp '+(coin.gp||0)+
+    '  \u00b7  Lv '+PARTY_LVL+'  \u00b7  gp '+(coin.gp||0)+
     (G.songBuff?'  \u00b7  Song +'+G.songBuff:''),
     VW/2, VH-46*s);
   g.textAlign='left';
