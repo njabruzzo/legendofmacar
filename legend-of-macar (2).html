@@ -125,7 +125,8 @@ const SPRITE_FILES={
   icon_sword:'assets/ui/icon_sword.png', icon_dwarf:'assets/ui/icon_dwarf.png',
   icon_flask:'assets/ui/icon_flask.png', icon_shield:'assets/ui/icon_shield.png',
   icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png',
-  icon_plant:'assets/ui/icon_plant.png', icon_shovel:'assets/ui/icon_shovel.png'
+  icon_plant:'assets/ui/icon_plant.png', icon_shovel:'assets/ui/icon_shovel.png',
+  icon_bomb:'assets/ui/icon_bomb.png'
 };
 const UNDERDARK=[
   'centipede','kobold','goblin','orc','piercer','gibberling','ixzan','grimlock',
@@ -158,7 +159,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 });
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
-  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_pack', horn:'icon_cross',
+  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
   plant:'icon_plant', shovel:'icon_shovel'
 };
 function loadSprites(done){
@@ -508,7 +509,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
   fightOn:0, carryEffects:[], searching:0, digging:0, dig:null,
-  abil:null, abilSaid:0 };
+  abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -831,7 +832,8 @@ const ALLY={
 const ABIL=[
  {key:'swing',label:'SWING',ico:'hammer',cd:6, hint:'Hammer arc, all around you'},
  {key:'throw',label:'PICK', ico:'pick',  cd:4, hint:'Hurl the pickaxe'},
- {key:'bomb', label:'BOMB', ico:'bomb',  cd:3, hint:'Aim, then throw. 10d10'},
+ {key:'bomb', label:'BOMB', ico:'bomb',  cd:3, hint:'Aim, then throw a bomb. 10d10'},
+ {key:'pack', label:'PACK', ico:'pack',  cd:0, hint:'Each kin keeps their own pack'},
  {key:'wall', label:'GUARD',ico:'shield',cd:15,hint:'Half damage for 5s'},
  {key:'ale',  label:'ALE',  ico:'flask', cd:12,hint:'Passed round. Heals the kin'},
  {key:'rally',label:'RALLY',ico:'horn',  cd:26,hint:'Kin hit harder, all heal'},
@@ -1147,17 +1149,20 @@ function startChapter(n){
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
   ensurePartySheets();
+  ensurePacks();
+  syncPackTotals();
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
     const sheet=G.abil[r.key];
     const cls=sheet.cls;
     const hp=sheet.maxhp*ADD_SCALE;
+    const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
     const e=ent({kind:'dwarf',team:'party',x:sp.x+(hero?0:Math.cos(i*1.3)*1.5),y:sp.y+(hero?0:Math.sin(i*1.3)*1.5),
-      hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:hero?.6:.95,
+      hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:atkCd,
       r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key],
       lvl:PARTY_LVL, cls, race:'dwarf', abil:sheet, ac:5, dice:sheet.dice});
     e.ac=partyAC(e);
-    if(r.role==='bolt'){e.ranged=1;e.range=6.5;e.cd=1.5;}
+    if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     G.ents.push(e);
   });
@@ -1172,7 +1177,7 @@ function startChapter(n){
   (G.carryEffects||[]).forEach(x=>{
     const e=G.ents.find(z=>z.hero)||G.ents[0];
     if(x.t==='potion') drinkPotion(x.p,e);
-    if(x.t==='herb'){ G.inv.herbs[x.n]=(G.inv.herbs[x.n]||0)+1; useHerb(x.n,e); }
+    if(x.t==='herb'){ const pk=packOf(packOwner(e)); pk.herbs[x.n]=(pk.herbs[x.n]||0)+1; syncPackTotals(); useHerb(x.n,e); }
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
@@ -1293,14 +1298,17 @@ function dexDefAdj(dex){
   if(dex===17) return -3;
   return -4;
 }
-function dexMissile(dex){
+function dexAttackAdj(dex){
   dex=dex|0;
-  if(dex<=5) return -1;
+  if(dex<=3) return -3;
+  if(dex===4) return -2;
+  if(dex===5) return -1;
   if(dex<=15) return 0;
   if(dex===16) return 1;
   if(dex===17) return 2;
   return 3;
 }
+function dexMissile(dex){ return dexAttackAdj(dex); }
 function finishSheet(ab, r){
   const cls=rosterCls(r);
   ab.cls=cls;
@@ -1339,21 +1347,86 @@ function fmtAbil(a){
 function sheetHpNow(e){ return Math.max(0, Math.ceil((e.hp||0)/ADD_SCALE)); }
 function sheetHpMax(e){ return Math.max(1, Math.round((e.maxhp||ADD_SCALE)/ADD_SCALE)); }
 function entityAbil(e){ return e.abil||(e.col&&G.abil&&G.abil[e.col.key])||null; }
-function partyAC(e){
+function hasShield(e){
+  return e.role==='shield'||e.role==='hero'||e.role==='faith';
+}
+function partyAC(e, opts){
+  opts=opts||{};
+  const rear=!!opts.rear, helpless=!!opts.helpless||e.stun>0||e.prone;
+  const noDex=rear||helpless||!!opts.charge;
+  const noShield=rear||helpless;
   const g=e.gear||{};
   const ab=entityAbil(e)||{};
   const cls=e.cls||(e.role==='faith'?'c':e.role==='bolt'?'t':'f');
   let ac=10;
   if(cls==='t') ac=8;
   else ac=5;
-  if(e.role==='shield') ac-=1;
-  ac+=dexDefAdj(ab.dex||10);
+  if(!noShield && hasShield(e)) ac-=1;
+  if(!noDex) ac+=dexDefAdj(ab.dex||10);
   ac-=Math.floor((g.at||0)/2);
   ac-=(g.magicAc||0);
   if((g.cd||0)>55) ac-=1;
   if(e.guard) ac-=2;
   if(e.hero&&g.rune) ac-=1;
   return clamp(ac,-8,10);
+}
+function isRearAttack(atk, def){
+  if(!atk||!def) return false;
+  const fx=def.fdx||0, fy=def.fdy||0;
+  if(!(fx||fy)) return false;
+  const incoming=ang(atk.x-def.x, atk.y-def.y);
+  const facing=ang(fx, fy);
+  let d=((incoming-facing+Math.PI*3)%TAU)-Math.PI;
+  return Math.abs(d)>2.1;
+}
+function hitChancePct(need, bonus){
+  const req=(need||20)-(bonus||0);
+  if(req<=1) return 100;
+  if(req>20) return 5;
+  return Math.round((21-req)/20*100);
+}
+function newPack(r){
+  const p={potions:[],herbs:{},magic:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
+  if(!r) return p;
+  if(r.key==='macar'){ p.bombs=2; p.ales=1; p.torches=8; }
+  else if(r.key==='pordoom'){ p.bombs=1; p.ales=1; }
+  else if(r.key==='fendur'){ p.ammo=20; }
+  else if(r.key==='orbo'){ p.ales=1; }
+  return p;
+}
+function ensurePacks(){
+  if(!G.packs) G.packs={};
+  ROSTER.forEach(r=>{ if(!G.packs[r.key]) G.packs[r.key]=newPack(r); });
+  if(!G.packWho) G.packWho='macar';
+}
+function packOf(key){
+  ensurePacks();
+  return G.packs[key||G.packWho||'macar']||G.packs.macar;
+}
+function packOwner(e){
+  return (e&&e.col&&e.col.key)||(e&&e.hero&&'macar')||'macar';
+}
+function partyCount(field){
+  ensurePacks();
+  return ROSTER.reduce((n,r)=>n+(G.packs[r.key][field]||0),0);
+}
+function takeFromPacks(field){
+  ensurePacks();
+  const order=['macar'].concat(ROSTER.map(r=>r.key).filter(k=>k!=='macar'));
+  for(const k of order){
+    if((G.packs[k][field]||0)>0){ G.packs[k][field]--; syncPackTotals(); return k; }
+  }
+  return null;
+}
+function addToPack(key, field, n){
+  packOf(key)[field]=(packOf(key)[field]||0)+(n||1);
+  syncPackTotals();
+}
+function syncPackTotals(){
+  ensurePacks();
+  G.inv=packOf(G.packWho||'macar');
+  G.bombs=partyCount('bombs');
+  G.ales=partyCount('ales');
 }
 function monsterHD(e){
   if(e.hd) return e.hd;
@@ -1446,29 +1519,42 @@ function hitBonus(e){
   if(e.strMul>1) b+=2;
   return b;
 }
-function effectiveAC(e){
+function effectiveAC(e, atk){
+  const rear=atk?isRearAttack(atk,e):false;
+  const helpless=e.stun>0||e.prone;
   let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
-  if(e.team==='party') ac=partyAC(e);
-  if(e.stun>0||e.prone) ac=Math.min(10, ac+4);
+  if(e.team==='party') ac=partyAC(e,{rear, helpless});
   if(e.stoneskin>0) ac-=2;
-  return ac;
+  return clamp(ac,-8,10);
 }
 function addAttack(atk, def){
   if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
-  const ac=effectiveAC(def);
+  const rear=isRearAttack(atk, def);
+  const ac=effectiveAC(def, atk);
   const need=thacNeed(atk, ac);
   const roll=d20();
-  const bonus=hitBonus(atk);
+  let bonus=hitBonus(atk);
+  if(rear) bonus+=2;
+  if(def.stun>0||def.prone) bonus+=4;
+  if(atk.ranged){
+    const d=dist(atk,def), rng=atk.range||6;
+    if(d>rng*0.85) bonus-=5;
+    else if(d>rng*0.55) bonus-=2;
+  }
   const tot=roll+bonus;
-  if(roll===1){ ftext(def.x,def.y,'miss','#9a8a78'); return 0; }
   const extra=need<0?-need:0;
   const hit=roll===20 || tot>=need;
-  if(!hit){ ftext(def.x,def.y,'miss '+roll,'#8a7a68'); return 0; }
+  const pct=hitChancePct(need, bonus);
+  const line=(atk.name||'atk')+' d20 '+roll+(bonus?((bonus>=0?'+':'')+bonus):'')+'='+tot+' vs '+need+' (AC '+ac+') '+pct+'%'+(hit?' hit':' miss')+(rear?' rear':'');
+  if(atk.team==='party') say(line, hit?'#ff6a5a':'#9a8a78');
+  if(!hit){ ftext(def.x,def.y,'miss '+tot,'#8a7a68'); return 0; }
+  ftext(def.x,def.y,tot+' vs '+need,'#ffe6a8');
   let raw;
   if(atk.dice) raw=rollExpr(atk.dice);
   else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8':atk.ranged?'1d6':'1d6+1');
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
   if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
+  if(atk.team==='party' && atk.ranged && atk.role==='pick') raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   raw+=extra;
   if(atk.strMul) raw=Math.round(raw*atk.strMul);
   raw=Math.round(raw*ADD_SCALE*wepMult(atk));
@@ -1523,17 +1609,42 @@ function beginFight(foe){
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
   const pSur=pSeg<=(sneak?4:2), fSur=fSeg<=(sneak?1:2);
   if(pSur&&!fSur){
-    G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.stun=Math.max(e.stun||0, pSeg*0.55); });
-    say('Surprise — they have '+pSeg+' segments on you.','#ff6a5a');
+    G.ents.forEach(e=>{
+      if(e.team!=='party'||e.dead) return;
+      const ab=entityAbil(e);
+      const segs=Math.max(0, pSeg-dexAttackAdj(ab&&ab.dex));
+      if(segs>0) e.stun=Math.max(e.stun||0, segs*0.65);
+    });
+    say('Surprise — they have '+pSeg+' segments. DEX trims yours.','#ff6a5a');
   } else if(fSur&&!pSur){
-    G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0, fSeg*0.55); });
+    G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0, fSeg*0.65); });
     say('Surprise — you have '+fSeg+' segments.','#ffd27a');
+  } else if(pSur&&fSur){
+    say('Both sides are caught off-guard. No surprise.','#c9b895');
   }
   const ip=ri(1,6), iff=ri(1,6);
-  G.initWin=ip>=iff?'party':'foe';
-  say('Initiative '+(G.initWin==='party'?'ours':'theirs')+' ('+ip+' vs '+iff+').','#c9b895');
-  if(G.initWin==='party') G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0,.28); });
-  else G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.stun=Math.max(e.stun||0,.22); });
+  G.initWin=ip>iff?'party':ip<iff?'foe':'tie';
+  say('Initiative d6  '+ip+' vs '+iff+' — '+(G.initWin==='tie'?'tied, weapon speed':(G.initWin==='party'?'ours':'theirs'))+'.','#c9b895');
+  const gap=Math.abs(ip-iff);
+  const delay=0.55+gap*0.18;
+  if(G.initWin==='party'){
+    G.ents.forEach(e=>{ if(e.team==='foe'&&!e.dead) e.stun=Math.max(e.stun||0, delay); });
+    G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.ct=Math.min(e.ct||0, 0.05); });
+  } else if(G.initWin==='foe'){
+    G.ents.forEach(e=>{
+      if(e.team!=='party'||e.dead) return;
+      const ab=entityAbil(e);
+      const trim=Math.max(0, dexAttackAdj(ab&&ab.dex)*0.12);
+      e.stun=Math.max(e.stun||0, Math.max(0.2, delay-trim));
+    });
+  } else {
+    say('Tie — slower weapons wait.','#c9b895');
+    G.ents.forEach(e=>{
+      if(e.dead) return;
+      const slow=e.ranged?0.15:(e.hero?0.08:0.2);
+      e.stun=Math.max(e.stun||0, slow);
+    });
+  }
 }
 function endFightIfClear(){
   if(G.fightOn && !G.ents.some(e=>e.team==='foe'&&!e.dead)) G.fightOn=0;
@@ -1691,10 +1802,10 @@ function potionByRoll(r){
 }
 function rollPotion(){ return potionByRoll(d10000()); }
 function givePotion(p, silent){
-  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
-  if(!G.inv.magic) G.inv.magic=[];
-  G.inv.potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
-  if(!silent) say('Potion: '+p.n+'.','#e0d2ff');
+  ensurePacks();
+  packOf('macar').potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
+  syncPackTotals();
+  if(!silent) say('Potion into MACAR\'s pack: '+p.n+'.','#e0d2ff');
 }
 
 
@@ -1713,10 +1824,10 @@ function magItem(o){
     vs:o.vs||'', cursed:!!o.cursed, xp:o.xp||0};
 }
 function giveMagic(it, silent){
-  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
-  if(!G.inv.magic) G.inv.magic=[];
-  G.inv.magic.push(it);
-  if(!silent) say(it.cat+': '+it.n+'. '+it.d, '#ffd27a');
+  ensurePacks();
+  packOf('macar').magic.push(it);
+  syncPackTotals();
+  if(!silent) say(it.cat+': '+it.n+' — stowed in MACAR\'s pack. '+it.d, '#ffd27a');
 }
 
 const DMG_SCROLL=[
@@ -2217,7 +2328,7 @@ const HERBS=[
 ];
 function forageChance(){ return 10+(skillLvl('forage')-1)*5; }
 function forageHerbs(src){
-  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
+  ensurePacks();
   const ch=forageChance(), roll=d100();
   learn('forage',2);
   if(src) src.picked=(src.picked||0)+1;
@@ -2233,8 +2344,10 @@ function forageHerbs(src){
     say(herb.n+' was here, but the sample was no good.','#9a8a78');
     return false;
   }
-  G.inv.herbs[herb.n]=(G.inv.herbs[herb.n]||0)+1;
-  say('You take '+herb.n+'.','#6aff8a');
+  const pk=packOf('macar');
+  pk.herbs[herb.n]=(pk.herbs[herb.n]||0)+1;
+  syncPackTotals();
+  say('You take '+herb.n+' into MACAR\'s pack.','#6aff8a');
   ftext((src||player()||{x:0,y:0}).x,(src||player()||{x:0,y:0}).y,herb.n,'#6aff8a');
   return true;
 }
@@ -2354,8 +2467,10 @@ function drinkPotion(p, e){
 }
 function useHerb(name, e){
   e=e||player(); const h=HERBS.find(x=>x.n===name); if(!h||!e) return;
-  if(!G.inv.herbs[name]) return;
-  G.inv.herbs[name]--; if(G.inv.herbs[name]<=0) delete G.inv.herbs[name];
+  const pk=packOf(packOwner(e));
+  if(!pk.herbs[name]) return;
+  pk.herbs[name]--; if(pk.herbs[name]<=0) delete pk.herbs[name];
+  syncPackTotals();
   say(e.name+' uses '+name+'.','#6aff8a');
   const k=h.k;
   if(k==='heal2') applyHeal(e,2);
@@ -2481,12 +2596,13 @@ const BARSLOTS=[
   {key:'attack', ico:'sword',  num:1, label:'STRIKE'},
   {key:'ale',    ico:'flask',  num:2, label:'ALE'},
   {key:'wall',   ico:'shield', num:3, label:'GUARD'},
-  {key:'bomb',   ico:'pack',   num:4, label:'PACK'},
+  {key:'pack',   ico:'pack',   num:4, label:'PACK'},
   {key:'rally',  ico:'cross',  num:5, label:'RALLY'},
 ];
 const EXTRASLOTS=[
   {key:'swing', ico:'hammer', label:'SWING'},
   {key:'throw', ico:'pick',   label:'PICK'},
+  {key:'bomb',  ico:'bomb',   label:'BOMB'},
   {key:'search', ico:'plant', label:'HERB'},
   {key:'shovel', ico:'shovel', label:'DIG'},
 ];
@@ -2556,13 +2672,17 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); IN.keys[k]=1;
+  if(G.scene==='pack' && e.key==='Escape'){
+    G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+    return;
+  }
   if(G.scene!=='play'){ IN.taps.push({x:VW/2,y:VH/2}); return; }
   if(e.key===' '){ fire('attack'); e.preventDefault(); }
   if(e.key==='e'||e.key==='Enter') fire('use');
   if(e.key==='1') fire('attack');
   if(e.key==='2') fire('ale');
   if(e.key==='3') fire('wall');
-  if(e.key==='4') fire('bomb');
+  if(e.key==='4'||k==='i'||k==='p') fire('pack');
   if(e.key==='5') fire('rally');
   if(k==='q') fire('swing');
   if(k==='r') fire('throw');
@@ -2604,13 +2724,20 @@ function fire(key){
     }
     return;
   }
+  if(key==='pack'){
+    G.packFrom='play'; G.packWho=G.packWho||'macar';
+    ensurePacks(); syncPackTotals();
+    G.scene='pack';
+    return;
+  }
   if(key==='bomb'){
     if(G.aim){ G.aim=null; return; }
-    if(G.bombs<=0){ hint('No bombs. Pack more at the bench.',2.6); return; }
+    syncPackTotals();
+    if(partyCount('bombs')<=0){ hint('No bombs in any pack. Craft more at the bench.',2.8); return; }
     if(cds.bomb>0) return;
     const t=nearestFoe(p,8);
     G.aim = t? {x:t.x,y:t.y} : {x:p.x+p.fdx*4.5, y:p.y+p.fdy*4.5};
-    p.dest=null; hint('Drag to aim, then press THROW',3.2);
+    p.dest=null; hint('Drag to aim, then press THROW. Bomb icon or B to cancel.',3.4);
     return;
   }
   const a=ABIL.find(z=>z.key===key); if(!a||cds[key]>0) return;
@@ -2619,18 +2746,18 @@ function fire(key){
     burst(p.x,p.y,'#ffcf5c',28,4.6); shake(12); ftext(p.x,p.y-.6,'HAMMER ARC','#ffd27a',1);
     say('MACAR preparing special hammer attack!','#ff6a5a'); }
   if(key==='ale'){
-    if(G.ales<=0){ cds[key]=0; hint('No ale left. Brew more at camp.',2.6); return; }
-    G.ales--; const heal=40+skillLvl('ale')*12; let n=0;
+    if(!takeFromPacks('ales')){ cds[key]=0; hint('No ale in the packs. Brew more at camp.',2.6); return; }
+    const heal=8+skillLvl('ale')*2; let n=0;
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead&&dist(e,p)<6.5){
-      e.hp=Math.min(e.maxhp,e.hp+heal); burst(e.x,e.y,'#c9a24a',14,2.2);
-      ftext(e.x,e.y,'+'+heal,'#e0c169',e.hero); n++; } });
+      applyHeal(e, heal); n++; } });
     learn('ale',3); say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
   }
   if(key==='wall'){ p.guardT=5; burst(p.x,p.y,'#cfe3ff',18,2.4); ftext(p.x,p.y-.5,'GUARD','#cfe3ff'); }
-  if(key==='throw'){ const t=nearestFoe(p,10); const a2=t?ang(t.x-p.x,t.y-p.y):ang(p.fdx,p.fdy);
-    p.fdx=Math.cos(a2); p.fdy=Math.sin(a2);
-    G.shots.push({x:p.x,y:p.y,vx:Math.cos(a2)*12,vy:Math.sin(a2)*12,dmg:36,team:'party',kind:'pick',col:'#cfd6de',life:1.5,spin:0});
-    say('Allied Dwarf pickstrike!','#ffb45c'); }
+  if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
+    const thrower=G.ents.find(z=>z.role==='pick'&&!z.dead)||p;
+    thrower.fdx=Math.cos(ang(tx-thrower.x,ty-thrower.y)); thrower.fdy=Math.sin(ang(tx-thrower.x,ty-thrower.y));
+    shoot(thrower, tx, ty, 0, 'pick', '#cfd6de', 12);
+    say((thrower.name||'PICK')+' hurls a pick. d20 vs AC.','#ffb45c'); }
   if(key==='rally'){ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.buff=8; e.hp=Math.min(e.maxhp,e.hp+30);
       burst(e.x,e.y,'#ffd27a',10,2);} }); ftext(p.x,p.y-.8,'RALLY','#ffd27a',1);
     say('MACAR raises the hammer. The kin answer.','#ffd27a'); }
@@ -4099,11 +4226,13 @@ function initEconomy(){
   G.res={}; RES.forEach(r=>G.res[r]=0);
   G.xp={}; G.skillSnap={}; SKILLS.forEach(s=>{G.xp[s.k]=0;G.skillSnap[s.k]=1;});
   G.gear={}; ROSTER.forEach(r=>G.gear[r.key]=newGear());
-  G.bombs=2; G.ales=2; G.songBuff=0;
+  G.packs={}; ROSTER.forEach(r=>G.packs[r.key]=newPack(r));
+  G.packWho='macar';
+  G.songBuff=0;
   G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
-  G.inv={potions:[],herbs:{},magic:[]};
   G.equipped={weapon:null,armor:null,ring:null,wand:null};
   G.fightOn=0; G.carryEffects=G.carryEffects||[];
+  syncPackTotals();
 }
 function wepMult(e){ const g=e.gear; if(!g) return 1;
   let m=1+g.wt*0.18+(g.rune?0.12:0); if(g.wd<=0) m*=0.6; return m; }
@@ -4182,10 +4311,10 @@ function bombDamage(){ let d=0; for(let i=0;i<10;i++) d+=ri(1,10);
   return Math.round(d*(1+skillLvl('bomb')*0.10)); }
 function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function throwBomb(){
-  const p=player(); if(!p||!G.aim||G.bombs<=0) return;
-  G.bombs--;
+  const p=player(); if(!p||!G.aim) return;
+  if(!takeFromPacks('bombs')){ hint('No bombs in the packs.',2.2); return; }
   G.thrown.push({sx:p.x,sy:p.y,tx:G.aim.x,ty:G.aim.y,x:p.x,y:p.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0});
-  say('MACAR lights a bomb.','#ffb45c');
+  say('A bomb from the packs. Fuse lit.','#ffb45c');
   G.aim=null;
   learn('bomb',2);
 }
@@ -4245,12 +4374,15 @@ function campActions(){
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
   a.push({grp:'BENCH',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
-    info:'10d10 in a radius',
-    fn:()=>{ G.bombs+=2+Math.floor(skillLvl('bomb')/3); learn('bomb',10);
-      say('Powder, casing, fuse. Careful with those.','#ffb45c'); }});
+    info:'10d10 throwables into Macar\'s pack',
+    fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
+      say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
   a.push({grp:'BREWERY',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
-    info:'Heals every dwarf nearby',
-    fn:()=>{ G.ales+=2+Math.floor(skillLvl('ale')/3); learn('ale',10);
+    info:'Flasks split among the kin',
+    fn:()=>{ const n=2+Math.floor(skillLvl('ale')/3);
+      addToPack('macar','ales',Math.ceil(n/2));
+      addToPack('pordoom','ales',Math.floor(n/2)||1);
+      learn('ale',10);
       say('The barrel is stoppered and warm.','#d2bd63'); }});
   a.push({grp:'TAILOR',t:'Mend the padding under the mail',cost:{silk:2},
     info:'Restores cloth, small damage cut',
@@ -4263,11 +4395,10 @@ function campActions(){
   a.push({grp:'VERGE',t:'Search the cavern verge for herbs',cost:{},
     info:'Herb Lore '+forageChance()+'%  ·  then d30 and d100 vs the plant',
     fn:()=>{ forageHerbs(); }});
-  a.push({grp:'PACK',t:'Open the pack (magic, potions, herbs)',cost:{},
-    info:(G.inv&&G.inv.magic?G.inv.magic.length:0)+' magic, '+
-      (G.inv&&G.inv.potions?G.inv.potions.length:0)+' potions, '+
-      Object.values((G.inv&&G.inv.herbs)||{}).reduce((n,v)=>n+v,0)+' herbs',
-    fn:()=>{ G.scene='pack'; }});
+  a.push({grp:'PACK',t:'Open a kin\'s pack (supplies, magic, potions, herbs)',cost:{},
+    info:ROSTER.map(r=>{ const p=packOf(r.key);
+      return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
+    fn:()=>{ G.packFrom='camp'; G.packWho='macar'; G.scene='pack'; }});
   return a;
 }
 
@@ -4608,7 +4739,8 @@ function drawSlot(g,b,s){
     g.fillStyle='rgba(244,226,186,0.92)'; g.fillText(Math.ceil(cds[ab.key]),b.x,b.y+4*s); g.textAlign='left';
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale')){
-    const n=ab.key==='bomb'?G.bombs:G.ales;
+    syncPackTotals();
+    const n=ab.key==='bomb'?partyCount('bombs'):partyCount('ales');
     if(!n){ g.fillStyle='rgba(8,5,3,0.5)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill(); }
     const px=b.x+R*0.72, py=b.y-R*0.72;
     g.fillStyle=n?'rgba(20,14,8,0.92)':'rgba(50,14,8,0.92)';
@@ -4660,7 +4792,7 @@ function drawThrowBtn(g,s){
   plate(g,x,y,w,h,7,.92);
   g.strokeStyle='rgba(255,150,70,'+(0.55+b*0.45)+')'; g.lineWidth=2.8*s; roundPath(g,x,y,w,h,7); g.stroke();
   g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-  g.fillStyle='#ffd9a0'; g.fillText('THROW  ('+G.bombs+')',VW/2,y+h/2+5.6*s); g.textAlign='left';
+  g.fillStyle='#ffd9a0'; g.fillText('THROW  ('+partyCount('bombs')+')',VW/2,y+h/2+5.6*s); g.textAlign='left';
 }
 let promptBtn=null;
 function drawPromptBtn(g,s){
@@ -4804,7 +4936,7 @@ function drawTitle(g){
   menuBtn(g,'Chapters',VW/2,VH*.74,Math.min(260*s,VW*.7),44*s,()=>{G.scene='chapters';});
   g.textAlign='center'; g.font='600 '+(10.5*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
-  g.fillText('WASD walk  ·  F herbs  ·  G shovel  ·  1-5 skills  ·  Q swing  ·  Space strike',VW/2,VH-16*s);
+  g.fillText('WASD walk  ·  4/P pack  ·  B bomb  ·  F herbs  ·  G shovel  ·  Space strike',VW/2,VH-16*s);
   g.textAlign='left';
 }
 
@@ -4982,36 +5114,60 @@ function drawWin(g){
   menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{G.scene='chapters';});
 }
 
+function packUser(){
+  const key=G.packWho||'macar';
+  return (G.ents||[]).find(e=>e.team==='party'&&e.col&&e.col.key===key&&!e.dead)||player();
+}
 function drawPack(g){
   menuHits=[]; const s=UIS;
+  ensurePacks();
+  if(!G.packWho) G.packWho='macar';
+  const pk=packOf(G.packWho);
+  syncPackTotals();
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
   g.textAlign='center';
   g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('PACK  \u00b7  DMG MAGIC, POTIONS, HERBS', VW/2, VH*.07);
+  g.fillText('PACK  \u00b7  EACH KIN CARRIES THEIR OWN', VW/2, VH*.055);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.75)';
   const c=G.coin||{};
-  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.11);
+  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.09);
   g.textAlign='left';
-  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
-  if(!G.inv.magic) G.inv.magic=[];
+  const tabW=(VW-20*s)/ROSTER.length, tabH=PORT?26*s:28*s, tabY=VH*.11;
+  ROSTER.forEach((r,i)=>{
+    const x=10*s+i*tabW, on=G.packWho===r.key;
+    plate(g,x+2*s,tabY,tabW-4*s,tabH,5,on?.9:.5);
+    if(on){ g.strokeStyle='rgba(255,208,124,0.7)'; g.lineWidth=1.6; roundPath(g,x+2*s,tabY,tabW-4*s,tabH,5); g.stroke(); }
+    g.font='800 '+(PORT?8*s:9.5*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
+    g.fillStyle=on?'#ffe9c0':'rgba(160,140,110,0.75)';
+    g.fillText(r.name, x+tabW/2, tabY+tabH*0.62);
+    g.textAlign='left';
+    menuHits.push({x:x+2*s,y:tabY,w:tabW-4*s,h:tabH,fn:()=>{ G.packWho=r.key; syncPackTotals(); }});
+  });
+  const sheet=G.abil&&G.abil[G.packWho];
+  g.font='600 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
+  g.fillStyle='rgba(210,190,150,0.85)';
+  g.fillText((sheet?fmtAbil(sheet)+'  HP '+sheet.maxhp:'')+'   bombs '+(pk.bombs||0)+
+    '  ale '+(pk.ales||0)+'  rations '+(pk.rations||0)+'  torches '+(pk.torches||0)+
+    (pk.ammo?'  bolts '+pk.ammo:''), 14*s, tabY+tabH+16*s);
   const eq=G.equipped||{};
-  const mag=G.inv.magic||[];
-  const pots=G.inv.potions||[];
-  const herbs=Object.keys(G.inv.herbs||{});
+  const mag=pk.magic||[];
+  const pots=pk.potions||[];
+  const herbs=Object.keys(pk.herbs||{});
   const rows=[];
   mag.forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
     rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,info:it.d,tag:it.cat||'Magic'});
   });
   pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'}));
-  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(G.inv.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
-  const top=VH*.145, bot=VH-58*s, h=Math.min(PORT?36*s:40*s, Math.max(28*s,(bot-top)/Math.max(1,rows.length||1)));
+  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
+  const top=tabY+tabH+26*s, bot=VH-58*s, h=Math.min(PORT?34*s:38*s, Math.max(26*s,(bot-top)/Math.max(1,rows.length||1)));
   if(!rows.length){
     g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
-    g.fillText('The pack is empty. Search the verge, or take a lair.', VW/2, VH*.4);
+    g.fillText('This pack holds kit only. Loot potions go to MACAR. Tap another name.', VW/2, VH*.48);
     g.textAlign='left';
   }
-  rows.slice(0,12).forEach((r,i)=>{
+  const inField=G.packFrom==='play';
+  rows.slice(0,10).forEach((r,i)=>{
     const y=top+i*h, x=10*s, w=VW-20*s;
     plate(g,x,y,w,h-3*s,5,.8);
     g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
@@ -5022,34 +5178,40 @@ function drawPack(g){
     g.font='600 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle='rgba(190,170,130,0.7)'; g.fillText((r.info||'').slice(0,72), x+10*s, y+h-8*s);
     menuHits.push({x,y,w,h:h-3*s,fn:()=>{
+      const who=packUser();
+      const bag=packOf(G.packWho);
       if(r.kind==='magic'){
-        const it=G.inv.magic[r.i];
+        const it=bag.magic[r.i];
         if(!it) return;
         const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal'||it.k==='ammo';
-        if(G.scene==='play'){
-          const spent=useMagicItem(it, player());
-          if(spent==='spent'||consume) G.inv.magic.splice(r.i,1);
+        if(inField){
+          const spent=useMagicItem(it, who);
+          if(spent==='spent'||consume) bag.magic.splice(r.i,1);
         } else if(consume){
-          G.inv.magic.splice(r.i,1);
+          bag.magic.splice(r.i,1);
           G.carryEffects=G.carryEffects||[];
           G.carryEffects.push({t:'magic',it});
           say('Set aside for the next descent: '+it.n,'#ffd27a');
         } else {
-          useMagicItem(it, null);
+          useMagicItem(it, who);
         }
       } else if(r.kind==='potion'){
-        const p=G.inv.potions.splice(r.i,1)[0];
-        if(!p) return;
-        if(G.scene==='play') drinkPotion(p, player());
-        else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p}); say('Set aside for the next descent: '+p.n,'#e0d2ff'); }
+        const pot=bag.potions.splice(r.i,1)[0];
+        if(!pot) return;
+        if(inField) drinkPotion(pot, who);
+        else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
       } else {
-        if(G.scene==='play') useHerb(r.n, player());
-        else { if(G.inv.herbs[r.n]){ G.inv.herbs[r.n]--; if(G.inv.herbs[r.n]<=0) delete G.inv.herbs[r.n]; }
+        if(inField) useHerb(r.n, who);
+        else { if(bag.herbs[r.n]){ bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n]; }
           G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'herb',n:r.n}); say('Herb packed: '+r.n,'#6aff8a'); }
       }
+      syncPackTotals();
     }});
   });
-  menuBtn(g,'Back to camp',VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{G.scene='camp';});
+  const back=G.packFrom==='play'?'Back to the seam':'Back to camp';
+  menuBtn(g,back,VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{
+    G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+  });
 }
 
 function gnomeWares(){
@@ -5099,7 +5261,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('F herb search (slow)  \u00b7  G shovel (1 sq ft / 10 min)  \u00b7  d20 vs AC',VW/2,VH*.31);
+  g.fillText('4/P pack  ·  B bomb  ·  F herbs  ·  G shovel  ·  d20 vs descending AC',VW/2,VH*.31);
   g.textAlign='left';
   menuBtn(g,'Resume',VW/2,VH*.44,Math.min(230*s,VW*.66),48*s,()=>{G.paused=false;});
   menuBtn(g,'Effects: '+(QUALITY?'High':'Fast'),VW/2,VH*.555,Math.min(230*s,VW*.66),42*s,()=>{QUALITY=QUALITY?0:1;});
