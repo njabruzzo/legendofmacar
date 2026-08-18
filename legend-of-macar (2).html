@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=13">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -163,6 +163,13 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
+const ASSET_VER='13';
+let SPLASH_STATE='loading';
+function assetUrl(src){
+  const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
+  try{ return new URL(u, document.baseURI).href; }
+  catch(_){ return u; }
+}
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
@@ -237,17 +244,36 @@ const ICON_SPR={
   plant:'icon_plant', shovel:'icon_shovel'
 };
 function loadSprites(done){
-  const keys=Object.keys(SPRITE_FILES); let left=keys.length;
-  if(!left){ done(); return; }
-  function one(k){
-    const img=new Image();
-    img.onload=()=>{ SPR[k]=img; if(--left<=0) done(); };
-    img.onerror=()=>{ if(--left<=0) done(); };
-    try{ img.src=new URL(SPRITE_FILES[k], document.baseURI).href; }
-    catch(_){ img.src=SPRITE_FILES[k]; }
+  const first=['title_splash','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
+    'icon_plant','icon_shovel','icon_bomb','skill_icons','macar','pordoom','fendur','orbo','talpor',
+    'rubydoor','shroom','lantern','floor_mine','wall_cave'];
+  const seen={};
+  const queue=[];
+  first.forEach(k=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; queue.push(k); } });
+  Object.keys(SPRITE_FILES).forEach(k=>{ if(!seen[k]){ seen[k]=1; queue.push(k); } });
+  const total=queue.length;
+  if(!total){ SPLASH_STATE='fail'; done(); return; }
+  SPLASH_STATE=SPRITE_FILES.title_splash?'loading':'fail';
+  let i=0, inflight=0, finished=0;
+  const MAX=6;
+  function next(){
+    while(inflight<MAX && i<total){
+      const k=queue[i++];
+      inflight++;
+      const img=new Image();
+      const fin=ok=>{
+        if(ok) SPR[k]=img;
+        if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
+        inflight--; finished++;
+        if(finished>=total) done();
+        else next();
+      };
+      img.onload=()=>fin(true);
+      img.onerror=()=>fin(false);
+      img.src=assetUrl(SPRITE_FILES[k]);
+    }
   }
-  if(SPRITE_FILES.title_splash) one('title_splash');
-  keys.forEach(k=>{ if(k!=='title_splash') one(k); });
+  next();
 }
 function drawBillboard(g,img,h){
   if(!img||!img.width) return false;
@@ -5141,7 +5167,11 @@ function drawSplashCover(g, img){
 function drawTitle(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  if(!drawSplashCover(g, SPR.title_splash)) drawTitleCavern(g);
+  if(SPLASH_STATE==='ready'){
+    if(!drawSplashCover(g, SPR.title_splash)) drawTitleCavern(g);
+  } else if(SPLASH_STATE==='fail'){
+    drawTitleCavern(g);
+  }
   const pulse=.55+Math.sin(G.t*2.1)*.45;
   const rg=g.createRadialGradient(VW/2, VH*0.42, 10, VW/2, VH*0.46, Math.max(VW,VH)*0.46);
   rg.addColorStop(0,'rgba(255,36,48,'+(0.10*pulse)+')');
