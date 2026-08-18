@@ -483,7 +483,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   cleared:{}, unlocked:1, elapsed:0, kills:0, hint:null, introT:0, taught:{},
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
-  inv:{potions:[],herbs:{}}, fightOn:0, carryEffects:[] };
+  inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
+  fightOn:0, carryEffects:[] };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -1083,10 +1084,12 @@ function startChapter(n){
     if(r.role==='faith'){e.range=1.05;e.dmg=8;e.heals=1;e.cls='c';}
     G.ents.push(e);
   });
+  applyEquipped();
   (G.carryEffects||[]).forEach(x=>{
     const e=G.ents.find(z=>z.hero)||G.ents[0];
     if(x.t==='potion') drinkPotion(x.p,e);
     if(x.t==='herb'){ G.inv.herbs[x.n]=(G.inv.herbs[x.n]||0)+1; useHerb(x.n,e); }
+    if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
@@ -1136,6 +1139,7 @@ function partyAC(e){
   if(e.role==='bolt') ac=6;
   if(e.role==='faith') ac=5;
   ac-=Math.floor((g.at||0)/2);
+  ac-=(g.magicAc||0);
   if((g.cd||0)>55) ac-=1;
   if(e.guard) ac-=2;
   if(e.hero&&g.rune) ac-=1;
@@ -1219,7 +1223,7 @@ function hitBonus(e){
   let b=0;
   if(e.team==='party'){
     const g=e.gear||{};
-    b+=(g.wt||0);
+    b+=(g.wt||0)+(g.magicAtk||0);
     if(g.rune) b+=1;
     if(e.hero) b+=1;
     if(e.buff>0) b+=2;
@@ -1458,10 +1462,497 @@ function potionByRoll(r){
 }
 function rollPotion(){ return potionByRoll(d10000()); }
 function givePotion(p, silent){
-  if(!G.inv) G.inv={potions:[],herbs:{}};
+  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
+  if(!G.inv.magic) G.inv.magic=[];
   G.inv.potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
   if(!silent) say('Potion: '+p.n+'.','#e0d2ff');
 }
+
+
+/* ==========================================================================
+   AD&D 1e DMG magic items (Table III and subtables)
+   Potions that come up as a category still use the campaign d10,000 list.
+   Names follow the Dungeon Masters Guide; notes are short play effects.
+   ========================================================================== */
+function pickRange(table, roll){
+  roll=roll==null?d100():roll;
+  for(const row of table){ if(roll>=row.a && roll<=row.b) return row; }
+  return table[table.length-1];
+}
+function magItem(o){
+  return {n:o.n, d:o.d, cat:o.cat, k:o.k||o.cat, plus:o.plus||0, charges:o.charges||0,
+    vs:o.vs||'', cursed:!!o.cursed, xp:o.xp||0};
+}
+function giveMagic(it, silent){
+  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
+  if(!G.inv.magic) G.inv.magic=[];
+  G.inv.magic.push(it);
+  if(!silent) say(it.cat+': '+it.n+'. '+it.d, '#ffd27a');
+}
+
+const DMG_SCROLL=[
+  {a:1,b:10,n:'Scroll of 1 Spell',k:'scroll',d:'One spell, cast at 6th level or the minimum needed +1.'},
+  {a:11,b:16,n:'Scroll of 2 Spells',k:'scroll',d:'Two spells. Reading takes the usual casting time.'},
+  {a:17,b:19,n:'Scroll of 3 Spells',k:'scroll',d:'Three spells scribed in a tight clerical or wizardly hand.'},
+  {a:20,b:24,n:'Scroll of 4 Spells',k:'scroll',d:'Four spells. Failure chance if the reader cannot cast the level.'},
+  {a:25,b:27,n:'Scroll of 5 Spells',k:'scroll',d:'Five spells. High-level script; risky for a novice.'},
+  {a:28,b:32,n:'Scroll of 6 Spells',k:'scroll',d:'Six spells packed onto vellum.'},
+  {a:33,b:35,n:'Scroll of 7 Spells',k:'scroll',d:'Seven spells. A prize for any temple or tower.'},
+  {a:36,b:39,n:'Scroll of Protection from Demons',k:'prot',d:'Keeps demons at bay in a 10-foot circle for 5d8 rounds.'},
+  {a:40,b:43,n:'Scroll of Protection from Devils',k:'prot',d:'Wards against devils for 5d8 rounds.'},
+  {a:44,b:50,n:'Scroll of Protection from Elementals',k:'prot',d:'One elemental type cannot close while the ward lasts.'},
+  {a:51,b:56,n:'Scroll of Protection from Lycanthropes',k:'prot',d:'Shapechangers cannot enter the circled ground.'},
+  {a:57,b:62,n:'Scroll of Protection from Magic',k:'prot',d:'A 5-foot anti-magic shell for 1d4+4 rounds.'},
+  {a:63,b:68,n:'Scroll of Protection from Petrification',k:'prot',d:'Gaze and flesh-to-stone fail against the reader for 1 turn.'},
+  {a:69,b:75,n:'Scroll of Protection from Possession',k:'prot',d:'Blocks magic jar, possession, and similar takeovers.'},
+  {a:76,b:80,n:'Scroll of Protection from Undead',k:'prot',d:'Lesser undead will not cross the inscribed line.'},
+  {a:81,b:90,n:'Cursed Scroll',k:'cursed',cursed:1,d:'Reading unleashes a curse (reverse of a protection or a harmful spell).'},
+  {a:91,b:100,n:'Scroll of Protection from Breath Weapons',k:'prot',d:'Halves or negates one breath weapon aimed at the party.'}
+];
+const DMG_RING=[
+  {a:1,b:6,n:'Ring of Contrariness',k:'cursed',cursed:1,d:'The wearer does the opposite of what is asked. Remove curse to doff.'},
+  {a:7,b:12,n:'Ring of Delusion',k:'cursed',cursed:1,d:'Seems to be another useful ring. It is not.'},
+  {a:13,b:14,n:'Ring of Djinni Summoning',k:'summon',d:'Rub to call a djinni (as the spell). Limited service.'},
+  {a:15,b:21,n:'Ring of Feather Falling',k:'buff',d:'Wearer falls as a feather. No falling damage.'},
+  {a:22,b:27,n:'Ring of Fire Resistance',k:'resist',d:'+4 vs fire saves; ignores normal flame; halves magical fire.'},
+  {a:28,b:30,n:'Ring of Free Action',k:'buff',d:'Move and attack normally in web, hold, slow, or water.'},
+  {a:31,b:33,n:'Ring of Human Influence',k:'buff',d:'Charisma 18 to humans and humanoids; charm person 1/day.'},
+  {a:34,b:40,n:'Ring of Invisibility',k:'invis',d:'Become invisible at will. Attacking breaks it.'},
+  {a:41,b:43,n:'Ring of Mammal Control',k:'buff',d:'Command 1d6 hit dice of mammals in 40 feet.'},
+  {a:44,b:45,n:'Ring of Multiple Wishes',k:'wish',d:'2d4 wishes. Each wish ages the wearer.'},
+  {a:46,b:52,n:'Ring of Protection +1',k:'ring',plus:1,d:'+1 to AC and saving throws.'},
+  {a:53,b:55,n:'Ring of Protection +2',k:'ring',plus:2,d:'+2 to AC and saving throws. +10% magic resistance vs spells aimed at the wearer.'},
+  {a:56,b:57,n:'Ring of Protection +3',k:'ring',plus:3,d:'+3 to AC and saves. +15% magic resistance vs targeted spells.'},
+  {a:58,b:60,n:'Ring of Regeneration',k:'regen',d:'Regenerate 1 hp/turn. Cannot restore a lost limb unless it is a vampiric ring.'},
+  {a:61,b:63,n:'Ring of Shooting Stars',k:'wand',charges:6,d:'Outdoors at night: shooting stars, ball lightning, and spark showers.'},
+  {a:64,b:65,n:'Ring of Spell Storing',k:'store',d:'Holds 1d4+1 spells, cast as if the original caster stored them.'},
+  {a:66,b:69,n:'Ring of Spell Turning',k:'mr',d:'1d4+8 spell levels turned per day, back upon the caster.'},
+  {a:70,b:75,n:'Ring of Swimming',k:'buff',d:'Swim as a fish. No fatigue in water.'},
+  {a:76,b:77,n:'Ring of Telekinesis',k:'buff',d:'Move 25–250 pounds by thought, as the spell.'},
+  {a:78,b:80,n:'Ring of Three Wishes',k:'wish',d:'Three wishes. Use with care.'},
+  {a:81,b:85,n:'Ring of Warmth',k:'resist',d:'Comfort in cold; +2 vs cold saves; resist ice storm and related harm.'},
+  {a:86,b:90,n:'Ring of Water Walking',k:'buff',d:'Walk on any liquid as if it were stone.'},
+  {a:91,b:93,n:'Ring of Weakness',k:'cursed',cursed:1,d:'Drains 1 strength per turn to a minimum of 3. Remove curse to doff.'},
+  {a:94,b:96,n:'Ring of Wizardry (doubles 1st-level spells)',k:'buff',d:'A magic-user may memorize twice the usual 1st-level spells.'},
+  {a:97,b:98,n:'Ring of X-Ray Vision',k:'sense',d:'See through stone or metal in a 20-foot line, 1 turn per 6 hours.'},
+  {a:99,b:100,n:'Ring of Protection +4 on AC 5 or better',k:'ring',plus:2,d:'Strong ward, but only if the wearer already has good armor.'}
+];
+const DMG_WAND=[
+  {a:1,b:3,n:'Rod of Absorption',k:'wand',charges:20,d:'Drinks incoming spells and later casts them. 50 charge maximum.'},
+  {a:4,b:6,n:'Rod of Beguiling',k:'wand',charges:10,d:'Friends and charm in a 20-foot radius. 1 charge per use.'},
+  {a:7,b:10,n:'Rod of Cancellation',k:'wand',charges:1,d:'One touch drains a magic item forever.'},
+  {a:11,b:13,n:'Rod of Lordly Might',k:'weapon',plus:2,d:'War hammer, battle axe, spear, climbing pole, and flame — a fighter\'s rod.'},
+  {a:14,b:16,n:'Rod of Resurrection',k:'wand',charges:5,d:'Raise dead / resurrection by race and class cost in charges.'},
+  {a:17,b:20,n:'Rod of Rulership',k:'wand',charges:10,d:'Command 200+ hit dice of creatures for 1 turn per charge.'},
+  {a:21,b:22,n:'Rod of Smiting',k:'weapon',plus:3,d:'+3 rod. Extra harm to golems; may shatter them.'},
+  {a:23,b:24,n:'Staff of Command',k:'wand',charges:12,d:'Command plants, animals, or humans as the spells.'},
+  {a:25,b:27,n:'Staff of Curing',k:'wand',charges:16,d:'Cure disease, blindness, insanity, or serious wounds. 1 charge each.'},
+  {a:28,b:31,n:'Staff of the Magi',k:'wand',charges:25,d:'A high wizard\'s staff: many spells, absorption, and a final retributive strike.'},
+  {a:32,b:35,n:'Staff of Power',k:'wand',charges:20,d:'Cone of cold, lightning, fireballs, and a +2 weapon.'},
+  {a:36,b:38,n:'Staff of the Serpent',k:'weapon',plus:2,d:'+2 staff. May become a python or adder on command.'},
+  {a:39,b:41,n:'Staff of Striking',k:'weapon',plus:3,d:'+3 staff. Spend charges for extra damage dice.'},
+  {a:42,b:43,n:'Staff of Withering',k:'weapon',plus:1,d:'Age and wither a limb on a hit if a charge is spent.'},
+  {a:44,b:48,n:'Wand of Conjuration',k:'wand',charges:20,d:'Unseen servant, conjure elementals, monster summoning.'},
+  {a:49,b:53,n:'Wand of Enemy Detection',k:'wand',charges:20,d:'Points toward hostile minds in 60 feet.'},
+  {a:54,b:57,n:'Wand of Fear',k:'wand',charges:20,d:'Cone of fear. Save vs wands or flee.'},
+  {a:58,b:62,n:'Wand of Fire',k:'wand',charges:20,d:'Burning hands, pyrotechnics, fireball, or wall of fire.'},
+  {a:63,b:67,n:'Wand of Illusion',k:'wand',charges:20,d:'Audible glamer, mirror image, and improved phantasmal force.'},
+  {a:68,b:71,n:'Wand of Lightning',k:'wand',charges:20,d:'Shocking grasp or a 6-die lightning bolt.'},
+  {a:72,b:75,n:'Wand of Magic Detection',k:'wand',charges:20,d:'Glows near magic in a 30-foot radius.'},
+  {a:76,b:79,n:'Wand of Magic Missiles',k:'wand',charges:20,d:'1 or 2 magic missiles per charge, as the spell.'},
+  {a:80,b:83,n:'Wand of Metal and Mineral Detection',k:'wand',charges:20,d:'Points to a named metal or mineral in 30 feet.'},
+  {a:84,b:87,n:'Wand of Negation',k:'wand',charges:20,d:'Cancels another wand or staff\'s function for 1 round.'},
+  {a:88,b:90,n:'Wand of Paralyzation',k:'wand',charges:20,d:'Ray. Save vs wands or be paralyzed 3d4 rounds.'},
+  {a:91,b:93,n:'Wand of Polymorphing',k:'wand',charges:20,d:'Polymorph other or polymorph self.'},
+  {a:94,b:96,n:'Wand of Secret Door and Trap Detection',k:'wand',charges:20,d:'Pulses at secret doors and traps in 15 feet.'},
+  {a:97,b:100,n:'Wand of Wonder',k:'wand',charges:20,d:'A random wondrous effect each time it is fired.'}
+];
+const DMG_ARMOR=[
+  {a:1,b:5,n:'Chain Mail +1',k:'armor',plus:1,d:'+1 chain. AC improved by 1 beyond ordinary mail.'},
+  {a:6,b:9,n:'Chain Mail +2',k:'armor',plus:2,d:'+2 chain. Fine dwarven or elven links.'},
+  {a:10,b:11,n:'Chain Mail +3',k:'armor',plus:3,d:'+3 chain. Rare and light for its strength.'},
+  {a:12,b:19,n:'Leather Armor +1',k:'armor',plus:1,d:'+1 leather. Quiet, and better than it looks.'},
+  {a:20,b:26,n:'Plate Mail +1',k:'armor',plus:1,d:'+1 plate. The knight\'s standard enchantment.'},
+  {a:27,b:32,n:'Plate Mail +2',k:'armor',plus:2,d:'+2 plate. Forged for a champion.'},
+  {a:33,b:35,n:'Plate Mail +3',k:'armor',plus:3,d:'+3 plate. A lord\'s harness.'},
+  {a:36,b:37,n:'Plate Mail +4',k:'armor',plus:4,d:'+4 plate. Almost unmatched mundane defense.'},
+  {a:38,b:39,n:'Plate Mail +5',k:'armor',plus:5,d:'+5 plate. A relic of the old wars.'},
+  {a:40,b:44,n:'Ring Mail +1',k:'armor',plus:1,d:'+1 ring mail.'},
+  {a:45,b:49,n:'Scale Mail +1',k:'armor',plus:1,d:'+1 scale.'},
+  {a:50,b:54,n:'Splint Mail +1',k:'armor',plus:1,d:'+1 splint.'},
+  {a:55,b:59,n:'Studded Leather +1',k:'armor',plus:1,d:'+1 studded leather.'},
+  {a:60,b:64,n:'Shield +1',k:'armor',plus:1,d:'+1 shield. Counts against the usual number of attacks a shield may catch.'},
+  {a:65,b:69,n:'Shield +2',k:'armor',plus:2,d:'+2 shield.'},
+  {a:70,b:73,n:'Shield +3',k:'armor',plus:3,d:'+3 shield.'},
+  {a:74,b:76,n:'Shield +4',k:'armor',plus:4,d:'+4 shield.'},
+  {a:77,b:78,n:'Shield +5',k:'armor',plus:5,d:'+5 shield. A wall in the hand.'},
+  {a:79,b:80,n:'Shield, large, +1, +4 vs missiles',k:'armor',plus:1,d:'+1 large shield, +4 vs missiles.'},
+  {a:81,b:82,n:'Armor of Command',k:'armor',plus:1,d:'+1 armor. Wearer seems a born captain; +1 to loyalty and reaction.'},
+  {a:83,b:84,n:'Armor of Etherealness',k:'armor',plus:3,d:'+3 plate. Become ethereal for a few turns per week.'},
+  {a:85,b:86,n:'Armor of Fear',k:'armor',plus:1,d:'+1 armor. Enemies in melee must save vs spell or hesitate.'},
+  {a:87,b:88,n:'Armor of Rage',k:'cursed',cursed:1,plus:-1,d:'Cursed berserking plate. The wearer charges and will not quit.'},
+  {a:89,b:93,n:'Cursed Armor -1',k:'cursed',cursed:1,plus:-1,d:'Seems +1 until first struck in anger. Then AC is one worse. Will not come off.'},
+  {a:94,b:96,n:'Cursed Armor -2',k:'cursed',cursed:1,plus:-2,d:'Cursed mail. Attracts blows. Remove curse to doff.'},
+  {a:97,b:100,n:'Cursed Shield -1, missile attractor',k:'cursed',cursed:1,plus:-1,d:'Draws missiles. The bearer is hit more often, not less.'}
+];
+const DMG_SWORD=[
+  {a:1,b:25,n:'Long Sword +1',k:'weapon',plus:1,d:'+1 to hit and damage. The common enchanted long sword.'},
+  {a:26,b:30,n:'Long Sword +1, +2 vs magic-using and enchanted creatures',k:'weapon',plus:1,vs:'magic',d:'+1, +2 vs casters and enchanted foes.'},
+  {a:31,b:35,n:'Long Sword +1, +3 vs lycanthropes and shape changers',k:'weapon',plus:1,vs:'lycan',d:'+1, +3 vs lycanthropes and other shape-changers.'},
+  {a:36,b:40,n:'Long Sword +1, +3 vs regenerating creatures',k:'weapon',plus:1,vs:'regen',d:'+1, +3 vs trolls and anything that grows back.'},
+  {a:41,b:45,n:'Long Sword +1, +4 vs reptiles',k:'weapon',plus:1,vs:'reptile',d:'+1, +4 vs reptiles and dragon-kin.'},
+  {a:46,b:49,n:'Long Sword +1, Flame Tongue',k:'weapon',plus:1,d:'+1 flame tongue. Extra vs cold-using, undead, and regenerating; sheds light.'},
+  {a:50,b:53,n:'Long Sword +1, Luck Blade',k:'weapon',plus:1,d:'+1 luck blade. 1d4+1 wishes; +1 on saves while drawn.'},
+  {a:54,b:57,n:'Broad Sword +1',k:'weapon',plus:1,d:'+1 broad sword.'},
+  {a:58,b:61,n:'Short Sword +1',k:'weapon',plus:1,d:'+1 short sword.'},
+  {a:62,b:66,n:'Long Sword +2',k:'weapon',plus:2,d:'+2 long sword.'},
+  {a:67,b:70,n:'Broad Sword +2',k:'weapon',plus:2,d:'+2 broad sword.'},
+  {a:71,b:72,n:'Long Sword +2, Nine Lives Stealer',k:'weapon',plus:2,d:'+2. On a natural 20, the foe must save vs spell or die (9 charges).'},
+  {a:73,b:74,n:'Long Sword +2, Dragon Slayer',k:'weapon',plus:2,vs:'dragon',d:'+2, +4 vs a chosen dragon type. A wyrm\'s bane.'},
+  {a:75,b:76,n:'Long Sword +3',k:'weapon',plus:3,d:'+3 long sword.'},
+  {a:77,b:78,n:'Frost Brand',k:'weapon',plus:3,d:'+3, +6 vs fire-using or fire-dwelling creatures. Sheds light; fire resistance.'},
+  {a:79,b:80,n:'Holy Avenger',k:'weapon',plus:2,d:'+2 in most hands; +5 in a paladin\'s, with dispel magic in 5 feet.'},
+  {a:81,b:82,n:'Long Sword +3, Giant Slayer',k:'weapon',plus:3,vs:'giant',d:'+3, +6 vs giants and giant-kin.'},
+  {a:83,b:84,n:'Long Sword +4',k:'weapon',plus:4,d:'+4 long sword.'},
+  {a:85,b:86,n:'Defender +4',k:'weapon',plus:4,d:'+4 defender. Split the plus each round between attack and AC.'},
+  {a:87,b:88,n:'Long Sword +5',k:'weapon',plus:5,d:'+5 long sword. A king\'s blade.'},
+  {a:89,b:90,n:'Vorpal Sword',k:'weapon',plus:3,d:'+3 vorpal. On a high roll it severs a neck. Most creatures have a neck.'},
+  {a:91,b:92,n:'Short Sword of Quickness +2',k:'weapon',plus:2,d:'+2. Always strikes first in a round.'},
+  {a:93,b:94,n:'Cursed Sword -1',k:'cursed',cursed:1,plus:-1,d:'-1 to hit and damage. The wielder will not willingly set it down.'},
+  {a:95,b:96,n:'Cursed Sword -2',k:'cursed',cursed:1,plus:-2,d:'-2 blade. It wants melee and will not stay sheathed in a fight.'},
+  {a:97,b:98,n:'Cursed Berserking Sword',k:'cursed',cursed:1,plus:2,d:'+2, but the wielder attacks the nearest creature until none stand.'},
+  {a:99,b:100,n:'Sword of Life Stealing',k:'weapon',plus:2,d:'+2. A natural 20 drains a level and heals the wielder 1d6 hp.'}
+];
+const DMG_WEAP=[
+  {a:1,b:8,n:'Arrows +1 (2d6)',k:'ammo',plus:1,d:'2d6 arrows +1. Each is spent when fired.'},
+  {a:9,b:12,n:'Arrows +2 (1d6)',k:'ammo',plus:2,d:'1d6 arrows +2.'},
+  {a:13,b:15,n:'Arrows +3 (1d4)',k:'ammo',plus:3,d:'1d4 arrows +3.'},
+  {a:16,b:19,n:'Arrow of Slaying',k:'ammo',plus:3,d:'One arrow attuned to a creature type. Save vs death or die.'},
+  {a:20,b:24,n:'Axe +1',k:'weapon',plus:1,d:'+1 battle axe or hand axe.'},
+  {a:25,b:27,n:'Axe +2',k:'weapon',plus:2,d:'+2 battle axe.'},
+  {a:28,b:29,n:'Axe +2, Throwing',k:'weapon',plus:2,d:'+2 throwing axe. Returns in a later edition; here it flies true to 60 feet.'},
+  {a:30,b:32,n:'Axe of Hurling',k:'weapon',plus:2,d:'Thrown axe with extra range and damage. A dwarf\'s friend.'},
+  {a:33,b:36,n:'Bow +1',k:'weapon',plus:1,d:'+1 long or short bow. Adds to the arrow\'s hit roll.'},
+  {a:37,b:40,n:'Crossbow of Accuracy +3',k:'weapon',plus:3,d:'+3 crossbow. No range penalties to medium.'},
+  {a:41,b:43,n:'Crossbow of Distance',k:'weapon',plus:1,d:'+1. Double range categories.'},
+  {a:44,b:46,n:'Crossbow of Speed',k:'weapon',plus:1,d:'+1. Fires as if the user had a higher rate of fire.'},
+  {a:47,b:51,n:'Dagger +1',k:'weapon',plus:1,d:'+1 dagger.'},
+  {a:52,b:54,n:'Dagger +2',k:'weapon',plus:2,d:'+2 dagger.'},
+  {a:55,b:56,n:'Dagger +3, vs Large creatures +2',k:'weapon',plus:3,d:'+3 vs man-size, +2 vs large.'},
+  {a:57,b:60,n:'Hammer +1',k:'weapon',plus:1,d:'+1 war hammer. Fits a miner\'s hand.'},
+  {a:61,b:63,n:'Hammer +2',k:'weapon',plus:2,d:'+2 war hammer.'},
+  {a:64,b:65,n:'Hammer +3, Dwarven Thrower',k:'weapon',plus:3,d:'+3 dwarven thrower. In a dwarf\'s hand it flies 60 feet and returns; +6 vs giants.'},
+  {a:66,b:69,n:'Javelin +2',k:'weapon',plus:2,d:'+2 javelin.'},
+  {a:70,b:73,n:'Mace +1',k:'weapon',plus:1,d:'+1 footman\'s mace.'},
+  {a:74,b:76,n:'Mace +2',k:'weapon',plus:2,d:'+2 mace.'},
+  {a:77,b:78,n:'Mace of Disruption',k:'weapon',plus:1,d:'+1. Undead must save vs death or be blasted; turn as a 12th-level cleric on a hit.'},
+  {a:79,b:82,n:'Sling +1',k:'weapon',plus:1,d:'+1 sling. Stones or bullets.'},
+  {a:83,b:86,n:'Spear +1',k:'weapon',plus:1,d:'+1 spear.'},
+  {a:87,b:89,n:'Spear +2',k:'weapon',plus:2,d:'+2 spear.'},
+  {a:90,b:91,n:'Spear +3',k:'weapon',plus:3,d:'+3 spear.'},
+  {a:92,b:94,n:'Trident +2',k:'weapon',plus:2,d:'+2 trident. Useful in water.'},
+  {a:95,b:96,n:'Trident of Fish Command',k:'weapon',plus:1,d:'+1. Command aquatic animals in 60 feet.'},
+  {a:97,b:98,n:'Cursed Backbiter Spear',k:'cursed',cursed:1,plus:1,d:'Seems +1. On a miss in melee, or any throw, it may strike the wielder.'},
+  {a:99,b:100,n:'Net of Snaring',k:'weapon',plus:0,d:'Thrown net. Save vs petrify or be held. Works underwater.'}
+];
+const DMG_MISC_A=[
+  {a:1,b:5,n:'Alchemy Jug',k:'misc',d:'Pours a chosen liquid (water, wine, oil, aqua regia…) a few times per day.'},
+  {a:6,b:8,n:'Amulet of Inescapable Location',k:'cursed',cursed:1,d:'Cursed. The wearer is easy to find by crystal ball and similar means.'},
+  {a:9,b:11,n:'Amulet of Life Protection',k:'misc',d:'Mind and spirit stay with the body. Blocks magic jar and death of the soul.'},
+  {a:12,b:16,n:'Amulet of the Planes',k:'misc',d:'Shift to an inner or outer plane, or back, if the user knows the way.'},
+  {a:17,b:21,n:'Amulet of Proof against Detection and Location',k:'misc',d:'The wearer cannot be scried or located by spell.'},
+  {a:22,b:24,n:'Apparatus of Kwalish',k:'misc',d:'Iron lobster. Ten levers. Walks on the sea floor with a crew inside.'},
+  {a:25,b:28,n:'Arrow of Direction',k:'misc',d:'Points the way to a named goal 1d6+6 times before it fails.'},
+  {a:29,b:31,n:'Bag of Beans',k:'misc',d:'Plant a bean. Most grow wonders or trouble. One is just a bean.'},
+  {a:32,b:35,n:'Bag of Devouring',k:'cursed',cursed:1,d:'Looks like a bag of holding. It eats what you put in — and sometimes an arm.'},
+  {a:36,b:44,n:'Bag of Holding',k:'misc',d:'A larger space inside than out. Weight is a fraction of the contents.'},
+  {a:45,b:47,n:'Bag of Transmuting',k:'cursed',cursed:1,d:'Seems a bag of holding. In time it turns metals to lead and ruins goods.'},
+  {a:48,b:52,n:'Bag of Tricks',k:'misc',d:'Draw a ball of fuzz; it becomes a friendly animal for a time.'},
+  {a:53,b:55,n:'Beaker of Plentiful Potions',k:'misc',d:'Brews 1d4+1 doses of 1d4 potion types, once per week.'},
+  {a:56,b:58,n:'Boat, Folding',k:'misc',d:'A small box that unfolds into a boat or a ship, then folds again.'},
+  {a:59,b:61,n:'Book of Exalted Deeds',k:'misc',d:'Holy text. A good cleric who studies it gains a level. Others suffer.'},
+  {a:62,b:64,n:'Book of Infinite Spells',k:'misc',d:'A turning book of spells. Each page works once for any class, then may vanish.'},
+  {a:65,b:67,n:'Book of Vile Darkness',k:'cursed',cursed:1,d:'Unholy text. An evil cleric may gain a level. Others are harmed or corrupted.'},
+  {a:68,b:70,n:'Boots of Dancing',k:'cursed',cursed:1,d:'When combat or flight is needed, the wearer dances and cannot act.'},
+  {a:71,b:76,n:'Boots of Elvenkind',k:'misc',d:'Near-silent steps. Surprise as an elf.'},
+  {a:77,b:79,n:'Boots of Levitation',k:'misc',d:'Levitate as the spell, at will.'},
+  {a:80,b:84,n:'Boots of Speed',k:'misc',d:'Double movement. Haste without aging, a few hours a day.'},
+  {a:85,b:89,n:'Boots of Striding and Springing',k:'misc',d:'Stride far and jump 30 feet forward, 10 up, with a safe landing.'},
+  {a:90,b:92,n:'Bowl of Commanding Water Elementals',k:'misc',d:'Fill with water; call a water elemental. 1/day.'},
+  {a:93,b:95,n:'Brazier of Commanding Fire Elementals',k:'misc',d:'Light it; call a fire elemental. 1/day.'},
+  {a:96,b:100,n:'Brazier of Sleep Smoke',k:'cursed',cursed:1,d:'Seems a commanding brazier. The smoke sleeps the user and nearby friends.'}
+];
+const DMG_MISC_B=[
+  {a:1,b:5,n:'Brooch of Shielding',k:'misc',d:'Absorbs magic missiles until 101 points are spent, then it melts.'},
+  {a:6,b:8,n:'Broom of Animated Attack',k:'cursed',cursed:1,d:'Looks like a flying broom. It beats the rider instead.'},
+  {a:9,b:13,n:'Broom of Flying',k:'misc',d:'Fly at 30\". Speak the command word.'},
+  {a:14,b:16,n:'Candle of Invocation',k:'misc',d:'Burns 4 hours. Aids the aligned cleric: spells, gate, and more.'},
+  {a:17,b:20,n:'Carpet of Flying',k:'misc',d:'A rug that flies. Size decides passengers and speed.'},
+  {a:21,b:23,n:'Censer of Controlling Air Elementals',k:'misc',d:'Incense and a word; an air elemental comes. 1/day.'},
+  {a:24,b:25,n:'Censer of Summoning Hostile Air Elementals',k:'cursed',cursed:1,d:'The elemental that arrives is not a friend.'},
+  {a:26,b:31,n:'Chime of Opening',k:'misc',d:'Sound it; locks, bars, and held portals open. 1d8×10 charges.'},
+  {a:32,b:33,n:'Chime of Hunger',k:'cursed',cursed:1,d:'All in 60 feet are racked with hunger and will stop to eat.'},
+  {a:34,b:37,n:'Cloak of Displacement',k:'misc',plus:2,d:'First attack in a fight misses. Thereafter +2 AC and +2 saves vs targeted effects.'},
+  {a:38,b:44,n:'Cloak of Elvenkind',k:'misc',d:'Camouflage. Hide in natural surroundings as if invisible.'},
+  {a:45,b:47,n:'Cloak of Manta Ray',k:'misc',d:'In salt water the wearer becomes a manta: breathe, swim, tail spine.'},
+  {a:48,b:50,n:'Cloak of Poisonousness',k:'cursed',cursed:1,d:'Donning it is fatal without neutralize poison. Looks like a fine cloak.'},
+  {a:51,b:55,n:'Cloak of Protection +1',k:'ring',plus:1,d:'+1 AC and saves. May not stack with magic armor.'},
+  {a:56,b:58,n:'Cloak of Protection +2',k:'ring',plus:2,d:'+2 AC and saves.'},
+  {a:59,b:60,n:'Cloak of Protection +3',k:'ring',plus:3,d:'+3 AC and saves.'},
+  {a:61,b:65,n:'Crystal Ball',k:'misc',d:'Scry a known place or person. Too much use risks insanity.'},
+  {a:66,b:67,n:'Crystal Ball with Clairaudience',k:'misc',d:'As a crystal ball, and you may hear as well as see.'},
+  {a:68,b:69,n:'Crystal Hypnosis Ball',k:'cursed',cursed:1,d:'A false crystal ball. The viewer is suggested or dominated by its maker.'},
+  {a:70,b:73,n:'Cube of Force',k:'misc',d:'A cube of walls: keep out gases, missiles, spells, or living things. Charges per day.'},
+  {a:74,b:75,n:'Cube of Frost Resistance',k:'misc',d:'A 10-foot cube of warmth against cold and ice storms.'},
+  {a:76,b:78,n:'Cubic Gate',k:'misc',d:'Each face opens a gate to a different plane.'},
+  {a:79,b:81,n:'Daern\'s Instant Fortress',k:'misc',d:'A small cube becomes an adamantine tower. Mind the door.'},
+  {a:82,b:85,n:'Decanter of Endless Water',k:'misc',d:'Stream, fountain, or geyser on command.'},
+  {a:86,b:88,n:'Deck of Many Things',k:'misc',d:'Draw cards. Fortunes and ruin. The wise draw few.'},
+  {a:89,b:92,n:'Drums of Panic',k:'misc',d:'All beyond 10 feet and within 120 must save vs spell or flee in panic.'},
+  {a:93,b:95,n:'Dust of Appearance',k:'misc',d:'Reveals invisible, astral, and displaced things in the cloud.'},
+  {a:96,b:100,n:'Dust of Disappearance',k:'misc',d:'Those dusted are invisible, even to true seeing, for 2d10 turns.'}
+];
+const DMG_MISC_C=[
+  {a:1,b:3,n:'Dust of Sneezing and Choking',k:'cursed',cursed:1,d:'Looks like dust of disappearance. Save vs poison or choke; death is possible.'},
+  {a:4,b:6,n:'Efreeti Bottle',k:'misc',d:'Uncork: an efreeti. It may serve, or it may try to kill the opener.'},
+  {a:7,b:10,n:'Eversmoking Bottle',k:'misc',d:'Smoke fills a wide area until stoppered with the command word.'},
+  {a:11,b:13,n:'Eyes of Charming',k:'misc',d:'Lenses. Charm person by meeting the gaze, 1/day per eye.'},
+  {a:14,b:17,n:'Eyes of the Eagle',k:'misc',d:'100× vision. Spot as if much closer.'},
+  {a:18,b:20,n:'Eyes of Minute Seeing',k:'misc',d:'See secret doors, tiny seams, and traps at 1 foot.'},
+  {a:21,b:22,n:'Eyes of Petrification',k:'cursed',cursed:1,d:'The wearer is turned to stone unless a save vs petrify is made.'},
+  {a:23,b:28,n:'Figurine of Wondrous Power',k:'misc',d:'A small statuette that becomes a real creature for a time (ebony fly, golden lions, onyx dog, and others).'},
+  {a:29,b:31,n:'Flask of Curses',k:'cursed',cursed:1,d:'Looks like a potion or decanter. Opening it looses a curse.'},
+  {a:32,b:36,n:'Gauntlets of Dexterity',k:'misc',d:'Dexterity 18, or +4 if already high, for thieving and AC.'},
+  {a:37,b:41,n:'Gauntlets of Ogre Power',k:'misc',d:'Strength 18/00 for hit, damage, and opening doors. A dwarf can wear them.'},
+  {a:42,b:44,n:'Gauntlets of Fumbling',k:'cursed',cursed:1,d:'Seem to be ogre power or dexterity. In a fight the wearer fumbles weapons.'},
+  {a:45,b:47,n:'Gem of Brightness',k:'wand',charges:25,d:'Beam of light, or a blinding stroke that may put out an eye.'},
+  {a:48,b:50,n:'Gem of Seeing',k:'misc',d:'True seeing while looking through the gem, a few minutes at a time.'},
+  {a:51,b:53,n:'Girdle of Femininity/Masculinity',k:'cursed',cursed:1,d:'Changes the wearer\'s sex. Only a wish undoes it.'},
+  {a:54,b:58,n:'Girdle of Giant Strength',k:'misc',d:'Strength of a hill, stone, frost, fire, or cloud giant while worn.'},
+  {a:59,b:61,n:'Helm of Brilliance',k:'misc',d:'Gems for fire resistance, wall of fire, flame strike, and a burning light.'},
+  {a:62,b:65,n:'Helm of Comprehending Languages and Reading Magic',k:'misc',d:'Read any tongue and magic script while it is worn.'},
+  {a:66,b:67,n:'Helm of Opposite Alignment',k:'cursed',cursed:1,d:'Alignment flips. The wearer will not want it removed.'},
+  {a:68,b:71,n:'Helm of Telepathy',k:'misc',d:'Read thoughts in 90 feet; implant a suggestion 1/day.'},
+  {a:72,b:74,n:'Helm of Teleportation',k:'misc',d:'Teleport as the spell, more often if a magic-user wears it.'},
+  {a:75,b:77,n:'Helm of Underwater Action',k:'misc',d:'See and breathe underwater. Speak with a bubble of air.'},
+  {a:78,b:80,n:'Horn of Blasting',k:'misc',d:'A cone of sound: deafness, damage, and a chance to fell walls.'},
+  {a:81,b:83,n:'Horn of Bubbles',k:'cursed',cursed:1,d:'Seems a useful horn. It wraps the blower in bubbles that block sight and air.'},
+  {a:84,b:86,n:'Horn of Collapsing',k:'misc',d:'Bring down a roof or a tunnel if sounded underground — aim well.'},
+  {a:87,b:90,n:'Horn of the Tritons',k:'misc',d:'Calm waters, call sea creatures, or frighten water beasts. 1/day.'},
+  {a:91,b:95,n:'Horn of Valhalla',k:'misc',d:'Summons berserkers of silver, brass, bronze, or iron. They fight for you.'},
+  {a:96,b:100,n:'Horseshoes of Speed',k:'misc',d:'A mount shod with these moves half again as fast.'}
+];
+const DMG_MISC_D=[
+  {a:1,b:4,n:'Horseshoes of a Zephyr',k:'misc',d:'The mount trots on water or air as if on turf.'},
+  {a:5,b:8,n:'Incense of Meditation',k:'misc',d:'A cleric who prays in the smoke has maximum effect on the next day\'s spells.'},
+  {a:9,b:10,n:'Incense of Obsession',k:'cursed',cursed:1,d:'The cleric will cast spells at any excuse until none remain.'},
+  {a:11,b:13,n:'Ioun Stones',k:'misc',d:'Orbiting stones: extra spells, stats, absorption, or other lasting gifts.'},
+  {a:14,b:16,n:'Instrument of the Bards',k:'misc',d:'A named harp or lyre (Mac-Fuirmidh, Doss, Canaith, Cli, Anstruth, or Ollamh).'},
+  {a:17,b:19,n:'Iron Flask',k:'misc',d:'Trap an extraplanar creature. Opening it later may free a slave — or a fury.'},
+  {a:20,b:23,n:'Javelin of Lightning',k:'ammo',plus:2,d:'Becomes a 5-die lightning bolt when thrown. One use.'},
+  {a:24,b:27,n:'Javelin of Piercing',k:'ammo',plus:6,d:'Leaps from the hand to 60 feet, +6 to hit, 1d6+6 damage. One use.'},
+  {a:28,b:31,n:'Jewel of Attacks',k:'cursed',cursed:1,d:'Doubles the chance of wandering monsters. Will not stay thrown away.'},
+  {a:32,b:33,n:'Jewel of Flawlessness',k:'misc',d:'10d10 facets. Each can make one gem perfect; then that facet goes dark.'},
+  {a:34,b:38,n:'Keoghtom\'s Ointment',k:'heal',d:'1d4+1 doses. Cure poison, disease, or 2d8+2 hp per application.'},
+  {a:39,b:41,n:'Libram of Gainful Conjuration',k:'misc',d:'A magic-user of the right alignment who studies it gains a level.'},
+  {a:42,b:44,n:'Libram of Ineffable Damnation',k:'misc',d:'As above, for an evil magic-user.'},
+  {a:45,b:47,n:'Libram of Silver Magic',k:'misc',d:'As above, for a good magic-user.'},
+  {a:48,b:50,n:'Lyre of Building',k:'misc',d:'Dispel a horn of blasting, or raise a day\'s stonework in a few turns.'},
+  {a:51,b:53,n:'Manual of Bodily Health',k:'misc',d:'Study a month; +1 Constitution permanently. The book then vanishes.'},
+  {a:54,b:56,n:'Manual of Gainful Exercise',k:'misc',d:'Study a month; +1 Strength permanently.'},
+  {a:57,b:59,n:'Manual of Golems',k:'misc',d:'Instructions to build a golem of the listed type, at great cost.'},
+  {a:60,b:62,n:'Manual of Puissant Skill at Arms',k:'misc',d:'A fighter who studies it gains a level. Other classes suffer.'},
+  {a:63,b:65,n:'Manual of Quickness of Action',k:'misc',d:'Study a month; +1 Dexterity permanently.'},
+  {a:66,b:68,n:'Manual of Stealthy Pilfering',k:'misc',d:'A thief who studies it gains a level.'},
+  {a:69,b:71,n:'Mattock of the Titans',k:'weapon',plus:3,d:'A 10-foot digging tool. Giants and the very strong can wield it in battle.'},
+  {a:72,b:74,n:'Maul of the Titans',k:'weapon',plus:2,d:'A huge hammer. +2 and vast damage if the wielder is strong enough.'},
+  {a:75,b:78,n:'Medallion of ESP',k:'sense',d:'Read thoughts in 30 feet, with a chance of garbled sense each turn.'},
+  {a:79,b:80,n:'Medallion of ESP (90 feet)',k:'sense',d:'As above, to 90 feet.'},
+  {a:81,b:83,n:'Medallion of Thought Projection',k:'cursed',cursed:1,d:'Seems a medallion of ESP. It broadcasts the wearer\'s thoughts instead.'},
+  {a:84,b:87,n:'Mirror of Life Trapping',k:'misc',d:'A creature that sees itself may be drawn into a cell inside the glass.'},
+  {a:88,b:90,n:'Mirror of Mental Prowess',k:'misc',d:'Scry, read, and speak through the glass; it may answer a question.'},
+  {a:91,b:92,n:'Mirror of Opposition',k:'cursed',cursed:1,d:'A duplicate steps out and fights the viewer to the death.'},
+  {a:93,b:96,n:'Necklace of Adaptation',k:'misc',d:'Breathe anywhere: water, smoke, or void. Immunity to gas.'},
+  {a:97,b:100,n:'Necklace of Missiles',k:'wand',charges:5,d:'Beads that are fireballs (varies 3d6 to 9d6). Throw one at a time.'}
+];
+const DMG_MISC_E=[
+  {a:1,b:4,n:'Necklace of Prayer Beads',k:'misc',d:'Beads for a cleric: blessing, curing, karma, summoning, or wind walking.'},
+  {a:5,b:6,n:'Necklace of Strangulation',k:'cursed',cursed:1,d:'Clasps and strangles. 6 hp/round until the victim is dead. Wish or similar to remove.'},
+  {a:7,b:10,n:'Nolzur\'s Marvelous Pigments',k:'misc',d:'Paint a real object or a door. 1d4 pots.'},
+  {a:11,b:13,n:'Pearl of Power',k:'misc',d:'A magic-user recalls one spell of a chosen level, once per day.'},
+  {a:14,b:15,n:'Pearl of Wisdom',k:'misc',d:'A cleric who keeps it a month gains +1 Wisdom. Steal it later and the point is lost.'},
+  {a:16,b:17,n:'Periapt of Foul Rotting',k:'cursed',cursed:1,d:'A rotting disease that only a rare cure or a wish will stop.'},
+  {a:18,b:21,n:'Periapt of Health',k:'misc',d:'Immune to disease while it is worn.'},
+  {a:22,b:25,n:'Periapt of Proof against Poison',k:'misc',d:'+4 vs poison, or immunity, depending on the stone.'},
+  {a:26,b:28,n:'Periapt of Wound Closure',k:'misc',d:'Wounds close. The wearer heals as if resting, even when active.'},
+  {a:29,b:32,n:'Phylactery of Faithfulness',k:'misc',d:'Warns a cleric who is about to act against alignment or deity.'},
+  {a:33,b:35,n:'Phylactery of Long Years',k:'misc',d:'The cleric ages at one-quarter speed.'},
+  {a:36,b:37,n:'Phylactery of Monstrous Attention',k:'cursed',cursed:1,d:'Draws hostile monsters of a type hated by the cleric\'s faith.'},
+  {a:38,b:42,n:'Pipes of the Sewers',k:'misc',d:'Call and command rats. 1–3 times per day.'},
+  {a:43,b:45,n:'Portable Hole',k:'misc',d:'A 6-foot-deep extra-dimensional hole that folds into a cloth.'},
+  {a:46,b:48,n:'Quaal\'s Feather Token',k:'misc',d:'A small feather that becomes an anchor, bird, fan, swan boat, or whip. One use.'},
+  {a:49,b:51,n:'Robe of the Archmagi',k:'misc',plus:5,d:'AC 5, +5% magic resistance, and other gifts for a magic-user of the robe\'s alignment.'},
+  {a:52,b:55,n:'Robe of Blending',k:'misc',d:'Camouflage and a change-self at will.'},
+  {a:56,b:57,n:'Robe of Eyes',k:'misc',d:'See in all directions, invisible, and astral. Hard to surprise. Light can blind.'},
+  {a:58,b:59,n:'Robe of Powerlessness',k:'cursed',cursed:1,d:'Strength and intelligence drop to 3. Seems a helpful robe until donned.'},
+  {a:60,b:61,n:'Robe of Scintillating Colors',k:'misc',d:'A hypnotic play of color. Foes may be dazed; AC improves as the colors grow.'},
+  {a:62,b:65,n:'Robe of Useful Items',k:'misc',d:'Patches that become real tools, food, weapons, or a window. Each once.'},
+  {a:66,b:69,n:'Rope of Climbing',k:'misc',d:'A 60-foot rope that moves on command and holds fast.'},
+  {a:70,b:71,n:'Rope of Constriction',k:'cursed',cursed:1,d:'Seems a climbing or entanglement rope. It strangles the user and nearby allies.'},
+  {a:72,b:74,n:'Rope of Entanglement',k:'misc',d:'Lashes out to 20 feet and entangles 2d4+1 man-sized foes.'},
+  {a:75,b:77,n:'Rug of Smothering',k:'cursed',cursed:1,d:'Seems a flying carpet. It wraps and smothers the one who sits.'},
+  {a:78,b:80,n:'Saw of Mighty Cutting',k:'misc',d:'A 12-foot saw. Cuts a 2-foot tree in 10 minutes if two strong souls work it.'},
+  {a:81,b:83,n:'Scarab of Death',k:'cursed',cursed:1,d:'If carried a minute, it becomes a beetle and burrows to the heart.'},
+  {a:84,b:88,n:'Scarab of Enraging Enemies',k:'misc',d:'Enemies in 40 feet may become enraged and attack at a penalty.'},
+  {a:89,b:91,n:'Scarab of Insanity',k:'misc',d:'A pulse of confusion/insanity in 20 feet, a few times, then it darkens.'},
+  {a:92,b:94,n:'Scarab of Protection',k:'misc',d:'Absorbs curses and finger of death. 1d6+12 charges, then it crumbles.'},
+  {a:95,b:96,n:'Spade of Colossal Excavation',k:'misc',d:'A giant\'s spade. One strong user moves a great cube of earth each turn.'},
+  {a:97,b:98,n:'Sphere of Annihilation',k:'misc',d:'A black void. It destroys what it touches. Control is a contest of will.'},
+  {a:99,b:100,n:'Stone of Controlling Earth Elementals',k:'misc',d:'Call an earth elemental from rough ground. 1/day.'}
+];
+
+function rollDmgScroll(){ const r=pickRange(DMG_SCROLL); return magItem({cat:'Scroll',n:r.n,d:r.d,k:r.k,cursed:r.cursed}); }
+function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed,charges:r.charges}); }
+function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
+function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed}); }
+function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,cursed:r.cursed}); }
+function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed}); }
+function rollDmgMisc(){
+  const map=d100();
+  const table=map<=15?DMG_MISC_A:map<=30?DMG_MISC_B:map<=45?DMG_MISC_C:map<=60?DMG_MISC_D:DMG_MISC_E;
+  const r=pickRange(table);
+  return magItem({cat:'Miscellaneous',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges,cursed:r.cursed});
+}
+
+function magicCategory(kind){
+  if(kind==='potion') return 'potion';
+  if(kind==='scroll') return 'scroll';
+  if(kind==='saw'){
+    const r=d100();
+    if(r<=40) return 'sword';
+    if(r<=70) return 'armor';
+    return 'weapon';
+  }
+  if(kind==='anynos'){
+    const r=d100();
+    if(r<=25) return 'potion';
+    if(r<=45) return 'scroll';
+    if(r<=55) return 'ring';
+    if(r<=65) return 'wand';
+    if(r<=72) return 'misc';
+    if(r<=85) return 'armor';
+    return 'weapon';
+  }
+  const r=d100();
+  if(r<=20) return 'potion';
+  if(r<=35) return 'scroll';
+  if(r<=40) return 'ring';
+  if(r<=45) return 'wand';
+  if(r<=48) return 'misc';
+  if(r<=55) return 'armor';
+  if(r<=75) return 'sword';
+  return 'weapon';
+}
+function rollMagicItem(kind){
+  const cat=magicCategory(kind);
+  if(cat==='potion'){
+    const p=rollPotion();
+    return {kind:'potion', potion:p, n:p.n, d:p.d, cat:'Potion'};
+  }
+  let it;
+  if(cat==='scroll') it=rollDmgScroll();
+  else if(cat==='ring') it=rollDmgRing();
+  else if(cat==='wand') it=rollDmgWand();
+  else if(cat==='misc') it=rollDmgMisc();
+  else if(cat==='armor') it=rollDmgArmor();
+  else if(cat==='sword') it=rollDmgSword();
+  else it=rollDmgWeapon();
+  return {kind:'magic', item:it, n:it.n, d:it.d, cat:it.cat};
+}
+function extraMagicForKind(kind){
+  const extra=[];
+  if(kind==='anyp'||kind==='anyps') extra.push('potion');
+  if(kind==='anys'||kind==='anyps') extra.push('scroll');
+  return extra;
+}
+
+function applyEquipped(){
+  if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  const eq=G.equipped;
+  Object.values(G.gear||{}).forEach(g=>{ g.magicAtk=0; g.magicAc=0; });
+  const mac=G.gear&&G.gear.macar;
+  if(eq.weapon&&mac){
+    mac.magicAtk=eq.weapon.plus||0;
+    if(eq.weapon.cursed) mac.magicAtk=eq.weapon.plus|| -1;
+  }
+  const acPlus=(eq.armor&&!eq.armor.cursed?eq.armor.plus||0:eq.armor&&eq.armor.cursed?eq.armor.plus|| -1:0)
+    +(eq.ring&&!eq.ring.cursed?eq.ring.plus||0:0);
+  Object.values(G.gear||{}).forEach(g=>{ g.magicAc=acPlus; });
+  if(eq.armor&&eq.armor.cursed) Object.values(G.gear||{}).forEach(g=>{ g.magicAc=(eq.armor.plus|| -1)+(eq.ring&&eq.ring.plus||0); });
+}
+function useMagicItem(it, e){
+  e=e||player();
+  if(!it) return;
+  say(it.n+': '+it.d, '#ffd27a');
+  if(it.cursed){
+    if(it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')){
+      if(/Sword|Weapon|Hammer|Axe|Mace|Rod|Staff/.test(it.n+it.cat)) G.equipped.weapon=it;
+      else G.equipped.armor=it;
+      applyEquipped();
+      say('The curse binds. It will not be set aside.','#ff6a5a');
+      return;
+    }
+    if(e){ e.stun=Math.max(e.stun||0,2.2); damage(e, ADD_SCALE*4, '#ff6a5a'); }
+    return;
+  }
+  if(it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'||it.cat==='Rod/Staff/Wand'&&it.k==='weapon'){
+    G.equipped.weapon=it; applyEquipped();
+    say('Wielded: '+it.n+'.','#ffd27a'); return;
+  }
+  if(it.k==='armor'||it.cat==='Armor/Shield'){
+    G.equipped.armor=it; applyEquipped();
+    say('Donned: '+it.n+'.','#cfe3ff'); return;
+  }
+  if(it.k==='ring'||it.cat==='Ring'){
+    G.equipped.ring=it; applyEquipped();
+    if(it.k==='regen'&&e) e.potionRegen=Math.max(e.potionRegen||0, 999);
+    if(it.k==='invis'&&e){ e.invis=30; e.aggro=2; }
+    say('Worn: '+it.n+'.','#e0d2ff'); return;
+  }
+  if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
+    G.equipped.wand=it;
+    if(e&&it.charges){
+      const t=nearestFoe(e,8);
+      const dmg=rollDice(6,6,0)*ADD_SCALE;
+      if(t){ damage(t, dmg, '#7ad0ff'); burst(t.x,t.y,'#7ad0ff',16,3); }
+      it.charges=Math.max(0,(it.charges||1)-1);
+      say(it.n+' ('+it.charges+' charges left).','#7ad0ff');
+    }
+    return;
+  }
+  if(it.k==='heal'){
+    if(e){ applyHeal(e, 18); clearPoison(e); }
+    return 'spent';
+  }
+  if(/Ointment|Curing|Periapt of Wound/.test(it.n)){
+    if(e){ applyHeal(e, 18); clearPoison(e); }
+    return;
+  }
+  if(it.k==='scroll'||it.k==='prot'){
+    if(e){ e.guardT=Math.max(e.guardT||0, 8); e.mr=1; applyHeal(e, 8); }
+    say('The scroll is read and the ink fades.','#e0d2ff');
+    return 'spent';
+  }
+  if(it.k==='ammo'){
+    const t=e?nearestFoe(e,8):null;
+    const dmg=rollDice(6,6,0)*ADD_SCALE;
+    if(t){ damage(t, dmg, '#7ad0ff'); burst(t.x,t.y,'#7ad0ff',16,3); }
+    return 'spent';
+  }
+  if(it.k==='sense'){ if(e) e.trueSee=40; return; }
+  if(e){ e.buff=Math.max(e.buff||0, 10); applyHeal(e, 6); }
+}
+
 
 const HERBS=[
   {n:'Bearded Fang',diff:40,uses:'1',cost:50,k:'food',d:'Mushroom. Eat for nutrition.'},
@@ -1497,7 +1988,7 @@ const HERBS=[
 ];
 function forageChance(){ return 10+(skillLvl('forage')-1)*5; }
 function forageHerbs(src){
-  if(!G.inv) G.inv={potions:[],herbs:{}};
+  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
   const ch=forageChance(), roll=d100();
   learn('forage',2);
   if(src) src.picked=(src.picked||0)+1;
@@ -1545,15 +2036,13 @@ function convertHoard(coins, gems, jew, magN, magKind, where){
   if(coins.pp){ addCoin('pp',coins.pp); const n=Math.min(4,Math.max(1,Math.round(coins.pp/200))); gain('starmetal',n); notes.push(coins.pp+' pp'); }
   if(gems){ gain(gems>=8?'starmetal':'deepsilver', Math.min(4,Math.max(1,Math.round(gems/8)))); notes.push(gems+' gems'); }
   if(jew){ gain('silk', Math.min(4,Math.max(1,Math.round(jew/3)))); notes.push(jew+' jewelry'); }
-  for(let i=0;i<magN;i++){
-    const cat=magKind||'any';
-    const r=d100();
-    const potion=cat==='potion'||cat==='anyp'||(cat.indexOf('any')===0&&r<=20)||(cat==='saw'&&r<=50);
-    if(potion){ const p=rollPotion(); givePotion(p,1); notes.push('potion: '+p.n); }
-    else if(r<=35){ learn('forage',8); learn('song',4); notes.push('a scroll'); }
-    else if(r<=40){ const p=player(); if(p&&p.gear){ p.gear.at=(p.gear.at||0)+1; } notes.push('a ring of protection'); }
-    else if(r<=55){ Object.values(G.gear||{}).forEach(x=>x.at=(x.at||0)+1); notes.push('enchanted mail'); }
-    else { const p=player(); if(p&&p.gear){ p.gear.wt=(p.gear.wt||0)+1; } notes.push('a magic weapon'); }
+  const extras=extraMagicForKind(magKind);
+  const rolls=magN+extras.length;
+  for(let i=0;i<rolls;i++){
+    const kind=i<magN?(magKind||'any'):extras[i-magN];
+    const got=rollMagicItem(kind);
+    if(got.kind==='potion'){ givePotion(got.potion,1); notes.push('Potion: '+got.n); }
+    else { giveMagic(got.item,1); notes.push(got.cat+': '+got.n); }
   }
   if(notes.length){
     say(((where&&where.name)?where.name+' drops':'Treasure')+': '+notes.join(', ')+'.','#ffd27a');
@@ -3193,7 +3682,8 @@ function initEconomy(){
   G.gear={}; ROSTER.forEach(r=>G.gear[r.key]=newGear());
   G.bombs=2; G.ales=2; G.songBuff=0;
   G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
-  G.inv={potions:[],herbs:{}};
+  G.inv={potions:[],herbs:{},magic:[]};
+  G.equipped={weapon:null,armor:null,ring:null,wand:null};
   G.fightOn=0; G.carryEffects=G.carryEffects||[];
 }
 function wepMult(e){ const g=e.gear; if(!g) return 1;
@@ -3352,8 +3842,9 @@ function campActions(){
   a.push({grp:'VERGE',t:'Search the cavern verge for herbs',cost:{},
     info:'Herb Lore '+forageChance()+'%  ·  then d30 and d100 vs the plant',
     fn:()=>{ forageHerbs(); }});
-  a.push({grp:'PACK',t:'Open the pack (potions & herbs)',cost:{},
-    info:(G.inv&&G.inv.potions?G.inv.potions.length:0)+' potions, '+
+  a.push({grp:'PACK',t:'Open the pack (magic, potions, herbs)',cost:{},
+    info:(G.inv&&G.inv.magic?G.inv.magic.length:0)+' magic, '+
+      (G.inv&&G.inv.potions?G.inv.potions.length:0)+' potions, '+
       Object.values((G.inv&&G.inv.herbs)||{}).reduce((n,v)=>n+v,0)+' herbs',
     fn:()=>{ G.scene='pack'; }});
   return a;
@@ -4054,17 +4545,24 @@ function drawPack(g){
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
   g.textAlign='center';
   g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('PACK  \u00b7  POTIONS & UNDERGROUND HERBS', VW/2, VH*.07);
+  g.fillText('PACK  \u00b7  DMG MAGIC, POTIONS, HERBS', VW/2, VH*.07);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.75)';
   const c=G.coin||{};
   g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.11);
   g.textAlign='left';
-  if(!G.inv) G.inv={potions:[],herbs:{}};
+  if(!G.inv) G.inv={potions:[],herbs:{},magic:[]};
+  if(!G.inv.magic) G.inv.magic=[];
+  const eq=G.equipped||{};
+  const mag=G.inv.magic||[];
   const pots=G.inv.potions||[];
   const herbs=Object.keys(G.inv.herbs||{});
   const rows=[];
-  pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d}));
-  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(G.inv.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||''}));
+  mag.forEach((it,i)=>{
+    const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
+    rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,info:it.d,tag:it.cat||'Magic'});
+  });
+  pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'}));
+  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(G.inv.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
   const top=VH*.145, bot=VH-58*s, h=Math.min(PORT?36*s:40*s, Math.max(28*s,(bot-top)/Math.max(1,rows.length||1)));
   if(!rows.length){
     g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
@@ -4075,14 +4573,29 @@ function drawPack(g){
     const y=top+i*h, x=10*s, w=VW-20*s;
     plate(g,x,y,w,h-3*s,5,.8);
     g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=r.kind==='potion'?'#e0d2ff':'#6aff8a';
-    g.fillText(r.kind==='potion'?'POTION':'HERB', x+10*s, y+12*s);
+    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':'#6aff8a';
+    g.fillText((r.tag||r.kind).toUpperCase(), x+10*s, y+12*s);
     g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle='#f4e2b8'; g.fillText(r.t, x+10*s, y+h*0.58);
     g.font='600 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle='rgba(190,170,130,0.7)'; g.fillText((r.info||'').slice(0,72), x+10*s, y+h-8*s);
     menuHits.push({x,y,w,h:h-3*s,fn:()=>{
-      if(r.kind==='potion'){
+      if(r.kind==='magic'){
+        const it=G.inv.magic[r.i];
+        if(!it) return;
+        const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal'||it.k==='ammo';
+        if(G.scene==='play'){
+          const spent=useMagicItem(it, player());
+          if(spent==='spent'||consume) G.inv.magic.splice(r.i,1);
+        } else if(consume){
+          G.inv.magic.splice(r.i,1);
+          G.carryEffects=G.carryEffects||[];
+          G.carryEffects.push({t:'magic',it});
+          say('Set aside for the next descent: '+it.n,'#ffd27a');
+        } else {
+          useMagicItem(it, null);
+        }
+      } else if(r.kind==='potion'){
         const p=G.inv.potions.splice(r.i,1)[0];
         if(!p) return;
         if(G.scene==='play') drinkPotion(p, player());
