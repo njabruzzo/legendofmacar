@@ -224,6 +224,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk)\.png$/.test(src)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
+  if(/prop_(sack|timber|chain|rubywall)\.png$/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   SPRITE_FILES[k+'_w1']=stem+'_w1.png';
@@ -322,9 +323,10 @@ function propSpriteH(p,z){
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 120*z;
   if(k==='chain') return 96*z;
+  if(k==='timber') return 100*z;
   if(k==='lantern') return 102*z;
   if(k==='lift') return 72*z;
-  if(k==='cart'||k==='crate'||k==='barrel'||k==='sack'||k==='timber') return 54*z;
+  if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z;
   if(k==='bones') return 42*z;
   if(k==='shroom') return 54*z;
   if(k==='brazier') return 60*z;
@@ -2539,17 +2541,18 @@ function convertHoard(coins, gems, jew, magN, magKind, where){
   if(jew){ gain('silk', Math.min(4,Math.max(1,Math.round(jew/3)))); notes.push(jew+' jewelry'); }
   const extras=extraMagicForKind(magKind);
   const rolls=magN+extras.length;
+  let magGp=0;
   for(let i=0;i<rolls;i++){
     const kind=i<magN?(magKind||'any'):extras[i-magN];
     const got=rollMagicItem(kind);
-    if(got.kind==='potion'){ givePotion(got.potion,1); notes.push('Potion: '+got.n); }
-    else { giveMagic(got.item,1); notes.push(got.cat+': '+got.n); }
+    if(got.kind==='potion'){ givePotion(got.potion,1); notes.push('Potion: '+got.n); magGp+=got.potion.gp||got.potion.xp||0; }
+    else { giveMagic(got.item,1); notes.push(got.cat+': '+got.n); magGp+=got.item.gp||got.item.xp||0; }
   }
   if(notes.length){
     say(((where&&where.name)?where.name+' drops':'Treasure')+': '+notes.join(', ')+'.','#ffd27a');
     if(where&&where.x!=null) ftext(where.x, where.y-0.4, notes[0], '#ffd27a');
   }
-  const gp=treasureGp(coins, gems, jew);
+  const gp=treasureGp(coins, gems, jew)+Math.round(magGp||0);
   if(gp) awardPartyXp(gp, 'Treasure ('+gp+' gp)', where);
   return notes;
 }
@@ -2810,6 +2813,8 @@ function btnAt(x,y){ for(const b of UIBTN) if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) 
 const pressed={};
 function onDown(id,x,y,ptr){
   if(G.scene!=='play'||G.paused){ IN.taps.push({x,y}); return; }
+  const b=btnAt(x,y);
+  if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
   if(G.inspect){
     const hit=(UI.portraitHits||[]).find(p=>x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h);
     if(hit){ G.inspect=hit.key; return; }
@@ -2817,8 +2822,6 @@ function onDown(id,x,y,ptr){
   }
   const ph=(UI.portraitHits||[]).find(p=>x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h);
   if(ph){ G.inspect=ph.key; return; }
-  const b=btnAt(x,y);
-  if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
   const nearHome = Math.hypot(x-UI.stickHome.x,y-UI.stickHome.y) < UI.stickHome.r*2.2;
   if(G.aim && !(x<VW*0.5||nearHome)){ aimDrag=id; }
   const touchStick = ptr!=='mouse' && (x < VW*0.5 || nearHome);
