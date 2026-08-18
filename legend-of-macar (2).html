@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -235,13 +236,15 @@ const ICON_SPR={
 function loadSprites(done){
   const keys=Object.keys(SPRITE_FILES); let left=keys.length;
   if(!left){ done(); return; }
-  keys.forEach(k=>{
+  function one(k){
     const img=new Image();
     img.onload=()=>{ SPR[k]=img; if(--left<=0) done(); };
     img.onerror=()=>{ if(--left<=0) done(); };
     try{ img.src=new URL(SPRITE_FILES[k], document.baseURI).href; }
     catch(_){ img.src=SPRITE_FILES[k]; }
-  });
+  }
+  if(SPRITE_FILES.title_splash) one('title_splash');
+  keys.forEach(k=>{ if(k!=='title_splash') one(k); });
 }
 function drawBillboard(g,img,h){
   if(!img||!img.width) return false;
@@ -3817,10 +3820,11 @@ function drawEnt(g,e){
   const bob0=0;
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
 
-  const left=(e.fdx-e.fdy)<0;
+  const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
+  const flip=heading>0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
-  g.save(); g.translate(0,-bob0); g.scale(left?-1:1,1); g.scale(1/squash,squash);
+  g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
   if(!(img && drawBillboard(g,img,entSpriteH(e,z)))){
     if(e.kind==='dwarf') drawDwarf(g,e,z,sw);
     else if(e.kind==='statue') drawStatue(g,e,z,sw);
@@ -4996,23 +5000,23 @@ function drawTitle(g){
   if(!drawSplashCover(g, SPR.title_splash)) drawTitleCavern(g);
   const pulse=.55+Math.sin(G.t*2.1)*.45;
   const rg=g.createRadialGradient(VW/2, VH*0.42, 10, VW/2, VH*0.46, Math.max(VW,VH)*0.46);
-  rg.addColorStop(0,'rgba(255,36,48,'+(0.14*pulse)+')');
-  rg.addColorStop(0.4,'rgba(140,16,24,0.05)');
+  rg.addColorStop(0,'rgba(255,36,48,'+(0.10*pulse)+')');
+  rg.addColorStop(0.4,'rgba(140,16,24,0.04)');
   rg.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=rg; g.fillRect(0,0,VW,VH);
   embers(g);
-  const vg=g.createRadialGradient(VW/2,VH*.48,20,VW/2,VH*.5,Math.max(VW,VH)*.78);
+  const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.85);
   vg.addColorStop(0,'rgba(0,0,0,0)');
-  vg.addColorStop(0.55,'rgba(0,0,0,0.16)');
-  vg.addColorStop(1,'rgba(0,0,0,0.78)');
+  vg.addColorStop(0.62,'rgba(0,0,0,0.08)');
+  vg.addColorStop(1,'rgba(0,0,0,0.55)');
   g.fillStyle=vg; g.fillRect(0,0,VW,VH);
-  const bar=Math.max(34*s, VH*0.078);
-  const fade=g.createLinearGradient(0,0,0,bar+52*s);
-  fade.addColorStop(0,'rgba(0,0,0,0.94)'); fade.addColorStop(0.55,'rgba(0,0,0,0.55)'); fade.addColorStop(1,'rgba(0,0,0,0)');
-  g.fillStyle=fade; g.fillRect(0,0,VW,bar+52*s);
-  const fadeB=g.createLinearGradient(0,VH-bar-80*s,0,VH);
-  fadeB.addColorStop(0,'rgba(0,0,0,0)'); fadeB.addColorStop(0.45,'rgba(0,0,0,0.5)'); fadeB.addColorStop(1,'rgba(0,0,0,0.94)');
-  g.fillStyle=fadeB; g.fillRect(0,VH-bar-80*s,VW,bar+80*s);
+  const bar=Math.max(28*s, VH*0.06);
+  const fade=g.createLinearGradient(0,0,0,bar+44*s);
+  fade.addColorStop(0,'rgba(0,0,0,0.82)'); fade.addColorStop(0.6,'rgba(0,0,0,0.32)'); fade.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=fade; g.fillRect(0,0,VW,bar+44*s);
+  const fadeB=g.createLinearGradient(0,VH-bar-70*s,0,VH);
+  fadeB.addColorStop(0,'rgba(0,0,0,0)'); fadeB.addColorStop(0.5,'rgba(0,0,0,0.35)'); fadeB.addColorStop(1,'rgba(0,0,0,0.88)');
+  g.fillStyle=fadeB; g.fillRect(0,VH-bar-70*s,VW,bar+70*s);
   const a=clamp((G.t-0.12)/1.1,0,1);
   g.globalAlpha=a;
   g.textAlign='center';
