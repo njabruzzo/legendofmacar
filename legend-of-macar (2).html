@@ -1386,16 +1386,20 @@ function grantCharXp(e, n){
   const key=e.col.key;
   G.charXp[key]=(G.charXp[key]||0)+n;
   const ab=entityAbil(e); if(!ab) return;
+  const from=ab.lvl||e.lvl||PARTY_LVL;
   const nl=levelFromXp(ab.cls, G.charXp[key]);
-  if(nl>(ab.lvl||e.lvl||PARTY_LVL)){
+  if(nl>from){
+    let add=0;
+    for(let lv=from+1; lv<=nl; lv++) add+=rollLevelHp(ab.cls, ab.con);
     ab.lvl=nl; e.lvl=nl;
-    const neu=maxHp1e(ab.cls, nl, ab.con);
-    const add=Math.max(0, neu-(ab.maxhp||0));
-    ab.maxhp=neu;
-    e.maxhp=neu*ADD_SCALE;
+    ab.maxhp=(ab.maxhp||0)+add;
+    e.maxhp=(e.maxhp||0)+add*ADD_SCALE;
     e.hp=Math.min(e.maxhp, (e.hp||0)+add*ADD_SCALE);
-    say(e.name+' attains '+clsName(ab.cls)+' '+nl+'.','#ffd27a');
+    const adj=conHpAdj(ab.con, ab.cls);
+    const adjTxt=(adj>=0?'+':'')+adj;
+    say(e.name+' attains '+clsName(ab.cls)+' '+nl+'  (+'+add+' hp, d10'+adjTxt+' CON).','#ffd27a');
     ftext(e.x,e.y,'LEVEL '+nl,'#ffd27a',1);
+    ftext(e.x,e.y-0.4,'+'+add+' hp','#e0c169');
   }
 }
 function awardPartyXp(total, why, where){
@@ -1447,10 +1451,14 @@ function conHpAdj(con, cls){
   if(con>=19) return f?5:2;
   return f?4:2;
 }
-function hitDieSize(cls){ return cls==='c'?8:cls==='t'?6:10; }
+function hitDieSize(cls){ return 10; }
 function maxHp1e(cls, lvl, con){
   const die=hitDieSize(cls), adj=conHpAdj(con, cls);
   return Math.max(lvl, lvl*(die+adj));
+}
+function rollLevelHp(cls, con){
+  const adj=conHpAdj(con, cls);
+  return Math.max(1, ri(1,10)+adj);
 }
 function strMods(ab, cls){
   const s=(ab&&ab.str)|0, exc=(cls==='f'&&s>=18)?((ab&&ab.exc)|0):0;
