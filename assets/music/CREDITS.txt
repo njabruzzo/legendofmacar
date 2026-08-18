@@ -1,0 +1,27 @@
+Legend of Macar — music credits
+================================
+
+Song of the Forge
+  Composer: Scott Buckley
+  https://www.scottbuckley.com.au
+  License: CC BY 4.0
+  https://creativecommons.org/licenses/by/4.0/
+  File: assets/music/SongOfTheForge.mp3
+  Used on the title / starting screen.
+
+Cave of Time
+  Artist: Komiku
+  Album: Poupi's Incredible Adventures! (track 52)
+  Source: OpenGameArt.org (Loyalty Freak Music / Monplaisir)
+  License: CC0 1.0 (public domain dedication)
+  File: assets/music/CaveOfTime.mp3
+  Used during Chapter I (first level).
+
+Dungeon_01
+  Artist: Beau Buckley
+  Album: Emberstorm Music Collection
+  Source: OpenGameArt.org
+  License: CC BY-SA 4.0
+  https://creativecommons.org/licenses/by-sa/4.0/
+  File: assets/music/Dungeon_1.mp3 (converted from the published OGG)
+  Used during Chapter II (second level) and later floors.
