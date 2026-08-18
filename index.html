@@ -1276,15 +1276,19 @@ function wanderSpawnSpots(p){
 }
 function spawnWanderers(p){
   const kinds=wanderKinds().filter(k=>typeof FOE[k]==='function');
+  if(!kinds.length && typeof FOE.rat==='function') kinds.push('rat');
   const spots=wanderSpawnSpots(p);
-  const n=ri(1,3);
+  const n=Math.min(ri(1,3), Math.max(1,spots.length));
   const spawned=[];
   for(let i=0;i<n;i++){
     const k=kinds[ri(0,kinds.length-1)]||'rat';
-    const e=FOE[k]();
+    const make=FOE[k]||FOE.rat;
+    if(typeof make!=='function') continue;
     const s=spots[i]||spots[0];
-    if(s){ e.x=s.x+rnd(.25,-.25); e.y=s.y+rnd(.25,-.25); }
-    else { e.x=p.x+rnd(5,3)*(Math.random()<.5?1:-1); e.y=p.y+rnd(5,3)*(Math.random()<.5?1:-1); }
+    if(!s) continue;
+    const e=make();
+    e.x=s.x; e.y=s.y;
+    if(!walk(e.x,e.y,e)) continue;
     e.aggro=99; e.stun=0.15; e.engaged=1;
     G.ents.push(e); burst(e.x,e.y,'#ff6a3a',12,2.4);
     spawned.push(e.name||k);
@@ -1302,10 +1306,13 @@ function campRest(){
     say('Open passages. Wandering check: d6 = '+roll+'.','#c9b895');
     if(roll<=2){
       const names=spawnWanderers(p);
-      say('Steel in the dark'+(names.length?': '+names.join(', '):'')+'. Sleep breaks.','#ff6a5a');
-      hint('Wandering monsters. The rest is interrupted.',4.2);
-      G.flash={c:'#3a1208',a:.55}; shake(10);
-      return;
+      if(names.length){
+        say('Steel in the dark: '+names.join(', ')+'. Sleep breaks.','#ff6a5a');
+        hint('Wandering monsters. The rest is interrupted.',4.2);
+        G.flash={c:'#3a1208',a:.55}; shake(10);
+        return;
+      }
+      say('A scrape in the dark, then nothing. The watch holds.','#c9b895');
     }
     say('The night passes. Nothing comes down the tunnel.','#c9b895');
   } else {
