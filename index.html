@@ -163,7 +163,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='13';
+const ASSET_VER='14';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -960,11 +960,12 @@ function makeChapter(n){
     L.title='Chapter I'; L.sub='An Unusual Discovery'; L.pal=PAL.mine;
     L.w=54; L.h=44; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,16,12,11,0); rect(g,15,20,10,3,0); rect(g,25,10,22,22,0);
-    rect(g,45,16,4,10,3); rect(g,33,18,7,7,3); rect(g,20,20,2,3,1);
-    L.spawn={x:8.5,y:21.5}; L.plug={x:20.5,y:21.5,hp:70};
-    L.objs=[{t:'Break through the new seam',d:0},{t:'Touch the ruby in the wall',d:0},
+    rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
+    L.spawn={x:8.5,y:21.5}; L.flags.broke=1;
+    L.objs=[{t:'Search the fallen shift',d:0},{t:'Touch the ruby in the wall',d:0},
             {t:'Destroy the Thin Ones',d:0},{t:'Ride the lift down',d:0}];
     L.lights=[{x:7,y:18,c:'#ffb45c',r:5.4,f:1},{x:13,y:25,c:'#ffb45c',r:5.2,f:1},
+              {x:21.2,y:21.5,c:'#c9a070',r:4.6,f:0.85},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:46,y:21,c:'#ff2f3a',r:10.5,f:1.85},
@@ -980,19 +981,26 @@ function makeChapter(n){
       {x:27.2,y:12.2,k:'shroom'},{x:31.6,y:13.4,k:'shroom'},{x:25.4,y:29.8,k:'shroom'},
       {x:42.2,y:12.8,k:'shroom'},{x:45.8,y:29.2,k:'shroom'},{x:40.5,y:30.4,k:'shroom'},
       {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
-      {x:11.2,y:21.6,k:'trap',trap:'trap_spikes'},{x:18.6,y:21.4,k:'trap',trap:'trap_pit'},
-      {x:24.2,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'}];
-    L.guide=()=>!L.flags.broke?{x:20.5,y:21.5}:!L.flags.touched?{x:45,y:21}:
-      !L.flags.cleared?null:{x:36.5,y:21.5};
+      {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
+      {x:20.6,y:21.5,k:'tunnel'},{x:24.2,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
+      {x:15.35,y:21.35,k:'rubble',n:16,s:1.55,seed:3},
+      {x:12.25,y:24.65,k:'rubble',n:14,s:1.35,seed:11},
+      {x:10.75,y:18.85,k:'rubble',n:13,s:1.28,seed:19},
+      {x:16.6,y:20.4,k:'rubble',n:18,s:1.7,seed:7},
+      {x:16.9,y:22.7,k:'rubble',n:15,s:1.5,seed:23}];
+    spawnCrushedShift();
+    L.guide=()=>{
+      const body=(G.ents||[]).find(e=>e.corpse&&!e.looted);
+      if(body) return body;
+      return !L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+    };
     L.tick=()=>{
-      if(!L.flags.broke && L.plug.hp<=0){
-        rect(L.grid,20,20,2,3,0); L.flags.broke=1; L.objs[0].d=1; shake(16);
-        say('The seam gives way. Cold air, and something older.','#ffd27a');
-        hint('Head east. The tunnel opens into something built.',5);
-      }
       const p=player(); if(!p) return;
-      if(!L.flags.broke && dist(p,L.plug)<2.6) hint('Attack the rubble to break the seam',2);
-      if(L.flags.broke && !L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
+      if(!L.flags.searched){
+        const body=nearestCorpse(p,2.8);
+        if(body) hint(body.name==='Brun'?'Loot Brun. Four bombs and a week of rations.':'Loot '+body.name+'. The fall killed the shift.',2);
+      }
+      if(!L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
         interact('Touch the ruby',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby is warm. It knows your name.','#ff6a6a');
@@ -1230,6 +1238,54 @@ function makeChapter(n){
   return L;
 }
 function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc); }
+function spawnCrushedShift(){
+  const col=key=>ROSTER.find(r=>r.key===key);
+  const add=(x,y,name,key,kit)=>{
+    const e=ent({kind:'dwarf',team:'neutral',npc:1,corpse:1,dead:1,deadT:0.62,
+      x,y,hp:0,name,col:col(key),kit,looted:0,r:.4,scale:1});
+    e.maxhp=1; G.ents.push(e);
+  };
+  add(15.2,21.2,'Brun','pordoom',{bombs:4,rations:7});
+  add(12.1,24.5,'Durn','orbo',{ales:1,gp:8});
+  add(10.6,18.7,'Klegg','fendur',{torches:3,gp:5});
+}
+function nearestCorpse(e, r){
+  let best=null, bd=r;
+  for(const o of G.ents){
+    if(!o.corpse||o.looted) continue;
+    const d=dist(e,o);
+    if(d<bd){ bd=d; best=o; }
+  }
+  return best;
+}
+function lootCorpse(e){
+  if(!e||!e.corpse||e.looted) return;
+  e.looted=1;
+  const kit=e.kit||{};
+  const bits=[];
+  ['bombs','rations','ales','torches','ammo'].forEach(k=>{
+    if(kit[k]){
+      addToPack('macar',k,kit[k]);
+      if(k==='rations'&&kit[k]===7) bits.push('a week of rations');
+      else bits.push(kit[k]+' '+k);
+    }
+  });
+  if(kit.gp){
+    addCoin('gp',kit.gp);
+    awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
+    bits.push(kit.gp+' gp');
+  }
+  const who=e.name||'the miner';
+  say('MACAR loots '+who+(bits.length?': '+bits.join(', '):'. Empty')+'.','#ffd27a');
+  ftext(e.x,e.y-0.35,bits[0]||'Looted','#ffd27a');
+  burst(e.x,e.y,'#ffd27a',10,2.2);
+  const L=G.lvl;
+  if(L&&L.n===1&&!L.flags.searched&&!(G.ents||[]).some(z=>z.corpse&&!z.looted)){
+    L.flags.searched=1; if(L.objs[0]) L.objs[0].d=1;
+    say('The shift is picked clean. The new tunnel stands open.','#ffd27a');
+    hint('Head east through the open tunnel.',5);
+  }
+}
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
   e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
 function joinAllies(list){
@@ -1290,7 +1346,7 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
-  say(({1:'Shaft 3. Fourth bell. Nothing unusual.',
+  say(({1:'Shaft 3. The new tunnel stands open. The last shift lies crushed under the fall.',
     2:'The ruby cage stops. Hundreds of feet of dark hang above you.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
@@ -3005,14 +3061,19 @@ function update(dt){
         const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone);
         if(!pile) p.dest=null;
         else { p.dest.x=pile.x; p.dest.y=pile.y; }
+      } else if(p.dest.corpse){
+        const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted);
+        if(!body) p.dest=null;
+        else { p.dest.x=body.x; p.dest.y=body.y; }
       }
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):p.dest.loot?0.72:0.26;
+      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?0.72:0.26;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
-        if(!p.dest.foe && !p.dest.loot && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted); if(body) lootCorpse(body); }
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
@@ -3032,6 +3093,8 @@ function update(dt){
     p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
     const stepped=nearestLoot(p,0.7);
     if(stepped) takeLoot(stepped);
+    const crushed=nearestCorpse(p,0.7);
+    if(crushed) lootCorpse(crushed);
 
     // auto-attack while standing in reach (Baldur's Gate: never swing while walking)
     if(!G.digging){
@@ -3068,6 +3131,10 @@ function update(dt){
       if(pile) interact('Pick up '+pile.label,()=>takeLoot(pile));
     }
     if(!PROMPT){
+      const body=nearestCorpse(p,1.45);
+      if(body) interact('Loot '+body.name,()=>lootCorpse(body));
+    }
+    if(!PROMPT){
       const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
     }
@@ -3090,7 +3157,7 @@ function update(dt){
   }
 
   for(const e of G.ents){
-    if(e.dead){ e.deadT=(e.deadT||0)+dt; continue; }
+    if(e.dead){ if(!e.corpse) e.deadT=(e.deadT||0)+dt; continue; }
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
@@ -3191,7 +3258,7 @@ function update(dt){
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.hp=Math.min(e.maxhp,e.hp+rg); }); }
   if(L.tick) L.tick(dt);
   endFightIfClear();
-  if(G.ents.length>44) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&(e.deadT||0)>2.2));
+  if(G.ents.length>44) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&!e.corpse&&(e.deadT||0)>2.2));
 }
 
 
@@ -3259,9 +3326,11 @@ function drawWorld(g,L){
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const M=TW*2, near=o=>{const s=w2s(o.x,o.y); return s.x>-M&&s.x<VW+M&&s.y>-M*2.6&&s.y<VH+M;};
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
-  for(const p of G.props) if(near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const p of G.props) if(p.k!=='rubble'&&near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const e of G.ents)  if(e.corpse&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const p of G.props) if(p.k==='rubble'&&near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents)  if(near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const e of G.ents)  if(!e.corpse&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
@@ -3557,18 +3626,25 @@ function drawFloaters(g){
 }
 
 function drawPlug(g,L){
-  const s=w2s(L.plug.x,L.plug.y), z=ZOOM, dmg=1-L.plug.hp/70;
+  if(!L.plug) return;
+  drawRubbleAt(g, L.plug.x, L.plug.y, 14, 1, 0, 1-L.plug.hp/70);
+}
+function drawRubbleAt(g,x,y,n,sc,seed,dmg){
+  const s=w2s(x,y), z=ZOOM*(sc||1); dmg=dmg||0; n=n||14; seed=seed||0;
   g.save(); g.translate(s.x,s.y);
-  softShadow(g,0,0,50*z,24*z,0.55);
-  for(let i=0;i<14;i++){
-    const hx=(h2(i,3)-.5)*76*z, hy=-h2(i,7)*76*z-4*z, sz=(9+h2(i,11)*12)*z*(1-dmg*.45);
+  drawRubbleLocal(g,z,n,seed,dmg);
+  g.restore();
+}
+function drawRubbleLocal(g,z,n,seed,dmg){
+  dmg=dmg||0; n=n||14; seed=seed||0;
+  softShadow(g,0,0,58*z,26*z,0.58);
+  for(let i=0;i<n;i++){
+    const hx=(h2(i+seed,3)-.5)*88*z, hy=-h2(i+seed,7)*64*z-6*z, sz=(14+h2(i+seed,11)*18)*z*(1-dmg*.45);
     g.beginPath(); g.moveTo(hx,hy-sz*.6); g.lineTo(hx+sz,hy); g.lineTo(hx+sz*.2,hy+sz*.7); g.lineTo(hx-sz,hy+sz*.1); g.closePath();
     const gr=g.createLinearGradient(hx-sz,hy-sz,hx+sz,hy+sz);
     gr.addColorStop(0,i%2?'#8a6f4c':'#6d5537'); gr.addColorStop(1,i%2?'#3f3020':'#2c2116');
     g.fillStyle=gr; g.fill(); g.strokeStyle=OL; g.lineWidth=1.3*z; g.stroke();
   }
-  if(dmg>.2){ emit(s.x,s.y-36*z,44*z*dmg,'#ff6a3a',dmg*0.8); }
-  g.restore();
 }
 
 /* ---------------------------- shading helpers ---------------------------- */
@@ -3697,6 +3773,9 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   switch(p.k){
+  case 'rubble':{
+    drawRubbleLocal(g, z*(p.s||1.35), p.n||14, p.seed||0, 0);
+    break; }
   case 'lantern':{ softShadow(g,0,0,10*z,5*z,.45);
     g.strokeStyle='#1e170f'; g.lineWidth=2.2*z; g.beginPath(); g.moveTo(0,-96*z); g.lineTo(0,-32*z); g.stroke();
     const fl=1+Math.sin(G.elapsed*7+p.x)*.13;
@@ -3961,7 +4040,11 @@ function drawEnt(g,e){
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
   if(e.sleeping){ g.translate(8*z, 6*z); g.rotate(1.18); }
-  if(e.dead){ g.globalAlpha=clamp(1-(e.deadT||0)/1.3,0,1); g.translate(0,(e.deadT||0)*7); g.rotate(clamp((e.deadT||0)*1.5,0,.95)); }
+  if(e.dead){
+    const lie=e.corpse?0.62:(e.deadT||0);
+    if(!e.corpse) g.globalAlpha=clamp(1-lie/1.3,0,1);
+    g.translate(0,lie*7); g.rotate(clamp(lie*1.5,0,.95));
+  }
   const p=player();
   if(!e.dead&&p&&p.aim===e){
     const b=.45+Math.sin(G.elapsed*7)*.2;
@@ -4002,7 +4085,7 @@ function drawEnt(g,e){
 
   if(e.flash>0){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
     g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
-    g.globalCompositeOperation='source-over'; g.globalAlpha=e.dead?clamp(1-(e.deadT||0)/1.3,0,1):1; }
+    g.globalCompositeOperation='source-over'; g.globalAlpha=e.corpse?1:(e.dead?clamp(1-(e.deadT||0)/1.3,0,1):1); }
   if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke();
@@ -4031,6 +4114,15 @@ function drawEnt(g,e){
       ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
       ctx.strokeText(e.name,s.x,yy-7*ZOOM);
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
+  }
+  if(e.corpse&&!e.looted){
+    const pulse=.5+Math.sin(G.elapsed*4.1+e.x)*.28;
+    emit(s.x,s.y-10*z,20*z*pulse,'#ffd27a',0.55);
+    ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    const tag=e.name==='Brun'?e.name+'  (red cap)':(e.name||'Miner');
+    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.75)';
+    ctx.strokeText(tag,s.x,s.y-22*ZOOM);
+    ctx.fillStyle='#ffe08a'; ctx.fillText(tag,s.x,s.y-22*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
@@ -5412,7 +5504,7 @@ function drawIntro(g){
   bigTitle(g,L.sub,VH*.44,(PORT?24:32)*s);
   g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,188,145,0.8)';
-  const fl={1:'Fourth bell. The seam sounds hollow.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
+  const fl={1:'The new tunnel stands open. The last shift lies crushed.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
     3:'They kept working. Nobody told them to stop.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
   g.fillText(fl,VW/2,VH*.51);
   g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.75)';
@@ -5420,6 +5512,7 @@ function drawIntro(g){
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
     if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
+    else if(G.ch===1&&!G.taught.shift){ G.taught.shift=1; hint('Loot the miners. The red-cap still has four bombs and a week of rations.',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
     else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Goblins east of the lift. A gnome sleeps in their camp.',6); } });
@@ -5726,9 +5819,15 @@ function resolveTaps(){
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
-      if(pile && (!foe || dist(pile,w)<=dist(foe,w))){
+      const body=G.ents.find(e=>e.corpse&&!e.looted&&dist(e,w)<1.1);
+      if(pile && (!foe || dist(pile,w)<=dist(foe,w)) && (!body || dist(pile,w)<=dist(body,w))){
         if(dist(p,pile)<1.5) takeLoot(pile);
         else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
+        continue;
+      }
+      if(body && (!foe || dist(body,w)<=dist(foe,w))){
+        if(dist(p,body)<1.5) lootCorpse(body);
+        else { p.dest={x:body.x,y:body.y,corpse:body.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
