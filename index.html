@@ -628,6 +628,12 @@ function hint(t,secs){ G.hint={t,life:secs||4.5,max:secs||4.5}; }
 function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
+const CRUSH_SPOTS={
+  pordoom:{x:15.35,y:20.18,seed:3,stone:1.18,kit:{bombs:4,rations:7}},
+  fendur:{x:15.72,y:22.78,seed:11,stone:1.14},
+  orbo:{x:17.55,y:20.12,seed:19,stone:1.20},
+  talpor:{x:17.92,y:22.82,seed:7,stone:1.16}
+};
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
   cloth:'#7d5c31', metal:'#93805a', trim:'#d3ab4d', cap:null},
@@ -960,11 +966,14 @@ function makeChapter(n){
     L.title='Chapter I'; L.sub='An Unusual Discovery'; L.pal=PAL.mine;
     L.w=54; L.h=44; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,16,12,11,0); rect(g,15,20,10,3,0); rect(g,25,10,22,22,0);
-    rect(g,45,16,4,10,3); rect(g,33,18,7,7,3); rect(g,20,20,2,3,1);
-    L.spawn={x:8.5,y:21.5}; L.plug={x:20.5,y:21.5,hp:70};
-    L.objs=[{t:'Break through the new seam',d:0},{t:'Touch the ruby in the wall',d:0},
+    rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
+    L.spawn={x:16.8,y:21.5}; L.flags.broke=1;
+    L.crush=CRUSH_SPOTS;
+    L.objs=[{t:'Loot Pordoom under the stone',d:0},{t:'Touch the ruby in the wall',d:0},
             {t:'Destroy the Thin Ones',d:0},{t:'Ride the lift down',d:0}];
     L.lights=[{x:7,y:18,c:'#ffb45c',r:5.4,f:1},{x:13,y:25,c:'#ffb45c',r:5.2,f:1},
+              {x:17.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
+              {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:46,y:21,c:'#ff2f3a',r:10.5,f:1.85},
@@ -973,26 +982,32 @@ function makeChapter(n){
     G.props=[{x:5.4,y:24.6,k:'cart'},{x:6.2,y:17.4,k:'crate'},{x:12.6,y:17.2,k:'barrel'},
       {x:7,y:18,k:'lantern'},{x:13,y:25,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
       {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
-      {x:10.5,y:25.5,k:'sack'},{x:14.2,y:23.9,k:'crate'},{x:9,y:19.6,k:'timber'},{x:12,y:22.4,k:'timber'},
+      {x:10.5,y:25.5,k:'sack'},{x:11.8,y:23.6,k:'crate'},{x:9,y:19.6,k:'timber'},{x:12.2,y:22.8,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:11.4,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:47,y:21,k:'rubywall'},{x:36.5,y:21.5,k:'lift'},
       {x:27.2,y:12.2,k:'shroom'},{x:31.6,y:13.4,k:'shroom'},{x:25.4,y:29.8,k:'shroom'},
       {x:42.2,y:12.8,k:'shroom'},{x:45.8,y:29.2,k:'shroom'},{x:40.5,y:30.4,k:'shroom'},
       {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
-      {x:11.2,y:21.6,k:'trap',trap:'trap_spikes'},{x:18.6,y:21.4,k:'trap',trap:'trap_pit'},
-      {x:24.2,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'}];
-    L.guide=()=>!L.flags.broke?{x:20.5,y:21.5}:!L.flags.touched?{x:45,y:21}:
-      !L.flags.cleared?null:{x:36.5,y:21.5};
+      {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
+      {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
+      {x:14.6,y:20.15,k:'rubble',n:10,s:0.95,seed:3},
+      {x:14.9,y:22.85,k:'rubble',n:9,s:0.92,seed:7},
+      {x:19.4,y:20.2,k:'rubble',n:11,s:1.02,seed:13},
+      {x:19.6,y:22.7,k:'rubble',n:10,s:0.98,seed:19},
+      {x:12.4,y:24.5,k:'rubble',n:8,s:0.88,seed:23}];
+    Object.keys(CRUSH_SPOTS).forEach(k=>{
+      const s=CRUSH_SPOTS[k];
+      G.props.push({x:s.x+0.42,y:s.y+0.55,k:'stone',s:s.stone||1.18,seed:s.seed,pin:1});
+    });
+    L.guide=()=>{
+      const body=(G.ents||[]).find(e=>e.corpse&&!e.looted);
+      if(body) return {x:body.x,y:body.y};
+      return !L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+    };
     L.tick=()=>{
-      if(!L.flags.broke && L.plug.hp<=0){
-        rect(L.grid,20,20,2,3,0); L.flags.broke=1; L.objs[0].d=1; shake(16);
-        say('The seam gives way. Cold air, and something older.','#ffd27a');
-        hint('Head east. The tunnel opens into something built.',5);
-      }
       const p=player(); if(!p) return;
-      if(!L.flags.broke && dist(p,L.plug)<2.6) hint('Attack the rubble to break the seam',2);
-      if(L.flags.broke && !L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
+      if(!L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
         interact('Touch the ruby',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby is warm. It knows your name.','#ff6a6a');
@@ -1227,9 +1242,51 @@ function makeChapter(n){
     };
   }
   L.seen=newGrid(L.w,L.h,0);
+  if(n===1){
+    for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
+      const t=L.grid[j][i];
+      if(t!==1 && t!==2) L.seen[j][i]=1;
+    }
+  }
   return L;
 }
 function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc); }
+function nearestCorpse(e, r){
+  let best=null, bd=r;
+  for(const o of G.ents){
+    if(!o.corpse||o.looted) continue;
+    const d=dist(e,o);
+    if(d<bd){ bd=d; best=o; }
+  }
+  return best;
+}
+function lootCorpse(e){
+  if(!e||!e.corpse||e.looted) return;
+  e.looted=1;
+  const kit=e.kit||{};
+  const bits=[];
+  ['bombs','rations','ales','torches','ammo'].forEach(k=>{
+    if(kit[k]){
+      addToPack('macar',k,kit[k]);
+      if(k==='rations'&&kit[k]===7) bits.push('a week of rations');
+      else bits.push(kit[k]+' '+k);
+    }
+  });
+  if(kit.gp){
+    addCoin('gp',kit.gp);
+    awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
+    bits.push(kit.gp+' gp');
+  }
+  const who=e.name||'the kin';
+  say('MACAR takes '+who+(bits.length?"'s kit: "+bits.join(', '):'. Empty')+'.','#ffd27a');
+  ftext(e.x,e.y-0.35,bits[0]||'Looted','#ffd27a');
+  burst(e.x,e.y,'#ffd27a',10,2.2);
+  const L=G.lvl;
+  if(L&&L.n===1&&e.col&&e.col.key==='pordoom'){
+    L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
+    hint('Four bombs and a week of rations. The ruby waits east.',5);
+  }
+}
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
   e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
 function joinAllies(list){
@@ -1265,13 +1322,25 @@ function startChapter(n){
     const cls=sheet.cls;
     const hp=sheet.maxhp*ADD_SCALE;
     const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
-    const e=ent({kind:'dwarf',team:'party',x:sp.x+(hero?0:Math.cos(i*1.3)*1.5),y:sp.y+(hero?0:Math.sin(i*1.3)*1.5),
-      hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:atkCd,
+    const crush=n===1 && !hero && CRUSH_SPOTS[r.key];
+    const x=crush?crush.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
+    const y=crush?crush.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
+    const e=ent({kind:'dwarf',team:'party',x,y, hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:atkCd,
       r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key],
       lvl:sheet.lvl||PARTY_LVL, cls, race:'dwarf', abil:sheet, ac:5, dice:sheet.dice});
     e.ac=partyAC(e);
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
+    if(n===1){ e.fdx=1; e.fdy=0; }
+    if(crush){
+      e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
+      if(crush.kit){
+        e.kit=crush.kit; e.corpse=1; e.looted=0;
+        const pk=packOf(r.key);
+        Object.keys(crush.kit).forEach(k=>{ if(typeof pk[k]==='number') pk[k]=0; });
+        syncPackTotals();
+      }
+    }
     G.ents.push(e);
   });
   if(!G.abilSaid){
@@ -1289,8 +1358,8 @@ function startChapter(n){
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
-  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
-  say(({1:'Shaft 3. Fourth bell. Nothing unusual.',
+  G.cam.x=n===1?22.4:sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  say(({1:'The tunnel caved. Your kin are under the stones. An older chamber stands open to the east.',
     2:'The ruby cage stops. Hundreds of feet of dark hang above you.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
@@ -2647,7 +2716,7 @@ function drinkPotion(p, e){
   else if(k==='guard'){ e.guardT=Math.max(e.guardT||0, lv); }
   else if(k==='mr'){ e.mr=1; }
   else if(k==='prot0'){ e.prot0=1; }
-  else if(k==='life'){ G.ents.forEach(x=>{ if(x.team==='party'&&x.dead){ x.dead=0; x.hp=Math.round(x.maxhp*.5); }}); say('The dead kin draw breath.','#ffe08a'); }
+  else if(k==='life'){ G.ents.forEach(x=>{ if(x.team==='party'&&x.dead){ x.dead=0; x.crushed=0; x.prone=0; x.hp=Math.round(x.maxhp*.5); }}); say('The dead kin draw breath.','#ffe08a'); }
   else if(k==='gear'){
     if(e.gear){ e.gear.wd=e.gear.wmax; e.gear.ad=e.gear.amax; e.gear.wt=(e.gear.wt||0)+1; }
     say('The oil takes on the kit.','#cfe3ff');
@@ -3013,14 +3082,19 @@ function update(dt){
         const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone);
         if(!pile) p.dest=null;
         else { p.dest.x=pile.x; p.dest.y=pile.y; }
+      } else if(p.dest.corpse){
+        const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted);
+        if(!body) p.dest=null;
+        else { p.dest.x=body.x; p.dest.y=body.y; }
       }
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):p.dest.loot?0.72:0.26;
+      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?0.72:0.26;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
-        if(!p.dest.foe && !p.dest.loot && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted); if(body) lootCorpse(body); }
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
@@ -3076,6 +3150,10 @@ function update(dt){
       if(pile) interact('Pick up '+pile.label,()=>takeLoot(pile));
     }
     if(!PROMPT){
+      const body=nearestCorpse(p,1.45);
+      if(body) interact('Loot '+body.name,()=>lootCorpse(body));
+    }
+    if(!PROMPT){
       const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
     }
@@ -3098,7 +3176,7 @@ function update(dt){
   }
 
   for(const e of G.ents){
-    if(e.dead){ e.deadT=(e.deadT||0)+dt; continue; }
+    if(e.dead){ if(!e.crushed) e.deadT=(e.deadT||0)+dt; continue; }
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
@@ -3267,9 +3345,10 @@ function drawWorld(g,L){
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const M=TW*2, near=o=>{const s=w2s(o.x,o.y); return s.x>-M&&s.x<VW+M&&s.y>-M*2.6&&s.y<VH+M;};
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
+  for(const e of G.ents)  if(e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const p of G.props) if(near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents)  if(near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
@@ -3565,18 +3644,25 @@ function drawFloaters(g){
 }
 
 function drawPlug(g,L){
-  const s=w2s(L.plug.x,L.plug.y), z=ZOOM, dmg=1-L.plug.hp/70;
+  if(!L.plug) return;
+  drawRubbleAt(g, L.plug.x, L.plug.y, 14, 1, 0, 1-L.plug.hp/70);
+}
+function drawRubbleAt(g,x,y,n,sc,seed,dmg){
+  const s=w2s(x,y), z=ZOOM*(sc||1); dmg=dmg||0; n=n||14; seed=seed||0;
   g.save(); g.translate(s.x,s.y);
-  softShadow(g,0,0,50*z,24*z,0.55);
-  for(let i=0;i<14;i++){
-    const hx=(h2(i,3)-.5)*76*z, hy=-h2(i,7)*76*z-4*z, sz=(9+h2(i,11)*12)*z*(1-dmg*.45);
+  drawRubbleLocal(g,z,n,seed,dmg);
+  g.restore();
+}
+function drawRubbleLocal(g,z,n,seed,dmg){
+  dmg=dmg||0; n=n||14; seed=seed||0;
+  softShadow(g,0,0,58*z,26*z,0.58);
+  for(let i=0;i<n;i++){
+    const hx=(h2(i+seed,3)-.5)*88*z, hy=-h2(i+seed,7)*64*z-6*z, sz=(14+h2(i+seed,11)*18)*z*(1-dmg*.45);
     g.beginPath(); g.moveTo(hx,hy-sz*.6); g.lineTo(hx+sz,hy); g.lineTo(hx+sz*.2,hy+sz*.7); g.lineTo(hx-sz,hy+sz*.1); g.closePath();
     const gr=g.createLinearGradient(hx-sz,hy-sz,hx+sz,hy+sz);
     gr.addColorStop(0,i%2?'#8a6f4c':'#6d5537'); gr.addColorStop(1,i%2?'#3f3020':'#2c2116');
     g.fillStyle=gr; g.fill(); g.strokeStyle=OL; g.lineWidth=1.3*z; g.stroke();
   }
-  if(dmg>.2){ emit(s.x,s.y-36*z,44*z*dmg,'#ff6a3a',dmg*0.8); }
-  g.restore();
 }
 
 /* ---------------------------- shading helpers ---------------------------- */
@@ -3661,7 +3747,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
   g.save(); g.translate(s.x,s.y);
-  const img=propAnimImg(p);
+  const img=(p.k==='stone'||p.k==='rubble')?null:propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
     drawBillboard(g,img,propSpriteH(p,z));
@@ -3705,6 +3791,34 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   switch(p.k){
+  case 'rubble':{
+    drawRubbleLocal(g, z*(p.s||1.35), p.n||14, p.seed||0, 0);
+    break; }
+  case 'stone':{
+    const sc=p.s||1.35, seed=p.seed||0, pin=!!p.pin;
+    const W=(pin?34:28)*z*sc, H=(pin?11:22)*z*sc;
+    softShadow(g,2*z,3*z,W*0.9,H*0.55,0.6);
+    g.beginPath();
+    if(pin){
+      g.moveTo(-W*0.15,-H*0.55); g.lineTo(W*0.82,-H*0.22); g.lineTo(W*0.7,H*0.42);
+      g.lineTo(-W*0.08,H*0.62); g.lineTo(-W*0.78,H*0.28); g.lineTo(-W*0.72,-H*0.18); g.closePath();
+    } else {
+      g.moveTo(0,-H*1.15); g.lineTo(W*0.72,-H*0.55); g.lineTo(W*0.55,H*0.08);
+      g.lineTo(0,H*0.38); g.lineTo(-W*0.58,H*0.06); g.lineTo(-W*0.7,-H*0.5); g.closePath();
+    }
+    const gr=g.createLinearGradient(-W,-H,W,H);
+    gr.addColorStop(0,'#8a6e4e'); gr.addColorStop(0.35,'#5c4630'); gr.addColorStop(0.7,'#3a2a1c'); gr.addColorStop(1,'#1e140c');
+    g.fillStyle=gr; g.fill(); g.strokeStyle=OL; g.lineWidth=1.8*z; g.stroke();
+    g.strokeStyle='rgba(255,220,180,0.12)'; g.lineWidth=1.2*z;
+    g.beginPath(); g.moveTo(-W*0.2,pin?-H*0.28:-H*0.85); g.lineTo(W*0.15,-H*0.08); g.lineTo(-W*0.05,H*0.22); g.stroke();
+    g.fillStyle='rgba(0,0,0,0.28)';
+    g.beginPath(); g.moveTo(W*0.18,-H*0.18); g.lineTo(W*0.7,H*0.28); g.lineTo(pin?-W*0.08:0,H*0.55); g.closePath(); g.fill();
+    for(let i=0;i<(pin?2:3);i++){
+      const hx=(h2(i+seed,5)-.5)*18*z*sc, hy=(pin?2: -6)*z*sc-h2(i+seed,9)*6*z*sc, sz=(5+h2(i+seed,13)*4)*z*sc;
+      g.beginPath(); g.moveTo(hx,hy-sz*0.55); g.lineTo(hx+sz,hy); g.lineTo(hx,hy+sz*0.45); g.lineTo(hx-sz,hy); g.closePath();
+      g.fillStyle=i%2?'#6a5136':'#4a3826'; g.fill(); g.strokeStyle=OL; g.lineWidth=1*z; g.stroke();
+    }
+    break; }
   case 'lantern':{ softShadow(g,0,0,10*z,5*z,.45);
     g.strokeStyle='#1e170f'; g.lineWidth=2.2*z; g.beginPath(); g.moveTo(0,-96*z); g.lineTo(0,-32*z); g.stroke();
     const fl=1+Math.sin(G.elapsed*7+p.x)*.13;
@@ -3969,7 +4083,12 @@ function drawEnt(g,e){
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
   if(e.sleeping){ g.translate(8*z, 6*z); g.rotate(1.18); }
-  if(e.dead){ g.globalAlpha=clamp(1-(e.deadT||0)/1.3,0,1); g.translate(0,(e.deadT||0)*7); g.rotate(clamp((e.deadT||0)*1.5,0,.95)); }
+  if(e.crushed){ g.translate(12*z, 10*z); g.rotate(1.22); }
+  if(e.dead && !e.crushed){
+    const lie=e.deadT||0;
+    g.globalAlpha=clamp(1-lie/1.3,0,1);
+    g.translate(0,lie*7); g.rotate(clamp(lie*1.5,0,.95));
+  }
   const p=player();
   if(!e.dead&&p&&p.aim===e){
     const b=.45+Math.sin(G.elapsed*7)*.2;
@@ -3985,12 +4104,12 @@ function drawEnt(g,e){
     gr.addColorStop(0,'rgba(255,206,130,0.14)'); gr.addColorStop(1,'rgba(255,180,90,0)');
     g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
   }
-  const img=entAnimImg(e);
+  const img=e.crushed?null:entAnimImg(e);
   const bob0=0;
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
 
   const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
-  const flip=heading>0;
+  const flip=!e.crushed && heading>0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
   g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
@@ -4010,7 +4129,7 @@ function drawEnt(g,e){
 
   if(e.flash>0){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
     g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
-    g.globalCompositeOperation='source-over'; g.globalAlpha=e.dead?clamp(1-(e.deadT||0)/1.3,0,1):1; }
+    g.globalCompositeOperation='source-over'; g.globalAlpha=e.crushed?1:(e.dead?clamp(1-(e.deadT||0)/1.3,0,1):1); }
   if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke();
@@ -4039,6 +4158,17 @@ function drawEnt(g,e){
       ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
       ctx.strokeText(e.name,s.x,yy-7*ZOOM);
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
+  }
+  if(e.crushed){
+    if(e.corpse&&!e.looted){
+      const pulse=.5+Math.sin(G.elapsed*4.1+e.x)*.28;
+      emit(s.x,s.y-10*ZOOM,20*ZOOM*pulse,'#ffd27a',0.55);
+    }
+    ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    const tag=(e.col&&e.col.key==='pordoom'&&!e.looted)?(e.name+'  (red cap)'):(e.name||'Kin')+'  (under stone)';
+    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.75)';
+    ctx.strokeText(tag,s.x,s.y-20*ZOOM);
+    ctx.fillStyle=e.corpse&&!e.looted?'#ffe08a':'#e8c9a0'; ctx.fillText(tag,s.x,s.y-20*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
@@ -5413,21 +5543,26 @@ function drawChapterSelect(g){
 
 function drawIntro(g){
   menuHits=[]; const s=UIS; const L=G.lvl;
-  darken(g,.86); G.introT+=1/60;
+  darken(g, L.n===1?0.48:.86); G.introT+=1/60;
   const a=clamp(G.introT/.7,0,1); g.globalAlpha=a; g.textAlign='center';
+  if(L.n===1){
+    g.fillStyle='rgba(6,4,3,0.55)';
+    g.fillRect(VW*0.08, VH*.28, VW*0.84, VH*.36);
+  }
   g.font='700 '+(12*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,170,120,0.85)';
   g.fillText(L.title.toUpperCase(),VW/2,VH*.34);
   bigTitle(g,L.sub,VH*.44,(PORT?24:32)*s);
   g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,188,145,0.8)';
-  const fl={1:'Fourth bell. The seam sounds hollow.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
+  const fl={1:'The roof came in. Beyond the fall, an older chamber stands open.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
     3:'They kept working. Nobody told them to stop.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
   g.fillText(fl,VW/2,VH*.51);
   g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.75)';
-  g.fillText('You are MACAR. Pordoom, Fendur, Orbo and Talpor follow you.',VW/2,VH*.575);
+  g.fillText(L.n===1?'You are MACAR. Pordoom, Fendur, Orbo and Talpor lie under the stone.':'You are MACAR. Pordoom, Fendur, Orbo and Talpor follow you.',VW/2,VH*.575);
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
-    if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
+    if(G.ch===1){ hint('Loot Pordoom. Four bombs and a week of rations.',6); }
+    else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
     else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Goblins east of the lift. A gnome sleeps in their camp.',6); } });
@@ -5734,9 +5869,15 @@ function resolveTaps(){
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
-      if(pile && (!foe || dist(pile,w)<=dist(foe,w))){
+      const body=G.ents.find(e=>e.corpse&&!e.looted&&dist(e,w)<1.1);
+      if(pile && (!foe || dist(pile,w)<=dist(foe,w)) && (!body || dist(pile,w)<=dist(body,w))){
         if(dist(p,pile)<1.5) takeLoot(pile);
         else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
+        continue;
+      }
+      if(body && (!foe || dist(body,w)<=dist(foe,w))){
+        if(dist(p,body)<1.5) lootCorpse(body);
+        else { p.dest={x:body.x,y:body.y,corpse:body.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
