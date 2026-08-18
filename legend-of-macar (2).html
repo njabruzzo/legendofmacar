@@ -153,7 +153,8 @@ function loadSprites(done){
     const img=new Image();
     img.onload=()=>{ SPR[k]=img; if(--left<=0) done(); };
     img.onerror=()=>{ if(--left<=0) done(); };
-    img.src=SPRITE_FILES[k];
+    try{ img.src=new URL(SPRITE_FILES[k], document.baseURI).href; }
+    catch(_){ img.src=SPRITE_FILES[k]; }
   });
 }
 function drawBillboard(g,img,h){
@@ -194,8 +195,9 @@ function entSpriteH(e,z){
      e.kind==='xorn'||e.kind==='lurker'||e.kind==='tenebrous'||e.kind==='blackpudding') return 112*z;
   if(e.kind==='golem'||e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 108*z;
   if(e.kind==='drow'||e.kind==='medusa'||e.kind==='orc'||e.kind==='grimlock'||e.kind==='troglodyte'||e.kind==='kuotoa'||e.kind==='quaggoth') return 86*z;
-  if(e.kind==='gnome'||e.kind==='rat'||e.kind==='bat'||e.kind==='beetle'||e.kind==='kobold'||e.kind==='goblin'||
-     e.kind==='centipede'||e.kind==='piercer'||e.kind==='pech'||e.kind==='crysmal'||e.kind==='greenslime') return 48*z;
+  if(e.kind==='gnome'||e.kind==='kobold'||e.kind==='goblin'||e.kind==='pech') return 68*z;
+  if(e.kind==='rat'||e.kind==='bat'||e.kind==='beetle'||e.kind==='centipede'||e.kind==='piercer'||
+     e.kind==='crysmal'||e.kind==='greenslime') return 48*z;
   return 70*z;
 }
 function propSpriteKey(p){
@@ -2326,12 +2328,14 @@ function layoutUI(){
   const slot = PORT ? Math.max(28, 38*s) : Math.max(34, 46*s);
   const gap = PORT? 5*s : 7*s;
   const n=BARSLOTS.length;
-  const barW = n*slot + (n-1)*gap;
-  const orbR = PORT? Math.max(26, 32*s) : Math.max(32, 40*s);
   const extraN=EXTRASLOTS.length;
-  const extraW = slot*0.78*extraN + gap*(extraN-1) + 12*s;
-  const totalW = orbR*2 + 14*s + barW + extraW;
-  const by = VH - (PORT? 44*s : 42*s) - slot/2;
+  const barW = n*slot + (n-1)*gap;
+  const extraW = extraN*slot + (extraN-1)*gap;
+  const orbR = PORT? Math.max(26, 32*s) : Math.max(32, 40*s);
+  const skillsW = Math.max(barW, extraW);
+  const totalW = orbR*2 + 14*s + skillsW;
+  const by = VH - (PORT? 36*s : 34*s) - slot/2;
+  const extraY = by - slot - (PORT? 8*s : 10*s);
   let left = VW/2 - totalW/2;
   const stickReserve = (PORT? 108*s : 128*s);
   if(left < stickReserve) left = stickReserve;
@@ -2339,15 +2343,16 @@ function layoutUI(){
 
   UI.orb = { r:orbR, x: left + orbR, y: by };
   UI.attack={x:0,y:0,r:slot/2};
+  const barLeft = left + orbR*2 + 14*s;
   BARSLOTS.forEach((b,i)=>{
-    const x = left + orbR*2 + 14*s + i*(slot+gap) + slot/2;
+    const x = barLeft + i*(slot+gap) + slot/2;
     const btn={x, y:by, r:slot/2, key:b.key, ico:b.ico, num:b.num, slot:1};
     if(b.key==='attack') UI.attack=btn;
     UIBTN.push(btn);
   });
   EXTRASLOTS.forEach((b,i)=>{
-    const x = left + orbR*2 + 14*s + barW + 12*s + i*(slot*0.78+gap) + slot*0.36;
-    UIBTN.push({x, y:by, r:slot*0.36, key:b.key, ico:b.ico, small:1});
+    const x = barLeft + i*(slot+gap) + slot/2;
+    UIBTN.push({x, y:extraY, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1});
   });
   UIBTN.push({x:VW-(PORT?88*s:118*s)-28*s, y:22*s, r:14*s, key:'pause'});
   UI.stickHome={ x: (PORT? 56*s : 78*s), y: VH - (PORT? 128*s : 112*s), r: (PORT?38*s:46*s) };
@@ -2512,11 +2517,13 @@ function update(dt){
     if(p.moving){ p.fdx=dx; p.fdy=dy; move(p,dx*sp,dy*sp,dt); }
     p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
 
-    // auto-attack: always swing at anything in reach
-    const t=nearestFoe(p,p.range+.75);
-    if(t&&p.ct<=0){ const a=ang(t.x-p.x,t.y-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
-      p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
-    if(!t) p.aim=null;
+    // auto-attack: always swing at anything in reach (not while excavating)
+    if(!G.digging){
+      const t=nearestFoe(p,p.range+.75);
+      if(t&&p.ct<=0){ const a=ang(t.x-p.x,t.y-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
+        p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
+      if(!t) p.aim=null;
+    }
 
     G.cam.x=lerp(G.cam.x,p.x,1-Math.pow(.0015,dt));
     G.cam.y=lerp(G.cam.y,p.y,1-Math.pow(.0015,dt));
@@ -2752,37 +2759,33 @@ function drawWorld(g,L){
         if(a<1) g.globalAlpha=a;
         if(okTex){
           const vein = h2(x*3,y*7)>0.86;
-          const arr = vein?TEX.wallVein:TEX.wall;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
-          if(SPR.wall_cave){
-            const wv=[SPR.wall_cave, SPR.wall_cave_w1, SPR.wall_cave_w2, SPR.wall_cave_atk].filter(Boolean);
-            const rk=L.wallHP[x+','+y];
-            const wallImg=(rk&&rk.hp<rk.max&&SPR.wall_cave_atk)?SPR.wall_cave_atk:wv[(h2(x+3,y)*wv.length)|0];
-            g.save(); g.globalAlpha=0.42;
+          const wv=[SPR.wall_cave, SPR.wall_cave_w1, SPR.wall_cave_w2, SPR.wall_cave_atk].filter(Boolean);
+          const rk=L.wallHP[x+','+y];
+          const wallImg=wv.length?((rk&&rk.hp<rk.max&&SPR.wall_cave_atk)?SPR.wall_cave_atk:wv[(h2(x+3,y)*wv.length)|0]):null;
+          if(wallImg){
             g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
-            g.restore(); g.globalAlpha=1;
+          } else {
+            const arr = vein?TEX.wallVein:TEX.wall;
+            g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
           }
           if(vein) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
-          const rk=L.wallHP[x+','+y];
           if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
           if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
           if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
         } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
         if(a<1) g.globalAlpha=1;
       } else {
-        if(okTex){
-          const arr = t===3?TEX.floorA:TEX.floor;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-FH/2, TW, FH);
-        } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
         const key=palFloorKey(pal);
         const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
         const fl=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
         if(fl){
           g.save(); diamondPath(g,s.x,s.y); g.clip();
-          g.globalAlpha=0.78;
           g.drawImage(fl, s.x-TW/2, s.y-TH/2, TW, TH);
-          g.restore(); g.globalAlpha=1;
-        }
+          g.restore();
+        } else if(okTex){
+          const arr = t===3?TEX.floorA:TEX.floor;
+          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-FH/2, TW, FH);
+        } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
       }
     }
     const b=B[d]; if(b) for(const f of b) f();
@@ -4392,9 +4395,12 @@ function drawSlot(g,b,s){
   if(simg){
     g.save();
     roundPath(g,x+3*s,y+3*s,w-6*s,h-6*s,3); g.clip();
-    const pad=3.2*s;
     g.globalAlpha=ready?1:0.42;
-    g.drawImage(simg, x+pad, y+pad, w-pad*2, h-pad*2);
+    const iw=Math.max(1,simg.width), ih=Math.max(1,simg.height);
+    const dw=w-6*s, dh=h-6*s;
+    const sc=Math.max(dw/iw, dh/ih);
+    const rw=iw*sc, rh=ih*sc;
+    g.drawImage(simg, x+3*s+(dw-rw)/2, y+3*s+(dh-rh)/2, rw, rh);
     g.globalAlpha=1; g.restore();
   } else {
     icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, col);
@@ -4425,6 +4431,11 @@ function drawSlot(g,b,s){
     const left=G.dig?Math.max(0,DIG_MINUTES-G.dig.min):DIG_MINUTES;
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+'m', b.x, b.y+R*0.62); g.textAlign='left'; }
+  if(b.label && !b.num){
+    g.font='800 '+(8*s)+'px '+FONT_UI; g.textAlign='center';
+    g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
+    g.strokeText(b.label, b.x, b.y-R-4*s);
+    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-4*s); g.textAlign='left'; }
 }
 
 function drawButtons(g,s){
