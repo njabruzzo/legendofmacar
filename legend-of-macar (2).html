@@ -618,7 +618,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
   fightOn:0, carryEffects:[], searching:0, digging:0, dig:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
-  trail:[], charXp:null, inspect:null };
+  trail:[], charXp:null, inspect:null, loot:[] };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -663,7 +663,7 @@ const FOE={
   spitter:()=>ent({kind:'spider',sprite:'spitter',hp:34,sp:2.4,dmg:9,range:5.5,cd:2,scale:1.05,ranged:1,name:'Spitter',glow:'#c07bff'}),
   beetle:()=>ent({kind:'beetle',sprite:'beetle',hp:40,sp:2.1,dmg:8,range:.9,cd:1.15,scale:1.0,name:'Iron Beetle',glow:'#6a8a4a'}),
   fungi:()=>ent({kind:'fungi',sprite:'myconid',hp:58,sp:1.9,dmg:10,range:1,cd:1.35,scale:1.15,name:'Myconid',glow:'#a35bff'}),
-  statue:()=>ent({kind:'statue',sprite:'thinone',hp:95,sp:1.55,dmg:11,range:1.2,cd:1.5,scale:1.45,aggro:99,name:'Thin One',glow:'#ff3b3b'}),
+  statue:()=>ent({kind:'statue',sprite:'thinone',hp:95,sp:1.55,dmg:11,range:1.2,cd:1.5,scale:1.45,aggro:99,name:'Thin One',glow:'#ff3b3b',rubyDrop:1}),
   crawler:()=>ent({kind:'crawler',sprite:'crawler',hp:48,sp:3.1,dmg:10,range:1.0,cd:1.0,scale:1.05,name:'Vein Crawler',glow:'#c06bff'}),
   undead:()=>ent({kind:'undead',sprite:'undead',hp:52,sp:2.5,dmg:11,range:.95,cd:1.1,scale:1,name:'Dead Kin',glow:'#7cff9c'}),
   fungiElder:()=>ent({kind:'fungi',sprite:'elder',hp:125,sp:1.6,dmg:14,range:6,cd:2.2,scale:1.5,ranged:1,name:'Spore Elder',glow:'#d07bff'}),
@@ -997,12 +997,9 @@ function makeChapter(n){
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby is warm. It knows your name.','#ff6a6a');
           [[29,14],[29,29],[41,14],[41,29],[35,12],[35,31]].forEach((s,i)=>{
-            const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
-          wave([['rat',32,16],['rat',38,26],['beetle',34,21],['bat',40,18],
-            ['centipede',30,18],['kobold',36,24],['goblin',33,28],['piercer',41,16],['greenslime',38,20],
-            ['koboldChief',31,22],['goblinBoss',37,27],['piercerSmall',39,19]]);
+            const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
           say('The thin statues step down from their plinths.','#d8cbb0');
-          hint('Six of them. Use SWING when they crowd you.',5);
+          hint('Six guardians. Each drops a ruby. Walk to it and pick it up.',6);
         });
       }
       if(L.flags.touched && !L.flags.cleared && !foesLeft()){
@@ -1252,7 +1249,7 @@ function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   ABIL.forEach(a=>cds[a.key]=0); G.hint=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.trail=[];
-  G.searching=0; G.digging=0; G.dig=null;
+  G.searching=0; G.digging=0; G.dig=null; G.loot=[];
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
   G.lvl=makeChapter(n);
   bakeTextures(G.lvl.pal);
@@ -1324,6 +1321,7 @@ const PARTY_LVL=3;
 const MACAR_SHEET={str:18,exc:76,int:10,wis:12,dex:11,con:18,cha:10,cls:'f',dice:'1d8'};
 function d20(){ return ri(1,20); }
 function d100(){ return ri(1,100); }
+function d1000(){ return ri(1,1000); }
 function d10000(){ return ri(1,10000); }
 function rollDice(n,s,b){ let t=b||0; for(let i=0;i<n;i++) t+=ri(1,s); return t; }
 function rollExpr(expr){
@@ -1573,7 +1571,7 @@ function hitChancePct(need, bonus){
   return Math.round((21-req)/20*100);
 }
 function newPack(r){
-  const p={potions:[],herbs:{},magic:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
+  const p={potions:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
   if(!r) return p;
   if(r.key==='macar'){ p.bombs=2; p.ales=1; p.torches=8; }
   else if(r.key==='pordoom'){ p.bombs=1; p.ales=1; }
@@ -3003,13 +3001,18 @@ function update(dt){
         const foe=G.ents.find(z=>z.id===p.dest.foe&&!z.dead);
         if(!foe) p.dest=null;
         else { p.dest.x=foe.x; p.dest.y=foe.y; }
+      } else if(p.dest.loot){
+        const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone);
+        if(!pile) p.dest=null;
+        else { p.dest.x=pile.x; p.dest.y=pile.y; }
       }
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):0.26;
+      const arrive=p.dest.foe?(p.range+.2):p.dest.loot?0.72:0.26;
       if(d<=arrive){
-        if(!p.dest.foe && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
+        if(!p.dest.foe && !p.dest.loot && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
@@ -3027,6 +3030,8 @@ function update(dt){
     steerWalk(p, dx, dy, sp, dt);
     if(p.moving) recordTrail(p);
     p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
+    const stepped=nearestLoot(p,0.7);
+    if(stepped) takeLoot(stepped);
 
     // auto-attack while standing in reach (Baldur's Gate: never swing while walking)
     if(!G.digging){
@@ -3057,6 +3062,10 @@ function update(dt){
           }
         }
       }
+    }
+    if(!PROMPT){
+      const pile=nearestLoot(p,1.45);
+      if(pile) interact('Pick up '+pile.label,()=>takeLoot(pile));
     }
     if(!PROMPT){
       const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
@@ -3251,6 +3260,7 @@ function drawWorld(g,L){
   const M=TW*2, near=o=>{const s=w2s(o.x,o.y); return s.x>-M&&s.x<VW+M&&s.y>-M*2.6&&s.y<VH+M;};
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
   for(const e of G.ents)  if(near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
@@ -3871,6 +3881,31 @@ function drawProp(g,p,pal){
   g.restore();
 }
 
+function drawLoot(g,pile){
+  const s=w2s(pile.x,pile.y), z=ZOOM;
+  const pulse=.62+Math.sin(G.elapsed*4.2+(pile.x||0)*3)*.28;
+  g.save(); g.translate(s.x,s.y);
+  softShadow(g,0,2*z,12*z,6*z,.5);
+  if(pile.kind==='ruby'){
+    drawFacetGem(g,0,-10*z,14*z,18*z,1,z);
+    emit(s.x,s.y-10*z,22*z*pulse,'#ff2a3c',1.15);
+    ray(s.x,s.y-12*z,18*z,'#ff4058',0.55);
+  } else if(pile.kind==='ore'){
+    g.fillStyle=RESMETA.ironstone.c;
+    g.beginPath(); g.moveTo(-6*z,-4*z); g.lineTo(0,-12*z); g.lineTo(7*z,-3*z); g.lineTo(3*z,4*z); g.lineTo(-5*z,3*z); g.closePath(); g.fill();
+    g.strokeStyle='rgba(40,28,16,0.7)'; g.lineWidth=1.2*z; g.stroke();
+  } else if(SPR.sack&&SPR.sack.width){
+    drawBillboard(g, SPR.sack, 32*z);
+    emit(s.x,s.y-8*z,16*z*pulse,'#ffd27a',0.7);
+  } else {
+    g.fillStyle='#e0c169';
+    g.beginPath(); g.ellipse(0,0,10*z,6*z,0,0,TAU); g.fill();
+    g.fillStyle='#ffe08a'; g.beginPath(); g.arc(-3*z,-2*z,3*z,0,TAU); g.fill();
+    emit(s.x,s.y-4*z,16*z*pulse,'#ffd27a',0.8);
+  }
+  g.restore();
+}
+
 /* ==========================================================================
    CHARACTERS  -  sculpted: form gradients, ink, rim light, contact shadow
    ========================================================================== */
@@ -4396,7 +4431,10 @@ function learn(k,n){ G.xp[k]=(G.xp[k]||0)+n;
 function gain(r,n){ G.res[r]=(G.res[r]||0)+n; }
 function gpTotal(){
   const c=G.coin||{};
-  return (c.pp||0)*5+(c.gp||0)+Math.floor((c.ep||0)/2)+Math.floor((c.sp||0)/10)+Math.floor((c.cp||0)/100);
+  let n=(c.pp||0)*5+(c.gp||0)+Math.floor((c.ep||0)/2)+Math.floor((c.sp||0)/10)+Math.floor((c.cp||0)/100);
+  ensurePacks();
+  ROSTER.forEach(r=>{(packOf(r.key).gems||[]).forEach(g=>n+=g.gp||0);});
+  return n;
 }
 function spendGp(n){
   if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
@@ -4408,6 +4446,19 @@ function spendGp(n){
     c[k]-=use; left-=use*rate;
   };
   take('gp',1); take('pp',5); take('ep',0.5); take('sp',0.1); take('cp',0.01);
+  if(left>0.01){
+    ensurePacks();
+    ROSTER.forEach(r=>{
+      const pk=packOf(r.key); if(!pk.gems||left<=0) return;
+      pk.gems=pk.gems.filter(gm=>{
+        if(left<=0) return true;
+        const v=gm.gp||0;
+        if(v<=left){ left-=v; return false; }
+        gm.gp=v-Math.ceil(left); left=0; return true;
+      });
+    });
+    syncPackTotals();
+  }
   if(left>0.01) c.gp=Math.max(0,(c.gp||0)-Math.ceil(left));
 }
 function giveGnomeThanks(){
@@ -4424,13 +4475,124 @@ function afford(cost){ for(const k in cost) if((G.res[k]||0)<cost[k]) return fal
 function spend(cost){ for(const k in cost) G.res[k]-=cost[k]; }
 function costText(cost){ const p=[]; for(const k in cost) p.push(cost[k]+' '+RESMETA[k].n); return p.length?p.join(' + '):'free'; }
 
+function giveGem(it, silent){
+  ensurePacks();
+  const pk=packOf('macar');
+  if(!pk.gems) pk.gems=[];
+  pk.gems.push({n:it.n, d:it.d||'', gp:it.gp||0, k:'gem'});
+  syncPackTotals();
+  if(!silent) say((it.n||'Gem')+' into MACAR\'s pack'+(it.gp?' \u2014 '+it.gp+' gp.':'.'), '#ff6a6a');
+}
+function ensureLoot(){ if(!G.loot) G.loot=[]; }
+function lootLabel(pile){
+  if(pile.label) return pile.label;
+  if(pile.items&&pile.items.length===1&&pile.items[0].k==='gem'){
+    const it=pile.items[0];
+    return it.n+(it.gp?(' ('+it.gp+' gp)'):'');
+  }
+  const bits=[];
+  const c=pile.coins||{};
+  if(c.gp) bits.push(c.gp+' gp');
+  if(c.pp) bits.push(c.pp+' pp');
+  if(c.sp) bits.push(c.sp+' sp');
+  if(c.ep) bits.push(c.ep+' ep');
+  if(c.cp) bits.push(c.cp+' cp');
+  if(pile.gems) bits.push(pile.gems+' gems');
+  if(pile.jew) bits.push(pile.jew+' jewelry');
+  (pile.potions||[]).forEach(p=>bits.push(p.n));
+  (pile.items||[]).forEach(it=>bits.push(it.n));
+  if(pile.res) Object.keys(pile.res).forEach(k=>bits.push((RESMETA[k]&&RESMETA[k].n)||k));
+  return bits.slice(0,3).join(', ')||'Treasure';
+}
+function spawnLoot(x,y, pile){
+  ensureLoot();
+  pile=pile||{};
+  const loot={
+    id:EID++, x, y, r:0.38, gone:0,
+    kind:pile.kind||'pile',
+    coins:pile.coins||{},
+    gems:pile.gems||0,
+    jew:pile.jew||0,
+    potions:pile.potions||[],
+    items:pile.items||[],
+    res:pile.res||null,
+    glow:pile.glow||(pile.kind==='ruby'?'#ff2a3c':'#ffd27a')
+  };
+  loot.label=lootLabel(Object.assign({label:pile.label}, loot));
+  G.loot.push(loot);
+  burst(x,y,loot.glow,10,2.2);
+  return loot;
+}
+function nearestLoot(e, r){
+  ensureLoot();
+  let best=null, bd=r;
+  for(const pile of G.loot){
+    if(pile.gone) continue;
+    const d=dist(e,pile);
+    if(d<bd){ bd=d; best=pile; }
+  }
+  return best;
+}
+function takeLoot(pile){
+  if(!pile||pile.gone) return;
+  pile.gone=1;
+  G.loot=(G.loot||[]).filter(x=>x!==pile);
+  convertHoard(pile.coins||{}, pile.gems||0, pile.jew||0, 0, 'none', pile);
+  (pile.potions||[]).forEach(p=>givePotion(p,1));
+  let extra=0;
+  (pile.items||[]).forEach(it=>{
+    extra+=it.gp||it.xp||0;
+    if(it.k==='gem') giveGem(it,1);
+    else giveMagic(it,1);
+  });
+  if(pile.res){
+    Object.keys(pile.res).forEach(k=>{
+      gain(k, pile.res[k]);
+      ftext(pile.x, pile.y, '+'+pile.res[k]+' '+((RESMETA[k]&&RESMETA[k].n)||k), (RESMETA[k]&&RESMETA[k].c)||'#ffd27a');
+    });
+  }
+  if(extra) awardPartyXp(Math.round(extra), 'Treasure ('+Math.round(extra)+' gp)', pile);
+  say('Picked up '+pile.label+'.','#ffd27a');
+  ftext(pile.x, pile.y-0.35, pile.label, pile.glow||'#ffd27a');
+  burst(pile.x, pile.y, pile.glow||'#ffd27a', 12, 2.4);
+}
+function hoardToPile(hoard){
+  if(!hoard) return null;
+  const potions=[], items=[];
+  const magN=hoard.magN||0;
+  const extras=extraMagicForKind(hoard.magKind||'any');
+  const rolls=magN+extras.length;
+  for(let i=0;i<rolls;i++){
+    const kind=i<magN?(hoard.magKind||'any'):extras[i-magN];
+    const got=rollMagicItem(kind);
+    if(got.kind==='potion') potions.push(got.potion);
+    else items.push(got.item);
+  }
+  const coins=hoard.coins||{};
+  const hasCoin=Object.keys(coins).some(k=>coins[k]>0);
+  if(!hasCoin && !hoard.gems && !hoard.jew && !potions.length && !items.length) return null;
+  return {kind:'pile', coins, gems:hoard.gems||0, jew:hoard.jew||0, potions, items, glow:'#ffd27a'};
+}
 function foeDrop(e){
+  if(e.rubyDrop || e.kind==='statue' || e.name==='Thin One'){
+    const gp=d1000();
+    spawnLoot(e.x+rnd(.3,-.3), e.y+rnd(.3,-.3), {
+      kind:'ruby', glow:'#ff2a3c',
+      items:[{n:'Ruby', gp, k:'gem', d:'A blood-red shard from a Thin One. Worth '+gp+' gp.'}],
+      label:'Ruby ('+gp+' gp)'
+    });
+    say((e.name||'The statue')+' drops a ruby.','#ff6a6a');
+    return;
+  }
   const raw=(e.treasure||'Nil').toString().trim();
   if(!raw || /^nil$/i.test(raw)){
     if(e.boss){
       const hoard=rollLair('H')||{coins:{},gems:0,jew:0,magN:1,magKind:'anyp'};
-      convertHoard(hoard.coins,hoard.gems,hoard.jew,hoard.magN,hoard.magKind,e);
-    } else if(Math.random()<0.18){ gain('ironstone',1); ftext(e.x,e.y,'+1 Ironstone',RESMETA.ironstone.c); }
+      const pile=hoardToPile(hoard);
+      if(pile) spawnLoot(e.x, e.y, pile);
+    } else if(Math.random()<0.18){
+      spawnLoot(e.x, e.y, {kind:'ore', res:{ironstone:1}, label:'Ironstone', glow:RESMETA.ironstone.c});
+    }
     return;
   }
   const letter=raw[0];
@@ -4440,7 +4602,8 @@ function foeDrop(e){
     else return;
   }
   if(e.boss && !hoard.magN && chanceOk(40)){ hoard.magN=1; hoard.magKind='anyp'; }
-  convertHoard(hoard.coins, hoard.gems, hoard.jew, hoard.magN||0, hoard.magKind||'any', e);
+  const pile=hoardToPile(hoard);
+  if(pile) spawnLoot(e.x+rnd(.25,-.25), e.y+rnd(.25,-.25), pile);
 }
 function newGear(){ return {wt:0,wd:100,wmax:100,rune:0, at:0,ad:100,amax:100, cd:100}; }
 function initEconomy(){
@@ -5426,12 +5589,14 @@ function drawPack(g){
   const mag=pk.magic||[];
   const pots=pk.potions||[];
   const herbs=Object.keys(pk.herbs||{});
+  const gems=pk.gems||[];
   const rows=[];
   mag.forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
     rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,info:it.d,tag:it.cat||'Magic'});
   });
   pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'}));
+  gems.forEach((gm,i)=>rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:gm.d||'',tag:'Gem'}));
   herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
   const top=tabY+tabH+26*s, bot=VH-58*s, h=Math.min(PORT?34*s:38*s, Math.max(26*s,(bot-top)/Math.max(1,rows.length||1)));
   if(!rows.length){
@@ -5444,7 +5609,7 @@ function drawPack(g){
     const y=top+i*h, x=10*s, w=VW-20*s;
     plate(g,x,y,w,h-3*s,5,.8);
     g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':'#6aff8a';
+    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':r.kind==='gem'?'#ff6a6a':'#6aff8a';
     g.fillText((r.tag||r.kind).toUpperCase(), x+10*s, y+12*s);
     g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle='#f4e2b8'; g.fillText(r.t, x+10*s, y+h*0.58);
@@ -5473,6 +5638,9 @@ function drawPack(g){
         if(!pot) return;
         if(inField) drinkPotion(pot, who);
         else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
+      } else if(r.kind==='gem'){
+        const gm=(bag.gems||[])[r.i];
+        if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
       } else {
         if(inField) useHerb(r.n, who);
         else { if(bag.herbs[r.n]){ bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n]; }
@@ -5557,6 +5725,12 @@ function resolveTaps(){
         G.aim = d>R ? {x:p.x+(w.x-p.x)/d*R, y:p.y+(w.y-p.y)/d*R} : {x:w.x,y:w.y};
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
+      const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
+      if(pile && (!foe || dist(pile,w)<=dist(foe,w))){
+        if(dist(p,pile)<1.5) takeLoot(pile);
+        else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
+        continue;
+      }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
       const dst=nearestWalk(w.x,w.y,p);
       if(dst){ p.dest={x:dst.x,y:dst.y}; p.stuck=0; p.lastD=undefined; }
