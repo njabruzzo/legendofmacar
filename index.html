@@ -629,10 +629,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:15.35,y:20.18,seed:3,stone:1.38},
-  fendur:{x:15.72,y:22.78,seed:11,stone:1.32},
-  orbo:{x:17.55,y:20.12,seed:19,stone:1.42},
-  talpor:{x:17.92,y:22.82,seed:7,stone:1.36}
+  pordoom:{x:15.35,y:20.18,seed:3,stone:1.18,kit:{bombs:4,rations:7}},
+  fendur:{x:15.72,y:22.78,seed:11,stone:1.14},
+  orbo:{x:17.55,y:20.12,seed:19,stone:1.20},
+  talpor:{x:17.92,y:22.82,seed:7,stone:1.16}
 };
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
@@ -969,7 +969,7 @@ function makeChapter(n){
     rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
     L.spawn={x:16.8,y:21.5}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
-    L.objs=[{t:'The cave-in took the kin',d:1},{t:'Touch the ruby in the wall',d:0},
+    L.objs=[{t:'Loot Pordoom under the stone',d:0},{t:'Touch the ruby in the wall',d:0},
             {t:'Destroy the Thin Ones',d:0},{t:'Ride the lift down',d:0}];
     L.lights=[{x:7,y:18,c:'#ffb45c',r:5.4,f:1},{x:13,y:25,c:'#ffb45c',r:5.2,f:1},
               {x:17.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
@@ -998,9 +998,13 @@ function makeChapter(n){
       {x:12.4,y:24.5,k:'rubble',n:8,s:0.88,seed:23}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x+0.16,y:s.y+0.22,k:'stone',s:s.stone||1.35,seed:s.seed});
+      G.props.push({x:s.x+0.42,y:s.y+0.55,k:'stone',s:s.stone||1.18,seed:s.seed,pin:1});
     });
-    L.guide=()=>!L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+    L.guide=()=>{
+      const body=(G.ents||[]).find(e=>e.corpse&&!e.looted);
+      if(body) return {x:body.x,y:body.y};
+      return !L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+    };
     L.tick=()=>{
       const p=player(); if(!p) return;
       if(!L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
@@ -1247,6 +1251,42 @@ function makeChapter(n){
   return L;
 }
 function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc); }
+function nearestCorpse(e, r){
+  let best=null, bd=r;
+  for(const o of G.ents){
+    if(!o.corpse||o.looted) continue;
+    const d=dist(e,o);
+    if(d<bd){ bd=d; best=o; }
+  }
+  return best;
+}
+function lootCorpse(e){
+  if(!e||!e.corpse||e.looted) return;
+  e.looted=1;
+  const kit=e.kit||{};
+  const bits=[];
+  ['bombs','rations','ales','torches','ammo'].forEach(k=>{
+    if(kit[k]){
+      addToPack('macar',k,kit[k]);
+      if(k==='rations'&&kit[k]===7) bits.push('a week of rations');
+      else bits.push(kit[k]+' '+k);
+    }
+  });
+  if(kit.gp){
+    addCoin('gp',kit.gp);
+    awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
+    bits.push(kit.gp+' gp');
+  }
+  const who=e.name||'the kin';
+  say('MACAR takes '+who+(bits.length?"'s kit: "+bits.join(', '):'. Empty')+'.','#ffd27a');
+  ftext(e.x,e.y-0.35,bits[0]||'Looted','#ffd27a');
+  burst(e.x,e.y,'#ffd27a',10,2.2);
+  const L=G.lvl;
+  if(L&&L.n===1&&e.col&&e.col.key==='pordoom'){
+    L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
+    hint('Four bombs and a week of rations. The ruby waits east.',5);
+  }
+}
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
   e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
 function joinAllies(list){
@@ -1292,7 +1332,15 @@ function startChapter(n){
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     if(n===1){ e.fdx=1; e.fdy=0; }
-    if(crush){ e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0; }
+    if(crush){
+      e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
+      if(crush.kit){
+        e.kit=crush.kit; e.corpse=1; e.looted=0;
+        const pk=packOf(r.key);
+        Object.keys(crush.kit).forEach(k=>{ if(typeof pk[k]==='number') pk[k]=0; });
+        syncPackTotals();
+      }
+    }
     G.ents.push(e);
   });
   if(!G.abilSaid){
@@ -3034,14 +3082,19 @@ function update(dt){
         const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone);
         if(!pile) p.dest=null;
         else { p.dest.x=pile.x; p.dest.y=pile.y; }
+      } else if(p.dest.corpse){
+        const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted);
+        if(!body) p.dest=null;
+        else { p.dest.x=body.x; p.dest.y=body.y; }
       }
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):p.dest.loot?0.72:0.26;
+      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?0.72:0.26;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
-        if(!p.dest.foe && !p.dest.loot && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted); if(body) lootCorpse(body); }
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
@@ -3095,6 +3148,10 @@ function update(dt){
     if(!PROMPT){
       const pile=nearestLoot(p,1.45);
       if(pile) interact('Pick up '+pile.label,()=>takeLoot(pile));
+    }
+    if(!PROMPT){
+      const body=nearestCorpse(p,1.45);
+      if(body) interact('Loot '+body.name,()=>lootCorpse(body));
     }
     if(!PROMPT){
       const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
@@ -3738,22 +3795,27 @@ function drawProp(g,p,pal){
     drawRubbleLocal(g, z*(p.s||1.35), p.n||14, p.seed||0, 0);
     break; }
   case 'stone':{
-    const sc=p.s||1.35, seed=p.seed||0;
-    const W=28*z*sc, H=22*z*sc;
-    softShadow(g,2*z,3*z,W*0.9,H*0.45,0.6);
+    const sc=p.s||1.35, seed=p.seed||0, pin=!!p.pin;
+    const W=(pin?34:28)*z*sc, H=(pin?11:22)*z*sc;
+    softShadow(g,2*z,3*z,W*0.9,H*0.55,0.6);
     g.beginPath();
-    g.moveTo(0,-H*1.15); g.lineTo(W*0.72,-H*0.55); g.lineTo(W*0.55,H*0.08);
-    g.lineTo(0,H*0.38); g.lineTo(-W*0.58,H*0.06); g.lineTo(-W*0.7,-H*0.5); g.closePath();
+    if(pin){
+      g.moveTo(-W*0.15,-H*0.55); g.lineTo(W*0.82,-H*0.22); g.lineTo(W*0.7,H*0.42);
+      g.lineTo(-W*0.08,H*0.62); g.lineTo(-W*0.78,H*0.28); g.lineTo(-W*0.72,-H*0.18); g.closePath();
+    } else {
+      g.moveTo(0,-H*1.15); g.lineTo(W*0.72,-H*0.55); g.lineTo(W*0.55,H*0.08);
+      g.lineTo(0,H*0.38); g.lineTo(-W*0.58,H*0.06); g.lineTo(-W*0.7,-H*0.5); g.closePath();
+    }
     const gr=g.createLinearGradient(-W,-H,W,H);
     gr.addColorStop(0,'#8a6e4e'); gr.addColorStop(0.35,'#5c4630'); gr.addColorStop(0.7,'#3a2a1c'); gr.addColorStop(1,'#1e140c');
     g.fillStyle=gr; g.fill(); g.strokeStyle=OL; g.lineWidth=1.8*z; g.stroke();
     g.strokeStyle='rgba(255,220,180,0.12)'; g.lineWidth=1.2*z;
-    g.beginPath(); g.moveTo(-W*0.2,-H*0.85); g.lineTo(W*0.15,-H*0.2); g.lineTo(-W*0.05,H*0.12); g.stroke();
+    g.beginPath(); g.moveTo(-W*0.2,pin?-H*0.28:-H*0.85); g.lineTo(W*0.15,-H*0.08); g.lineTo(-W*0.05,H*0.22); g.stroke();
     g.fillStyle='rgba(0,0,0,0.28)';
-    g.beginPath(); g.moveTo(W*0.18,-H*0.4); g.lineTo(W*0.55,H*0.08); g.lineTo(0,H*0.38); g.closePath(); g.fill();
-    for(let i=0;i<3;i++){
-      const hx=(h2(i+seed,5)-.5)*18*z*sc, hy=-6*z*sc-h2(i+seed,9)*10*z*sc, sz=(6+h2(i+seed,13)*5)*z*sc;
-      g.beginPath(); g.moveTo(hx,hy-sz); g.lineTo(hx+sz,hy); g.lineTo(hx,hy+sz*0.6); g.lineTo(hx-sz,hy); g.closePath();
+    g.beginPath(); g.moveTo(W*0.18,-H*0.18); g.lineTo(W*0.7,H*0.28); g.lineTo(pin?-W*0.08:0,H*0.55); g.closePath(); g.fill();
+    for(let i=0;i<(pin?2:3);i++){
+      const hx=(h2(i+seed,5)-.5)*18*z*sc, hy=(pin?2: -6)*z*sc-h2(i+seed,9)*6*z*sc, sz=(5+h2(i+seed,13)*4)*z*sc;
+      g.beginPath(); g.moveTo(hx,hy-sz*0.55); g.lineTo(hx+sz,hy); g.lineTo(hx,hy+sz*0.45); g.lineTo(hx-sz,hy); g.closePath();
       g.fillStyle=i%2?'#6a5136':'#4a3826'; g.fill(); g.strokeStyle=OL; g.lineWidth=1*z; g.stroke();
     }
     break; }
@@ -4021,9 +4083,10 @@ function drawEnt(g,e){
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
   if(e.sleeping){ g.translate(8*z, 6*z); g.rotate(1.18); }
-  if(e.dead){
-    const lie=e.crushed?0.62:(e.deadT||0);
-    if(!e.crushed) g.globalAlpha=clamp(1-lie/1.3,0,1);
+  if(e.crushed){ g.translate(12*z, 10*z); g.rotate(1.22); }
+  if(e.dead && !e.crushed){
+    const lie=e.deadT||0;
+    g.globalAlpha=clamp(1-lie/1.3,0,1);
     g.translate(0,lie*7); g.rotate(clamp(lie*1.5,0,.95));
   }
   const p=player();
@@ -4041,12 +4104,12 @@ function drawEnt(g,e){
     gr.addColorStop(0,'rgba(255,206,130,0.14)'); gr.addColorStop(1,'rgba(255,180,90,0)');
     g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
   }
-  const img=entAnimImg(e);
+  const img=e.crushed?null:entAnimImg(e);
   const bob0=0;
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
 
   const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
-  const flip=heading>0;
+  const flip=!e.crushed && heading>0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
   g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
@@ -4097,11 +4160,15 @@ function drawEnt(g,e){
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
   }
   if(e.crushed){
+    if(e.corpse&&!e.looted){
+      const pulse=.5+Math.sin(G.elapsed*4.1+e.x)*.28;
+      emit(s.x,s.y-10*ZOOM,20*ZOOM*pulse,'#ffd27a',0.55);
+    }
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
-    const tag=(e.name||'Kin')+'  (under stone)';
+    const tag=(e.col&&e.col.key==='pordoom'&&!e.looted)?(e.name+'  (red cap)'):(e.name||'Kin')+'  (under stone)';
     ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.75)';
     ctx.strokeText(tag,s.x,s.y-20*ZOOM);
-    ctx.fillStyle='#e8c9a0'; ctx.fillText(tag,s.x,s.y-20*ZOOM); ctx.textAlign='left';
+    ctx.fillStyle=e.corpse&&!e.looted?'#ffe08a':'#e8c9a0'; ctx.fillText(tag,s.x,s.y-20*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
@@ -5494,7 +5561,7 @@ function drawIntro(g){
   g.fillText(L.n===1?'You are MACAR. Pordoom, Fendur, Orbo and Talpor lie under the stone.':'You are MACAR. Pordoom, Fendur, Orbo and Talpor follow you.',VW/2,VH*.575);
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
-    if(G.ch===1){ hint('The roof came down. Only you are standing.',6); }
+    if(G.ch===1){ hint('Loot Pordoom. Four bombs and a week of rations.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
@@ -5802,9 +5869,15 @@ function resolveTaps(){
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
-      if(pile && (!foe || dist(pile,w)<=dist(foe,w))){
+      const body=G.ents.find(e=>e.corpse&&!e.looted&&dist(e,w)<1.1);
+      if(pile && (!foe || dist(pile,w)<=dist(foe,w)) && (!body || dist(pile,w)<=dist(body,w))){
         if(dist(p,pile)<1.5) takeLoot(pile);
         else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
+        continue;
+      }
+      if(body && (!foe || dist(body,w)<=dist(foe,w))){
+        if(dist(p,body)<1.5) lootCorpse(body);
+        else { p.dest={x:body.x,y:body.y,corpse:body.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
