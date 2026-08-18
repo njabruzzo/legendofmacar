@@ -64,6 +64,21 @@ const ri=(a,b)=>Math.floor(rnd(b+1,a));
 function h2(x,y){ let n=(x|0)*374761393+(y|0)*668265263; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }
 function h3(x,y,s){ let n=(x|0)*374761393+(y|0)*668265263+(s|0)*1442695041; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }
 const ang=(dx,dy)=>Math.atan2(dy,dx);
+function approach(a,b,max){ const d=b-a; if(Math.abs(d)<=max) return b; return a+Math.sign(d)*max; }
+function turnToward(e,dx,dy,dt,rate){
+  if(!(dx||dy)) return;
+  const ta=ang(dx,dy); let ca=ang(e.fdx,e.fdy);
+  let d=((ta-ca+Math.PI*3)%TAU)-Math.PI;
+  const max=(rate||10)*dt;
+  if(Math.abs(d)<=max){ e.fdx=Math.cos(ta); e.fdy=Math.sin(ta); }
+  else { ca+=Math.sign(d)*max; e.fdx=Math.cos(ca); e.fdy=Math.sin(ca); }
+}
+function gaitAdvance(e,spd,dt){ e.gait=(e.gait||0)+Math.max(0,spd)*dt*1.15; }
+function partyForm(i,p){
+  const slots=[[-1.2,0.95],[-1.2,-0.95],[-2.2,0.55],[-2.2,-0.55]];
+  const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
+  return {x:p.x+fx*s[0]+rx*s[1], y:p.y+fy*s[0]+ry*s[1]};
+}
 function shade(h,a){
   h=(h||'#888').replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join('');
   const n=parseInt(h,16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255;
@@ -177,8 +192,12 @@ function entAnimImg(e){
   if(!k) return null;
   if(!e.dead && e.atk>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(!e.dead && e.moving){
-    const a=SPR[k+'_w1'], b=SPR[k+'_w2']||SPR[k];
-    if(a) return ((e.anim*8)|0)%2 ? (b||a) : a;
+    const a=SPR[k+'_w1'], b=SPR[k+'_w2'];
+    if(a||b){
+      const frames=[a,b].filter(Boolean);
+      const phase=((e.gait||0)%1)<0.5?0:1;
+      return frames[phase%frames.length];
+    }
   }
   return SPR[k]||null;
 }
@@ -521,6 +540,7 @@ let EID=1;
 function ent(o){
   const e=Object.assign({ id:EID++, kind:'dwarf', team:'foe', x:0,y:0,r:0.38, hp:20,
     sp:2.2, dmg:6, range:0.95, cd:1.1, ct:rnd(.6), anim:rnd(6), fdx:1, fdy:0, moving:false,
+    ix:0, iy:0, gait:rnd(1),
     dead:false, flash:0, kx:0, ky:0, atk:0, atkMax:.42, scale:1, stun:0, boss:false,
     glow:null, aggro:7.5, buff:0, engaged:false, name:'' }, o);
   e.maxhp=e.hp; return e;
@@ -2505,17 +2525,27 @@ function update(dt){
         p.lastD=d; if(p.stuck>0.7){ p.dest=null; p.stuck=0; } }
     }
 
-    p.moving = !!(dx||dy);
     let sp=p.sp;
     if(G.searching) sp*=0.16;
     if(G.digging) sp*=0.14;
-    if(p.moving){ p.fdx=dx; p.fdy=dy; move(p,dx*sp,dy*sp,dt); }
+    const wantX=(dx||0)*sp, wantY=(dy||0)*sp;
+    const acc=(dx||dy)?7.5:14;
+    p.ix=approach(p.ix||0, wantX, acc*dt);
+    p.iy=approach(p.iy||0, wantY, acc*dt);
+    const spd=Math.hypot(p.ix,p.iy);
+    p.moving=spd>0.14;
+    if(p.moving){
+      turnToward(p, p.ix, p.iy, dt, 11);
+      move(p, p.ix, p.iy, dt);
+      gaitAdvance(p, spd, dt);
+    }
     p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
 
-    // auto-attack: always swing at anything in reach (not while excavating)
+    // auto-attack while standing in reach (not while walking or excavating)
     if(!G.digging){
       const t=nearestFoe(p,p.range+.75);
-      if(t&&p.ct<=0){ const a=ang(t.x-p.x,t.y-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
+      if(t&&p.ct<=0&&!p.moving){
+        turnToward(p, t.x-p.x, t.y-p.y, dt, 16);
         p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
       if(!t) p.aim=null;
     }
@@ -2589,30 +2619,36 @@ function update(dt){
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
     if(e.hero) continue;
-    if(e.hidden){ e.moving=0; continue; }
-    if(e.sleeping){ e.moving=0; continue; }
+    if(e.hidden){ e.moving=0; e.ix=0; e.iy=0; continue; }
+    if(e.sleeping){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.fleeTo){
       const t=e.fleeTo, d=dist(e,t), a=ang(t.x-e.x,t.y-e.y);
       if(d>0.55){
-        e.fdx=Math.cos(a); e.fdy=Math.sin(a); e.moving=1;
-        move(e,e.fdx*e.sp,e.fdy*e.sp,dt);
+        turnToward(e, Math.cos(a), Math.sin(a), dt, 10);
+        e.ix=approach(e.ix||0, e.fdx*e.sp, 8*dt);
+        e.iy=approach(e.iy||0, e.fdy*e.sp, 8*dt);
+        const spd=Math.hypot(e.ix,e.iy); e.moving=spd>0.12;
+        move(e,e.ix,e.iy,dt); gaitAdvance(e,spd,dt);
       } else {
-        e.moving=0; e.x=t.x; e.y=t.y; e.fleeTo=null;
+        e.moving=0; e.ix=0; e.iy=0; e.x=t.x; e.y=t.y; e.fleeTo=null;
         if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
       }
       continue;
     }
-    if(e.npc && e.team!=='party'){ e.moving=0; continue; }
+    if(e.npc && e.team!=='party'){ e.moving=0; e.ix=0; e.iy=0; continue; }
 
-    let tgt=null, want=e.range;
+    let tgt=null, want=e.range, form=0;
     if(e.team==='party'){
       const foe=nearestFoe(e, e.ranged?9:7.2);
       if(e.heals){ const hu=nearestAlly(e,12,1);
         if(hu&&hu.hp<hu.maxhp*.6&&e.ct<=0){ hu.hp=Math.min(hu.maxhp,hu.hp+24);
           burst(hu.x,hu.y,'#ffe9a8',10,2); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } }
       if(foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; }
-      else if(p){ const i=G.ents.indexOf(e); const a=i*1.35+Math.sin(G.elapsed*.3)*.2;
-        tgt={x:p.x+Math.cos(a)*1.8,y:p.y+Math.sin(a)*1.8}; want=.4; }
+      else if(p){
+        const kin=G.ents.filter(x=>x.team==='party'&&!x.dead&&!x.hero);
+        const idx=kin.indexOf(e);
+        tgt=partyForm(idx<0?1:idx+1, p); want=.42; form=1;
+      }
     } else {
       tgt=nearestAlly(e,999);
       if(tgt){ const d=dist(e,tgt);
@@ -2625,11 +2661,21 @@ function update(dt){
         let vx=Math.cos(a),vy=Math.sin(a);
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
           if(dd<(e.r+o.r)*1.55&&dd>.001){ vx+=(e.x-o.x)/dd*.55; vy+=(e.y-o.y)/dd*.55; } }
-        const m=Math.hypot(vx,vy)||1; e.fdx=Math.cos(a); e.fdy=Math.sin(a); e.moving=1;
-        move(e,vx/m*e.sp,vy/m*e.sp,dt);
-      } else { e.moving=0; e.fdx=Math.cos(a); e.fdy=Math.sin(a);
-        if(e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; } }
-    } else e.moving=0;
+        const m=Math.hypot(vx,vy)||1;
+        e.ix=approach(e.ix||0, vx/m*e.sp, 8*dt);
+        e.iy=approach(e.iy||0, vy/m*e.sp, 8*dt);
+        const spd=Math.hypot(e.ix,e.iy); e.moving=spd>0.12;
+        if(e.moving) turnToward(e, e.ix, e.iy, dt, 10);
+        move(e,e.ix,e.iy,dt); gaitAdvance(e,spd,dt);
+      } else {
+        e.ix=approach(e.ix||0, 0, 14*dt); e.iy=approach(e.iy||0, 0, 14*dt);
+        const spd=Math.hypot(e.ix,e.iy); e.moving=spd>0.12;
+        if(e.moving){ move(e,e.ix,e.iy,dt); gaitAdvance(e,spd,dt); }
+        else if(form&&p) turnToward(e, p.fdx, p.fdy, dt, 6);
+        else turnToward(e, Math.cos(a), Math.sin(a), dt, 12);
+        if(!e.moving&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; }
+      }
+    } else { e.moving=0; e.ix=approach(e.ix||0,0,14*dt); e.iy=approach(e.iy||0,0,14*dt); }
   }
 
   for(const s of G.shots){
@@ -3399,13 +3445,12 @@ function drawEnt(g,e){
     gr.addColorStop(0,'rgba(255,206,130,0.14)'); gr.addColorStop(1,'rgba(255,180,90,0)');
     g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
   }
-  // contact shadow, offset away from the key light
-  const bob0=e.sleeping?0:Math.sin(e.anim*9)*(e.moving?2.6:.9)*z;
-  softShadow(g,2.5*z,1*z,17*z+bob0*0.4,8*z,0.52);
+  const img=entAnimImg(e);
+  const bob0=e.sleeping||img?0:Math.sin(e.anim*8)*(e.moving?1.15:.35)*z;
+  softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
 
   const left=(e.fdx-e.fdy)<0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
-  const img=entAnimImg(e);
   const squash=img?1:(1+sw*0.06);
   g.save(); g.translate(0,-bob0); g.scale(left?-1:1,1); g.scale(1/squash,squash);
   if(!(img && drawBillboard(g,img,entSpriteH(e,z)))){
