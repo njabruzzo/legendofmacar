@@ -109,7 +109,8 @@ const SPRITE_FILES={
   skill_icons:'assets/ui/ui_skill_icons.png',
   icon_sword:'assets/ui/icon_sword.png', icon_dwarf:'assets/ui/icon_dwarf.png',
   icon_flask:'assets/ui/icon_flask.png', icon_shield:'assets/ui/icon_shield.png',
-  icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png'
+  icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png',
+  icon_plant:'assets/ui/icon_plant.png', icon_shovel:'assets/ui/icon_shovel.png'
 };
 const UNDERDARK=[
   'centipede','kobold','goblin','orc','piercer','gibberling','ixzan','grimlock',
@@ -142,7 +143,8 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 });
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
-  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_pack', horn:'icon_cross'
+  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_pack', horn:'icon_cross',
+  plant:'icon_plant', shovel:'icon_shovel'
 };
 function loadSprites(done){
   const keys=Object.keys(SPRITE_FILES); let left=keys.length;
@@ -486,7 +488,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
-  fightOn:0, carryEffects:[] };
+  fightOn:0, carryEffects:[], searching:0, digging:0, dig:null };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -1118,6 +1120,7 @@ function startChapter(n){
   G.ch=n; G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   ABIL.forEach(a=>cds[a.key]=0); G.hint=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0;
+  G.searching=0; G.digging=0; G.dig=null;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
   G.lvl=makeChapter(n);
   bakeTextures(G.lvl.pal);
@@ -2265,7 +2268,6 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
     L.plug.hp-=rock; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
-  if(!hit && e.hero && digSwing(e,rock)) hit=1;
   if(hit){ shake(4); G.hitstop=Math.max(G.hitstop,.035); }
   return hit;
 }
@@ -2314,6 +2316,8 @@ const BARSLOTS=[
 const EXTRASLOTS=[
   {key:'swing', ico:'hammer', label:'SWING'},
   {key:'throw', ico:'pick',   label:'PICK'},
+  {key:'search', ico:'plant', label:'HERB'},
+  {key:'shovel', ico:'shovel', label:'DIG'},
 ];
 
 function layoutUI(){
@@ -2324,7 +2328,8 @@ function layoutUI(){
   const n=BARSLOTS.length;
   const barW = n*slot + (n-1)*gap;
   const orbR = PORT? Math.max(26, 32*s) : Math.max(32, 40*s);
-  const extraW = slot*0.78*2 + gap + 12*s;
+  const extraN=EXTRASLOTS.length;
+  const extraW = slot*0.78*extraN + gap*(extraN-1) + 12*s;
   const totalW = orbR*2 + 14*s + barW + extraW;
   const by = VH - (PORT? 44*s : 42*s) - slot/2;
   let left = VW/2 - totalW/2;
@@ -2392,6 +2397,7 @@ window.addEventListener('keydown',e=>{
   if(k==='r') fire('throw');
   if(k==='b') fire('bomb');
   if(k==='f') fire('search');
+  if(k==='g') fire('shovel');
   if(e.key==='Escape') G.paused=!G.paused;
 });
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
@@ -2405,9 +2411,26 @@ function fire(key){
   if(key==='attack'){ if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return; }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
   if(key==='search'){
-    if((p.searchCd||0)>0){ hint('Still looking. Herb Lore '+forageChance()+'%.',2.2); return; }
-    p.searchCd=7;
-    forageHerbs(p);
+    if(G.searching){ G.searching=0; hint('Stopped searching.',1.8); return; }
+    G.searching=1; G.digging=0; G.dig=null;
+    p.searchCd=2.2;
+    say('Eyes on the floor. Movement crawls.','#6aff8a');
+    hint('Herb search on. Walk is very slow. Plant icon or F to stop.',3.8);
+    return;
+  }
+  if(key==='shovel'){
+    if(G.digging){ G.digging=0; G.dig=null; hint('Put the shovel up.',1.8); return; }
+    G.searching=0; G.digging=1;
+    const t=digTarget(p);
+    if(!t){
+      G.dig=null;
+      hint('Face solid rock. Dwarves excavate one square foot per 10 minutes.',4.4);
+      say('Shovel out. Face the stone.','#d8c49a');
+    } else {
+      G.dig={i:t.i,j:t.j,min:0};
+      say('Digging. One square foot per 10 minutes.','#d8c49a');
+      hint('Solid rock — 10 dungeon minutes a square (1 second = 1 minute).',4);
+    }
     return;
   }
   if(key==='bomb'){
@@ -2483,7 +2506,10 @@ function update(dt){
     }
 
     p.moving = !!(dx||dy);
-    if(p.moving){ p.fdx=dx; p.fdy=dy; move(p,dx*p.sp,dy*p.sp,dt); }
+    let sp=p.sp;
+    if(G.searching) sp*=0.16;
+    if(G.digging) sp*=0.14;
+    if(p.moving){ p.fdx=dx; p.fdy=dy; move(p,dx*sp,dy*sp,dt); }
     p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
 
     // auto-attack: always swing at anything in reach
@@ -2498,6 +2524,21 @@ function update(dt){
     for(let j=cj-10;j<=cj+10;j++) for(let i=ci-10;i<=ci+10;i++)
       if(L.seen[j]&&L.seen[j][i]!==undefined&&(i-p.x)*(i-p.x)+(j-p.y)*(j-p.y)<100) L.seen[j][i]=1;
     p.searchCd=Math.max(0,(p.searchCd||0)-dt);
+    if(G.searching && (p.searchCd||0)<=0){ p.searchCd=7; forageHerbs(p); }
+    if(G.digging){
+      const t=digTarget(p);
+      if(t){
+        if(!G.dig || G.dig.i!==t.i || G.dig.j!==t.j) G.dig={i:t.i,j:t.j,min:0};
+        else {
+          G.dig.min+=dt;
+          if(G.dig.min>=DIG_MINUTES){
+            breakRock(L,G.dig.i,G.dig.j);
+            say('A square foot of stone comes away.','#d8c49a');
+            G.dig=null;
+          }
+        }
+      }
+    }
     if(!PROMPT){
       const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
@@ -2725,6 +2766,7 @@ function drawWorld(g,L){
           const rk=L.wallHP[x+','+y];
           if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
           if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
+          if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
         } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
         if(a<1) g.globalAlpha=1;
       } else {
@@ -2768,6 +2810,18 @@ function drawDigMark(g,sx,sy,WH){
   g.moveTo(sx-TW*0.30,sy-WH*0.62); g.lineTo(sx-TW*0.30,sy-WH*0.80); g.lineTo(sx-TW*0.12,sy-WH*0.80);
   g.moveTo(sx+TW*0.30,sy-WH*0.62); g.lineTo(sx+TW*0.30,sy-WH*0.80); g.lineTo(sx+TW*0.12,sy-WH*0.80);
   g.stroke();
+}
+function drawDigProgress(g,sx,sy,WH,pct){
+  const left=Math.max(0,DIG_MINUTES*(1-clamp(pct,0,1)));
+  const w=TW*0.58, h=5*ZOOM, x=sx-w/2, y=sy-WH*0.96;
+  g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(x-1.5,y-1.5,w+3,h+3);
+  g.fillStyle='#c9a24a'; g.fillRect(x,y,w*clamp(pct,0,1),h);
+  g.strokeStyle='rgba(255,220,180,0.45)'; g.lineWidth=1; g.strokeRect(x,y,w,h);
+  g.font='800 '+(10*ZOOM)+'px '+FONT_UI; g.textAlign='center';
+  g.lineWidth=3*ZOOM; g.strokeStyle='rgba(0,0,0,0.75)';
+  g.strokeText(Math.ceil(left)+' min', sx, y-5*ZOOM);
+  g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+' min', sx, y-5*ZOOM);
+  g.textAlign='left';
 }
 function drawAim(g){
   const p=player(); if(!p||!G.aim) return;
@@ -3860,8 +3914,10 @@ function armCut(e){ const g=e.gear; if(!g) return 0;
 function wear(g,w,a){ if(!g) return; if(w) g.wd=Math.max(0,g.wd-w); if(a) g.ad=Math.max(0,g.ad-a); }
 
 /* ==========================================================================
-   MINING  -  hammers and picks break rock; rock pays out
+   MINING  -  shovel excavates solid rock; 1 sq ft per 10 dungeon minutes
+   (1 real second = 1 dungeon minute). Bombs still blow rock. Combat does not.
    ========================================================================== */
+const DIG_MINUTES=10;
 function isVein(i,j){ return h2(i*3,j*7)>0.86; }
 function rockAt(L,i,j){
   const k=i+','+j;
@@ -4293,6 +4349,17 @@ function icon(g,kind,x,y,s,col){
     g.beginPath(); g.moveTo(0,-11*s); g.lineTo(0,10*s); g.stroke(); }
   if(kind==='cross'){ g.beginPath(); g.arc(0,0,11*s,0,TAU); g.stroke();
     g.fillRect(-2.2*s,-8*s,4.4*s,16*s); g.fillRect(-8*s,-2.2*s,16*s,4.4*s); }
+  if(kind==='plant'){
+    g.fillStyle='#3a7a3a'; g.beginPath(); g.moveTo(0,10*s); g.quadraticCurveTo(-8*s,2*s,0,-11*s);
+    g.quadraticCurveTo(8*s,2*s,0,10*s); g.fill();
+    g.strokeStyle=col; g.beginPath(); g.moveTo(0,10*s); g.lineTo(0,-4*s); g.stroke();
+    g.fillStyle='#6aff8a'; g.beginPath(); g.ellipse(-5*s,-2*s,5*s,3*s,-0.6,0,TAU); g.fill();
+    g.beginPath(); g.ellipse(5*s,-1*s,5*s,3*s,0.6,0,TAU); g.fill();
+    g.beginPath(); g.ellipse(0,-9*s,4.2*s,3.2*s,0,0,TAU); g.fill(); }
+  if(kind==='shovel'){
+    g.beginPath(); g.moveTo(-7*s,10*s); g.lineTo(7*s,-8*s); g.stroke();
+    g.beginPath(); g.moveTo(4*s,-12*s); g.lineTo(10*s,-6*s); g.lineTo(8*s,-4*s); g.lineTo(2*s,-10*s); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-10*s,7*s); g.quadraticCurveTo(-4*s,14*s,2*s,10*s); g.quadraticCurveTo(-2*s,6*s,-10*s,7*s); g.fill(); }
   g.restore();
 }
 
@@ -4302,6 +4369,7 @@ function slotAnimImg(b){
   if(!k) return null;
   const ab=ABIL.find(a=>a.key===b.key);
   if(b.hold && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)) return SPR[k+'_atk']||SPR[k]||null;
   if(ab && cds[ab.key]>0 && cds[ab.key]>ab.cd-0.22 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(!(ab && cds[ab.key]>0)){
     const a=SPR[k+'_w1'], c=SPR[k+'_w2']||SPR[k];
@@ -4316,6 +4384,9 @@ function drawSlot(g,b,s){
   const ico=b.ico||(b.key==='attack'?'sword':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
+  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)){
+    g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
+    roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
   const simg=slotAnimImg(b);
   if(simg){
@@ -4350,6 +4421,10 @@ function drawSlot(g,b,s){
   if(ab&&ab.key==='bomb'&&G.aim){
     g.strokeStyle='rgba(255,170,90,'+(0.6+Math.sin(G.elapsed*6)*0.3)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-3*s,y-3*s,w+6*s,h+6*s,6); g.stroke(); }
+  if(b.key==='shovel'&&G.digging){
+    const left=G.dig?Math.max(0,DIG_MINUTES-G.dig.min):DIG_MINUTES;
+    g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
+    g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+'m', b.x, b.y+R*0.62); g.textAlign='left'; }
 }
 
 function drawButtons(g,s){
@@ -4530,7 +4605,7 @@ function drawTitle(g){
   menuBtn(g,'Chapters',VW/2,VH*.74,Math.min(260*s,VW*.7),44*s,()=>{G.scene='chapters';});
   g.textAlign='center'; g.font='600 '+(10.5*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
-  g.fillText('WASD to walk  ·  1-5 skills  ·  Q swing  ·  R pick  ·  Space strike',VW/2,VH-16*s);
+  g.fillText('WASD walk  ·  F herbs  ·  G shovel  ·  1-5 skills  ·  Q swing  ·  Space strike',VW/2,VH-16*s);
   g.textAlign='left';
 }
 
@@ -4578,8 +4653,8 @@ function drawIntro(g){
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
     if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
-    else if(!G.taught.dig){ G.taught.dig=1; hint('Face bare rock and swing \u2014 you can dig anywhere',6); }
-    else if(!G.taught.herb){ G.taught.herb=1; hint('F searches for herbs. 10% + 5% per Herb Lore rank.',6); }
+    else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
+    else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
     else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Goblins east of the lift. A gnome sleeps in their camp.',6); } });
 }
 
@@ -4825,7 +4900,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('F searches for herbs  \u00b7  d20 vs AC  \u00b7  drag left to walk',VW/2,VH*.31);
+  g.fillText('F herb search (slow)  \u00b7  G shovel (1 sq ft / 10 min)  \u00b7  d20 vs AC',VW/2,VH*.31);
   g.textAlign='left';
   menuBtn(g,'Resume',VW/2,VH*.44,Math.min(230*s,VW*.66),48*s,()=>{G.paused=false;});
   menuBtn(g,'Effects: '+(QUALITY?'High':'Fast'),VW/2,VH*.555,Math.min(230*s,VW*.66),42*s,()=>{QUALITY=QUALITY?0:1;});
