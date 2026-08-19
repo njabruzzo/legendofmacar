@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=23">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=23">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=23" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=24">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=24">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=24" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=23"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=24"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -170,7 +170,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='23';
+const ASSET_VER='24';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -388,8 +388,8 @@ function drawEntBillboard(g,e,img,z){
   const k=entSpriteKey(e);
   const ref=SPR[k]||img;
   if(e.crushed||e.prone){
-    const ph=40*z, pw=ph*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -pw/2, -ph*0.72, pw, ph);
+    const ph=28*z, pw=ph*(img.width/Math.max(1,img.height));
+    g.drawImage(img, -pw/2, -ph*0.55, pw, ph);
     return true;
   }
   const scale=entSpriteH(e,z)/Math.max(1, ref.height);
@@ -475,7 +475,7 @@ function propSpriteH(p,z){
   const k=p.k;
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
-  if(k==='boulder') return (p.pin?58:56)*z*(p.s||1);
+  if(k==='boulder') return (p.pin?72:56)*z*(p.s||1);
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
@@ -1182,9 +1182,10 @@ function makeChapter(n){
       {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x+0.04,y:s.y+0.06,k:'boulder',spr:s.spr||'boulder',s:s.stone||1.22,pin:1,seed:s.seed});
-      G.props.push({x:s.x+0.32,y:s.y-0.10,k:'rubble',spr:'rubble',s:0.92,cover:1,n:10,seed:s.seed+3});
-      G.props.push({x:s.x-0.26,y:s.y+0.22,k:'rubble',spr:'rubble2',s:0.78,cover:1,n:8,seed:s.seed+5});
+      G.props.push({x:s.x,y:s.y,k:'boulder',spr:s.spr||'boulder',s:1.38,pin:1,seed:s.seed});
+      G.props.push({x:s.x+0.22,y:s.y+0.16,k:'boulder',spr:s.spr==='boulder'?'boulder2':'boulder',s:1.05,cover:1,seed:s.seed+1});
+      G.props.push({x:s.x-0.20,y:s.y+0.24,k:'rubble',spr:'rubble',s:1.12,cover:1,n:12,seed:s.seed+3});
+      G.props.push({x:s.x+0.12,y:s.y-0.18,k:'rubble',spr:'rubble2',s:0.95,cover:1,n:9,seed:s.seed+5});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -1635,6 +1636,7 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
+      e.scale=0.52;
       e.kit=crush.kit||{}; e.corpse=1; e.looted=0;
       if(crush.kit){
         const pk=packOf(r.key);
@@ -4489,8 +4491,8 @@ function drawEnt(g,e){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
     const tag=e.name||'Kin';
     ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
-    ctx.strokeText(tag,s.x,s.y-34*ZOOM);
-    ctx.fillStyle=e.corpse&&!e.looted?'#ffe08a':'#e8c9a0'; ctx.fillText(tag,s.x,s.y-34*ZOOM); ctx.textAlign='left';
+    ctx.strokeText(tag,s.x,s.y-26*ZOOM);
+    ctx.fillStyle=e.corpse&&!e.looted?'#ffe08a':'#e8c9a0'; ctx.fillText(tag,s.x,s.y-26*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
