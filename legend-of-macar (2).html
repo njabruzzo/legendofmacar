@@ -422,8 +422,6 @@ function drawBillboard(g,img,h){
 }
 function drawEntBillboard(g,e,img,z){
   if(!img||!img.width) return false;
-  const k=entSpriteKey(e);
-  const ref=SPR[k]||img;
   if(e.crushed||e.prone){
     const macarH=78*z;
     const maxW=macarH*1.08, maxH=macarH*0.62;
@@ -433,8 +431,10 @@ function drawEntBillboard(g,e,img,z){
     g.drawImage(img, -pw/2, -ph*0.78, pw, ph);
     return true;
   }
-  const scale=entSpriteH(e,z)/Math.max(1, ref.height);
-  const W=img.width*scale, H=img.height*scale;
+  // Idle / walk / attack canvases are different sizes. Always billboard to
+  // the same on-screen height so Macar does not shrink when he swings.
+  const H=entSpriteH(e,z);
+  const W=img.width*(H/Math.max(1,img.height));
   if(e.hero && !e.dead){
     g.save();
     g.globalAlpha=1;
@@ -1195,7 +1195,7 @@ const ALLY={
 const ABIL=[
  {key:'swing',label:'Attack',ico:'hammer',cd:6, hint:'Hammer arc, all around you'},
  {key:'throw',label:'PICK', ico:'pick',  cd:4, hint:'Hurl the pickaxe'},
- {key:'bomb', label:'Throw',ico:'bomb',  cd:3, hint:'Aim, then throw a bomb. 10d10'},
+ {key:'bomb', label:'Throw',ico:'bomb',  cd:3, hint:'Throw a bomb at the nearest foe, or ahead. 10d10'},
  {key:'bow',  label:'Shoot',ico:'crossbow', cd:1.4, hint:'Loose a quarrel. Spent bolts may save and be retrieved'},
  {key:'pack', label:'PACK', ico:'pack',  cd:0, hint:'Each kin keeps their own pack'},
  {key:'wall', label:'Defend',ico:'shield',cd:0, hint:'Armor class +4. No attacks while the shield is up'},
@@ -1284,7 +1284,7 @@ function makeChapter(n){
     });
     L.guide=()=>{
       const p=player();
-      const bodies=(G.ents||[]).filter(e=>e.corpse&&!e.looted);
+      const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.looted);
       if(bodies.length){
         if(!p) return {x:bodies[0].x,y:bodies[0].y};
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
@@ -1684,18 +1684,28 @@ function campRest(){
   say('Macar decides to camp to rest and heal.','#ffe08a');
   hint(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.',5);
 }
+function isLootableBody(o){
+  if(!o||o.hero) return false;
+  return !!(o.corpse||o.crushed||(o.dead&&o.team==='foe'));
+}
 function nearestCorpse(e, r){
   let best=null, bd=r;
   for(const o of G.ents){
-    if(!o.corpse||o.looted) continue;
+    if(!isLootableBody(o)) continue;
     const d=dist(e,o);
     if(d<bd){ bd=d; best=o; }
   }
   return best;
 }
 function lootCorpse(e){
-  if(!e||!e.corpse||e.looted) return;
+  if(!isLootableBody(e)) return;
+  if(e.looted){
+    say('Nothing more on '+(e.name||'the body')+'.','#9a8a78');
+    ftext(e.x,e.y-0.35,'Empty','#9a8a78');
+    return;
+  }
   e.looted=1;
+  e.corpse=1;
   const kit=e.kit||{};
   const bits=[];
   ['bombs','rations','ales','torches','ammo'].forEach(k=>{
@@ -1716,7 +1726,7 @@ function lootCorpse(e){
   burst(e.x,e.y,'#ffd27a',10,2.2);
   const L=G.lvl;
   if(L&&L.n===1){
-    const left=(G.ents||[]).filter(z=>z.corpse&&!z.looted).length;
+    const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.looted).length;
     if(!left){
       L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
       hint('A chamber has opened east. The ruby waits on the far wall.',6);
@@ -1830,6 +1840,7 @@ const PARTY_LVL=3;
    Companions: Method I, 4d6 keep the highest three, then dwarf CON+1 / CHA-1. */
 const MACAR_SHEET={str:18,exc:76,int:10,wis:12,dex:11,con:18,cha:10,cls:'f',dice:'1d8'};
 function d20(){ return ri(1,20); }
+function d6(){ return ri(1,6); }
 function d100(){ return ri(1,100); }
 function d1000(){ return ri(1,1000); }
 function d10000(){ return ri(1,10000); }
@@ -3030,29 +3041,37 @@ const HERBS=[
   {n:'Zulsendra',diff:50,uses:'1',cost:1000,k:'haste',d:'Haste 3 rounds, then rest 5.'},
   {n:'Zur',diff:50,uses:'1-2',cost:1000,k:'sense',d:'Foul tea. Enhances hearing and smell 1 hour.'}
 ];
-function forageChance(){ return 10+(skillLvl('forage')-1)*5; }
+function forageChance(){ return 40+(skillLvl('forage')-1)*8; }
+function nearestShroom(e,r){
+  let best=null, bd=r||1.6;
+  for(const pr of (G.props||[])){
+    if(pr.k!=='shroom') continue;
+    const d=dist(e,pr);
+    if(d<bd){ bd=d; best=pr; }
+  }
+  return best;
+}
 function forageHerbs(src){
   ensurePacks();
-  const ch=forageChance(), roll=d100();
-  learn('forage',2);
-  if(src) src.picked=(src.picked||0)+1;
+  const p=player();
+  const patch=src&&src.k==='shroom'?src:null;
+  const ch=forageChance()+(patch?25:0);
+  const roll=d100();
+  learn('forage',3);
+  if(patch) patch.picked=(patch.picked||0)+1;
   if(roll>ch){
-    say('Search '+roll+' vs '+ch+'% — no herbs.','#9a8a78');
-    hint('Forage '+ch+'%. Rank up to add 5%.',3.2);
+    say('Herb Lore '+roll+' vs '+ch+'% — nothing usable.','#9a8a78');
+    hint('Herb Lore '+ch+'%. Search again, or rank it up.',3.2);
     return false;
   }
-  const herb=HERBS[ri(0,HERBS.length-1)];
-  const find=d100();
-  say('Herb roll: '+herb.n+' — d100 '+find+' vs '+herb.diff+'%.','#c9b895');
-  if(find>herb.diff){
-    say(herb.n+' was here, but the sample was no good.','#9a8a78');
-    return false;
-  }
+  const easy=HERBS.filter(h=>h.diff>=25);
+  const herb=(easy.length?easy:HERBS)[ri(0,(easy.length?easy:HERBS).length-1)];
   const pk=packOf('macar');
   pk.herbs[herb.n]=(pk.herbs[herb.n]||0)+1;
   syncPackTotals();
-  say('You take '+herb.n+' into MACAR\'s pack.','#6aff8a');
-  ftext((src||player()||{x:0,y:0}).x,(src||player()||{x:0,y:0}).y,herb.n,'#6aff8a');
+  say('Herb Lore '+roll+' vs '+ch+'%. You take '+herb.n+'.','#6aff8a');
+  const at=patch||src||p||{x:0,y:0};
+  ftext(at.x,at.y,herb.n,'#6aff8a');
   return true;
 }
 
@@ -3216,8 +3235,7 @@ function damage(e,amt,col){
     if(e.team==='foe'){ G.kills++; burst(e.x,e.y,'#c2452e',18,3.5);
       awardPartyXp(monsterXpValue(e), e.name||'Foe', e);
       foeDrop(e);
-      addDecal(e.x,e.y,(e.boss?2.6:1)*rnd(1.5,.9));
-      if(e.boss) for(let i=0;i<5;i++) addDecal(e.x+rnd(1.6,-1.6),e.y+rnd(1.6,-1.6),rnd(2,1.2));
+      e.corpse=1; e.looted=0;
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; }
     } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else G.scene='dead'; } } }
 }
@@ -3284,16 +3302,40 @@ function tryRetrieveBolt(s){
     ftext(s.x,s.y,'bolt snaps '+roll,'#9a8a78');
   }
 }
-function tryFindSecret(p){
-  const L=G.lvl; if(!L||!L.secrets) return;
-  let found=0;
+function tryFindSecret(p, mode){
+  const L=G.lvl; if(!p||!L||!L.secrets) return;
+  mode=mode||'search';
   L.secrets.forEach(sec=>{
     if(sec.open) return;
-    if(Math.hypot(p.x-(sec.x||sec.i), p.y-(sec.y||sec.j))>1.85) return;
-    openSecret(sec);
-    found=1;
+    const sx=sec.x||sec.i, sy=sec.y||sec.j;
+    const d=Math.hypot(p.x-sx, p.y-sy);
+    // AD&D 1e: dwarves detect sliding/shifting stone within 10' (~2 tiles).
+    if(d>(mode==='pass'?2.05:1.9)) return;
+    if(mode==='pass'){
+      if(sec.passTried) return;
+      sec.passTried=1;
+      const roll=d6();
+      if(roll<=2){
+        openSecret(sec);
+        say('Macar\'s eye catches a seam in the stone. (d6 '+roll+' \u2264 2)','#ffe08a');
+      }
+      return;
+    }
+    // Active search: 1–4 in 6 (PHB dwarf sliding walls ~2/3). Focused wall search: 1–5.
+    const need=mode==='focus'?5:4;
+    const roll=d6();
+    if(roll<=need){
+      openSecret(sec);
+      say('A hidden door in the brick. Search d6 '+roll+' \u2264 '+need+'.','#ffe08a');
+    } else {
+      ftext(sx, sy-0.25, 'd6 '+roll, '#9a8a78');
+      if(mode==='focus' || !sec.searchNoted){
+        sec.searchNoted=1;
+        say('No seam this turn. Search d6 '+roll+' vs '+need+' in 6.','#9a8a78');
+        hint('Keep searching. Dwarves find secret stonework on 1\u20134 in 6.',3.4);
+      }
+    }
   });
-  if(!found) return;
 }
 function openSecret(sec){
   if(!sec||sec.open) return;
@@ -3575,16 +3617,19 @@ function fire(key){
   if(key==='search'){
     if(G.searching){ G.searching=0; hint('Stopped searching.',1.8); return; }
     G.searching=1; G.secretSearch=0; G.digging=0; G.dig=null;
-    p.searchCd=2.2;
-    say('Eyes on the floor. Movement crawls.','#6aff8a');
-    hint('Search on. Walk is very slow. Leaf icon or F to stop.',3.8);
+    const patch=nearestShroom(p,1.6);
+    forageHerbs(patch||p);
+    p.searchCd=5;
+    say('Eyes on the floor. Herb Lore '+forageChance()+'%.','#6aff8a');
+    hint('Search on. Walk is slow. Leaf icon or F to search again or stop.',3.8);
     return;
   }
   if(key==='secret'){
     if(G.secretSearch){ G.secretSearch=0; hint('Stopped searching for doors.',1.8); return; }
     G.secretSearch=1; G.searching=0; G.digging=0; G.dig=null;
-    p.secretCd=0.4;
-    say('Fingers on the stone. Looking for a seam.','#c9b895');
+    p.secretCd=1.6;
+    tryFindSecret(p,'search');
+    say('Fingers on the stone. Dwarves notice seams on 1–2 in 6; search is 1–4.','#c9b895');
     hint('Search for secret doors. Wall-door icon or T to stop.',3.8);
     return;
   }
@@ -3625,13 +3670,14 @@ function fire(key){
   }
   if(key==='bomb'){
     if(refuseAttack(p)) return;
-    if(G.aim){ G.aim=null; return; }
     syncPackTotals();
     if(partyCount('bombs')<=0){ hint('No bombs in any pack. Craft more at the bench.',2.8); return; }
     if(cds.bomb>0) return;
     const t=nearestFoe(p,8);
-    G.aim = t? {x:t.x,y:t.y} : {x:p.x+p.fdx*4.5, y:p.y+p.fdy*4.5};
-    p.dest=null; hint('Drag to aim, then press THROW. Bomb icon or B to cancel.',3.4);
+    G.aim = t? {x:t.x,y:t.y} : {x:p.x+(p.fdx||0)*4.5, y:p.y+(p.fdy||1)*4.5};
+    cds.bomb=ABIL.find(a=>a.key==='bomb').cd;
+    p.dest=null;
+    throwBomb();
     return;
   }
   if(key==='bow'){
@@ -3716,7 +3762,7 @@ function update(dt){
         if(!pile) p.dest=null;
         else { p.dest.x=pile.x; p.dest.y=pile.y; }
       } else if(p.dest.corpse){
-        const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted);
+        const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z));
         if(!body) p.dest=null;
         else { p.dest.x=body.x; p.dest.y=body.y; }
       }
@@ -3726,7 +3772,7 @@ function update(dt){
       const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?0.72:0.26;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
-        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&z.corpse&&!z.looted); if(body) lootCorpse(body); }
+        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootCorpse(body); }
         if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
@@ -3765,9 +3811,13 @@ function update(dt){
     for(let j=cj-10;j<=cj+10;j++) for(let i=ci-10;i<=ci+10;i++)
       if(L.seen[j]&&L.seen[j][i]!==undefined&&(i-p.x)*(i-p.x)+(j-p.y)*(j-p.y)<100) L.seen[j][i]=1;
     p.searchCd=Math.max(0,(p.searchCd||0)-dt);
-    if(G.searching && (p.searchCd||0)<=0){ p.searchCd=7; forageHerbs(p); }
+    if(G.searching && (p.searchCd||0)<=0){
+      p.searchCd=5;
+      forageHerbs(nearestShroom(p,1.6)||p);
+    }
     p.secretCd=Math.max(0,(p.secretCd||0)-dt);
-    if(G.secretSearch && (p.secretCd||0)<=0){ p.secretCd=1.6; tryFindSecret(p); }
+    tryFindSecret(p,'pass');
+    if(G.secretSearch && (p.secretCd||0)<=0){ p.secretCd=1.6; tryFindSecret(p,'search'); }
     if(G.digging){
       const t=digTarget(p);
       if(t){
@@ -3788,15 +3838,15 @@ function update(dt){
     }
     if(!PROMPT){
       const body=nearestCorpse(p,1.45);
-      if(body) interact('Loot '+body.name,()=>lootCorpse(body));
+      if(body) interact('Loot '+(body.name||'the body'),()=>lootCorpse(body));
     }
     if(!PROMPT){
-      const sh=G.props.find(pr=>pr.k==='shroom'&&!(pr.picked>2)&&dist(p,pr)<1.35);
+      const sh=nearestShroom(p,1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
     }
     if(!PROMPT && G.secretSearch && L.secrets){
       const sec=L.secrets.find(s=>!s.open && Math.hypot(p.x-(s.x||s.i),p.y-(s.y||s.j))<1.9);
-      if(sec) interact('Search the wall',()=>openSecret(sec));
+      if(sec) interact('Search the wall',()=>tryFindSecret(p,'focus'));
     }
     for(const pr of G.props){
       if(pr.sprung>0) pr.sprung=Math.max(0,pr.sprung-dt);
@@ -3928,7 +3978,7 @@ function update(dt){
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.hp=Math.min(e.maxhp,e.hp+rg); }); }
   if(L.tick) L.tick(dt);
   endFightIfClear();
-  if(G.ents.length>44) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&(e.deadT||0)>2.2));
+  if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12));
 }
 
 
@@ -4276,22 +4326,32 @@ function drawBeyondMask(g,L){
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
   const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
   const rock=L.pal.fogTop||'#07060a';
-  g.save();
-  g.globalCompositeOperation='source-over';
-  g.fillStyle=rock;
   const open=t=>t===0||t===3||t===4;
+  g.save();
+  g.beginPath();
+  g.rect(-140,-140,VW+280,VH+280);
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
+    if(!L.seen[y]||!L.seen[y][x]) continue;
     const t=L.grid[y][x];
-    const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
-    const oE=L.grid[y]&&open(L.grid[y][x+1]);
-    const hiddenRock=(t===1||t===2)&&!oS&&!oE;
-    if(!hiddenRock) continue;
     const s=w2s(x,y);
-    diamondPath(g,s.x,s.y); g.fill();
-    if(t===1||t===2||hiddenRock){
-      g.fillRect(s.x-TW/2, s.y-WH-FH/2, TW, SH);
+    if(open(t)){
+      const sc=1.12;
+      g.moveTo(s.x, s.y-TH/2*sc);
+      g.lineTo(s.x+TW/2*sc, s.y);
+      g.lineTo(s.x, s.y+TH/2*sc);
+      g.lineTo(s.x-TW/2*sc, s.y);
+      g.closePath();
+    } else if(t===1){
+      const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
+      const oE=L.grid[y]&&open(L.grid[y][x+1]);
+      if(oS||oE){
+        g.rect(s.x-TW/2-3, s.y-WH-FH/2-3, TW+6, SH+6);
+      }
     }
   }
+  g.clip('evenodd');
+  g.fillStyle=rock;
+  g.fillRect(-140,-140,VW+280,VH+280);
   g.restore();
 }
 
@@ -4819,9 +4879,7 @@ function drawEnt(g,e){
   g.globalAlpha=1;
   const deadImg = (e.dead||e.crushed) ? (deadSpr || SPR[entSpriteKey(e)+'_dead']) : null;
   if(e.dead && !e.crushed && !deadImg){
-    const lie=e.deadT||0;
-    g.globalAlpha=clamp(1-lie/1.3,0,1);
-    g.translate(0,lie*7); g.rotate(clamp(lie*1.5,0,.95));
+    g.translate(0,8); g.rotate(0.9);
   }
   const p=player();
   if(!e.dead&&p&&p.aim===e){
@@ -4840,14 +4898,10 @@ function drawEnt(g,e){
   }
   const img=entAnimImg(e);
   const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
-  if(e.crushed){
-    softShadow(g,1*z,3*z,26*z,12*z,0.72);
-    g.fillStyle='rgba(18,12,8,0.5)';
-    g.beginPath(); g.ellipse(0,5*z,28*z,13*z,0,0,TAU); g.fill();
-    g.strokeStyle='rgba(232,190,120,0.42)'; g.lineWidth=1.7*ZOOM;
-    g.beginPath(); g.ellipse(0,4*z,24*z,11*z,0,0,TAU); g.stroke();
-  } else {
+  if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
+  } else {
+    softShadow(g,1*z,3*z,22*z,10*z,0.55);
   }
 
   const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
@@ -4880,7 +4934,7 @@ function drawEnt(g,e){
 
   if(e.flash>0){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
     g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
-    g.globalCompositeOperation='source-over'; g.globalAlpha=(e.hero||e.crushed)?1:(e.dead?clamp(1-(e.deadT||0)/1.3,0,1):1); }
+    g.globalCompositeOperation='source-over'; g.globalAlpha=1; }
   if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke();
@@ -5608,6 +5662,8 @@ function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function throwBomb(){
   const p=player(); if(!p||!G.aim) return;
   if(!takeFromPacks('bombs')){ hint('No bombs in the packs.',2.2); return; }
+  const a=ang(G.aim.x-p.x, G.aim.y-p.y);
+  p.fdx=Math.cos(a); p.fdy=Math.sin(a);
   G.thrown.push({sx:p.x,sy:p.y,tx:G.aim.x,ty:G.aim.y,x:p.x,y:p.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0});
   say('A bomb from the packs. Fuse lit.','#ffb45c');
   G.aim=null;
@@ -5688,7 +5744,7 @@ function campActions(){
     fn:()=>{ G.sang=1; learn('song',10); G.songBuff=skillLvl('song');
       say('Five voices, one drone. The stone listens.','#ffd27a'); }});
   a.push({grp:'VERGE',t:'Search the cavern verge for herbs',cost:{},
-    info:'Herb Lore '+forageChance()+'%  ·  then d30 and d100 vs the plant',
+    info:'Herb Lore '+forageChance()+'%  ·  d100 vs that chance',
     fn:()=>{ forageHerbs(); }});
   a.push({grp:'PACK',t:'Open a kin\'s pack (supplies, magic, potions, herbs)',cost:{},
     info:ROSTER.map(r=>{ const p=packOf(r.key);
@@ -6759,7 +6815,7 @@ function resolveTaps(){
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
-      const body=G.ents.find(e=>e.corpse&&!e.looted&&dist(e,w)<1.1);
+      const body=G.ents.find(e=>isLootableBody(e)&&dist(e,w)<1.1);
       if(pile && (!foe || dist(pile,w)<=dist(foe,w)) && (!body || dist(pile,w)<=dist(body,w))){
         if(dist(p,pile)<1.5) takeLoot(pile);
         else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
