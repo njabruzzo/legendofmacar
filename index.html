@@ -10,7 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=15">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=18">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=18">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=18" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -21,6 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=18"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -75,7 +78,7 @@ function turnToward(e,dx,dy,dt,rate){
   ca+=Math.sign(d)*max; e.fdx=Math.cos(ca); e.fdy=Math.sin(ca);
   return Math.abs(d)-max;
 }
-function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*1.35; }
+function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*2.55; }
 function partyForm(i,p){
   const slots=[[-1.15,0.95],[-1.15,-0.95],[-2.15,0.55],[-2.15,-0.55]];
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
@@ -167,13 +170,100 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='15';
+const ASSET_VER='18';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
   try{ return new URL(u, document.baseURI).href; }
   catch(_){ return u; }
 }
+
+/* ---------------------------- looping BGM ---------------------------- */
+const MUSIC={
+  title:'assets/music/SongOfTheForge.mp3',
+  ch1:'assets/music/TheCave.mp3',
+  ch2:'assets/music/Dungeon_1.mp3'
+};
+const MUSIC_CREDITS=[
+  {use:'Title screen', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
+  {use:'Chapter I', title:'The Cave', owner:'HitCtrl', extra:'RPG \u2014 The Cave (Ambient)', license:'CC-BY (credit HitCtrl)'},
+  {use:'Chapter II', title:'Dungeon_01', owner:'Beau Buckley', extra:'Emberstorm Music Collection', license:'CC BY-SA 4.0'}
+];
+function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
+function leaveCredits(){
+  const from=G.creditsFrom||'title';
+  G.creditsFrom=null;
+  if(from==='pause'){ G.scene='play'; G.paused=true; }
+  else G.scene=from;
+}
+let musicEl=null, musicKey=null, musicUnlocked=true, musicRetryAt=0, musicPlayP=null;
+function musicIsPlaying(){
+  return !!(musicEl && !musicEl.paused && !musicEl.ended);
+}
+function ensureMusic(){
+  if(musicEl) return musicEl;
+  musicEl=document.getElementById('bgm')||new Audio();
+  musicEl.loop=true;
+  musicEl.preload='auto';
+  musicEl.playsInline=true;
+  musicEl.setAttribute('playsinline','');
+  musicEl.setAttribute('webkit-playsinline','');
+  musicEl.autoplay=true;
+  musicEl.volume=0.55;
+  musicEl.addEventListener('canplay', tryPlayMusic);
+  musicEl.addEventListener('canplaythrough', tryPlayMusic);
+  return musicEl;
+}
+function tryPlayMusic(){
+  if(!musicUnlocked || !musicEl || !musicEl.src) return;
+  if(musicIsPlaying() || musicPlayP) return;
+  musicPlayP=musicEl.play();
+  if(musicPlayP&&musicPlayP.then){
+    musicPlayP.then(()=>{ musicPlayP=null; }).catch(()=>{ musicPlayP=null; });
+  } else musicPlayP=null;
+}
+function unlockMusic(){
+  musicUnlocked=true;
+  ensureMusic();
+  tryPlayMusic();
+}
+function playMusic(key){
+  const src=MUSIC[key];
+  if(!src) return;
+  const el=ensureMusic();
+  const name=src.split('/').pop();
+  const already=el.currentSrc||el.src||'';
+  const same=already.indexOf(name)>=0;
+  if(musicKey===key && same){
+    if(!musicIsPlaying()) tryPlayMusic();
+    return;
+  }
+  musicKey=key;
+  if(same){ tryPlayMusic(); return; }
+  musicPlayP=null;
+  el.loop=true;
+  el.volume=0.55;
+  el.src=assetUrl(src);
+  try{ el.load(); }catch(_){}
+}
+function wantedMusic(){
+  if(!G || !G.scene) return 'title';
+  const sc=G.scene;
+  if(sc==='title' || sc==='chapters' || sc==='credits' || sc==='intro') return 'title';
+  return (G.ch===1 || (G.lvl && G.lvl.n===1)) ? 'ch1' : 'ch2';
+}
+function syncMusic(){
+  playMusic(wantedMusic());
+  if(musicUnlocked && musicEl && !musicIsPlaying() && G && G.t>=musicRetryAt){
+    musicRetryAt=G.t+1.6;
+    tryPlayMusic();
+  }
+}
+['pointerdown','touchstart','mousedown','keydown','click'].forEach(ev=>{
+  window.addEventListener(ev, unlockMusic, {capture:true});
+});
+playMusic('title');
+tryPlayMusic();
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
@@ -199,6 +289,8 @@ const SPRITE_FILES={
   bronzedoor:'assets/props/prop_bronzedoor.png',
   tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', sack:'assets/props/prop_sack.png',
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
+  boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
+  rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
   trap_spikes:'assets/props/prop_trap_spikes.png', trap_runes:'assets/props/prop_trap_runes.png', trap_pit:'assets/props/prop_trap_pit.png',
@@ -211,7 +303,8 @@ const SPRITE_FILES={
   icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png',
   icon_plant:'assets/ui/icon_plant.png', icon_shovel:'assets/ui/icon_shovel.png',
   icon_bomb:'assets/ui/icon_bomb.png',
-  title_splash:'assets/ui/title_splash.jpg'
+  title_splash:'assets/ui/title_splash.jpg',
+  intro_cavein:'assets/ui/intro_cavein.jpg'
 };
 const UNDERDARK=[
   'centipede','kobold','goblin','orc','piercer','gibberling','ixzan','grimlock',
@@ -238,7 +331,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(/_(w1|w2|atk|dead)\.png$/.test(src)) return;
   if(/_dead$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
-  if(/prop_(sack|timber|chain|rubywall)\.png$/.test(src)) return;
+  if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble)/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   SPRITE_FILES[k+'_w1']=stem+'_w1.png';
@@ -251,9 +344,10 @@ const ICON_SPR={
   plant:'icon_plant', shovel:'icon_shovel'
 };
 function loadSprites(done){
-  const first=['title_splash','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
+  const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_bomb','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','shroom','lantern','floor_mine','wall_cave'];
   const seen={};
   const queue=[];
@@ -293,8 +387,8 @@ function drawEntBillboard(g,e,img,z){
   const k=entSpriteKey(e);
   const ref=SPR[k]||img;
   if(e.crushed||e.prone){
-    const ph=56*z, pw=ph*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -pw/2, -ph*0.70, pw, ph);
+    const ph=72*z, pw=ph*(img.width/Math.max(1,img.height));
+    g.drawImage(img, -pw/2, -ph*0.86, pw, ph);
     return true;
   }
   const scale=entSpriteH(e,z)/Math.max(1, ref.height);
@@ -347,6 +441,9 @@ function entSpriteH(e,z){
 }
 function propSpriteKey(p){
   const k=p.k;
+  if(k==='boulder') return p.spr||'boulder';
+  if(k==='rubble') return p.spr||'rubble';
+  if(k==='cavein') return 'cavein';
   if(k==='rubywall') return SPR.rubywall?'rubywall':'rubydoor';
   if(k==='rubydoor') return 'rubydoor';
   if(k==='bronzedoor') return 'bronzedoor';
@@ -367,6 +464,9 @@ function propAnimImg(p){
 }
 function propSpriteH(p,z){
   const k=p.k;
+  if(k==='cavein') return 118*z;
+  if(k==='rubble') return 52*z*(p.s||1);
+  if(k==='boulder') return (p.pin?64:56)*z*(p.s||1);
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
@@ -652,10 +752,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:15.35,y:20.18,seed:3,stone:1.18,kit:{bombs:4,rations:7}},
-  fendur:{x:15.72,y:22.78,seed:11,stone:1.14},
-  orbo:{x:17.55,y:20.12,seed:19,stone:1.20},
-  talpor:{x:17.92,y:22.82,seed:7,stone:1.16}
+  pordoom:{x:15.05,y:20.15,seed:3,stone:1.22,kit:{bombs:4,rations:7},spr:'boulder'},
+  fendur:{x:15.35,y:23.35,seed:11,stone:1.18,kit:{ammo:12,torches:4},spr:'boulder2'},
+  orbo:{x:16.75,y:20.08,seed:19,stone:1.24,kit:{ales:3,gp:18},spr:'boulder'},
+  talpor:{x:17.05,y:23.42,seed:7,stone:1.16,kit:{torches:3,rations:5},spr:'boulder2'}
 };
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
@@ -986,26 +1086,25 @@ function makeChapter(n){
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
 
   if(n===1){
-    L.title='Chapter I'; L.sub='An Unusual Discovery'; L.pal=PAL.mine;
+    L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
     L.w=54; L.h=44; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,4,16,12,11,0); rect(g,15,20,10,3,0); rect(g,25,10,22,22,0);
+    rect(g,14,19,12,6,0); rect(g,25,10,22,22,0);
     rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
-    L.spawn={x:16.8,y:21.5}; L.flags.broke=1;
+    L.spawn={x:18.7,y:21.5}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
-    L.objs=[{t:'Loot Pordoom under the stone',d:0},{t:'Touch the ruby in the wall',d:0},
-            {t:'Destroy the Thin Ones',d:0},{t:'Ride the lift down',d:0}];
-    L.lights=[{x:7,y:18,c:'#ffb45c',r:5.4,f:1},{x:13,y:25,c:'#ffb45c',r:5.2,f:1},
-              {x:17.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
+    L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby on the far wall',d:0},
+            {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
+    L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
+              {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:46,y:21,c:'#ff2f3a',r:10.5,f:1.85},
               {x:27,y:12,c:'#a06cff',r:4.2,f:0.9},{x:42,y:13,c:'#a06cff',r:4.4,f:0.9},
               {x:26,y:30,c:'#a06cff',r:4.0,f:0.85},{x:45,y:29,c:'#a06cff',r:4.6,f:0.95}];
-    G.props=[{x:5.4,y:24.6,k:'cart'},{x:6.2,y:17.4,k:'crate'},{x:12.6,y:17.2,k:'barrel'},
-      {x:7,y:18,k:'lantern'},{x:13,y:25,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
+    G.props=[{x:15.4,y:19.3,k:'lantern'},{x:18.2,y:24.5,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
       {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
-      {x:10.5,y:25.5,k:'sack'},{x:11.8,y:23.6,k:'crate'},{x:9,y:19.6,k:'timber'},{x:12.2,y:22.8,k:'timber'},
+      {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:11.4,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:47,y:21,k:'rubywall'},{x:36.5,y:21.5,k:'lift'},
@@ -1014,35 +1113,77 @@ function makeChapter(n){
       {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
-      {x:14.6,y:20.15,k:'rubble',n:10,s:0.95,seed:3},
-      {x:14.9,y:22.85,k:'rubble',n:9,s:0.92,seed:7},
-      {x:19.4,y:20.2,k:'rubble',n:11,s:1.02,seed:13},
-      {x:19.6,y:22.7,k:'rubble',n:10,s:0.98,seed:19},
-      {x:12.4,y:24.5,k:'rubble',n:8,s:0.88,seed:23}];
+      {x:13.55,y:21.5,k:'cavein',s:1.15},
+      {x:13.35,y:19.6,k:'boulder',spr:'boulder2',s:1.08},
+      {x:13.45,y:23.4,k:'boulder',spr:'boulder',s:1.12},
+      {x:14.15,y:21.0,k:'rubble',n:12,s:1.15,seed:3},
+      {x:14.25,y:22.8,k:'rubble',n:10,s:1.05,seed:7},
+      {x:14.6,y:19.7,k:'rubble',n:11,s:1.12,seed:9},
+      {x:14.8,y:24.2,k:'rubble',n:9,s:1.08,seed:13},
+      {x:15.6,y:21.6,k:'rubble',n:8,s:0.95,seed:17},
+      {x:16.2,y:19.5,k:'boulder',spr:'boulder',s:0.95},
+      {x:16.4,y:24.3,k:'boulder',spr:'boulder2',s:1.02},
+      {x:16.9,y:21.9,k:'rubble',n:10,s:1.0,seed:19},
+      {x:17.6,y:19.6,k:'rubble',n:8,s:0.98,seed:23},
+      {x:17.8,y:24.1,k:'rubble',n:11,s:1.1,seed:29},
+      {x:18.4,y:20.2,k:'boulder',spr:'boulder2',s:0.88},
+      {x:18.9,y:23.6,k:'rubble',n:9,s:1.0,seed:31},
+      {x:19.5,y:19.7,k:'rubble',n:10,s:1.06,seed:37},
+      {x:19.7,y:24.2,k:'boulder',spr:'boulder',s:0.96},
+      {x:20.3,y:20.5,k:'rubble',n:8,s:0.92,seed:41},
+      {x:20.6,y:23.4,k:'rubble',n:12,s:1.08,seed:43},
+      {x:21.2,y:19.6,k:'boulder',spr:'boulder2',s:1.0},
+      {x:21.4,y:24.0,k:'rubble',n:9,s:1.02,seed:47},
+      {x:21.8,y:22.6,k:'rubble',n:7,s:0.9,seed:53},
+      {x:22.3,y:20.3,k:'rubble',n:11,s:1.05,seed:59},
+      {x:22.6,y:23.8,k:'boulder',spr:'boulder',s:0.94},
+      {x:23.0,y:19.8,k:'rubble',n:8,s:0.96,seed:61},
+      {x:23.2,y:22.3,k:'rubble',n:10,s:1.0,seed:67},
+      {x:23.6,y:24.1,k:'rubble',n:9,s:1.04,seed:71},
+      {x:23.8,y:20.8,k:'boulder',spr:'boulder2',s:0.9},
+      {x:25.3,y:20.5,k:'rubble',n:9,s:1.0,seed:73},
+      {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
+    Object.keys(CRUSH_SPOTS).forEach(k=>{
+      const s=CRUSH_SPOTS[k];
+      G.props.push({x:s.x+0.08,y:s.y+0.12,k:'boulder',spr:s.spr||'boulder',s:s.stone||1.2,pin:1,seed:s.seed});
+    });
+    G.props.forEach(p=>{
+      if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
+    });
     L.guide=()=>{
-      const body=(G.ents||[]).find(e=>e.corpse&&!e.looted);
-      if(body) return {x:body.x,y:body.y};
-      return !L.flags.touched?{x:45,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
+      const p=player();
+      const bodies=(G.ents||[]).filter(e=>e.corpse&&!e.looted);
+      if(bodies.length){
+        if(!p) return {x:bodies[0].x,y:bodies[0].y};
+        bodies.sort((a,b)=>dist(p,a)-dist(p,b));
+        return {x:bodies[0].x,y:bodies[0].y};
+      }
+      return !L.flags.touched?{x:47,y:21}:!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
+      if(!L.flags.sawHall && p.x>=24.8){
+        L.flags.sawHall=1;
+        say('The collapse opened a chamber. A ruby burns on the far wall.','#ff6a6a');
+      }
       if(!L.flags.touched && dist(p,{x:45.6,y:21})<2.6){
         interact('Touch the ruby',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby is warm. It knows your name.','#ff6a6a');
           [[29,14],[29,29],[41,14],[41,29],[35,12],[35,31]].forEach((s,i)=>{
             const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
-          say('The thin statues step down from their plinths.','#d8cbb0');
-          hint('Six guardians. Each drops a ruby. Walk to it and pick it up.',6);
+          say('The guardians wake and step down from their plinths.','#d8cbb0');
+          hint('Six guardians. Kill them, then the elevator will descend.',6);
         });
       }
       if(L.flags.touched && !L.flags.cleared && !foesLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
-        say('Every ruby in the chamber cracks at once.','#ff8a5a');
-        say('Below the lift, chains begin to turn.','#ffd27a');
+        say('The last guardian falls. Every ruby in the chamber cracks.','#ff8a5a');
+        say('The elevator groans and begins its descent into the depths.','#ffd27a');
         L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
+        hint('Ride the elevator down.',5);
       }
-      if(L.flags.cleared && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the lift',()=>{L.objs[3].d=1; endChapter();});
+      if(L.flags.cleared && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
     };
   }
 
@@ -1264,7 +1405,7 @@ function makeChapter(n){
   if(n===1){
     for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
       const t=L.grid[j][i];
-      if(t!==1 && t!==2) L.seen[j][i]=1;
+      if(t!==1 && t!==2 && i<25) L.seen[j][i]=1;
     }
   }
   return L;
@@ -1301,9 +1442,14 @@ function lootCorpse(e){
   ftext(e.x,e.y-0.35,bits[0]||'Looted','#ffd27a');
   burst(e.x,e.y,'#ffd27a',10,2.2);
   const L=G.lvl;
-  if(L&&L.n===1&&e.col&&e.col.key==='pordoom'){
-    L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
-    hint('Four bombs and a week of rations. The ruby waits east.',5);
+  if(L&&L.n===1){
+    const left=(G.ents||[]).filter(z=>z.corpse&&!z.looted).length;
+    if(!left){
+      L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
+      hint('A chamber has opened east. The ruby waits on the far wall.',6);
+    } else {
+      hint('More kin still lie under the stone.',4);
+    }
   }
 }
 function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
@@ -1316,7 +1462,7 @@ function joinAllies(list){
 }
 
 /* ---------------------------- flow ---------------------------- */
-const CH_META={1:{t:'The Beginning',s:'An Unusual Discovery'},2:{t:'The First Floor',s:'Goblins, a sleeping gnome, a bronze door'},
+const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new chamber'},2:{t:'The First Floor',s:'Goblins, a sleeping gnome, a bronze door'},
   3:{t:'The Ruin',s:'The Eye in the Hall of Names'},4:{t:'The Dead City',s:'Illithids in the drowned streets'},
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CHAPTERS=[1,2,3,4,5];
@@ -1355,8 +1501,8 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
+      e.kit=crush.kit||{}; e.corpse=1; e.looted=0;
       if(crush.kit){
-        e.kit=crush.kit; e.corpse=1; e.looted=0;
         const pk=packOf(r.key);
         Object.keys(crush.kit).forEach(k=>{ if(typeof pk[k]==='number') pk[k]=0; });
         syncPackTotals();
@@ -1379,8 +1525,8 @@ function startChapter(n){
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
-  G.cam.x=n===1?22.4:sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
-  say(({1:'The tunnel caved. Your kin are under the stones. An older chamber stands open to the east.',
+  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. East, a chamber has opened.',
     2:'The ruby cage stops. Hundreds of feet of dark hang above you.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
@@ -2961,7 +3107,8 @@ function onUp(id,x,y){
   if(k&&k.id===id){ if(!k.moved) IN.taps.push({x:k.ox,y:k.oy}); IN.stick=null; }
   if(pressed[id]){ pressed[id].btn.hold=0; delete pressed[id]; }
 }
-cv.addEventListener('pointerdown',e=>{ try{cv.setPointerCapture(e.pointerId);}catch(_){}
+cv.addEventListener('pointerdown',e=>{ unlockMusic();
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}
   onDown(e.pointerId,e.clientX,e.clientY,e.pointerType); e.preventDefault(); });
 cv.addEventListener('pointermove',e=>onMove(e.pointerId,e.clientX,e.clientY));
 cv.addEventListener('pointerup',e=>onUp(e.pointerId,e.clientX,e.clientY));
@@ -2969,7 +3116,9 @@ cv.addEventListener('pointercancel',e=>onUp(e.pointerId,e.clientX,e.clientY));
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 
 window.addEventListener('keydown',e=>{
+  unlockMusic();
   const k=e.key.toLowerCase(); IN.keys[k]=1;
+  if(G.scene==='credits' && e.key==='Escape'){ leaveCredits(); return; }
   if(G.scene==='pack' && e.key==='Escape'){
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
     return;
@@ -3325,7 +3474,8 @@ function render(){
   if(G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
   const L=G.lvl;
   g.fillStyle=L?L.pal.fogTop:'#07060a'; g.fillRect(-40,-40,VW+80,VH+80);
-  const inWorld = L && G.scene!=='title' && G.scene!=='chapters';
+  const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
+    && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
   if(inWorld){ drawWorld(g,L); applyLighting(g,L); drawGodRays(g); drawBloom(g); drawAtmosphere(g,L); drawFloaters(g); }
   g.restore();
   if(G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
@@ -3336,6 +3486,7 @@ function render(){
   if(G.scene==='play') drawHUD(g);
   if(G.scene==='title') drawTitle(g);
   if(G.scene==='chapters') drawChapterSelect(g);
+  if(G.scene==='credits') drawCredits(g);
   if(G.scene==='intro') drawIntro(g);
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='pack') drawPack(g);
@@ -3365,9 +3516,10 @@ function drawWorld(g,L){
 
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const M=TW*2, near=o=>{const s=w2s(o.x,o.y); return s.x>-M&&s.x<VW+M&&s.y>-M*2.6&&s.y<VH+M;};
+  const seenAt=o=>{ const i=o.x|0, j=o.y|0; return !!(L.seen[j]&&L.seen[j][i]); };
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
-  for(const p of G.props) if(near(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const e of G.ents)  if(e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const p of G.props) if(near(p)&&seenAt(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
   for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
@@ -3553,6 +3705,7 @@ function gatherLights(L){
   for(const e of G.ents) if(!e.dead&&e.boss&&e.glow) out.push({x:e.x,y:e.y,c:e.glow,r:7,f:1.3,fl:1});
   for(const s of G.shots) out.push({x:s.x,y:s.y,c:s.col,r:2.6,f:1.1,fl:0});
   for(const pr of G.props){
+    if(L&&L.seen){ const i=pr.x|0, j=pr.y|0; if(!(L.seen[j]&&L.seen[j][i])) continue; }
     if(pr.k==='shroom') out.push({x:pr.x,y:pr.y,c:'#b06cff',r:3.4,f:0.72,fl:1});
     if(pr.k==='rubywall'||pr.k==='rubydoor') out.push({x:pr.x,y:pr.y,c:'#ff2a3c',r:8.2,f:1.35,fl:1});
     if(pr.k==='brazier') out.push({x:pr.x,y:pr.y,c:'#ff8a3a',r:5.5,f:1.1,fl:1});
@@ -3768,7 +3921,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
   g.save(); g.translate(s.x,s.y);
-  const img=(p.k==='stone'||p.k==='rubble')?null:propAnimImg(p);
+  const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
     drawBillboard(g,img,propSpriteH(p,z));
@@ -3813,6 +3966,8 @@ function drawProp(g,p,pal){
   }
   switch(p.k){
   case 'rubble':{
+    const fb=SPR[p.spr||'rubble']||SPR.rubble||SPR.rubble2||SPR.boulder||SPR.cavein;
+    if(fb){ softShadow(g,2*z,1*z,22*z,9*z,.5); drawBillboard(g,fb,propSpriteH(p,z)); break; }
     drawRubbleLocal(g, z*(p.s||1.35), p.n||14, p.seed||0, 0);
     break; }
   case 'stone':{
@@ -4127,8 +4282,7 @@ function drawEnt(g,e){
     g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
   }
   const img=entAnimImg(e);
-  const bob0=0;
-  if(!e.dead) g.globalAlpha=1;
+  const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
 
   const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
@@ -4805,6 +4959,7 @@ function rockAt(L,i,j){
   return L.wallHP[k];
 }
 function diggable(L,i,j){
+  if(L.n===1 && i<14) return false;
   return i>=1 && j>=1 && i<L.w-1 && j<L.h-1 && L.grid[j] && L.grid[j][i]===1;
 }
 function digTarget(e){
@@ -5533,14 +5688,50 @@ function drawTitle(g){
   g.font='italic 600 '+((PORT?11:13.5)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(215,190,145,0.9)';
   g.fillText('He went down a miner. Something else came back up.', VW/2, bar+(PORT?54:70)*s);
+  g.font='600 '+((PORT?8.5:10)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(160,140,110,0.62)';
+  g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, bar+(PORT?68:86)*s);
   g.globalAlpha=1;
   const bw=Math.min(280*s, VW*.62);
   menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
-  menuBtn(g,'Chapters', VW/2, VH-bar-6*s, Math.min(200*s,VW*.5), 40*s, ()=>{G.scene='chapters';});
+  const smallW=Math.min(168*s, VW*.42);
+  const rowY=VH-bar-6*s;
+  menuBtn(g,'Chapters', VW/2-smallW/2-6*s, rowY, smallW, 40*s, ()=>{G.scene='chapters';});
+  menuBtn(g,'Credits', VW/2+smallW/2+6*s, rowY, smallW, 40*s, ()=>openCredits('title'));
   g.textAlign='center'; g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
   g.fillText('Click the ground to walk  \u00b7  WASD  \u00b7  Space strike', VW/2, VH-10*s);
   g.textAlign='left';
+}
+
+function drawCredits(g){
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
+  bigTitle(g,'CREDITS', VH*.09, (PORT?22:30)*s);
+  g.textAlign='center';
+  g.font='700 '+(11*s)+'px '+FONT_TITLE;
+  g.fillStyle='rgba(232,196,120,0.84)';
+  g.fillText('M U S I C', VW/2, VH*.145);
+  const rows=MUSIC_CREDITS;
+  const top=VH*.18, bot=VH-72*s;
+  const slot=(bot-top)/rows.length;
+  rows.forEach((r,i)=>{
+    const y=top+i*slot+slot*0.38;
+    g.font='600 '+(10*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(160,140,110,0.72)';
+    g.fillText(r.use, VW/2, y-18*s);
+    g.font='800 '+(15*s)+'px '+FONT_TITLE;
+    g.fillStyle='#ffe9c0';
+    g.fillText(r.title, VW/2, y);
+    g.font='700 '+(13*s)+'px '+FONT_UI;
+    g.fillStyle='#e8c478';
+    g.fillText('Owner: '+r.owner, VW/2, y+20*s);
+    g.font='600 '+(10*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(190,170,130,0.75)';
+    g.fillText(r.extra+'  \u00b7  '+r.license, VW/2, y+36*s);
+  });
+  g.textAlign='left';
+  menuBtn(g,'Back',VW/2,VH-36*s,Math.min(180*s,VW*.5),42*s,()=>leaveCredits());
 }
 
 function drawChapterSelect(g){
@@ -5567,32 +5758,51 @@ function drawChapterSelect(g){
     if(G.cleared[n]){ g.textAlign='right'; g.fillStyle='rgba(150,200,130,0.85)';
       g.fillText('cleared',cx+bw/2-14*s,cy+4*s); g.textAlign='left'; }
   });
-  menuBtn(g,'Back',VW/2,VH-46*s,Math.min(180*s,VW*.5),42*s,()=>{G.scene='title';});
+  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-46*s,Math.min(180*s,VW*.42),42*s,()=>{G.scene='title';});
+  menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-46*s,Math.min(180*s,VW*.42),42*s,()=>openCredits('chapters'));
 }
 
 function drawIntro(g){
   menuHits=[]; const s=UIS; const L=G.lvl;
-  darken(g, L.n===1?0.48:.86); G.introT+=1/60;
-  const a=clamp(G.introT/.7,0,1); g.globalAlpha=a; g.textAlign='center';
-  if(L.n===1){
-    g.fillStyle='rgba(6,4,3,0.55)';
-    g.fillRect(VW*0.08, VH*.28, VW*0.84, VH*.36);
+  G.introT+=1/60;
+  const a=clamp(G.introT/.7,0,1);
+  if(L.n===1 && SPR.intro_cavein){
+    g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+    drawSplashCover(g, SPR.intro_cavein);
+    const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.9);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(0.62,'rgba(0,0,0,0.12)');
+    vg.addColorStop(1,'rgba(0,0,0,0.62)');
+    g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+    const fade=g.createLinearGradient(0,0,0,VH*0.28);
+    fade.addColorStop(0,'rgba(0,0,0,0.78)'); fade.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=fade; g.fillRect(0,0,VW,VH*0.28);
+    const fadeB=g.createLinearGradient(0,VH*0.52,0,VH);
+    fadeB.addColorStop(0,'rgba(0,0,0,0)'); fadeB.addColorStop(0.45,'rgba(0,0,0,0.45)'); fadeB.addColorStop(1,'rgba(0,0,0,0.9)');
+    g.fillStyle=fadeB; g.fillRect(0,VH*0.52,VW,VH*0.48);
+  } else {
+    darken(g, L.n===1?0.48:.86);
+    if(L.n===1){
+      g.fillStyle='rgba(6,4,3,0.55)';
+      g.fillRect(VW*0.08, VH*.28, VW*0.84, VH*.36);
+    }
   }
+  g.globalAlpha=a; g.textAlign='center';
   g.font='700 '+(12*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,170,120,0.85)';
-  g.fillText(L.title.toUpperCase(),VW/2,VH*.34);
-  bigTitle(g,L.sub,VH*.44,(PORT?24:32)*s);
+  g.fillText(L.title.toUpperCase(),VW/2,VH*.12);
+  bigTitle(g,L.sub,VH*.20,(PORT?22:30)*s);
   g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle='rgba(210,188,145,0.8)';
-  const fl={1:'The roof came in. Beyond the fall, an older chamber stands open.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
+  g.fillStyle='rgba(210,188,145,0.88)';
+  const fl={1:'The tunnel is choked with rubble. Your kin lie dead under the boulders.',2:'The ruby cage falls for a long time. Hundreds of feet. Then stone.',
     3:'They kept working. Nobody told them to stop.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
-  g.fillText(fl,VW/2,VH*.51);
-  g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.75)';
-  g.fillText(L.n===1?'You are MACAR. Pordoom, Fendur, Orbo and Talpor lie under the stone.':
+  g.fillText(fl,VW/2,VH*.28);
+  g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.8)';
+  g.fillText(L.n===1?'You are MACAR. Loot the fallen. East, a newly opened chamber waits.':
     L.n===2?'You are MACAR. The kin stay in the cave-in. You walk the first floor alone.':
-    'You are MACAR.',VW/2,VH*.575);
+    'You are MACAR.',VW/2,VH*.335);
   g.textAlign='left'; g.globalAlpha=1;
-  menuBtn(g,'Descend',VW/2,VH*.70,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Loot Pordoom. Four bombs and a week of rations.',6); }
+  menuBtn(g,'Descend',VW/2,VH*.86,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
+    if(G.ch===1){ hint('Loot the kin under the boulders. Then walk east.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
@@ -5877,11 +6087,15 @@ function drawPause(g){
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
   g.fillText('4/P pack  ·  B bomb  ·  F herbs  ·  G shovel  ·  d20 vs descending AC',VW/2,VH*.31);
+  g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
+  g.fillStyle='rgba(160,140,110,0.7)';
+  g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
   g.textAlign='left';
-  menuBtn(g,'Resume',VW/2,VH*.44,Math.min(230*s,VW*.66),48*s,()=>{G.paused=false;});
-  menuBtn(g,'Effects: '+(QUALITY?'High':'Fast'),VW/2,VH*.555,Math.min(230*s,VW*.66),42*s,()=>{QUALITY=QUALITY?0:1;});
-  menuBtn(g,'Restart chapter',VW/2,VH*.665,Math.min(230*s,VW*.66),42*s,()=>{G.paused=false;startChapter(G.ch);});
-  menuBtn(g,'Chapters',VW/2,VH*.775,Math.min(230*s,VW*.66),42*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Resume',VW/2,VH*.40,Math.min(230*s,VW*.66),42*s,()=>{G.paused=false;});
+  menuBtn(g,'Effects: '+(QUALITY?'High':'Fast'),VW/2,VH*.505,Math.min(230*s,VW*.66),38*s,()=>{QUALITY=QUALITY?0:1;});
+  menuBtn(g,'Restart chapter',VW/2,VH*.61,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;startChapter(G.ch);});
+  menuBtn(g,'Chapters',VW/2,VH*.715,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Credits',VW/2,VH*.82,Math.min(230*s,VW*.66),38*s,()=>openCredits('pause'));
 }
 
 /* ---------------------------- tap resolution ---------------------------- */
@@ -5925,6 +6139,7 @@ let last=performance.now();
 function loop(now){
   let dt=(now-last)/1000; last=now; dt=Math.min(dt,.05); G.t+=dt;
   if(G.hitstop>0) G.hitstop-=dt; else update(dt);
+  syncMusic();
   render(); resolveTaps();
   requestAnimationFrame(loop);
 }
