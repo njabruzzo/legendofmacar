@@ -3249,10 +3249,12 @@ function onHitFx(atk,o,dmg){
 }
 function meleeSwing(e,arc,reach,dmg,col){
   const fa=ang(e.fdx,e.fdy); let hit=0;
+  const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
+  const wedge=Math.min(arc||1.9, 2.5);
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
-    const d=dist(e,o); if(d>reach+o.r) continue;
+    const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
-    if(df<=arc/2){
+    if(df<=wedge/2){
       const rolled=addAttack(e,o);
       if(rolled){ damage(o,onHitFx(e,o,rolled),col);
         wear(e.gear,0.35,0);
@@ -3509,7 +3511,7 @@ window.addEventListener('keydown',e=>{
   if(e.key==='4'||k==='i'||k==='p') fire('pack');
   if(e.key==='5') fire('rally');
   if(k==='d') fire('wall');
-  if(k==='q') fire('swing');
+  if(k==='q') fire('attack');
   if(k==='r') fire('throw');
   if(k==='b') fire('bomb');
   if(k==='x') fire('bow');
@@ -3536,7 +3538,7 @@ function fire(key){
   if(G.sleepShow) return;
   if(G.paused) return;
   const p=player(); if(!p) return;
-  if(key==='attack'){
+  if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
     p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
   }
@@ -3633,11 +3635,8 @@ function fire(key){
     return;
   }
   const a=ABIL.find(z=>z.key===key); if(!a||cds[key]>0) return;
-  if((key==='swing'||key==='throw') && refuseAttack(p)) return;
+  if(key==='throw' && refuseAttack(p)) return;
   cds[key]=a.cd; p.dest=null;
-  if(key==='swing'){ p.atk=p.atkMax*1.5; p.swung=1; meleeSwing(p,TAU,2.6,44,'#ffd27a');
-    burst(p.x,p.y,'#ffcf5c',28,4.6); shake(12); ftext(p.x,p.y-.6,'HAMMER ARC','#ffd27a',1);
-    say('MACAR preparing special hammer attack!','#ff6a5a'); }
   if(key==='ale'){
     if(!takeFromPacks('ales')){ cds[key]=0; hint('No ale in the packs. Brew more at camp.',2.6); return; }
     const heal=8+skillLvl('ale')*2; let n=0;
