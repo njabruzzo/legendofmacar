@@ -350,6 +350,7 @@ const SPRITE_FILES={
   floor_mine:'assets/tiles/tile_floor_mine.png', floor_fungi:'assets/tiles/tile_floor_fungi.png',
   floor_ruin:'assets/tiles/tile_floor_ruin.png', floor_hall:'assets/tiles/tile_floor_hall.png',
   wall_cave:'assets/tiles/tile_wall_cave.png',
+  wall_worked:'assets/tiles/tile_wall_worked.png',
   skill_icons:'assets/ui/ui_skill_icons.png',
   icon_sword:'assets/ui/icon_sword.png', icon_dwarf:'assets/ui/icon_dwarf.png',
   icon_flask:'assets/ui/icon_flask.png', icon_shield:'assets/ui/icon_shield.png',
@@ -360,6 +361,8 @@ const SPRITE_FILES={
   icon_crossbow:'assets/ui/icon_crossbow.png',
   icon_secret:'assets/ui/icon_secret.png',
   icon_climb:'assets/ui/icon_climb.png',
+  icon_attack:'assets/ui/icon_attack.png',
+  icon_defend:'assets/ui/icon_defend.png',
   title_splash:'assets/ui/title_splash.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg'
 };
@@ -396,6 +399,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
   if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble|bronzedoor|bell|barrel|stalagmite|crystal|moss|eggs|urn|idol|orepile|pickpile|slime|banner|roots)/.test(src)) return;
   if(/loot_/.test(src)) return;
+  if(/tile_wall_worked/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   SPRITE_FILES[k+'_w1']=stem+'_w1.png';
@@ -404,17 +408,18 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 });
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
-  cross:'icon_cross', hammer:'icon_sword', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
+  cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
   plant:'icon_plant', shovel:'icon_shovel', campfire:'icon_campfire',
-  crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb'
+  crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
+  attack:'icon_attack', defend:'icon_defend'
 };
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','skill_icons','macar','pordoom','fendur','orbo','talpor',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
-    'rubydoor','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave',
+    'rubydoor','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave','wall_worked',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots'];
   const seen={};
   const queue=[];
@@ -513,6 +518,11 @@ function palFloorKey(pal){
   if(pal===PAL.hall) return 'floor_hall';
   return 'floor_mine';
 }
+function palWallKey(L){
+  // Chapter II is living rock. The start and the built halls are worked stone.
+  if(L && L.n===2) return 'wall_cave';
+  return 'wall_worked';
+}
 function scaleBlit(img,w,h){
   if(!img||!img.width) return null;
   w=Math.max(1,w|0); h=Math.max(1,h|0);
@@ -525,10 +535,11 @@ function scaleBlit(img,w,h){
 }
 function ensureTileBlit(L){
   const palKey=L?palFloorKey(L.pal):'floor_mine';
-  const k=TW+'|'+TH+'|'+palKey;
+  const wallKey=L?palWallKey(L):'wall_worked';
+  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey;
   if(TILEBLIT.key===k && TILEBLIT.floor && TILEBLIT.wall) return;
   const sc=TW/RTW, SH=(RWH+RTH)*sc;
-  const wall=scaleBlit(SPR.wall_cave, TW, SH);
+  const wall=scaleBlit(SPR[wallKey]||SPR.wall_cave||SPR.wall_worked, TW, SH);
   const floor=scaleBlit(SPR[palKey], TW*1.12, TH*1.12);
   if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; }
 }
@@ -662,6 +673,23 @@ const PAL={
 /* ---------------------------- grid helpers ---------------------------- */
 function newGrid(w,h,f){ const g=[]; for(let y=0;y<h;y++){const r=new Uint8Array(w); r.fill(f); g.push(r);} return g; }
 function rect(g,x,y,w,h,t){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++) if(g[j]&&g[j][i]!==undefined) g[j][i]=t; }
+function sealOuter(g){
+  if(!g||!g.length||!g[0]) return;
+  const h=g.length, w=g[0].length;
+  for(let i=0;i<w;i++){ g[0][i]=1; g[h-1][i]=1; }
+  for(let j=0;j<h;j++){ g[j][0]=1; g[j][w-1]=1; }
+}
+function paintSeenWalls(L){
+  if(!L||!L.grid||!L.seen) return;
+  for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
+    if(!L.seen[j][i]) continue;
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
+      const y=j+dj, x=i+di;
+      if(y<0||x<0||y>=L.h||x>=L.w) continue;
+      if(L.grid[y][x]===1) L.seen[y][x]=1;
+    }
+  }
+}
 function corridor(g,x1,y1,x2,y2,wd,t){
   wd=wd||3; const hw=(wd/2)|0;
   const sx=Math.min(x1,x2),ex=Math.max(x1,x2),sy=Math.min(y1,y2),ey=Math.max(y1,y2);
@@ -1436,6 +1464,11 @@ function makeChapter(n){
     carvePath(g,[[40,16],[50,16],[58,16],[65,16]],2.3,0);
     caveDisk(g,65,16,3.2,2.8,0);
     rect(g,68,12,11,9,4);
+    // Bronze door sits on a solid wall; only a gnome can take the gap.
+    for(let j=12;j<=20;j++) if(g[j]) g[j][67]=1;
+    if(g[16]){ g[16][66]=0; g[16][67]=4; }
+    if(g[17]) g[17][66]=0;
+    if(g[15]) g[15][66]=0;
     carvePath(g,[[40,16],[32,16],[26,14],[20,17],[14,15],[10,18],[8,24],[10,30]],2.2,0);
     caveDisk(g,22,16,2.6,2.2,0);
     caveDisk(g,10,31,5.5,4.7,0);
@@ -1446,8 +1479,8 @@ function makeChapter(n){
     carvePath(g,[[40,46],[34,48],[28,50]],2.05,0);
     caveDisk(g,27.4,50,2.5,2.1,0);
     L.spawn={x:40.15,y:8.55};
-    L.door={x:66.85,y:16.05};
-    L.bell={x:65.15,y:16.55};
+    L.door={x:66.48,y:16.05};
+    L.bell={x:66.48,y:17.42};
     L.camp={x:40,y:32};
     L.stair={x:40.1,y:54.15};
     L.collapse={x0:20,y0:47,x1:27,y1:53};
@@ -1457,11 +1490,11 @@ function makeChapter(n){
             {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
             {t:'Climb the south stair to the ruins',d:0}];
     L.lights=[{x:40,y:8.4,c:'#ff2f3a',r:8.4,f:1.5},{x:40,y:16,c:'#ffb45c',r:6.4,f:1},
-      {x:66.6,y:16,c:'#d4a04a',r:8.2,f:1.45},{x:40,y:32,c:'#ff8a3a',r:6.8,f:1.1},
+      {x:66.5,y:16.05,c:'#d4a04a',r:8.2,f:1.45},{x:40,y:32,c:'#ff8a3a',r:6.8,f:1.1},
       {x:40,y:54,c:'#6fd0ff',r:5.6,f:0.95},{x:10,y:31,c:'#c07bff',r:6.2,f:1.05},
       {x:27,y:50,c:'#9a8163',r:3.8,f:0.6}];
     G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
-      {x:66.85,y:16.05,k:'bronzedoor'},{x:65.15,y:16.55,k:'bell'},
+      {x:66.48,y:16.05,k:'bronzedoor'},{x:66.48,y:17.42,k:'bell'},
       {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
       {x:38.6,y:31.4,k:'bones'},{x:42.2,y:33.1,k:'sack'},{x:37.8,y:33.6,k:'crate'},
       {x:40.1,y:54.15,k:'gate'},{x:38.4,y:52.8,k:'lantern'},
@@ -1506,8 +1539,8 @@ function makeChapter(n){
             {x:40.15,y:16.15},
             {x:50.2,y:16.1},
             {x:58.4,y:16.08},
-            {x:L.door.x-0.35,y:L.door.y},
-            {x:L.door.x+1.65,y:L.door.y}
+            {x:L.door.x-0.2,y:L.door.y},
+            {x:L.door.x+1.7,y:L.door.y}
           ];
           noz.fleeTo=noz.fleePath.shift();
           noz.onArrive=()=>{
@@ -1680,6 +1713,7 @@ function makeChapter(n){
         L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
     };
   }
+  sealOuter(L.grid);
   L.seen=newGrid(L.w,L.h,0);
   if(n===1){
     for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
@@ -1694,6 +1728,7 @@ function makeChapter(n){
       if(Math.hypot(i-40,j-8)<8.5) L.seen[j][i]=1;
     }
   }
+  paintSeenWalls(L);
   dressDungeon(L);
   return L;
 }
@@ -1708,8 +1743,8 @@ function dressDungeon(L){
   if(!L||!L.grid) return;
   G.props=G.props||[];
   const tables={
-    1:[['rubble',5],['timber',3],['barrel',2],['crate',2],['orepile',3],['stalagmite',3],
-       ['crystal',2],['pickpile',2],['sack',1],['lantern',1],['roots',1]],
+    1:[['rubble',5],['timber',4],['barrel',3],['crate',3],['orepile',3],
+       ['pickpile',2],['sack',2],['lantern',2],['banner',1]],
     2:[['shroom',5],['web',3],['eggs',3],['moss',4],['stalagmite',2],['bones',2],
        ['crystal',2],['sack',1],['crate',1],['roots',2],['barrel',1]],
     3:[['bones',4],['urn',3],['banner',3],['crate',2],['cart',1],['idol',2],
@@ -1879,26 +1914,32 @@ function lootCorpse(e){
   if(e.looted) return;
   e.looted=1;
   e.corpse=1;
+  const bits=[];
   const kit=e.kit||{};
   ['bombs','rations','ales','torches','ammo'].forEach(k=>{
-    if(kit[k]) addToPack('macar',k,kit[k]);
+    if(kit[k]){ addToPack('macar',k,kit[k]); bits.push(k+' \u00d7'+kit[k]); }
   });
   if(kit.gp){
     addCoin('gp',kit.gp);
     awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
+    bits.push(kit.gp+' gp');
   }
   const drop=e.drop;
   if(drop){
     convertHoard(drop.coins||{}, drop.gems||0, drop.jew||0, 0, 'none', e, true);
-    (drop.potions||[]).forEach(p=>givePotion(p,1));
+    if(drop.coins) Object.keys(drop.coins).forEach(k=>{ if(drop.coins[k]) bits.push(drop.coins[k]+' '+k); });
+    if(drop.gems) bits.push(drop.gems+' gems');
+    if(drop.jew) bits.push(drop.jew+' jewelry');
+    (drop.potions||[]).forEach(p=>{ const n=givePotion(p,1); if(n) bits.push(n); });
     (drop.items||[]).forEach(it=>{
-      if(it.k==='pack'||it.field){ addToPack('macar', it.field||'ammo', it.count||1); return; }
-      if(it.k==='gem') giveGem(it,1);
-      else giveMagic(it,1);
+      if(it.k==='pack'||it.field){ addToPack('macar', it.field||'ammo', it.count||1); bits.push((it.n||it.field||'kit')+' \u00d7'+(it.count||1)); return; }
+      if(it.k==='gem'){ giveGem(it,1); bits.push(it.n||'gem'); }
+      else { const n=giveMagic(it,1); if(n) bits.push(n); }
     });
     if(drop.res) Object.keys(drop.res).forEach(k=>gain(k, drop.res[k]));
     e.drop=null;
   }
+  packGainNote(bits);
   const L=G.lvl;
   if(L&&L.n===1){
     const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.looted).length;
@@ -1925,7 +1966,7 @@ const CHAPTERS=[1,2,3,4,5];
 
 function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
-  G.seenRev=0; BX_KEY='';
+  G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
@@ -2275,7 +2316,7 @@ function hitChancePct(need, bonus){
   return Math.round((21-req)/20*100);
 }
 function newPack(r){
-  const p={potions:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
+  const p={potions:[],healPots:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
   if(!r) return p;
   if(r.key==='macar'){ p.bombs=2; p.ales=1; p.torches=8; p.ammo=10; }
   else if(r.key==='pordoom'){ p.bombs=1; p.ales=1; }
@@ -2285,7 +2326,21 @@ function newPack(r){
 }
 function ensurePacks(){
   if(!G.packs) G.packs={};
-  ROSTER.forEach(r=>{ if(!G.packs[r.key]) G.packs[r.key]=newPack(r); });
+  ROSTER.forEach(r=>{
+    if(!G.packs[r.key]) G.packs[r.key]=newPack(r);
+    const pk=G.packs[r.key];
+    if(!pk.potions) pk.potions=[];
+    if(!pk.healPots) pk.healPots=[];
+    if(!pk.magic) pk.magic=[];
+    if(!pk.gems) pk.gems=[];
+    if(!pk.herbs) pk.herbs={};
+    pk.healPots=pk.healPots||[];
+    pk.potions=(pk.potions||[]).filter(p=>{
+      if(!isHealPotion(p)) return true;
+      pk.healPots.push(p);
+      return false;
+    });
+  });
   if(!G.packWho) G.packWho='macar';
 }
 function packOf(key){
@@ -2311,11 +2366,66 @@ function addToPack(key, field, n){
   packOf(key)[field]=(packOf(key)[field]||0)+(n||1);
   syncPackTotals();
 }
+function isHealPotion(p){
+  if(!p) return false;
+  const k=p.k||'';
+  if(k==='heal10'||k==='heal20'||k==='heal40'||k==='healall'||k==='heal') return true;
+  return /^(Cure (Light|Serious|Critical)|Heal Wounds)/i.test(p.n||'');
+}
+function isEquipWeapon(it){
+  if(!it) return false;
+  if(it.k==='weapon') return true;
+  const cat=it.cat||'';
+  if(cat==='Sword'||cat==='Weapon') return true;
+  return /(Sword|Axe|Mace|Hammer|Spear|Dagger|Bow|Crossbow|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n||'');
+}
+function isEquipArmor(it){
+  if(!it) return false;
+  if(it.k==='armor') return true;
+  if((it.cat||'')==='Armor/Shield') return true;
+  return /(Armor|Shield|Mail|Plate|Helm)/i.test(it.n||'') && !/^Ring /i.test(it.n||'');
+}
+function healCharges(){
+  ensurePacks();
+  let n=0;
+  ROSTER.forEach(r=>{
+    const pk=packOf(r.key);
+    n+=(pk.ales||0)+((pk.healPots||[]).length);
+  });
+  return n;
+}
+function takeHealCharge(){
+  ensurePacks();
+  const order=['macar'].concat(ROSTER.map(r=>r.key).filter(k=>k!=='macar'));
+  for(const k of order){
+    const pk=packOf(k);
+    pk.healPots=pk.healPots||[];
+    if(pk.healPots.length){
+      const p=pk.healPots.shift();
+      syncPackTotals();
+      return {kind:'potion', p, key:k};
+    }
+  }
+  const k=takeFromPacks('ales');
+  if(k) return {kind:'ale', key:k};
+  return null;
+}
+function maybeAutoEquip(it){
+  if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  if(isEquipWeapon(it) && !G.equipped.weapon){ G.equipped.weapon=it; applyEquipped(); return 'weapon'; }
+  if(isEquipArmor(it) && !G.equipped.armor){ G.equipped.armor=it; applyEquipped(); return 'armor'; }
+  return null;
+}
+function packGainNote(bits){
+  const list=(bits||[]).filter(Boolean);
+  if(!list.length) return;
+  say('Stowed in MACAR\'s pack: '+list.join(', ')+'.', '#ffd27a');
+}
 function syncPackTotals(){
   ensurePacks();
   G.inv=packOf(G.packWho||'macar');
   G.bombs=partyCount('bombs');
-  G.ales=partyCount('ales');
+  G.ales=healCharges();
 }
 function monsterHD(e){
   if(e.hd) return e.hd;
@@ -2691,10 +2801,21 @@ function potionByRoll(r){
 }
 function rollPotion(){ return potionByRoll(d10000()); }
 function givePotion(p, silent){
+  if(!p) return '';
   ensurePacks();
-  packOf('macar').potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
+  const pk=packOf('macar');
+  pk.potions=pk.potions||[];
+  pk.healPots=pk.healPots||[];
+  if(isHealPotion(p)){
+    pk.healPots.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
+    syncPackTotals();
+    if(!silent) say('Healing draught into the ale flask: '+p.n+'.','#d2bd63');
+    return p.n+' (ale flask)';
+  }
+  pk.potions.push({n:p.n,d:p.d,k:p.k,gp:p.gp});
   syncPackTotals();
   if(!silent) say('Potion into MACAR\'s pack: '+p.n+'.','#e0d2ff');
+  return p.n;
 }
 
 
@@ -2713,10 +2834,18 @@ function magItem(o){
     vs:o.vs||'', cursed:!!o.cursed, xp:o.xp||0};
 }
 function giveMagic(it, silent){
+  if(!it) return '';
   ensurePacks();
-  packOf('macar').magic.push(it);
+  const pk=packOf('macar');
+  pk.magic=pk.magic||[];
+  pk.magic.push(it);
+  const slot=maybeAutoEquip(it);
   syncPackTotals();
-  if(!silent) say(it.cat+': '+it.n+' — stowed in MACAR\'s pack. '+it.d, '#ffd27a');
+  if(!silent){
+    if(slot) say(it.n+' — equipped from MACAR\'s pack.','#ffd27a');
+    else say((it.cat||'Item')+': '+it.n+' — stowed in MACAR\'s pack. '+(it.d||''), '#ffd27a');
+  }
+  return it.n+(slot?' [E]':'');
 }
 
 const DMG_SCROLL=[
@@ -3134,11 +3263,11 @@ function useMagicItem(it, e){
     if(e){ e.stun=Math.max(e.stun||0,2.2); damage(e, ADD_SCALE*4, '#ff6a5a'); }
     return;
   }
-  if(it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'||it.cat==='Rod/Staff/Wand'&&it.k==='weapon'){
+  if(isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'){
     G.equipped.weapon=it; applyEquipped();
     say('Wielded: '+it.n+'.','#ffd27a'); return;
   }
-  if(it.k==='armor'||it.cat==='Armor/Shield'){
+  if(isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield'){
     G.equipped.armor=it; applyEquipped();
     say('Donned: '+it.n+'.','#cfe3ff'); return;
   }
@@ -3273,8 +3402,10 @@ function convertHoard(coins, gems, jew, magN, magKind, where, quiet){
   if(coins.ep){ addCoin('ep',coins.ep); const n=Math.min(5,Math.max(1,Math.round(coins.ep/600))); gain('deepsilver',n); notes.push(coins.ep+' ep'); }
   if(coins.gp){ addCoin('gp',coins.gp); const n=Math.min(6,Math.max(1,Math.round(coins.gp/700))); gain('deepsilver',n); notes.push(coins.gp+' gp'); }
   if(coins.pp){ addCoin('pp',coins.pp); const n=Math.min(4,Math.max(1,Math.round(coins.pp/200))); gain('starmetal',n); notes.push(coins.pp+' pp'); }
-  if(gems){ gain(gems>=8?'starmetal':'deepsilver', Math.min(4,Math.max(1,Math.round(gems/8)))); notes.push(gems+' gems'); }
-  if(jew){ gain('silk', Math.min(4,Math.max(1,Math.round(jew/3)))); notes.push(jew+' jewelry'); }
+  if(gems){ gain(gems>=8?'starmetal':'deepsilver', Math.min(4,Math.max(1,Math.round(gems/8)))); notes.push(gems+' gems');
+    giveGem({n:gems===1?'Gemstone':(gems+' gemstones'), gp:gems*50, d:'Cut stones from the take.'}, 1); }
+  if(jew){ gain('silk', Math.min(4,Math.max(1,Math.round(jew/3)))); notes.push(jew+' jewelry');
+    giveGem({n:jew===1?'Jewelry':(jew+' pieces of jewelry'), gp:jew*80, d:'Worked gold and silver.'}, 1); }
   const extras=extraMagicForKind(magKind);
   const rolls=magN+extras.length;
   let magGp=0;
@@ -3632,8 +3763,8 @@ const UI={};
 
 const HUDSKILLS=[
   {key:'pack', ico:'pack', label:'PACK'},
-  {key:'wall', ico:'shield', label:'Defend'},
-  {key:'attack', ico:'hammer', label:'Attack'},
+  {key:'wall', ico:'defend', label:'Defend'},
+  {key:'attack', ico:'attack', label:'Attack'},
   {key:'bow', ico:'crossbow', label:'Shoot'},
   {key:'bomb', ico:'bomb', label:'Throw'},
   {key:'ale', ico:'flask', label:'Heal'},
@@ -3898,11 +4029,17 @@ function fire(key){
   if(key==='throw' && refuseAttack(p)) return;
   cds[key]=a.cd; p.dest=null;
   if(key==='ale'){
-    if(!takeFromPacks('ales')){ cds[key]=0; hint('No ale in the packs. Brew more at camp.',2.6); return; }
-    const heal=8+skillLvl('ale')*2; let n=0;
-    G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead&&dist(e,p)<6.5){
-      applyHeal(e, heal); n++; } });
-    learn('ale',3);     say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
+    const ch=takeHealCharge();
+    if(!ch){ cds[key]=0; hint('No ale or healing draughts in the packs. Brew more at camp.',2.6); return; }
+    if(ch.kind==='potion'){
+      drinkPotion(ch.p, p);
+      learn('ale',3);
+    } else {
+      const heal=8+skillLvl('ale')*2; let n=0;
+      G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead&&dist(e,p)<6.5){
+        applyHeal(e, heal); n++; } });
+      learn('ale',3);     say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
+    }
   }
   if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
     const thrower=G.ents.find(z=>z.role==='pick'&&!z.dead)||p;
@@ -4327,7 +4464,7 @@ function drawWorld(g,L){
   const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
   const p=player();
   const okTex=TEX.ready;
-  const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR.wall_cave_atk;
+  const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
   if(p&&p.dest) push((p.dest.x+p.dest.y)|0,()=>drawMoveMark(g,p.dest));
 
   for(let d=minx+miny; d<=maxx+maxy; d++){
@@ -4532,15 +4669,13 @@ function gatherLightsCapped(L){
   out.length=cap;
   return out;
 }
-/* scene * (ambient + sum of coloured lights).
-   Tiles are painted bright on purpose; this multiply is the cave dark.
-   Fast used to skip the lightmap and stain the whole frame with pal.amb,
-   which read as fog. Always punch lanterns / player light into the map. */
+/* Revealed tiles stay readable. Fog of war is the unseen rock mask, not a cave gloom
+   multiply. Lanterns still add a warm punch on top of a bright fill. */
 function applyLighting(g,L){
   const x=lmx, w=LM.width, h=LM.height;
   x.setTransform(1,0,0,1,0,0);
   x.globalCompositeOperation='source-over';
-  x.fillStyle=L.pal.amb; x.fillRect(0,0,w,h);
+  x.fillStyle='#e6d8c4'; x.fillRect(0,0,w,h);
   x.globalCompositeOperation='lighter';
   const scx=w/Math.max(1,VW), scy=h/Math.max(1,VH);
   for(const li of gatherLightsCapped(L)){
@@ -4550,9 +4685,9 @@ function applyLighting(g,L){
     if(cx<-rad||cy<-rad||cx>w+rad||cy>h+rad) continue;
     const c=rgbOf(li.c);
     const gr=x.createRadialGradient(cx,cy,1,cx,cy,rad);
-    gr.addColorStop(0,'rgba('+c[0]+','+c[1]+','+c[2]+',1)');
-    gr.addColorStop(0.34,'rgba('+c[0]+','+c[1]+','+c[2]+',0.62)');
-    gr.addColorStop(0.68,'rgba('+Math.round(c[0]*0.6)+','+Math.round(c[1]*0.5)+','+Math.round(c[2]*0.5)+',0.24)');
+    gr.addColorStop(0,'rgba('+c[0]+','+c[1]+','+c[2]+',0.55)');
+    gr.addColorStop(0.34,'rgba('+c[0]+','+c[1]+','+c[2]+',0.28)');
+    gr.addColorStop(0.68,'rgba('+Math.round(c[0]*0.6)+','+Math.round(c[1]*0.5)+','+Math.round(c[2]*0.5)+',0.10)');
     gr.addColorStop(1,'rgba(0,0,0,0)');
     x.fillStyle=gr; x.beginPath(); x.arc(cx,cy,rad,0,TAU); x.fill();
   }
@@ -4648,17 +4783,14 @@ function drawBeyondMask(g,L){
 }
 
 function drawAtmosphere(g,L){
-  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.28:0.12);
-  g.fillRect(0,0,VW,VH*0.07);
-  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.22:0.10);
-  g.fillRect(0,VH*0.93,VW,VH*0.07);
+  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.10:0.05);
+  g.fillRect(0,0,VW,VH*0.05);
+  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.08:0.04);
+  g.fillRect(0,VH*0.95,VW,VH*0.05);
   if(!QUALITY) return;
   const haze=g.createRadialGradient(VW*0.62,VH*0.36,20,VW/2,VH/2,Math.max(VW,VH)*0.72);
-  haze.addColorStop(0,hexA(L.pal.key,0.07)); haze.addColorStop(1,'rgba(0,0,0,0)');
+  haze.addColorStop(0,hexA(L.pal.key,0.04)); haze.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=haze; g.fillRect(0,0,VW,VH);
-  const vg=g.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*.28,VW/2,VH/2,Math.max(VW,VH)*.78);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.38)');
-  g.fillStyle=vg; g.fillRect(0,0,VW,VH);
 }
 
 function drawGrain(g){
@@ -5789,20 +5921,26 @@ function takeLoot(pile, quiet){
   if(!pile||pile.gone) return;
   pile.gone=1;
   G.loot=(G.loot||[]).filter(x=>x!==pile);
-  convertHoard(pile.coins||{}, pile.gems||0, pile.jew||0, 0, 'none', pile, quiet);
-  (pile.potions||[]).forEach(p=>givePotion(p,1));
+  const bits=[];
+  convertHoard(pile.coins||{}, pile.gems||0, pile.jew||0, 0, 'none', pile, true);
+  const c=pile.coins||{};
+  Object.keys(c).forEach(k=>{ if(c[k]) bits.push(c[k]+' '+k); });
+  if(pile.gems) bits.push(pile.gems+' gems');
+  if(pile.jew) bits.push(pile.jew+' jewelry');
+  (pile.potions||[]).forEach(p=>{ const n=givePotion(p,1); if(n) bits.push(n); });
   let extra=0;
   (pile.items||[]).forEach(it=>{
     extra+=it.gp||it.xp||0;
-    if(it.k==='pack'||it.field){ addToPack('macar', it.field||'ammo', it.count||1); return; }
-    if(it.k==='gem') giveGem(it,1);
-    else giveMagic(it,1);
+    if(it.k==='pack'||it.field){ addToPack('macar', it.field||'ammo', it.count||1); bits.push((it.n||it.field||'kit')+' \u00d7'+(it.count||1)); return; }
+    if(it.k==='gem'){ giveGem(it,1); bits.push(it.n||'gem'); }
+    else { const n=giveMagic(it,1); if(n) bits.push(n); }
   });
   if(pile.res){
     Object.keys(pile.res).forEach(k=>{
       gain(k, pile.res[k]);
     });
   }
+  packGainNote(bits);
   if(extra) awardPartyXp(Math.round(extra), 'Treasure ('+Math.round(extra)+' gp)', pile);
 }
 function hoardToPile(hoard){
@@ -6452,7 +6590,7 @@ function drawSlot(g,b,s){
   const R=b.r, x=b.x-R, y=b.y-R, w=R*2, h=R*2;
   const ab=ABIL.find(a=>a.key===b.key);
   const cd=ab?cds[ab.key]/ab.cd:0, ready=cd<=0;
-  const ico=b.ico||(b.key==='attack'?'sword':(ab&&ab.ico));
+  const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
   if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)){
@@ -6484,7 +6622,7 @@ function drawSlot(g,b,s){
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();
-    const n=ab.key==='bomb'?partyCount('bombs'):ab.key==='ale'?partyCount('ales'):partyCount('ammo');
+    const n=ab.key==='bomb'?partyCount('bombs'):ab.key==='ale'?healCharges():partyCount('ammo');
     if(!n){ g.fillStyle='rgba(8,5,3,0.5)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill(); }
     const px=b.x+R*0.72, py=b.y-R*0.72;
     g.fillStyle=n?'rgba(20,14,8,0.92)':'rgba(50,14,8,0.92)';
@@ -6996,19 +7134,31 @@ function drawPack(g){
   g.font='600 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,190,150,0.85)';
   g.fillText((sheet?fmtAbil(sheet)+'  HP '+sheet.maxhp:'')+'   bombs '+(pk.bombs||0)+
-    '  ale '+(pk.ales||0)+'  rations '+(pk.rations||0)+'  torches '+(pk.torches||0)+
+    '  beer '+((pk.ales||0)+((pk.healPots||[]).length))+'  rations '+(pk.rations||0)+'  torches '+(pk.torches||0)+
     (pk.ammo?'  bolts '+pk.ammo:''), 14*s, tabY+tabH+16*s);
   const eq=G.equipped||{};
   const mag=pk.magic||[];
-  const pots=pk.potions||[];
   const herbs=Object.keys(pk.herbs||{});
   const gems=pk.gems||[];
   const rows=[];
+  const flaskN=(pk.ales||0)+((pk.healPots||[]).length);
+  if(flaskN){
+    const names=(pk.healPots||[]).map(p=>p.n).slice(0,3);
+    rows.push({kind:'ale', t:'Ale / healing draughts  \u00d7'+flaskN,
+      info:names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Tap Heal on the bar, or tap here to drink.',
+      tag:'Beer'});
+  }
   mag.forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
-    rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,info:it.d,tag:it.cat||'Magic'});
+    const canEq=isEquipWeapon(it)||isEquipArmor(it)||it.k==='ring'||it.cat==='Ring';
+    rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,
+      info:canEq?(worn?'Equipped. Tap to wield again. ':'Tap to equip. ')+(it.d||''):(it.d||''),
+      tag:it.cat||'Magic'});
   });
-  pots.forEach((p,i)=>rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'}));
+  (pk.potions||[]).forEach((p,i)=>{
+    if(isHealPotion(p)) return;
+    rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'});
+  });
   gems.forEach((gm,i)=>rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:gm.d||'',tag:'Gem'}));
   herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
   const top=tabY+tabH+26*s, bot=VH-58*s, h=Math.min(PORT?34*s:38*s, Math.max(26*s,(bot-top)/Math.max(1,rows.length||1)));
@@ -7022,7 +7172,7 @@ function drawPack(g){
     const y=top+i*h, x=10*s, w=VW-20*s;
     plate(g,x,y,w,h-3*s,5,.8);
     g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':r.kind==='gem'?'#ff6a6a':'#6aff8a';
+    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':r.kind==='gem'?'#ff6a6a':r.kind==='ale'?'#d2bd63':'#6aff8a';
     g.fillText((r.tag||r.kind).toUpperCase(), x+10*s, y+12*s);
     g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle='#f4e2b8'; g.fillText(r.t, x+10*s, y+h*0.58);
@@ -7045,6 +7195,13 @@ function drawPack(g){
           say('Set aside for the next descent: '+it.n,'#ffd27a');
         } else {
           useMagicItem(it, who);
+        }
+      } else if(r.kind==='ale'){
+        if(inField){
+          G.scene='play';
+          fire('ale');
+        } else {
+          say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
         }
       } else if(r.kind==='potion'){
         const pot=bag.potions.splice(r.i,1)[0];
