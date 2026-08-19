@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=20">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=20">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=20" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=21">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=21">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=21" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=20"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=21"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -170,7 +170,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='20';
+const ASSET_VER='21';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -388,12 +388,22 @@ function drawEntBillboard(g,e,img,z){
   const k=entSpriteKey(e);
   const ref=SPR[k]||img;
   if(e.crushed||e.prone){
-    const ph=72*z, pw=ph*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -pw/2, -ph*0.86, pw, ph);
+    // Wide prone sprite, shifted toward the camera so head/limbs read past the pinning slab.
+    const ph=96*z, pw=ph*(img.width/Math.max(1,img.height));
+    const side=((e.id||0)%2?1:-1)*14*z;
+    g.drawImage(img, -pw/2+side, -ph*0.28, pw, ph);
     return true;
   }
   const scale=entSpriteH(e,z)/Math.max(1, ref.height);
   const W=img.width*scale, H=img.height*scale;
+  if(e.hero && !e.dead){
+    g.save();
+    g.globalAlpha=1;
+    g.globalCompositeOperation='source-over';
+    g.drawImage(img, -W/2, -H, W, H);
+    g.restore();
+    return true;
+  }
   g.drawImage(img, -W/2, -H, W, H);
   return true;
 }
@@ -467,7 +477,7 @@ function propSpriteH(p,z){
   const k=p.k;
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
-  if(k==='boulder') return (p.pin?64:56)*z*(p.s||1);
+  if(k==='boulder') return (p.pin?52:56)*z*(p.s||1);
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
@@ -1146,7 +1156,7 @@ function makeChapter(n){
       {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x+0.08,y:s.y+0.12,k:'boulder',spr:s.spr||'boulder',s:s.stone||1.2,pin:1,seed:s.seed});
+      G.props.push({x:s.x+0.04,y:s.y+0.06,k:'boulder',spr:s.spr||'boulder',s:(s.stone||1.2)*0.92,pin:1,seed:s.seed});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -3122,7 +3132,6 @@ const UIBTN=[];
 const UI={};
 
 const BARSLOTS=[
-  {key:'attack', ico:'sword',  num:1, label:'STRIKE'},
   {key:'ale',    ico:'flask',  num:2, label:'ALE'},
   {key:'wall',   ico:'shield', num:3, label:'GUARD'},
   {key:'pack',   ico:'pack',   num:4, label:'PACK'},
@@ -3130,11 +3139,10 @@ const BARSLOTS=[
 ];
 const EXTRASLOTS=[
   {key:'swing', ico:'hammer', label:'SWING'},
-  {key:'throw', ico:'pick',   label:'PICK'},
+  {key:'camp',  ico:'campfire', label:'CAMP'},
   {key:'bomb',  ico:'bomb',   label:'BOMB'},
   {key:'search', ico:'plant', label:'HERB'},
   {key:'shovel', ico:'shovel', label:'DIG'},
-  {key:'camp',  ico:'campfire', label:'CAMP'},
 ];
 
 function layoutUI(){
@@ -3142,23 +3150,26 @@ function layoutUI(){
   const s=UIS;
   const slot = PORT ? Math.max(28, 38*s) : Math.max(34, 46*s);
   const gap = PORT? 5*s : 7*s;
+  const rowGap = PORT? 8*s : 10*s;
   const n=BARSLOTS.length;
   const extraN=EXTRASLOTS.length;
   const barW = n*slot + (n-1)*gap;
   const extraW = extraN*slot + (extraN-1)*gap;
-  const orbR = PORT? Math.max(26, 32*s) : Math.max(32, 40*s);
   const skillsW = Math.max(barW, extraW);
-  const totalW = orbR*2 + 14*s + skillsW;
+  const twoH = slot*2 + rowGap;
+  const orbR = twoH/2;
+  const totalW = orbR*2 + 12*s + skillsW;
   const by = VH - (PORT? 36*s : 34*s) - slot/2;
-  const extraY = by - slot - (PORT? 8*s : 10*s);
+  const extraY = by - slot - rowGap;
+  const midY = (extraY + by)/2;
   let left = VW/2 - totalW/2;
   const stickReserve = (PORT? 108*s : 128*s);
   if(left < stickReserve) left = stickReserve;
   if(left + totalW > VW - 8*s) left = Math.max(8*s, VW - totalW - 8*s);
 
-  UI.orb = { r:orbR, x: left + orbR, y: by };
+  UI.orb = { r:orbR, x: left + orbR, y: midY };
   UI.attack={x:0,y:0,r:slot/2};
-  const barLeft = left + orbR*2 + 14*s;
+  const barLeft = left + orbR*2 + 12*s;
   BARSLOTS.forEach((b,i)=>{
     const x = barLeft + i*(slot+gap) + slot/2;
     const btn={x, y:by, r:slot/2, key:b.key, ico:b.ico, num:b.num, slot:1};
@@ -3618,7 +3629,8 @@ function drawWorld(g,L){
   const seenAt=o=>{ const i=o.x|0, j=o.y|0; return !!(L.seen[j]&&L.seen[j][i]); };
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const e of G.ents)  if(e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
-  for(const p of G.props) if(near(p)&&seenAt(p)) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const p of G.props) if(near(p)&&seenAt(p)&&p.pin) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
   for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
@@ -4359,7 +4371,8 @@ function drawEnt(g,e){
   g.save(); g.translate(s.x,s.y);
   const deadSpr=e.crushed && SPR[(e.col&&e.col.key)+'_dead'];
   if(e.sleeping){ g.translate(8*z, 6*z); g.rotate(1.18); }
-  if(e.crushed && !deadSpr){ g.translate(12*z, 10*z); g.rotate(1.22); }
+  if(e.crushed && !deadSpr){ g.translate(6*z, 26*z); g.rotate(1.22); }
+  g.globalAlpha=1;
   if(e.dead && !e.crushed){
     const lie=e.deadT||0;
     g.globalAlpha=clamp(1-lie/1.3,0,1);
@@ -4388,7 +4401,7 @@ function drawEnt(g,e){
   const flip=!e.crushed && !e.dead && heading>0;
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
-  if(e.hero && !e.dead) g.globalAlpha=1;
+  if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
   g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
   if(!(img && drawEntBillboard(g,e,img,z))){
     if(e.kind==='dwarf') drawDwarf(g,e,z,sw);
