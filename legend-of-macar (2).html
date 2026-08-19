@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=24">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=24">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=24" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=25">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=25">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=25" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=24"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=25"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -170,7 +170,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='24';
+const ASSET_VER='25';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -388,8 +388,12 @@ function drawEntBillboard(g,e,img,z){
   const k=entSpriteKey(e);
   const ref=SPR[k]||img;
   if(e.crushed||e.prone){
-    const ph=28*z, pw=ph*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -pw/2, -ph*0.55, pw, ph);
+    // Same visual scale as standing Macar (78*z); long axis of the prone sprite matches his height.
+    const macarH=78*z;
+    const aspect=img.width/Math.max(1,img.height);
+    const pw=aspect>=1?macarH*1.12:macarH*aspect*0.92;
+    const ph=pw/aspect;
+    g.drawImage(img, -pw/2, -ph*0.78, pw, ph);
     return true;
   }
   const scale=entSpriteH(e,z)/Math.max(1, ref.height);
@@ -475,7 +479,7 @@ function propSpriteH(p,z){
   const k=p.k;
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
-  if(k==='boulder') return (p.pin?72:56)*z*(p.s||1);
+  if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
@@ -1182,10 +1186,8 @@ function makeChapter(n){
       {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x,y:s.y,k:'boulder',spr:s.spr||'boulder',s:1.38,pin:1,seed:s.seed});
-      G.props.push({x:s.x+0.22,y:s.y+0.16,k:'boulder',spr:s.spr==='boulder'?'boulder2':'boulder',s:1.05,cover:1,seed:s.seed+1});
-      G.props.push({x:s.x-0.20,y:s.y+0.24,k:'rubble',spr:'rubble',s:1.12,cover:1,n:12,seed:s.seed+3});
-      G.props.push({x:s.x+0.12,y:s.y-0.18,k:'rubble',spr:'rubble2',s:0.95,cover:1,n:9,seed:s.seed+5});
+      G.props.push({x:s.x+0.14,y:s.y+0.10,k:'boulder',spr:s.spr||'boulder',s:0.90,pin:1,seed:s.seed});
+      G.props.push({x:s.x-0.22,y:s.y+0.16,k:'rubble',spr:'rubble',s:0.70,cover:1,n:8,seed:s.seed+4});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -1636,7 +1638,6 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
-      e.scale=0.52;
       e.kit=crush.kit||{}; e.corpse=1; e.looted=0;
       if(crush.kit){
         const pk=packOf(r.key);
@@ -3179,8 +3180,10 @@ function layoutUI(){
   const slot = PORT ? Math.max(28, 38*s) : Math.max(34, 46*s);
   const gap = PORT? 5*s : 7*s;
   const rowGap = PORT? 8*s : 10*s;
-  const n=BARSLOTS.length;
-  const extraN=EXTRASLOTS.length;
+  const bar=BARSLOTS;
+  const extras=EXTRASLOTS.filter(b=>!bar.some(x=>x.key===b.key||x.ico===b.ico));
+  const n=bar.length;
+  const extraN=extras.length;
   const barW = n*slot + (n-1)*gap;
   const extraW = extraN*slot + (extraN-1)*gap;
   const skillsW = Math.max(barW, extraW);
@@ -3198,13 +3201,13 @@ function layoutUI(){
   UI.orb = { r:orbR, x: left + orbR, y: midY };
   UI.attack={x:0,y:0,r:slot/2};
   const barLeft = left + orbR*2 + 12*s;
-  BARSLOTS.forEach((b,i)=>{
+  bar.forEach((b,i)=>{
     const x = barLeft + i*(slot+gap) + slot/2;
     const btn={x, y:by, r:slot/2, key:b.key, ico:b.ico, num:b.num, slot:1};
     if(b.key==='attack') UI.attack=btn;
     UIBTN.push(btn);
   });
-  EXTRASLOTS.forEach((b,i)=>{
+  extras.forEach((b,i)=>{
     const x = barLeft + i*(slot+gap) + slot/2;
     UIBTN.push({x, y:extraY, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1});
   });
