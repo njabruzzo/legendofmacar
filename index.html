@@ -1547,10 +1547,10 @@ function campRest(){
     if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE);
     if(typeof clearPoison==='function') clearPoison(e);
   });
-  G.sleepShow={t:0, dur:2.8};
+  G.sleepShow={t:0, dur:5};
   G.flash={c:'#ffb45c',a:.18};
-  say(healed?'Eight hours by the fire. The kin wake whole.':'Eight hours. Already whole.','#ffe08a');
-  hint('Macar sleeps by the fire. Hit points restored.',3.6);
+  say('Macar decides to camp to rest and heal.','#ffe08a');
+  hint(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.',5);
 }
 function nearestCorpse(e, r){
   let best=null, bd=r;
@@ -3223,7 +3223,11 @@ function btnAt(x,y){ for(const b of UIBTN) if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) 
 
 const pressed={};
 function onDown(id,x,y,ptr){
-  if(G.sleepShow){ endSleepShow(); return; }
+  if(G.sleepShow){
+    const b=btnAt(x,y);
+    if(b&&b.key==='pause'){ G.paused=!G.paused; return; }
+    return;
+  }
   if(G.scene!=='play'||G.paused){ IN.taps.push({x,y}); return; }
   const b=btnAt(x,y);
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
@@ -3269,8 +3273,8 @@ window.addEventListener('keydown',e=>{
   }
   if(G.scene!=='play'){ IN.taps.push({x:VW/2,y:VH/2}); return; }
   if(G.sleepShow){
-    if(e.key==='Escape'){ endSleepShow(); G.paused=!G.paused; return; }
-    endSleepShow(); return;
+    if(e.key==='Escape') G.paused=!G.paused;
+    return;
   }
   if(e.key===' '){ fire('attack'); e.preventDefault(); }
   if(e.key==='e'||e.key==='Enter') fire('use');
@@ -3295,7 +3299,7 @@ window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 function fire(key){
   if(G.scene!=='play') return;
   if(key==='pause'){ G.paused=!G.paused; return; }
-  if(G.sleepShow){ endSleepShow(); return; }
+  if(G.sleepShow) return;
   if(G.paused) return;
   const p=player(); if(!p) return;
   if(key==='attack'){ p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return; }
@@ -5766,10 +5770,10 @@ function menuBtn(g,label,cx,cy,w,h,fn,dim){
 function drawSleepRest(g){
   const s=UIS, show=G.sleepShow; if(!show) return;
   const t=show.t||0;
-  const a=clamp(t/0.28,0,1)*clamp((show.dur-t)/0.35,0,1);
+  const a=clamp(t/0.35,0,1)*clamp((show.dur-t)/0.4,0,1);
   g.save();
   g.globalAlpha=a;
-  darken(g,.68);
+  darken(g,.72);
   const gx=VW*0.36, gy=VH*0.62;
   const glow=g.createRadialGradient(gx,gy,18*s,gx,gy,Math.max(VW,VH)*0.62);
   glow.addColorStop(0,'rgba(255,150,55,0.34)');
@@ -5777,26 +5781,25 @@ function drawSleepRest(g){
   glow.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=glow; g.fillRect(0,0,VW,VH);
   const img=SPR.macar_sleep;
+  const caption='Macar decides to camp to rest and heal.';
   g.textAlign='center';
-  g.font='800 '+((PORT?18:26)*s)+'px '+FONT_TITLE;
-  g.fillStyle='#ffe9c0';
-  g.fillText('REST', VW/2, VH*0.09);
   if(img){
     const maxW=Math.min(VW*0.86, 640*s);
-    const maxH=VH*0.66;
+    const maxH=VH*0.68;
     const sc=Math.min(maxW/img.width, maxH/img.height);
     const w=img.width*sc, h=img.height*sc;
     g.globalAlpha=a;
-    g.drawImage(img, (VW-w)/2, VH*0.12, w, h);
+    g.drawImage(img, (VW-w)/2, VH*0.10, w, h);
   }
   g.globalAlpha=a;
-  g.font='600 '+((PORT?12:14.5)*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(255,214,150,0.95)';
-  g.fillText('Macar sleeps by the fire.', VW/2, VH*0.86);
-  if(t>0.7){
-    g.font='600 '+(10*s)+'px '+FONT_UI;
-    g.fillStyle='rgba(190,168,128,0.78)';
-    g.fillText('Click to wake', VW/2, VH*0.915);
+  g.font='600 '+((PORT?12.5:16)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(255,214,150,0.96)';
+  const maxCaption=VW*0.88;
+  if(g.measureText(caption).width<=maxCaption){
+    g.fillText(caption, VW/2, VH*0.88);
+  } else {
+    g.fillText('Macar decides to camp', VW/2, VH*0.855);
+    g.fillText('to rest and heal.', VW/2, VH*0.90);
   }
   g.textAlign='left';
   g.restore();
@@ -6309,7 +6312,7 @@ function drawPause(g){
 function resolveTaps(){
   while(IN.taps.length){
     const t=IN.taps.shift();
-    if(G.sleepShow){ endSleepShow(); continue; }
+    if(G.sleepShow) continue;
     if(G.scene==='play'&&!G.paused){
       if(promptBtn&&t.x>promptBtn.x&&t.x<promptBtn.x+promptBtn.w&&t.y>promptBtn.y&&t.y<promptBtn.y+promptBtn.h){
         fire('use'); continue; }
