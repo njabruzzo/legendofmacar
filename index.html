@@ -530,7 +530,7 @@ function propSpriteH(p,z){
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
-  if(k==='rubywall'||k==='rubydoor') return 172*z;
+  if(k==='rubywall'||k==='rubydoor') return 96*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -1220,9 +1220,10 @@ function makeChapter(n){
     L.crush=CRUSH_SPOTS;
     L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
+    L.rubyDoor={x:36.45,y:10.22};
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:23.85,y:19.32,c:'#ff2f3a',r:8.2,f:1.75},
+              {x:36.45,y:10.45,c:'#ff2f3a',r:6.4,f:1.45},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -1232,8 +1233,8 @@ function makeChapter(n){
       {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
       {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
-      {x:35,y:11.4,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:23.85,y:19.12,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
+      {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
+      {x:36.45,y:10.22,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
       {x:27.2,y:12.2,k:'shroom'},{x:31.6,y:13.4,k:'shroom'},{x:25.4,y:29.8,k:'shroom'},
       {x:42.2,y:12.8,k:'shroom'},{x:45.8,y:29.2,k:'shroom'},{x:40.5,y:30.4,k:'shroom'},
       {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
@@ -1289,7 +1290,7 @@ function makeChapter(n){
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
         return {x:bodies[0].x,y:bodies[0].y};
       }
-      return !L.flags.touched?{x:23.85,y:19.25}:!L.flags.cleared?null:{x:36.5,y:21.5};
+      return !L.flags.touched?(L.rubyDoor||{x:36.45,y:10.35}):!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -1297,11 +1298,12 @@ function makeChapter(n){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
       }
-      if(!L.flags.touched && dist(p,{x:23.85,y:19.58})<2.2){
+      const door=L.rubyDoor||{x:36.45,y:10.22};
+      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.55})<2.35){
         interact('Touch the ruby door',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby door is warm. It knows your name.','#ff6a6a');
-          [[18.2,21.8],[22.0,21.6],[19.0,23.4],[22.4,23.2],[24.6,21.0],[16.8,22.6]].forEach((s,i)=>{
+          [[33.6,12.4],[39.2,12.2],[32.4,14.6],[40.1,14.8],[36.4,13.6],[34.8,15.8]].forEach((s,i)=>{
             const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
           say('The guardians wake from the stone around the door.','#d8cbb0');
           hint('Six guardians. Kill them, then the elevator will descend.',6);
@@ -3941,7 +3943,7 @@ function render(){
   g.fillStyle=L?L.pal.fogTop:'#07060a'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
     && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
-  if(inWorld){ drawWorld(g,L); applyLighting(g,L); drawGodRays(g); drawBloom(g); drawAtmosphere(g,L); drawFloaters(g); }
+  if(inWorld){ drawWorld(g,L); applyLighting(g,L); drawGodRays(g); drawBloom(g); drawBeyondMask(g,L); drawAtmosphere(g,L); drawFloaters(g); }
   g.restore();
   if(G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   if(G.hurt>0.02){ const v=g.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*.25,VW/2,VH/2,Math.max(VW,VH)*.62);
@@ -3994,7 +3996,7 @@ function drawWorld(g,L){
   if(L.plug&&!L.flags.broke) push((L.plug.x+L.plug.y)|0,()=>drawPlug(g,L));
 
   const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
-  const p=player(), pd=p?p.x+p.y:0, ps=p?w2s(p.x,p.y):null;
+  const p=player();
   const okTex=TEX.ready;
   if(p&&p.dest) push((p.dest.x+p.dest.y)|0,()=>drawMoveMark(g,p.dest));
 
@@ -4008,10 +4010,6 @@ function drawWorld(g,L){
         const oS=L.grid[y+1]&&(L.grid[y+1][x]===0||L.grid[y+1][x]===3||L.grid[y+1][x]===4);
         const oE=L.grid[y]&&(L.grid[y][x+1]===0||L.grid[y][x+1]===3||L.grid[y][x+1]===4);
         if(!oS&&!oE) continue;
-        // fade walls that stand between the camera and Macar
-        let a=1;
-        if(ps && d>pd+0.6 && Math.abs(ps.x-s.x)<TW*0.62 && ps.y>s.y-WH*1.15 && ps.y<s.y+TH*0.9) a=0.34;
-        if(a<1) g.globalAlpha=a;
         if(okTex){
           const vein = h2(x*3,y*7)>0.86;
           const wv=[SPR.wall_cave, SPR.wall_cave_w1, SPR.wall_cave_w2, SPR.wall_cave_atk].filter(Boolean);
@@ -4028,7 +4026,6 @@ function drawWorld(g,L){
           if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
           if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
         } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
-        if(a<1) g.globalAlpha=1;
       } else {
         const key=palFloorKey(pal);
         const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
@@ -4167,15 +4164,20 @@ function addDecal(x,y,scale){
 
 /* ---------------------------- lighting ---------------------------- */
 function gatherLights(L){
-  const out=L.lights.map(l=>({x:l.x,y:l.y,c:l.c,r:l.r,f:l.f||1,fl:1}));
+  const seen=(x,y)=>{ if(!L||!L.seen) return true; const i=x|0, j=y|0; return !!(L.seen[j]&&L.seen[j][i]); };
+  const out=[];
+  for(const l of (L.lights||[])){
+    if(!seen(l.x,l.y)) continue;
+    out.push({x:l.x,y:l.y,c:l.c,r:l.r,f:l.f||1,fl:1});
+  }
   const p=player();
   if(p) out.push({x:p.x,y:p.y,c:'#ffd6a0',r:6.6,f:1.05,fl:0});
   for(const e of G.ents) if(!e.dead&&e.boss&&e.glow) out.push({x:e.x,y:e.y,c:e.glow,r:7,f:1.3,fl:1});
   for(const s of G.shots) out.push({x:s.x,y:s.y,c:s.col,r:2.6,f:1.1,fl:0});
   for(const pr of G.props){
-    if(L&&L.seen){ const i=pr.x|0, j=pr.y|0; if(!(L.seen[j]&&L.seen[j][i])) continue; }
+    if(!seen(pr.x,pr.y)) continue;
     if(pr.k==='shroom') out.push({x:pr.x,y:pr.y,c:'#b06cff',r:3.4,f:0.72,fl:1});
-    if(pr.k==='rubywall'||pr.k==='rubydoor') out.push({x:pr.x,y:pr.y,c:'#ff2a3c',r:8.2,f:1.35,fl:1});
+    if(pr.k==='rubywall'||pr.k==='rubydoor') out.push({x:pr.x,y:pr.y,c:'#ff2a3c',r:5.2,f:1.15,fl:1});
     if(pr.k==='brazier') out.push({x:pr.x,y:pr.y,c:'#ff8a3a',r:5.5,f:1.1,fl:1});
     if(pr.k==='trap'&&pr.trap==='trap_runes') out.push({x:pr.x,y:pr.y,c:'#c07bff',r:2.6,f:0.7,fl:1});
     if(pr.k==='gate') out.push({x:pr.x,y:pr.y,c:'#6fd0ff',r:4.2,f:0.8,fl:1});
@@ -4248,6 +4250,34 @@ function drawBloom(g){
   if(CAN_BLUR) g.filter='blur('+(10*Math.max(1,ZOOM))+'px)';
   g.globalAlpha=0.62; g.drawImage(BL,0,0,VW,VH);
   g.filter='none'; g.globalAlpha=1; g.globalCompositeOperation='source-over';
+  g.restore();
+}
+
+function drawBeyondMask(g,L){
+  if(!L||!L.grid) return;
+  const c=[s2w(-TW,-TH*5),s2w(VW+TW,-TH*5),s2w(-TW,VH+TH*5),s2w(VW+TW,VH+TH*5)];
+  const minx=Math.max(0,Math.floor(Math.min(c[0].x,c[1].x,c[2].x,c[3].x))-1);
+  const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1);
+  const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1);
+  const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
+  const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
+  const rock=L.pal.fogTop||'#07060a';
+  g.save();
+  g.globalCompositeOperation='source-over';
+  g.fillStyle=rock;
+  const open=t=>t===0||t===3||t===4;
+  for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
+    const t=L.grid[y][x];
+    const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
+    const oE=L.grid[y]&&open(L.grid[y][x+1]);
+    const hiddenRock=(t===1||t===2)&&!oS&&!oE;
+    if(!hiddenRock) continue;
+    const s=w2s(x,y);
+    diamondPath(g,s.x,s.y); g.fill();
+    if(t===1||t===2||hiddenRock){
+      g.fillRect(s.x-TW/2, s.y-WH-FH/2, TW, SH);
+    }
+  }
   g.restore();
 }
 
@@ -4433,7 +4463,7 @@ function drawProp(g,p,pal){
         life:rnd(1.5,.7),max:1.5,c:'#ffab52',s:rnd(2.4,1),amb:1});
     }else if(k==='rubywall'||k==='rubydoor'){
       const on=k==='rubydoor'||!(G.lvl&&G.lvl.flags.cleared);
-      if(on){ emit(s.x,s.y-78*z,110*z,'#ff2a3c',1.35); ray(s.x,s.y-110*z,86*z,'#ff4058',0.9); }
+      if(on){ emit(s.x,s.y-42*z,54*z,'#ff2a3c',1.05); ray(s.x,s.y-52*z,48*z,'#ff4058',0.55); }
     }else if(k==='gate'){
       emit(s.x,s.y-54*z,80*z,'#6fd0ff',0.75);
     }else if(k==='bronzedoor'){
@@ -4610,7 +4640,7 @@ function drawProp(g,p,pal){
     g.lineTo(38*z,-10*z); g.closePath(); sc(g,'#2c2420',-148*z,-10*z,2.2);
     g.fillStyle='rgba(0,0,0,0.28)'; g.fillRect(2*z,-118*z,34*z,104*z);
     const gemB=drawFacetGem(g,0,-78*z,26*z,34*z,on,z);
-    if(on){ emit(s.x,s.y-78*z,110*z*gemB,'#ff2a3c',1.45); ray(s.x,s.y-110*z,86*z,'#ff4058',0.95); }
+    if(on){ emit(s.x,s.y-48*z,58*z*gemB,'#ff2a3c',1.05); ray(s.x,s.y-56*z,48*z,'#ff4058',0.55); }
     break; }
   case 'lift':{ const on=G.lvl&&(G.lvl.flags.cleared||G.lvl.n===2);
     softShadow(g,0,0,54*z,26*z,.6);
@@ -4663,7 +4693,7 @@ function drawProp(g,p,pal){
     g.strokeStyle='rgba(190,60,48,0.45)'; g.lineWidth=2.4*z;
     for(let i=0;i<5;i++){ g.beginPath(); g.moveTo(-30*z,-22*z-i*18*z); g.lineTo(30*z,-22*z-i*18*z); g.stroke(); }
     const gemB=drawFacetGem(g,0,-78*z,26*z,32*z,on,z);
-    emit(s.x,s.y-78*z,110*z*gemB,'#ff2a3c',1.25); ray(s.x,s.y-110*z,80*z,'#ff4058',0.7); break; }
+    emit(s.x,s.y-48*z,54*z*gemB,'#ff2a3c',1.0); ray(s.x,s.y-56*z,44*z,'#ff4058',0.5); break; }
   case 'altar':{ softShadow(g,0,0,46*z,22*z,.55);
     g.beginPath(); g.moveTo(-38*z,-6*z); g.lineTo(0,-26*z); g.lineTo(38*z,-6*z); g.lineTo(0,15*z); g.closePath();
     sc(g,'#6d5646',-26*z,15*z,2.2);
