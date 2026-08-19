@@ -1180,13 +1180,13 @@ const ALLY={
 
 /* ---------------------------- abilities ---------------------------- */
 const ABIL=[
- {key:'swing',label:'SWING',ico:'hammer',cd:6, hint:'Hammer arc, all around you'},
+ {key:'swing',label:'Attack',ico:'hammer',cd:6, hint:'Hammer arc, all around you'},
  {key:'throw',label:'PICK', ico:'pick',  cd:4, hint:'Hurl the pickaxe'},
- {key:'bomb', label:'BOMB', ico:'bomb',  cd:3, hint:'Aim, then throw a bomb. 10d10'},
- {key:'bow',  label:'BOW',  ico:'crossbow', cd:1.4, hint:'Loose a quarrel. Spent bolts may save and be retrieved'},
+ {key:'bomb', label:'Throw',ico:'bomb',  cd:3, hint:'Aim, then throw a bomb. 10d10'},
+ {key:'bow',  label:'Shoot',ico:'crossbow', cd:1.4, hint:'Loose a quarrel. Spent bolts may save and be retrieved'},
  {key:'pack', label:'PACK', ico:'pack',  cd:0, hint:'Each kin keeps their own pack'},
- {key:'wall', label:'GUARD',ico:'shield',cd:15,hint:'Half damage for 5s'},
- {key:'ale',  label:'ALE',  ico:'flask', cd:12,hint:'Passed round. Heals the kin'},
+ {key:'wall', label:'Defend',ico:'shield',cd:0, hint:'Armor class +4. No attacks while the shield is up'},
+ {key:'ale',  label:'Heal', ico:'flask', cd:12,hint:'Passed round. Heals the kin'},
  {key:'rally',label:'RALLY',ico:'horn',  cd:26,hint:'Kin hit harder, all heal'},
 ];
 const cds={}; ABIL.forEach(a=>cds[a.key]=0);
@@ -1451,7 +1451,7 @@ function makeChapter(n){
         wave([['undead',42,44],['umberhulk',54,44],['burrower',48,46],['otyugh',45,42],['roper',51,46],['gelcube',48,40],
           ['puddingBrown',44,42],['basiliskGreater',52,40]]);
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
-        hint('Keep moving. GUARD when he winds up.',5);}
+        hint('Keep moving. Defend when he winds up.',5);}
       if(L.flags.w1 && !G.fightOn){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
@@ -2050,7 +2050,8 @@ function partyAC(e, opts){
   ac-=Math.floor((g.at||0)/2);
   ac-=(g.magicAc||0);
   if((g.cd||0)>55) ac-=1;
-  if(e.guard) ac-=2;
+  if(e.defending) ac-=4;
+  else if(e.guard) ac-=2;
   if(e.hero&&g.rune) ac-=1;
   return clamp(ac,-8,10);
 }
@@ -3371,67 +3372,58 @@ const IN={stick:null,keys:{},taps:[]};
 const UIBTN=[];
 const UI={};
 
-const BARSLOTS=[
-  {key:'ale',   ico:'flask',    num:2, label:'ALE'},
-  {key:'camp',  ico:'campfire', num:3, label:'CAMP'},
-];
-const EXTRASLOTS=[
-  {key:'swing', ico:'hammer', label:'SWING'},
-  {key:'bow', ico:'crossbow', label:'BOW'},
-  {key:'wall',  ico:'shield', label:'GUARD'},
-  {key:'bomb',  ico:'bomb',   label:'BOMB'},
-  {key:'search', ico:'plant', label:'SEARCH'},
-  {key:'secret', ico:'secret', label:'SEARCH'},
-  {key:'climb', ico:'climb', label:'CLIMB'},
-  {key:'shovel', ico:'shovel', label:'DIG'},
+const HUDROWS=[
+  [
+    {key:'wall', ico:'shield', label:'Defend'},
+    {key:'attack', ico:'hammer', label:'Attack'},
+    {key:'bow', ico:'crossbow', label:'Shoot'},
+    {key:'bomb', ico:'bomb', label:'Throw'},
+    {key:'ale', ico:'flask', label:'Heal'},
+  ],
+  [
+    {key:'search', ico:'plant', label:'Search'},
+    {key:'secret', ico:'secret', label:'Search'},
+    {key:'shovel', ico:'shovel', label:'Dig'},
+    {key:'camp', ico:'campfire', label:'Camp'},
+  ],
 ];
 
 function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
-  const slot = PORT ? Math.max(76, 90*s) : Math.max(56, 70*s);
-  const gap = PORT? 6*s : 8*s;
-  const rowGap = PORT? 24*s : 20*s;
-  const bar=BARSLOTS;
-  const extras=EXTRASLOTS.filter(b=>!bar.some(x=>x.key===b.key||x.ico===b.ico));
-  const perRow = PORT ? 3 : 4;
-  const extraRows=[];
-  for(let i=0;i<extras.length;i+=perRow) extraRows.push(extras.slice(i,i+perRow));
-  const n=bar.length;
-  const barW = n*slot + (n-1)*gap;
-  const extraW = Math.max(barW, ...extraRows.map(r=>r.length*slot+(r.length-1)*gap));
-  const skillsW = Math.max(barW, extraW);
-  const extraRowN=extraRows.length;
-  const stackH = slot*(extraRowN+1) + rowGap*extraRowN;
-  const orbR = PORT ? slot*0.82 : Math.min(slot*1.12, stackH/2);
-  const totalW = orbR*2 + 12*s + skillsW;
-  const by = VH - (PORT? 44*s : 34*s) - slot/2;
-  const midY = by - Math.min(stackH, slot*2.2)/2 + slot/2;
+  const slot = PORT ? Math.max(46, Math.min(56, 52*s)) : Math.max(40, Math.min(50, 46*s));
+  const gap = PORT? 4*s : 6*s;
+  const rowGap = PORT? 20*s : 18*s;
+  const rows=HUDROWS;
+  const perRow = Math.max(...rows.map(r=>r.length));
+  const skillsW = perRow*slot + (perRow-1)*gap;
+  const stackH = slot*rows.length + rowGap*(rows.length-1);
+  const orbR = Math.min(stackH/2, PORT ? slot*1.18 : slot*1.22);
+  const totalW = orbR*2 + 10*s + skillsW;
+  const by = VH - (PORT? 32*s : 26*s) - slot/2;
+  const topY = by - (rows.length-1)*(slot+rowGap);
+  const midY = (topY+by)/2;
   let left = VW/2 - totalW/2;
-  const stickReserve = (PORT? 52*s : 128*s);
+  const stickReserve = (PORT? 48*s : 118*s);
   if(left < stickReserve) left = stickReserve;
   if(left + totalW > VW - 8*s) left = Math.max(8*s, VW - totalW - 8*s);
 
   UI.orb = { r:orbR, x: left + orbR, y: midY };
   UI.attack={x:0,y:0,r:slot/2};
-  const barLeft = left + orbR*2 + 12*s;
-  bar.forEach((b,i)=>{
-    const x = barLeft + i*(slot+gap) + slot/2;
-    const btn={x, y:by, r:slot/2, key:b.key, ico:b.ico, num:b.num, slot:1};
-    if(b.key==='attack') UI.attack=btn;
-    UIBTN.push(btn);
-  });
-  extraRows.forEach((row,ri)=>{
-    const y = by - (ri+1)*(slot+rowGap);
+  const barLeft = left + orbR*2 + 10*s;
+  rows.forEach((row,ri)=>{
+    const y = topY + ri*(slot+rowGap);
     row.forEach((b,i)=>{
       const x = barLeft + i*(slot+gap) + slot/2;
-      UIBTN.push({x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1});
+      const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
+      if(b.key==='attack') UI.attack=btn;
+      UIBTN.push(btn);
     });
   });
-  UI.hudTop = extraRows.length ? (by - extraRows.length*(slot+rowGap) - (PORT?20:14)*s) : (by - slot);
+  UI.hudTop = topY - slot/2 - (PORT?16:12)*s;
   UIBTN.push({x:VW-(PORT?88*s:118*s)-28*s, y:22*s, r:14*s, key:'pause'});
   UIBTN.push({x:UI.orb.x, y:UI.orb.y, r:UI.orb.r, key:'pack', ico:'pack', label:'PACK', packOrb:1});
-  UI.stickHome={ x: (PORT? 52*s : 78*s), y: VH - (PORT? 118*s : 112*s), r: (PORT?36*s:46*s) };
+  UI.stickHome={ x: (PORT? 48*s : 78*s), y: VH - (PORT? 108*s : 104*s), r: (PORT?32*s:42*s) };
 }
 function btnAt(x,y){ for(const b of UIBTN) if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) return b; return null; }
 
@@ -3497,13 +3489,13 @@ window.addEventListener('keydown',e=>{
   if(e.key==='3'||k==='c') fire('camp');
   if(e.key==='4'||k==='i'||k==='p') fire('pack');
   if(e.key==='5') fire('rally');
+  if(k==='d') fire('wall');
   if(k==='q') fire('swing');
   if(k==='r') fire('throw');
   if(k==='b') fire('bomb');
   if(k==='x') fire('bow');
   if(k==='f') fire('search');
   if(k==='t') fire('secret');
-  if(k==='v') fire('climb');
   if(k==='g') fire('shovel');
   if(e.key==='Escape'){
     if(G.inspect){ G.inspect=null; return; }
@@ -3513,14 +3505,37 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 
 /* ---------------------------- abilities ---------------------------- */
+function refuseAttack(p){
+  if(!p||!p.defending) return false;
+  hint('Defend is up. Lower the shield to attack.',2.6);
+  say('Macar holds. No attacks while the shield is raised.','#cfe3ff');
+  return true;
+}
 function fire(key){
   if(G.scene!=='play') return;
   if(key==='pause'){ G.paused=!G.paused; return; }
   if(G.sleepShow) return;
   if(G.paused) return;
   const p=player(); if(!p) return;
-  if(key==='attack'){ p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return; }
+  if(key==='attack'){
+    if(refuseAttack(p)) return;
+    p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
+  }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
+  if(key==='wall'){
+    p.defending=!p.defending;
+    if(p.defending){
+      p.atk=0; p.swung=0; p.aim=null; p.dest=null; G.aim=null;
+      burst(p.x,p.y,'#cfe3ff',18,2.4);
+      ftext(p.x,p.y-.5,'DEFEND','#cfe3ff');
+      say('Macar raises the shield. Armor class 4 better. No attacks.','#cfe3ff');
+      hint('Defend: AC +4. Attack, Shoot, and Throw are blocked until you lower it.',3.8);
+    } else {
+      ftext(p.x,p.y-.5,'SHIELD DOWN','#c9b895');
+      hint('Shield lowered. You can attack again.',2.2);
+    }
+    return;
+  }
   if(key==='search'){
     if(G.searching){ G.searching=0; hint('Stopped searching.',1.8); return; }
     G.searching=1; G.secretSearch=0; G.digging=0; G.dig=null;
@@ -3573,6 +3588,7 @@ function fire(key){
     return;
   }
   if(key==='bomb'){
+    if(refuseAttack(p)) return;
     if(G.aim){ G.aim=null; return; }
     syncPackTotals();
     if(partyCount('bombs')<=0){ hint('No bombs in any pack. Craft more at the bench.',2.8); return; }
@@ -3583,6 +3599,7 @@ function fire(key){
     return;
   }
   if(key==='bow'){
+    if(refuseAttack(p)) return;
     syncPackTotals();
     if(partyCount('ammo')<=0){ hint('No bolts. Buy from Noz, or pick quarrels that save.',3); return; }
     if(cds.bow>0) return;
@@ -3597,6 +3614,7 @@ function fire(key){
     return;
   }
   const a=ABIL.find(z=>z.key===key); if(!a||cds[key]>0) return;
+  if((key==='swing'||key==='throw') && refuseAttack(p)) return;
   cds[key]=a.cd; p.dest=null;
   if(key==='swing'){ p.atk=p.atkMax*1.5; p.swung=1; meleeSwing(p,TAU,2.6,44,'#ffd27a');
     burst(p.x,p.y,'#ffcf5c',28,4.6); shake(12); ftext(p.x,p.y-.6,'HAMMER ARC','#ffd27a',1);
@@ -3606,9 +3624,8 @@ function fire(key){
     const heal=8+skillLvl('ale')*2; let n=0;
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead&&dist(e,p)<6.5){
       applyHeal(e, heal); n++; } });
-    learn('ale',3); say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
+    learn('ale',3);     say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
   }
-  if(key==='wall'){ p.guardT=5; burst(p.x,p.y,'#cfe3ff',18,2.4); ftext(p.x,p.y-.5,'GUARD','#cfe3ff'); }
   if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
     const thrower=G.ents.find(z=>z.role==='pick'&&!z.dead)||p;
     thrower.fdx=Math.cos(ang(tx-thrower.x,ty-thrower.y)); thrower.fdy=Math.sin(ang(tx-thrower.x,ty-thrower.y));
@@ -3695,18 +3712,19 @@ function update(dt){
     if(analog && analog<1) sp*=analog;
     steerWalk(p, dx, dy, sp, dt);
     if(p.moving) recordTrail(p);
-    p.guard = (p.guardT=Math.max(0,(p.guardT||0)-dt))>0;
+    p.guardT=Math.max(0,(p.guardT||0)-dt);
+    p.guard = !!p.defending || p.guardT>0;
     const stepped=nearestLoot(p,0.7);
     if(stepped) takeLoot(stepped);
 
     // auto-attack while standing in reach (Baldur's Gate: never swing while walking)
-    if(!G.digging){
+    if(!G.digging && !p.defending){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
         turnToward(p, t.x-p.x, t.y-p.y, dt, 18);
         p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
       if(!t) p.aim=null;
-    }
+    } else if(p.defending) p.aim=null;
 
     G.cam.x=lerp(G.cam.x,p.x,1-Math.pow(.0004,dt));
     G.cam.y=lerp(G.cam.y,p.y,1-Math.pow(.0004,dt));
@@ -3781,12 +3799,15 @@ function update(dt){
     if(e.buff>0) e.buff-=dt;
     if(e.ct>0) e.ct-=dt;
     if(e.atk>0){
-      e.atk-=dt;
-      if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
-        if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
-          if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
-        } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
-      if(e.atk<=0) e.swung=0;
+      if(e.hero && e.defending){ e.atk=0; e.swung=0; }
+      else {
+        e.atk-=dt;
+        if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
+          if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
+            if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
+          } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
+        if(e.atk<=0) e.swung=0;
+      }
     }
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
@@ -5951,7 +5972,7 @@ function slotAnimImg(b){
   if(!k) return null;
   const ab=ABIL.find(a=>a.key===b.key);
   if(b.hold && SPR[k+'_atk']) return SPR[k+'_atk'];
-  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)) return SPR[k+'_atk']||SPR[k]||null;
+  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)) return SPR[k+'_atk']||SPR[k]||null;
   if(ab && cds[ab.key]>0 && cds[ab.key]>ab.cd-0.22 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(!(ab && cds[ab.key]>0)){
     const a=SPR[k+'_w1'], c=SPR[k+'_w2']||SPR[k];
@@ -5966,7 +5987,7 @@ function drawSlot(g,b,s){
   const ico=b.ico||(b.key==='attack'?'sword':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
-  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)){
+  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)){
     g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
@@ -6011,11 +6032,11 @@ function drawSlot(g,b,s){
     const left=G.dig?Math.max(0,DIG_MINUTES-G.dig.min):DIG_MINUTES;
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+'m', b.x, b.y+R*0.62); g.textAlign='left'; }
-  if(b.label && !b.num){
-    g.font='800 '+((PORT?13:10)*s)+'px '+FONT_UI; g.textAlign='center';
+  if(b.label){
+    g.font='800 '+((PORT?9.5:8.5)*s)+'px '+FONT_UI; g.textAlign='center';
     g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText(b.label, b.x, b.y-R-4*s);
-    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-4*s); g.textAlign='left'; }
+    g.strokeText(b.label, b.x, b.y-R-3*s);
+    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-3*s); g.textAlign='left'; }
 }
 
 function drawButtons(g,s){
@@ -6639,7 +6660,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('4/P pack  ·  X bow  ·  F search  ·  T secret  ·  V climb  ·  C camp',VW/2,VH*.31);
+  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp',VW/2,VH*.31);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
@@ -6659,9 +6680,10 @@ function resolveTaps(){
     if(G.scene==='play'&&!G.paused){
       if(promptBtn&&t.x>promptBtn.x&&t.x<promptBtn.x+promptBtn.w&&t.y>promptBtn.y&&t.y<promptBtn.y+promptBtn.h){
         fire('use'); continue; }
-      if(throwBtn&&t.x>throwBtn.x&&t.x<throwBtn.x+throwBtn.w&&t.y>throwBtn.y&&t.y<throwBtn.y+throwBtn.h){
-        cds.bomb=ABIL.find(a=>a.key==='bomb').cd; throwBomb(); continue; }
       const p=player(); if(!p) continue;
+      if(throwBtn&&t.x>throwBtn.x&&t.x<throwBtn.x+throwBtn.w&&t.y>throwBtn.y&&t.y<throwBtn.y+throwBtn.h){
+        if(refuseAttack(p)) continue;
+        cds.bomb=ABIL.find(a=>a.key==='bomb').cd; throwBomb(); continue; }
       const w=s2w(t.x,t.y+22*ZOOM);
       if(G.aim){ const d=dist(p,w), R=8;
         G.aim = d>R ? {x:p.x+(w.x-p.x)/d*R, y:p.y+(w.y-p.y)/d*R} : {x:w.x,y:w.y};
