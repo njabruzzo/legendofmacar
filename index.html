@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=29">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=29">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=29" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=30">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=30">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=30" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=29"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=30"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -170,7 +170,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='29';
+const ASSET_VER='30';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -288,6 +288,7 @@ const SPRITE_FILES={
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png', rubydoor:'assets/props/prop_rubydoor.png',
   rubywall:'assets/props/prop_rubywall.png',
   bronzedoor:'assets/props/prop_bronzedoor.png',
+  bell:'assets/props/prop_bell.png',
   tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', sack:'assets/props/prop_sack.png',
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
@@ -345,7 +346,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(/_(w1|w2|atk|dead|sleep)\.png$/.test(src)) return;
   if(/_(dead|sleep)$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
-  if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble)/.test(src)) return;
+  if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble|bronzedoor|bell)/.test(src)) return;
   if(/loot_/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
@@ -365,7 +366,7 @@ function loadSprites(done){
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_chest','loot_gems','loot_jewelry','loot_potion',
     'boulder','boulder2','cavein','rubble','rubble2',
-    'rubydoor','shroom','lantern','floor_mine','wall_cave'];
+    'rubydoor','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave'];
   const seen={};
   const queue=[];
   first.forEach(k=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; queue.push(k); } });
@@ -503,6 +504,7 @@ function propSpriteKey(p){
   if(k==='rubywall') return SPR.rubywall?'rubywall':'rubydoor';
   if(k==='rubydoor') return 'rubydoor';
   if(k==='bronzedoor') return 'bronzedoor';
+  if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
   if(k==='barrel') return 'crate';
   if(k==='sack') return SPR.sack?'sack':'crate';
@@ -526,7 +528,8 @@ function propSpriteH(p,z){
   if(k==='rubywall'||k==='rubydoor') return 172*z;
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
-  if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 120*z;
+  if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
+  if(k==='bell') return 58*z;
   if(k==='chain') return 96*z;
   if(k==='timber') return 100*z;
   if(k==='lantern') return 102*z;
@@ -1119,6 +1122,7 @@ const BESTIARY={
   wraith:{n:'Mine Wraith',spr:'wraith',hp:43,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#80d0ff',sc:1.1,ranged:1,rng:5.2,sa:'Energy Drain'},
   beetleBoring:{n:'Boring Beetle',spr:'beetle_boring',hp:40,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.15,sa:'Poison',poison:1,k:'beetle'},
   spiderGiant:{n:'Giant Spider',spr:'spider_giant',hp:36,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.25,sa:'Poison',poison:1,k:'spider'},
+  spiderLord:{n:'Spider Lord',spr:'spider_giant',hp:78,ac:3,mv:12,at:2,dmg:7,tt:'C',dc:80,g:'#c07bff',sc:1.62,sa:'Poison',poison:1,k:'spider',boss:1,r:.52},
   spiderHuge:{n:'Huge Spider',spr:'spider_huge',hp:18,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.05,sa:'Poison',poison:1,k:'spider'},
   rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
   centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
@@ -1171,7 +1175,7 @@ bindFoeMv();
 const ALLY={
   gnome:()=>ent({kind:'gnome',sprite:'gnome_good',team:'party',ally:1,hp:95,sp:3.4,dmg:11,range:.9,cd:.85,scale:.82,r:.28,name:'PIP',glow:'#ffe08a'}),
   gnomeTinker:()=>ent({kind:'gnome',sprite:'gnome_tinker',team:'party',ally:1,hp:80,sp:2.9,dmg:13,range:5.4,cd:1.55,scale:.84,r:.28,ranged:1,name:'BRAMBLE',glow:'#ffc061'}),
-  noz:()=>ent({kind:'gnome',sprite:'gnome_good',team:'neutral',npc:1,sleeping:1,hp:48,sp:4.8,dmg:8,range:.7,cd:.85,scale:.86,r:.28,name:'Noz',glow:'#ffe08a'}),
+  noz:()=>ent({kind:'gnome',sprite:'gnome_good',team:'neutral',npc:1,sleeping:1,tied:1,hp:48,sp:4.8,dmg:8,range:.7,cd:.85,scale:.86,r:.28,name:'Noz',glow:'#ffe08a'}),
 };
 
 /* ---------------------------- abilities ---------------------------- */
@@ -1298,110 +1302,117 @@ function makeChapter(n){
   }
 
   if(n===2){
-    L.title='Chapter II'; L.sub='The Natural Cavern'; L.pal=PAL.mine;
-    L.w=70; L.h=54; const g=newGrid(L.w,L.h,1); L.grid=g;
-    caveDisk(g,28,31,6.4,5.2,0);
-    caveDisk(g,28,35,4.2,3.4,3);
-    carvePath(g,[[28,31],[18,31],[10,30],[8,30]],2.35,0);
-    caveDisk(g,8.5,30,3.0,2.6,0);
-    rect(g,2,26,6,9,4);
-    carvePath(g,[[28,31],[28,22],[28,18]],2.5,0);
-    caveDisk(g,28,18,5.6,4.4,0);
-    carvePath(g,[[28,15],[32,12],[24,9],[31,6],[28,4]],2.15,0);
-    caveDisk(g,28,4.2,3.4,2.8,3);
-    rect(g,34,9,3,5,1);
-    carvePath(g,[[28,31],[38,31],[46,30],[52,30]],2.3,0);
-    caveDisk(g,46,30,3.6,3.0,0);
-    caveDisk(g,52,30,4.4,3.6,0);
-    L.spawn={x:28.2,y:34.6};
-    L.door={x:8.15,y:30.1};
-    L.camp={x:28,y:18};
-    L.stair={x:28.1,y:4.15};
-    L.secrets=[{x:33.2,y:11.1,i:33,j:10,w:2,h:3,open:0,path:[[33,11],[38,11],[44,11]]}];
-    L.dungeon={x:44,y:11};
-    L.twistBox={x0:20,y0:3,x1:36,y1:15};
+    L.title='Chapter II'; L.sub='The First Floor'; L.pal=PAL.mine;
+    L.w=80; L.h=64; const g=newGrid(L.w,L.h,1); L.grid=g;
+    caveDisk(g,40,8,4.2,3.4,3);
+    caveDisk(g,40,16,6.5,5.3,0);
+    carvePath(g,[[40,10],[40,16]],2.5,0);
+    carvePath(g,[[40,16],[50,16],[58,16],[65,16]],2.3,0);
+    caveDisk(g,65,16,3.2,2.8,0);
+    rect(g,68,12,11,9,4);
+    carvePath(g,[[40,16],[32,16],[26,14],[20,17],[14,15],[10,18],[8,24],[10,30]],2.2,0);
+    caveDisk(g,22,16,2.6,2.2,0);
+    caveDisk(g,10,31,5.5,4.7,0);
+    carvePath(g,[[40,16],[40,24],[40,32]],2.45,0);
+    caveDisk(g,40,32,5.3,4.1,0);
+    carvePath(g,[[40,36],[40,44],[40,52]],2.25,0);
+    caveDisk(g,40,54,3.7,3.1,3);
+    carvePath(g,[[40,46],[34,48],[28,50]],2.05,0);
+    caveDisk(g,27.4,50,2.5,2.1,0);
+    L.spawn={x:40.15,y:8.55};
+    L.door={x:66.85,y:16.05};
+    L.bell={x:65.15,y:16.55};
+    L.camp={x:40,y:32};
+    L.stair={x:40.1,y:54.15};
+    L.collapse={x0:20,y0:47,x1:27,y1:53};
+    L.secrets=[{x:42.35,y:42.05,i:42,j:41,w:2,h:3,open:0,kind:'warrens'}];
+    L.warrenSeed=((Math.random()*1e9)|0)+1;
     L.objs=[{t:'Stand in the four-way cavern',d:0},{t:'Break the goblin band',d:0},
-            {t:'See Noz to the bronze door',d:0},{t:'Trade with Noz',d:0},
-            {t:'Climb the stair to the ruin',d:0}];
-    L.lights=[{x:28,y:34.5,c:'#ff2f3a',r:8.5,f:1.5},{x:28,y:31,c:'#ffb45c',r:6.2,f:1},
-      {x:8.2,y:30,c:'#d4a04a',r:8,f:1.4},{x:28,y:18,c:'#ff8a3a',r:7.2,f:1.15},
-      {x:28,y:4.2,c:'#6fd0ff',r:5.5,f:0.95},{x:52,y:30,c:'#c07bff',r:5.4,f:0.9},
-      {x:44,y:11,c:'#6a8a4a',r:4.4,f:0.7}];
-    G.props=[{x:27.4,y:34.2,k:'lift'},{x:26.2,y:32.6,k:'lantern'},{x:30.1,y:33.4,k:'shroom'},
-      {x:8.15,y:30.1,k:'bronzedoor'},{x:11.4,y:31.4,k:'shroom'},{x:16.5,y:29.6,k:'rubble',spr:'rubble'},
-      {x:28.2,y:18.2,k:'brazier'},{x:26.2,y:19.4,k:'bones'},{x:30.4,y:17.2,k:'sack'},{x:25.6,y:16.8,k:'crate'},
-      {x:28.1,y:4.15,k:'gate'},{x:26.4,y:5.2,k:'lantern'},
-      {x:37.6,y:30.6,k:'web'},{x:41.2,y:29.4,k:'web'},{x:44.8,y:31.2,k:'web'},{x:48.4,y:29.6,k:'web'},
-      {x:50.8,y:31.4,k:'web'},{x:46.2,y:28.6,k:'bones'},{x:39.4,y:31.8,k:'shroom'},
-      {x:32.4,y:12.2,k:'rubble',spr:'rubble2'},{x:24.6,y:8.6,k:'shroom'},{x:31.2,y:6.4,k:'lantern'}];
-    L.guide=()=>!L.flags.fought?L.camp:!L.flags.home?L.door:!L.flags.traded?L.door:L.stair;
+            {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
+            {t:'Climb the south stair to the ruins',d:0}];
+    L.lights=[{x:40,y:8.4,c:'#ff2f3a',r:8.4,f:1.5},{x:40,y:16,c:'#ffb45c',r:6.4,f:1},
+      {x:66.6,y:16,c:'#d4a04a',r:8.2,f:1.45},{x:40,y:32,c:'#ff8a3a',r:6.8,f:1.1},
+      {x:40,y:54,c:'#6fd0ff',r:5.6,f:0.95},{x:10,y:31,c:'#c07bff',r:6.2,f:1.05},
+      {x:27,y:50,c:'#9a8163',r:3.8,f:0.6}];
+    G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
+      {x:66.85,y:16.05,k:'bronzedoor'},{x:65.15,y:16.55,k:'bell'},
+      {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
+      {x:38.6,y:31.4,k:'bones'},{x:42.2,y:33.1,k:'sack'},{x:37.8,y:33.6,k:'crate'},
+      {x:40.1,y:54.15,k:'gate'},{x:38.4,y:52.8,k:'lantern'},
+      {x:32.2,y:16.4,k:'web'},{x:26.2,y:14.6,k:'web'},{x:20.4,y:17.2,k:'web'},
+      {x:14.2,y:15.6,k:'web'},{x:10.4,y:20.2,k:'web'},{x:8.6,y:26.4,k:'web'},
+      {x:11.6,y:29.6,k:'web'},{x:12.8,y:32.4,k:'bones'},{x:8.4,y:32.8,k:'shroom'},
+      {x:24.2,y:49.4,k:'cavein',s:1.12},{x:25.6,y:51.1,k:'boulder',spr:'boulder2',s:1.05},
+      {x:26.8,y:49.2,k:'rubble',spr:'rubble',n:10,s:1.05,seed:11},
+      {x:23.5,y:50.6,k:'rubble',spr:'rubble2',n:9,s:1.0,seed:17},
+      {x:42.6,y:41.6,k:'shroom'},{x:38.2,y:43.2,k:'rubble',spr:'rubble2'}];
+    L.guide=()=>!L.flags.fought?L.camp:!L.flags.home&&!L.flags.traded?L.door:L.stair;
     L.tick=(dt)=>{
       const p=player(); if(!p) return;
       if(!L.flags.placed){
-        L.flags.placed=1; G.gnomeGift=1;
-        wave([['goblin',26.4,17.2],['goblin',29.8,19.4],['goblin',30.6,16.6],['goblin',26.8,19.8],['goblinBoss',28.1,18.1]]);
-        G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'){ e.aggro=4.5; e.sprite=e.sprite||'goblin'; } });
-        const noz=ALLY.noz(); noz.x=28.35; noz.y=16.55; G.ents.push(noz);
-        wave([['spider',44.2,29.4],['spider',47.6,31.2],['spider',49.4,28.8],['spiderGiant',52.1,30.1]]);
-        G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.aggro) e.aggro=3.2; });
-        say('A four-way in living rock. West, bronze. North, goblin-talk. East, silk in the dark.','#c9b895');
+        L.flags.placed=1;
+        wave([['goblin',38.2,31.1],['goblin',42.1,33.2],['goblin',38.8,34.1],['goblin',41.6,30.6],['goblinBoss',40.2,32.15]]);
+        G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'){ e.aggro=4.2; } });
+        const noz=ALLY.noz(); noz.x=40.45; noz.y=31.35; G.ents.push(noz);
+        wave([['spider',32.2,16.1],['spider',26.1,14.6],['spider',20.2,17.2],['spiderHuge',14.1,15.7],
+          ['spider',10.2,20.4],['spider',8.4,25.6],['spiderLord',10.1,31.0]]);
+        G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.aggro) e.aggro=3.1; });
+        say('The ruby cage opens on a four-way in living rock. Left, bronze and gems. Right, silk. Straight, goblin-talk.','#c9b895');
       }
-      if(!L.flags.scouted&&Math.hypot(p.x-28,p.y-31)<4.2){ L.flags.scouted=1; L.objs[0].d=1; }
-      if(dist(p,L.camp)<7.5) G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'&&!e.dead) e.aggro=99; });
-      if(p.x>40) G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.dead) e.aggro=99; });
+      if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
+      if(dist(p,L.camp)<7.2) G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'&&!e.dead) e.aggro=99; });
+      if(p.x<28 || dist(p,{x:10,y:31})<10) G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.dead) e.aggro=99; });
       if(L.flags.placed&&!L.flags.fought&&!G.ents.some(e=>e.kind==='goblin'&&e.team==='foe'&&!e.dead)){
         L.flags.fought=1; L.objs[1].d=1;
-        say('The goblins drop. The little one on their backs wakes.','#ffe08a');
-        const noz=G.ents.find(e=>e.name==='Noz'&&!e.dead);
-        if(noz){
-          noz.sleeping=0; noz.team='party'; noz.ally=1; noz.npc=1;
-          L.flags.freed=1;
-          say('Noz: "Goblins! I run home. The bronze door. Follow if you can."','#ffe08a');
-          hint('Noz bolts west for the bronze door.',5);
-          noz.fleeTo={x:L.door.x+1.2,y:L.door.y};
+        say('The band is broken. Noz still lies bound.','#ffe08a');
+        hint('Untie Noz, or go ring the bell at the bronze door.',5);
+      }
+      const noz=G.ents.find(e=>e.name==='Noz'&&!e.dead);
+      if(noz && noz.tied && L.flags.fought && dist(p,noz)<1.7){
+        interact('Untie Noz',()=>{
+          noz.tied=0; noz.sleeping=0; noz.team='neutral'; noz.npc=1; noz.ally=0;
+          L.flags.freed=1; L.objs[2].d=1;
+          say('Noz: "Goblins! Home. The bronze door. You cannot pass it, friend."','#ffe08a');
+          hint('Noz runs left, to the gem-bronze door.',5);
+          noz.fleeTo={x:L.door.x-1.15,y:L.door.y};
           noz.onArrive=()=>{
-            if(L.flags.home) return;
-            L.flags.home=1; L.objs[2].d=1;
-            say('The runes lift for him. "Only gnomes pass. City of the gnomes. You stay."','#d4a04a');
-            noz.fleeTo={x:L.door.x-0.35,y:L.door.y};
-            noz.onArrive=()=>{ noz.x=L.door.x+0.15; noz.y=L.door.y; noz.sp=0; noz.hidden=0; noz.team='neutral'; noz.npc=1; };
-            burst(L.door.x,L.door.y,'#d4a04a',20,3);
+            L.flags.home=1;
+            burst(L.door.x,L.door.y,'#d4a04a',22,3);
+            say('The gems drink him in. Only a gnome may take that road.','#d4a04a');
+            noz.hidden=1; noz.x=L.door.x+0.4; noz.y=L.door.y; noz.sp=0; noz.fleeTo=null;
           };
-        }
+        });
       }
-      if(!L.flags.spiderLoot && L.flags.placed && !G.ents.some(e=>e.kind==='spider'&&e.team==='foe'&&!e.dead && (e.name||'').indexOf('Giant')>=0)){
-        const giantDead=G.ents.some(e=>e.dead&&e.kind==='spider'&&(e.name||'').indexOf('Giant')>=0);
-        if(giantDead){
-          L.flags.spiderLoot=1;
-          spawnLoot(52.1,30.1,{
-            coins:{gp:24,sp:80,cp:40}, gems:2, jew:1,
-            label:'Spider hoard'
-          });
-          say('A web-sack splits. Coin and stones fall from the giant\'s nest.','#ffd27a');
-        }
+      if(!L.flags.spiderLoot && L.flags.placed && G.ents.some(e=>e.dead && (e.name||'')==='Spider Lord')){
+        L.flags.spiderLoot=1;
+        spawnLoot(10.1,31.0,{
+          kind:'chest', coins:{gp:48,sp:120,cp:60,pp:2}, gems:3, jew:2,
+          label:'Spider Lord hoard'
+        });
+        say('The Lord of the web bursts. Coin, gems, and jewelry spill from the nest.','#ffd27a');
       }
-      if(!L.flags.home&&dist(p,L.door)<2.3){
-        interact('The bronze door',()=>{ say('The city of the gnomes. The runes hold fast. Only gnomes may pass.','#d4a04a'); });
-      }
-      if(L.flags.home&&dist(p,L.door)<2.6){
-        interact('Trade with Noz',()=>{
+      if(dist(p,L.bell)<1.85 || dist(p,L.door)<2.15){
+        interact('Ring the bell',()=>{
+          if(!L.flags.bellSaid){
+            L.flags.bellSaid=1;
+            say('A voice through the bronze: "Sorry friend I can\'t let you in. Do you want to buy or trade?"','#ffe08a');
+          } else {
+            say('Noz, behind the door: "Trade, then. I stay on my side."','#ffe08a');
+          }
           if(!L.flags.traded){ L.flags.traded=1; L.objs[3].d=1; }
           G.scene='trade';
         });
       }
-      const box=L.twistBox;
-      if(L.flags.fought && p.x>=box.x0 && p.x<=box.x1 && p.y>=box.y0 && p.y<=box.y1 && !G.fightOn){
-        L.wanderT=(L.wanderT||0)+(dt||0.016);
-        if(L.wanderT>16){
-          L.wanderT=0;
-          if(ri(1,6)<=2){
-            const names=spawnWanderers(p);
-            if(names.length) say('The twist answers: '+names.join(', ')+'.','#ff6a5a');
-          }
-        }
+      if(dist(p,{x:26.5,y:50})<2.4 && !L.flags.collapseHint){
+        L.flags.collapseHint=1;
+        say('The west fork is a fall of stone. DIG here. Treasure may still be under it.','#d8c49a');
+      }
+      if(L.flags.fought && !L.flags.secretHint && p.y>38 && p.y<46 && Math.abs(p.x-40)<4){
+        L.flags.secretHint=1;
+        say('The left-hand wall of this rough tunnel is too even. SEARCH it.','#c9b895');
       }
       if(dist(p,L.stair)<2.3){
-        interact('Climb down to the ruin',()=>{ L.objs[4].d=1; endChapter(); });
+        interact('Climb down to the ruins',()=>{ L.objs[4].d=1; endChapter(); });
       }
     };
   }
@@ -1424,7 +1435,7 @@ function makeChapter(n){
       {x:26,y:28,k:'trap',trap:'trap_spikes'},{x:44,y:20,k:'trap',trap:'trap_runes'},
       {x:40,y:40,k:'trap',trap:'trap_pit'},{x:52,y:42,k:'trap',trap:'trap_spikes'}];
     L.guide=()=>!L.flags.w1?{x:26,y:28}:!L.flags.w2?{x:46,y:20}:!L.flags.boss?{x:48,y:40}:null;
-    L.tick=()=>{
+    L.tick=(dt)=>{
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
         wave([['duergar',22,23],['hookedhorror',28,24],['duergar',24,34],['construct',30,33],['duergar',26,28],['duergarX',31,28],
@@ -1441,6 +1452,16 @@ function makeChapter(n){
           ['puddingBrown',44,42],['basiliskGreater',52,40]]);
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
         hint('Keep moving. GUARD when he winds up.',5);}
+      if(L.flags.w1 && !G.fightOn){
+        L.wanderT=(L.wanderT||0)+(dt||0.016);
+        if(L.wanderT>20){
+          L.wanderT=0;
+          if(ri(1,6)<=2){
+            const names=spawnWanderers(p);
+            if(names.length) say('Ruin-walkers: '+names.join(', ')+'.','#ff6a5a');
+          }
+        }
+      }
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The warden falls. The road to the city is open.','#ffd27a');
         setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
@@ -1534,6 +1555,13 @@ function makeChapter(n){
     for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
       const t=L.grid[j][i];
       if(t!==1 && t!==2 && i<25) L.seen[j][i]=1;
+    }
+  }
+  if(n===2){
+    for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
+      const t=L.grid[j][i];
+      if(t===1||t===2) continue;
+      if(Math.hypot(i-40,j-8)<8.5) L.seen[j][i]=1;
     }
   }
   return L;
@@ -1688,7 +1716,7 @@ function joinAllies(list){
 }
 
 /* ---------------------------- flow ---------------------------- */
-const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new chamber'},2:{t:'The First Floor',s:'A four-way cavern. Goblins carry a gnome named Noz'},
+const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new chamber'},2:{t:'The First Floor',s:'Elevator landing. Left the gnome door, right the Spider Lord, straight goblins and Noz'},
   3:{t:'The Ruin',s:'Ancient stone. The dead walk below'},4:{t:'The Dead City',s:'Illithids in the drowned streets'},
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CHAPTERS=[1,2,3,4,5];
@@ -1724,6 +1752,7 @@ function startChapter(n){
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     if(n===1){ e.fdx=1; e.fdy=0; }
+    if(n===2){ e.fdx=0; e.fdy=1; }
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
@@ -1753,7 +1782,7 @@ function startChapter(n){
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
   say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. A ruby door is set in this chamber\'s north wall.',
-    2:'The cage opens on a natural cavern. Four ways in the dark.',
+    2:'The cage opens on a four-way cavern. Left, a gem-bronze door. Right, webs. Straight, goblins with a bound gnome.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
     5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
@@ -3249,9 +3278,13 @@ function openSecret(sec){
   sec.open=1;
   const L=G.lvl, g=L.grid;
   rect(g, sec.i||(sec.x|0), sec.j||(sec.y|0), sec.w||2, sec.h||3, 0);
+  burst(sec.x||sec.i, sec.y||sec.j, '#d4a04a', 16, 2.6);
+  if(sec.kind==='warrens'){
+    buildGoblinWarrens(L, sec);
+    return;
+  }
   if(sec.path) carvePath(g, sec.path, 2.1, 0);
   caveDisk(g, L.dungeon?L.dungeon.x:44, L.dungeon?L.dungeon.y:11, 5.2, 4.2, 0);
-  burst(sec.x||sec.i, sec.y||sec.j, '#d4a04a', 16, 2.6);
   say('A hidden door in the brick. A tunnel beyond.','#ffe08a');
   hint('Secret door. Goblin dens wait down the tunnel.',4.4);
   if(!L.flags.dungeon){
@@ -3259,6 +3292,54 @@ function openSecret(sec){
     const dx=L.dungeon?L.dungeon.x:44, dy=L.dungeon?L.dungeon.y:11;
     wave([['goblin',dx-1.4,dy-0.8],['goblin',dx+1.6,dy+0.6],['goblin',dx-0.4,dy+1.5],['goblinBoss',dx,dy]]);
   }
+}
+function seedRng(s){
+  let x=(s>>>0)||1;
+  return ()=>{ x=(Math.imul(x,1664525)+1013904223)>>>0; return (x>>>8)/16777215; };
+}
+function buildGoblinWarrens(L, sec){
+  const g=L.grid, rnd=seedRng(L.warrenSeed||((Math.random()*1e9)|0)+7);
+  const sx=sec.x||sec.i, sy=sec.y||sec.j;
+  const stair={x:sx+6.2, y:sy+4.4};
+  carvePath(g, [[sx+1.2,sy],[sx+3.8,sy+1.6],[stair.x,stair.y]], 2.05, 0);
+  caveDisk(g, stair.x, stair.y, 2.8, 2.4, 3);
+  G.props.push({x:stair.x,y:stair.y,k:'gate'});
+  L.lights.push({x:stair.x,y:stair.y,c:'#6a8a4a',r:4.6,f:0.75});
+  say('A hidden door. Stairs drop toward goblin-work.','#ffe08a');
+  hint('Goblin Warrens. The stair leads into a random den.',4.6);
+  const rooms=[];
+  let cx=stair.x+3.5, cy=stair.y+5.5;
+  const n=5+(rnd()*3)|0;
+  for(let i=0;i<n;i++){
+    cx += 2.4+rnd()*5.5;
+    cy += (rnd()<0.45?-1:1)*(1.8+rnd()*4.5);
+    cx=clamp(cx, 48, L.w-7);
+    cy=clamp(cy, 38, L.h-7);
+    const rw=3.1+rnd()*2.3, rh=2.6+rnd()*2.0;
+    caveDisk(g, cx, cy, rw, rh, 0);
+    const prev=rooms.length?rooms[rooms.length-1]:stair;
+    carvePath(g, [[prev.x,prev.y],[cx,cy]], 1.85, 0);
+    rooms.push({x:cx,y:cy,rw,rh});
+    L.lights.push({x:cx,y:cy,c:'#6a8a4a',r:3.5,f:0.55});
+    if(rnd()<0.45) G.props.push({x:cx+(rnd()-0.5)*1.6,y:cy+(rnd()-0.5)*1.2,k:rnd()<0.5?'bones':'crate'});
+  }
+  L.dungeon=rooms[rooms.length-1]||stair;
+  L.flags.dungeon=1;
+  const denizens=['goblin','goblin','kobold','rat','beetle','orc','bugbear','gibberling','goblinBoss'];
+  const list=[];
+  rooms.forEach(r=>{
+    const k=denizens[(rnd()*denizens.length)|0];
+    list.push([k, r.x+(rnd()-0.5)*1.8, r.y+(rnd()-0.5)*1.4]);
+    if(rnd()<0.6) list.push(['goblin', r.x+1.1, r.y-0.5]);
+  });
+  const last=rooms[rooms.length-1];
+  if(last) list.push(['goblinBoss', last.x, last.y]);
+  wave(list);
+  G.ents.forEach(e=>{
+    if(e.team==='foe' && (e.kind==='goblin'||e.kind==='kobold'||e.kind==='orc'||e.kind==='bugbear'||e.kind==='gibberling')){
+      if(!e.aggro) e.aggro=3.4;
+    }
+  });
 }
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='foe'||o.dead) continue; const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
@@ -4060,6 +4141,8 @@ function gatherLights(L){
     if(pr.k==='brazier') out.push({x:pr.x,y:pr.y,c:'#ff8a3a',r:5.5,f:1.1,fl:1});
     if(pr.k==='trap'&&pr.trap==='trap_runes') out.push({x:pr.x,y:pr.y,c:'#c07bff',r:2.6,f:0.7,fl:1});
     if(pr.k==='gate') out.push({x:pr.x,y:pr.y,c:'#6fd0ff',r:4.2,f:0.8,fl:1});
+    if(pr.k==='bronzedoor') out.push({x:pr.x,y:pr.y,c:'#d4a04a',r:5.8,f:1.05,fl:1});
+    if(pr.k==='bell') out.push({x:pr.x,y:pr.y,c:'#d4a04a',r:2.2,f:0.55,fl:1});
   }
   return out;
 }
@@ -4317,9 +4400,14 @@ function drawProp(g,p,pal){
       emit(s.x,s.y-54*z,80*z,'#6fd0ff',0.75);
     }else if(k==='bronzedoor'){
       const b=.55+Math.sin(G.elapsed*2.4)*.2;
-      emit(s.x,s.y-54*z,80*z,'#d4a04a',b);
+      emit(s.x,s.y-54*z,92*z,'#d4a04a',b);
+      emit(s.x-10*z,s.y-70*z,22*z,'#ff2a3c',0.45);
+      emit(s.x+12*z,s.y-62*z,18*z,'#3cff8a',0.4);
+      emit(s.x+4*z,s.y-86*z,16*z,'#6ec8ff',0.4);
+    }else if(k==='bell'){
+      emit(s.x,s.y-28*z,22*z,'#d4a04a',0.45);
     }else if(k==='lift'){
-      const on=G.lvl&&G.lvl.flags.cleared;
+      const on=G.lvl&&(G.lvl.flags.cleared||G.lvl.n===2);
       if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
         ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
     }else if(k==='altar'){
@@ -4513,7 +4601,18 @@ function drawProp(g,p,pal){
     g.beginPath(); g.moveTo(-16*z,-18*z); g.lineTo(-16*z,-80*z); g.quadraticCurveTo(0,-100*z,16*z,-80*z); g.lineTo(16*z,-18*z); g.stroke();
     g.fillStyle='rgba(212,160,74,0.28)';
     g.beginPath(); g.arc(0,-52*z,8*z,0,TAU); g.fill();
+    drawFacetGem(g,-10*z,-62*z,7*z,9*z,1,z);
+    drawFacetGem(g,11*z,-70*z,6*z,8*z,1,z);
+    drawFacetGem(g,0,-86*z,8*z,10*z,1,z);
     emit(s.x,s.y-54*z,80*z,'#d4a04a',0.75); break; }
+  case 'bell':{ softShadow(g,0,2*z,10*z,6*z,.4);
+    g.beginPath(); g.ellipse(0,-6*z,9*z,5*z,0,0,TAU); sc(g,'#8a6230',-16*z,-2*z,1.6);
+    g.beginPath(); g.moveTo(-8*z,-8*z); g.lineTo(-10*z,-28*z); g.lineTo(10*z,-28*z); g.lineTo(8*z,-8*z); g.closePath();
+    sc(g,'#c49a48',-28*z,-8*z,1.7);
+    g.strokeStyle='#6a4a24'; g.lineWidth=2*z;
+    g.beginPath(); g.moveTo(0,-28*z); g.lineTo(0,-40*z); g.stroke();
+    g.fillStyle='#d4a04a'; g.beginPath(); g.arc(0,-18*z,2.2*z,0,TAU); g.fill();
+    emit(s.x,s.y-22*z,18*z,'#d4a04a',0.4); break; }
   case 'names':{ g.beginPath(); g.rect(-50*z,-104*z,100*z,104*z); sc(g,'#4a3c30',-104*z,0,2.4);
     for(let i=0;i<9;i++){ g.strokeStyle='rgba(226,200,152,0.26)'; g.lineWidth=2.4*z;
       g.beginPath(); g.moveTo(-42*z,-94*z+i*10.4*z); g.lineTo(42*z,-94*z+i*10.4*z); g.stroke();
@@ -4734,7 +4833,7 @@ function drawEnt(g,e){
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
-    const label=e.sleeping?e.name+'  (asleep)':e.name;
+    const label=e.tied?e.name+'  (bound)':e.sleeping?e.name+'  (asleep)':e.name;
     ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.75)';
     ctx.strokeText(label,s.x,s.y-52*ZOOM*e.scale);
     ctx.fillStyle='#ffe08a'; ctx.fillText(label,s.x,s.y-52*ZOOM*e.scale); ctx.textAlign='left';
@@ -5374,6 +5473,24 @@ function breakRock(L,i,j){
   burst(i+0.5,j+0.5, vein?'#d8b46a':'#9a8163', 22, 3.6);
   addDecal(i+0.5,j+0.5,rnd(1.4,0.8));
   oreDrop(i,j,vein);
+  if(L.collapse && i>=L.collapse.x0 && i<=L.collapse.x1 && j>=L.collapse.y0 && j<=L.collapse.y1){
+    L.flags.collapseDigs=(L.flags.collapseDigs||0)+1;
+    if((L.flags.collapseFinds||0)<3 && (Math.random()<0.42 || L.flags.collapseDigs===2)){
+      L.flags.collapseFinds=(L.flags.collapseFinds||0)+1;
+      const rich=Math.random()<0.4;
+      spawnLoot(i+0.5, j+0.5, {
+        kind:rich?'chest':'coins',
+        coins:{gp:ri(10,36), sp:ri(12,50), cp:ri(20,90), pp:rich?1:0},
+        gems:rich?ri(1,2):0,
+        jew:Math.random()<0.35?1:0,
+        label:'Cache in the fall'
+      });
+      say('The collapse hid a cache.','#ffd27a');
+      burst(i+0.5,j+0.5,'#ffd27a',16,3);
+    } else {
+      say('Only dust and broken stone.','#c9b895');
+    }
+  }
   learn('mining', vein?6:3);
   shake(7);
   return true;
@@ -6222,7 +6339,7 @@ function drawIntro(g){
   g.fillText(fl,VW/2,VH*.28);
   g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.8)';
   g.fillText(L.n===1?'You are MACAR. Loot the fallen. The ruby door is on this room\'s north wall.':
-    L.n===2?'You are MACAR. Left, the gnome city. Straight, goblins with a sleeper. Right, spiders.':
+    L.n===2?'You are MACAR. Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.':
     'You are MACAR.',VW/2,VH*.335);
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,VH*.86,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
@@ -6230,7 +6347,7 @@ function drawIntro(g){
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): search herbs. Movement crawls. 10% + 5% per Herb Lore rank.',6); }
-    else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Four ways. Left bronze door. Straight goblins carry Noz. Right webs.',6); } });
+    else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Four ways. Left bronze and a bell. Straight goblins carry Noz. Right, the Spider Lord.',6); } });
 }
 
 function drawBetween(g){
@@ -6490,7 +6607,7 @@ function drawTrade(g){
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
   g.textAlign='center';
   g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(255,210,122,0.95)';
-  g.fillText('NOZ  \u00b7  GNOME TRADE', VW/2, VH*.07);
+  g.fillText('NOZ  \u00b7  A VOICE BEHIND THE BRONZE', VW/2, VH*.07);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.8)';
   const c=G.coin||{};
   g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.115);
@@ -6514,7 +6631,7 @@ function drawTrade(g){
       spendGp(need); r.fn(); say('Bought: '+r.t+'.','#ffd27a');
     }});
   });
-  menuBtn(g,'Back to the door',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
+  menuBtn(g,'Back to the cavern',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
 }
 
 function drawPause(g){
