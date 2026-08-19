@@ -1,0 +1,28 @@
+Legend of Macar — music credits
+================================
+
+Each track is listed with its owner (composer / rights holder).
+
+Song of the Forge
+  Owner: Scott Buckley
+  https://www.scottbuckley.com.au
+  License: CC BY 4.0
+  https://creativecommons.org/licenses/by/4.0/
+  File: assets/music/SongOfTheForge.mp3
+  Used on the title / starting screen (starts on launch).
+
+The Cave (Ambient)
+  Owner: HitCtrl
+  Source: OpenGameArt.org — "RPG - The Cave (Ambient)"
+  License: credit HitCtrl
+  File: assets/music/TheCave.mp3
+  Used during Chapter I (first level).
+
+Dungeon_01
+  Owner: Beau Buckley
+  Album: Emberstorm Music Collection
+  Source: OpenGameArt.org
+  License: CC BY-SA 4.0
+  https://creativecommons.org/licenses/by-sa/4.0/
+  File: assets/music/Dungeon_1.mp3 (converted from the published OGG)
+  Used during Chapter II (second level) and later floors.
