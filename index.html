@@ -425,11 +425,11 @@ function drawEntBillboard(g,e,img,z){
   const k=entSpriteKey(e);
   const ref=SPR[k]||img;
   if(e.crushed||e.prone){
-    // Same visual scale as standing Macar (78*z); long axis of the prone sprite matches his height.
     const macarH=78*z;
+    const maxW=macarH*1.08, maxH=macarH*0.62;
     const aspect=img.width/Math.max(1,img.height);
-    const pw=aspect>=1?macarH*1.12:macarH*aspect*0.92;
-    const ph=pw/aspect;
+    let pw=maxW, ph=pw/aspect;
+    if(ph>maxH){ ph=maxH; pw=ph*aspect; }
     g.drawImage(img, -pw/2, -ph*0.78, pw, ph);
     return true;
   }
@@ -448,8 +448,13 @@ function drawEntBillboard(g,e,img,z){
 }
 function drawDeadBillboard(g,e,img,z){
   if(!img||!img.width) return false;
-  const H=entSpriteH(e,z)*1.05;
-  const W=H*(img.width/Math.max(1,img.height));
+  // Fit every corpse in a Macar-sized box. Wide paintings (Pordoom's prone
+  // pick-and-sack canvas) used to scale by height and dwarf the others.
+  const maxW=entSpriteH({kind:'dwarf'},z)*1.08;
+  const maxH=entSpriteH({kind:'dwarf'},z)*0.62;
+  const aspect=img.width/Math.max(1,img.height);
+  let W=maxW, H=W/aspect;
+  if(H>maxH){ H=maxH; W=H*aspect; }
   g.drawImage(img, -W/2, -H*0.78, W, H);
   return true;
 }
@@ -835,11 +840,19 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:15.05,y:20.15,seed:3,stone:1.22,kit:{bombs:4,rations:7},spr:'boulder'},
-  fendur:{x:15.35,y:23.35,seed:11,stone:1.18,kit:{ammo:12,torches:4},spr:'boulder2'},
-  orbo:{x:16.75,y:20.08,seed:19,stone:1.24,kit:{ales:3,gp:18},spr:'boulder'},
-  talpor:{x:17.05,y:23.42,seed:7,stone:1.16,kit:{torches:3,rations:5},spr:'boulder2'}
+  pordoom:{x:15.05,y:20.15,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.38,y:0.22}},
+  fendur:{x:15.35,y:23.35,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.32,y:0.20}},
+  orbo:{x:16.75,y:20.08,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.34,y:0.18}},
+  talpor:{x:17.05,y:23.42,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.30,y:0.22}}
 };
+function nearCrush(x,y,r){
+  r=r||1.25;
+  for(const k of Object.keys(CRUSH_SPOTS)){
+    const s=CRUSH_SPOTS[k];
+    if(Math.hypot(x-s.x,y-s.y)<r) return true;
+  }
+  return false;
+}
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
   cloth:'#7d5c31', metal:'#93805a', trim:'#d3ab4d', cap:null},
@@ -1209,7 +1222,7 @@ function makeChapter(n){
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:20.1,y:19.35,c:'#ff2f3a',r:8.2,f:1.75},
+              {x:23.85,y:19.32,c:'#ff2f3a',r:8.2,f:1.75},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -1220,7 +1233,7 @@ function makeChapter(n){
       {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:11.4,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:20.1,y:19.10,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
+      {x:23.85,y:19.12,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
       {x:27.2,y:12.2,k:'shroom'},{x:31.6,y:13.4,k:'shroom'},{x:25.4,y:29.8,k:'shroom'},
       {x:42.2,y:12.8,k:'shroom'},{x:45.8,y:29.2,k:'shroom'},{x:40.5,y:30.4,k:'shroom'},
       {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
@@ -1229,15 +1242,15 @@ function makeChapter(n){
       {x:13.55,y:21.5,k:'cavein',s:1.15},
       {x:13.35,y:19.6,k:'boulder',spr:'boulder2',s:1.08},
       {x:13.45,y:23.4,k:'boulder',spr:'boulder',s:1.12},
-      {x:14.15,y:21.0,k:'rubble',n:12,s:1.15,seed:3},
-      {x:14.25,y:22.8,k:'rubble',n:10,s:1.05,seed:7},
-      {x:14.6,y:19.7,k:'rubble',n:11,s:1.12,seed:9},
-      {x:14.8,y:24.2,k:'rubble',n:9,s:1.08,seed:13},
-      {x:15.6,y:21.6,k:'rubble',n:8,s:0.95,seed:17},
-      {x:16.2,y:19.5,k:'boulder',spr:'boulder',s:0.95},
+      {x:14.15,y:21.85,k:'rubble',n:12,s:1.15,seed:3},
+      {x:14.25,y:22.15,k:'rubble',n:10,s:1.05,seed:7},
+      {x:13.9,y:19.55,k:'rubble',n:11,s:1.12,seed:9},
+      {x:14.15,y:24.35,k:'rubble',n:9,s:1.08,seed:13},
+      {x:15.95,y:21.85,k:'rubble',n:8,s:0.95,seed:17},
+      {x:16.85,y:19.45,k:'boulder',spr:'boulder',s:0.95},
       {x:16.4,y:24.3,k:'boulder',spr:'boulder2',s:1.02},
       {x:16.9,y:21.9,k:'rubble',n:10,s:1.0,seed:19},
-      {x:17.6,y:19.6,k:'rubble',n:8,s:0.98,seed:23},
+      {x:17.85,y:19.45,k:'rubble',n:8,s:0.98,seed:23},
       {x:17.8,y:24.1,k:'rubble',n:11,s:1.1,seed:29},
       {x:18.4,y:20.2,k:'boulder',spr:'boulder2',s:0.88},
       {x:18.9,y:23.6,k:'rubble',n:9,s:1.0,seed:31},
@@ -1245,21 +1258,25 @@ function makeChapter(n){
       {x:19.7,y:24.2,k:'boulder',spr:'boulder',s:0.96},
       {x:24.0,y:20.8,k:'rubble',n:8,s:0.92,seed:41},
       {x:20.6,y:23.4,k:'rubble',n:12,s:1.08,seed:43},
-      {x:22.5,y:19.7,k:'boulder',spr:'boulder2',s:1.0},
+      {x:21.4,y:20.4,k:'boulder',spr:'boulder2',s:1.0},
       {x:21.4,y:24.0,k:'rubble',n:9,s:1.02,seed:47},
       {x:21.8,y:22.6,k:'rubble',n:7,s:0.9,seed:53},
-      {x:22.3,y:20.3,k:'rubble',n:11,s:1.05,seed:59},
+      {x:22.3,y:21.15,k:'rubble',n:11,s:1.05,seed:59},
       {x:22.6,y:23.8,k:'boulder',spr:'boulder',s:0.94},
-      {x:23.0,y:19.8,k:'rubble',n:8,s:0.96,seed:61},
+      {x:22.2,y:20.55,k:'rubble',n:8,s:0.96,seed:61},
       {x:23.2,y:22.3,k:'rubble',n:10,s:1.0,seed:67},
       {x:23.6,y:24.1,k:'rubble',n:9,s:1.04,seed:71},
-      {x:23.8,y:20.8,k:'boulder',spr:'boulder2',s:0.9},
+      {x:23.8,y:21.35,k:'boulder',spr:'boulder2',s:0.9},
       {x:25.3,y:20.5,k:'rubble',n:9,s:1.0,seed:73},
       {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
     Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x+0.14,y:s.y+0.10,k:'boulder',spr:s.spr||'boulder',s:0.90,pin:1,seed:s.seed});
-      G.props.push({x:s.x-0.22,y:s.y+0.16,k:'rubble',spr:'rubble',s:0.70,cover:1,n:8,seed:s.seed+4});
+      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.34,y:0.20};
+      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.5,pin:1,seed:s.seed});
+    });
+    G.props=G.props.filter(p=>{
+      if(p.pin) return true;
+      if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,1.15)) return false;
+      return true;
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -1272,7 +1289,7 @@ function makeChapter(n){
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
         return {x:bodies[0].x,y:bodies[0].y};
       }
-      return !L.flags.touched?{x:20.1,y:19.2}:!L.flags.cleared?null:{x:36.5,y:21.5};
+      return !L.flags.touched?{x:23.85,y:19.25}:!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -1280,7 +1297,7 @@ function makeChapter(n){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
       }
-      if(!L.flags.touched && dist(p,{x:20.1,y:19.55})<2.15){
+      if(!L.flags.touched && dist(p,{x:23.85,y:19.58})<2.2){
         interact('Touch the ruby door',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby door is warm. It knows your name.','#ff6a6a');
@@ -4779,7 +4796,15 @@ function drawEnt(g,e){
   }
   const img=entAnimImg(e);
   const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
-  softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
+  if(e.crushed){
+    softShadow(g,1*z,3*z,26*z,12*z,0.72);
+    g.fillStyle='rgba(18,12,8,0.5)';
+    g.beginPath(); g.ellipse(0,5*z,28*z,13*z,0,0,TAU); g.fill();
+    g.strokeStyle='rgba(232,190,120,0.42)'; g.lineWidth=1.7*ZOOM;
+    g.beginPath(); g.ellipse(0,4*z,24*z,11*z,0,0,TAU); g.stroke();
+  } else {
+    softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
+  }
 
   const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
   const flip=!e.crushed && !e.dead && heading>0;
