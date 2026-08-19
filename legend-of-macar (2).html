@@ -613,7 +613,8 @@ function propSpriteH(p,z){
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
-  if(k==='rubywall'||k==='rubydoor') return 168*z*(p.s||1);
+  if(k==='rubywall') return 108*z*(p.s||1);
+  if(k==='rubydoor') return 118*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -679,6 +680,7 @@ const PAL={
 
 /* ---------------------------- grid helpers ---------------------------- */
 function newGrid(w,h,f){ const g=[]; for(let y=0;y<h;y++){const r=new Uint8Array(w); r.fill(f); g.push(r);} return g; }
+function isWalkTile(t){ return t===0||t===3||t===4; }
 function rect(g,x,y,w,h,t){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++) if(g[j]&&g[j][i]!==undefined) g[j][i]=t; }
 function sealOuter(g){
   if(!g||!g.length||!g[0]) return;
@@ -687,15 +689,17 @@ function sealOuter(g){
   for(let j=0;j<h;j++){ g[j][0]=1; g[j][w-1]=1; }
 }
 function paintSeenWalls(L){
-  if(!L||!L.grid||!L.seen) return;
+  if(!L||!L.grid||!L.seen) return 0;
+  let n=0;
   for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
-    if(!L.seen[j][i]) continue;
+    if(!L.seen[j][i] || !isWalkTile(L.grid[j][i])) continue;
     for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
       const y=j+dj, x=i+di;
       if(y<0||x<0||y>=L.h||x>=L.w) continue;
-      if(L.grid[y][x]===1) L.seen[y][x]=1;
+      if(L.grid[y][x]===1 && !L.seen[y][x]){ L.seen[y][x]=1; n++; }
     }
   }
+  return n;
 }
 function corridor(g,x1,y1,x2,y2,wd,t){
   wd=wd||3; const hw=(wd/2)|0;
@@ -1362,10 +1366,10 @@ function makeChapter(n){
     L.crush=CRUSH_SPOTS;
     L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
-    L.rubyDoor={x:36.5,y:10.02};
+    L.rubyDoor={x:36.5,y:9.72};
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:36.5,y:10.15,c:'#ff2f3a',r:7.4,f:1.55},
+              {x:36.5,y:9.85,c:'#ff2f3a',r:7.4,f:1.55},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -1376,7 +1380,7 @@ function makeChapter(n){
       {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:36.5,y:10.02,k:'rubydoor',s:1.72,cover:1},{x:36.5,y:21.5,k:'lift'},
+      {x:36.5,y:9.72,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
       {x:13.55,y:21.5,k:'cavein',s:1.15},
@@ -1429,7 +1433,7 @@ function makeChapter(n){
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
         return {x:bodies[0].x,y:bodies[0].y};
       }
-      return !L.flags.touched?(L.rubyDoor||{x:36.5,y:10.15}):!L.flags.cleared?null:{x:36.5,y:21.5};
+      return !L.flags.touched?(L.rubyDoor||{x:36.5,y:9.72}):!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -1437,8 +1441,8 @@ function makeChapter(n){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
       }
-      const door=L.rubyDoor||{x:36.5,y:10.02};
-      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.7})<2.6){
+      const door=L.rubyDoor||{x:36.5,y:9.72};
+      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.85})<2.6){
         interact('Touch the ruby door',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby door is warm. It knows your name.','#ff6a6a');
@@ -4238,6 +4242,7 @@ function update(dt){
         if(!L.seen[j][i]){ L.seen[j][i]=1; G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
         else L.seen[j][i]=1;
       }
+    if(paintSeenWalls(L)){ G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
     p.searchCd=Math.max(0,(p.searchCd||0)-dt);
     if(G.searching && (p.searchCd||0)<=0){
       p.searchCd=5;
@@ -4510,14 +4515,6 @@ function render(){
   }
 }
 
-function rubyWallBoost(x,y){
-  const d=G.lvl&&G.lvl.rubyDoor;
-  if(!d) return 1;
-  const r=Math.hypot(x+0.5-d.x, y+0.5-d.y);
-  if(r>=4.6) return 1;
-  return 1+3.8*(1-r/4.6);
-}
-
 let DIGT=null;
 function drawWorld(g,L){
   const pal=L.pal;
@@ -4558,25 +4555,25 @@ function drawWorld(g,L){
       if(t===2||!L.seen[y][x]) continue;
       const s=w2s(x,y);
       if(t===1){
-        const oS=L.grid[y+1]&&(L.grid[y+1][x]===0||L.grid[y+1][x]===3||L.grid[y+1][x]===4);
-        const oE=L.grid[y]&&(L.grid[y][x+1]===0||L.grid[y][x+1]===3||L.grid[y][x+1]===4);
-        if(!oS&&!oE) continue;
+        const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
+        const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
+        const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
+        const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
+        if(!oS&&!oE&&!oN&&!oW) continue;
         const rk=L.wallHP[x+','+y];
         const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-        const boost=rubyWallBoost(x,y);
-        const wH=WH*boost, wSH=(RWH*boost+RTH)*k;
         if(wallImg){
-          if(boost>1.02 || wallImg!==wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-wH-FH/2, TW, wSH);
-          else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
+          if(wallImg===wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
+          else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
         } else if(okTex){
           const vein = h2(x*3,y*7)>0.86;
           const arr = vein?TEX.wallVein:TEX.wall;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-wH-FH/2, TW, wSH);
-        } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-wH,TW,wH); }
-        if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-wH*0.35, TW*0.30, pal.key, 0.5);
-        if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,wH,1-rk.hp/rk.max);
-        if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,wH);
-        if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,wH,G.dig.min/DIG_MINUTES);
+          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
+        } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
+        if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
+        if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
+        if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
+        if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
       } else {
         if(floorBlit){
           g.drawImage(floorBlit, s.x-TW*0.56, s.y-TH*0.56);
@@ -4835,7 +4832,7 @@ function drawBeyondMask(g,L){
   const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-2);
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+2);
   const rock=L.pal.fogTop||'#07060a';
-  const open=t=>t===0||t===3||t===4;
+  const open=isWalkTile;
   const key=Math.round(CAMSX)+','+Math.round(CAMSY)+','+G.ch+','+QUALITY+','+BX.width+','+(G.seenRev||0);
   const mg=bxx;
   if(key!==BX_KEY){
@@ -4862,9 +4859,8 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
-          const boost=rubyWallBoost(x,y);
           mg.beginPath();
-          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72*boost), TW*0.88*pad, TH*1.55*pad*boost, 0, 0, TAU);
+          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72), TW*0.88*pad, TH*1.55*pad, 0, 0, TAU);
           mg.fill();
         }
       }
@@ -4872,9 +4868,9 @@ function drawBeyondMask(g,L){
     if(L.rubyDoor){
       const ds=w2s(L.rubyDoor.x, L.rubyDoor.y);
       const prop=(G.props||[]).find(p=>p.k==='rubydoor' && Math.hypot(p.x-L.rubyDoor.x, p.y-L.rubyDoor.y)<0.6);
-      const H=propSpriteH(prop||{k:'rubydoor',s:1.72}, ZOOM);
+      const H=propSpriteH(prop||{k:'rubydoor'}, ZOOM);
       mg.beginPath();
-      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.52), Math.max(TW*1.35, H*0.38), H*0.62, 0, 0, TAU);
+      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*0.95, H*0.32), H*0.58, 0, 0, TAU);
       mg.fill();
     }
     mg.setTransform(1,0,0,1,0,0);
