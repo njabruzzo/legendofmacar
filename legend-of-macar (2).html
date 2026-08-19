@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=25">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=25">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=25" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=26">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=26">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=26" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=25"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=26"></audio>
 <script>
 "use strict";
 /* ==========================================================================
@@ -170,7 +170,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='25';
+const ASSET_VER='26';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -267,6 +267,7 @@ tryPlayMusic();
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
+  macar_sleep:'assets/creatures/dwarf_macar_sleep.png',
   pordoom_dead:'assets/creatures/dwarf_pordoom_dead.png', fendur_dead:'assets/creatures/dwarf_fendur_dead.png',
   orbo_dead:'assets/creatures/dwarf_orbo_dead.png', talpor_dead:'assets/creatures/dwarf_talpor_dead.png',
   rat:'assets/creatures/mon_rat.png', bat:'assets/creatures/mon_bat.png', spider:'assets/creatures/mon_spider.png', spitter:'assets/creatures/mon_spitter.png',
@@ -329,8 +330,8 @@ const UNDERDARK=[
 UNDERDARK.forEach(k=>{ SPRITE_FILES[k]='assets/creatures/mon_'+k+'.png'; });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
-  if(/_(w1|w2|atk|dead)\.png$/.test(src)) return;
-  if(/_dead$/.test(k)) return;
+  if(/_(w1|w2|atk|dead|sleep)\.png$/.test(src)) return;
+  if(/_(dead|sleep)$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
   if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble)/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
@@ -347,7 +348,7 @@ const ICON_SPR={
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','skill_icons','macar','pordoom','fendur','orbo','talpor',
-    'macar_w1','macar_w2','macar_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','shroom','lantern','floor_mine','wall_cave'];
   const seen={};
@@ -752,7 +753,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
-  fightOn:0, carryEffects:[], searching:0, digging:0, dig:null,
+  fightOn:0, carryEffects:[], searching:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[] };
 
@@ -1515,8 +1516,10 @@ function spawnWanderers(p){
   if(spawned.length) beginFight(G.ents[G.ents.length-1]);
   return spawned;
 }
+function endSleepShow(){ G.sleepShow=null; }
 function campRest(){
   const p=player(); if(!p) return;
+  if(G.sleepShow) return;
   if(G.fightOn || nearestFoe(p,7)){ hint('Not while blades are out.',2.6); return; }
   G.searching=0; G.digging=0; G.dig=null; p.dest=null;
   const open=openPassagesAt(p.x,p.y);
@@ -1544,9 +1547,10 @@ function campRest(){
     if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE);
     if(typeof clearPoison==='function') clearPoison(e);
   });
-  G.flash={c:'#ffb45c',a:.22};
+  G.sleepShow={t:0, dur:2.8};
+  G.flash={c:'#ffb45c',a:.18};
   say(healed?'Eight hours by the fire. The kin wake whole.':'Eight hours. Already whole.','#ffe08a');
-  hint('Slept 8 hours. Hit points restored.',3.6);
+  hint('Macar sleeps by the fire. Hit points restored.',3.6);
 }
 function nearestCorpse(e, r){
   let best=null, bd=r;
@@ -1608,7 +1612,7 @@ function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   ABIL.forEach(a=>cds[a.key]=0); G.hint=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.trail=[];
-  G.searching=0; G.digging=0; G.dig=null; G.loot=[];
+  G.searching=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
   G.lvl=makeChapter(n);
   bakeTextures(G.lvl.pal);
@@ -3219,6 +3223,7 @@ function btnAt(x,y){ for(const b of UIBTN) if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) 
 
 const pressed={};
 function onDown(id,x,y,ptr){
+  if(G.sleepShow){ endSleepShow(); return; }
   if(G.scene!=='play'||G.paused){ IN.taps.push({x,y}); return; }
   const b=btnAt(x,y);
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
@@ -3263,6 +3268,10 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(G.scene!=='play'){ IN.taps.push({x:VW/2,y:VH/2}); return; }
+  if(G.sleepShow){
+    if(e.key==='Escape'){ endSleepShow(); G.paused=!G.paused; return; }
+    endSleepShow(); return;
+  }
   if(e.key===' '){ fire('attack'); e.preventDefault(); }
   if(e.key==='e'||e.key==='Enter') fire('use');
   if(e.key==='1') fire('attack');
@@ -3286,6 +3295,7 @@ window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 function fire(key){
   if(G.scene!=='play') return;
   if(key==='pause'){ G.paused=!G.paused; return; }
+  if(G.sleepShow){ endSleepShow(); return; }
   if(G.paused) return;
   const p=player(); if(!p) return;
   if(key==='attack'){ p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return; }
@@ -3357,6 +3367,13 @@ function fire(key){
    UPDATE
    ========================================================================== */
 function update(dt){
+  if(G.sleepShow && G.scene==='play' && !G.paused){
+    G.sleepShow.t+=dt;
+    if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
+    if(G.flash){ G.flash.a-=dt*1.8; if(G.flash.a<=0) G.flash=null; }
+    if(G.sleepShow.t>=G.sleepShow.dur) endSleepShow();
+    return;
+  }
   if(G.scene!=='play'||G.paused) return;
   G.elapsed+=dt;
   const L=G.lvl; if(!L) return;
@@ -3624,6 +3641,7 @@ function render(){
     g.fillStyle=v; g.fillRect(0,0,VW,VH); }
   if(inWorld && QUALITY) drawGrain(g);
   if(G.scene==='play') drawHUD(g);
+  if(G.sleepShow && G.scene==='play') drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
@@ -5745,6 +5763,44 @@ function menuBtn(g,label,cx,cy,w,h,fn,dim){
   g.fillStyle=dim?'rgba(150,130,100,0.5)':'#ffe9c0'; g.fillText(label,cx,cy+5.6*s); g.textAlign='left';
   if(!dim) menuHits.push({x:cx-w/2,y:cy-h/2,w,h,fn});
 }
+function drawSleepRest(g){
+  const s=UIS, show=G.sleepShow; if(!show) return;
+  const t=show.t||0;
+  const a=clamp(t/0.28,0,1)*clamp((show.dur-t)/0.35,0,1);
+  g.save();
+  g.globalAlpha=a;
+  darken(g,.68);
+  const gx=VW*0.36, gy=VH*0.62;
+  const glow=g.createRadialGradient(gx,gy,18*s,gx,gy,Math.max(VW,VH)*0.62);
+  glow.addColorStop(0,'rgba(255,150,55,0.34)');
+  glow.addColorStop(0.38,'rgba(180,70,18,0.12)');
+  glow.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=glow; g.fillRect(0,0,VW,VH);
+  const img=SPR.macar_sleep;
+  g.textAlign='center';
+  g.font='800 '+((PORT?18:26)*s)+'px '+FONT_TITLE;
+  g.fillStyle='#ffe9c0';
+  g.fillText('REST', VW/2, VH*0.09);
+  if(img){
+    const maxW=Math.min(VW*0.86, 640*s);
+    const maxH=VH*0.66;
+    const sc=Math.min(maxW/img.width, maxH/img.height);
+    const w=img.width*sc, h=img.height*sc;
+    g.globalAlpha=a;
+    g.drawImage(img, (VW-w)/2, VH*0.12, w, h);
+  }
+  g.globalAlpha=a;
+  g.font='600 '+((PORT?12:14.5)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(255,214,150,0.95)';
+  g.fillText('Macar sleeps by the fire.', VW/2, VH*0.86);
+  if(t>0.7){
+    g.font='600 '+(10*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(190,168,128,0.78)';
+    g.fillText('Click to wake', VW/2, VH*0.915);
+  }
+  g.textAlign='left';
+  g.restore();
+}
 function darken(g,a){ g.fillStyle='rgba(6,4,3,'+a+')'; g.fillRect(0,0,VW,VH); }
 function embers(g){
   for(let i=0;i<64;i++){ const t=(G.t*.13+i*.137)%1;
@@ -6253,6 +6309,7 @@ function drawPause(g){
 function resolveTaps(){
   while(IN.taps.length){
     const t=IN.taps.shift();
+    if(G.sleepShow){ endSleepShow(); continue; }
     if(G.scene==='play'&&!G.paused){
       if(promptBtn&&t.x>promptBtn.x&&t.x<promptBtn.x+promptBtn.w&&t.y>promptBtn.y&&t.y<promptBtn.y+promptBtn.h){
         fire('use'); continue; }
