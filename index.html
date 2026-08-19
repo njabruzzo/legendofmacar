@@ -39,8 +39,8 @@ const LM  = document.createElement('canvas'), lmx = LM.getContext('2d');   // li
 const BL  = document.createElement('canvas'), blx = BL.getContext('2d');   // bloom
 const BX  = document.createElement('canvas'), bxx = BX.getContext('2d');   // beyond-rock mask
 let VW=0, VH=0, DPR=1, UIS=1, ZOOM=1, TW=80, TH=40, PORT=false;
-let QUALITY = 0;           // 0 = Fast (default). 1 = High post stack.
-let GFX_MODE = 'fast';     // fast | auto | high
+let QUALITY = 1;           // 0 = Fast. 1 = High (default) — albedo is painted bright for the lightmap.
+let GFX_MODE = 'high';     // fast | auto | high
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
 let BX_KEY = '';
@@ -85,7 +85,7 @@ function resize(){
   cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
   cv.style.width=VW+'px'; cv.style.height=VH+'px';
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = !!QUALITY;
+  ctx.imageSmoothingEnabled = true;
   PORT = VH > VW;
   UIS  = clamp(Math.min(VW,VH)/(PORT?430:700), 0.66, 1.30);
   ZOOM = clamp(Math.min(VW,VH*1.5)/780, 0.78, 1.55);
@@ -346,6 +346,7 @@ const SPRITE_FILES={
   loot_coins:'assets/props/loot_coins.png', loot_gems:'assets/props/loot_gems.png',
   loot_chest:'assets/props/loot_chest.png', loot_ruby:'assets/props/loot_ruby.png', loot_ore:'assets/props/loot_ore.png',
   loot_jewelry:'assets/props/loot_jewelry.png', loot_potion:'assets/props/loot_potion.png',
+  loot_herbs:'assets/props/loot_herbs.png',
   floor_mine:'assets/tiles/tile_floor_mine.png', floor_fungi:'assets/tiles/tile_floor_fungi.png',
   floor_ruin:'assets/tiles/tile_floor_ruin.png', floor_hall:'assets/tiles/tile_floor_hall.png',
   wall_cave:'assets/tiles/tile_wall_cave.png',
@@ -411,7 +412,7 @@ function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-    'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_chest','loot_gems','loot_jewelry','loot_potion',
+    'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots'];
@@ -4258,7 +4259,8 @@ function render(){
   if(inWorld){
     drawWorld(g,L);
     applyLighting(g,L);
-    if(QUALITY){ drawGodRays(g); drawBloom(g); drawBeyondMask(g,L); }
+    drawBeyondMask(g,L);
+    if(QUALITY){ drawGodRays(g); drawBloom(g); }
     drawAtmosphere(g,L); drawFloaters(g);
   }
   g.restore();
@@ -4530,36 +4532,21 @@ function gatherLightsCapped(L){
   out.length=cap;
   return out;
 }
-/* scene * (ambient + sum of coloured lights) */
+/* scene * (ambient + sum of coloured lights).
+   Tiles are painted bright on purpose; this multiply is the cave dark.
+   Fast used to skip the lightmap and stain the whole frame with pal.amb,
+   which read as fog. Always punch lanterns / player light into the map. */
 function applyLighting(g,L){
-  if(!QUALITY){
-    g.globalCompositeOperation='multiply';
-    g.fillStyle=L.pal.amb||'#0a0b12';
-    g.globalAlpha=0.78;
-    g.fillRect(0,0,VW,VH);
-    g.globalAlpha=1;
-    const p=player();
-    if(p){
-      const s=w2s(p.x,p.y), rad=TW*2.8;
-      const gr=g.createRadialGradient(s.x,s.y-TH*0.6,8,s.x,s.y-TH*0.6,rad);
-      gr.addColorStop(0,'rgba(255,214,160,0.42)');
-      gr.addColorStop(1,'rgba(0,0,0,0)');
-      g.globalCompositeOperation='lighter';
-      g.fillStyle=gr;
-      g.beginPath(); g.arc(s.x,s.y-TH*0.6,rad,0,TAU); g.fill();
-    }
-    g.globalCompositeOperation='source-over';
-    return;
-  }
   const x=lmx, w=LM.width, h=LM.height;
   x.setTransform(1,0,0,1,0,0);
   x.globalCompositeOperation='source-over';
   x.fillStyle=L.pal.amb; x.fillRect(0,0,w,h);
   x.globalCompositeOperation='lighter';
+  const scx=w/Math.max(1,VW), scy=h/Math.max(1,VH);
   for(const li of gatherLightsCapped(L)){
-    const s=w2s(li.x,li.y), cx=s.x/2, cy=(s.y-TH*.8)/2;
+    const s=w2s(li.x,li.y), cx=s.x*scx, cy=(s.y-TH*.8)*scy;
     const flick = (QUALITY && li.fl)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
-    const rad=li.r*TW*0.27*li.f*flick;
+    const rad=li.r*TW*0.27*li.f*flick*(w/Math.max(1,VW*0.5));
     if(cx<-rad||cy<-rad||cx>w+rad||cy>h+rad) continue;
     const c=rgbOf(li.c);
     const gr=x.createRadialGradient(cx,cy,1,cx,cy,rad);
@@ -4616,7 +4603,7 @@ function drawBloom(g){
 }
 
 function drawBeyondMask(g,L){
-  if(!QUALITY||!L||!L.grid) return;
+  if(!L||!L.grid) return;
   const c=[s2w(-TW,-TH*5),s2w(VW+TW,-TH*5),s2w(-TW,VH+TH*5),s2w(VW+TW,VH+TH*5)];
   const minx=Math.max(0,Math.floor(Math.min(c[0].x,c[1].x,c[2].x,c[3].x))-2);
   const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+2);
@@ -4661,16 +4648,16 @@ function drawBeyondMask(g,L){
 }
 
 function drawAtmosphere(g,L){
-  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.88:0.62);
-  g.fillRect(0,0,VW,VH*0.16);
-  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.66:0.5);
-  g.fillRect(0,VH*0.84,VW,VH*0.16);
+  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.28:0.12);
+  g.fillRect(0,0,VW,VH*0.07);
+  g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.22:0.10);
+  g.fillRect(0,VH*0.93,VW,VH*0.07);
   if(!QUALITY) return;
   const haze=g.createRadialGradient(VW*0.62,VH*0.36,20,VW/2,VH/2,Math.max(VW,VH)*0.72);
   haze.addColorStop(0,hexA(L.pal.key,0.07)); haze.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=haze; g.fillRect(0,0,VW,VH);
   const vg=g.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*.28,VW/2,VH/2,Math.max(VW,VH)*.78);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.78)');
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.38)');
   g.fillStyle=vg; g.fillRect(0,0,VW,VH);
 }
 
@@ -5102,6 +5089,7 @@ function drawLoot(g,pile){
   let img=null, h=46*z;
   if(pile.kind==='ruby'){ img=SPR.loot_ruby; h=52*z; }
   else if(pile.kind==='ore'){ img=SPR.loot_ore; h=38*z; }
+  else if(pile.kind==='herb' || (pile.herbs && Object.keys(pile.herbs).length)){ img=SPR.loot_herbs||SPR.loot_potion; h=48*z; }
   else if(pile.kind==='potion' || ((pile.potions||[]).length && !(pile.coins&&((pile.coins.gp||0)+(pile.coins.pp||0)+(pile.coins.sp||0))))){ img=SPR.loot_potion||SPR.loot_chest; h=48*z; }
   else if(pile.kind==='jewels' || pile.jew || ((pile.items||[]).some(it=>/ring|amulet|jewel|necklace|torque/i.test(it.n||it.k||'')))){ img=SPR.loot_jewelry||SPR.loot_gems; h=44*z; }
   else if((pile.gems||((pile.items||[]).some(it=>it.k==='gem'))) && SPR.loot_gems){ img=SPR.loot_gems; h=46*z; }
