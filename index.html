@@ -327,6 +327,10 @@ const SPRITE_FILES={
   beholder:'assets/creatures/mon_beholder.png',
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png', rubydoor:'assets/props/prop_rubydoor.png',
+  glowcap:'assets/props/prop_glowcap.png', cavefern:'assets/props/prop_cavefern.png',
+  sporepuff:'assets/props/prop_sporepuff.png', nightbloom:'assets/props/prop_nightbloom.png',
+  lichen:'assets/props/prop_lichen.png',
+  loot_ruby_shard:'assets/props/loot_ruby_shard.png',
   rubywall:'assets/props/prop_rubywall.png',
   bronzedoor:'assets/props/prop_bronzedoor.png',
   bell:'assets/props/prop_bell.png',
@@ -397,7 +401,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(/_(w1|w2|atk|dead|sleep)\.png$/.test(src)) return;
   if(/_(dead|sleep)$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
-  if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble|bronzedoor|bell|barrel|stalagmite|crystal|moss|eggs|urn|idol|orepile|pickpile|slime|banner|roots)/.test(src)) return;
+  if(/prop_(sack|timber|chain|rubywall|boulder|cavein|rubble|bronzedoor|bell|barrel|stalagmite|crystal|moss|eggs|urn|idol|orepile|pickpile|slime|banner|roots|glowcap|cavefern|sporepuff|nightbloom|lichen)/.test(src)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_worked/.test(src)) return;
   if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
@@ -417,10 +421,11 @@ function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-    'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
+    'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave','wall_worked',
-    'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots'];
+    'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots',
+    'glowcap','cavefern','sporepuff','nightbloom','lichen'];
   const seen={};
   const queue=[];
   first.forEach(k=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; queue.push(k); } });
@@ -611,7 +616,7 @@ function propSpriteH(p,z){
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
-  if(k==='rubywall'||k==='rubydoor') return 96*z;
+  if(k==='rubywall'||k==='rubydoor') return 168*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -622,7 +627,12 @@ function propSpriteH(p,z){
   if(k==='lift') return 72*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z*(p.s||1);
   if(k==='bones') return 42*z;
-  if(k==='shroom') return 54*z;
+  if(k==='shroom') return 54*z*(p.s||1);
+  if(k==='glowcap') return 58*z*(p.s||1);
+  if(k==='cavefern') return 52*z*(p.s||1);
+  if(k==='sporepuff') return 40*z*(p.s||1);
+  if(k==='nightbloom') return 50*z*(p.s||1);
+  if(k==='lichen') return 28*z*(p.s||1);
   if(k==='stalagmite'||k==='roots'||k==='banner'||k==='idol') return 86*z*(p.s||1);
   if(k==='crystal'||k==='urn') return 64*z*(p.s||1);
   if(k==='moss'||k==='slime'||k==='eggs') return 44*z*(p.s||1);
@@ -1355,10 +1365,10 @@ function makeChapter(n){
     L.crush=CRUSH_SPOTS;
     L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
-    L.rubyDoor={x:36.45,y:10.22};
+    L.rubyDoor={x:36.5,y:10.02};
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:36.45,y:10.45,c:'#ff2f3a',r:6.4,f:1.45},
+              {x:36.5,y:10.15,c:'#ff2f3a',r:7.4,f:1.55},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -1369,10 +1379,7 @@ function makeChapter(n){
       {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:36.45,y:10.22,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
-      {x:27.2,y:12.2,k:'shroom'},{x:31.6,y:13.4,k:'shroom'},{x:25.4,y:29.8,k:'shroom'},
-      {x:42.2,y:12.8,k:'shroom'},{x:45.8,y:29.2,k:'shroom'},{x:40.5,y:30.4,k:'shroom'},
-      {x:33.5,y:28.6,k:'shroom'},{x:28.8,y:16.2,k:'shroom'},
+      {x:36.5,y:10.02,k:'rubydoor',s:1.72,cover:1},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
       {x:13.55,y:21.5,k:'cavein',s:1.15},
@@ -1425,7 +1432,7 @@ function makeChapter(n){
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
         return {x:bodies[0].x,y:bodies[0].y};
       }
-      return !L.flags.touched?(L.rubyDoor||{x:36.45,y:10.35}):!L.flags.cleared?null:{x:36.5,y:21.5};
+      return !L.flags.touched?(L.rubyDoor||{x:36.5,y:10.15}):!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -1433,8 +1440,8 @@ function makeChapter(n){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
       }
-      const door=L.rubyDoor||{x:36.45,y:10.22};
-      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.55})<2.35){
+      const door=L.rubyDoor||{x:36.5,y:10.02};
+      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.7})<2.6){
         interact('Touch the ruby door',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby door is warm. It knows your name.','#ff6a6a');
@@ -1745,12 +1752,12 @@ function dressDungeon(L){
   const tables={
     1:[['rubble',5],['timber',4],['barrel',3],['crate',3],['orepile',3],
        ['pickpile',2],['sack',2],['lantern',2],['banner',1]],
-    2:[['shroom',5],['web',3],['eggs',3],['moss',4],['stalagmite',2],['bones',2],
-       ['crystal',2],['sack',1],['crate',1],['roots',2],['barrel',1]],
+    2:[['web',3],['eggs',3],['stalagmite',2],['bones',2],
+       ['crystal',2],['sack',1],['crate',1],['barrel',1]],
     3:[['bones',4],['urn',3],['banner',3],['crate',2],['cart',1],['idol',2],
-       ['rubble',2],['barrel',1],['brazier',1],['moss',1]],
-    4:[['bones',4],['slime',4],['urn',3],['banner',2],['crate',2],['moss',2],
-       ['idol',1],['barrel',1],['roots',1],['pillar',1]],
+       ['rubble',2],['barrel',1],['brazier',1]],
+    4:[['bones',4],['slime',4],['urn',3],['banner',2],['crate',2],
+       ['idol',1],['barrel',1],['pillar',1]],
     5:[['urn',3],['idol',4],['banner',3],['bones',2],['crystal',2],['barrel',1],
        ['brazier',1],['roots',1]]
   };
@@ -1795,6 +1802,69 @@ function dressDungeon(L){
     G.props.push(pr);
     keep.push({x:f.x,y:f.y,r:1.4});
     placed++;
+  }
+  placePlantClusters(L);
+}
+function isPlantKind(k){
+  return k==='shroom'||k==='glowcap'||k==='cavefern'||k==='sporepuff'||k==='nightbloom'||k==='lichen'||k==='moss';
+}
+function plantKindsFor(n){
+  if(n===1) return ['lichen','glowcap','shroom','nightbloom'];
+  if(n===2) return ['shroom','glowcap','cavefern','sporepuff','nightbloom','lichen','moss'];
+  if(n===3) return ['moss','lichen','nightbloom','cavefern'];
+  if(n===4) return ['moss','lichen','sporepuff'];
+  return ['lichen','nightbloom','moss'];
+}
+function placePlantClusters(L){
+  if(!L||!L.grid) return;
+  G.props=G.props||[];
+  const seed=L.dressSeed||1;
+  const kinds=plantKindsFor(L.n);
+  const floors=[];
+  for(let y=2;y<L.h-2;y++) for(let x=2;x<L.w-2;x++){
+    const t=L.grid[y][x];
+    if(t!==0 && t!==3) continue;
+    let wall=0;
+    for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){
+      if(L.grid[y+j]&&L.grid[y+j][x+i]===1) wall=1;
+    }
+    if(wall) floors.push({x:x+0.5,y:y+0.5});
+  }
+  if(!floors.length) return;
+  const nCl=L.n===2?5:L.n===1?3:3;
+  const keep=[];
+  G.props.forEach(p=>keep.push({x:p.x,y:p.y,r:1.05}));
+  if(L.spawn) keep.push({x:L.spawn.x,y:L.spawn.y,r:2.2});
+  if(L.rubyDoor) keep.push({x:L.rubyDoor.x,y:L.rubyDoor.y,r:2.5});
+  if(L.door) keep.push({x:L.door.x,y:L.door.y,r:1.8});
+  if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:1.8});
+  if(L.camp) keep.push({x:L.camp.x,y:L.camp.y,r:1.6});
+  if(L.bell) keep.push({x:L.bell.x,y:L.bell.y,r:1.5});
+  let clusters=0, tries=0;
+  while(clusters<nCl && tries<90){
+    tries++;
+    const c=floors[(h3(tries*9, clusters*17, seed)*floors.length)|0];
+    if(!c) continue;
+    let ok=1;
+    for(let i=0;i<keep.length;i++){
+      const o=keep[i];
+      if(Math.hypot(o.x-c.x,o.y-c.y)<o.r+1.5){ ok=0; break; }
+    }
+    if(!ok) continue;
+    if(L.n===1 && nearCrush(c.x,c.y,1.6)) continue;
+    const n=3+((h3(c.x*3,c.y*5,seed)*5)|0);
+    for(let i=0;i<n;i++){
+      const ang=h3(c.x+i, c.y, seed)*TAU;
+      const rad=0.22+h3(i*2,c.y,seed)*1.4;
+      const x=c.x+Math.cos(ang)*rad, y=c.y+Math.sin(ang)*rad*0.82;
+      const ti=x|0, tj=y|0;
+      if(!L.grid[tj]||(L.grid[tj][ti]!==0 && L.grid[tj][ti]!==3)) continue;
+      if(L.n===1 && nearCrush(x,y,1.1)) continue;
+      const k=kinds[(h3(x*8,y*8,seed+i)*kinds.length)|0];
+      G.props.push({x,y,k,s:0.72+h3(x,y,seed)*0.48, seed:((x*13+y*7+seed+i)|0), dress:1, plant:1});
+    }
+    keep.push({x:c.x,y:c.y,r:2.5});
+    clusters++;
   }
 }
 function foesLeft(){ return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc); }
@@ -3345,10 +3415,11 @@ const HERBS=[
   {n:'Zur',diff:50,uses:'1-2',cost:1000,k:'sense',d:'Foul tea. Enhances hearing and smell 1 hour.'}
 ];
 function forageChance(){ return 40+(skillLvl('forage')-1)*8; }
-function nearestShroom(e,r){
+function nearestShroom(e,r){ return nearestPlant(e,r); }
+function nearestPlant(e,r){
   let best=null, bd=r||1.6;
   for(const pr of (G.props||[])){
-    if(pr.k!=='shroom') continue;
+    if(!isPlantKind(pr.k)) continue;
     const d=dist(e,pr);
     if(d<bd){ bd=d; best=pr; }
   }
@@ -3357,7 +3428,7 @@ function nearestShroom(e,r){
 function forageHerbs(src){
   ensurePacks();
   const p=player();
-  const patch=src&&src.k==='shroom'?src:null;
+  const patch=src&&isPlantKind(src.k)?src:null;
   const ch=forageChance()+(patch?25:0);
   const roll=d100();
   learn('forage',3);
@@ -4646,6 +4717,10 @@ function gatherLights(L){
   for(const pr of G.props){
     if(!seen(pr.x,pr.y)) continue;
     if(pr.k==='shroom') out.push({x:pr.x,y:pr.y,c:'#b06cff',r:3.4,f:0.72,fl:1});
+    if(pr.k==='glowcap') out.push({x:pr.x,y:pr.y,c:'#4ce0ff',r:3.8,f:0.85,fl:1});
+    if(pr.k==='nightbloom') out.push({x:pr.x,y:pr.y,c:'#ff6a9a',r:2.6,f:0.55,fl:1});
+    if(pr.k==='lichen') out.push({x:pr.x,y:pr.y,c:'#8aff6a',r:1.8,f:0.28,fl:0});
+    if(pr.k==='sporepuff') out.push({x:pr.x,y:pr.y,c:'#e8e0d0',r:1.7,f:0.22,fl:0});
     if(pr.k==='crystal') out.push({x:pr.x,y:pr.y,c:'#ff6a3a',r:2.6,f:0.5,fl:1});
     if(pr.k==='moss') out.push({x:pr.x,y:pr.y,c:'#6aff8a',r:2.1,f:0.38,fl:1});
     if(pr.k==='slime') out.push({x:pr.x,y:pr.y,c:'#8aff4a',r:1.9,f:0.32,fl:1});
@@ -4746,7 +4821,7 @@ function drawBeyondMask(g,L){
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+2);
   const rock=L.pal.fogTop||'#07060a';
   const open=t=>t===0||t===3||t===4;
-  const key=((G.cam.x)|0)+','+((G.cam.y)|0)+','+G.ch+','+QUALITY+','+BX.width;
+  const key=Math.round(CAMSX)+','+Math.round(CAMSY)+','+G.ch+','+QUALITY+','+BX.width+','+(G.seenRev||0);
   const mg=bxx;
   if(key!==BX_KEY){
     BX_KEY=key;
@@ -4757,21 +4832,23 @@ function drawBeyondMask(g,L){
     mg.setTransform(BX.width/Math.max(1,VW),0,0,BX.height/Math.max(1,VH),0,0);
     mg.globalCompositeOperation='destination-out';
     mg.fillStyle='#fff';
-    const pad=QUALITY?0.92:1.05;
+    const pad=QUALITY?1.12:1.22;
     for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
       if(!L.seen[y]||!L.seen[y][x]) continue;
       const t=L.grid[y][x];
       const s=w2s(x,y);
       if(open(t)){
         mg.beginPath();
-        mg.ellipse(s.x, s.y, TW*0.78*pad, TH*0.78*pad, 0, 0, TAU);
+        mg.ellipse(s.x, s.y, TW*0.92*pad, TH*0.92*pad, 0, 0, TAU);
         mg.fill();
       } else if(t===1){
         const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
         const oE=L.grid[y]&&open(L.grid[y][x+1]);
-        if(oS||oE){
+        const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
+        const oW=L.grid[y]&&open(L.grid[y][x-1]);
+        if(oS||oE||oN||oW){
           mg.beginPath();
-          mg.ellipse(s.x, s.y-TH*0.55, TW*0.7*pad, TH*1.15*pad, 0, 0, TAU);
+          mg.ellipse(s.x, s.y-TH*0.72, TW*0.88*pad, TH*1.55*pad, 0, 0, TAU);
           mg.fill();
         }
       }
@@ -4942,11 +5019,16 @@ function drawProp(g,p,pal){
       const fl=1+Math.sin(G.elapsed*7+p.x)*.13;
       emit(s.x,s.y-21*z,26*z*fl,'#ffc571',1);
       ray(s.x,s.y-16*z,52*z,'#ffb45c',0.9);
-    }else if(k==='shroom'){
+    }else if(k==='shroom'||k==='glowcap'||k==='nightbloom'||k==='sporepuff'||k==='lichen'){
       const t=G.elapsed*1.4+p.x*3, b=.78+Math.sin(t)*.22;
-      emit(s.x,s.y-34*z,42*z*b,'#b57cff',0.72);
-      ray(s.x,s.y-20*z,36*z,'#a06cff',0.35);
-      if(QUALITY && Math.random()<0.04) G.parts.push({x:p.x,y:p.y,z:1.1,vx:rnd(.2,-.2),vy:rnd(.2,-.2),vz:rnd(1.4,.4),
+      const glows={shroom:['#b57cff','#a06cff'],glowcap:['#4ce0ff','#6ec8ff'],nightbloom:['#ff6a9a','#ff4a78'],
+        sporepuff:['#e8e0d0',null],lichen:['#8aff6a',null]};
+      const col=glows[k];
+      if(col){
+        emit(s.x,s.y-28*z, (k==='lichen'?18:36)*z*b, col[0], k==='glowcap'?0.9:0.62);
+        if(col[1]) ray(s.x,s.y-18*z,28*z,col[1],0.32);
+      }
+      if(QUALITY && k==='shroom' && Math.random()<0.04) G.parts.push({x:p.x,y:p.y,z:1.1,vx:rnd(.2,-.2),vy:rnd(.2,-.2),vz:rnd(1.4,.4),
         life:rnd(1.8,.8),max:1.8,c:'#c9a6ff',s:rnd(2.2,1),amb:1});
     }else if(k==='crystal'){
       emit(s.x,s.y-22*z,28*z,'#ff6a3a',0.45);
@@ -5219,7 +5301,7 @@ function drawLoot(g,pile){
   g.save(); g.translate(s.x,s.y);
   softShadow(g,0,2*z,14*z,7*z,.5);
   let img=null, h=46*z;
-  if(pile.kind==='ruby'){ img=SPR.loot_ruby; h=52*z; }
+  if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=46*z; }
   else if(pile.kind==='ore'){ img=SPR.loot_ore; h=38*z; }
   else if(pile.kind==='herb' || (pile.herbs && Object.keys(pile.herbs).length)){ img=SPR.loot_herbs||SPR.loot_potion; h=48*z; }
   else if(pile.kind==='potion' || ((pile.potions||[]).length && !(pile.coins&&((pile.coins.gp||0)+(pile.coins.pp||0)+(pile.coins.sp||0))))){ img=SPR.loot_potion||SPR.loot_chest; h=48*z; }
@@ -5968,11 +6050,13 @@ function hoardToPile(hoard){
 }
 function foeDrop(e){
   if(e.rubyDrop || e.kind==='statue' || e.name==='Thin One'){
-    const gp=d1000();
-    e.drop={
+    const gp=200+((d1000()%800)|0);
+    const ox=(Math.random()-0.5)*0.55, oy=(Math.random()-0.5)*0.55;
+    spawnLoot(e.x+ox, e.y+oy, {
       kind:'ruby', glow:'#ff2a3c',
-      items:[{n:'Ruby', gp, k:'gem', d:'A blood-red shard from a Thin One. Worth '+gp+' gp.'}]
-    };
+      items:[{n:'Ruby', gp, k:'gem', d:'A blood-red shard from a ruby guardian. Worth '+gp+' gp.'}]
+    });
+    e.drop=null;
     return;
   }
   const raw=(e.treasure||'Nil').toString().trim();
