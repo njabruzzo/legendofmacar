@@ -3518,6 +3518,7 @@ window.addEventListener('keydown',e=>{
   if(k==='f') fire('search');
   if(k==='t') fire('secret');
   if(k==='g') fire('shovel');
+  if(e.key==='9') debugKillOnScreen();
   if(e.key==='Escape'){
     if(G.inspect){ G.inspect=null; return; }
     G.paused=!G.paused;
@@ -3526,6 +3527,20 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 
 /* ---------------------------- abilities ---------------------------- */
+function debugKillOnScreen(){
+  if(G.scene!=='play'||G.paused||G.sleepShow) return;
+  let n=0;
+  for(const e of G.ents){
+    if(!e||e.dead||e.team!=='foe'||e.npc||e.sleeping||e.hidden) continue;
+    const s=w2s(e.x,e.y);
+    if(s.x<-48||s.x>VW+48||s.y<-90||s.y>VH+90) continue;
+    e.stoneskin=0; e.guard=0; e.guardT=0;
+    damage(e, Math.max(1,e.hp)+99999, '#ff3a3a');
+    n++;
+  }
+  if(n){ shake(10); hint('Slain on screen: '+n+'.',2.2); say(n+' foe'+(n===1?'':'s')+' fall.','#ff6a5a'); }
+  else hint('No foes on screen.',1.6);
+}
 function refuseAttack(p){
   if(!p||!p.defending) return false;
   hint('Defend is up. Lower the shield to attack.',2.6);
@@ -6714,7 +6729,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp',VW/2,VH*.31);
+  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp  ·  9 slay screen',VW/2,VH*.31);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
