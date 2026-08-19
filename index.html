@@ -4461,13 +4461,14 @@ function render(){
   g.save();
   if(QUALITY && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
   const L=G.lvl;
-  g.fillStyle=L?L.pal.fogTop:'#07060a'; g.fillRect(-40,-40,VW+80,VH+80);
+  g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
     && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
   if(inWorld){
+    drawFloors(g,L);
+    drawBeyondMask(g,L);
     drawWorld(g,L);
     applyLighting(g,L);
-    drawBeyondMask(g,L);
     if(QUALITY){ drawGodRays(g); drawBloom(g); }
     drawAtmosphere(g,L); drawFloaters(g);
   }
@@ -4506,16 +4507,73 @@ function render(){
 }
 
 let DIGT=null;
+function viewBounds(L){
+  const padT=QUALITY?5:2;
+  const c=[s2w(-TW,-TH*padT),s2w(VW+TW,-TH*padT),s2w(-TW,VH+TH*padT),s2w(VW+TW,VH+TH*padT)];
+  return {
+    minx:Math.max(0,Math.floor(Math.min(c[0].x,c[1].x,c[2].x,c[3].x))-1),
+    maxx:Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1),
+    miny:Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1),
+    maxy:Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1)
+  };
+}
+function drawFloors(g,L){
+  if(!L||!L.grid) return;
+  const pal=L.pal;
+  ensureTileBlit(L);
+  const {minx,maxx,miny,maxy}=viewBounds(L);
+  const okTex=TEX.ready;
+  const floorBlit=TILEBLIT.floor;
+  for(let d=minx+miny; d<=maxx+maxy; d++){
+    const x0=Math.max(minx,d-maxy), x1=Math.min(maxx,d-miny);
+    for(let x=x0;x<=x1;x++){
+      const y=d-x, t=L.grid[y][x];
+      if(t===2||t===1||!L.seen[y][x]) continue;
+      const s=w2s(x,y);
+      if(floorBlit){
+        g.drawImage(floorBlit, s.x-TW*0.56, s.y-TH*0.56);
+      } else if(QUALITY){
+        const key=palFloorKey(pal);
+        const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
+        const fl=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
+        if(fl) g.drawImage(fl, s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
+        else if(okTex){
+          const arr = t===3?TEX.floorA:TEX.floor;
+          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
+        } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
+      } else if(okTex){
+        const arr = t===3?TEX.floorA:TEX.floor;
+        g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
+      } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
+    }
+  }
+}
+function drawWallTile(g,L,x,y,s,WH,FH,SH,wallBlit,wallAtk,okTex,pal){
+  const open=t=>t===0||t===3||t===4;
+  const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
+  const oE=L.grid[y]&&open(L.grid[y][x+1]);
+  if(!oS&&!oE) return;
+  drawWallBack(g,s,WH,FH);
+  const rk=L.wallHP[x+','+y];
+  const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
+  if(wallImg){
+    if(wallImg===wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
+    else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
+  } else if(okTex){
+    const vein = h2(x*3,y*7)>0.86;
+    const arr = vein?TEX.wallVein:TEX.wall;
+    g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
+  } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
+  if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
+  if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
+  if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
+  if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
+}
 function drawWorld(g,L){
   const pal=L.pal;
   { const pl=player(); DIGT = pl? digTarget(pl) : null; }
   ensureTileBlit(L);
-  const padT=QUALITY?5:2;
-  const c=[s2w(-TW,-TH*padT),s2w(VW+TW,-TH*padT),s2w(-TW,VH+TH*padT),s2w(VW+TW,VH+TH*padT)];
-  const minx=Math.max(0,Math.floor(Math.min(c[0].x,c[1].x,c[2].x,c[3].x))-1);
-  const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1);
-  const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1);
-  const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
+  const {minx,maxx,miny,maxy}=viewBounds(L);
 
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const isoX=G.cam.x-G.cam.y, isoY=G.cam.x+G.cam.y;
@@ -4523,7 +4581,7 @@ function drawWorld(g,L){
   const near=o=>{ const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
   const seenAt=o=>{ const i=o.x|0, j=o.y|0; return !!(L.seen[j]&&L.seen[j][i]); };
   for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
-  for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
+  for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
   for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
@@ -4535,56 +4593,33 @@ function drawWorld(g,L){
   const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
   const p=player();
   const okTex=TEX.ready;
-  const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
+  const wallBlit=TILEBLIT.wall, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
   if(p&&p.dest) push((p.dest.x+p.dest.y)|0,()=>drawMoveMark(g,p.dest));
 
   for(let d=minx+miny; d<=maxx+maxy; d++){
     const x0=Math.max(minx,d-maxy), x1=Math.min(maxx,d-miny);
     for(let x=x0;x<=x1;x++){
       const y=d-x, t=L.grid[y][x];
-      if(t===2||!L.seen[y][x]) continue;
-      const s=w2s(x,y);
-      if(t===1){
-        const oS=L.grid[y+1]&&(L.grid[y+1][x]===0||L.grid[y+1][x]===3||L.grid[y+1][x]===4);
-        const oE=L.grid[y]&&(L.grid[y][x+1]===0||L.grid[y][x+1]===3||L.grid[y][x+1]===4);
-        if(!oS&&!oE) continue;
-        const rk=L.wallHP[x+','+y];
-        const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-        if(wallImg){
-          if(wallImg===wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
-          else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
-        } else if(okTex){
-          const vein = h2(x*3,y*7)>0.86;
-          const arr = vein?TEX.wallVein:TEX.wall;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
-        } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
-        if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
-        if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
-        if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
-        if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
-      } else {
-        if(floorBlit){
-          g.drawImage(floorBlit, s.x-TW*0.56, s.y-TH*0.56);
-        } else if(QUALITY){
-          const key=palFloorKey(pal);
-          const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
-          const fl=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
-          if(fl) g.drawImage(fl, s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-          else if(okTex){
-            const arr = t===3?TEX.floorA:TEX.floor;
-            g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-          } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
-        } else if(okTex){
-          const arr = t===3?TEX.floorA:TEX.floor;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-        } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
-      }
+      if(t!==1||!L.seen[y][x]) continue;
+      drawWallTile(g,L,x,y,w2s(x,y),WH,FH,SH,wallBlit,wallAtk,okTex,pal);
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
-  // Bodies first (after floors), then pinning rock and rubble on top of them.
   for(const e of G.ents) if(e.crushed && near(e)) drawEnt(g,e);
-  for(const p of G.props) if((p.pin||p.cover) && near(p) && seenAt(p)) drawProp(g,p,pal);
+  for(const p of G.props) if(p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
+}
+function drawWallBack(g,s,WH,FH){
+  g.fillStyle='#000000';
+  const top=s.y-WH-FH/2;
+  g.beginPath();
+  g.moveTo(s.x, top);
+  g.lineTo(s.x+TW/2, top+FH/2);
+  g.lineTo(s.x+TW/2, top+FH/2+WH);
+  g.lineTo(s.x, top+FH+WH);
+  g.lineTo(s.x-TW/2, top+FH/2+WH);
+  g.lineTo(s.x-TW/2, top+FH/2);
+  g.closePath();
+  g.fill();
 }
 function drawCracks(g,sx,sy,WH,f){
   g.save(); g.globalAlpha=clamp(f*1.15,0,1);
@@ -4819,7 +4854,7 @@ function drawBeyondMask(g,L){
   const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+2);
   const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-2);
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+2);
-  const rock=L.pal.fogTop||'#07060a';
+  const rock='#000000';
   const open=t=>t===0||t===3||t===4;
   const key=Math.round(CAMSX)+','+Math.round(CAMSY)+','+G.ch+','+QUALITY+','+BX.width+','+(G.seenRev||0);
   const mg=bxx;
@@ -4832,26 +4867,19 @@ function drawBeyondMask(g,L){
     mg.setTransform(BX.width/Math.max(1,VW),0,0,BX.height/Math.max(1,VH),0,0);
     mg.globalCompositeOperation='destination-out';
     mg.fillStyle='#fff';
-    const pad=QUALITY?1.12:1.22;
+    const pad=1.04;
     for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
       if(!L.seen[y]||!L.seen[y][x]) continue;
       const t=L.grid[y][x];
+      if(!open(t)) continue;
       const s=w2s(x,y);
-      if(open(t)){
-        mg.beginPath();
-        mg.ellipse(s.x, s.y, TW*0.92*pad, TH*0.92*pad, 0, 0, TAU);
-        mg.fill();
-      } else if(t===1){
-        const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
-        const oE=L.grid[y]&&open(L.grid[y][x+1]);
-        const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
-        const oW=L.grid[y]&&open(L.grid[y][x-1]);
-        if(oS||oE||oN||oW){
-          mg.beginPath();
-          mg.ellipse(s.x, s.y-TH*0.72, TW*0.88*pad, TH*1.55*pad, 0, 0, TAU);
-          mg.fill();
-        }
-      }
+      mg.beginPath();
+      mg.moveTo(s.x, s.y-TH*0.56*pad);
+      mg.lineTo(s.x+TW*0.56*pad, s.y);
+      mg.lineTo(s.x, s.y+TH*0.56*pad);
+      mg.lineTo(s.x-TW*0.56*pad, s.y);
+      mg.closePath();
+      mg.fill();
     }
     mg.setTransform(1,0,0,1,0,0);
     mg.globalCompositeOperation='source-over';
