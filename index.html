@@ -24,6 +24,7 @@
 <body>
 <canvas id="c"></canvas>
 <audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=30"></audio>
+<script src="SkillSystem.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -1225,6 +1226,20 @@ const ABIL=[
 ];
 const cds={}; ABIL.forEach(a=>cds[a.key]=0);
 
+/* ECS registry: systems constructed here, then run every play-frame from update()
+   (which loop() calls). Same layout as GameEngine.gameLoop() → system.update(dt). */
+const ENGINE={ systems:[] };
+function registerSystem(sys){
+  if(!sys||ENGINE.systems.indexOf(sys)>=0) return sys;
+  ENGINE.systems.push(sys); return sys;
+}
+function runSystems(dt, world){
+  for(let i=0;i<ENGINE.systems.length;i++) ENGINE.systems[i].update(dt, world);
+}
+const skillSystem=new SkillSystem();
+skillSystem.bindHud(ABIL, cds);
+registerSystem(skillSystem);
+
 /* ==========================================================================
    LEVELS
    ========================================================================== */
@@ -1773,7 +1788,7 @@ const CHAPTERS=[1,2,3,4,5];
 
 function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
-  ABIL.forEach(a=>cds[a.key]=0); G.hint=null; G.hurt=0; G.decals=[];
+  ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
@@ -3772,7 +3787,7 @@ function update(dt){
   G.elapsed+=dt;
   const L=G.lvl; if(!L) return;
   PROMPT=null;
-  ABIL.forEach(a=>{ if(cds[a.key]>0) cds[a.key]=Math.max(0,cds[a.key]-dt); });
+  runSystems(dt, { ents:G.ents, abilities:ABIL, cds:cds });
   if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
   G.hurt=Math.max(0,G.hurt-dt*1.4);
 
@@ -3942,7 +3957,7 @@ function update(dt){
     }
     if((e.slowT||0)>0 && e!==p) e.slowT=Math.max(0,e.slowT-dt);
     if(e.buff>0) e.buff-=dt;
-    if(e.ct>0) e.ct-=dt;
+    skillSystem.tickAttack(e, dt);
     if(e.atk>0){
       if(e.hero && e.defending){ e.atk=0; e.swung=0; }
       else {
@@ -6938,6 +6953,9 @@ function resolveTaps(){
 let last=performance.now();
 function loop(now){
   let dt=(now-last)/1000; last=now; dt=Math.min(dt,.05); G.t+=dt;
+  /* SkillSystem is registered on ENGINE.systems (after ABIL/cds).
+     update() → runSystems(dt) ticks it every unpaused play frame, before
+     movement (steerWalk / move) and the entity position loop. */
   if(G.hitstop>0) G.hitstop-=dt; else update(dt);
   syncMusic();
   render(); resolveTaps();
