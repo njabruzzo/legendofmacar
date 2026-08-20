@@ -211,7 +211,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='32';
+const ASSET_VER='33';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1398,10 +1398,11 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:14.88,y:20.18,seed:3,stone:0.28,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.08,y:0.32}},
-  fendur:{x:14.96,y:22.82,seed:11,stone:0.26,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.06,y:0.30}},
-  orbo:{x:15.58,y:20.52,seed:19,stone:0.27,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.10,y:0.28}},
-  talpor:{x:15.62,y:22.48,seed:7,stone:0.26,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.06,y:0.32}}
+  // Original kits. Party total on the fallen: 14 rations (two weeks) and 8 beer draughts (d10 each).
+  pordoom:{x:14.88,y:20.18,seed:3,stone:0.28,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.08,y:0.32}},
+  fendur:{x:14.96,y:22.82,seed:11,stone:0.26,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.06,y:0.30}},
+  orbo:{x:15.58,y:20.52,seed:19,stone:0.27,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.10,y:0.28}},
+  talpor:{x:15.62,y:22.48,seed:7,stone:0.26,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.06,y:0.32}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1758,7 +1759,7 @@ const ABIL=[
  {key:'bow',  label:'Shoot',ico:'crossbow', cd:1.4, hint:'Loose a quarrel. Spent bolts may save and be retrieved'},
  {key:'pack', label:'PACK', ico:'pack',  cd:0, hint:'Each kin keeps their own pack'},
  {key:'wall', label:'Defend',ico:'shield',cd:0, hint:'Armor class +4. No attacks while the shield is up'},
- {key:'ale',  label:'Heal', ico:'flask', cd:12,hint:'Passed round. Heals the kin'},
+ {key:'ale',  label:'Heal', ico:'flask', cd:12,hint:'A draught of beer. Heals d10'},
  {key:'rally',label:'RALLY',ico:'horn',  cd:26,hint:'Kin hit harder, all heal'},
 ];
 const cds={}; ABIL.forEach(a=>cds[a.key]=0);
@@ -1777,6 +1778,26 @@ const skillSystem=new SkillSystem();
 skillSystem.bindHud(ABIL, cds);
 registerSystem(skillSystem);
 
+function isStartBackWall(L,x,y){
+  return !!(L && L.n===1 && x===13 && y>=16 && y<=27);
+}
+function startBackWallRubble(){
+  const sprs=['rubble','rubble2','boulder','boulder2'];
+  const out=[];
+  for(let i=0;i<20;i++){
+    const y=16.35+i*0.56;
+    const x=14.08+(h01(i,3,81)-0.5)*0.16;
+    const s=0.78+h01(i,5,81)*0.62;
+    const spr=sprs[i%sprs.length];
+    out.push({x,y,k:s>1.12?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+  }
+  for(let i=0;i<14;i++){
+    const y=16.55+i*0.78;
+    const x=14.38+(h01(i,8,81)-0.5)*0.18;
+    out.push({x,y,k:'rubble',spr:sprs[(i+2)%sprs.length],s:0.38+h01(i,9,81)*0.36,seed:940+i,backwall:1});
+  }
+  return out;
+}
 function scatterStartRubble(L){
   const seed=2041;
   const sprs=['rubble','rubble2','boulder','boulder2'];
@@ -1844,17 +1865,15 @@ function makeChapter(n){
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:36.5,y:9.55,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
-      {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
-      {x:13.55,y:21.5,k:'cavein',s:1.15},
-      {x:13.32,y:19.55,k:'boulder',spr:'boulder2',s:1.10},
-      {x:13.42,y:23.45,k:'boulder',spr:'boulder',s:1.14}];
+      {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'}];
+    G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k], off=s.pin||{x:0.10,y:0.26};
       G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.34,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
-      if(p.pin||p.cover||p.k==='cavein') return true;
+      if(p.pin||p.cover||p.backwall||p.k==='cavein') return true;
       if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,0.70)) return false;
       return true;
     });
@@ -2419,8 +2438,19 @@ function lootCorpse(e){
   const bits=[];
   const kit=e.kit||{};
   ['bombs','rations','ales','torches','ammo'].forEach(k=>{
-    if(kit[k]){ addToPack('macar',k,kit[k]); bits.push(k+' \u00d7'+kit[k]); }
+    if(!kit[k]) return;
+    addToPack('macar',k,kit[k]);
+    if(k==='ales') bits.push(kit[k]+' draughts of beer');
+    else if(k==='rations' && kit[k]===7) bits.push('a week of rations');
+    else if(k==='rations' && kit[k]===14) bits.push('two weeks of rations');
+    else bits.push(k+' \u00d7'+kit[k]);
   });
+  if(kit.bombKit){
+    addToPack('macar','bombKit',kit.bombKit);
+    gain('powder', 4*kit.bombKit);
+    gain('ironstone', 2*kit.bombKit);
+    bits.push('a bomb-making kit');
+  }
   if(kit.gp){
     addCoin('gp',kit.gp);
     awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
@@ -2502,12 +2532,11 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
-      e.kit=crush.kit||{}; e.corpse=1; e.looted=0;
-      if(crush.kit){
-        const pk=packOf(r.key);
-        Object.keys(crush.kit).forEach(k=>{ if(typeof pk[k]==='number') pk[k]=0; });
-        syncPackTotals();
-      }
+      e.kit=Object.assign({}, crush.kit||{}); e.corpse=1; e.looted=0;
+      const pk=packOf(r.key);
+      pk.potions=[]; pk.healPots=[]; pk.herbs={}; pk.magic=[]; pk.gems=[];
+      pk.bombs=0; pk.ales=0; pk.rations=0; pk.torches=0; pk.ammo=0; pk.bombKit=0;
+      syncPackTotals();
     }
     G.ents.push(e);
   });
@@ -2820,7 +2849,7 @@ function hitChancePct(need, bonus){
   return Math.round((21-req)/20*100);
 }
 function newPack(r){
-  const p={potions:[],healPots:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0};
+  const p={potions:[],healPots:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0,bombKit:0};
   if(!r) return p;
   if(r.key==='macar'){ p.bombs=2; p.ales=1; p.torches=8; p.ammo=10; }
   else if(r.key==='pordoom'){ p.bombs=1; p.ales=1; }
@@ -2838,6 +2867,7 @@ function ensurePacks(){
     if(!pk.magic) pk.magic=[];
     if(!pk.gems) pk.gems=[];
     if(!pk.herbs) pk.herbs={};
+    if(!pk.bombKit) pk.bombKit=pk.bombKit||0;
     pk.healPots=pk.healPots||[];
     pk.potions=(pk.potions||[]).filter(p=>{
       if(!isHealPotion(p)) return true;
@@ -4518,7 +4548,10 @@ function fire(key){
   if(key==='bomb'){
     if(refuseAttack(p)) return;
     syncPackTotals();
-    if(partyCount('bombs')<=0){ hint('No bombs in any pack. Craft more at the bench.',2.8); return; }
+    if(partyCount('bombs')<=0){
+      hint(partyCount('bombKit')?'No bombs in any pack. Craft more at the bench.':'No bombs. Loot the red hat — he carries a bomb-making kit.',2.8);
+      return;
+    }
     if(cds.bomb>0) return;
     const t=nearestFoe(p,8);
     G.aim = t? {x:t.x,y:t.y} : {x:p.x+(p.fdx||0)*4.5, y:p.y+(p.fdy||1)*4.5};
@@ -4547,15 +4580,15 @@ function fire(key){
   cds[key]=a.cd; p.dest=null;
   if(key==='ale'){
     const ch=takeHealCharge();
-    if(!ch){ cds[key]=0; hint('No ale or healing draughts in the packs. Brew more at camp.',2.6); return; }
+    if(!ch){ cds[key]=0; hint('No beer draughts in the packs. Brew more at camp.',2.6); return; }
     if(ch.kind==='potion'){
       drinkPotion(ch.p, p);
       learn('ale',3);
     } else {
-      const heal=8+skillLvl('ale')*2; let n=0;
-      G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead&&dist(e,p)<6.5){
-        applyHeal(e, heal); n++; } });
-      learn('ale',3);     say('The flask goes round. '+n+' dwarves the better for it.','#d2bd63');
+      const heal=ri(1,10);
+      applyHeal(p, heal);
+      learn('ale',3);
+      say('A draught of beer. Heals '+heal+' (d10).','#d2bd63');
     }
   }
   if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
@@ -5004,6 +5037,7 @@ function drawWorld(g,L){
   }
 
   function drawWallCell(x,y){
+    if(isStartBackWall(L,x,y)) return;
     const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
     const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
@@ -5345,6 +5379,7 @@ function drawBeyondMask(g,L){
         mg.ellipse(Math.round(s.x), Math.round(s.y), TW*0.92*pad, TH*0.92*pad, 0, 0, TAU);
         mg.fill();
       } else if(t===1){
+        if(isStartBackWall(L,x,y)) continue;
         const oS=L.grid[y+1]&&open(L.grid[y+1][x]);
         const oE=L.grid[y]&&open(L.grid[y][x+1]);
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
@@ -6719,7 +6754,10 @@ function bombDamage(){ let d=0; for(let i=0;i<10;i++) d+=ri(1,10);
 function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function throwBomb(){
   const p=player(); if(!p||!G.aim) return;
-  if(!takeFromPacks('bombs')){ hint('No bombs in the packs.',2.2); return; }
+  if(!takeFromPacks('bombs')){
+    hint(partyCount('bombKit')?'No bombs in the packs.':'No bombs. Loot the red hat — he carries a bomb-making kit.',2.2);
+    return;
+  }
   const a=ang(G.aim.x-p.x, G.aim.y-p.y);
   p.fdx=Math.cos(a); p.fdy=Math.sin(a);
   G.thrown.push({sx:p.x,sy:p.y,tx:G.aim.x,ty:G.aim.y,x:p.x,y:p.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0});
@@ -6782,8 +6820,8 @@ function campActions(){
   if(!g.rune) a.push({grp:'FORGE',t:'Set a rune in the hammer',cost:{starmetal:1},
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
-  a.push({grp:'BENCH',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
-    info:'10d10 throwables into Macar\'s pack',
+  if(partyCount('bombKit')>0) a.push({grp:'BENCH',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
+    info:'Pordoom\'s kit. 10d10 throwables into Macar\'s pack',
     fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
       say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
   a.push({grp:'BREWERY',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
@@ -7157,8 +7195,12 @@ function icon(g,kind,x,y,s,col){
   if(kind==='flask'){ g.beginPath(); g.moveTo(-3*s,-10*s); g.lineTo(-3*s,-3*s); g.lineTo(-7*s,7*s);
     g.quadraticCurveTo(-7*s,11*s,-3*s,11*s); g.lineTo(3*s,11*s); g.quadraticCurveTo(7*s,11*s,7*s,7*s);
     g.lineTo(3*s,-3*s); g.lineTo(3*s,-10*s); g.closePath(); g.stroke(); g.fillRect(-5*s,2*s,10*s,7*s); }
-  if(kind==='shield'){ g.beginPath(); g.moveTo(0,-11*s); g.lineTo(9*s,-7*s); g.lineTo(9*s,3*s);
-    g.quadraticCurveTo(9*s,10*s,0,12*s); g.quadraticCurveTo(-9*s,10*s,-9*s,3*s); g.lineTo(-9*s,-7*s); g.closePath(); g.stroke(); }
+  if(kind==='shield'||kind==='defend'){
+    g.beginPath(); g.arc(0,0.4*s,11*s,0,TAU); g.fillStyle='#8a93a0'; g.fill();
+    g.strokeStyle='#d8e4f0'; g.lineWidth=3.2*s; g.stroke();
+    g.beginPath(); g.arc(0,0.4*s,7.2*s,0,TAU); g.strokeStyle='#b8c4d0'; g.lineWidth=1.4*s; g.stroke();
+    g.beginPath(); g.arc(0,0.4*s,2.4*s,0,TAU); g.fillStyle='#cfd8e2'; g.fill();
+    g.strokeStyle=col; g.fillStyle=col; g.lineWidth=2.3*s; }
   if(kind==='pick'){ g.beginPath(); g.moveTo(-9*s,10*s); g.lineTo(6*s,-5*s); g.stroke();
     g.beginPath(); g.moveTo(-3*s,-10*s); g.quadraticCurveTo(5*s,-12*s,11*s,-2*s); g.stroke(); }
   if(kind==='horn'){ g.beginPath(); g.moveTo(-10*s,7*s); g.quadraticCurveTo(2*s,9*s,10*s,-7*s);
@@ -7169,9 +7211,12 @@ function icon(g,kind,x,y,s,col){
   if(kind==='bomb'){ g.beginPath(); g.arc(-1*s,3*s,8*s,0,TAU); g.stroke();
     g.beginPath(); g.moveTo(3*s,-3*s); g.lineTo(6*s,-8*s); g.stroke();
     g.beginPath(); g.arc(7.6*s,-9.6*s,2*s,0,TAU); g.fill(); }
-  if(kind==='pack'){ g.beginPath(); g.moveTo(-9*s,-2*s); g.lineTo(-9*s,10*s); g.lineTo(9*s,10*s); g.lineTo(9*s,-2*s);
-    g.quadraticCurveTo(9*s,-10*s,0,-11*s); g.quadraticCurveTo(-9*s,-10*s,-9*s,-2*s); g.closePath(); g.stroke();
-    g.beginPath(); g.moveTo(0,-11*s); g.lineTo(0,10*s); g.stroke(); }
+  if(kind==='pack'){
+    g.beginPath(); g.moveTo(-8.5*s,-1*s); g.lineTo(-8.5*s,10*s); g.quadraticCurveTo(0,12.5*s,8.5*s,10*s);
+    g.lineTo(8.5*s,-1*s); g.quadraticCurveTo(8.5*s,-8*s,0,-9*s); g.quadraticCurveTo(-8.5*s,-8*s,-8.5*s,-1*s); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(-8.5*s,-1*s); g.quadraticCurveTo(0,1.5*s,8.5*s,-1*s); g.stroke();
+    g.beginPath(); g.moveTo(-6*s,-8.5*s); g.quadraticCurveTo(-11*s,-2*s,-6*s,9*s); g.stroke();
+    g.beginPath(); g.moveTo(6*s,-8.5*s); g.quadraticCurveTo(11*s,-2*s,6*s,9*s); g.stroke(); }
   if(kind==='cross'){ g.beginPath(); g.arc(0,0,11*s,0,TAU); g.stroke();
     g.fillRect(-2.2*s,-8*s,4.4*s,16*s); g.fillRect(-8*s,-2.2*s,16*s,4.4*s); }
   if(kind==='plant'){
@@ -7758,7 +7803,7 @@ function drawPack(g){
   g.fillStyle='rgba(210,190,150,0.85)';
   g.fillText((sheet?fmtAbil(sheet)+'  HP '+sheet.maxhp:'')+'   bombs '+(pk.bombs||0)+
     '  beer '+((pk.ales||0)+((pk.healPots||[]).length))+'  rations '+(pk.rations||0)+'  torches '+(pk.torches||0)+
-    (pk.ammo?'  bolts '+pk.ammo:''), 14*s, tabY+tabH+16*s);
+    (pk.ammo?'  bolts '+pk.ammo:'')+(pk.bombKit?'  bomb kit':''), 14*s, tabY+tabH+16*s);
   const eq=G.equipped||{};
   const mag=pk.magic||[];
   const herbs=Object.keys(pk.herbs||{});
@@ -7767,9 +7812,14 @@ function drawPack(g){
   const flaskN=(pk.ales||0)+((pk.healPots||[]).length);
   if(flaskN){
     const names=(pk.healPots||[]).map(p=>p.n).slice(0,3);
-    rows.push({kind:'ale', t:'Ale / healing draughts  \u00d7'+flaskN,
-      info:names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Tap Heal on the bar, or tap here to drink.',
+    rows.push({kind:'ale', t:'Draughts of beer  \u00d7'+flaskN,
+      info:names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Each draught heals d10. Tap Heal, or tap here to drink.',
       tag:'Beer'});
+  }
+  if(pk.bombKit){
+    rows.push({kind:'kit', t:'Bomb-making kit  \u00d7'+(pk.bombKit||0),
+      info:'Casings, fuses, and tools. Pack bombs at the camp bench.',
+      tag:'Kit'});
   }
   mag.forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
