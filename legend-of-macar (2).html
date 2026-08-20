@@ -519,14 +519,34 @@ function drawEntBillboard(g,e,img,z){
 }
 function drawDeadBillboard(g,e,img,z){
   if(!img||!img.width) return false;
-  // Fit every corpse in a Macar-sized box. Wide paintings (Pordoom's prone
-  // pick-and-sack canvas) used to scale by height and dwarf the others.
   const maxW=entSpriteH({kind:'dwarf'},z)*1.08;
   const maxH=entSpriteH({kind:'dwarf'},z)*0.62;
   const aspect=img.width/Math.max(1,img.height);
   let W=maxW, H=W/aspect;
   if(H>maxH){ H=maxH; W=H*aspect; }
-  g.drawImage(img, -W/2, -H*0.78, W, H);
+  const dx=-W/2, dy=-H*0.78;
+  if(e.crushed){
+    g.save();
+    g.shadowColor='rgba(255,232,176,0.95)';
+    g.shadowBlur=18*z;
+    g.drawImage(img, dx, dy, W, H);
+    g.shadowBlur=8*z;
+    g.shadowColor='rgba(255,248,220,0.9)';
+    g.drawImage(img, dx, dy, W, H);
+    g.restore();
+    g.strokeStyle='rgba(255,236,186,0.92)';
+    g.lineWidth=2.4*z;
+    g.beginPath();
+    g.ellipse(0, -H*0.40, W*0.48, H*0.36, -0.12, 0, TAU);
+    g.stroke();
+    g.strokeStyle='rgba(255,210,130,0.45)';
+    g.lineWidth=4.2*z;
+    g.beginPath();
+    g.ellipse(0, -H*0.40, W*0.54, H*0.42, -0.12, 0, TAU);
+    g.stroke();
+    return true;
+  }
+  g.drawImage(img, dx, dy, W, H);
   return true;
 }
 function palFloorKey(pal){
@@ -638,12 +658,15 @@ function wallFaceH(L){
   const oy=tilesetPack(L||G.lvl).wall.oy;
   return oy*(TH/TILESET.srcH);
 }
+function rubyDoorH(L){
+  return wallFaceH(L)*1.28;
+}
 function rubyDoorHalf(){
   const img=SPR.rubydoor_face||SPR.rubydoor;
-  const H=wallFaceH();
-  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.53;
+  const H=rubyDoorH();
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  return clamp(H*aspect/(2*perTile), 0.55, 0.82);
+  return clamp(H*aspect/(2*perTile), 1.08, 1.38);
 }
 function flattenIsoQuad(img, p0, p1, p3, dw, dh){
   if(!img||!img.width) return null;
@@ -753,36 +776,45 @@ function makeWorkedCap(w,h){
   x.fillStyle=bevel; x.fillRect(0,0,w,h);
   return c;
 }
-function drawMasonryTop(g, x, y, H, seed){
-  const pad=0.045;
-  const n=w2s(x-pad, y-pad), e=w2s(x+1+pad, y-pad);
-  const s=w2s(x+1+pad, y+1+pad), wpt=w2s(x-pad, y+1+pad);
-  const q0={x:n.x,y:n.y-H}, q1={x:e.x,y:e.y-H}, q2={x:s.x,y:s.y-H}, q3={x:wpt.x,y:wpt.y-H};
-  const img=TILEBLIT.cap;
-  g.save();
+function fillIsoCap(g, x0, y0, x1, y1, x2, y2, x3, y3, H, punch){
+  const a=w2s(x0,y0), b=w2s(x1,y1), c=w2s(x2,y2), d=w2s(x3,y3);
   g.beginPath();
-  g.moveTo(q0.x,q0.y); g.lineTo(q1.x,q1.y); g.lineTo(q2.x,q2.y); g.lineTo(q3.x,q3.y); g.closePath();
-  if(img&&img.width){
-    g.save(); g.clip();
-    g.imageSmoothingEnabled=true;
-    const iw=img.width, ih=img.height;
-    g.translate(q0.x, q0.y);
-    g.transform((q1.x-q0.x)/iw, (q1.y-q0.y)/iw, (q3.x-q0.x)/ih, (q3.y-q0.y)/ih, 0, 0);
-    const u=((h2((seed|0),4)*iw)|0);
-    if(u>1){
-      g.drawImage(img, u, 0, iw-u, ih, 0, 0, iw-u, ih);
-      g.drawImage(img, 0, 0, u, ih, iw-u, 0, u, ih);
-    } else g.drawImage(img, 0, 0);
-    g.restore();
-  } else {
-    const gr=g.createLinearGradient(q3.x,q3.y,q1.x,q1.y);
-    gr.addColorStop(0,'#5a4432'); gr.addColorStop(0.4,'#c4a078'); gr.addColorStop(1,'#3a2818');
-    g.fillStyle=gr; g.fill();
+  g.moveTo(a.x, a.y-H); g.lineTo(b.x, b.y-H); g.lineTo(c.x, c.y-H); g.lineTo(d.x, d.y-H);
+  g.closePath();
+  if(punch){ g.fill(); return; }
+  const gr=g.createLinearGradient(d.x, d.y-H, b.x, b.y-H);
+  gr.addColorStop(0,'#e2c49a');
+  gr.addColorStop(0.28,'#b08958');
+  gr.addColorStop(0.62,'#7a5638');
+  gr.addColorStop(1,'#3a2818');
+  g.fillStyle=gr; g.fill();
+  g.strokeStyle='rgba(22,14,8,0.55)'; g.lineWidth=1.25*ZOOM; g.stroke();
+  g.strokeStyle='rgba(24,14,8,0.42)'; g.lineWidth=1.05*ZOOM;
+  for(let i=1;i<3;i++){
+    const t=i/3;
+    g.beginPath();
+    g.moveTo(a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t-H);
+    g.lineTo(d.x+(c.x-d.x)*t, d.y+(c.y-d.y)*t-H);
+    g.stroke();
   }
-  g.strokeStyle='rgba(18,12,8,0.55)'; g.lineWidth=1.4*ZOOM; g.stroke();
-  g.beginPath(); g.moveTo(q0.x,q0.y); g.lineTo(q1.x,q1.y); g.lineTo(q2.x,q2.y);
-  g.strokeStyle='rgba(255,236,210,0.28)'; g.lineWidth=1.6*ZOOM; g.stroke();
-  g.restore();
+  g.beginPath();
+  g.moveTo(a.x, a.y-H); g.lineTo(b.x, b.y-H);
+  g.strokeStyle='rgba(255,236,210,0.38)'; g.lineWidth=1.7*ZOOM; g.stroke();
+}
+function drawMasonryCoping(g, x, y, H, oN, oE, oS, oW){
+  const t=0.52, o=0.10;
+  if(oS) fillIsoCap(g, x-o, y+1-t, x+1+o, y+1-t, x+1+o, y+1+o, x-o, y+1+o, H);
+  if(oE) fillIsoCap(g, x+1-t, y-o, x+1+o, y-o, x+1+o, y+1+o, x+1-t, y+1+o, H);
+  if(oN) fillIsoCap(g, x-o, y-o, x+1+o, y-o, x+1+o, y+t, x-o, y+t, H);
+  if(oW) fillIsoCap(g, x-o, y-o, x+t, y-o, x+t, y+1+o, x-o, y+1+o, H);
+}
+function punchMasonryCoping(mg, x, y, H, oN, oE, oS, oW){
+  const t=0.62, o=0.18;
+  mg.fillStyle='#fff';
+  if(oS) fillIsoCap(mg, x-o, y+1-t, x+1+o, y+1-t, x+1+o, y+1+o, x-o, y+1+o, H, 1);
+  if(oE) fillIsoCap(mg, x+1-t, y-o, x+1+o, y-o, x+1+o, y+1+o, x+1-t, y+1+o, H, 1);
+  if(oN) fillIsoCap(mg, x-o, y-o, x+1+o, y-o, x+1+o, y+t, x-o, y+t, H, 1);
+  if(oW) fillIsoCap(mg, x-o, y-o, x+t, y-o, x+t, y+1+o, x-o, y+1+o, H, 1);
 }
 function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
   opt=opt||{};
@@ -937,7 +969,7 @@ function propSpriteH(p,z){
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
-  if(k==='rubydoor') return wallFaceH();
+  if(k==='rubydoor') return rubyDoorH();
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -1366,10 +1398,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:14.88,y:20.18,seed:3,stone:0.36,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.10,y:0.28}},
-  fendur:{x:14.96,y:22.82,seed:11,stone:0.34,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.08,y:0.26}},
-  orbo:{x:15.58,y:20.52,seed:19,stone:0.35,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.12,y:0.24}},
-  talpor:{x:15.62,y:22.48,seed:7,stone:0.33,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.08,y:0.28}}
+  pordoom:{x:14.88,y:20.18,seed:3,stone:0.28,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.08,y:0.32}},
+  fendur:{x:14.96,y:22.82,seed:11,stone:0.26,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.06,y:0.30}},
+  orbo:{x:15.58,y:20.52,seed:19,stone:0.27,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.10,y:0.28}},
+  talpor:{x:15.62,y:22.48,seed:7,stone:0.26,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.06,y:0.32}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1828,8 +1860,8 @@ function makeChapter(n){
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.22,y:s.y+0.32,k:'rubble',s:0.34,seed:s.seed+40,cover:1,spr:'rubble'});
-      G.props.push({x:s.x+0.28,y:s.y+0.22,k:'rubble',s:0.26,seed:s.seed+51,cover:1,spr:'rubble2'});
+      G.props.push({x:s.x-0.18,y:s.y+0.38,k:'rubble',s:0.24,seed:s.seed+40,cover:1,spr:'rubble'});
+      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.20,seed:s.seed+51,cover:1,spr:'rubble2'});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -4980,17 +5012,16 @@ function drawWorld(g,L){
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-    const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<rubyDoorHalf()+0.2);
     const H=wallFaceH(L);
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
       const sid=x*31+y*17;
-      drawMasonryTop(g, x, y, H, sid);
-      if(oS && !doorHere) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, H, 0, -1, sid);
+      if(oS) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, H, 0, -1, sid);
       if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, H, 0, 1, sid+7);
       if(oW) drawMasonryFace(g, faceR, x, y, x, y+1.14, H, 1, 0, sid+11);
+      drawMasonryCoping(g, x, y, H, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
@@ -5024,10 +5055,10 @@ function drawWorld(g,L){
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
-  // Light cover first, then bodies so the kin stay visible, then pinning slabs.
-  for(const p of G.props) if(p.cover && !p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
-  for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
+  // Pinning slabs first, then the kin (lit outlines), then small limb-cover rocks.
   for(const p of G.props) if(p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
+  for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
+  for(const p of G.props) if(p.cover && !p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
 }
 function drawCracks(g,sx,sy,WH,f){
   g.save(); g.globalAlpha=clamp(f*1.15,0,1);
@@ -5319,9 +5350,10 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
-          const tall=useWallFaces(L)?(wallFaceH(L)/Math.max(1,TH)):1;
+          const tall=useWallFaces(L)?wallFaceH(L):TH;
+          punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
-          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.85*tall), TW*1.05*pad, TH*1.72*pad*tall, 0, 0, TAU);
+          mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
           mg.fill();
         }
       }
@@ -5329,9 +5361,9 @@ function drawBeyondMask(g,L){
     if(L.rubyDoor){
       const ds=w2s(L.rubyDoor.x, L.rubyDoor.y);
       const prop=(G.props||[]).find(p=>p.k==='rubydoor' && Math.hypot(p.x-L.rubyDoor.x, p.y-L.rubyDoor.y)<0.6);
-      const H=propSpriteH(prop||{k:'rubydoor'}, ZOOM);
+      const H=rubyDoorH();
       mg.beginPath();
-      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*0.7, H*0.28), H*0.52, 0, 0, TAU);
+      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.52), Math.max(TW*1.15, H*0.42), H*0.62, 0, 0, TAU);
       mg.fill();
     }
     mg.setTransform(1,0,0,1,0,0);
@@ -5476,12 +5508,12 @@ function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
   if(p.k==='rubydoor'){
     const img=propAnimImg(p);
-    const H=wallFaceH();
+    const H=rubyDoorH();
     const half=rubyDoorHalf();
     const yPlane=(p.y|0)+1;
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
-    emit(s.x,s.y-H*0.42,22*z,'#ff2a3c',0.85);
-    ray(s.x,s.y-H*0.55,28*z,'#ff4058',0.4);
+    emit(s.x,s.y-H*0.42,28*z,'#ff2a3c',0.95);
+    ray(s.x,s.y-H*0.55,34*z,'#ff4058',0.48);
     return;
   }
   g.save(); g.translate(s.x,s.y);
@@ -5981,11 +6013,13 @@ function drawEnt(g,e){
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
   }
   if(e.crushed){
+    emit(s.x, s.y-10*ZOOM, 26*ZOOM, '#ffe2b0', 0.72);
+    ray(s.x, s.y-8*ZOOM, 20*ZOOM, '#ffd48a', 0.28);
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
     const tag=e.name||'Kin';
     ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
     ctx.strokeText(tag,s.x,s.y-26*ZOOM);
-    ctx.fillStyle='#e8c9a0'; ctx.fillText(tag,s.x,s.y-26*ZOOM); ctx.textAlign='left';
+    ctx.fillStyle='#ffe7b8'; ctx.fillText(tag,s.x,s.y-26*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
