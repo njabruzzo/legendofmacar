@@ -107,6 +107,7 @@ const rnd=(a=1,b=0)=>b+Math.random()*(a-b);
 const ri=(a,b)=>Math.floor(rnd(b+1,a));
 function h2(x,y){ let n=(x|0)*374761393+(y|0)*668265263; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }
 function h3(x,y,s){ let n=(x|0)*374761393+(y|0)*668265263+(s|0)*1442695041; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }
+function h01(x,y,s){ const t=h3(x,y,s)+h3(x+19,y+41,(s|0)+7); return t>1?t-1:t; }
 const ang=(dx,dy)=>Math.atan2(dy,dx);
 function approach(a,b,max){ const d=b-a; if(Math.abs(d)<=max) return b; return a+Math.sign(d)*max; }
 function turnToward(e,dx,dy,dt,rate){
@@ -720,6 +721,69 @@ function makeWorkedFace(L, lit, w, h){
   }
   return c;
 }
+function makeWorkedCap(w,h){
+  w=Math.max(24,w|0); h=Math.max(24,h|0);
+  const c=document.createElement('canvas');
+  c.width=w; c.height=h;
+  const x=c.getContext('2d');
+  x.fillStyle='#3a2a1c';
+  x.fillRect(0,0,w,h);
+  const rows=4, cols=4;
+  const bw=w/cols, bh=h/rows;
+  for(let r=0;r<rows;r++){
+    const off=(r%2)?bw*0.5:0;
+    for(let col=-1;col<=cols;col++){
+      const bx=col*bw+off+1.6, by=r*bh+1.6, rw=bw-3.2, rh=bh-3.2;
+      const gr=x.createLinearGradient(bx,by,bx+rw,by+rh);
+      gr.addColorStop(0,'#e2c59a');
+      gr.addColorStop(0.28,'#b89468');
+      gr.addColorStop(0.62,'#8a6848');
+      gr.addColorStop(1,'#4a3424');
+      x.fillStyle=gr; x.fillRect(bx,by,rw,rh);
+      x.strokeStyle='rgba(255,236,210,0.32)'; x.lineWidth=1.2;
+      x.strokeRect(bx+1,by+1,rw-2,rh-2);
+      x.strokeStyle='rgba(22,14,8,0.62)'; x.lineWidth=1.4;
+      x.strokeRect(bx,by,rw,rh);
+    }
+  }
+  const bevel=x.createLinearGradient(0,0,w,h);
+  bevel.addColorStop(0,'rgba(255,240,214,0.28)');
+  bevel.addColorStop(0.45,'rgba(0,0,0,0)');
+  bevel.addColorStop(1,'rgba(20,12,8,0.35)');
+  x.fillStyle=bevel; x.fillRect(0,0,w,h);
+  return c;
+}
+function drawMasonryTop(g, x, y, H, seed){
+  const pad=0.045;
+  const n=w2s(x-pad, y-pad), e=w2s(x+1+pad, y-pad);
+  const s=w2s(x+1+pad, y+1+pad), wpt=w2s(x-pad, y+1+pad);
+  const q0={x:n.x,y:n.y-H}, q1={x:e.x,y:e.y-H}, q2={x:s.x,y:s.y-H}, q3={x:wpt.x,y:wpt.y-H};
+  const img=TILEBLIT.cap;
+  g.save();
+  g.beginPath();
+  g.moveTo(q0.x,q0.y); g.lineTo(q1.x,q1.y); g.lineTo(q2.x,q2.y); g.lineTo(q3.x,q3.y); g.closePath();
+  if(img&&img.width){
+    g.save(); g.clip();
+    g.imageSmoothingEnabled=true;
+    const iw=img.width, ih=img.height;
+    g.translate(q0.x, q0.y);
+    g.transform((q1.x-q0.x)/iw, (q1.y-q0.y)/iw, (q3.x-q0.x)/ih, (q3.y-q0.y)/ih, 0, 0);
+    const u=((h2((seed|0),4)*iw)|0);
+    if(u>1){
+      g.drawImage(img, u, 0, iw-u, ih, 0, 0, iw-u, ih);
+      g.drawImage(img, 0, 0, u, ih, iw-u, 0, u, ih);
+    } else g.drawImage(img, 0, 0);
+    g.restore();
+  } else {
+    const gr=g.createLinearGradient(q3.x,q3.y,q1.x,q1.y);
+    gr.addColorStop(0,'#5a4432'); gr.addColorStop(0.4,'#c4a078'); gr.addColorStop(1,'#3a2818');
+    g.fillStyle=gr; g.fill();
+  }
+  g.strokeStyle='rgba(18,12,8,0.55)'; g.lineWidth=1.4*ZOOM; g.stroke();
+  g.beginPath(); g.moveTo(q0.x,q0.y); g.lineTo(q1.x,q1.y); g.lineTo(q2.x,q2.y);
+  g.strokeStyle='rgba(255,236,210,0.28)'; g.lineWidth=1.6*ZOOM; g.stroke();
+  g.restore();
+}
 function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
   opt=opt||{};
   const a=w2s(x0,y0), b=w2s(x1,y1);
@@ -807,7 +871,9 @@ function ensureTileBlit(L){
   const floor=scaleBlit(SPR[palKey], Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
   const faceL=makeWorkedFace(L, 1, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const faceR=makeWorkedFace(L, 0, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
-  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.pack=pack; }
+  const cap=makeWorkedCap(Math.max(96,(TW*3)|0), Math.max(96,(TH*6)|0));
+  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
+  else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.cap=cap; }
 }
 function entSpriteKey(e){
   if(e.kind==='dwarf') return e.col && e.col.key;
@@ -1300,10 +1366,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:14.42,y:20.22,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.22,y:0.16}},
-  fendur:{x:14.52,y:22.78,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.20,y:0.14}},
-  orbo:{x:15.12,y:20.58,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.24,y:0.12}},
-  talpor:{x:15.22,y:22.42,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.18,y:0.16}}
+  pordoom:{x:14.88,y:20.18,seed:3,stone:0.36,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.10,y:0.28}},
+  fendur:{x:14.96,y:22.82,seed:11,stone:0.34,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.08,y:0.26}},
+  orbo:{x:15.58,y:20.52,seed:19,stone:0.35,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.12,y:0.24}},
+  talpor:{x:15.62,y:22.48,seed:7,stone:0.33,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.08,y:0.28}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1679,9 +1745,43 @@ const skillSystem=new SkillSystem();
 skillSystem.bindHud(ABIL, cds);
 registerSystem(skillSystem);
 
-/* ==========================================================================
-   LEVELS
-   ========================================================================== */
+function scatterStartRubble(L){
+  const seed=2041;
+  const sprs=['rubble','rubble2','boulder','boulder2'];
+  const out=[];
+  let n=0;
+  for(let y=16.2; y<27.6; y+=0.61){
+    for(let x=14.15; x<26.85; x+=0.55+(n%4)*0.06){
+      n++;
+      if(h01(n,3,seed)<0.38) continue;
+      const jx=x+(h01(n,7,seed)-0.5)*0.74;
+      const jy=y+(h01(n,9,seed)-0.5)*0.82;
+      if(Math.hypot(jx-19.2, jy-21.5)<1.55) continue;
+      if(nearCrush(jx,jy,0.70)) continue;
+      const ti=jx|0, tj=jy|0;
+      if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
+      const roll=h01(n,11,seed);
+      const s=roll<0.48?0.22+h01(n,12,seed)*0.28
+        :roll<0.78?0.50+h01(n,12,seed)*0.38
+        :0.88+h01(n,12,seed)*0.42;
+      const spr=sprs[(h01(n,17,seed)*sprs.length)|0];
+      const k=(s>0.78 && h01(n,13,seed)>0.38)?'boulder':'rubble';
+      out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
+    }
+  }
+  for(let i=0;i<10;i++){
+    const x=22.2+h01(i,21,seed)*8.2;
+    const y=16.8+h01(i,23,seed)*10.4;
+    if(Math.hypot(x-19.2,y-21.5)<1.7) continue;
+    if(nearCrush(x,y,0.75)) continue;
+    const ti=x|0, tj=y|0;
+    if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
+    const spr=sprs[(h01(i,29,seed)*sprs.length)|0];
+    const s=h01(i,37,seed)<0.45?0.32+h01(i,38,seed)*0.28:0.72+h01(i,38,seed)*0.55;
+    out.push({x,y,k:s>0.78?'boulder':'rubble',spr,s,seed:400+i,scatter:1});
+  }
+  return out;
+}
 function makeChapter(n){
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
@@ -1698,6 +1798,7 @@ function makeChapter(n){
     L.rubyDoor={x:36.5,y:9.55};
     L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
               {x:19.0,y:21.5,c:'#c9a070',r:5.4,f:0.95},
+              {x:15.35,y:21.45,c:'#ffc07a',r:5.2,f:1.08},
               {x:36.5,y:9.7,c:'#ff2f3a',r:7.4,f:1.55},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
@@ -1713,52 +1814,23 @@ function makeChapter(n){
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
       {x:13.55,y:21.5,k:'cavein',s:1.15},
-      {x:13.35,y:19.6,k:'boulder',spr:'boulder2',s:1.08},
-      {x:13.45,y:23.4,k:'boulder',spr:'boulder',s:1.12},
-      {x:14.15,y:21.85,k:'rubble',n:12,s:1.15,seed:3},
-      {x:14.25,y:22.15,k:'rubble',n:10,s:1.05,seed:7},
-      {x:13.9,y:19.55,k:'rubble',n:11,s:1.12,seed:9},
-      {x:14.15,y:24.35,k:'rubble',n:9,s:1.08,seed:13},
-      {x:15.95,y:21.85,k:'rubble',n:8,s:0.95,seed:17},
-      {x:16.85,y:19.45,k:'boulder',spr:'boulder',s:0.95},
-      {x:16.4,y:24.3,k:'boulder',spr:'boulder2',s:1.02},
-      {x:16.9,y:21.9,k:'rubble',n:10,s:1.0,seed:19},
-      {x:17.85,y:19.45,k:'rubble',n:8,s:0.98,seed:23},
-      {x:17.8,y:24.1,k:'rubble',n:11,s:1.1,seed:29},
-      {x:18.4,y:20.2,k:'boulder',spr:'boulder2',s:0.88},
-      {x:18.9,y:23.6,k:'rubble',n:9,s:1.0,seed:31},
-      {x:18.2,y:19.85,k:'rubble',n:10,s:1.06,seed:37},
-      {x:19.7,y:24.2,k:'boulder',spr:'boulder',s:0.96},
-      {x:24.0,y:20.8,k:'rubble',n:8,s:0.92,seed:41},
-      {x:20.6,y:23.4,k:'rubble',n:12,s:1.08,seed:43},
-      {x:21.4,y:20.4,k:'boulder',spr:'boulder2',s:1.0},
-      {x:21.4,y:24.0,k:'rubble',n:9,s:1.02,seed:47},
-      {x:21.8,y:22.6,k:'rubble',n:7,s:0.9,seed:53},
-      {x:22.3,y:21.15,k:'rubble',n:11,s:1.05,seed:59},
-      {x:22.6,y:23.8,k:'boulder',spr:'boulder',s:0.94},
-      {x:22.2,y:20.55,k:'rubble',n:8,s:0.96,seed:61},
-      {x:23.2,y:22.3,k:'rubble',n:10,s:1.0,seed:67},
-      {x:23.6,y:24.1,k:'rubble',n:9,s:1.04,seed:71},
-      {x:23.8,y:21.35,k:'boulder',spr:'boulder2',s:0.9},
-      {x:25.3,y:20.5,k:'rubble',n:9,s:1.0,seed:73},
-      {x:25.5,y:22.5,k:'rubble',n:8,s:0.95,seed:79}];
+      {x:13.32,y:19.55,k:'boulder',spr:'boulder2',s:1.10},
+      {x:13.42,y:23.45,k:'boulder',spr:'boulder',s:1.14}];
+    G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.34,y:0.20};
-      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.5,pin:1,seed:s.seed});
+      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.10,y:0.26};
+      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.34,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
-      if(p.pin||p.cover) return true;
-      if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,1.15)) return false;
+      if(p.pin||p.cover||p.k==='cavein') return true;
+      if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,0.70)) return false;
       return true;
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.10,y:s.y+0.08,k:'rubble',n:7,s:0.58,seed:s.seed+40,cover:1,spr:'rubble'});
-      G.props.push({x:s.x+0.16,y:s.y-0.10,k:'rubble',n:6,s:0.46,seed:s.seed+51,cover:1,spr:'rubble2'});
+      G.props.push({x:s.x-0.22,y:s.y+0.32,k:'rubble',s:0.34,seed:s.seed+40,cover:1,spr:'rubble'});
+      G.props.push({x:s.x+0.28,y:s.y+0.22,k:'rubble',s:0.26,seed:s.seed+51,cover:1,spr:'rubble2'});
     });
-    G.props.push({x:14.06,y:21.48,k:'rubble',n:12,s:1.18,seed:101,cover:1,spr:'rubble'});
-    G.props.push({x:13.92,y:20.82,k:'rubble',n:8,s:0.92,seed:103,cover:1,spr:'rubble2'});
-    G.props.push({x:13.98,y:22.18,k:'rubble',n:8,s:0.94,seed:107,cover:1,spr:'rubble'});
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
     });
@@ -2123,7 +2195,10 @@ function dressDungeon(L){
     const k=dressPick(table, h3(f.x*10, f.y*10, seed));
     const pr={x:f.x+(h3(f.x,9,seed)-.5)*0.28, y:f.y+(h3(f.y,4,seed)-.5)*0.28,
       k, s:0.82+h3(f.x,f.y,seed)*0.38, seed:((f.x*13+f.y*7+seed)|0), dress:1};
-    if(k==='rubble') pr.spr=(h3(f.x,3,seed)<0.5)?'rubble':'rubble2';
+    if(k==='rubble'){
+      pr.spr=(h3(f.x,3,seed)<0.34)?'rubble':(h3(f.x,3,seed)<0.67)?'rubble2':'boulder';
+      pr.s=h01(f.x,6,seed)<0.5?0.26+h01(f.x,7,seed)*0.32:0.62+h01(f.x,7,seed)*0.55;
+    }
     G.props.push(pr);
     keep.push({x:f.x,y:f.y,r:1.4});
     placed++;
@@ -4911,6 +4986,7 @@ function drawWorld(g,L){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
       const sid=x*31+y*17;
+      drawMasonryTop(g, x, y, H, sid);
       if(oS && !doorHere) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, H, 0, -1, sid);
       if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, H, 0, 1, sid+7);
@@ -4948,9 +5024,10 @@ function drawWorld(g,L){
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
-  // Bodies first (after floors), then pinning rock and rubble on top of them.
+  // Light cover first, then bodies so the kin stay visible, then pinning slabs.
+  for(const p of G.props) if(p.cover && !p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
   for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
-  for(const p of G.props) if((p.pin||p.cover) && near(p) && seenAt(p)) drawProp(g,p,pal);
+  for(const p of G.props) if(p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
 }
 function drawCracks(g,sx,sy,WH,f){
   g.save(); g.globalAlpha=clamp(f*1.15,0,1);
@@ -5244,7 +5321,7 @@ function drawBeyondMask(g,L){
         if(oS||oE||oN||oW){
           const tall=useWallFaces(L)?(wallFaceH(L)/Math.max(1,TH)):1;
           mg.beginPath();
-          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72*tall), TW*0.88*pad, TH*1.55*pad*tall, 0, 0, TAU);
+          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.85*tall), TW*1.05*pad, TH*1.72*pad*tall, 0, 0, TAU);
           mg.fill();
         }
       }
