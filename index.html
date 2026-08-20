@@ -211,7 +211,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='33';
+const ASSET_VER='34';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -339,6 +339,8 @@ const SPRITE_FILES={
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
   rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
+  rubble3:'assets/props/prop_rubble3.png', rubble4:'assets/props/prop_rubble4.png',
+  rubble5:'assets/props/prop_rubble5.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
   barrel:'assets/props/prop_barrel.png', stalagmite:'assets/props/prop_stalagmite.png',
@@ -433,7 +435,7 @@ function loadSprites(done){
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'boulder','boulder2','cavein','rubble','rubble2',
+    'boulder','boulder2','cavein','rubble','rubble2','rubble3','rubble4','rubble5',
     'rubydoor','rubydoor_face','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots',
@@ -1781,57 +1783,52 @@ registerSystem(skillSystem);
 function isStartBackWall(L,x,y){
   return !!(L && L.n===1 && x===13 && y>=16 && y<=27);
 }
+function startRubbleSpr(seed, n){
+  const sprs=['rubble5','rubble3','rubble','rubble4','rubble2','rubble3','rubble5','boulder2'];
+  return sprs[(h01(n,17,seed)*sprs.length)|0];
+}
 function startBackWallRubble(){
-  const sprs=['rubble','rubble2','boulder','boulder2'];
   const out=[];
-  for(let i=0;i<20;i++){
-    const y=16.35+i*0.56;
-    const x=14.08+(h01(i,3,81)-0.5)*0.16;
-    const s=0.78+h01(i,5,81)*0.62;
-    const spr=sprs[i%sprs.length];
-    out.push({x,y,k:s>1.12?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+  for(let i=0;i<22;i++){
+    const y=16.28+i*0.52+(h01(i,2,81)-0.5)*0.18;
+    const x=14.06+(h01(i,3,81)-0.5)*0.22;
+    const s=0.34+h01(i,5,81)*1.05;
+    const spr=startRubbleSpr(81,i);
+    out.push({x,y,k:s>1.18?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
   }
-  for(let i=0;i<14;i++){
-    const y=16.55+i*0.78;
-    const x=14.38+(h01(i,8,81)-0.5)*0.18;
-    out.push({x,y,k:'rubble',spr:sprs[(i+2)%sprs.length],s:0.38+h01(i,9,81)*0.36,seed:940+i,backwall:1});
+  for(let i=0;i<16;i++){
+    const y=16.5+i*0.70+(h01(i,6,81)-0.5)*0.24;
+    const x=14.42+(h01(i,8,81)-0.5)*0.28;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+3),s:0.22+h01(i,9,81)*0.58,seed:940+i,backwall:1});
   }
   return out;
 }
 function scatterStartRubble(L){
   const seed=2041;
-  const sprs=['rubble','rubble2','boulder','boulder2'];
   const out=[];
   let n=0;
-  for(let y=16.2; y<27.6; y+=0.61){
-    for(let x=14.15; x<26.85; x+=0.55+(n%4)*0.06){
+  for(let y=16.15; y<27.7; y+=0.48){
+    for(let x=14.08; x<26.4; x+=0.42+(n%5)*0.05){
       n++;
-      if(h01(n,3,seed)<0.38) continue;
-      const jx=x+(h01(n,7,seed)-0.5)*0.74;
-      const jy=y+(h01(n,9,seed)-0.5)*0.82;
-      if(Math.hypot(jx-19.2, jy-21.5)<1.55) continue;
-      if(nearCrush(jx,jy,0.70)) continue;
+      const jx=x+(h01(n,7,seed)-0.5)*0.58;
+      const jy=y+(h01(n,9,seed)-0.5)*0.62;
+      const west=clamp((18.4-jx)/4.4, 0, 1);
+      const keep=0.10+west*0.82;
+      if(h01(n,3,seed)>keep) continue;
+      if(Math.hypot(jx-19.2, jy-21.5)<1.45) continue;
+      if(nearCrush(jx,jy,0.58)) continue;
       const ti=jx|0, tj=jy|0;
       if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
       const roll=h01(n,11,seed);
-      const s=roll<0.48?0.22+h01(n,12,seed)*0.28
-        :roll<0.78?0.50+h01(n,12,seed)*0.38
-        :0.88+h01(n,12,seed)*0.42;
-      const spr=sprs[(h01(n,17,seed)*sprs.length)|0];
-      const k=(s>0.78 && h01(n,13,seed)>0.38)?'boulder':'rubble';
+      let s;
+      if(west>0.55 && roll<0.22) s=0.95+h01(n,12,seed)*0.72;
+      else if(roll<0.40) s=0.16+h01(n,12,seed)*0.22;
+      else if(roll<0.78) s=0.38+h01(n,12,seed)*0.40;
+      else s=0.68+h01(n,12,seed)*0.50;
+      const spr=startRubbleSpr(seed, n);
+      const k=(s>1.15 && /boulder/.test(spr))?'boulder':'rubble';
       out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
     }
-  }
-  for(let i=0;i<10;i++){
-    const x=22.2+h01(i,21,seed)*8.2;
-    const y=16.8+h01(i,23,seed)*10.4;
-    if(Math.hypot(x-19.2,y-21.5)<1.7) continue;
-    if(nearCrush(x,y,0.75)) continue;
-    const ti=x|0, tj=y|0;
-    if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
-    const spr=sprs[(h01(i,29,seed)*sprs.length)|0];
-    const s=h01(i,37,seed)<0.45?0.32+h01(i,38,seed)*0.28:0.72+h01(i,38,seed)*0.55;
-    out.push({x,y,k:s>0.78?'boulder':'rubble',spr,s,seed:400+i,scatter:1});
   }
   return out;
 }
@@ -1879,8 +1876,8 @@ function makeChapter(n){
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.18,y:s.y+0.38,k:'rubble',s:0.24,seed:s.seed+40,cover:1,spr:'rubble'});
-      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.20,seed:s.seed+51,cover:1,spr:'rubble2'});
+      G.props.push({x:s.x-0.18,y:s.y+0.38,k:'rubble',s:0.22+((s.seed||0)%5)*0.04,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed, 40)});
+      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.18+((s.seed||0)%4)*0.05,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed, 51)});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -2247,8 +2244,8 @@ function dressDungeon(L){
     const pr={x:f.x+(h3(f.x,9,seed)-.5)*0.28, y:f.y+(h3(f.y,4,seed)-.5)*0.28,
       k, s:0.82+h3(f.x,f.y,seed)*0.38, seed:((f.x*13+f.y*7+seed)|0), dress:1};
     if(k==='rubble'){
-      pr.spr=(h3(f.x,3,seed)<0.34)?'rubble':(h3(f.x,3,seed)<0.67)?'rubble2':'boulder';
-      pr.s=h01(f.x,6,seed)<0.5?0.26+h01(f.x,7,seed)*0.32:0.62+h01(f.x,7,seed)*0.55;
+      pr.spr=(h3(f.x,3,seed)<0.22)?'rubble3':(h3(f.x,3,seed)<0.44)?'rubble4':(h3(f.x,3,seed)<0.66)?'rubble5':(h3(f.x,3,seed)<0.84)?'rubble2':'rubble';
+      pr.s=h01(f.x,6,seed)<0.5?0.22+h01(f.x,7,seed)*0.36:0.55+h01(f.x,7,seed)*0.62;
     }
     G.props.push(pr);
     keep.push({x:f.x,y:f.y,r:1.4});
@@ -2424,11 +2421,19 @@ function isLootableBody(o){
 function nearestCorpse(e, r){
   let best=null, bd=r;
   for(const o of G.ents){
-    if(!isLootableBody(o)) continue;
+    if(!isLootableBody(o) || o.looted) continue;
     const d=dist(e,o);
     if(d<bd){ bd=d; best=o; }
   }
   return best;
+}
+function lootNearbyCorpses(e, r){
+  let n=0;
+  for(const o of G.ents){
+    if(!isLootableBody(o) || o.looted) continue;
+    if(dist(e,o)<r){ lootCorpse(o); n++; }
+  }
+  return n;
 }
 function lootCorpse(e){
   if(!isLootableBody(e)) return;
@@ -2471,7 +2476,7 @@ function lootCorpse(e){
     if(drop.res) Object.keys(drop.res).forEach(k=>gain(k, drop.res[k]));
     e.drop=null;
   }
-  packGainNote(bits);
+  packGainNote(bits, e.name);
   const L=G.lvl;
   if(L&&L.n===1){
     const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.looted).length;
@@ -2950,10 +2955,13 @@ function maybeAutoEquip(it){
   if(isEquipArmor(it) && !G.equipped.armor){ G.equipped.armor=it; applyEquipped(); return 'armor'; }
   return null;
 }
-function packGainNote(bits){
+function packGainNote(bits, who){
   const list=(bits||[]).filter(Boolean);
-  if(!list.length) return;
-  say('Stowed in MACAR\'s pack: '+list.join(', ')+'.', '#ffd27a');
+  if(!list.length){
+    if(who) say('MACAR takes '+who+"'s kit.", '#ffd27a');
+    return;
+  }
+  say('Stowed from '+(who||"the fallen")+" — "+list.join(', ')+'.', '#ffd27a');
 }
 function syncPackTotals(){
   ensurePacks();
@@ -4667,10 +4675,10 @@ function update(dt){
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?0.72:0.26;
+      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?1.12:0.26;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
-        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootCorpse(body); }
+        if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
         if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
@@ -4729,8 +4737,12 @@ function update(dt){
         }
       }
     }
-    const body=nearestCorpse(p,1.18);
-    if(body && !body.looted) lootCorpse(body);
+    const body=nearestCorpse(p,1.72);
+    if(body) lootNearbyCorpses(p,1.72);
+    if(!PROMPT){
+      const more=nearestCorpse(p,2.15);
+      if(more) interact('Loot '+(more.name||'the fallen'),()=>lootCorpse(more));
+    }
     const pile=nearestLoot(p,1.12);
     if(pile) takeLoot(pile, true);
     if(!PROMPT){
@@ -7257,7 +7269,7 @@ function slotAnimImg(b){
 function drawSlot(g,b,s){
   const R=b.r, x=b.x-R, y=b.y-R, w=R*2, h=R*2;
   const ab=ABIL.find(a=>a.key===b.key);
-  const cd=ab?cds[ab.key]/ab.cd:0, ready=cd<=0;
+  const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
   const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
@@ -7283,7 +7295,7 @@ function drawSlot(g,b,s){
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='left';
     g.fillStyle='rgba(232,212,172,0.85)'; g.fillText(String(b.num), x+5*s, y+12*s);
   }
-  if(!ready && ab){
+  if(!ready && ab && ab.cd>0){
     g.fillStyle='rgba(6,4,2,0.66)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
     g.font='800 '+(12*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='rgba(244,226,186,0.92)'; g.fillText(Math.ceil(cds[ab.key]),b.x,b.y+4*s); g.textAlign='left';
@@ -7987,14 +7999,14 @@ function resolveTaps(){
         continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
-      const body=G.ents.find(e=>isLootableBody(e)&&dist(e,w)<1.1);
+      const body=G.ents.find(e=>isLootableBody(e)&&!e.looted&&dist(e,w)<1.85);
       if(pile && (!foe || dist(pile,w)<=dist(foe,w)) && (!body || dist(pile,w)<=dist(body,w))){
         if(dist(p,pile)<1.5) takeLoot(pile);
         else { p.dest={x:pile.x,y:pile.y,loot:pile.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
       if(body && (!foe || dist(body,w)<=dist(foe,w))){
-        if(dist(p,body)<1.5) lootCorpse(body);
+        if(dist(p,body)<1.85) lootNearbyCorpses(p,1.85);
         else { p.dest={x:body.x,y:body.y,corpse:body.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
