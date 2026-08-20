@@ -211,7 +211,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='34';
+const ASSET_VER='35';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -339,8 +339,6 @@ const SPRITE_FILES={
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
   rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
-  rubble3:'assets/props/prop_rubble3.png', rubble4:'assets/props/prop_rubble4.png',
-  rubble5:'assets/props/prop_rubble5.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
   barrel:'assets/props/prop_barrel.png', stalagmite:'assets/props/prop_stalagmite.png',
@@ -435,7 +433,7 @@ function loadSprites(done){
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'boulder','boulder2','cavein','rubble','rubble2','rubble3','rubble4','rubble5',
+    'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','bronzedoor','bell','shroom','lantern','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots',
@@ -1784,52 +1782,51 @@ function isStartBackWall(L,x,y){
   return !!(L && L.n===1 && x===13 && y>=16 && y<=27);
 }
 function startRubbleSpr(seed, n){
-  const sprs=['rubble5','rubble3','rubble','rubble4','rubble2','rubble3','rubble5','boulder2'];
+  const sprs=['rubble','rubble2','boulder','boulder2','rubble','rubble2'];
   return sprs[(h01(n,17,seed)*sprs.length)|0];
 }
 function startBackWallRubble(){
   const out=[];
-  for(let i=0;i<22;i++){
-    const y=16.28+i*0.52+(h01(i,2,81)-0.5)*0.18;
-    const x=14.06+(h01(i,3,81)-0.5)*0.22;
-    const s=0.34+h01(i,5,81)*1.05;
-    const spr=startRubbleSpr(81,i);
-    out.push({x,y,k:s>1.18?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
-  }
   for(let i=0;i<16;i++){
-    const y=16.5+i*0.70+(h01(i,6,81)-0.5)*0.24;
-    const x=14.42+(h01(i,8,81)-0.5)*0.28;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+3),s:0.22+h01(i,9,81)*0.58,seed:940+i,backwall:1});
+    const y=16.4+i*0.68+(h01(i,2,81)-0.5)*0.22;
+    const x=14.12+(h01(i,3,81)-0.5)*0.20;
+    const s=0.55+h01(i,5,81)*0.85;
+    const spr=startRubbleSpr(81,i);
+    out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+  }
+  for(let i=0;i<10;i++){
+    const y=16.8+i*0.95+(h01(i,6,81)-0.5)*0.28;
+    const x=14.55+(h01(i,8,81)-0.5)*0.24;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.28+h01(i,9,81)*0.42,seed:940+i,backwall:1});
   }
   return out;
 }
 function scatterStartRubble(L){
   const seed=2041;
   const out=[];
+  const clusters=[
+    [14.55,17.15,6,0.88,1.05],[14.70,19.35,7,0.95,1.12],[14.50,21.55,5,0.78,0.92],
+    [14.75,23.85,7,0.92,1.08],[14.55,26.15,5,0.80,0.90],
+    [16.05,18.40,3,0.55,0.52],[16.20,22.20,3,0.50,0.48],[16.00,25.20,3,0.52,0.46]
+  ];
   let n=0;
-  for(let y=16.15; y<27.7; y+=0.48){
-    for(let x=14.08; x<26.4; x+=0.42+(n%5)*0.05){
+  clusters.forEach(c=>{
+    for(let i=0;i<c[2];i++){
       n++;
-      const jx=x+(h01(n,7,seed)-0.5)*0.58;
-      const jy=y+(h01(n,9,seed)-0.5)*0.62;
-      const west=clamp((18.4-jx)/4.4, 0, 1);
-      const keep=0.10+west*0.82;
-      if(h01(n,3,seed)>keep) continue;
-      if(Math.hypot(jx-19.2, jy-21.5)<1.45) continue;
-      if(nearCrush(jx,jy,0.58)) continue;
+      const ang=h01(n,3,seed)*TAU;
+      const rad=Math.pow(h01(n,5,seed),0.65)*c[3];
+      const jx=c[0]+Math.cos(ang)*rad;
+      const jy=c[1]+Math.sin(ang)*rad*0.78;
+      if(Math.hypot(jx-19.2, jy-21.5)<1.55) continue;
+      if(nearCrush(jx,jy,0.62)) continue;
       const ti=jx|0, tj=jy|0;
       if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
-      const roll=h01(n,11,seed);
-      let s;
-      if(west>0.55 && roll<0.22) s=0.95+h01(n,12,seed)*0.72;
-      else if(roll<0.40) s=0.16+h01(n,12,seed)*0.22;
-      else if(roll<0.78) s=0.38+h01(n,12,seed)*0.40;
-      else s=0.68+h01(n,12,seed)*0.50;
+      const s=(0.24+h01(n,12,seed)*0.92)*c[4];
       const spr=startRubbleSpr(seed, n);
-      const k=(s>1.15 && /boulder/.test(spr))?'boulder':'rubble';
+      const k=(s>1.05 && /boulder/.test(spr))?'boulder':'rubble';
       out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
     }
-  }
+  });
   return out;
 }
 function makeChapter(n){
@@ -2244,8 +2241,8 @@ function dressDungeon(L){
     const pr={x:f.x+(h3(f.x,9,seed)-.5)*0.28, y:f.y+(h3(f.y,4,seed)-.5)*0.28,
       k, s:0.82+h3(f.x,f.y,seed)*0.38, seed:((f.x*13+f.y*7+seed)|0), dress:1};
     if(k==='rubble'){
-      pr.spr=(h3(f.x,3,seed)<0.22)?'rubble3':(h3(f.x,3,seed)<0.44)?'rubble4':(h3(f.x,3,seed)<0.66)?'rubble5':(h3(f.x,3,seed)<0.84)?'rubble2':'rubble';
-      pr.s=h01(f.x,6,seed)<0.5?0.22+h01(f.x,7,seed)*0.36:0.55+h01(f.x,7,seed)*0.62;
+      pr.spr=(h3(f.x,3,seed)<0.5)?'rubble':'rubble2';
+      pr.s=h01(f.x,6,seed)<0.5?0.26+h01(f.x,7,seed)*0.32:0.58+h01(f.x,7,seed)*0.50;
     }
     G.props.push(pr);
     keep.push({x:f.x,y:f.y,r:1.4});
