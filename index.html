@@ -44,7 +44,7 @@ let GFX_MODE = 'high';     // fast | auto | high
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
 let BX_KEY = '';
-const TILEBLIT={key:'',floor:null,wall:null};
+const TILEBLIT={key:'',floor:null,wall:null,face:null};
 let CAMSX=0, CAMSY=0;
 
 function gfxDprCap(){ return QUALITY ? 1.25 : 1; }
@@ -532,6 +532,40 @@ function palWallKey(L){
   if(L && L.n===2) return 'wall_cave';
   return 'wall_worked';
 }
+function useWallFaces(L){ return palWallKey(L)!=='wall_cave'; }
+function wallFaceH(){ return 128*ZOOM; }
+function cropWallFace(img,w,h){
+  if(!img||!img.width) return null;
+  w=Math.max(8,w|0); h=Math.max(8,h|0);
+  const c=document.createElement('canvas');
+  c.width=w; c.height=h;
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=true;
+  x.fillStyle='#6e5844';
+  x.fillRect(0,0,w,h);
+  // Left face of the iso corner tile — brick + frieze, no projecting corner.
+  const sx=img.width*0.02, sy=img.height*0.16, sw=img.width*0.46, sh=img.height*0.80;
+  x.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+  return c;
+}
+function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H){
+  const a=w2s(x0,y0), b=w2s(x1,y1);
+  const dx=b.x-a.x, dy=b.y-a.y;
+  g.save();
+  if(!img||!img.width){
+    g.beginPath();
+    g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(b.x,b.y-H); g.lineTo(a.x,a.y-H); g.closePath();
+    g.fillStyle='#6a5340'; g.fill();
+    g.strokeStyle='rgba(18,10,6,0.55)'; g.lineWidth=1.2; g.stroke();
+    g.restore(); return;
+  }
+  g.translate(a.x, a.y-H);
+  g.transform(dx/img.width, dy/img.width, 0, H/img.height, 0, 0);
+  g.drawImage(img, 0, 0);
+  g.restore();
+  g.strokeStyle='rgba(236,220,186,0.28)'; g.lineWidth=1.6*ZOOM;
+  g.beginPath(); g.moveTo(a.x,a.y-H); g.lineTo(b.x,b.y-H); g.stroke();
+}
 function scaleBlit(img,w,h){
   if(!img||!img.width) return null;
   w=Math.max(1,w|0); h=Math.max(1,h|0);
@@ -545,12 +579,13 @@ function scaleBlit(img,w,h){
 function ensureTileBlit(L){
   const palKey=L?palFloorKey(L.pal):'floor_mine';
   const wallKey=L?palWallKey(L):'wall_worked';
-  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey;
+  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+wallFaceH();
   if(TILEBLIT.key===k && TILEBLIT.floor && TILEBLIT.wall) return;
   const sc=TW/RTW, SH=(RWH+RTH)*sc;
   const wall=scaleBlit(SPR[wallKey]||SPR.wall_cave||SPR.wall_worked, TW, SH);
   const floor=scaleBlit(SPR[palKey], TW*1.12, TH*1.12);
-  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; }
+  const face=cropWallFace(SPR[wallKey]||SPR.wall_worked||SPR.wall_cave, TW, wallFaceH());
+  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=face; }
 }
 function entSpriteKey(e){
   if(e.kind==='dwarf') return e.col && e.col.key;
@@ -614,7 +649,7 @@ function propSpriteH(p,z){
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
-  if(k==='rubydoor') return 118*z*(p.s||1);
+  if(k==='rubydoor') return wallFaceH();
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -1366,10 +1401,10 @@ function makeChapter(n){
     L.crush=CRUSH_SPOTS;
     L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
-    L.rubyDoor={x:36.5,y:9.72};
+    L.rubyDoor={x:36.5,y:9.55};
     L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
               {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:36.5,y:9.85,c:'#ff2f3a',r:7.4,f:1.55},
+              {x:36.5,y:9.7,c:'#ff2f3a',r:7.4,f:1.55},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -1380,7 +1415,7 @@ function makeChapter(n){
       {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:36.5,y:9.72,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
+      {x:36.5,y:9.55,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
       {x:13.55,y:21.5,k:'cavein',s:1.15},
@@ -1433,7 +1468,7 @@ function makeChapter(n){
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
         return {x:bodies[0].x,y:bodies[0].y};
       }
-      return !L.flags.touched?(L.rubyDoor||{x:36.5,y:9.72}):!L.flags.cleared?null:{x:36.5,y:21.5};
+      return !L.flags.touched?(L.rubyDoor||{x:36.5,y:9.55}):!L.flags.cleared?null:{x:36.5,y:21.5};
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -1441,8 +1476,8 @@ function makeChapter(n){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
       }
-      const door=L.rubyDoor||{x:36.5,y:9.72};
-      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.85})<2.6){
+      const door=L.rubyDoor||{x:36.5,y:9.55};
+      if(!L.flags.touched && dist(p,{x:door.x,y:door.y+0.9})<2.6){
         interact('Touch the ruby door',()=>{
           L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
           say('The ruby door is warm. It knows your name.','#ff6a6a');
@@ -4562,7 +4597,15 @@ function drawWorld(g,L){
         if(!oS&&!oE&&!oN&&!oW) continue;
         const rk=L.wallHP[x+','+y];
         const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-        if(wallImg){
+        const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<1.55);
+        if(useWallFaces(L)){
+          const H=wallFaceH();
+          const face=TILEBLIT.face||wallBlit;
+          if(oS && !doorHere) drawIsoPlaneImg(g, face, x, y+0.5, x+1, y+0.5, H);
+          if(oE) drawIsoPlaneImg(g, face, x+0.5, y, x+0.5, y+1, H);
+          if(oN && !oS) drawIsoPlaneImg(g, face, x, y-0.5, x+1, y-0.5, H);
+          if(oW && !oE) drawIsoPlaneImg(g, face, x-0.5, y, x-0.5, y+1, H);
+        } else if(wallImg){
           if(wallImg===wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
           else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
         } else if(okTex){
@@ -4859,8 +4902,9 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
+          const tall=useWallFaces(L)?2.15:1;
           mg.beginPath();
-          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72), TW*0.88*pad, TH*1.55*pad, 0, 0, TAU);
+          mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72*tall), TW*0.88*pad, TH*1.55*pad*tall, 0, 0, TAU);
           mg.fill();
         }
       }
@@ -4870,7 +4914,7 @@ function drawBeyondMask(g,L){
       const prop=(G.props||[]).find(p=>p.k==='rubydoor' && Math.hypot(p.x-L.rubyDoor.x, p.y-L.rubyDoor.y)<0.6);
       const H=propSpriteH(prop||{k:'rubydoor'}, ZOOM);
       mg.beginPath();
-      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*0.95, H*0.32), H*0.58, 0, 0, TAU);
+      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*1.6, H*0.42), H*0.58, 0, 0, TAU);
       mg.fill();
     }
     mg.setTransform(1,0,0,1,0,0);
@@ -5013,6 +5057,15 @@ function drawCarvedArch(g,z,W,H,stone){
 /* ---------------------------- props ---------------------------- */
 function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
+  if(p.k==='rubydoor'){
+    const img=propAnimImg(p);
+    const H=wallFaceH();
+    const yPlane=(p.y|0)+0.5;
+    drawIsoPlaneImg(g, img, p.x-1.5, yPlane, p.x+1.5, yPlane, H);
+    emit(s.x,s.y-H*0.42,54*z,'#ff2a3c',1.05);
+    ray(s.x,s.y-H*0.55,48*z,'#ff4058',0.55);
+    return;
+  }
   g.save(); g.translate(s.x,s.y);
   if(p.k==='web'){
     const img=TEX.web;
