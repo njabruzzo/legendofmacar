@@ -534,6 +534,13 @@ function palWallKey(L){
 }
 function useWallFaces(L){ return palWallKey(L)!=='wall_cave'; }
 function wallFaceH(){ return 118*ZOOM; }
+function rubyDoorHalf(){
+  const img=SPR.rubydoor;
+  const H=wallFaceH();
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.53;
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  return clamp(H*aspect/(2*perTile), 0.55, 0.82);
+}
 function flattenIsoQuad(img, p0, p1, p3, dw, dh){
   if(!img||!img.width) return null;
   dw=Math.max(8,dw|0); dh=Math.max(8,dh|0);
@@ -4653,7 +4660,7 @@ function drawWorld(g,L){
         if(!oS&&!oE&&!oN&&!oW) continue;
         const rk=L.wallHP[x+','+y];
         const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-        const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<1.55);
+        const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<rubyDoorHalf()+0.2);
         if(useWallFaces(L)){
           const H=wallFaceH();
           const faceL=TILEBLIT.faceL||TILEBLIT.face;
@@ -4971,7 +4978,7 @@ function drawBeyondMask(g,L){
       const prop=(G.props||[]).find(p=>p.k==='rubydoor' && Math.hypot(p.x-L.rubyDoor.x, p.y-L.rubyDoor.y)<0.6);
       const H=propSpriteH(prop||{k:'rubydoor'}, ZOOM);
       mg.beginPath();
-      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*1.6, H*0.42), H*0.58, 0, 0, TAU);
+      mg.ellipse(Math.round(ds.x), Math.round(ds.y-H*0.48), Math.max(TW*0.7, H*0.28), H*0.52, 0, 0, TAU);
       mg.fill();
     }
     mg.setTransform(1,0,0,1,0,0);
@@ -5117,10 +5124,11 @@ function drawProp(g,p,pal){
   if(p.k==='rubydoor'){
     const img=propAnimImg(p);
     const H=wallFaceH();
+    const half=rubyDoorHalf();
     const yPlane=(p.y|0)+0.5;
-    drawIsoPlaneImg(g, img, p.x-1.5, yPlane, p.x+1.5, yPlane, H);
-    emit(s.x,s.y-H*0.42,54*z,'#ff2a3c',1.05);
-    ray(s.x,s.y-H*0.55,48*z,'#ff4058',0.55);
+    drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
+    emit(s.x,s.y-H*0.42,22*z,'#ff2a3c',0.85);
+    ray(s.x,s.y-H*0.55,28*z,'#ff4058',0.4);
     return;
   }
   g.save(); g.translate(s.x,s.y);
@@ -5430,7 +5438,7 @@ function drawLoot(g,pile){
   g.save(); g.translate(s.x,s.y);
   softShadow(g,0,2*z,14*z,7*z,.5);
   let img=null, h=46*z;
-  if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=46*z; }
+  if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=28*z; }
   else if(pile.kind==='ore'){ img=SPR.loot_ore; h=38*z; }
   else if(pile.kind==='herb' || (pile.herbs && Object.keys(pile.herbs).length)){ img=SPR.loot_herbs||SPR.loot_potion; h=48*z; }
   else if(pile.kind==='potion' || ((pile.potions||[]).length && !(pile.coins&&((pile.coins.gp||0)+(pile.coins.pp||0)+(pile.coins.sp||0))))){ img=SPR.loot_potion||SPR.loot_chest; h=48*z; }
@@ -5441,11 +5449,11 @@ function drawLoot(g,pile){
   else img=SPR.sack;
   if(img && img.width && drawBillboard(g, img, h)){
     const glow=pile.kind==='ruby'?'#ff2a3c':(pile.glow||'#ffd27a');
-    emit(s.x,s.y-h*0.35,18*z*pulse,glow, pile.kind==='ruby'?1.15:0.75);
-    if(pile.kind==='ruby') ray(s.x,s.y-h*0.4,20*z,'#ff4058',0.55);
+    emit(s.x,s.y-h*0.35,12*z*pulse,glow, pile.kind==='ruby'?0.85:0.75);
+    if(pile.kind==='ruby') ray(s.x,s.y-h*0.4,12*z,'#ff4058',0.4);
   } else if(pile.kind==='ruby'){
-    drawFacetGem(g,0,-10*z,14*z,18*z,1,z);
-    emit(s.x,s.y-10*z,22*z*pulse,'#ff2a3c',1.15);
+    drawFacetGem(g,0,-6*z,8*z,10*z,1,z);
+    emit(s.x,s.y-6*z,12*z*pulse,'#ff2a3c',0.85);
   } else if(pile.kind==='ore'){
     g.fillStyle=RESMETA.ironstone.c;
     g.beginPath(); g.moveTo(-6*z,-4*z); g.lineTo(0,-12*z); g.lineTo(7*z,-3*z); g.lineTo(3*z,4*z); g.lineTo(-5*z,3*z); g.closePath(); g.fill();
