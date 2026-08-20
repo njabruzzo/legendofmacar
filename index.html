@@ -700,30 +700,87 @@ function makeWorkedFace(L, lit, w, h){
   const img=wallFaceSprite(L, lit);
   if(img&&img.width){
     x.drawImage(img, 0, 0, w, h);
+    // baked grain + mortar shade so sheared faces keep depth when tiled
+    x.globalCompositeOperation='multiply';
+    const gr=x.createLinearGradient(0,0,0,h);
+    gr.addColorStop(0,'rgb(255,248,230)');
+    gr.addColorStop(0.55,'rgb(210,190,165)');
+    gr.addColorStop(1,'rgb(118,92,70)');
+    x.fillStyle=gr; x.fillRect(0,0,w,h);
+    x.globalCompositeOperation='overlay';
+    x.globalAlpha=0.28;
+    for(let i=0;i<90;i++){
+      const px=h3(i,w,3)*w, py=h3(i,h,8)*h, r=0.6+h3(i,7,2)*1.8;
+      x.fillStyle=i%2?'rgba(255,230,190,0.8)':'rgba(40,24,12,0.7)';
+      x.fillRect(px,py,r,r);
+    }
+    x.globalAlpha=1; x.globalCompositeOperation='source-over';
   } else {
     paintWorkedBricks(x,w,h,lit);
   }
   return c;
 }
-function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H){
+function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
+  opt=opt||{};
   const a=w2s(x0,y0), b=w2s(x1,y1);
   const dx=b.x-a.x, dy=b.y-a.y;
   g.save();
   g.beginPath();
   g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(b.x,b.y-H); g.lineTo(a.x,a.y-H); g.closePath();
   if(!img||!img.width){
-    g.fillStyle='#6a5340'; g.fill();
+    g.fillStyle=opt.fill||'#6a5340'; g.fill();
   } else {
     g.save(); g.clip();
     g.imageSmoothingEnabled=true;
     g.translate(a.x, a.y-H);
-    g.transform(dx/img.width, dy/img.width, 0, H/img.height, 0, 0);
-    g.drawImage(img, 0, 0);
+    g.transform(dx/Math.max(1,img.width), dy/Math.max(1,img.width), 0, H/Math.max(1,img.height), 0, 0);
+    const u=((opt.u||0)%1)*img.width;
+    if(u>1){
+      g.drawImage(img, u, 0, img.width-u, img.height, 0, 0, img.width-u, img.height);
+      g.drawImage(img, 0, 0, u, img.height, img.width-u, 0, u, img.height);
+    } else g.drawImage(img, 0, 0);
     g.restore();
   }
-  g.strokeStyle='rgba(12,8,5,0.22)'; g.lineWidth=1*ZOOM; g.stroke();
-  g.beginPath(); g.moveTo(a.x,a.y-H); g.lineTo(b.x,b.y-H);
-  g.strokeStyle='rgba(236,220,186,0.16)'; g.lineWidth=1.4*ZOOM; g.stroke();
+  if(opt.shade){
+    const gr=g.createLinearGradient(a.x, a.y-H, a.x, a.y);
+    gr.addColorStop(0, 'rgba(255,236,200,'+(0.10*opt.shade)+')');
+    gr.addColorStop(0.38, 'rgba(0,0,0,0)');
+    gr.addColorStop(1, 'rgba(0,0,0,'+(0.42*opt.shade)+')');
+    g.fillStyle=gr; g.fill();
+  }
+  if(opt.stroke!==0){
+    g.strokeStyle='rgba(12,8,5,0.28)'; g.lineWidth=1*ZOOM; g.stroke();
+    g.beginPath(); g.moveTo(a.x,a.y-H); g.lineTo(b.x,b.y-H);
+    g.strokeStyle='rgba(236,220,186,0.22)'; g.lineWidth=1.4*ZOOM; g.stroke();
+  }
+  g.restore();
+}
+function drawMasonryFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
+  const t=0.18;
+  const ix=inx*t, iy=iny*t;
+  const u=h2((seed|0), 9);
+  drawIsoPlaneImg(g, img, x0+ix, y0+iy, x1+ix, y1+iy, H, {u:u+0.21, shade:0.72, stroke:0});
+  const a=w2s(x0,y0), b=w2s(x1,y1), c=w2s(x1+ix,y1+iy), d=w2s(x0+ix,y0+iy);
+  g.save();
+  g.beginPath();
+  g.moveTo(a.x,a.y-H); g.lineTo(b.x,b.y-H); g.lineTo(c.x,c.y-H); g.lineTo(d.x,d.y-H); g.closePath();
+  const cap=g.createLinearGradient(a.x, a.y-H, (c.x+d.x)*0.5, (c.y+d.y)*0.5-H+TH*0.2);
+  cap.addColorStop(0,'rgba(236,214,176,0.55)');
+  cap.addColorStop(0.4,'rgba(148,116,82,0.92)');
+  cap.addColorStop(1,'rgba(38,26,16,0.96)');
+  g.fillStyle=cap; g.fill();
+  g.strokeStyle='rgba(255,236,210,0.32)'; g.lineWidth=1.3*ZOOM; g.stroke();
+  g.restore();
+  drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, {u:u, shade:0.28});
+  const fa=w2s(x0,y0), fb=w2s(x1,y1);
+  g.save();
+  g.fillStyle='rgba(0,0,0,0.38)';
+  g.beginPath();
+  g.moveTo(fa.x, fa.y);
+  g.lineTo(fb.x, fb.y);
+  g.lineTo(fb.x+(fb.x-fa.x)*0.04, fb.y+TH*0.22);
+  g.lineTo(fa.x-(fb.x-fa.x)*0.04, fa.y+TH*0.22);
+  g.closePath(); g.fill();
   g.restore();
 }
 function scaleBlit(img,w,h){
@@ -748,8 +805,8 @@ function ensureTileBlit(L){
   const wall=scaleBlit(SPR[wallKey]||SPR.wall_cave||SPR.wall_worked, TW, SH);
   const {sx,sy}=tilesetScale();
   const floor=scaleBlit(SPR[palKey], Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
-  const faceL=(srcL&&srcL.width)?srcL:makeWorkedFace(L, 1, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH(L)*2)|0));
-  const faceR=(srcR&&srcR.width)?srcR:makeWorkedFace(L, 0, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH(L)*2)|0));
+  const faceL=makeWorkedFace(L, 1, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
+  const faceR=makeWorkedFace(L, 0, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.pack=pack; }
 }
 function entSpriteKey(e){
@@ -1171,10 +1228,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:15.05,y:20.15,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.38,y:0.22}},
-  fendur:{x:15.35,y:23.35,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.32,y:0.20}},
-  orbo:{x:16.75,y:20.08,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.34,y:0.18}},
-  talpor:{x:17.05,y:23.42,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.30,y:0.22}}
+  pordoom:{x:15.25,y:18.55,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.38,y:0.22}},
+  fendur:{x:15.45,y:24.55,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.32,y:0.20}},
+  orbo:{x:17.55,y:18.65,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.34,y:0.18}},
+  talpor:{x:17.65,y:24.65,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.30,y:0.22}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1560,24 +1617,24 @@ function makeChapter(n){
   if(n===1){
     L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
     L.w=54; L.h=44; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,14,19,12,6,0); rect(g,25,10,22,22,0);
+    rect(g,14,16,13,12,0); rect(g,25,10,22,22,0);
     rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
-    L.spawn={x:18.7,y:21.5}; L.flags.broke=1;
+    L.spawn={x:19.2,y:21.5}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
     L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:9.55};
-    L.lights=[{x:15.2,y:19.4,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:24.6,c:'#ffb45c',r:4.8,f:1},
-              {x:18.6,y:21.5,c:'#c9a070',r:5.4,f:0.95},
+    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
+              {x:19.0,y:21.5,c:'#c9a070',r:5.4,f:0.95},
               {x:36.5,y:9.7,c:'#ff2f3a',r:7.4,f:1.55},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:27,y:12,c:'#a06cff',r:4.2,f:0.9},{x:42,y:13,c:'#a06cff',r:4.4,f:0.9},
               {x:26,y:30,c:'#a06cff',r:4.0,f:0.85},{x:45,y:29,c:'#a06cff',r:4.6,f:0.95}];
-    G.props=[{x:15.4,y:19.3,k:'lantern'},{x:18.2,y:24.5,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
+    G.props=[{x:15.4,y:16.35,k:'lantern'},{x:18.2,y:27.15,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
       {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
-      {x:16.2,y:19.6,k:'timber'},{x:15.8,y:24.4,k:'timber'},
+      {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:36.5,y:9.55,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
@@ -4778,10 +4835,11 @@ function drawWorld(g,L){
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
-      if(oS && !doorHere) drawIsoPlaneImg(g, faceL, x, y+0.5, x+1.02, y+0.5, H);
-      if(oE) drawIsoPlaneImg(g, faceR, x+0.5, y, x+0.5, y+1.02, H);
-      if(oN && !oS) drawIsoPlaneImg(g, faceL, x, y-0.5, x+1.02, y-0.5, H);
-      if(oW && !oE) drawIsoPlaneImg(g, faceR, x-0.5, y, x-0.5, y+1.02, H);
+      const sid=x*31+y*17;
+      if(oS && !doorHere) drawMasonryFace(g, faceL, x, y+0.5, x+1.02, y+0.5, H, 0, -1, sid);
+      if(oE) drawMasonryFace(g, faceR, x+0.5, y, x+0.5, y+1.02, H, -1, 0, sid+3);
+      if(oN && !oS) drawMasonryFace(g, faceL, x, y-0.5, x+1.02, y-0.5, H, 0, 1, sid+7);
+      if(oW && !oE) drawMasonryFace(g, faceR, x-0.5, y, x-0.5, y+1.02, H, 1, 0, sid+11);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
