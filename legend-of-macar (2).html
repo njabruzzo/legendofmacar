@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=31">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=31">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=31" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=32">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=32">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=32" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=31"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=32"></audio>
 <script src="SkillSystem.js"></script>
 <script>
 "use strict";
@@ -210,7 +210,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='31';
+const ASSET_VER='32';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -539,6 +539,82 @@ function palWallKey(L){
   if(L && L.n===2) return 'wall_cave';
   return 'wall_worked';
 }
+
+/* Flare fantasycore HD isometric tileset (tile_size=192,96).
+   Public defs: mods/fantasycore/engine/tileset_config.txt
+                mods/fantasycore/tilesetdefs/tileset_dungeon.txt
+                mods/fantasycore/tilesetdefs/tileset_cave.txt
+   Each tile=index,left,top,w,h,ox,oy — (ox,oy) is the grid-square CENTER.
+   Layers match Flare maps: background (under actors), object (interleaved),
+   collision (our grid, unchanged). Index bands:
+     16–63 floors / cave seams    64–127 masonry or cavern walls
+     128–175 pillars & props      192–223 arches    224–239 cave overlays */
+const TILESET={
+  srcW:192, srcH:96,
+  dungeon:{
+    floors:[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47],
+    walls:[64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,96,97,98,99,100,101,102,103,104,105,106,107,108,109],
+    wallShort:[80,81,82,83,88,89,90,91,92,93,94,95],
+    pillars:[208,209,211,213,216,221],
+    arches:[192,193,197,199,200,203,210,214,215,218,219],
+    sprites:{floors:['floor_mine','floor_hall','floor_ruin'], walls:['wall_face','wall_face_shade','wall_worked'],
+      pillars:['pillar','names'], arches:['rubydoor_face','bronzedoor','gate','tunnel']},
+    floor:{w:192,h:96,ox:96,oy:48, layer:'background'},
+    wall:{w:178,h:328,ox:96,oy:287, layer:'object'},
+    wallR:{w:178,h:328,ox:82,oy:287, layer:'object'},
+    wallShort:{w:178,h:186,ox:96,oy:145, layer:'object'},
+    pillar:{w:192,h:337,ox:96,oy:292, layer:'object'},
+    arch:{w:192,h:322,ox:96,oy:274, layer:'object'},
+    depth:0
+  },
+  cave:{
+    floors:[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55],
+    seams:[56,57],
+    walls:[64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,96,97,98,99,100,101,102,103,104,105,106,107,108,109,112,113,114,115],
+    pillars:[144,145,146,147,148,149],
+    overlays:[224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239],
+    sprites:{floors:['floor_mine','floor_fungi'], walls:['wall_cave_face','wall_cave_face_shade','wall_cave'],
+      seams:['wall_cave'], pillars:['stalagmite','pillar'], arches:['gate','tunnel']},
+    floor:{w:192,h:96,ox:96,oy:48, layer:'background'},
+    seamL:{w:114,h:96,ox:18,oy:48, layer:'background'},
+    seamR:{w:114,h:96,ox:96,oy:48, layer:'background'},
+    wall:{w:176,h:339,ox:96,oy:298, layer:'object'},
+    wallR:{w:176,h:339,ox:80,oy:298, layer:'object'},
+    wallShort:{w:160,h:306,ox:80,oy:298, layer:'object'},
+    pillar:{w:192,h:295,ox:96,oy:261, layer:'object'},
+    arch:{w:176,h:98,ox:88,oy:48, layer:'object'},
+    depth:0
+  }
+};
+function tilesetTheme(L){ return palWallKey(L)==='wall_cave'?'cave':'dungeon'; }
+function tilesetPack(L){ return TILESET[tilesetTheme(L)]||TILESET.dungeon; }
+function tilesetScale(){ return {sx:TW/TILESET.srcW, sy:TH/TILESET.srcH}; }
+function objectDepth(x,y,layer){
+  // Flare object layer shares the cell's isometric diagonal with actors.
+  // Background never uses this key. A tiny negative bias keeps masonry
+  // behind a hero standing on the same diagonal without moving collision.
+  const d=(x+y);
+  return layer==='object'?d-0.08:d;
+}
+function drawTilesetSprite(g, img, s, m){
+  if(!img||!img.width||!m) return false;
+  const {sx,sy}=tilesetScale();
+  g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+  return true;
+}
+function drawObjectProp(g, img, h, m){
+  if(!img||!img.width) return false;
+  const W=h*(img.width/Math.max(1,img.height));
+  const foot=m?((m.h-m.oy)/Math.max(1,m.h))*h:0;
+  g.drawImage(img, -W/2, -h+foot, W, h);
+  return true;
+}
+function tilesetPropMetric(k, L){
+  const pack=tilesetPack(L||G.lvl);
+  if(k==='pillar'||k==='names'||k==='stalagmite') return pack.pillar;
+  if(k==='gate'||k==='bronzedoor'||k==='tunnel'||k==='altar'||k==='throne') return pack.arch;
+  return null;
+}
 function wallFaceSprite(L, lit){
   const cave=palWallKey(L)==='wall_cave';
   if(cave){
@@ -557,7 +633,10 @@ function useWallFaces(L){
   }
   return true;
 }
-function wallFaceH(){ return 118*ZOOM; }
+function wallFaceH(L){
+  const oy=tilesetPack(L||G.lvl).wall.oy;
+  return oy*(TH/TILESET.srcH);
+}
 function rubyDoorHalf(){
   const img=SPR.rubydoor_face||SPR.rubydoor;
   const H=wallFaceH();
@@ -662,14 +741,16 @@ function ensureTileBlit(L){
   const wallKey=L?palWallKey(L):'wall_worked';
   const srcL=wallFaceSprite(L,1), srcR=wallFaceSprite(L,0);
   const faceId=(srcL&&srcL.width||0)+':'+(srcR&&srcR.width||0);
-  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+wallFaceH()+'|'+faceId;
+  const pack=tilesetPack(L);
+  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+pack.wall.oy+'|'+faceId;
   if(TILEBLIT.key===k && TILEBLIT.floor && TILEBLIT.wall) return;
   const sc=TW/RTW, SH=(RWH+RTH)*sc;
   const wall=scaleBlit(SPR[wallKey]||SPR.wall_cave||SPR.wall_worked, TW, SH);
-  const floor=scaleBlit(SPR[palKey], TW*1.12, TH*1.12);
-  const faceL=(srcL&&srcL.width)?srcL:makeWorkedFace(L, 1, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH()*2)|0));
-  const faceR=(srcR&&srcR.width)?srcR:makeWorkedFace(L, 0, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH()*2)|0));
-  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; }
+  const {sx,sy}=tilesetScale();
+  const floor=scaleBlit(SPR[palKey], Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
+  const faceL=(srcL&&srcL.width)?srcL:makeWorkedFace(L, 1, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH(L)*2)|0));
+  const faceR=(srcR&&srcR.width)?srcR:makeWorkedFace(L, 0, Math.max(96,(TW*3)|0), Math.max(144,(wallFaceH(L)*2)|0));
+  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.pack=pack; }
 }
 function entSpriteKey(e){
   if(e.kind==='dwarf') return e.col && e.col.key;
@@ -4661,64 +4742,76 @@ function drawWorld(g,L){
   if(G.aim) push(((G.aim.x+G.aim.y)|0)-1,()=>drawAim(g));
   if(L.plug&&!L.flags.broke) push((L.plug.x+L.plug.y)|0,()=>drawPlug(g,L));
 
-  const k=TW/RTW, WH=RWH*k, FH=RTH*k, SH=(RWH+RTH)*k;
+  const WH=RWH*(TW/RTW);
   const p=player();
   const okTex=TEX.ready;
   const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
+  const pack=tilesetPack(L);
+  const {sx,sy}=tilesetScale();
   if(p&&p.dest) push((p.dest.x+p.dest.y)|0,()=>drawMoveMark(g,p.dest));
 
+  function drawFloorCell(x,y,t){
+    const s=w2s(x,y);
+    const m=pack.floor;
+    const key=palFloorKey(pal);
+    const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
+    const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
+    if(fl){
+      g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else if(okTex){
+      const arr=t===3?TEX.floorA:TEX.floor;
+      g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
+  }
+
+  function drawWallCell(x,y){
+    const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
+    const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
+    const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
+    const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
+    if(!oS&&!oE&&!oN&&!oW) return;
+    const s=w2s(x,y);
+    const rk=L.wallHP[x+','+y];
+    const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
+    const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<rubyDoorHalf()+0.2);
+    const H=wallFaceH(L);
+    if(useWallFaces(L)){
+      const faceL=TILEBLIT.faceL||TILEBLIT.face;
+      const faceR=TILEBLIT.faceR||faceL;
+      if(oS && !doorHere) drawIsoPlaneImg(g, faceL, x, y+0.5, x+1.02, y+0.5, H);
+      if(oE) drawIsoPlaneImg(g, faceR, x+0.5, y, x+0.5, y+1.02, H);
+      if(oN && !oS) drawIsoPlaneImg(g, faceL, x, y-0.5, x+1.02, y-0.5, H);
+      if(oW && !oE) drawIsoPlaneImg(g, faceR, x-0.5, y, x-0.5, y+1.02, H);
+    } else if(wallImg){
+      const m=oE&&!oS?pack.wallR:pack.wall;
+      if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
+      else g.drawImage(wallImg, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else if(okTex){
+      const vein=h2(x*3,y*7)>0.86;
+      const arr=vein?TEX.wallVein:TEX.wall;
+      const m=pack.wall;
+      g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
+    if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-H*0.35, TW*0.30, pal.key, 0.5);
+    if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,H,1-rk.hp/rk.max);
+    if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,H);
+    if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,H,G.dig.min/DIG_MINUTES);
+  }
+
+  // Flare background layer: floors always sit under the party and foes.
+  for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
+    const t=L.grid[y][x];
+    if(t===1||t===2||!L.seen[y][x]) continue;
+    drawFloorCell(x,y,t);
+  }
+
+  // Flare object layer: masonry / cavern walls interleaved with actors.
   for(let d=minx+miny; d<=maxx+maxy; d++){
     const x0=Math.max(minx,d-maxy), x1=Math.min(maxx,d-miny);
     for(let x=x0;x<=x1;x++){
       const y=d-x, t=L.grid[y][x];
-      if(t===2||!L.seen[y][x]) continue;
-      const s=w2s(x,y);
-      if(t===1){
-        const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
-        const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
-        const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
-        const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
-        if(!oS&&!oE&&!oN&&!oW) continue;
-        const rk=L.wallHP[x+','+y];
-        const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-        const doorHere=!!(L.rubyDoor && y===(L.rubyDoor.y|0) && Math.abs((x+0.5)-L.rubyDoor.x)<rubyDoorHalf()+0.2);
-        if(useWallFaces(L)){
-          const H=wallFaceH();
-          const faceL=TILEBLIT.faceL||TILEBLIT.face;
-          const faceR=TILEBLIT.faceR||faceL;
-          if(oS && !doorHere) drawIsoPlaneImg(g, faceL, x, y+0.5, x+1.02, y+0.5, H);
-          if(oE) drawIsoPlaneImg(g, faceR, x+0.5, y, x+0.5, y+1.02, H);
-          if(oN && !oS) drawIsoPlaneImg(g, faceL, x, y-0.5, x+1.02, y-0.5, H);
-          if(oW && !oE) drawIsoPlaneImg(g, faceR, x-0.5, y, x-0.5, y+1.02, H);
-        } else if(wallImg){
-          if(wallImg===wallBlit) g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2);
-          else g.drawImage(wallImg, s.x-TW/2, s.y-WH-FH/2, TW, SH);
-        } else if(okTex){
-          const vein = h2(x*3,y*7)>0.86;
-          const arr = vein?TEX.wallVein:TEX.wall;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW/2, s.y-WH-FH/2, TW, SH);
-        } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
-        if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-WH*0.35, TW*0.30, pal.key, 0.5);
-        if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,WH,1-rk.hp/rk.max);
-        if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,WH);
-        if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,WH,G.dig.min/DIG_MINUTES);
-      } else {
-        if(floorBlit){
-          g.drawImage(floorBlit, s.x-TW*0.56, s.y-TH*0.56);
-        } else if(QUALITY){
-          const key=palFloorKey(pal);
-          const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
-          const fl=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
-          if(fl) g.drawImage(fl, s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-          else if(okTex){
-            const arr = t===3?TEX.floorA:TEX.floor;
-            g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-          } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
-        } else if(okTex){
-          const arr = t===3?TEX.floorA:TEX.floor;
-          g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-TW*0.56, s.y-TH*0.56, TW*1.12, TH*1.12);
-        } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
-      }
+      if(t!==1||!L.seen[y][x]) continue;
+      drawWallCell(x,y);
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
@@ -4987,7 +5080,7 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
-          const tall=useWallFaces(L)?2.15:1;
+          const tall=useWallFaces(L)?(wallFaceH(L)/Math.max(1,TH)):1;
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-TH*0.72*tall), TW*0.88*pad, TH*1.55*pad*tall, 0, 0, TAU);
           mg.fill();
@@ -5171,7 +5264,9 @@ function drawProp(g,p,pal){
   const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
-    drawBillboard(g,img,propSpriteH(p,z));
+    const metric=tilesetPropMetric(p.k);
+    if(metric) drawObjectProp(g,img,propSpriteH(p,z),metric);
+    else drawBillboard(g,img,propSpriteH(p,z));
     const k=p.k;
     if(k==='lantern'){
       const fl=1+Math.sin(G.elapsed*7+p.x)*.13;
