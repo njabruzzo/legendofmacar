@@ -211,7 +211,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='35';
+const ASSET_VER='36';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -308,6 +308,8 @@ tryPlayMusic();
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
+  pordoom_ghost:'assets/creatures/dwarf_pordoom_ghost.png', fendur_ghost:'assets/creatures/dwarf_fendur_ghost.png',
+  orbo_ghost:'assets/creatures/dwarf_orbo_ghost.png', talpor_ghost:'assets/creatures/dwarf_talpor_ghost.png',
   macar_sleep:'assets/creatures/dwarf_macar_sleep.png',
   pordoom_dead:'assets/creatures/dwarf_pordoom_dead.png', fendur_dead:'assets/creatures/dwarf_fendur_dead.png',
   orbo_dead:'assets/creatures/dwarf_orbo_dead.png', talpor_dead:'assets/creatures/dwarf_talpor_dead.png',
@@ -399,6 +401,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(!src || SPRITE_FILES[k+'_dead']) return;
   if(/_(w1|w2|atk|dead|sleep)\./.test(src)) return;
+  if(/_ghost$/.test(k)) return;
   if(/\/(mon_|dwarf_)/.test(src)) SPRITE_FILES[k+'_dead']=src.replace(/\.png$/,'_dead.png');
 });
 Object.keys(SPRITE_FILES).forEach(k=>{
@@ -431,6 +434,7 @@ const ICON_SPR={
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
+    'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
@@ -908,7 +912,11 @@ function ensureTileBlit(L){
   else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.cap=cap; }
 }
 function entSpriteKey(e){
-  if(e.kind==='dwarf') return e.col && e.col.key;
+  if(e.kind==='dwarf'){
+    const k=e.col && e.col.key;
+    if(e.ghost && k) return k+'_ghost';
+    return k;
+  }
   if(e.sprite) return e.sprite;
   return e.kind;
 }
@@ -1387,7 +1395,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
   fightOn:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
-  trail:[], charXp:null, inspect:null, loot:[], showObjs:0 };
+  trail:[], charXp:null, inspect:null, loot:[], showObjs:0,
+  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0 };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -1840,7 +1849,7 @@ function makeChapter(n){
     rect(g,45,16,4,10,3); rect(g,33,18,7,7,3);
     L.spawn={x:19.2,y:21.5}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
-    L.objs=[{t:'Loot the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
+    L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:9.55};
     L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
@@ -1881,7 +1890,7 @@ function makeChapter(n){
     });
     L.guide=()=>{
       const p=player();
-      const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.looted);
+      const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.ghost);
       if(bodies.length){
         if(!p) return {x:bodies[0].x,y:bodies[0].y};
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
@@ -2401,11 +2410,16 @@ function campRest(){
   }
   let healed=0;
   G.ents.forEach(e=>{
-    if(e.team!=='party'||e.dead) return;
+    if(e.team!=='party') return;
+    if(e.ghost && e.dead) returnGhost(e, true);
+    if(e.dead) return;
     const miss=e.maxhp-e.hp;
     if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE);
     if(typeof clearPoison==='function') clearPoison(e);
   });
+  G.day=(G.day||1)+1;
+  G.dayClock=0;
+  tryPordoomGifts();
   G.sleepShow={t:0, dur:5};
   G.flash={c:'#ffb45c',a:.18};
   say('Macar decides to camp to rest and heal.','#ffe08a');
@@ -2413,6 +2427,7 @@ function campRest(){
 }
 function isLootableBody(o){
   if(!o||o.hero) return false;
+  if(o.ghost) return false;
   return !!(o.corpse||o.crushed||(o.dead&&o.team==='foe'));
 }
 function nearestCorpse(e, r){
@@ -2432,8 +2447,110 @@ function lootNearbyCorpses(e, r){
   }
   return n;
 }
+const GHOST_RETURN=600;
+const GHOST_DAY_SECS=720;
+const GHOST_RISE={
+  pordoom:'PORDOOM: "Get your grubby hands off me, Macar! I was having a perfectly decent nap under that rock."',
+  fendur:'FENDUR: "Paws off the bolts, captain. I am not a loot pile. I am Fendur, slightly less solid."',
+  orbo:'ORBO: "That is my coin-purse, you scavenger. I am using it. Also I am dead. Details."',
+  talpor:'TALPOR: "I am a cleric, Macar, not a sack of torch-ends. Kindly unhand the faithful."'
+};
+const GHOST_RETURN_LINE={
+  pordoom:'PORDOOM: "Ten minutes. That is all the peace a dwarf gets around you."',
+  fendur:'FENDUR: "I floated back. Try not to loot me again while I am busy not dying."',
+  orbo:'ORBO: "Miss me? The shield still works. The rest of me is a suggestion."',
+  talpor:'TALPOR: "The stone would not keep me. Macar, try to look surprised."'
+};
+function ghostKey(e){ return e&&e.col&&e.col.key; }
+function markChapterGhosts(){
+  const L=G.lvl; if(!L||L.n!==1) return;
+  const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.ghost).length;
+  if(!left){
+    L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
+    hint('A chamber has opened east. The ruby waits on the far wall.',6);
+  }
+}
+function restoreGhostKit(e){
+  const key=ghostKey(e); if(!key) return;
+  const kit=e.kit||{};
+  const pk=packOf(key);
+  ['rations','ales','torches','ammo','bombKit'].forEach(k=>{
+    if(kit[k]) addToPack(key, k, kit[k]);
+  });
+  if(kit.gp){
+    addCoin('gp', kit.gp);
+    awardPartyXp(kit.gp,'Treasure ('+kit.gp+' gp)',e);
+  }
+  e.kit=null;
+  syncPackTotals();
+}
+function tryPordoomGifts(){
+  const e=(G.ents||[]).find(z=>ghostKey(z)==='pordoom'&&z.ghost&&!z.dead);
+  if(!e) return;
+  const day=G.day||1;
+  if((G.pordoomGiftDay||0)>=day) return;
+  G.pordoomGiftDay=day;
+  addToPack('pordoom','bombs',1);
+  addToPack('macar','bombs',1);
+  say('PORDOOM: "Catch, you grave-robbing lump. I only make two a day, and one of them is wasted on you."','#ffb45c');
+}
+function returnGhost(e, fromCamp){
+  if(!e||!e.ghost) return;
+  const p=player();
+  if(p){
+    e.x=p.x+(h01((e.id||1),3,91)-0.5)*1.1;
+    e.y=p.y+(h01((e.id||1),5,91)-0.5)*1.1;
+  }
+  e.dead=0; e.hp=e.maxhp; e.crushed=0; e.prone=0; e.corpse=0;
+  e.ghostReturn=0; e.atk=0; e.moving=0; e.flash=0.3;
+  e.glow='#7ad8ff';
+  burst(e.x,e.y,'#7ad8ff',18,3.2);
+  const k=ghostKey(e);
+  say(fromCamp?(e.name+' gathers with the watch, still a ghost.'):(GHOST_RETURN_LINE[k]||(e.name+' knits himself back together.')),'#80d0ff');
+}
+function makeGhostAlly(e){
+  if(!e||!e.col) return;
+  const k=ghostKey(e);
+  e.ghost=1; e.dead=0; e.crushed=0; e.prone=0; e.corpse=0; e.looted=1;
+  e.hp=e.maxhp; e.moving=0; e.atk=0; e.flash=0.28;
+  e.glow='#7ad8ff'; e.ghostReturn=0;
+  G.ghostAllies=G.ghostAllies||{}; G.ghostAllies[k]=1;
+  restoreGhostKit(e);
+  burst(e.x,e.y,'#7ad8ff',22,3.4);
+  ftext(e.x,e.y,'rises','#7ad8ff');
+  say(GHOST_RISE[k]||(e.name+': "Get your grubby hands off me, Macar."'),'#80d0ff');
+  if(k==='pordoom') tryPordoomGifts();
+  markChapterGhosts();
+}
+function ghostSapperBomb(e, dt){
+  if(!e||e.role!=='pick'||!e.ghost||e.dead) return;
+  e.bombCd=Math.max(0,(e.bombCd||0)-dt);
+  if(!G.fightOn || e.bombCd>0) return;
+  if(!(packOf('pordoom').bombs>0)) return;
+  const t=nearestFoe(e,6.2); if(!t) return;
+  const crowding=(G.ents||[]).filter(z=>z.team==='party'&&!z.dead&&z!==e&&dist(z,t)<1.65).length;
+  if(crowding>0) return;
+  packOf('pordoom').bombs--; syncPackTotals();
+  G.thrown.push({sx:e.x,sy:e.y,tx:t.x,ty:t.y,x:e.x,y:e.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0});
+  e.bombCd=20;
+  say('PORDOOM: "Heads down. Short fuse. I packed this one for the rocks, not for you."','#ffb45c');
+}
+function isMagicAttack(src){
+  if(!src) return false;
+  if(src.magic) return true;
+  if(src.from && isMagicAttack(src.from)) return true;
+  const k=src.kind||'';
+  if(/wraith|lich|beholder|mage|priest|ixzan|horror|element|dao|mindflay|elderbrain|deathtyrant|vampire|aboleth|neothelid|rune/.test(k)) return true;
+  if(src.ranged && /drow|fungi|wraith|beholder|lich/.test(k)) return true;
+  if(/Spell|Magic|Ray|Gaze|Mind|Spore|Wand|Priest/.test(src.sa||'')) return true;
+  return false;
+}
 function lootCorpse(e){
   if(!isLootableBody(e)) return;
+  if(e.crushed && e.col && e.team==='party'){
+    makeGhostAlly(e);
+    return;
+  }
   if(e.looted) return;
   e.looted=1;
   e.corpse=1;
@@ -2512,6 +2629,7 @@ function startChapter(n){
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
+  if(n===1){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
   G.inspect=null; G.showObjs=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
@@ -2520,7 +2638,8 @@ function startChapter(n){
     const hp=sheet.maxhp*ADD_SCALE;
     const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
     const crush=n===1 && !hero && CRUSH_SPOTS[r.key];
-    if(!hero && n!==1) return;
+    const raised=!!(G.ghostAllies&&G.ghostAllies[r.key]);
+    if(!hero && n!==1 && !raised) return;
     const x=crush?crush.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
     const y=crush?crush.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
     const e=ent({kind:'dwarf',team:'party',x,y, hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:atkCd,
@@ -2539,6 +2658,8 @@ function startChapter(n){
       pk.potions=[]; pk.healPots=[]; pk.herbs={}; pk.magic=[]; pk.gems=[];
       pk.bombs=0; pk.ales=0; pk.rations=0; pk.torches=0; pk.ammo=0; pk.bombKit=0;
       syncPackTotals();
+    } else if(raised){
+      e.ghost=1; e.glow='#7ad8ff'; e.looted=1;
     }
     G.ents.push(e);
   });
@@ -3821,7 +3942,7 @@ function useMagicItem(it, e){
     if(e&&it.charges){
       const t=nearestFoe(e,8);
       const dmg=rollDice(6,6,0)*ADD_SCALE;
-      if(t){ damage(t, dmg, '#7ad0ff'); burst(t.x,t.y,'#7ad0ff',16,3); }
+      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
       it.charges=Math.max(0,(it.charges||1)-1);
       say(it.n+' ('+it.charges+' charges left).','#7ad0ff');
     }
@@ -3843,7 +3964,7 @@ function useMagicItem(it, e){
   if(it.k==='ammo'){
     const t=e?nearestFoe(e,8):null;
     const dmg=rollDice(6,6,0)*ADD_SCALE;
-    if(t){ damage(t, dmg, '#7ad0ff'); burst(t.x,t.y,'#7ad0ff',16,3); }
+    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
     return 'spent';
   }
   if(it.k==='sense'){ if(e) e.trueSee=40; return; }
@@ -4074,10 +4195,11 @@ function useHerb(name, e){
 
 
 /* ---------------------------- combat ---------------------------- */
-function damage(e,amt,col){
+function damage(e,amt,col,src){
   if(e.dead) return;
   if(e.stoneskin>0){ e.stoneskin--; ftext(e.x,e.y,'stoneskin','#cfe3ff'); return; }
   if(e.guard) amt*=.5;
+  if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
   if(e.hp>0) e.flash=.18;
@@ -4090,6 +4212,10 @@ function damage(e,amt,col){
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; }
+    } else if(e.ghost){
+      e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
+      burst(e.x,e.y,'#7ad8ff',20,3.4);
+      say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
     } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else G.scene='dead'; } } }
 }
 function onHitFx(atk,o,dmg){
@@ -4133,7 +4259,7 @@ function meleeSwing(e,arc,reach,dmg,col){
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
     if(df<=wedge/2){
       const rolled=addAttack(e,o);
-      if(rolled){ damage(o,onHitFx(e,o,rolled),col);
+      if(rolled){ damage(o,onHitFx(e,o,rolled),col,e);
         wear(e.gear,0.35,0);
         const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; }
     } }
@@ -4381,6 +4507,8 @@ function onDown(id,x,y,ptr){
   const b=btnAt(x,y);
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
   if(G.inspect){ G.inspect=null; return; }
+  const ph=(UI.portraitHits||[]).find(z=>x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h);
+  if(ph){ G.inspect=ph.key; return; }
   if(G.showObjs){
     if(hitRect(UI.objHit,x,y)){ G.showObjs=0; return; }
     if(hitRect(UI.objPanel,x,y)) return;
@@ -4619,6 +4747,10 @@ function update(dt){
   }
   if(G.scene!=='play'||G.paused) return;
   G.elapsed+=dt;
+  G.dayClock=(G.dayClock||0)+dt;
+  if(G.dayClock>=GHOST_DAY_SECS){
+    G.dayClock=0; G.day=(G.day||1)+1; tryPordoomGifts();
+  }
   const L=G.lvl; if(!L) return;
   PROMPT=null;
   runSystems(dt, { ents:G.ents, abilities:ABIL, cds:cds });
@@ -4738,7 +4870,7 @@ function update(dt){
     if(body) lootNearbyCorpses(p,1.72);
     if(!PROMPT){
       const more=nearestCorpse(p,2.15);
-      if(more) interact('Loot '+(more.name||'the fallen'),()=>lootCorpse(more));
+      if(more) interact((more.crushed&&more.team==='party'?'Rouse ':'Loot ')+(more.name||'the fallen'),()=>lootCorpse(more));
     }
     const pile=nearestLoot(p,1.12);
     if(pile) takeLoot(pile, true);
@@ -4759,7 +4891,7 @@ function update(dt){
         if(e.dead||e.team!=='party') continue;
         if(dist(e,pr)<0.72){
           const pit=pr.trap==='trap_pit', rune=pr.trap==='trap_runes';
-          damage(e, pit?16:rune?13:11, rune?'#c07bff':'#ff6a4a');
+          damage(e, pit?16:rune?13:11, rune?'#c07bff':'#ff6a4a', rune?{magic:1,kind:'rune'}:{kind:'trap'});
           burst(pr.x,pr.y, rune?'#c07bff':'#c2452e', 12, 2.4);
           say((e.name||'Kin')+' hits a trap.','#ff6a6a');
           pr.cd=pit?2.8:rune?1.6:2.2; pr.sprung=0.55; shake(8); break;
@@ -4769,7 +4901,14 @@ function update(dt){
   }
 
   for(const e of G.ents){
-    if(e.dead){ if(!e.crushed) e.deadT=(e.deadT||0)+dt; continue; }
+    if(e.dead){
+      if(e.ghost){
+        e.ghostReturn=(e.ghostReturn||0)-dt;
+        if(e.ghostReturn<=0) returnGhost(e);
+      }
+      if(!e.crushed) e.deadT=(e.deadT||0)+dt;
+      continue;
+    }
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
@@ -4876,6 +5015,7 @@ function update(dt){
         if(!form&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
+    ghostSapperBomb(e, dt);
   }
 
   for(const s of G.shots){
@@ -4894,7 +5034,7 @@ function update(dt){
           rolled=addAttack(s.from,o);
           s.from.dice=prevD; s.from.ranged=prevR;
         } else rolled=s.from?addAttack(s.from,o):(s.dmg||8);
-        if(rolled) damage(o,onHitFx(s.from||s,o,rolled),s.col);
+        if(rolled) damage(o,onHitFx(s.from||s,o,rolled),s.col,s.from||s);
         s.life=0; burst(s.x,s.y,s.col,9,2.5); tryRetrieveBolt(s); break; } }
   }
   G.shots.forEach(s=>{ if(s.life<=0) tryRetrieveBolt(s); });
@@ -5009,6 +5149,7 @@ function drawWorld(g,L){
   const visAt=o=>tileVisible(o.x,o.y);
   const showEnt=e=>{
     if(!near(e)) return false;
+    if(e.ghost && e.dead) return false;
     if(e.team==='foe' && !e.dead && !visAt(e)) return false;
     if((e.dead||e.corpse||e.crushed) && !seenAt(e)) return false;
     return true;
@@ -5947,6 +6088,7 @@ function drawGnome(g,e,z,sw){
 
 function drawEnt(g,e){
   if(e.hidden) return;
+  if(e.ghost && e.dead) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
   const deadSpr=e.crushed && SPR[(e.col&&e.col.key)+'_dead'];
@@ -5987,6 +6129,7 @@ function drawEnt(g,e){
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
+  if(e.ghost && !e.dead) g.globalAlpha=0.84;
   g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
   if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
     /* prone corpse sprite */
@@ -6003,6 +6146,7 @@ function drawEnt(g,e){
     else drawStatue(g,e,z,sw);
   }
   g.restore();
+  if(e.ghost) g.globalAlpha=1;
 
   if(e.hero && e.atk>0 && !e.dead){
     const t=1-e.atk/Math.max(0.01,e.atkMax);
@@ -6035,10 +6179,10 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
-  if(!e.dead&&e.glow&&(e.team==='foe'||e.boss||e.npc||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
-    emit(s.x,s.y-(e.boss||e.kind==='golem'||e.kind==='beholder'?76:56)*z, (e.boss?34:14)*z, e.glow, e.boss?0.75:0.35);
+  if(!e.dead&&e.glow&&(e.ghost||e.team==='foe'||e.boss||e.npc||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
+    emit(s.x,s.y-(e.boss||e.kind==='golem'||e.kind==='beholder'?76:56)*z, (e.ghost?22:e.boss?34:14)*z, e.glow, e.ghost?0.62:e.boss?0.75:0.35);
 
-  if(!e.dead&&e.ally&&e.hp<e.maxhp){
+  if(!e.dead&&(e.ally||e.ghost)&&e.hp<e.maxhp){
     const w=32*ZOOM,h=3.6*ZOOM, yy=s.y-48*ZOOM*e.scale;
     ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(s.x-w/2-1,yy-1,w+2,h+2);
     ctx.fillStyle='#6ecf6a'; ctx.fillRect(s.x-w/2,yy,w*clamp(e.hp/e.maxhp,0,1),h);
@@ -6764,7 +6908,7 @@ function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function throwBomb(){
   const p=player(); if(!p||!G.aim) return;
   if(!takeFromPacks('bombs')){
-    hint(partyCount('bombKit')?'No bombs in the packs.':'No bombs. Loot the red hat — he carries a bomb-making kit.',2.2);
+    hint(partyCount('bombKit')?'No bombs in the packs.':'No bombs. Rouse the red hat — the ghost sapper packs two a day.',2.2);
     return;
   }
   const a=ang(G.aim.x-p.x, G.aim.y-p.y);
@@ -6886,8 +7030,8 @@ function carveFrame(g,x,y,w,h,r,a){
 function plate(g,x,y,w,h,r,a){ carveFrame(g,x,y,w,h,r,a); }
 function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
-function face(g,cx,cy,rr,c,dead){
-  const img=c&&SPR[c.key];
+function face(g,cx,cy,rr,c,dead,ghost){
+  const img=(ghost&&c&&SPR[c.key+'_ghost'])||(c&&SPR[c.key]);
   g.save();
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.clip();
   g.fillStyle=dead?'#1a120c':'#2a1c14'; g.fillRect(cx-rr,cy-rr,rr*2,rr*2);
@@ -6915,6 +7059,7 @@ function face(g,cx,cy,rr,c,dead){
     g.fillStyle=c.trim; g.fillRect(cx-2.1*u,cy-19*u,4.2*u,12*u);
     g.fillStyle='rgba(255,246,220,0.28)'; g.fillRect(cx-10*u,cy-14*u,6*u,3*u); }
   }
+  if(ghost && !dead){ g.fillStyle='rgba(90,190,255,0.16)'; g.fillRect(cx-rr,cy-rr,rr*2,rr*2); }
   if(dead){ g.fillStyle='rgba(0,0,0,0.65)'; g.fillRect(cx-rr,cy-rr,rr*2,rr*2); }
   g.restore();
   g.strokeStyle='rgba(40,28,16,0.9)'; g.lineWidth=1.6;
@@ -6923,7 +7068,7 @@ function face(g,cx,cy,rr,c,dead){
 
 function drawHUD(g){
   const s=UIS;
-  UI.portraitHits=[];
+  drawPortraitStack(g,s);
   drawMinimap(g,s);
   drawObjectives(g,s);
   drawGuideArrow(g,s);
@@ -6937,7 +7082,8 @@ function drawHUD(g){
 }
 
 function drawPortraitStack(g,s){
-  const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key)).filter(Boolean);
+  const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key))
+    .filter(e=>e && (e.hero || e.ghost));
   const x=8*s, y=8*s, w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
   const h=Math.min(PORT?46*s:50*s, (avail-y)/Math.max(1,party.length)-gap);
@@ -6947,23 +7093,31 @@ function drawPortraitStack(g,s){
     UI.portraitHits.push({x,y:yy,w,h,key:e.col.key});
     carveFrame(g,x,yy,w,h,6,.88);
     if(e.hero){ g.strokeStyle='rgba(255,210,130,0.7)'; g.lineWidth=1.6; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
+    if(e.ghost){ g.strokeStyle='rgba(120,210,255,0.75)'; g.lineWidth=1.5; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     if(G.inspect===e.col.key){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     const rr=PORT?15*s:17*s, cx=x+rr+8*s, cy=yy+h/2;
-    face(g,cx,cy,rr,e.col,e.dead);
+    face(g,cx,cy,rr,e.col,e.dead,e.ghost);
     const tx=cx+rr+8*s;
     g.font='800 '+(PORT?11*s:12.5*s)+'px '+FONT_UI;
-    g.fillStyle=e.dead?'#6b5b48':'#f2e0b6';
-    g.fillText(e.col.name+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
+    g.fillStyle=e.dead?'#6b5b48':(e.ghost?'#cfefff':'#f2e0b6');
+    g.fillText(e.col.name+(e.ghost?'  GHOST':'')+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
     g.font='700 '+(PORT?8*s:8.5*s)+'px '+FONT_UI;
     g.fillStyle='rgba(200,170,120,0.78)';
     const ab=entityAbil(e);
-    g.fillText(sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e)+(ab?'  CON '+ab.con:''), tx, yy+27*s);
+    if(e.ghost && e.dead){
+      const sec=Math.max(0, e.ghostReturn||0);
+      const mm=(sec/60)|0, ss=(sec%60)|0;
+      g.fillStyle='#8ec8ff';
+      g.fillText('Returns in '+mm+':'+(ss<10?'0':'')+ss, tx, yy+27*s);
+    } else {
+      g.fillText(sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e)+(ab?'  CON '+ab.con:''), tx, yy+27*s);
+    }
     const bx=tx, by=yy+h-14*s, bw=w-(tx-x)-12*s, bh=7*s, f=clamp(e.hp/e.maxhp,0,1);
     g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(bx,by,bw,bh);
     const gr=g.createLinearGradient(bx,by,bx,by+bh);
-    gr.addColorStop(0,e.dead?'#4a4a4a':(f<.3?'#e0644a':'#7ad45a'));
-    gr.addColorStop(1,e.dead?'#2a2a2a':(f<.3?'#8a1f14':'#2f7a28'));
-    g.fillStyle=gr; g.fillRect(bx,by,bw*f,bh);
+    gr.addColorStop(0,e.dead?'#4a4a4a':(e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a')));
+    gr.addColorStop(1,e.dead?'#2a2a2a':(e.ghost?'#2a6a9a':(f<.3?'#8a1f14':'#2f7a28')));
+    g.fillStyle=gr; g.fillRect(bx,by,bw*(e.dead&&e.ghost?0:f),bh);
     g.strokeStyle='rgba(220,190,130,0.4)'; g.lineWidth=1; g.strokeRect(bx,by,bw,bh);
   });
 }
@@ -7143,7 +7297,7 @@ function drawInspect(g,s){
   g.fillStyle='rgba(4,3,2,0.55)'; g.fillRect(0,0,VW,VH);
   carveFrame(g,x,y,w,h,8,.94);
   const rr=28*s;
-  face(g, x+22*s+rr, y+28*s+rr, rr, e.col, e.dead);
+  face(g, x+22*s+rr, y+28*s+rr, rr, e.col, e.dead, e.ghost);
   g.font='800 '+(18*s)+'px '+FONT_TITLE;
   g.fillStyle='#ffe9c0';
   g.fillText(e.col.name, x+22*s+rr*2+14*s, y+42*s);
