@@ -756,7 +756,7 @@ function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
   g.restore();
 }
 function drawMasonryFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
-  const t=0.18;
+  const t=0.42;
   const ix=inx*t, iy=iny*t;
   const u=h2((seed|0), 9);
   drawIsoPlaneImg(g, img, x0+ix, y0+iy, x1+ix, y1+iy, H, {u:u+0.21, shade:0.72, stroke:0});
@@ -953,10 +953,82 @@ function paintSeenWalls(L){
     for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
       const y=j+dj, x=i+di;
       if(y<0||x<0||y>=L.h||x>=L.w) continue;
-      if(L.grid[y][x]===1 && !L.seen[y][x]){ L.seen[y][x]=1; n++; }
+      const t=L.grid[y][x];
+      if((t===1||t===2) && !L.seen[y][x]){ L.seen[y][x]=1; n++; }
     }
   }
   return n;
+}
+
+/* 5-foot squares: Macar sees 60 feet. */
+const SIGHT_R=12;
+function tileExplored(x,y){
+  const L=G.lvl; if(!L||!L.seen) return false;
+  const i=x|0, j=y|0;
+  return !!(L.seen[j]&&L.seen[j][i]);
+}
+function tileVisible(x,y){
+  const L=G.lvl; if(!L||!L.vis) return false;
+  const i=x|0, j=y|0;
+  return !!(L.vis[j]&&L.vis[j][i]);
+}
+function tileBlocksSight(L,i,j){
+  if(!L||i<0||j<0||i>=L.w||j>=L.h) return true;
+  const t=L.grid[j][i];
+  return t===1||t===2;
+}
+function hasLOS(x0,y0,x1,y1){
+  const L=G.lvl; if(!L) return false;
+  let i0=Math.floor(x0), j0=Math.floor(y0);
+  const i1=Math.floor(x1), j1=Math.floor(y1);
+  if(i0===i1&&j0===j1) return true;
+  const di=Math.abs(i1-i0), dj=Math.abs(j1-j0);
+  const si=i0<i1?1:-1, sj=j0<j1?1:-1;
+  let err=di-dj;
+  while(i0!==i1||j0!==j1){
+    const e2=err*2;
+    let ni=i0, nj=j0;
+    if(e2>-dj){ err-=dj; ni+=si; }
+    if(e2<di){ err+=di; nj+=sj; }
+    if(ni===i1&&nj===j1) return true;
+    if(ni!==i0&&nj!==j0){
+      if(tileBlocksSight(L,ni,j0)&&tileBlocksSight(L,i0,nj)) return false;
+    }
+    i0=ni; j0=nj;
+    if((i0!==i1||j0!==j1)&&tileBlocksSight(L,i0,j0)) return false;
+  }
+  return true;
+}
+function rebuildVision(){
+  const L=G.lvl, p=player();
+  if(!L||!L.grid||!L.seen) return;
+  if(!L.vis||L.vis.length!==L.h) L.vis=newGrid(L.w,L.h,0);
+  else for(let j=0;j<L.h;j++) L.vis[j].fill(0);
+  if(!p) return;
+  const r=SIGHT_R, rr=r*r;
+  const i0=Math.max(0,Math.floor(p.x-r));
+  const i1=Math.min(L.w-1,Math.ceil(p.x+r));
+  const j0=Math.max(0,Math.floor(p.y-r));
+  const j1=Math.min(L.h-1,Math.ceil(p.y+r));
+  let fresh=0;
+  for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+    const cx=i+0.5, cy=j+0.5;
+    if((cx-p.x)*(cx-p.x)+(cy-p.y)*(cy-p.y)>rr) continue;
+    if(!hasLOS(p.x,p.y,cx,cy)) continue;
+    L.vis[j][i]=1;
+    if(!L.seen[j][i]){ L.seen[j][i]=1; fresh++; }
+  }
+  for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+    if(!L.vis[j][i]||!isWalkTile(L.grid[j][i])) continue;
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
+      const y=j+dj, x=i+di;
+      if(y<0||x<0||y>=L.h||x>=L.w) continue;
+      const t=L.grid[y][x];
+      if(t===1||t===2) L.vis[y][x]=1;
+    }
+  }
+  if(paintSeenWalls(L)) fresh++;
+  if(fresh){ G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
 }
 function corridor(g,x1,y1,x2,y2,wd,t){
   wd=wd||3; const hw=(wd/2)|0;
@@ -1228,10 +1300,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  pordoom:{x:15.25,y:18.55,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.38,y:0.22}},
-  fendur:{x:15.45,y:24.55,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.32,y:0.20}},
-  orbo:{x:17.55,y:18.65,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.34,y:0.18}},
-  talpor:{x:17.65,y:24.65,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.30,y:0.22}}
+  pordoom:{x:14.42,y:20.22,seed:3,stone:0.52,kit:{bombs:4,rations:7},spr:'boulder', pin:{x:0.22,y:0.16}},
+  fendur:{x:14.52,y:22.78,seed:11,stone:0.50,kit:{ammo:12,torches:4},spr:'boulder2', pin:{x:0.20,y:0.14}},
+  orbo:{x:15.12,y:20.58,seed:19,stone:0.50,kit:{ales:3,gp:18},spr:'boulder', pin:{x:0.24,y:0.12}},
+  talpor:{x:15.22,y:22.42,seed:7,stone:0.48,kit:{torches:3,rations:5},spr:'boulder2', pin:{x:0.18,y:0.16}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1675,10 +1747,18 @@ function makeChapter(n){
       G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.5,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
-      if(p.pin) return true;
+      if(p.pin||p.cover) return true;
       if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,1.15)) return false;
       return true;
     });
+    Object.keys(CRUSH_SPOTS).forEach(k=>{
+      const s=CRUSH_SPOTS[k];
+      G.props.push({x:s.x-0.10,y:s.y+0.08,k:'rubble',n:7,s:0.58,seed:s.seed+40,cover:1,spr:'rubble'});
+      G.props.push({x:s.x+0.16,y:s.y-0.10,k:'rubble',n:6,s:0.46,seed:s.seed+51,cover:1,spr:'rubble2'});
+    });
+    G.props.push({x:14.06,y:21.48,k:'rubble',n:12,s:1.18,seed:101,cover:1,spr:'rubble'});
+    G.props.push({x:13.92,y:20.82,k:'rubble',n:8,s:0.92,seed:103,cover:1,spr:'rubble2'});
+    G.props.push({x:13.98,y:22.18,k:'rubble',n:8,s:0.94,seed:107,cover:1,spr:'rubble'});
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
     });
@@ -1980,20 +2060,7 @@ function makeChapter(n){
   }
   sealOuter(L.grid);
   L.seen=newGrid(L.w,L.h,0);
-  if(n===1){
-    for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
-      const t=L.grid[j][i];
-      if(t!==1 && t!==2 && i<25) L.seen[j][i]=1;
-    }
-  }
-  if(n===2){
-    for(let j=0;j<L.h;j++) for(let i=0;i<L.w;i++){
-      const t=L.grid[j][i];
-      if(t===1||t===2) continue;
-      if(Math.hypot(i-40,j-8)<8.5) L.seen[j][i]=1;
-    }
-  }
-  paintSeenWalls(L);
+  L.vis=newGrid(L.w,L.h,0);
   dressDungeon(L);
   return L;
 }
@@ -2353,6 +2420,7 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  rebuildVision();
   say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. A ruby door is set in this chamber\'s north wall.',
     2:'The cage opens on a four-way cavern. Left, a gem-bronze door. Right, webs. Straight, goblins with a bound gnome.',
     3:'Purple light. The stone sweats.',
@@ -4069,7 +4137,12 @@ function buildGoblinWarrens(L, sec){
   });
 }
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
-  for(const o of G.ents){ if(o.team!=='foe'||o.dead) continue; const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
+  const party=e&&e.team==='party';
+  for(const o of G.ents){
+    if(o.team!=='foe'||o.dead) continue;
+    if(party && !tileVisible(o.x,o.y)) continue;
+    const d=dist(e,o); if(d<bd){bd=d;b=o;}
+  } return b; }
 function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='party'||o.dead) continue; if(hurt&&o.hp>=o.maxhp*.7) continue;
     const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
@@ -4493,13 +4566,7 @@ function update(dt){
 
     G.cam.x=lerp(G.cam.x,p.x,1-Math.pow(.0004,dt));
     G.cam.y=lerp(G.cam.y,p.y,1-Math.pow(.0004,dt));
-    const ci=p.x|0,cj=p.y|0;
-    for(let j=cj-10;j<=cj+10;j++) for(let i=ci-10;i<=ci+10;i++)
-      if(L.seen[j]&&L.seen[j][i]!==undefined&&(i-p.x)*(i-p.x)+(j-p.y)*(j-p.y)<100){
-        if(!L.seen[j][i]){ L.seen[j][i]=1; G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
-        else L.seen[j][i]=1;
-      }
-    if(paintSeenWalls(L)){ G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
+    rebuildVision();
     p.searchCd=Math.max(0,(p.searchCd||0)-dt);
     if(G.searching && (p.searchCd||0)<=0){
       p.searchCd=5;
@@ -4728,14 +4795,15 @@ function render(){
   g.save();
   if(QUALITY && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
   const L=G.lvl;
-  g.fillStyle=L?L.pal.fogTop:'#07060a'; g.fillRect(-40,-40,VW+80,VH+80);
+  g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
     && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
   if(inWorld){
     drawWorld(g,L);
     applyLighting(g,L);
-    drawBeyondMask(g,L);
     if(QUALITY){ drawGodRays(g); drawBloom(g); }
+    drawMemoryShade(g,L);
+    drawBeyondMask(g,L);
     drawAtmosphere(g,L); drawFloaters(g);
   }
   g.restore();
@@ -4788,12 +4856,19 @@ function drawWorld(g,L){
   const isoX=G.cam.x-G.cam.y, isoY=G.cam.x+G.cam.y;
   const limX=(VW*0.5+TW*2)/(TW*0.5), limY=(VH*0.5+TH*5)/(TH*0.5);
   const near=o=>{ const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
-  const seenAt=o=>{ const i=o.x|0, j=o.y|0; return !!(L.seen[j]&&L.seen[j][i]); };
-  for(const d of G.decals) if(near(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
+  const seenAt=o=>tileExplored(o.x,o.y);
+  const visAt=o=>tileVisible(o.x,o.y);
+  const showEnt=e=>{
+    if(!near(e)) return false;
+    if(e.team==='foe' && !e.dead && !visAt(e)) return false;
+    if((e.dead||e.corpse||e.crushed) && !seenAt(e)) return false;
+    return true;
+  };
+  for(const d of G.decals) if(near(d)&&seenAt(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
-  for(const q of (G.loot||[])) if(!q.gone&&near(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents)  if(!e.crushed&&near(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
-  for(const s of G.shots) if(near(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
+  for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
+  for(const e of G.ents)  if(!e.crushed&&showEnt(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
   if(G.aim) push(((G.aim.x+G.aim.y)|0)-1,()=>drawAim(g));
@@ -4836,10 +4911,10 @@ function drawWorld(g,L){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
       const sid=x*31+y*17;
-      if(oS && !doorHere) drawMasonryFace(g, faceL, x, y+0.5, x+1.02, y+0.5, H, 0, -1, sid);
-      if(oE) drawMasonryFace(g, faceR, x+0.5, y, x+0.5, y+1.02, H, -1, 0, sid+3);
-      if(oN && !oS) drawMasonryFace(g, faceL, x, y-0.5, x+1.02, y-0.5, H, 0, 1, sid+7);
-      if(oW && !oE) drawMasonryFace(g, faceR, x-0.5, y, x-0.5, y+1.02, H, 1, 0, sid+11);
+      if(oS && !doorHere) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, H, 0, -1, sid);
+      if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
+      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, H, 0, 1, sid+7);
+      if(oW) drawMasonryFace(g, faceR, x, y, x, y+1.14, H, 1, 0, sid+11);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
@@ -4874,7 +4949,7 @@ function drawWorld(g,L){
     const b=B[d]; if(b) for(const f of b) f();
   }
   // Bodies first (after floors), then pinning rock and rubble on top of them.
-  for(const e of G.ents) if(e.crushed && near(e)) drawEnt(g,e);
+  for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
   for(const p of G.props) if((p.pin||p.cover) && near(p) && seenAt(p)) drawProp(g,p,pal);
 }
 function drawCracks(g,sx,sy,WH,f){
@@ -5103,6 +5178,35 @@ function drawBloom(g){
   g.restore();
 }
 
+function drawMemoryShade(g,L){
+  if(!L||!L.grid||!L.seen) return;
+  const c=[s2w(-TW,-TH*5),s2w(VW+TW,-TH*5),s2w(-TW,VH+TH*5),s2w(VW+TW,VH+TH*5)];
+  const minx=Math.max(0,Math.floor(Math.min(c[0].x,c[1].x,c[2].x,c[3].x))-1);
+  const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1);
+  const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1);
+  const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
+  g.save();
+  g.fillStyle='rgba(0,0,0,0.78)';
+  for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
+    if(!L.seen[y]||!L.seen[y][x]) continue;
+    if(L.vis&&L.vis[y]&&L.vis[y][x]) continue;
+    const s=w2s(x,y);
+    const t=L.grid[y][x];
+    if(isWalkTile(t)){
+      g.beginPath();
+      g.moveTo(s.x, s.y-TH/2); g.lineTo(s.x+TW/2, s.y);
+      g.lineTo(s.x, s.y+TH/2); g.lineTo(s.x-TW/2, s.y);
+      g.closePath(); g.fill();
+    } else if(t===1||t===2){
+      const H=useWallFaces(L)?wallFaceH(L):TH;
+      g.beginPath();
+      g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
+      g.fill();
+    }
+  }
+  g.restore();
+}
+
 function drawBeyondMask(g,L){
   if(!L||!L.grid) return;
   const c=[s2w(-TW,-TH*5),s2w(VW+TW,-TH*5),s2w(-TW,VH+TH*5),s2w(VW+TW,VH+TH*5)];
@@ -5110,7 +5214,7 @@ function drawBeyondMask(g,L){
   const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+2);
   const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-2);
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+2);
-  const rock=L.pal.fogTop||'#07060a';
+  const rock='#000000';
   const open=isWalkTile;
   const key=Math.round(CAMSX)+','+Math.round(CAMSY)+','+G.ch+','+QUALITY+','+BX.width+','+(G.seenRev||0);
   const mg=bxx;
@@ -5297,7 +5401,7 @@ function drawProp(g,p,pal){
     const img=propAnimImg(p);
     const H=wallFaceH();
     const half=rubyDoorHalf();
-    const yPlane=(p.y|0)+0.5;
+    const yPlane=(p.y|0)+1;
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
     emit(s.x,s.y-H*0.42,22*z,'#ff2a3c',0.85);
     ray(s.x,s.y-H*0.55,28*z,'#ff4058',0.4);
@@ -6713,35 +6817,48 @@ function drawMinimap(g,s){
   carveFrame(g,x,y,sz,sz,6,.88);
   const p=player(); if(!p) return;
   const pad=7*s, inner=sz-pad*2, cell=inner/28, ox=x+sz/2-p.x*cell, oy=y+sz/2-p.y*cell;
-  const key=((p.x*2)|0)+','+((p.y*2)|0)+','+(G.seenRev||0)+','+(inner|0)+','+G.ch;
+  const key=((p.x*8)|0)+','+((p.y*8)|0)+','+(G.seenRev||0)+','+(inner|0)+','+G.ch;
   if(!MINI || MINI_KEY!==key){
     MINI_KEY=key;
     if(!MINI) MINI=document.createElement('canvas');
     MINI.width=Math.max(2,inner|0); MINI.height=Math.max(2,inner|0);
     const m=MINI.getContext('2d');
     const mx=MINI.width/2-p.x*cell, my=MINI.height/2-p.y*cell;
-    m.fillStyle='rgba(6,5,8,0.92)'; m.fillRect(0,0,MINI.width,MINI.height);
+    m.fillStyle='#000000'; m.fillRect(0,0,MINI.width,MINI.height);
     for(let j=Math.max(0,(p.y-16)|0);j<Math.min(L.h,p.y+16);j++)
       for(let i=Math.max(0,(p.x-16)|0);i<Math.min(L.w,p.x+16);i++){
-        if(!L.seen[j][i]) continue; const t=L.grid[j][i]; if(t===1||t===2) continue;
-        m.fillStyle=t===4?'rgba(212,160,74,0.75)':t===3?'rgba(200,168,104,0.7)':'rgba(110,98,82,0.55)';
+        if(!L.seen[j]||!L.seen[j][i]) continue;
+        const t=L.grid[j][i];
+        if(t===1||t===2){
+          m.fillStyle='#1a140f';
+          m.fillRect(mx+i*cell,my+j*cell,cell+.7,cell+.7);
+          continue;
+        }
+        const lit=L.vis&&L.vis[j]&&L.vis[j][i];
+        m.fillStyle=t===4?(lit?'rgba(212,160,74,0.9)':'rgba(90,68,28,0.7)')
+          :t===3?(lit?'rgba(200,168,104,0.82)':'rgba(86,70,48,0.62)')
+          :(lit?'rgba(128,112,92,0.7)':'rgba(58,50,42,0.55)');
         m.fillRect(mx+i*cell,my+j*cell,cell+.7,cell+.7); }
   }
   g.save(); g.beginPath(); g.rect(x+pad,y+pad,inner,inner); g.clip();
   g.drawImage(MINI, x+pad, y+pad, inner, inner);
   const MAPC={macar:'#ffe08a',pordoom:'#ff8a4a',fendur:'#8ec8ff',orbo:'#d4b06a',talpor:'#d0d4e8'};
   g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
-  for(const e of G.ents){ if(e.dead) continue;
-    const mx=ox+e.x*cell, my=oy+e.y*cell;
+  for(const e of G.ents){
     if(e.team==='foe'){
+      if(e.dead || !tileVisible(e.x,e.y)) continue;
+      const mx=ox+e.x*cell, my=oy+e.y*cell;
       g.fillStyle=e.boss?'#ff3a3a':'#e04840';
       g.fillText('E', mx, my+3.2*s);
     } else {
+      if(e.dead && !tileExplored(e.x,e.y)) continue;
+      const mx=ox+e.x*cell, my=oy+e.y*cell;
       g.fillStyle=MAPC[e.col&&e.col.key]||'#fff2cf';
       g.fillText((e.col&&e.col.name||'M')[0], mx, my+3.2*s);
-    } }
+    }
+  }
   const gd=L.guide&&L.guide();
-  if(gd){ g.fillStyle='#ffd24a'; g.beginPath();
+  if(gd && tileExplored(gd.x,gd.y)){ g.fillStyle='#ffd24a'; g.beginPath();
     g.moveTo(ox+gd.x*cell,oy+gd.y*cell-4); g.lineTo(ox+gd.x*cell+3.4,oy+gd.y*cell+2);
     g.lineTo(ox+gd.x*cell-3.4,oy+gd.y*cell+2); g.closePath(); g.fill(); }
   g.textAlign='left';
