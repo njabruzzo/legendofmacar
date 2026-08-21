@@ -211,7 +211,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='37';
+const ASSET_VER='38';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -312,6 +312,11 @@ const SPRITE_FILES={
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
   pordoom_ghost:'assets/creatures/dwarf_pordoom_ghost.png', fendur_ghost:'assets/creatures/dwarf_fendur_ghost.png',
   orbo_ghost:'assets/creatures/dwarf_orbo_ghost.png', talpor_ghost:'assets/creatures/dwarf_talpor_ghost.png',
+  macar_back:'assets/creatures/dwarf_macar_back.png',
+  pordoom_ghost_back:'assets/creatures/dwarf_pordoom_ghost_back.png',
+  fendur_ghost_back:'assets/creatures/dwarf_fendur_ghost_back.png',
+  orbo_ghost_back:'assets/creatures/dwarf_orbo_ghost_back.png',
+  talpor_ghost_back:'assets/creatures/dwarf_talpor_ghost_back.png',
   macar_sleep:'assets/creatures/dwarf_macar_sleep.png',
   pordoom_dead:'assets/creatures/dwarf_pordoom_dead.png', fendur_dead:'assets/creatures/dwarf_fendur_dead.png',
   orbo_dead:'assets/creatures/dwarf_orbo_dead.png', talpor_dead:'assets/creatures/dwarf_talpor_dead.png',
@@ -352,6 +357,7 @@ const SPRITE_FILES={
   idol:'assets/props/prop_idol.png', orepile:'assets/props/prop_orepile.png',
   pickpile:'assets/props/prop_pickpile.png', slime:'assets/props/prop_slime.png',
   banner:'assets/props/prop_banner.png', roots:'assets/props/prop_roots.png',
+  hidepile:'assets/props/prop_sack.png',
   trap_spikes:'assets/props/prop_trap_spikes.png', trap_runes:'assets/props/prop_trap_runes.png', trap_pit:'assets/props/prop_trap_pit.png',
   loot_coins:'assets/props/loot_coins.png', loot_gems:'assets/props/loot_gems.png',
   loot_chest:'assets/props/loot_chest.png', loot_ruby:'assets/props/loot_ruby.png', loot_ore:'assets/props/loot_ore.png',
@@ -403,14 +409,14 @@ UNDERDARK.forEach(k=>{ SPRITE_FILES[k]='assets/creatures/mon_'+k+'.png'; });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(!src || SPRITE_FILES[k+'_dead']) return;
-  if(/_(w1|w2|atk|dead|sleep)\./.test(src)) return;
-  if(/_ghost$/.test(k)) return;
+  if(/_(w1|w2|atk|dead|sleep|back)\./.test(src)) return;
+  if(/_ghost$/.test(k) || /_back$/.test(k)) return;
   if(/\/(mon_|dwarf_)/.test(src)) SPRITE_FILES[k+'_dead']=src.replace(/\.png$/,'_dead.png');
 });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
-  if(/_(w1|w2|atk|dead|sleep)\.png$/.test(src)) return;
-  if(/_(dead|sleep)$/.test(k)) return;
+  if(/_(w1|w2|atk|dead|sleep|back)\.png$/.test(src)) return;
+  if(/_(dead|sleep|back)$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
@@ -438,6 +444,7 @@ function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
+    'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
@@ -923,10 +930,18 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
+function wantsBackView(e){
+  if(!e||e.dead||e.crushed||e.sleeping) return false;
+  if(e.defending) return true;
+  const p=player();
+  if(e.team==='party' && e.ghost && p && p.defending) return true;
+  return ((e.fdx||0)+(e.fdy||0)) < -0.42;
+}
 function entAnimImg(e){
   const k=entSpriteKey(e);
   if(!k) return null;
   if(e.dead||e.crushed) return SPR[k+'_dead']||null;
+  if(wantsBackView(e) && SPR[k+'_back']) return SPR[k+'_back'];
   if(e.atk>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(QUALITY && e.moving){
     const a=SPR[k+'_w1'], b=SPR[k+'_w2'];
@@ -966,7 +981,7 @@ function propSpriteKey(p){
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
   if(k==='barrel') return SPR.barrel?'barrel':'crate';
-  if(k==='sack') return SPR.sack?'sack':'crate';
+  if(k==='sack'||k==='hidepile') return SPR.sack?'sack':(SPR.hidepile?'hidepile':'crate');
   return k;
 }
 function propAnimImg(p){
@@ -2207,16 +2222,16 @@ function dressDungeon(L){
   if(!L||!L.grid) return;
   G.props=G.props||[];
   const tables={
-    1:[['rubble',5],['timber',4],['barrel',3],['crate',3],['orepile',3],
-       ['pickpile',2],['sack',2],['lantern',2],['banner',1]],
-    2:[['web',3],['eggs',3],['stalagmite',2],['bones',2],
-       ['crystal',2],['sack',1],['crate',1],['barrel',1]],
-    3:[['bones',4],['urn',3],['banner',3],['crate',2],['cart',1],['idol',2],
-       ['rubble',2],['barrel',1],['brazier',1]],
-    4:[['bones',4],['slime',4],['urn',3],['banner',2],['crate',2],
-       ['idol',1],['barrel',1],['pillar',1]],
-    5:[['urn',3],['idol',4],['banner',3],['bones',2],['crystal',2],['barrel',1],
-       ['brazier',1],['roots',1]]
+    1:[['rubble',4],['timber',5],['barrel',2],['crate',2],['orepile',4],
+       ['pickpile',3],['sack',2],['lantern',2],['bones',2],['banner',1]],
+    2:[['web',4],['eggs',3],['stalagmite',2],['bones',3],
+       ['crystal',2],['sack',2],['crate',1],['timber',2],['orepile',2]],
+    3:[['bones',4],['urn',3],['banner',2],['crate',2],['cart',1],['idol',2],
+       ['rubble',2],['timber',2],['orepile',2],['hidepile',2],['barrel',1]],
+    4:[['bones',4],['slime',4],['urn',2],['banner',2],['crate',2],
+       ['hidepile',2],['timber',1],['idol',1],['barrel',1],['pillar',1]],
+    5:[['urn',3],['idol',3],['banner',2],['bones',3],['crystal',3],['hidepile',2],
+       ['timber',1],['brazier',1],['roots',1]]
   };
   const table=tables[L.n]||tables[1];
   const seed=L.dressSeed||((Math.random()*1e9)|0)+1;
@@ -2255,6 +2270,7 @@ function dressDungeon(L){
     const k=dressPick(table, h3(f.x*10, f.y*10, seed));
     const pr={x:f.x+(h3(f.x,9,seed)-.5)*0.28, y:f.y+(h3(f.y,4,seed)-.5)*0.28,
       k, s:0.82+h3(f.x,f.y,seed)*0.38, seed:((f.x*13+f.y*7+seed)|0), dress:1};
+    if(CRAFT_PROP[k]) pr.craft=1;
     if(k==='rubble'){
       pr.spr=(h3(f.x,3,seed)<0.5)?'rubble':'rubble2';
       pr.s=h01(f.x,6,seed)<0.5?0.26+h01(f.x,7,seed)*0.32:0.58+h01(f.x,7,seed)*0.50;
@@ -2264,6 +2280,7 @@ function dressDungeon(L){
     placed++;
   }
   placePlantClusters(L);
+  placeCraftCaches(L);
 }
 function isPlantKind(k){
   return k==='shroom'||k==='glowcap'||k==='cavefern'||k==='sporepuff'||k==='nightbloom'||k==='lichen'||k==='moss';
@@ -4716,11 +4733,19 @@ function fire(key){
     p.defending=!p.defending;
     if(p.defending){
       p.atk=0; p.swung=0; p.aim=null; p.dest=null; G.aim=null;
+      p.fdx=-0.72; p.fdy=-0.72;
+      G.ents.forEach(e=>{
+        if(e.team!=='party'||e.dead||e===p) return;
+        if(e.ghost){
+          e.defending=1; e.fdx=-0.72; e.fdy=-0.72; e.guard=1; e.atk=0; e.swung=0;
+        }
+      });
       burst(p.x,p.y,'#cfe3ff',18,2.4);
       ftext(p.x,p.y-.5,'DEFEND','#cfe3ff');
-      say('Macar raises the shield. Armor class 4 better. No attacks.','#cfe3ff');
-      hint('Defend: AC +4. Attack, Shoot, and Throw are blocked until you lower it.',3.8);
+      say('Macar walls up. The kin ghosts brace with him. Armor class 4 better. No attacks.','#cfe3ff');
+      hint('Defend: AC +4. You and the ghost kin show your backs. Attack is blocked until you lower it.',3.8);
     } else {
+      G.ents.forEach(e=>{ if(e.team==='party' && e.ghost) e.defending=0; });
       ftext(p.x,p.y-.5,'SHIELD DOWN','#c9b895');
       hint('Shield lowered. You can attack again.',2.2);
     }
@@ -4959,9 +4984,11 @@ function update(dt){
       if(t){
         if(!G.dig || G.dig.i!==t.i || G.dig.j!==t.j) G.dig={i:t.i,j:t.j,min:0};
         else {
+          const need=digNeedMinutes();
           G.dig.min+=dt;
-          if(G.dig.min>=DIG_MINUTES){
+          if(G.dig.min>=need){
             breakRock(L,G.dig.i,G.dig.j);
+            if(G.digBoost>0) G.digBoost--;
             say('A square foot of stone comes away.','#d8c49a');
             G.dig=null;
           }
@@ -4979,6 +5006,10 @@ function update(dt){
     if(!PROMPT){
       const sh=nearestShroom(p,1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
+    }
+    if(!PROMPT){
+      const craft=nearestCraftProp(p,1.35);
+      if(craft) interact(craftPropLabel(craft),()=>scavengeCraft(craft));
     }
     if(!PROMPT && G.secretSearch && L.secrets){
       const sec=L.secrets.find(s=>!s.open && Math.hypot(p.x-(s.x||s.i),p.y-(s.y||s.j))<1.9);
@@ -5036,7 +5067,7 @@ function update(dt){
     if(e.buff>0) e.buff-=dt;
     skillSystem.tickAttack(e, dt);
     if(e.atk>0){
-      if(e.hero && e.defending){ e.atk=0; e.swung=0; }
+      if(e.defending){ e.atk=0; e.swung=0; }
       else {
         e.atk-=dt;
         if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
@@ -5114,7 +5145,7 @@ function update(dt){
         e.ix=0; e.iy=0; e.moving=0;
         if(form&&p) turnToward(e, p.fdx, p.fdy, dt, 8);
         else turnToward(e, tgt.x-e.x, tgt.y-e.y, dt, 14);
-        if(!form&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; }
+        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
@@ -5321,7 +5352,7 @@ function drawWorld(g,L){
     if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-H*0.35, TW*0.30, pal.key, 0.5);
     if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,H,1-rk.hp/rk.max);
     if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,H);
-    if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,H,G.dig.min/DIG_MINUTES);
+    if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
     if(L.secrets){
       for(const sec of L.secrets){
         if(sec.open) continue;
@@ -5389,7 +5420,8 @@ function drawDigMark(g,sx,sy,WH){
   g.stroke();
 }
 function drawDigProgress(g,sx,sy,WH,pct){
-  const left=Math.max(0,DIG_MINUTES*(1-clamp(pct,0,1)));
+  const need=digNeedMinutes();
+  const left=Math.max(0,need*(1-clamp(pct,0,1)));
   const w=TW*0.58, h=5*ZOOM, x=sx-w/2, y=sy-WH*0.96;
   g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(x-1.5,y-1.5,w+3,h+3);
   g.fillStyle='#c9a24a'; g.fillRect(x,y,w*clamp(pct,0,1),h);
@@ -5811,6 +5843,7 @@ function drawCarvedArch(g,z,W,H,stone){
 
 /* ---------------------------- props ---------------------------- */
 function drawProp(g,p,pal){
+  if(!p||p.gone||p.taken) return;
   const s=w2s(p.x,p.y), z=ZOOM;
   if(p.k==='rubydoor'){
     const img=propAnimImg(p);
@@ -6723,8 +6756,99 @@ const RESMETA={
   powder    :{n:'Blackpowder',c:'#9aa0b2', s:'P'},
   barley    :{n:'Cave Barley',c:'#d2bd63', s:'B'},
   silk      :{n:'Spider Silk',c:'#e0d2ff', s:'K'},
+  timber    :{n:'Timber',     c:'#b8895a', s:'T'},
+  bone      :{n:'Bone Shard', c:'#e8dfc8', s:'N'},
+  resin     :{n:'Cave Resin', c:'#c9783a', s:'R'},
+  hide      :{n:'Hide Scrap', c:'#a67a52', s:'H'},
 };
 const RES=Object.keys(RESMETA);
+const CRAFT_PROP={
+  orepile:{label:'Gather ore', skill:'mining', rolls:[['ironstone',2],['ironstone',1],['deepsilver',1]]},
+  pickpile:{label:'Salvage tools', skill:'mining', rolls:[['ironstone',2],['timber',1],['bone',1]]},
+  timber:{label:'Take timber', skill:'weapon', rolls:[['timber',2],['timber',1],['resin',1]]},
+  bones:{label:'Gather bone', skill:'armour', rolls:[['bone',2],['bone',1],['hide',1]]},
+  web:{label:'Harvest silk', skill:'cloth', rolls:[['silk',2],['silk',1],['resin',1]]},
+  eggs:{label:'Scoop resin', skill:'forage', rolls:[['resin',2],['powder',1],['barley',1]]},
+  crystal:{label:'Chip crystal', skill:'mining', rolls:[['resin',1],['deepsilver',1],['starmetal',1]]},
+  slime:{label:'Scoop slime resin', skill:'forage', rolls:[['resin',2],['powder',1]]},
+  sack:{label:'Rummage sack', skill:'forage', rolls:[['barley',2],['hide',1],['silk',1]]},
+  hidepile:{label:'Take hide', skill:'cloth', rolls:[['hide',2],['hide',1],['bone',1]]},
+  barrel:{label:'Break barrel', skill:'ale', rolls:[['timber',1],['barley',2],['resin',1]]},
+  crate:{label:'Pry crate', skill:'weapon', rolls:[['timber',2],['ironstone',1]]},
+  roots:{label:'Pull roots', skill:'forage', rolls:[['resin',1],['barley',1],['timber',1]]},
+};
+function craftPropLabel(pr){
+  const spec=CRAFT_PROP[pr.k];
+  return (spec&&spec.label)||('Scavenge '+pr.k);
+}
+function nearestCraftProp(e,maxd){
+  let best=null, bd=maxd||1.35;
+  for(const pr of (G.props||[])){
+    if(pr.gone||pr.taken) continue;
+    if(!CRAFT_PROP[pr.k] && !pr.craft) continue;
+    if(!CRAFT_PROP[pr.k]) continue;
+    const d=Math.hypot(e.x-pr.x,e.y-pr.y);
+    if(d<bd){ bd=d; best=pr; }
+  }
+  return best;
+}
+function scavengeCraft(pr){
+  if(!pr||pr.taken||pr.gone) return;
+  const spec=CRAFT_PROP[pr.k]; if(!spec) return;
+  const roll=spec.rolls[(Math.random()*spec.rolls.length)|0];
+  const [res,n]=roll;
+  const bonus=Math.max(0, skillLvl(spec.skill)-1);
+  const got=n+(bonus&&Math.random()<0.28?1:0);
+  gain(res, got);
+  learn(spec.skill, 2+((got>1)?1:0));
+  pr.taken=1; pr.gone=1;
+  ftext(pr.x,pr.y,'+'+got+' '+(RESMETA[res]?RESMETA[res].n:res), RESMETA[res]?RESMETA[res].c:'#ffd27a');
+  say((RESMETA[res]?RESMETA[res].n:res)+' for the craft — '+SKILLS.find(s=>s.k===spec.skill).n+'.','#cfe0ea');
+  burst(pr.x,pr.y, RESMETA[res]?RESMETA[res].c:'#ffd27a', 10, 1.8);
+}
+function placeCraftCaches(L){
+  if(!L||!L.grid) return;
+  G.props=G.props||[];
+  const seed=L.dressSeed||1;
+  const kits={
+    1:[['orepile',3],['timber',2],['pickpile',1],['bones',1]],
+    2:[['web',3],['eggs',2],['orepile',1],['timber',1],['bones',1]],
+    3:[['bones',2],['hidepile',2],['timber',1],['orepile',1],['crystal',1]],
+    4:[['slime',2],['bones',2],['hidepile',1]],
+    5:[['crystal',2],['bones',1],['hidepile',1],['roots',1]]
+  };
+  const want=(kits[L.n]||kits[1]).filter(x=>x[1]>0);
+  const floors=[];
+  for(let y=2;y<L.h-2;y++) for(let x=2;x<L.w-2;x++){
+    const t=L.grid[y][x];
+    if(t!==0 && t!==3) continue;
+    floors.push({x:x+0.5,y:y+0.5});
+  }
+  if(!floors.length) return;
+  const keep=[];
+  G.props.forEach(p=>keep.push({x:p.x,y:p.y,r:1.15}));
+  if(L.spawn) keep.push({x:L.spawn.x,y:L.spawn.y,r:2.0});
+  want.forEach((pair,wi)=>{
+    const [k,n]=pair;
+    for(let i=0;i<n;i++){
+      let placed=0, tries=0;
+      while(!placed && tries<40){
+        tries++;
+        const f=floors[((h3(wi*17+i*9, tries*5, seed)*floors.length)|0)];
+        if(!f) continue;
+        let ok=1;
+        for(let j=0;j<keep.length;j++){
+          if(Math.hypot(keep[j].x-f.x,keep[j].y-f.y)<keep[j].r){ ok=0; break; }
+        }
+        if(!ok) continue;
+        if(L.n===1 && nearCrush(f.x,f.y,1.2)) continue;
+        G.props.push({x:f.x,y:f.y,k,s:0.9+h3(f.x,f.y,seed)*0.25,seed:seed+wi*30+i,dress:1,craft:1});
+        keep.push({x:f.x,y:f.y,r:1.35});
+        placed=1;
+      }
+    }
+  });
+}
 const SKILLS=[
   {k:'weapon',n:'Weapon Smithing',who:'MACAR'},
   {k:'armour',n:'Armour Smithing',who:'ORBO'},
@@ -6907,7 +7031,9 @@ function foeDrop(e){
       const pile=hoardToPile(hoard);
       if(pile) e.drop=pile;
     } else if(Math.random()<0.18){
-      e.drop={kind:'ore', res:{ironstone:1}};
+      const mats=['ironstone','timber','bone','hide','resin','powder'];
+      const r=mats[(Math.random()*mats.length)|0];
+      e.drop={kind:'ore', res:{[r]:1+(Math.random()<0.35?1:0)}};
     }
     return;
   }
@@ -6947,6 +7073,7 @@ function wear(g,w,a){ if(!g) return; if(w) g.wd=Math.max(0,g.wd-w); if(a) g.ad=M
    (1 real second = 1 dungeon minute). Bombs still blow rock. Combat does not.
    ========================================================================== */
 const DIG_MINUTES=10;
+function digNeedMinutes(){ return Math.max(3.5, DIG_MINUTES-(G.digBoost||0)*1.5); }
 function isVein(i,j){ return h2(i*3,j*7)>0.86; }
 function rockAt(L,i,j){
   const k=i+','+j;
@@ -6971,6 +7098,9 @@ function oreDrop(i,j,vein){
   add('ironstone', 1+ri(0,1)+(vein?2:0));
   if(Math.random() < (vein?0.12:0.05)) add(Math.random()<0.62?'deepsilver':'starmetal',1);
   if(Math.random() < 0.10) add('powder',1);
+  if(Math.random() < 0.14) add('bone',1);
+  if(Math.random() < 0.12) add('timber',1);
+  if(Math.random() < 0.08) add('resin',1);
   if(G.lvl && G.lvl.n===2 && Math.random()<0.20) add('barley',1);
   const keys=Object.keys(got);
   let off=0;
@@ -7091,12 +7221,19 @@ function campActions(){
     fn:()=>{ Object.values(G.gear).forEach(x=>{x.wd=x.wmax;x.ad=x.amax;});
       learn('weapon',4); learn('armour',4); say('Everything sings on the anvil again.','#ffd27a'); }});
   a.push({grp:'FORGE',t:"Improve Macar's hammer \u2192 Tier "+(g.wt+1),cost:{ironstone:3,deepsilver:1},
-    info:'+18% damage',
+    info:'+18% damage · Weapon Smithing',
     fn:()=>{ g.wt++; g.wd=g.wmax; learn('weapon',12); say('The hammer is heavier and meaner.','#ffd27a'); }});
+  if(skillLvl('weapon')>=2) a.push({grp:'FORGE',t:'Bone-wrap the hammer haft',cost:{bone:2,timber:1},
+    info:'+1 weapon tier from bone and timber',
+    fn:()=>{ g.wt++; g.wd=g.wmax; learn('weapon',8); say('Bone and ashwood bite the grip.','#e8dfc8'); }});
   a.push({grp:'FORGE',t:'Improve the kin\u2019s armour \u2192 Tier '+(kin[0].at+1),cost:{ironstone:4},
-    info:'Cuts incoming damage',
+    info:'Cuts incoming damage · Armour Smithing',
     fn:()=>{ kin.forEach(x=>{x.at++;x.ad=x.amax;}); learn('armour',12);
       say('Four hauberks, four tiers better.','#cfe0ea'); }});
+  if(skillLvl('armour')>=2) a.push({grp:'FORGE',t:'Hide-line the mail',cost:{hide:2,ironstone:1},
+    info:'+1 armour tier for every dwarf',
+    fn:()=>{ Object.values(G.gear).forEach(x=>{x.at++;x.ad=x.amax;}); learn('armour',8);
+      say('Hide under the rings. Quieter, tougher.','#a67a52'); }});
   if(!g.rune) a.push({grp:'FORGE',t:'Set a rune in the hammer',cost:{starmetal:1},
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
@@ -7104,6 +7241,19 @@ function campActions(){
     info:'Pordoom\'s kit. 10d10 throwables into Macar\'s pack',
     fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
       say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
+  if(skillLvl('bomb')>=2) a.push({grp:'BENCH',t:'Resin-fuse bombs (+2)',cost:{powder:1,resin:2},
+    info:'Tackier fuse, two more bombs',
+    fn:()=>{ addToPack('macar','bombs',2); learn('bomb',8);
+      say('Resin keeps the spark honest.','#c9783a'); }});
+  a.push({grp:'BUILD',t:'Brace a timber shield wall',cost:{timber:3,hide:1},
+    info:'Party guard for a long stretch · build',
+    fn:()=>{ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.guardT=Math.max(e.guardT||0, 45); }});
+      learn('armour',6); learn('weapon',4);
+      say('Timber and hide — a walking wall.','#b8895a'); }});
+  a.push({grp:'BUILD',t:'Craft a mining spar',cost:{timber:2,ironstone:2,bone:1},
+    info:'Next digs run faster · Mining',
+    fn:()=>{ G.digBoost=(G.digBoost||0)+3; learn('mining',10);
+      say('A spar for the next vein. Digging feels lighter.','#c2ad91'); }});
   a.push({grp:'BREWERY',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
     info:'Flasks split among the kin',
     fn:()=>{ const n=2+Math.floor(skillLvl('ale')/3);
@@ -7111,10 +7261,18 @@ function campActions(){
       addToPack('pordoom','ales',Math.floor(n/2)||1);
       learn('ale',10);
       say('The barrel is stoppered and warm.','#d2bd63'); }});
+  if(skillLvl('ale')>=2) a.push({grp:'BREWERY',t:'Resin-dark stout (+2 ale)',cost:{barley:1,resin:1},
+    info:'Bitter stout for the deep',
+    fn:()=>{ addToPack('macar','ales',2); learn('ale',6);
+      say('It tastes like a cave fire.','#c9783a'); }});
   a.push({grp:'TAILOR',t:'Mend the padding under the mail',cost:{silk:2},
     info:'Restores cloth, small damage cut',
     fn:()=>{ Object.values(G.gear).forEach(x=>x.cd=100); learn('cloth',10);
       say('Silk holds better than wool down here.','#e0d2ff'); }});
+  if(skillLvl('cloth')>=2) a.push({grp:'TAILOR',t:'Sew a hide cloak',cost:{hide:2,silk:1},
+    info:'Cloth padding + light armour for all',
+    fn:()=>{ Object.values(G.gear).forEach(x=>{x.cd=100; x.at=Math.min(12,(x.at||0)+1);}); learn('cloth',10);
+      say('Cloaks for the living and the dead alike.','#a67a52'); }});
   if(!G.sang) a.push({grp:'FIRE',t:'Sing the deep songs',cost:{},
     info:'Heal all + regen through the next chapter',
     fn:()=>{ G.sang=1; learn('song',10); G.songBuff=skillLvl('song');
@@ -7594,7 +7752,7 @@ function drawSlot(g,b,s){
     g.strokeStyle='rgba(255,170,90,'+(0.6+Math.sin(G.elapsed*6)*0.3)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-3*s,y-3*s,w+6*s,h+6*s,6); g.stroke(); }
   if(b.key==='shovel'&&G.digging){
-    const left=G.dig?Math.max(0,DIG_MINUTES-G.dig.min):DIG_MINUTES;
+    const left=G.dig?Math.max(0,digNeedMinutes()-G.dig.min):digNeedMinutes();
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+'m', b.x, b.y+R*0.62); g.textAlign='left'; }
   if(b.label && b.r>=18){
@@ -7619,7 +7777,7 @@ function drawOre(g,s){
   const w=PORT?132*s:160*s, x=VW-w-10*s;
   const y=(UI.questBottom||((PORT?108*s:118*s)+40*s))+8*s;
   g.font='800 '+(PORT?9.5*s:11*s)+'px '+FONT_UI;
-  show.slice(0,6).forEach((r,i)=>{
+  show.slice(0,9).forEach((r,i)=>{
     const cx=x+14*s+(i%3)*(PORT?46*s:70*s), cy=y+((i/3)|0)*17*s;
     const m=RESMETA[r];
     g.fillStyle=m.c; g.beginPath();
