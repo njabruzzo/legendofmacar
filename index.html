@@ -40,17 +40,19 @@ const BL  = document.createElement('canvas'), blx = BL.getContext('2d');   // bl
 const BX  = document.createElement('canvas'), bxx = BX.getContext('2d');   // beyond-rock mask
 let VW=0, VH=0, DPR=1, UIS=1, ZOOM=1, TW=80, TH=40, PORT=false;
 let QUALITY = 1;           // 0 = Fast. 1 = High (default) — albedo is painted bright for the lightmap.
-let GFX_MODE = 'high';     // fast | auto | high
+const IS_TOUCH = (navigator.maxTouchPoints||0) > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+let GFX_MODE = IS_TOUCH ? 'auto' : 'high';   // fast | auto | high — phones start adaptive
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
+let GRAINPAT = null;
 let BX_KEY = '';
 const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
 let CAMSX=0, CAMSY=0;
 
 function gfxDprCap(){ return QUALITY ? 1.25 : 1; }
-function applyGfxBuffers(){
+function applyGfxBuffers(keepTiles){
   BX_KEY='';
-  TILEBLIT.key='';
+  if(!keepTiles) TILEBLIT.key='';
   const bx = QUALITY?0.45:0.28;
   BX.width = Math.max(2,Math.floor(VW*bx)); BX.height = Math.max(2,Math.floor(VH*bx));
   LM.width = Math.max(2,Math.floor(VW/(QUALITY?2:4)));
@@ -63,39 +65,65 @@ function syncCamProj(){
   CAMSX = Math.round(VW/2 - (cam.x-cam.y)*(TW/2));
   CAMSY = Math.round(VH*(PORT?.46:.52) - (cam.x+cam.y)*(TH/2));
 }
+let GFX_SLOW=0, GFX_FAST=0;
 function tickGfx(dt){
   FRAME_MS = FRAME_MS*0.9 + (dt*1000)*0.1;
   if(GFX_MODE!=='auto') return;
-  if(QUALITY && FRAME_MS>20){
-    QUALITY=0;
-    applyGfxBuffers();
+  /* Hysteresis: act on sustained trends, never a single spike, and allow
+     recovery back to High if the device turns out to have headroom. */
+  if(FRAME_MS>21.5){ GFX_SLOW++; GFX_FAST=0; }
+  else if(FRAME_MS<14.5){ GFX_FAST++; GFX_SLOW=0; }
+  else { GFX_SLOW=0; GFX_FAST=0; }
+  if(QUALITY && GFX_SLOW>30){        // ~0.5s of sustained slow frames
+    QUALITY=0; GFX_SLOW=0; GFX_FAST=0; resize(true);
+  } else if(!QUALITY && GFX_FAST>420){ // ~7s of comfortable headroom
+    QUALITY=1; GFX_SLOW=0; GFX_FAST=0; resize(true);
   }
 }
 function gfxLabel(){ return GFX_MODE==='high'?'High':GFX_MODE==='auto'?'Auto':'Fast'; }
 function cycleGfx(){
   GFX_MODE = GFX_MODE==='fast'?'auto':GFX_MODE==='auto'?'high':'fast';
   QUALITY = GFX_MODE==='high'?1:0;
-  resize();
+  GFX_SLOW=0; GFX_FAST=0;
+  resize(true);
 }
 
-function resize(){
-  DPR = Math.min(window.devicePixelRatio||1, gfxDprCap());
-  VW = Math.max(240, window.innerWidth); VH = Math.max(240, window.innerHeight);
+/* Mobile browsers fire `resize` every time the URL bar slides in or out during
+   play. A full resize re-bakes the whole tileset (makeWorkedFace x2 + cap), which
+   is a multi-frame hitch. When only the height moved by a bar-sized amount we take
+   a soft path: keep ZOOM/TW/TH frozen, keep the tile cache, just re-fit the canvas. */
+let LAST_LAYOUT={w:0,h:0,dpr:0};
+function resize(force){
+  const nDPR = Math.min(window.devicePixelRatio||1, gfxDprCap());
+  const nVW  = Math.max(240, window.innerWidth), nVH = Math.max(240, window.innerHeight);
+  const soft = !force && LAST_LAYOUT.h>0 && LAST_LAYOUT.w===nVW && LAST_LAYOUT.dpr===nDPR
+               && Math.abs(LAST_LAYOUT.h-nVH)<=140 && (nVH>nVW)===(LAST_LAYOUT.h>LAST_LAYOUT.w);
+  DPR = nDPR; VW = nVW; VH = nVH;
   cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
   cv.style.width=VW+'px'; cv.style.height=VH+'px';
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.imageSmoothingEnabled = true;
   PORT = VH > VW;
-  UIS  = clamp(Math.min(VW,VH)/(PORT?430:700), 0.66, 1.30);
-  ZOOM = clamp(Math.min(VW,VH*1.5)/780, 0.78, 1.55);
-  TW = Math.round(84*ZOOM); TH = Math.round(42*ZOOM);
-  if(TW&1) TW++; if(TH&1) TH++;
-  applyGfxBuffers();
+  if(!soft){
+    GRAINPAT = null;
+    UIS  = clamp(Math.min(VW,VH)/(PORT?430:700), 0.66, 1.30);
+    ZOOM = clamp(Math.min(VW,VH*1.5)/780, 0.78, 1.55);
+    TW = Math.round(84*ZOOM); TH = Math.round(42*ZOOM);
+    if(TW&1) TW++; if(TH&1) TH++;
+  }
+  applyGfxBuffers(soft);
   syncCamProj();
   layoutUI();
+  LAST_LAYOUT={w:VW,h:VH,dpr:DPR};
 }
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', ()=>setTimeout(resize,200));
+/* Coalesce bursts of resize events into one per frame. */
+let RSZ_PENDING=0;
+function requestResize(){
+  if(RSZ_PENDING) return;
+  RSZ_PENDING = requestAnimationFrame(()=>{ RSZ_PENDING=0; resize(); });
+}
+window.addEventListener('resize', requestResize);
+window.addEventListener('orientationchange', ()=>setTimeout(()=>resize(true),200));
 CAN_BLUR=false;
 
 /* ---------------------------- utils ---------------------------- */
@@ -5815,7 +5843,8 @@ function drawGrain(g){
   if(!TEX.grain) return;
   g.save(); g.globalCompositeOperation='overlay'; g.globalAlpha=0.35;
   const ox=(G.t*37)%140, oy=(G.t*23)%140;
-  const pt=g.createPattern(TEX.grain,'repeat');
+  if(!GRAINPAT) GRAINPAT = g.createPattern(TEX.grain,'repeat');
+  const pt=GRAINPAT;
   if(pt){ g.translate(-ox,-oy); g.fillStyle=pt; g.fillRect(0,0,VW+140,VH+140); }
   g.restore(); g.globalAlpha=1; g.globalCompositeOperation='source-over';
 }
