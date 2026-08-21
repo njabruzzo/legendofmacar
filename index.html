@@ -433,6 +433,10 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   SPRITE_FILES[k+'_w2']=stem+'_w2.png';
   SPRITE_FILES[k+'_atk']=stem+'_atk.png';
 });
+/* Ranged attack frame. Registered after the _w1/_w2/_atk derivation loops so
+   they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
+   file is missing, buildHeroAttackFrames() draws one at load. */
+SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
@@ -445,7 +449,7 @@ function loadSprites(done){
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
-    'macar_w1','macar_w2','macar_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
@@ -470,7 +474,7 @@ function loadSprites(done){
         if(ok) SPR[k]=img;
         if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
         inflight--; finished++;
-        if(finished>=total){ ensureDeadSprites(); done(); }
+        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); done(); }
         else next();
       };
       img.onload=()=>fin(true);
@@ -479,6 +483,11 @@ function loadSprites(done){
     }
   }
   next();
+}
+function ensureAttackFrames(){
+  // Measure the hero's frames up front so the pixel read never lands mid-fight.
+  ['macar','macar_w1','macar_w2','macar_back','macar_atk','macar_atk_bow']
+    .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 function ensureDeadSprites(){
   Object.keys(SPRITE_FILES).forEach(k=>{
@@ -505,6 +514,61 @@ function drawBillboard(g,img,h){
   const W=h*(img.width/Math.max(1,img.height));
   g.drawImage(img,-W/2,-h,W,h); return true;
 }
+/* ---------------------------- sprite fitting ----------------------------
+   The painted frames are all 512 tall, but the figure is not drawn at the same
+   size in each. To make room for the raised hammer, Macar is rendered about a
+   quarter smaller inside dwarf_macar_atk.png than in dwarf_macar.png, so
+   scaling every canvas to one fixed height shrank him the moment he swung.
+   Measuring the body automatically is not reliable here — the weapon is held
+   directly above the torso — so the correction is a calibration table read off
+   the art. FIT multiplies the frame's drawn height; 1.29 came from the helmet
+   crown, 54px tall in the idle frame against 42px in the attack frame. */
+const FRAME_FIT={
+  macar_atk:1.29
+  // If a new frame is drawn with the figure at a different size inside the
+  // canvas, add it here. Measure the helmet crown against the idle frame and
+  // divide: idle_crown / new_crown.
+};
+const SPRMETA=(typeof WeakMap==='function')?new WeakMap():null;
+function stampMetrics(img,v){ if(SPRMETA) SPRMETA.set(img,v); else img.__spm=v; return v; }
+/* Opaque bounds as fractions of the frame, so the feet land on the floor and
+   the figure sits on what is painted rather than on the canvas edge. */
+function spriteBounds(img){
+  if(!img||!img.width||!img.height) return null;
+  if(SPRMETA){ const hit=SPRMETA.get(img); if(hit) return hit; }
+  else if(img.__spm) return img.__spm;
+  const miss={ok:false, botY:1, cx:0.5};
+  const MAX=160;
+  const sc=Math.min(1, MAX/Math.max(img.width,img.height));
+  const w=Math.max(1,Math.round(img.width*sc)), h=Math.max(1,Math.round(img.height*sc));
+  let d=null;
+  try{
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.clearRect(0,0,w,h); x.drawImage(img,0,0,w,h);
+    d=x.getImageData(0,0,w,h).data;
+  }catch(_){ d=null; }
+  if(!d) return stampMetrics(img,miss);
+  let lo=w, hi=-1, bot=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(d[(y*w+x)*4+3]<=30) continue;
+    if(x<lo) lo=x;
+    if(x>hi) hi=x;
+    if(y>bot) bot=y;
+  }
+  if(bot<0) return stampMetrics(img,miss);
+  return stampMetrics(img,{ok:true, botY:(bot+1)/h, cx:((lo+hi+1)/2)/w});
+}
+function frameFit(e,img){
+  const k=entSpriteKey(e);
+  if(!k) return 1;
+  if(SPR[k]===img) return FRAME_FIT[k]||1;
+  for(const suffix of ['_atk_bow','_atk','_back','_w1','_w2','_sleep']){
+    if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
+  }
+  return 1;
+}
 function drawEntBillboard(g,e,img,z){
   if(!img||!img.width) return false;
   if(e.crushed||e.prone){
@@ -516,19 +580,23 @@ function drawEntBillboard(g,e,img,z){
     g.drawImage(img, -pw/2, -ph*0.78, pw, ph);
     return true;
   }
-  // Idle / walk / attack canvases are different sizes. Always billboard to
-  // the same on-screen height so Macar does not shrink when he swings.
-  const H=entSpriteH(e,z);
+  // Frames differ in how large the figure is drawn inside the canvas, so apply
+  // the per-frame calibration and stand him on his own feet rather than on the
+  // bottom edge of the image.
+  const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
+  const b=spriteBounds(img);
+  const dx=(b&&b.ok)?-W*b.cx:-W/2;
+  const dy=(b&&b.ok)?-H*b.botY:-H;
   if(e.hero && !e.dead){
     g.save();
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
-    g.drawImage(img, -W/2, -H, W, H);
+    g.drawImage(img, dx, dy, W, H);
     g.restore();
     return true;
   }
-  g.drawImage(img, -W/2, -H, W, H);
+  g.drawImage(img, dx, dy, W, H);
   return true;
 }
 function drawDeadBillboard(g,e,img,z){
@@ -955,6 +1023,13 @@ function entAnimImg(e){
   if(!k) return null;
   if(e.dead||e.crushed) return SPR[k+'_dead']||null;
   if(wantsBackView(e) && SPR[k+'_back']) return SPR[k+'_back'];
+  if(e.atk>0 && e.atkKind==='bow'){
+    // The melee frame is a two-handed hammer swing, which is plainly wrong for
+    // a crossbow shot, so hold the standing frame until dwarf_macar_atk_bow.png
+    // exists. The bolt and the shot line already sell the action.
+    if(SPR[k+'_atk_bow']) return SPR[k+'_atk_bow'];
+    return SPR[k]||null;
+  }
   if(e.atk>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(QUALITY && e.moving){
     const a=SPR[k+'_w1'], b=SPR[k+'_w2'];
@@ -1477,7 +1552,7 @@ function ent(o){
   const e=Object.assign({ id:EID++, kind:'dwarf', team:'foe', x:0,y:0,r:0.38, hp:20,
     sp:2.2, dmg:6, range:0.95, cd:1.1, ct:rnd(.6), anim:rnd(6), fdx:1, fdy:0, moving:false,
     ix:0, iy:0, gait:rnd(1),
-    dead:false, flash:0, kx:0, ky:0, atk:0, atkMax:.42, scale:1, stun:0, boss:false,
+    dead:false, flash:0, kx:0, ky:0, atk:0, atkKind:'melee', atkMax:.42, scale:1, stun:0, boss:false,
     glow:null, aggro:7.5, buff:0, engaged:false, name:'' }, o);
   e.maxhp=e.hp; return e;
 }
@@ -4739,7 +4814,7 @@ function fire(key){
   const p=player(); if(!p) return;
   if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
-    p.dest=null; if(p.ct<=0){ p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
+    p.dest=null; if(p.ct<=0){ p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
   }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
   if(key==='wall'){
@@ -4844,6 +4919,8 @@ function fire(key){
     cds.bow=1.4;
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
+    // Pose only. swung=1 up front so the melee tick never fires off this timer.
+    p.atkKind='bow'; p.atk=p.atkMax; p.swung=1;
     shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
     say('MACAR looses a quarrel.','#ffb45c');
     return;
@@ -4977,7 +5054,7 @@ function update(dt){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
         turnToward(p, t.x-p.x, t.y-p.y, dt, 18);
-        p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
+        p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
       if(!t) p.aim=null;
     } else if(p.defending) p.aim=null;
 
