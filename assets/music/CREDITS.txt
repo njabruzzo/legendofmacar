@@ -9,7 +9,8 @@ Song of the Forge
   License: CC BY 4.0
   https://creativecommons.org/licenses/by/4.0/
   File: assets/music/SongOfTheForge.mp3
-  Used on the title / starting screen (starts on launch).
+  Used on the title / starting screen (starts on launch),
+  and again when a battle begins (fight music).
 
 The Cave (Ambient)
   Owner: HitCtrl
