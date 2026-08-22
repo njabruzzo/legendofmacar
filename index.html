@@ -27,6 +27,7 @@
 <audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=34"></audio>
 <script src="SkillSystem.js"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
+<script src="src/packs/BorrowKit.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -1611,7 +1612,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   fightOn:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0,
-  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0 };
+  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[] };
 
 function say(t,c){
   const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
@@ -2648,10 +2649,12 @@ function campRest(){
   });
   G.day=(G.day||1)+1;
   G.dayClock=0;
+  const returned=restoreBorrowedGear();
   tryPordoomGifts();
   G.sleepShow={t:0, dur:5};
   G.flash={c:'#ffb45c',a:.18};
   say('Macar decides to camp to rest and heal.','#ffe08a');
+  if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
   hint(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.',5);
 }
 function isLootableBody(o){
@@ -2918,7 +2921,10 @@ function startChapter(n){
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
-  G.sang=false; G.campScroll=0; G.songBuff=0; G.scene='camp'; }
+  G.sang=false; G.campScroll=0; G.songBuff=0;
+  const returned=restoreBorrowedGear();
+  if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
+  G.scene='camp'; }
 
 let PROMPT=null;
 function interact(label,fn){ PROMPT={label,fn}; }
@@ -3327,13 +3333,39 @@ function takeFromPacks(field){
   ensurePacks();
   const order=['macar'].concat(ROSTER.map(r=>r.key).filter(k=>k!=='macar'));
   for(const k of order){
-    if((G.packs[k][field]||0)>0){ G.packs[k][field]--; syncPackTotals(); return k; }
+    if((G.packs[k][field]||0)>0){
+      G.packs[k][field]--;
+      if(k!=='macar') noteNpcLoan(k, {field, n:1, held:false});
+      syncPackTotals();
+      return k;
+    }
   }
   return null;
 }
 function addToPack(key, field, n){
   packOf(key)[field]=(packOf(key)[field]||0)+(n||1);
   syncPackTotals();
+}
+function kinName(key){
+  const r=ROSTER.find(z=>z.key===key);
+  return (r&&r.name)||(key||'kin').toUpperCase();
+}
+function noteNpcLoan(owner, spec){
+  if(!window.BorrowKit || !BorrowKit.isNpc(owner)) return;
+  G.borrowed=BorrowKit.note(G.borrowed||[], owner, spec);
+}
+function restoreBorrowedGear(){
+  if(!window.BorrowKit) return 0;
+  ensurePacks();
+  const n=(G.borrowed||[]).length;
+  if(!n) return 0;
+  const out=BorrowKit.restore(G.borrowed, G.packs, G.equipped||{});
+  G.packs=out.packs;
+  G.equipped=out.equipped||G.equipped;
+  G.borrowed=out.borrowed||[];
+  if(typeof applyEquipped==='function') applyEquipped();
+  syncPackTotals();
+  return out.returned||n;
 }
 function isHealPotion(p){
   if(!p) return false;
@@ -3371,6 +3403,7 @@ function takeHealCharge(){
     pk.healPots=pk.healPots||[];
     if(pk.healPots.length){
       const p=pk.healPots.shift();
+      if(k!=='macar') noteNpcLoan(k, {slot:'healPots', item:p, held:false});
       syncPackTotals();
       return {kind:'potion', p, key:k};
     }
@@ -7412,6 +7445,7 @@ function initEconomy(){
   G.inspect=null;
   G.equipped={weapon:null,armor:null,ring:null,wand:null};
   G.fightOn=0; G.carryEffects=G.carryEffects||[];
+  G.borrowed=[];
   syncPackTotals();
 }
 function wepMult(e){ const g=e.gear; if(!g) return 1;
@@ -7835,7 +7869,8 @@ function packThumbFor(row){
   if(row.kind==='potion'||row.kind==='ale') return SPR.loot_potion||SPR.icon_flask;
   if(row.kind==='gem') return SPR.loot_gems||SPR.loot_ruby;
   if(row.kind==='herb') return SPR.loot_herbs;
-  if(row.kind==='kit'||row.kind==='burp') return SPR.icon_bomb||SPR.icon_craft;
+  if(row.kind==='kit'||row.kind==='burp'||(row.kind==='supply'&&row.field==='bombs')) return SPR.icon_bomb||SPR.icon_craft;
+  if(row.kind==='supply'&&row.field==='ammo') return SPR.icon_crossbow||SPR.icon_craft;
   return SPR.icon_pack;
 }
 function craftThumbFor(grp){
@@ -7846,7 +7881,7 @@ function craftThumbFor(grp){
   return SPR.icon_craft;
 }
 function packKindColor(kind){
-  return kind==='magic'?'#ffd27a':kind==='potion'?'#e0d2ff':kind==='gem'?'#ff6a6a':kind==='ale'?'#d2bd63':kind==='kit'?'#ffb45c':kind==='burp'?'#d2bd63':'#6aff8a';
+  return kind==='magic'?'#ffd27a':kind==='potion'?'#e0d2ff':kind==='gem'?'#ff6a6a':kind==='ale'?'#d2bd63':kind==='kit'?'#ffb45c':kind==='burp'?'#d2bd63':kind==='supply'?'#cfe0ea':'#6aff8a';
 }
 function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
   const s=UIS, bw=28*s;
@@ -8164,7 +8199,7 @@ function drawInspect(g,s){
   g.strokeStyle='rgba(220,190,130,0.45)'; g.lineWidth=1; g.strokeRect(bx,by,bw,bh);
   g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(180,160,120,0.8)';
-  g.fillText('Click anywhere to close. Open PACK for items.', bx, y+h-22*s);
+  g.fillText('Click anywhere to close. Open PACK to share their kit.', bx, y+h-22*s);
 }
 
 function drawStickBase(g,s){
@@ -8785,6 +8820,7 @@ function drawWin(g){
 }
 
 function packUser(){
+  if(G.packWho && G.packWho!=='macar') return player();
   const key=G.packWho||'macar';
   return (G.ents||[]).find(e=>e.team==='party'&&e.col&&e.col.key===key&&!e.dead)||player();
 }
@@ -8796,45 +8832,149 @@ function openPackMenu(from){
   ensurePacks(); syncPackTotals();
   G.scene='pack';
 }
-function collectPackRows(pk){
+function collectPackRows(pk, who){
   const eq=G.equipped||{};
   const rows=[];
+  const npc=who&&who!=='macar';
+  const lend=npc?'Tap to share with MACAR. Returns after camp. ':'';
   const flaskN=(pk.ales||0)+((pk.healPots||[]).length);
   if(flaskN){
     const names=(pk.healPots||[]).map(p=>p.n).slice(0,3);
     rows.push({kind:'ale', t:'Draughts of beer  \u00d7'+flaskN,
-      info:names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Each draught heals d10. Tap Heal, or tap here to drink.',
+      info:lend+(names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Each draught heals d10. Tap Heal, or tap here to drink.'),
       tag:'Beer'});
   }
-  if(pk.bombKit){
-    rows.push({kind:'kit', t:'Bomb-making kit  \u00d7'+(pk.bombKit||0),
-      info:'Casings, fuses, and tools. Pack bombs at a crafting station.',
-      tag:'Kit'});
+  if(pk.bombs){
+    rows.push({kind:'supply', field:'bombs', t:'Bombs  \u00d7'+pk.bombs,
+      info:lend+'10d10 throwables.', tag:'Bomb'});
   }
   if(pk.burps){
     rows.push({kind:'burp', t:"Borga's Burp  \u00d7"+(pk.burps||0),
-      info:"Pordoom's brew-bomb. 3d10. Tap Throw, or tap here to ready one.",
+      info:lend+"Pordoom's brew-bomb. 3d10.",
       tag:'Bomb'});
+  }
+  if(pk.ammo){
+    rows.push({kind:'supply', field:'ammo', t:'Crossbow bolts  \u00d7'+pk.ammo,
+      info:lend+'Quarrels for the shoot.', tag:'Ammo'});
+  }
+  if(pk.rations){
+    rows.push({kind:'supply', field:'rations', t:'Rations  \u00d7'+pk.rations,
+      info:lend+'Travel bread and hard cheese.', tag:'Food'});
+  }
+  if(pk.torches){
+    rows.push({kind:'supply', field:'torches', t:'Torches  \u00d7'+pk.torches,
+      info:lend+'Pitch and pine.', tag:'Light'});
+  }
+  if(pk.bombKit){
+    rows.push({kind:'kit', t:'Bomb-making kit  \u00d7'+(pk.bombKit||0),
+      info:lend+'Casings, fuses, and tools. Pack bombs at a crafting station.',
+      tag:'Kit'});
   }
   (pk.magic||[]).forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
     const canEq=isEquipWeapon(it)||isEquipArmor(it)||it.k==='ring'||it.cat==='Ring';
+    const from=it._borrowOwner?('Borrowed from '+kinName(it._borrowOwner)+'. Returns at camp. '):'';
     rows.push({kind:'magic',it,i,t:it.n, worn,
-      info:canEq?(worn?'Equipped. Tap to wield again. ':'Tap to equip. ')+(it.d||''):(it.d||''),
+      info:from+lend+(canEq?(worn?'Equipped. Tap to wield again. ':'Tap to equip. ')+(it.d||''):(it.d||'')),
       tag:it.cat||'Magic'});
   });
   (pk.potions||[]).forEach((p,i)=>{
     if(isHealPotion(p)) return;
-    rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'});
+    const from=p._borrowOwner?('Borrowed from '+kinName(p._borrowOwner)+'. Returns at camp. '):'';
+    rows.push({kind:'potion',p,i,t:p.n,info:from+lend+(p.d||''),tag:'Potion'});
   });
-  (pk.gems||[]).forEach((gm,i)=>rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:gm.d||'',tag:'Gem'}));
-  Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
+  (pk.gems||[]).forEach((gm,i)=>{
+    const from=gm._borrowOwner?('Borrowed from '+kinName(gm._borrowOwner)+'. Returns at camp. '):'';
+    rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:from+lend+(gm.d||''),tag:'Gem'});
+  });
+  Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),
+    info:lend+((HERBS.find(h=>h.n===n)||{}).d||''),tag:'Herb'}));
   return rows;
 }
+function shareCountWithMacar(from, field, n){
+  n=n||1;
+  const pk=packOf(from);
+  const have=pk[field]||0;
+  const take=Math.min(n, have);
+  if(!take) return 0;
+  pk[field]=have-take;
+  addToPack('macar', field, take);
+  noteNpcLoan(from, {field, n:take, held:true});
+  return take;
+}
+function shareItemWithMacar(from, slot, index, item){
+  const pk=packOf(from);
+  if(slot==='herbs'){
+    if(!pk.herbs||!pk.herbs[item]) return false;
+    pk.herbs[item]--;
+    if(pk.herbs[item]<=0) delete pk.herbs[item];
+    const dest=packOf('macar');
+    dest.herbs=dest.herbs||{};
+    dest.herbs[item]=(dest.herbs[item]||0)+1;
+    noteNpcLoan(from, {herb:item, n:1, held:true});
+    return true;
+  }
+  const arr=pk[slot];
+  if(!arr||index==null||!arr[index]) return false;
+  const it=arr.splice(index,1)[0];
+  if(window.BorrowKit) BorrowKit.mark(it, from);
+  const dest=packOf('macar');
+  dest[slot]=dest[slot]||[];
+  dest[slot].push(it);
+  noteNpcLoan(from, {slot, item:it, held:true});
+  return it;
+}
+function sharePackRow(r){
+  const from=G.packWho;
+  if(!from||from==='macar') return;
+  let label=r.t||r.n||'kit';
+  if(r.kind==='supply'||r.kind==='burp'){
+    const field=r.field||(r.kind==='burp'?'burps':null);
+    const n=shareCountWithMacar(from, field, 1);
+    if(!n) return;
+    label=(n)+' '+(r.tag||field);
+  } else if(r.kind==='kit'){
+    if(!shareCountWithMacar(from, 'bombKit', 1)) return;
+    label='bomb-making kit';
+  } else if(r.kind==='ale'){
+    const pk=packOf(from);
+    if(pk.healPots&&pk.healPots.length){
+      const p=shareItemWithMacar(from, 'healPots', 0);
+      if(!p) return;
+      label=p.n||'healing draught';
+    } else if(!shareCountWithMacar(from, 'ales', 1)) return;
+    else label='draught of beer';
+  } else if(r.kind==='magic'){
+    if(!shareItemWithMacar(from, 'magic', r.i, r.it)) return;
+  } else if(r.kind==='potion'){
+    if(!shareItemWithMacar(from, 'potions', r.i, r.p)) return;
+  } else if(r.kind==='gem'){
+    if(!shareItemWithMacar(from, 'gems', r.i, r.gm)) return;
+  } else if(r.kind==='herb'){
+    if(!shareItemWithMacar(from, 'herbs', null, r.n)) return;
+    label=r.n;
+  } else return;
+  say('MACAR borrows '+label+' from '+kinName(from)+'. It returns after camp.','#ffe08a');
+  syncPackTotals();
+}
 function usePackRow(r){
+  if(G.packWho && G.packWho!=='macar'){
+    sharePackRow(r);
+    return;
+  }
   const who=packUser();
   const bag=packOf(G.packWho);
   const inField=G.packFrom==='play';
+  if(r.kind==='supply'){
+    if(r.field==='bombs'||r.field==='burps'){
+      if(inField){ G.scene='play'; fire('bomb'); }
+      else say('Bombs stay packed until you throw them in the seam.','#ffb45c');
+    } else {
+      say((r.info||r.t||'Kit')+' stays in MACAR\'s pack.','#c9b895');
+    }
+    syncPackTotals();
+    return;
+  }
   if(r.kind==='magic'){
     const it=bag.magic[r.i];
     if(!it) return;
@@ -8890,7 +9030,9 @@ function drawPack(g){
   g.fillText('BACKPACK', 10*s+headH+10*s, headY+16*s);
   g.font='600 '+(9*s)+'px '+FONT_UI;
   g.fillStyle='rgba(200,180,140,0.78)';
-  g.fillText(G.packFrom==='play'?'Tap an item to use it in the seam.':'Set potions and herbs aside for the next descent.', 10*s+headH+10*s, headY+30*s);
+  const npcPack=G.packWho&&G.packWho!=='macar';
+  g.fillText(npcPack?'Tap to share with MACAR. Borrowed kit returns after camp.'
+    :(G.packFrom==='play'?'Tap an item to use it in the seam.':'Set potions and herbs aside for the next descent.'), 10*s+headH+10*s, headY+30*s);
 
   const coin=G.coin||{};
   const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
@@ -8948,7 +9090,7 @@ function drawPack(g){
     menuHits.push({x,y:catY,w,h:catH,fn:()=>{ G.packTab=c.k; G.packScroll=0; }});
   });
 
-  let rows=collectPackRows(pk);
+  let rows=collectPackRows(pk, G.packWho);
   if(G.packTab!=='all'){
     rows=rows.filter(r=>{
       if(G.packTab==='potion') return r.kind==='potion'||r.kind==='ale';
@@ -8969,7 +9111,7 @@ function drawPack(g){
     g.font='700 '+(12*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.8)';
     g.fillText(G.packTab==='all'?'Kit only in this pack.':'Nothing in this pouch.', VW/2, listTop+36*s);
     g.font='600 '+(10*s)+'px '+FONT_UI; g.fillStyle='rgba(170,150,120,0.7)';
-    g.fillText(G.packTab==='all'?'Loot potions and gems go to MACAR.':'Try All, or another kin.', VW/2, listTop+56*s);
+    g.fillText(G.packTab==='all'?'Share a kin\'s kit, or loot potions and gems.':'Try All, or another kin.', VW/2, listTop+56*s);
     g.textAlign='left';
   }
   shown.forEach((r,i)=>{
@@ -8980,7 +9122,7 @@ function drawPack(g){
     const tx=x+th+16*s, tw=w-th-24*s;
     g.font='800 '+(8*s)+'px '+FONT_UI;
     g.fillStyle=packKindColor(r.kind);
-    g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':''), tx, y+14*s);
+    g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':'')+(npcPack?'  \u00b7  SHARE':''), tx, y+14*s);
     g.font='700 '+(PORT?12*s:13*s)+'px '+FONT_UI;
     g.fillStyle='#f4e2b8';
     g.fillText(ellipsize(g, r.t, tw), tx, y+h*0.52);
