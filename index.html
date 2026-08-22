@@ -49,7 +49,10 @@ let BX_KEY = '';
 const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
 let CAMSX=0, CAMSY=0;
 
-function gfxDprCap(){ return QUALITY ? 1.25 : 1; }
+/* DPR must stay a whole number. At 1.25 every drawImage lands on a fractional
+   device pixel, so smoothed edges bleed and produce shimmering hairline seams
+   that read as flashing lines. Integer scale = clean edges, and it's faster. */
+function gfxDprCap(){ return 1; }
 function applyGfxBuffers(keepTiles){
   BX_KEY='';
   if(!keepTiles) TILEBLIT.key='';
@@ -5843,8 +5846,7 @@ function drawGrain(g){
   if(!TEX.grain) return;
   g.save(); g.globalCompositeOperation='overlay'; g.globalAlpha=0.35;
   const ox=(G.t*37)%140, oy=(G.t*23)%140;
-  if(!GRAINPAT) GRAINPAT = g.createPattern(TEX.grain,'repeat');
-  const pt=GRAINPAT;
+  const pt=g.createPattern(TEX.grain,'repeat');
   if(pt){ g.translate(-ox,-oy); g.fillStyle=pt; g.fillRect(0,0,VW+140,VH+140); }
   g.restore(); g.globalAlpha=1; g.globalCompositeOperation='source-over';
 }
