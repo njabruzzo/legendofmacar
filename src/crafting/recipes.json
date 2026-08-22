@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "recipes": [
+    {
+      "id": "healing_potion",
+      "name": "Healing Potion",
+      "group": "BREWERY",
+      "station": "camp",
+      "skill": "forage",
+      "skillLevel": 1,
+      "skillXp": 6,
+      "ingredients": {
+        "barley": 1,
+        "resin": 1
+      },
+      "output": {
+        "kind": "potion",
+        "item": {
+          "n": "Cure Light Wounds",
+          "d": "Cures 10 hp.",
+          "k": "heal10",
+          "gp": 400
+        }
+      },
+      "info": "Cure Light Wounds draught into the ale flask."
+    },
+    {
+      "id": "longsword",
+      "name": "Long Sword",
+      "group": "FORGE",
+      "station": "camp",
+      "skill": "weapon",
+      "skillLevel": 2,
+      "skillXp": 10,
+      "ingredients": {
+        "ironstone": 3,
+        "timber": 1
+      },
+      "output": {
+        "kind": "weapon",
+        "item": {
+          "n": "Long Sword",
+          "cat": "Sword",
+          "k": "weapon",
+          "d": "Forged at the camp anvil. Plain steel, honest edge.",
+          "plus": 0
+        }
+      },
+      "info": "Plain long sword into MACAR's pack. Weapon Smithing rank 2."
+    }
+  ]
+}

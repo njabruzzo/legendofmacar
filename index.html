@@ -26,6 +26,7 @@
 <canvas id="c"></canvas>
 <audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=34"></audio>
 <script src="SkillSystem.js"></script>
+<script src="src/crafting/CraftingEngine.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -7406,6 +7407,57 @@ function updateBombs(dt){
 }
 
 /* ==========================================================================
+   MODULAR CRAFTING  -  src/crafting (CraftingEngine + recipes.json)
+   ========================================================================== */
+function makeCraftingBridge(){
+  return {
+    getResource(id){ return (G.res&&G.res[id])||0; },
+    spendResources(cost){
+      if(!afford(cost)) return false;
+      spend(cost);
+      return true;
+    },
+    applyOutput(recipe){
+      const out=recipe.output;
+      if(!out) return;
+      if(out.kind==='potion' && out.item) givePotion(out.item, true);
+      else if((out.kind==='weapon'||out.kind==='armor'||out.kind==='magic') && out.item)
+        giveMagic(magItem(out.item), true);
+      else if(out.kind==='pack' && out.field)
+        addToPack(out.packKey||'macar', out.field, out.count||1);
+      syncPackTotals();
+    },
+    skillLevel(k){ return skillLvl(k); },
+    learnSkill(k,n){ learn(k,n); }
+  };
+}
+function campActionReady(a){
+  if(a.craftRecipeId && window.CraftingEngine)
+    return CraftingEngine.canCraft(a.craftRecipeId, makeCraftingBridge()).ok;
+  return afford(a.cost);
+}
+function runCampAction(a){
+  if(a.craftRecipeId && window.CraftingEngine){
+    const r=CraftingEngine.craftItem(a.craftRecipeId, makeCraftingBridge());
+    if(r.ok) say(r.message, a.grp==='FORGE'?'#ffd27a':'#d2bd63');
+    else say(r.message, '#ff6a6a');
+    return;
+  }
+  if(afford(a.cost)){ spend(a.cost); a.fn(); }
+}
+function modularCraftCampActions(){
+  if(!window.CraftingEngine) return [];
+  return CraftingEngine.list('camp').map(recipe=>({
+    grp: recipe.group||'CRAFT',
+    t: 'Craft '+recipe.name,
+    cost: recipe.ingredients,
+    info: recipe.info||'',
+    craftRecipeId: recipe.id,
+    fn: function(){}
+  }));
+}
+
+/* ==========================================================================
    CAMP  -  the "night". Forge, bench, brewery, tailor, fire.
    ========================================================================== */
 function campActions(){
@@ -7479,6 +7531,7 @@ function campActions(){
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ G.packFrom='camp'; G.packWho='macar'; G.scene='pack'; }});
+  a.push.apply(a, modularCraftCampActions());
   return a;
 }
 
@@ -8363,10 +8416,10 @@ function drawCamp(g){
   const rowH=Math.min(PORT?40*s:44*s,(listBot-listTop)/Math.max(1,acts.length));
   acts.forEach((a,i)=>{
     const y=listTop+i*rowH, h=rowH-4*s, x=10*s, w=VW-20*s;
-    const can=afford(a.cost);
+    const can=campActionReady(a);
     plate(g,x,y,w,h,5, can?.82:.5);
     if(can){ g.strokeStyle='rgba(255,208,124,0.45)'; g.lineWidth=1.6; roundPath(g,x,y,w,h,5); g.stroke();
-      menuHits.push({x,y,w,h,fn:()=>{ if(afford(a.cost)){ spend(a.cost); a.fn(); } }}); }
+      menuHits.push({x,y,w,h,fn:()=>runCampAction(a)}); }
     g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
     g.fillStyle= can?'rgba(255,196,110,0.85)':'rgba(130,116,94,0.5)';
     g.fillText(a.grp, x+11*s, y+13*s);
@@ -8680,6 +8733,7 @@ function loop(now){
 resize();
 bakeTextures(PAL.mine);
 loadSprites(()=>{});
+if(window.CraftingEngine) CraftingEngine.load('src/crafting/recipes.json');
 try{
   if(/play/.test((location.hash||'')+(location.search||''))) { startChapter(1); G.scene='play'; }
 }catch(e){ console.error(e); }
