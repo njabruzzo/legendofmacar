@@ -28,6 +28,7 @@
 <script src="SkillSystem.js"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/props/DwarfMouth.js"></script>
+<script src="src/packs/GhostKit.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -3017,6 +3018,7 @@ function isPackEquipable(r){
   return isEquipWeapon(it);
 }
 function askDropInMouth(r){
+  r.from=G.packWho||'macar';
   G.faceDrop=r;
   const name=packRowName(r);
   startTalkObj({
@@ -3063,11 +3065,12 @@ function dropInDwarfMouth(r){
   G.scene='play';
   G.faceOffer=0;
   G.packSel=null;
-  G.packWho='macar';
+  const fromKey=(r&&r.from)||G.packWho||'macar';
+  G.packWho=fromKey;
   const face=dwarfFaceProp()||{x:43.2,y:7.28};
   const L=G.lvl||{};
   L.flags=L.flags||{};
-  const bag=packOf('macar');
+  const bag=packOf(fromKey);
   const gem=r&&r.kind==='gem'?(r.gm||((bag.gems||[])[r.i])):null;
   const DM=typeof DwarfMouth!=='undefined'?DwarfMouth:{};
   const verdict=DM.resolveMouthDrop?DM.resolveMouthDrop(gem, !!L.flags.faceFed):{ok:!!(gem&&isGuardianRuby(gem)),yum:true,spit:[]};
@@ -3452,13 +3455,55 @@ function partyCount(field){
   ensurePacks();
   return ROSTER.reduce((n,r)=>n+(G.packs[r.key][field]||0),0);
 }
-function takeFromPacks(field){
+function takeFromPacks(field, prefer){
   ensurePacks();
-  const order=['macar'].concat(ROSTER.map(r=>r.key).filter(k=>k!=='macar'));
+  const rest=ROSTER.map(r=>r.key).filter(k=>k!=='macar'&&k!==prefer);
+  const order=[prefer,'macar'].concat(rest).filter((k,i,a)=>k&&a.indexOf(k)===i);
   for(const k of order){
     if((G.packs[k][field]||0)>0){ G.packs[k][field]--; syncPackTotals(); return k; }
   }
   return null;
+}
+function packOwnerEntity(key){
+  key=key||G.packWho||'macar';
+  return (G.ents||[]).find(e=>e&&e.col&&e.col.key===key)||null;
+}
+function isGhostPack(key){
+  const e=packOwnerEntity(key);
+  return !!(typeof GhostKit!=='undefined'&&GhostKit.isGhostKin&&GhostKit.isGhostKin(e));
+}
+function takeStackToMacar(field, n){
+  const fromKey=G.packWho||'macar';
+  if(fromKey==='macar') return 0;
+  const GK=typeof GhostKit!=='undefined'?GhostKit:null;
+  if(!GK||!GK.moveStack) return 0;
+  const took=GK.moveStack(packOf(fromKey), packOf('macar'), field, n);
+  if(took){
+    syncPackTotals();
+    say('Macar takes '+took+' '+(field==='ammo'?'bolts':field)+' from '+(fromKey.toUpperCase())+'.','#ffd27a');
+  }
+  return took;
+}
+function claimItemToMacar(listName, item){
+  const fromKey=G.packWho||'macar';
+  if(fromKey==='macar'||!item) return item;
+  const GK=typeof GhostKit!=='undefined'?GhostKit:null;
+  const src=packOf(fromKey)[listName]||[];
+  const dst=packOf('macar')[listName]||(packOf('macar')[listName]=[]);
+  if(GK&&GK.moveListItem) GK.moveListItem(src,dst,item);
+  syncPackTotals();
+  return item;
+}
+function takeGhostKitToMacar(){
+  const fromKey=G.packWho||'macar';
+  if(fromKey==='macar'||!isGhostPack(fromKey)) return;
+  const GK=typeof GhostKit!=='undefined'?GhostKit:null;
+  if(!GK||!GK.takeAllKit) return;
+  const got=GK.takeAllKit(packOf(fromKey), packOf('macar'));
+  syncPackTotals();
+  G.packSel=null;
+  const n=(got.stacks||0)+(got.items||0);
+  say(n?('Macar takes '+fromKey.toUpperCase()+"'s kit."):(fromKey.toUpperCase()+' has nothing left to take.'), '#ffd27a');
 }
 function addToPack(key, field, n){
   packOf(key)[field]=(packOf(key)[field]||0)+(n||1);
@@ -3494,7 +3539,9 @@ function healCharges(){
 }
 function takeHealCharge(){
   ensurePacks();
-  const order=['macar'].concat(ROSTER.map(r=>r.key).filter(k=>k!=='macar'));
+  const prefer=G.packPrefer;
+  const rest=ROSTER.map(r=>r.key).filter(k=>k!=='macar'&&k!==prefer);
+  const order=[prefer,'macar'].concat(rest).filter((k,i,a)=>k&&a.indexOf(k)===i);
   for(const k of order){
     const pk=packOf(k);
     pk.healPots=pk.healPots||[];
@@ -3533,6 +3580,7 @@ function ensureMacarHammer(pk){
 }
 function wieldWeapon(it){
   if(!it||!isEquipWeapon(it)) return;
+  if(isGhostPack()) claimItemToMacar('magic', it);
   ensureMacarHammer();
   const prev=G.equipped&&G.equipped.weapon;
   G.equipped.weapon=it;
@@ -5215,7 +5263,7 @@ function fire(key){
     if(cds.bow>0) return;
     const t=nearestFoe(p,9);
     const tx=t?t.x:p.x+p.fdx*7, ty=t?t.y:p.y+p.fdy*7;
-    takeFromPacks('ammo');
+    takeFromPacks('ammo', G.packPrefer);
     cds.bow=1.4;
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
@@ -7586,7 +7634,7 @@ function bombDamage(){ let d=0; for(let i=0;i<10;i++) d+=ri(1,10);
 function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function throwBomb(){
   const p=player(); if(!p||!G.aim) return;
-  if(!takeFromPacks('bombs')){
+    if(!takeFromPacks('bombs', G.packPrefer)){
     hint(partyCount('bombKit')?'No bombs in the packs.':'No bombs. Rouse the red hat — the ghost sapper packs two a day.',2.2);
     return;
   }
@@ -7870,9 +7918,10 @@ function packThumbFor(row){
     return SPR.loot_chest;
   }
   if(row.kind==='potion'||row.kind==='ale') return SPR.loot_potion||SPR.icon_flask;
+  if(row.kind==='bombs'||row.kind==='kit') return SPR.icon_bomb||SPR.icon_craft;
+  if(row.kind==='ammo') return SPR.icon_crossbow||SPR.icon_sword;
   if(row.kind==='gem') return SPR.loot_gems||SPR.loot_ruby;
   if(row.kind==='herb') return SPR.loot_herbs;
-  if(row.kind==='kit') return SPR.icon_bomb||SPR.icon_craft;
   return SPR.icon_pack;
 }
 function craftThumbFor(grp){
@@ -7883,7 +7932,7 @@ function craftThumbFor(grp){
   return SPR.icon_craft;
 }
 function packKindColor(kind){
-  return kind==='magic'?'#ffd27a':kind==='potion'?'#e0d2ff':kind==='gem'?'#ff6a6a':kind==='ale'?'#d2bd63':kind==='kit'?'#ffb45c':'#6aff8a';
+  return kind==='magic'?'#ffd27a':kind==='potion'?'#e0d2ff':kind==='gem'?'#ff6a6a':kind==='ale'?'#d2bd63':kind==='kit'||kind==='bombs'?'#ffb45c':kind==='ammo'?'#c9b895':'#6aff8a';
 }
 function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
   const s=UIS, bw=28*s;
@@ -8201,7 +8250,7 @@ function drawInspect(g,s){
   g.strokeStyle='rgba(220,190,130,0.45)'; g.lineWidth=1; g.strokeRect(bx,by,bw,bh);
   g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(180,160,120,0.8)';
-  g.fillText('Click anywhere to close. Open PACK for items.', bx, y+h-22*s);
+  g.fillText('Click anywhere to close. Open PACK — Macar can use a ghost\'s kit.', bx, y+h-22*s);
 }
 
 function drawStickBase(g,s){
@@ -8823,7 +8872,11 @@ function drawWin(g){
 
 function packUser(){
   const key=G.packWho||'macar';
-  return (G.ents||[]).find(e=>e.team==='party'&&e.col&&e.col.key===key&&!e.dead)||player();
+  const GK=typeof GhostKit!=='undefined'?GhostKit:null;
+  if(GK&&GK.packUseTarget) return GK.packUseTarget(G.ents||[], key, player())||player();
+  const e=packOwnerEntity(key);
+  if(e&&e.ghost) return player();
+  return (e&&e.team==='party'&&!e.dead)||player();
 }
 function openPackMenu(from){
   G.packFrom=from||'play';
@@ -8843,9 +8896,29 @@ function collectPackRows(pk){
       info:names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Each draught heals d10. Tap Heal, or tap here to drink.',
       tag:'Beer'});
   }
+  if(pk.bombs){
+    rows.push({kind:'bombs', t:'Bombs  \u00d7'+pk.bombs,
+      info:isGhostPack()?'Tap to throw, or take into MACAR\'s pack.':'Tap Throw on the HUD, or tap here to throw.',
+      tag:'Bomb'});
+  }
+  if(pk.ammo){
+    rows.push({kind:'ammo', t:'Bolts  \u00d7'+pk.ammo,
+      info:isGhostPack()?'Tap to loose a quarrel, or take into MACAR\'s pack.':'Tap Shoot on the HUD.',
+      tag:'Bolt'});
+  }
+  if(pk.torches){
+    rows.push({kind:'torches', t:'Torches  \u00d7'+pk.torches,
+      info:isGhostPack()?'Tap to take into MACAR\'s pack.':'Light for the seam.',
+      tag:'Gear'});
+  }
+  if(pk.rations){
+    rows.push({kind:'rations', t:'Rations  \u00d7'+pk.rations,
+      info:isGhostPack()?'Tap to take into MACAR\'s pack.':'A week of stone-bread and drippings.',
+      tag:'Gear'});
+  }
   if(pk.bombKit){
     rows.push({kind:'kit', t:'Bomb-making kit  \u00d7'+(pk.bombKit||0),
-      info:'Casings, fuses, and tools. Pack bombs at the camp bench.',
+      info:isGhostPack()?'Tap to take the kit into MACAR\'s pack.':'Casings, fuses, and tools. Pack bombs at the camp bench.',
       tag:'Kit'});
   }
   (pk.magic||[]).forEach((it,i)=>{
@@ -8875,6 +8948,18 @@ function usePackRow(r){
     G.packSel=r.it||r;
     return;
   }
+  if(r.kind==='bombs'){
+    if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('bomb'); G.packPrefer=null; }
+    else takeStackToMacar('bombs');
+    syncPackTotals(); return;
+  }
+  if(r.kind==='ammo'){
+    if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('bow'); G.packPrefer=null; }
+    else takeStackToMacar('ammo');
+    syncPackTotals(); return;
+  }
+  if(r.kind==='torches'){ takeStackToMacar('torches'); syncPackTotals(); return; }
+  if(r.kind==='rations'){ takeStackToMacar('rations'); syncPackTotals(); return; }
   if(r.kind==='magic'){
     const it=bag.magic[r.i];
     if(!it) return;
@@ -8891,7 +8976,7 @@ function usePackRow(r){
       useMagicItem(it, who);
     }
   } else if(r.kind==='ale'){
-    if(inField){ G.scene='play'; fire('ale'); }
+    if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('ale'); G.packPrefer=null; }
     else say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
   } else if(r.kind==='potion'){
     const pot=bag.potions.splice(r.i,1)[0];
@@ -8902,7 +8987,8 @@ function usePackRow(r){
     const gm=(bag.gems||[])[r.i];
     if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
   } else if(r.kind==='kit'){
-    say('Bomb kit stays in the pack. Craft more bombs at the bench.','#ffb45c');
+    if(isGhostPack()) takeStackToMacar('bombKit');
+    else say('Bomb kit stays in the pack. Craft more bombs at the bench.','#ffb45c');
   } else {
     if(inField) useHerb(r.n, who);
     else { if(bag.herbs[r.n]){ bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n]; }
@@ -8927,7 +9013,7 @@ function drawPack(g){
   g.fillText('BACKPACK', 10*s+headH+10*s, headY+16*s);
   g.font='600 '+(9*s)+'px '+FONT_UI;
   g.fillStyle='rgba(200,180,140,0.78)';
-  g.fillText(G.faceOffer?'Choose something for the stone mouth.':(G.packFrom==='play'?'Tap an item to use it, or tap a weapon then Equip.':'Set potions and herbs aside for the next descent.'), 10*s+headH+10*s, headY+30*s);
+  g.fillText(G.faceOffer?'Choose something for the stone mouth.':(isGhostPack()?'Ghost kit. Macar can use or take anything here.':(G.packFrom==='play'?'Tap an item to use it, or tap a weapon then Equip.':'Set potions and herbs aside for the next descent.')), 10*s+headH+10*s, headY+30*s);
 
   const coin=G.coin||{};
   const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
@@ -9034,12 +9120,30 @@ function drawPack(g){
   }
   const back=G.packFrom==='play'?'Back to the seam':'Back to camp';
   const canEquip=G.packSel&&isEquipWeapon(G.packSel);
-  if(canEquip){
+  const canTake=isGhostPack();
+  if(canEquip&&canTake){
+    menuBtn(g,'Equip',VW/2-(PORT?110:120)*s,VH-22*s,Math.min(120*s,VW*.28),34*s,()=>{
+      wieldWeapon(G.packSel);
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+      G.faceOffer=0;
+    });
+    menuBtn(g,'Take kit',VW/2,VH-22*s,Math.min(120*s,VW*.28),34*s,()=>takeGhostKitToMacar());
+    menuBtn(g,back,VW/2+(PORT?110:120)*s,VH-22*s,Math.min(120*s,VW*.28),34*s,()=>{
+      G.faceOffer=0; G.packSel=null;
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+    });
+  } else if(canEquip){
     menuBtn(g,'Equip',VW/2-(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
       wieldWeapon(G.packSel);
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
       G.faceOffer=0;
     });
+    menuBtn(g,back,VW/2+(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
+      G.faceOffer=0; G.packSel=null;
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+    });
+  } else if(canTake){
+    menuBtn(g,'Take kit',VW/2-(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>takeGhostKitToMacar());
     menuBtn(g,back,VW/2+(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
       G.faceOffer=0; G.packSel=null;
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
