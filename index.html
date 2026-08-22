@@ -3053,28 +3053,36 @@ function removePackRow(r){
   if(r.kind==='kit'&&(bag.bombKit||0)>0){ bag.bombKit--; return {n:'Bomb-making kit',k:'kit'}; }
   return null;
 }
+function spitNearFace(face, dx, pile){
+  let x=face.x+dx, y=face.y+1.35;
+  const w=nearestWalk(x,y,player()||face);
+  if(w){ x=w.x; y=w.y; }
+  return spawnLoot(x,y,pile);
+}
 function dropInDwarfMouth(r){
   G.scene='play';
   G.faceOffer=0;
   G.packSel=null;
+  G.packWho='macar';
   const face=dwarfFaceProp()||{x:43.2,y:7.28};
   const L=G.lvl||{};
   L.flags=L.flags||{};
   const bag=packOf('macar');
-  const gem=r.kind==='gem'?(((bag.gems||[])[r.i])||r.gm):null;
-  if(gem&&isGuardianRuby(gem)){
-    removePackRow(r);
+  const gem=r&&r.kind==='gem'?(r.gm||((bag.gems||[])[r.i])):null;
+  const DM=typeof DwarfMouth!=='undefined'?DwarfMouth:{};
+  const verdict=DM.resolveMouthDrop?DM.resolveMouthDrop(gem, !!L.flags.faceFed):{ok:!!(gem&&isGuardianRuby(gem)),yum:true,spit:[]};
+  if(verdict.ok){
+    if(DM.takeGemByRef) DM.takeGemByRef(bag.gems||[], gem);
+    else if(r) removePackRow(r);
     syncPackTotals();
     say('YUM!','#ffd27a');
     ftext(face.x, face.y+0.35, 'YUM!','#ffd27a');
     shake(18); G.flash={c:'#ffe08a',a:.35};
-    if(!L.flags.faceFed){
+    if(verdict.spit&&verdict.spit.length){
       L.flags.faceFed=1;
-      const DM=typeof DwarfMouth!=='undefined'?DwarfMouth:{};
-      const key=DM.dwarfMouthKey?DM.dwarfMouthKey():{n:'Dwarven Mouth-Key',k:'key',cat:'Key',noAuto:1,spr:'dwarfkey'};
-      const axe=DM.shadowCleaverItem?DM.shadowCleaverItem():{n:'Shadow Cleaver',k:'weapon',cat:'Weapon',plus:2,dice:'1d8',vs:'spider,undead',vsDouble:1,noAuto:1,spr:'shadowcleaver'};
-      spawnLoot(face.x-0.55, face.y+1.35, {kind:'key', glow:'#c8ccd0', items:[key]});
-      spawnLoot(face.x+0.55, face.y+1.35, {kind:'axe', glow:'#b8a0ff', items:[axe]});
+      const key=verdict.spit[0], axe=verdict.spit[1];
+      if(key) spitNearFace(face,-0.55,{kind:'key', glow:'#c8ccd0', items:[key]});
+      if(axe) spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
       hint('The mouth spat a key and a silver axe. Pick them up.',6);
     } else {
       say('The stone mouth smacks and goes still.','#c9b895');

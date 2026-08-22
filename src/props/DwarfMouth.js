@@ -43,9 +43,20 @@
     if(vs.indexOf('undead')>=0 && isUndeadFoe(def)) return true;
     return false;
   }
+  function resolveMouthDrop(item, alreadyFed){
+    if(!isGuardianRuby(item)) return {ok:false, yum:false, spit:[]};
+    return {ok:true, yum:true, spit: alreadyFed ? [] : [dwarfMouthKey(), shadowCleaverItem()]};
+  }
+  function takeGemByRef(gems, gem){
+    if(!gems||!gem) return null;
+    const i=gems.indexOf(gem);
+    if(i<0) return null;
+    return gems.splice(i,1)[0];
+  }
 
   global.DwarfMouth={
     macarHammerItem, shadowCleaverItem, dwarfMouthKey,
-    isGuardianRuby, isSpiderFoe, isUndeadFoe, weaponVsDouble
+    isGuardianRuby, isSpiderFoe, isUndeadFoe, weaponVsDouble,
+    resolveMouthDrop, takeGemByRef
   };
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -27,6 +27,20 @@ const ham=M.macarHammerItem();
 assert(ham.id==='macar_hammer' && ham.dice==='1d8', 'hammer item');
 assert(M.dwarfMouthKey().k==='key', 'mouth key');
 
+const ruby={n:'Ruby', guardian:1, d:'A blood-red shard from a ruby guardian.'};
+const no={n:'Ruby', d:'A pretty stone.'};
+const first=M.resolveMouthDrop(ruby, false);
+assert(first.ok && first.yum && first.spit.length===2, 'first guardian ruby pays key and axe');
+assert(first.spit[0].k==='key' && first.spit[1].n==='Shadow Cleaver', 'spit order key then cleaver');
+const again=M.resolveMouthDrop(ruby, true);
+assert(again.ok && again.yum && again.spit.length===0, 'later rubies yum but do not pay again');
+assert(!M.resolveMouthDrop(no, false).ok, 'plain ruby rejected');
+assert(!M.resolveMouthDrop(null, false).ok, 'empty drop rejected');
+
+const gems=[ruby, {n:'other'}];
+assert(M.takeGemByRef(gems, ruby)===ruby && gems.length===1 && gems[0].n==='other', 'remove ruby by reference');
+assert(M.takeGemByRef(gems, ruby)===null, 'missing gem is a no-op');
+
 const fs=require('fs');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 assert(/k:'dwarfface'/.test(html), 'chapter places dwarfface');
