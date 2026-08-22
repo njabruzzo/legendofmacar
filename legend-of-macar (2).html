@@ -10,21 +10,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=32">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=32">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=32" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=34">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=34">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=34" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;height:100svh;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
     font-family:"Trebuchet MS","Gill Sans",Optima,Candara,sans-serif;color:#e8d9b8;
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
   canvas{display:block;position:fixed;left:0;top:0;width:100%;height:100%;height:100svh;background:#07060a;
-    touch-action:none;image-rendering:pixelated}
+    touch-action:none}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=32"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=34"></audio>
 <script src="SkillSystem.js"></script>
 <script>
 "use strict";
@@ -57,7 +57,7 @@ let GRAINPAT = null;
    Phone GPUs still force the safe implementations inside those passes. */
 const DIAG = { world:1, lighting:1, godrays:1, bloom:1, memshade:1, beyond:1,
                atmos:1, floaters:1, grain:1, hurt:1, flash:1, shake:1, hud:1,
-               smooth: PHONE_GFX?0:1, dpr2:0 };
+               smooth: 1, dpr2:0 };
 let BX_KEY = '';
 const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
 let CAMSX=0, CAMSY=0;
@@ -168,7 +168,8 @@ function resize(force){
   if(cv.style.width!==cssW) cv.style.width=cssW;
   if(cv.style.height!==cssH) cv.style.height=cssH;
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = PHONE_GFX ? false : !!DIAG.smooth;
+  ctx.imageSmoothingEnabled = !!DIAG.smooth;
+  if(ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'medium';
   PORT = VH > VW;
   if(!soft){
     GRAINPAT = null;
@@ -1020,7 +1021,7 @@ function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
     g.fillStyle=opt.fill||'#6a5340'; g.fill();
   } else {
     g.save(); g.clip();
-    g.imageSmoothingEnabled=!PHONE_GFX;
+    g.imageSmoothingEnabled=true;
     g.translate(a.x, a.y-H);
     g.transform(dx/Math.max(1,img.width), dy/Math.max(1,img.width), 0, H/Math.max(1,img.height), 0, 0);
     const u=((opt.u||0)%1)*img.width;
@@ -5747,13 +5748,8 @@ function gatherLightsCapped(L){
 /* Revealed tiles stay readable. Fog of war is the unseen rock mask, not a cave gloom
    multiply. Lanterns still add a warm punch on top of a bright fill. */
 function applyLighting(g,L){
-  /* Phones: never multiply-blit a low-res lightmap. That upscale is the
-     coloured scanline. A flat source-over dim keeps the cave readable. */
-  if(PHONE_GFX){
-    g.fillStyle='rgba(10,8,6,0.22)';
-    g.fillRect(0,0,VW,VH);
-    return;
-  }
+  /* Phones keep the same painted lightmap. The buffer is 1:1 so this is
+     a copy, not an upscale — scaling was what drew coloured scanlines. */
   const x=lmx, w=LM.width, h=LM.height;
   x.setTransform(1,0,0,1,0,0);
   x.globalCompositeOperation='source-over';
@@ -5762,7 +5758,7 @@ function applyLighting(g,L){
   const scx=w/Math.max(1,VW), scy=h/Math.max(1,VH);
   for(const li of gatherLightsCapped(L)){
     const s=w2s(li.x,li.y), cx=s.x*scx, cy=(s.y-TH*.8)*scy;
-    const flick = (QUALITY && li.fl)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
+    const flick = (QUALITY && li.fl && !PHONE_GFX)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
     const rad=li.r*TW*0.27*li.f*flick*(w/Math.max(1,VW*0.5));
     if(cx<-rad||cy<-rad||cx>w+rad||cy>h+rad) continue;
     const c=rgbOf(li.c);
@@ -8764,7 +8760,7 @@ requestAnimationFrame(loop);
       'mode   '+GFX_MODE+'   quality '+QUALITY+'\n'+
       'frame  '+FRAME_MS.toFixed(1)+' ms  ~'+(1000/Math.max(1,FRAME_MS)).toFixed(0)+' fps\n'+
       'tile   '+TW+' x '+TH+'\n'+
-      (PHONE_GFX?'phone-safe: no tear / multiply blit / bloom / grain':'desktop full fx');
+      (PHONE_GFX?'phone-safe: HD tiles + 1:1 light, no tear/bloom/grain':'desktop full fx');
   },250);
 })();
 </script>
