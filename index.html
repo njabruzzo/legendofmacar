@@ -1917,7 +1917,7 @@ const BESTIARY={
   wraith:{n:'Mine Wraith',spr:'wraith',hp:43,ac:3,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#80d0ff',sc:1.1,ranged:1,rng:5.2,sa:'Energy Drain'},
   beetleBoring:{n:'Boring Beetle',spr:'beetle_boring',hp:40,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.15,sa:'Poison',poison:1,k:'beetle'},
   spiderGiant:{n:'Giant Spider',spr:'spider_giant',hp:36,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.25,sa:'Poison',poison:1,k:'spider'},
-  spiderLord:{n:'Spider Lord',spr:'spider_giant',hp:22,ac:4,mv:12,at:2,dmg:5,tt:'C',dc:80,g:'#c07bff',sc:1.55,sa:'Poison, Web',poison:1,web:1,slowPoison:1,k:'spider',boss:1,r:.52,hd:4},
+  spiderLord:{n:'Spider Lord',spr:'spider_giant',hp:44,ac:4,mv:12,at:2,dmg:5,tt:'C',dc:80,g:'#c07bff',sc:1.55,sa:'Deadly Poison, Web',poison:1,web:1,killPoison:1,k:'spider',boss:1,r:.52,hd:4},
   spiderHuge:{n:'Huge Spider',spr:'spider_huge',hp:18,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.05,sa:'Poison',poison:1,k:'spider'},
   rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
   centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
@@ -1934,7 +1934,7 @@ function applyBestiary(){
       ranged:b.ranged||0, scale:b.sc||1, r:b.r||.38,
       ac:b.ac, sa:b.sa||'', sd:b.sd||'', treasure:b.tt||'Nil', drop:b.dc||0,
       glow:b.g||'#c9b895', boss:b.boss||0, regen:b.regen||0, rust:b.rust||0, poison:b.poison||0,
-      web:b.web||0, slowPoison:b.slowPoison||0,
+      web:b.web||0, slowPoison:b.slowPoison||0, killPoison:b.killPoison||0,
       hd:b.hd||Math.max(0.5, b.hp/8), dice:b.dice||null
     });
   });
@@ -3539,12 +3539,28 @@ const SAVE_T=[
   [13,12,14,16,15],[12,11,12,15,13],[11,10,10,14,11],
   [10,9,8,13,9],[9,8,6,12,7],[8,7,4,11,5]
 ];
-function dwarfSaveBonus(e, kind){
-  if(!(e.team==='party'||e.race==='dwarf')) return 0;
-  const con=(entityAbil(e)&&entityAbil(e).con)||0;
-  if(!con) return 0;
-  if(kind==='poison'||kind==='rod'||kind==='spell') return Math.floor(con/3.5);
+function isDwarf(e){
+  return !!(e && (e.race==='dwarf' || e.kind==='dwarf'));
+}
+// PHB dwarf: +1 per 3½ CON vs poison, and vs wands / staves / rods / spells.
+function dwarfConSaveAdj(con){
+  con=con|0;
+  if(con>=18) return 5;
+  if(con>=14) return 4;
+  if(con>=11) return 3;
+  if(con>=7) return 2;
+  if(con>=4) return 1;
   return 0;
+}
+function dwarfSaveCon(e){
+  const a=entityAbil(e);
+  if(a && a.con) return a.con|0;
+  return 12;
+}
+function dwarfSaveBonus(e, kind){
+  if(!isDwarf(e)) return 0;
+  if(!(kind==='poison'||kind==='rod'||kind==='spell')) return 0;
+  return dwarfConSaveAdj(dwarfSaveCon(e));
 }
 function saveNeed(e, kind){
   const idx={poison:0,death:0,petrify:1,rod:2,breath:3,spell:4}[kind]||4;
@@ -4536,7 +4552,11 @@ function onHitFx(atk,o,dmg){
   if(atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
   if(atk.poison||/Poison/i.test(sa)){
     if(!savingThrow(o,'poison')){
-      if(atk.slowPoison||atk.web||atk.kind==='spider'||/Web/i.test(sa)){
+      if(atk.killPoison){
+        dmg=Math.max(dmg||0, (o.hp||0)+1);
+        ftext(o.x,o.y+0.2,'poison death','#c07bff');
+        say((o.n||o.name||'A dwarf')+' fails the poison save and dies.','#ff6a5a');
+      } else if(atk.slowPoison||atk.web||atk.kind==='spider'||/Web/i.test(sa)){
         o.slowT=Math.max(o.slowT||0, atk.boss?8:4.5);
         ftext(o.x,o.y+0.2,'slowed','#c9b895');
       } else {
@@ -4585,7 +4605,7 @@ function meleeSwing(e,arc,reach,dmg,col){
 function shoot(from,tx,ty,dmg,kind,col,spd){
   const a=ang(tx-from.x,ty-from.y);
   G.shots.push({x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
-    rust:from.rust,poison:from.poison,sa:from.sa,from});
+    rust:from.rust,poison:from.poison,killPoison:from.killPoison,slowPoison:from.slowPoison,sa:from.sa,from});
 }
 function strengthCheck(e){
   const ab=entityAbil(e)||{};
@@ -7977,7 +7997,7 @@ function drawInspect(g,s){
   const xp=G.charXp[e.col.key]||0;
   const next=xpForNext(cls, e.lvl||ab.lvl||PARTY_LVL);
   const prev=xpTable(cls)[(e.lvl||1)-1]||0;
-  const w=Math.min(420*s, VW*0.72), h=Math.min(PORT?340*s:300*s, VH*0.7);
+  const w=Math.min(420*s, VW*0.72), h=Math.min(PORT?368*s:328*s, VH*0.74);
   const x=VW/2-w/2, y=VH*0.16;
   g.fillStyle='rgba(4,3,2,0.55)'; g.fillRect(0,0,VW,VH);
   carveFrame(g,x,y,w,h,8,.94);
@@ -7990,10 +8010,14 @@ function drawInspect(g,s){
   g.fillStyle='rgba(215,190,145,0.9)';
   g.fillText(clsName(cls)+'  '+ (e.lvl||ab.lvl)+'   dwarf', x+22*s+rr*2+14*s, y+62*s);
   g.fillText('HP '+sheetHpNow(e)+' / '+sheetHpMax(e)+'     AC '+effectiveAC(e), x+22*s+rr*2+14*s, y+80*s);
+  const dwBonus=dwarfSaveBonus(e,'poison');
+  g.font='600 '+(10*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(180,210,160,0.92)';
+  g.fillText('Dwarf +'+dwBonus+' vs poison, rods, spells  (CON '+(ab.con||12)+')', x+22*s+rr*2+14*s, y+96*s);
   const stats=[['STR',strLabel(ab)],['INT',ab.int],['WIS',ab.wis],['DEX',ab.dex],['CON',ab.con],['CHA',ab.cha]];
   stats.forEach((st,i)=>{
     const col=i%3, row=(i/3)|0;
-    const sx=x+24*s+col*(w-48*s)/3, sy=y+118*s+row*36*s;
+    const sx=x+24*s+col*(w-48*s)/3, sy=y+132*s+row*36*s;
     g.font='700 '+(9*s)+'px '+FONT_TITLE;
     g.fillStyle='rgba(200,170,120,0.75)'; g.fillText(st[0], sx, sy);
     g.font='800 '+(16*s)+'px '+FONT_UI;
