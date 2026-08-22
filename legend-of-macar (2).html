@@ -35,13 +35,12 @@
    ========================================================================== */
 
 const cv  = document.getElementById('c');
-/* desynchronized enables front-buffer / vsync-off presentation. The spec
-   warns it can tear. On Android Chrome that tear is horizontal bands of
-   whatever the current frame has drawn so far (clear, floors, lights),
-   which reads as flashing lines of different colors. Full-frame games
-   must stay double-buffered. */
+/* desynchronized:true lets Android Chrome present a half-drawn frame.
+   That tear is horizontal bands of clear / floors / lights — the
+   coloured scanlines. Full-frame games must stay double-buffered. */
 const IS_ANDROID = /Android/i.test(navigator.userAgent||'');
 const IS_TOUCH = (navigator.maxTouchPoints||0) > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+const PHONE_GFX = IS_ANDROID || IS_TOUCH;
 const ctx = cv.getContext('2d', { alpha:false, desynchronized:false });
 const LM  = document.createElement('canvas'), lmx = LM.getContext('2d');   // lightmap
 const BL  = document.createElement('canvas'), blx = BL.getContext('2d');   // bloom
@@ -52,6 +51,13 @@ let GFX_MODE = IS_TOUCH ? 'auto' : 'high';   // fast | auto | high — phones st
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
 let GRAINPAT = null;
+/* ---- DIAGNOSTIC PASS TOGGLES (⚑ button, bottom-left) -------------------
+   Every entry starts true = normal rendering. Flip one off at a time on the
+   real device to bisect which pass is producing the colour-line artifact.
+   Phone GPUs still force the safe implementations inside those passes. */
+const DIAG = { world:1, lighting:1, godrays:1, bloom:1, memshade:1, beyond:1,
+               atmos:1, floaters:1, grain:1, hurt:1, flash:1, shake:1, hud:1,
+               smooth: PHONE_GFX?0:1, dpr2:0 };
 let BX_KEY = '';
 const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
 let CAMSX=0, CAMSY=0;
@@ -60,7 +66,7 @@ let LAST_LAYOUT={w:0,h:0,dpr:0};
 /* DPR must stay a whole number. At 1.25 every drawImage lands on a fractional
    device pixel, so smoothed edges bleed and produce shimmering hairline seams
    that read as flashing lines. Integer scale = clean edges, and it's faster. */
-function gfxDprCap(){ return 1; }
+function gfxDprCap(){ return (DIAG.dpr2 && !PHONE_GFX) ? 2 : 1; }
 /* Assigning canvas.width to the same value still clears the bitmap on
    Chromium. Only write when the size actually changed. */
 function setCanvasSize(c, w, h){
@@ -71,21 +77,18 @@ function setCanvasSize(c, w, h){
 function applyGfxBuffers(keepTiles){
   BX_KEY='';
   if(!keepTiles) TILEBLIT.key='';
-  /* Phones: 1:1 offscreen passes. Any non-integer upscale (0.85, 1.15, …)
-     plus nearest-neighbor duplicates some rows more than others, which
-     reads as colored horizontal scanlines on Adreno/Mali. Desktop can
-     keep the cheap low-res bilinear lightmap. */
-  const bx = IS_TOUCH ? 1 : (QUALITY?0.45:0.28);
-  const lmDiv = IS_TOUCH ? 1 : (QUALITY?2:4);
-  const blDiv = IS_TOUCH ? 2 : 5;
+  /* Phones: 1:1 offscreen passes. Any non-integer upscale plus nearest-
+     neighbor duplicates some rows more than others = coloured scanlines. */
+  const bx = PHONE_GFX ? 1 : (QUALITY?0.45:0.28);
+  const lmDiv = PHONE_GFX ? 1 : (QUALITY?2:4);
+  const blDiv = PHONE_GFX ? 2 : 5;
   setCanvasSize(BX, Math.floor(VW*bx), Math.floor(VH*bx));
   setCanvasSize(LM, Math.floor(VW/lmDiv), Math.floor(VH/lmDiv));
   setCanvasSize(BL, Math.floor(VW/blDiv), Math.floor(VH/blDiv));
 }
 function viewSize(){
-  /* Android Chrome's visualViewport (and often innerHeight) tracks the
-     URL bar every frame. Resizing the bitmap that often flashes torn
-     colored bands. The layout / svh size stays put. */
+  /* Android Chrome's visualViewport / innerHeight tracks the URL bar
+     every frame. Resizing the bitmap that often flashes torn bands. */
   if(IS_ANDROID){
     const de=document.documentElement;
     const w=de.clientWidth||window.innerWidth;
@@ -102,16 +105,13 @@ function viewSize(){
   const h=vv&&vv.height?vv.height:window.innerHeight;
   return {w:Math.max(240, Math.round(w)), h:Math.max(240, Math.round(h))};
 }
-function blitScaled(g, src, dx, dy, dw, dh){
-  if(src.width===dw && src.height===dh && !dx && !dy){
-    g.drawImage(src, 0, 0);
-    return;
-  }
-  const smooth=!IS_TOUCH;
+function blitScreen(g, src){
+  if(src.width===VW && src.height===VH){ g.drawImage(src, 0, 0); return; }
+  const smooth=!PHONE_GFX && !!DIAG.smooth;
   const prev=g.imageSmoothingEnabled;
   g.imageSmoothingEnabled=smooth;
   if(g.imageSmoothingQuality) g.imageSmoothingQuality=smooth?'medium':'low';
-  g.drawImage(src, dx, dy, dw, dh);
+  g.drawImage(src, 0, 0, VW, VH);
   g.imageSmoothingEnabled=prev;
 }
 function drawPhoto(g, img, dx, dy, dw, dh){
@@ -168,8 +168,7 @@ function resize(force){
   if(cv.style.width!==cssW) cv.style.width=cssW;
   if(cv.style.height!==cssH) cv.style.height=cssH;
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.imageSmoothingEnabled = !IS_TOUCH;
-  if(ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = IS_TOUCH?'low':'medium';
+  ctx.imageSmoothingEnabled = PHONE_GFX ? false : !!DIAG.smooth;
   PORT = VH > VW;
   if(!soft){
     GRAINPAT = null;
@@ -193,8 +192,6 @@ window.addEventListener('resize', requestResize);
 window.addEventListener('orientationchange', ()=>setTimeout(()=>resize(true),200));
 if(window.visualViewport){
   visualViewport.addEventListener('resize', requestResize, {passive:true});
-  /* Android: visualViewport.scroll is the URL bar sliding. Listening
-     here was forcing a canvas reset (and a torn frame) every tick. */
   if(!IS_ANDROID) visualViewport.addEventListener('scroll', requestResize, {passive:true});
 }
 CAN_BLUR=false;
@@ -1023,7 +1020,7 @@ function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
     g.fillStyle=opt.fill||'#6a5340'; g.fill();
   } else {
     g.save(); g.clip();
-    g.imageSmoothingEnabled=!IS_TOUCH;
+    g.imageSmoothingEnabled=!PHONE_GFX;
     g.translate(a.x, a.y-H);
     g.transform(dx/Math.max(1,img.width), dy/Math.max(1,img.width), 0, H/Math.max(1,img.height), 0, 0);
     const u=((opt.u||0)%1)*img.width;
@@ -5406,23 +5403,24 @@ function render(){
   syncCamProj();
   try{
   g.save();
-  if(QUALITY && !IS_TOUCH && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
+  if(DIAG.shake && QUALITY && !PHONE_GFX && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
   const L=G.lvl;
   g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
     && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
   if(inWorld){
-    drawWorld(g,L);
-    applyLighting(g,L);
-    if(QUALITY && !IS_TOUCH){ drawGodRays(g); drawBloom(g); }
-    drawMemoryShade(g,L);
-    drawBeyondMask(g,L);
-    drawAtmosphere(g,L); drawFloaters(g);
+    if(DIAG.world) drawWorld(g,L);
+    if(DIAG.lighting) applyLighting(g,L);
+    if(QUALITY && !PHONE_GFX){ if(DIAG.godrays) drawGodRays(g); if(DIAG.bloom) drawBloom(g); }
+    if(DIAG.memshade) drawMemoryShade(g,L);
+    if(DIAG.beyond) drawBeyondMask(g,L);
+    if(DIAG.atmos) drawAtmosphere(g,L);
+    if(DIAG.floaters) drawFloaters(g);
   }
   g.restore();
-  if(G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
-  if(G.hurt>0.02){
-    if(!QUALITY || IS_TOUCH){
+  if(DIAG.flash && G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
+  if(DIAG.hurt && G.hurt>0.02){
+    if(!QUALITY || PHONE_GFX){
       g.globalAlpha=G.hurt*0.25; g.fillStyle='#6a0000'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
     } else {
       const v=g.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*.25,VW/2,VH/2,Math.max(VW,VH)*.62);
@@ -5430,8 +5428,8 @@ function render(){
       g.fillStyle=v; g.fillRect(0,0,VW,VH);
     }
   }
-  if(inWorld && QUALITY) drawGrain(g);
-  if(G.scene==='play') drawHUD(g);
+  if(DIAG.grain && inWorld && QUALITY && !PHONE_GFX) drawGrain(g);
+  if(DIAG.hud && G.scene==='play') drawHUD(g);
   if(G.sleepShow && G.scene==='play') drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
   if(G.scene==='chapters') drawChapterSelect(g);
@@ -5749,6 +5747,13 @@ function gatherLightsCapped(L){
 /* Revealed tiles stay readable. Fog of war is the unseen rock mask, not a cave gloom
    multiply. Lanterns still add a warm punch on top of a bright fill. */
 function applyLighting(g,L){
+  /* Phones: never multiply-blit a low-res lightmap. That upscale is the
+     coloured scanline. A flat source-over dim keeps the cave readable. */
+  if(PHONE_GFX){
+    g.fillStyle='rgba(10,8,6,0.22)';
+    g.fillRect(0,0,VW,VH);
+    return;
+  }
   const x=lmx, w=LM.width, h=LM.height;
   x.setTransform(1,0,0,1,0,0);
   x.globalCompositeOperation='source-over';
@@ -5757,7 +5762,7 @@ function applyLighting(g,L){
   const scx=w/Math.max(1,VW), scy=h/Math.max(1,VH);
   for(const li of gatherLightsCapped(L)){
     const s=w2s(li.x,li.y), cx=s.x*scx, cy=(s.y-TH*.8)*scy;
-    const flick = (QUALITY && li.fl && !IS_TOUCH)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
+    const flick = (QUALITY && li.fl)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
     const rad=li.r*TW*0.27*li.f*flick*(w/Math.max(1,VW*0.5));
     if(cx<-rad||cy<-rad||cx>w+rad||cy>h+rad) continue;
     const c=rgbOf(li.c);
@@ -5770,7 +5775,7 @@ function applyLighting(g,L){
   }
   x.globalCompositeOperation='source-over';
   g.globalCompositeOperation='multiply';
-  blitScaled(g, LM, 0, 0, VW, VH);
+  blitScreen(g, LM);
   g.globalCompositeOperation='source-over';
 }
 
@@ -5807,9 +5812,10 @@ function drawBloom(g){
   x.globalCompositeOperation='source-over';
   g.save();
   g.globalCompositeOperation='lighter';
-  g.globalAlpha=0.82; blitScaled(g, BL, 0, 0, VW, VH);
-  if(!IS_TOUCH){
-    g.globalAlpha=0.38; blitScaled(g, BL, -VW*0.03, -VH*0.03, VW*1.06, VH*1.06);
+  g.imageSmoothingEnabled=true;
+  g.globalAlpha=0.82; blitScreen(g, BL);
+  if(!PHONE_GFX){
+    g.globalAlpha=0.38; g.drawImage(BL, -VW*0.03, -VH*0.03, VW*1.06, VH*1.06);
   }
   g.globalAlpha=1; g.globalCompositeOperation='source-over';
   g.restore();
@@ -5899,7 +5905,7 @@ function drawBeyondMask(g,L){
     mg.setTransform(1,0,0,1,0,0);
     mg.globalCompositeOperation='source-over';
   }
-  blitScaled(g, BX, 0, 0, VW, VH);
+  blitScreen(g, BX);
 }
 
 function drawAtmosphere(g,L){
@@ -5907,14 +5913,14 @@ function drawAtmosphere(g,L){
   g.fillRect(0,0,VW,VH*0.05);
   g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.08:0.04);
   g.fillRect(0,VH*0.95,VW,VH*0.05);
-  if(!QUALITY || IS_TOUCH) return;
+  if(!QUALITY || PHONE_GFX) return;
   const haze=g.createRadialGradient(VW*0.62,VH*0.36,20,VW/2,VH/2,Math.max(VW,VH)*0.72);
   haze.addColorStop(0,hexA(L.pal.key,0.04)); haze.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=haze; g.fillRect(0,0,VW,VH);
 }
 
 function drawGrain(g){
-  if(IS_TOUCH||!TEX.grain) return;
+  if(PHONE_GFX||!TEX.grain) return;
   g.save(); g.globalCompositeOperation='overlay'; g.globalAlpha=0.35;
   const ox=(G.t*37)%140, oy=(G.t*23)%140;
   const pt=g.createPattern(TEX.grain,'repeat');
@@ -8118,14 +8124,12 @@ function drawTitleCavern(g){
 function drawSplashCover(g, img){
   if(!img||!img.width) return false;
   const iw=img.width, ih=img.height;
-  /* Ken Burns + nearest-neighbor on Android crawls colored scanlines
-     across the JPEG every frame. Keep the cover still and smoothed. */
-  const pulse=IS_TOUCH?1:(1+Math.sin(G.t*0.07)*0.022);
-  const sc=Math.max(VW/iw, VH/ih)*pulse*(IS_TOUCH?1:1.05);
+  const pulse=PHONE_GFX?1:(1+Math.sin(G.t*0.07)*0.022);
+  const sc=Math.max(VW/iw, VH/ih)*pulse*(PHONE_GFX?1:1.05);
   const w=iw*sc, h=ih*sc;
-  const ox=IS_TOUCH?0:Math.sin(G.t*0.04)*18;
-  const oy=IS_TOUCH?0:Math.cos(G.t*0.03)*10;
-  drawPhoto(g, img, (VW-w)/2+ox, (VH-h)/2+oy-(IS_TOUCH?0:VH*0.02), w, h);
+  const ox=PHONE_GFX?0:Math.sin(G.t*0.04)*18;
+  const oy=PHONE_GFX?0:Math.cos(G.t*0.03)*10;
+  drawPhoto(g, img, (VW-w)/2+ox, (VH-h)/2+oy-(PHONE_GFX?0:VH*0.02), w, h);
   return true;
 }
 
@@ -8137,18 +8141,25 @@ function drawTitle(g){
   } else if(SPLASH_STATE==='fail'){
     drawTitleCavern(g);
   }
-  const pulse=.55+Math.sin(G.t*2.1)*.45;
-  const rg=g.createRadialGradient(VW/2, VH*0.42, 10, VW/2, VH*0.46, Math.max(VW,VH)*0.46);
-  rg.addColorStop(0,'rgba(255,36,48,'+(0.10*pulse)+')');
-  rg.addColorStop(0.4,'rgba(140,16,24,0.04)');
-  rg.addColorStop(1,'rgba(0,0,0,0)');
-  g.fillStyle=rg; g.fillRect(0,0,VW,VH);
+  if(!PHONE_GFX){
+    const pulse=.55+Math.sin(G.t*2.1)*.45;
+    const rg=g.createRadialGradient(VW/2, VH*0.42, 10, VW/2, VH*0.46, Math.max(VW,VH)*0.46);
+    rg.addColorStop(0,'rgba(255,36,48,'+(0.10*pulse)+')');
+    rg.addColorStop(0.4,'rgba(140,16,24,0.04)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=rg; g.fillRect(0,0,VW,VH);
+  }
   embers(g);
-  const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.85);
-  vg.addColorStop(0,'rgba(0,0,0,0)');
-  vg.addColorStop(0.62,'rgba(0,0,0,0.08)');
-  vg.addColorStop(1,'rgba(0,0,0,0.55)');
-  g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+  if(PHONE_GFX){
+    g.fillStyle='rgba(0,0,0,0.42)'; g.fillRect(0,0,VW,VH*0.18);
+    g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,VH*0.78,VW,VH*0.22);
+  } else {
+    const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(0.62,'rgba(0,0,0,0.08)');
+    vg.addColorStop(1,'rgba(0,0,0,0.55)');
+    g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+  }
   const bar=Math.max(28*s, VH*0.06);
   const fade=g.createLinearGradient(0,0,0,bar+44*s);
   fade.addColorStop(0,'rgba(0,0,0,0.82)'); fade.addColorStop(0.6,'rgba(0,0,0,0.32)'); fade.addColorStop(1,'rgba(0,0,0,0)');
@@ -8249,11 +8260,16 @@ function drawIntro(g){
   if(L.n===1 && SPR.intro_cavein){
     g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
     drawSplashCover(g, SPR.intro_cavein);
-    const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.9);
-    vg.addColorStop(0,'rgba(0,0,0,0)');
-    vg.addColorStop(0.62,'rgba(0,0,0,0.12)');
-    vg.addColorStop(1,'rgba(0,0,0,0.62)');
-    g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+    if(PHONE_GFX){
+      g.fillStyle='rgba(0,0,0,0.40)'; g.fillRect(0,0,VW,VH*0.22);
+      g.fillStyle='rgba(0,0,0,0.62)'; g.fillRect(0,VH*0.62,VW,VH*0.38);
+    } else {
+      const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.9);
+      vg.addColorStop(0,'rgba(0,0,0,0)');
+      vg.addColorStop(0.62,'rgba(0,0,0,0.12)');
+      vg.addColorStop(1,'rgba(0,0,0,0.62)');
+      g.fillStyle=vg; g.fillRect(0,0,VW,VH);
+    }
     const fade=g.createLinearGradient(0,0,0,VH*0.28);
     fade.addColorStop(0,'rgba(0,0,0,0.78)'); fade.addColorStop(1,'rgba(0,0,0,0)');
     g.fillStyle=fade; g.fillRect(0,0,VW,VH*0.28);
@@ -8673,6 +8689,84 @@ try{
 }catch(e){ console.error(e); }
 render();
 requestAnimationFrame(loop);
+
+/* ===================== DIAGNOSTIC OVERLAY (⚑) =========================
+   Pure DOM, composited by the browser OUTSIDE the canvas. If the colour
+   lines appear across this panel too, the fault is not in the canvas
+   render code at all — it's the compositor or the GPU driver. */
+(function(){
+  const PASSES=[
+    ['world','World tiles'],['lighting','Lighting (multiply)'],
+    ['godrays','God rays'],['bloom','Bloom (lighter x2)'],
+    ['memshade','Memory shade'],['beyond','Beyond mask'],
+    ['atmos','Atmosphere'],['floaters','Floaters'],
+    ['grain','Film grain (overlay)'],['hurt','Hurt vignette'],
+    ['flash','Flash'],['shake','Screen shake'],['hud','HUD']
+  ];
+  const css=document.createElement('style');
+  css.textContent=
+  '#dgBtn{position:fixed;left:8px;bottom:8px;z-index:99999;width:44px;height:44px;'+
+  'border-radius:22px;background:#1b1410;color:#ffcf7a;border:2px solid #6b4d28;'+
+  'font:700 20px/1 sans-serif;display:flex;align-items:center;justify-content:center;'+
+  'opacity:.55;-webkit-tap-highlight-color:transparent}'+
+  '#dgPanel{position:fixed;left:8px;right:8px;bottom:60px;z-index:99999;display:none;'+
+  'background:rgba(13,10,8,.95);border:2px solid #6b4d28;border-radius:10px;padding:10px;'+
+  'color:#e8d9bd;font:12px/1.35 ui-monospace,monospace;max-height:70vh;overflow:auto}'+
+  '#dgPanel h4{margin:0 0 6px;color:#ffcf7a;font-size:12px;letter-spacing:.08em}'+
+  '#dgRead{white-space:pre;color:#9fd6a0;margin-bottom:8px;font-size:11px}'+
+  '#dgPanel label{display:flex;align-items:center;gap:8px;padding:5px 2px;'+
+  'border-bottom:1px solid #2a1f15}'+
+  '#dgPanel input{width:18px;height:18px;accent-color:#c8912f}'+
+  '#dgRow{display:flex;gap:6px;margin-top:8px}'+
+  '#dgPanel button{flex:1;background:#241a12;color:#ffcf7a;border:1px solid #6b4d28;'+
+  'border-radius:6px;padding:8px;font:600 12px sans-serif}';
+  document.head.appendChild(css);
+
+  const btn=document.createElement('div'); btn.id='dgBtn'; btn.textContent='\u2691';
+  const pan=document.createElement('div'); pan.id='dgPanel';
+  pan.innerHTML='<h4>RENDER PASS DIAGNOSTIC</h4><div id="dgRead"></div>';
+  document.body.appendChild(btn); document.body.appendChild(pan);
+
+  const KEYS=PASSES.map(p=>p[0]).concat(['smooth','dpr2']);
+  const mk=(key,label,after)=>{
+    const l=document.createElement('label');
+    const i=document.createElement('input'); i.type='checkbox'; i.checked=!!DIAG[key];
+    i.addEventListener('change',()=>{ DIAG[key]=i.checked?1:0; if(after) after(); });
+    l.appendChild(i); l.appendChild(document.createTextNode(label));
+    pan.appendChild(l);
+  };
+  PASSES.forEach(p=>mk(p[0],p[1]));
+  mk('smooth','Image smoothing',function(){resize(true);});
+  mk('dpr2','DPR 2 (sharper, slower)',function(){resize(true);});
+
+  const row=document.createElement('div'); row.id='dgRow';
+  const bAll=document.createElement('button'); bAll.textContent='All on';
+  const bMin=document.createElement('button'); bMin.textContent='World only';
+  row.appendChild(bAll); row.appendChild(bMin); pan.appendChild(row);
+  const sync=function(){
+    const ins=pan.querySelectorAll('input');
+    for(let n=0;n<ins.length;n++) ins[n].checked=!!DIAG[KEYS[n]];
+  };
+  bAll.addEventListener('click',function(){
+    PASSES.forEach(function(p){DIAG[p[0]]=1;}); DIAG.smooth=1; sync(); resize(true);});
+  bMin.addEventListener('click',function(){
+    PASSES.forEach(function(p){DIAG[p[0]]=0;}); DIAG.world=1; DIAG.hud=1; sync();});
+  btn.addEventListener('click',function(){
+    pan.style.display = (pan.style.display==='block') ? 'none' : 'block';});
+
+  const read=document.getElementById('dgRead');
+  setInterval(function(){
+    if(pan.style.display!=='block') return;
+    read.textContent=
+      'device dpr '+(window.devicePixelRatio||1).toFixed(3)+'  using '+DPR+'\n'+
+      'css    '+VW+' x '+VH+'\n'+
+      'canvas '+cv.width+' x '+cv.height+'\n'+
+      'mode   '+GFX_MODE+'   quality '+QUALITY+'\n'+
+      'frame  '+FRAME_MS.toFixed(1)+' ms  ~'+(1000/Math.max(1,FRAME_MS)).toFixed(0)+' fps\n'+
+      'tile   '+TW+' x '+TH+'\n'+
+      (PHONE_GFX?'phone-safe: no tear / multiply blit / bloom / grain':'desktop full fx');
+  },250);
+})();
 </script>
 </body>
 </html>
