@@ -28,6 +28,7 @@
 <script src="SkillSystem.js"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
+<script src="src/props/DwarfMouth.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -316,7 +317,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='42';
+const ASSET_VER='43';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -440,8 +441,11 @@ const SPRITE_FILES={
   umberhulk:'assets/creatures/mon_umberhulk.png', hookedhorror:'assets/creatures/mon_hookedhorror.png',
   beholder:'assets/creatures/mon_beholder.png',
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
-  brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png', rubydoor:'assets/props/prop_rubydoor.png',
+  brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
+  dwarfface:'assets/props/prop_dwarfface.png',
+  shadowcleaver:'assets/props/loot_shadowcleaver.png',
+  dwarfkey:'assets/props/loot_dwarfkey.png',
   glowcap:'assets/props/prop_glowcap.png', cavefern:'assets/props/prop_cavefern.png',
   sporepuff:'assets/props/prop_sporepuff.png', nightbloom:'assets/props/prop_nightbloom.png',
   lichen:'assets/props/prop_lichen.png',
@@ -559,7 +563,7 @@ function loadSprites(done){
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
-    'rubydoor','rubydoor_face','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
+    'rubydoor','rubydoor_face','dwarfface','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots',
     'glowcap','cavefern','sporepuff','nightbloom','lichen'];
@@ -870,6 +874,25 @@ function rubyDoorPlaneY(p){
   }
   return Math.floor(p.y)-0.42;
 }
+function dwarfFaceH(L){
+  return wallFaceH(L)*0.72;
+}
+function dwarfFaceHalf(){
+  const img=SPR.dwarfface;
+  const H=dwarfFaceH();
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.75;
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  return clamp(H*aspect/(2*perTile), 0.70, 1.08);
+}
+function dwarfFaceProp(){
+  return (G.props||[]).find(p=>p&&p.k==='dwarfface'&&!p.gone)||null;
+}
+function nearDwarfFace(e, r){
+  const face=dwarfFaceProp();
+  if(!face||!e) return null;
+  const mouth={x:face.x, y:face.y+1.15};
+  return dist(e, mouth)<(r||2.3) ? face : null;
+}
 function flattenIsoQuad(img, p0, p1, p3, dw, dh){
   if(!img||!img.width) return null;
   dw=Math.max(8,dw|0); dh=Math.max(8,dh|0);
@@ -1172,6 +1195,7 @@ function propSpriteKey(p){
   if(k==='cavein') return 'cavein';
   if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
   if(k==='rubydoor') return SPR.rubydoor_face?'rubydoor_face':'rubydoor';
+  if(k==='dwarfface') return 'dwarfface';
   if(k==='bronzedoor') return 'bronzedoor';
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
@@ -1191,6 +1215,7 @@ function propSpriteH(p,z){
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
   if(k==='rubydoor') return rubyDoorH();
+  if(k==='dwarfface') return dwarfFaceH();
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
@@ -1611,7 +1636,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   inv:{potions:[],herbs:{},magic:[]}, equipped:{weapon:null,armor:null,ring:null,wand:null},
   fightOn:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
-  trail:[], charXp:null, inspect:null, loot:[], showObjs:0,
+  trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[] };
 
 function say(t,c){
@@ -2072,6 +2097,7 @@ function makeChapter(n){
               {x:19.0,y:21.5,c:'#c9a070',r:5.4,f:0.95},
               {x:15.35,y:21.45,c:'#ffc07a',r:5.2,f:1.08},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
+              {x:43.2,y:7.6,c:'#c9b895',r:4.4,f:0.7},
               {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
@@ -2082,7 +2108,7 @@ function makeChapter(n){
       {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:36.5,y:7.28,k:'rubydoor'},{x:36.5,y:21.5,k:'lift'},
+      {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'}];
     G.props.push.apply(G.props, startBackWallRubble());
@@ -2148,6 +2174,9 @@ function makeChapter(n){
         });
       }
       if(L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
+      if(nearDwarfFace(p,2.3)){
+        interact('Touch the dwarf mouth',()=>startTalk('dwarf_face'));
+      }
     };
   }
 
@@ -2960,12 +2989,116 @@ const NPC_TALK={
       {t:'Trade.', say:'MACAR: "Done."', then:()=>{ G.scene='trade'; }},
       {t:'Not today.', say:'MACAR: "Another time."'}
     ]
+  },
+  dwarf_face:{
+    who:'STONE FACE',
+    line:'This dwarf face is huge and carved of stone. Its mouth is open.',
+    choices:[
+      {t:'Put something in its mouth?', then:()=>{
+        G.faceOffer=1; G.packWho='macar'; G.packSel=null; openPackMenu('play');
+      }},
+      {t:'Leave it.'}
+    ]
   }
 };
+function startTalkObj(pack){
+  if(!pack||!pack.line) return;
+  G.talk={key:pack.key||'custom', who:pack.who||'', line:pack.line, choices:(pack.choices||[]).slice(), i:0};
+  G.paused=false;
+}
 function startTalk(key){
   const pack=NPC_TALK[key]; if(!pack) return;
-  G.talk={key, who:pack.who, line:pack.line, choices:pack.choices.slice(), i:0};
-  G.paused=false;
+  startTalkObj(Object.assign({key}, pack));
+}
+function packRowName(r){
+  if(!r) return 'this';
+  if(r.kind==='gem') return (r.gm&&r.gm.n)||'the gem';
+  if(r.kind==='magic') return (r.it&&r.it.n)||'the item';
+  if(r.kind==='potion') return (r.p&&r.p.n)||'the potion';
+  if(r.kind==='herb') return r.n||'the herb';
+  if(r.kind==='ale') return 'a draught of beer';
+  if(r.kind==='kit') return 'the bomb kit';
+  return r.t||'this';
+}
+function isPackEquipable(r){
+  const it=r&&r.it;
+  if(!it||r.kind!=='magic') return false;
+  return isEquipWeapon(it);
+}
+function askDropInMouth(r){
+  G.faceDrop=r;
+  const name=packRowName(r);
+  startTalkObj({
+    key:'face_drop',
+    who:'STONE FACE',
+    line:'Drop this in the Dwarf\'s mouth?',
+    choices:[
+      {t:'Drop '+name, then:()=>dropInDwarfMouth(r)},
+      {t:'Keep it.'}
+    ]
+  });
+}
+function removePackRow(r){
+  const bag=packOf(G.packWho||'macar');
+  if(r.kind==='gem') return (bag.gems||[]).splice(r.i,1)[0]||null;
+  if(r.kind==='magic'){
+    const it=(bag.magic||[]).splice(r.i,1)[0]||null;
+    if(it&&G.equipped){
+      ['weapon','armor','ring','wand'].forEach(slot=>{ if(G.equipped[slot]===it) G.equipped[slot]=null; });
+      if(!G.equipped.weapon) ensureMacarHammer(bag);
+      applyEquipped();
+    }
+    return it;
+  }
+  if(r.kind==='potion') return (bag.potions||[]).splice(r.i,1)[0]||null;
+  if(r.kind==='herb'&&bag.herbs&&bag.herbs[r.n]){
+    bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n];
+    return {n:r.n,k:'herb'};
+  }
+  if(r.kind==='ale'){
+    if((bag.ales||0)>0){ bag.ales--; return {n:'Draught of beer',k:'ale'}; }
+    if((bag.healPots||[]).length) return bag.healPots.shift();
+  }
+  if(r.kind==='kit'&&(bag.bombKit||0)>0){ bag.bombKit--; return {n:'Bomb-making kit',k:'kit'}; }
+  return null;
+}
+function spitNearFace(face, dx, pile){
+  let x=face.x+dx, y=face.y+1.35;
+  const w=nearestWalk(x,y,player()||face);
+  if(w){ x=w.x; y=w.y; }
+  return spawnLoot(x,y,pile);
+}
+function dropInDwarfMouth(r){
+  G.scene='play';
+  G.faceOffer=0;
+  G.packSel=null;
+  G.packWho='macar';
+  const face=dwarfFaceProp()||{x:43.2,y:7.28};
+  const L=G.lvl||{};
+  L.flags=L.flags||{};
+  const bag=packOf('macar');
+  const gem=r&&r.kind==='gem'?(r.gm||((bag.gems||[])[r.i])):null;
+  const DM=typeof DwarfMouth!=='undefined'?DwarfMouth:{};
+  const verdict=DM.resolveMouthDrop?DM.resolveMouthDrop(gem, !!L.flags.faceFed):{ok:!!(gem&&isGuardianRuby(gem)),yum:true,spit:[]};
+  if(verdict.ok){
+    if(DM.takeGemByRef) DM.takeGemByRef(bag.gems||[], gem);
+    else if(r) removePackRow(r);
+    syncPackTotals();
+    say('YUM!','#ffd27a');
+    ftext(face.x, face.y+0.35, 'YUM!','#ffd27a');
+    shake(18); G.flash={c:'#ffe08a',a:.35};
+    if(verdict.spit&&verdict.spit.length){
+      L.flags.faceFed=1;
+      const key=verdict.spit[0], axe=verdict.spit[1];
+      if(key) spitNearFace(face,-0.55,{kind:'key', glow:'#c8ccd0', items:[key]});
+      if(axe) spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
+      hint('The mouth spat a key and a silver axe. Pick them up.',6);
+    } else {
+      say('The stone mouth smacks and goes still.','#c9b895');
+    }
+    return;
+  }
+  say('The stone jaws taste it and spit it back. Not a guardian ruby.','#c9b895');
 }
 function closeTalk(){ G.talk=null; }
 function pickTalk(i){
@@ -3309,6 +3442,7 @@ function ensurePacks(){
     if(!pk.herbs) pk.herbs={};
     if(!pk.bombKit) pk.bombKit=pk.bombKit||0;
     if(!pk.burps) pk.burps=pk.burps||0;
+    if(r.key==='macar') ensureMacarHammer(pk);
     pk.healPots=pk.healPots||[];
     pk.potions=(pk.potions||[]).filter(p=>{
       if(!isHealPotion(p)) return true;
@@ -3414,10 +3548,43 @@ function takeHealCharge(){
 }
 function maybeAutoEquip(it){
   if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  if(!it||it.noAuto) return null;
   if(isEquipWeapon(it) && !G.equipped.weapon){ G.equipped.weapon=it; applyEquipped(); return 'weapon'; }
   if(isEquipArmor(it) && !G.equipped.armor){ G.equipped.armor=it; applyEquipped(); return 'armor'; }
   return null;
 }
+function ensureMacarHammer(pk){
+  if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  pk=pk||(G.packs&&G.packs.macar);
+  if(!pk) return null;
+  pk.magic=pk.magic||[];
+  let ham=pk.magic.find(it=>it&&it.id==='macar_hammer');
+  if(!ham){
+    ham=(typeof DwarfMouth!=='undefined'&&DwarfMouth.macarHammerItem)?DwarfMouth.macarHammerItem():{id:'macar_hammer',n:"Macar's War Hammer",k:'weapon',cat:'Weapon',plus:0,dice:'1d8',spr:'icon_attack',d:'Your war hammer.'};
+    pk.magic.unshift(ham);
+  }
+  if(!G.equipped.weapon){
+    G.equipped.weapon=ham;
+    applyEquipped();
+  }
+  return ham;
+}
+function wieldWeapon(it){
+  if(!it||!isEquipWeapon(it)) return;
+  ensureMacarHammer();
+  const prev=G.equipped&&G.equipped.weapon;
+  G.equipped.weapon=it;
+  applyEquipped();
+  const mac=player();
+  if(mac) mac.dice=it.dice||'1d8';
+  if(prev && prev!==it && prev.id==='macar_hammer')
+    say('Macar stows his hammer and takes '+it.n+'.','#ffd27a');
+  else say('Wielded: '+it.n+'.','#ffd27a');
+}
+function isSpiderFoe(e){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isSpiderFoe&&DwarfMouth.isSpiderFoe(e)); }
+function isUndeadFoe(e){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isUndeadFoe&&DwarfMouth.isUndeadFoe(e)); }
+function weaponVsDouble(wep, def){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.weaponVsDouble&&DwarfMouth.weaponVsDouble(wep, def)); }
+function isGuardianRuby(gm){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isGuardianRuby&&DwarfMouth.isGuardianRuby(gm)); }
 function packGainNote(bits, who){
   const list=(bits||[]).filter(Boolean);
   if(!list.length){
@@ -3560,6 +3727,11 @@ function addAttack(atk, def){
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
   if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.ranged && atk.role==='pick') raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
+  if(atk.team==='party' && atk.hero && G.equipped && G.equipped.weapon){
+    const wep=G.equipped.weapon;
+    raw+=(wep.plus||0);
+    if(weaponVsDouble(wep, def)) raw*=2;
+  }
   raw+=extra;
   if(atk.strMul) raw=Math.round(raw*atk.strMul);
   raw=Math.round(raw*ADD_SCALE*wepMult(atk));
@@ -4258,6 +4430,8 @@ function applyEquipped(){
     +(eq.ring&&!eq.ring.cursed?eq.ring.plus||0:0);
   Object.values(G.gear||{}).forEach(g=>{ g.magicAc=acPlus; });
   if(eq.armor&&eq.armor.cursed) Object.values(G.gear||{}).forEach(g=>{ g.magicAc=(eq.armor.plus|| -1)+(eq.ring&&eq.ring.plus||0); });
+  const macE=(G.ents||[]).find(e=>e&&e.hero);
+  if(macE) macE.dice=(eq.weapon&&eq.weapon.dice)||'1d8';
 }
 function useMagicItem(it, e){
   e=e||player();
@@ -4275,8 +4449,7 @@ function useMagicItem(it, e){
     return;
   }
   if(isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'){
-    G.equipped.weapon=it; applyEquipped();
-    say('Wielded: '+it.n+'.','#ffd27a'); return;
+    wieldWeapon(it); return;
   }
   if(isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield'){
     G.equipped.armor=it; applyEquipped();
@@ -4909,6 +5082,8 @@ window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); IN.keys[k]=1;
   if(G.scene==='credits' && e.key==='Escape'){ leaveCredits(); return; }
   if(G.scene==='pack' && e.key==='Escape'){
+    if(G.talk){ closeTalk(); return; }
+    G.faceOffer=0; G.packSel=null;
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
     return;
   }
@@ -4916,6 +5091,7 @@ window.addEventListener('keydown',e=>{
     G.scene=G.craftFrom||'play';
     return;
   }
+  if(G.talk && e.key>='1' && e.key<='9'){ pickTalk((+e.key)-1); return; }
   if(G.scene!=='play'){ IN.taps.push({x:VW/2,y:VH/2}); return; }
   if(G.sleepShow){
     if(e.key==='Escape') G.paused=!G.paused;
@@ -5506,7 +5682,7 @@ function render(){
   if(G.scene==='intro') drawIntro(g);
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='craft') drawCraft(g);
-  if(G.scene==='pack') drawPack(g);
+  if(G.scene==='pack'){ drawPack(g); drawTalk(g); }
   if(G.scene==='trade') drawTrade(g);
   if(G.scene==='dead') drawDead(g);
   if(G.scene==='win') drawWin(g);
@@ -6132,6 +6308,16 @@ function drawProp(g,p,pal){
     ray(sx.x,sx.y-H*0.55,34*z,'#ff4058',0.48);
     return;
   }
+  if(p.k==='dwarfface'){
+    const img=propAnimImg(p);
+    const H=dwarfFaceH();
+    const half=dwarfFaceHalf();
+    const yPlane=rubyDoorPlaneY(p);
+    const sx=w2s(p.x, yPlane);
+    drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
+    emit(sx.x,sx.y-H*0.38,16*z,'#c9b895',0.35);
+    return;
+  }
   g.save(); g.translate(s.x,s.y);
   if(p.k==='web'){
     const img=TEX.web;
@@ -6477,7 +6663,9 @@ function drawLoot(g,pile){
   g.save(); g.translate(s.x,s.y);
   softShadow(g,0,2*z,14*z,7*z,.5);
   let img=null, h=46*z;
-  if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=28*z; }
+  if(pile.kind==='axe'){ img=SPR.shadowcleaver||SPR.icon_sword; h=54*z; }
+  else if(pile.kind==='key'){ img=SPR.dwarfkey||SPR.loot_jewelry; h=42*z; }
+  else if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=28*z; }
   else if(pile.kind==='ore'){ img=SPR.loot_ore; h=38*z; }
   else if(pile.kind==='herb' || (pile.herbs && Object.keys(pile.herbs).length)){ img=SPR.loot_herbs||SPR.loot_potion; h=48*z; }
   else if(pile.kind==='potion' || ((pile.potions||[]).length && !(pile.coins&&((pile.coins.gp||0)+(pile.coins.pp||0)+(pile.coins.sp||0))))){ img=SPR.loot_potion||SPR.loot_chest; h=48*z; }
@@ -7295,7 +7483,7 @@ function giveGem(it, silent){
   ensurePacks();
   const pk=packOf('macar');
   if(!pk.gems) pk.gems=[];
-  pk.gems.push({n:it.n, d:it.d||'', gp:it.gp||0, k:'gem'});
+  pk.gems.push({n:it.n, d:it.d||'', gp:it.gp||0, k:'gem', guardian:!!it.guardian, src:it.src||''});
   syncPackTotals();
   if(!silent) say((it.n||'Gem')+' into MACAR\'s pack'+(it.gp?' \u2014 '+it.gp+' gp.':'.'), '#ff6a6a');
 }
@@ -7404,7 +7592,7 @@ function foeDrop(e){
     const ox=(Math.random()-0.5)*0.55, oy=(Math.random()-0.5)*0.55;
     spawnLoot(e.x+ox, e.y+oy, {
       kind:'ruby', glow:'#ff2a3c',
-      items:[{n:'Ruby', gp, k:'gem', d:'A blood-red shard from a ruby guardian. Worth '+gp+' gp.'}]
+      items:[{n:'Ruby', gp, k:'gem', guardian:1, d:'A blood-red shard from a ruby guardian. Worth '+gp+' gp.'}]
     });
     e.drop=null;
     return;
@@ -7861,6 +8049,8 @@ function drawStockStrip(g, x, y, w){
 function packThumbFor(row){
   if(row.kind==='magic'){
     const it=row.it||{};
+    if(it.spr&&SPR[it.spr]) return SPR[it.spr];
+    if(it.k==='key'||it.cat==='Key') return SPR.dwarfkey||SPR.loot_jewelry;
     if(isEquipWeapon(it)||it.k==='weapon'||/sword|axe|hammer|mace/i.test(it.cat||it.n||'')) return SPR.icon_sword||SPR.loot_chest;
     if(isEquipArmor(it)||it.k==='armor'||/armor|mail|shield/i.test(it.cat||it.n||'')) return SPR.icon_shield;
     if(it.k==='ring'||it.cat==='Ring') return SPR.loot_jewelry;
@@ -8875,7 +9065,7 @@ function collectPackRows(pk, who){
     const canEq=isEquipWeapon(it)||isEquipArmor(it)||it.k==='ring'||it.cat==='Ring';
     const from=it._borrowOwner?('Borrowed from '+kinName(it._borrowOwner)+'. Returns at camp. '):'';
     rows.push({kind:'magic',it,i,t:it.n, worn,
-      info:from+lend+(canEq?(worn?'Equipped. Tap to wield again. ':'Tap to equip. ')+(it.d||''):(it.d||'')),
+      info:from+lend+(canEq?(worn?'Equipped. Tap to select, then Equip. ':'Tap to select, then Equip. ')+(it.d||''):(it.d||'')),
       tag:it.cat||'Magic'});
   });
   (pk.potions||[]).forEach((p,i)=>{
@@ -8958,6 +9148,10 @@ function sharePackRow(r){
   syncPackTotals();
 }
 function usePackRow(r){
+  if(G.faceOffer){
+    askDropInMouth(r);
+    return;
+  }
   if(G.packWho && G.packWho!=='macar'){
     sharePackRow(r);
     return;
@@ -8965,6 +9159,10 @@ function usePackRow(r){
   const who=packUser();
   const bag=packOf(G.packWho);
   const inField=G.packFrom==='play';
+  if(isPackEquipable(r)){
+    G.packSel=r.it||r;
+    return;
+  }
   if(r.kind==='supply'){
     if(r.field==='bombs'||r.field==='burps'){
       if(inField){ G.scene='play'; fire('bomb'); }
@@ -9031,8 +9229,9 @@ function drawPack(g){
   g.font='600 '+(9*s)+'px '+FONT_UI;
   g.fillStyle='rgba(200,180,140,0.78)';
   const npcPack=G.packWho&&G.packWho!=='macar';
-  g.fillText(npcPack?'Tap to share with MACAR. Borrowed kit returns after camp.'
-    :(G.packFrom==='play'?'Tap an item to use it in the seam.':'Set potions and herbs aside for the next descent.'), 10*s+headH+10*s, headY+30*s);
+  g.fillText(G.faceOffer?'Choose something for the stone mouth.'
+    :(npcPack?'Tap to share with MACAR. Borrowed kit returns after camp.'
+    :(G.packFrom==='play'?'Tap an item to use it, or tap a weapon then Equip.':'Set potions and herbs aside for the next descent.')), 10*s+headH+10*s, headY+30*s);
 
   const coin=G.coin||{};
   const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
@@ -9116,7 +9315,9 @@ function drawPack(g){
   }
   shown.forEach((r,i)=>{
     const y=listTop+i*rowH, x=10*s, h=rowH-4*s, w=listW;
-    plate(g,x,y,w,h,6,.84);
+    const sel=G.packSel && ((r.it&&r.it===G.packSel)||(r.gm&&r.gm===G.packSel)||r===G.packSel);
+    plate(g,x,y,w,h,6,sel?0.95:0.84);
+    if(sel){ g.strokeStyle='rgba(255,208,124,0.85)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke(); }
     const th=h-10*s;
     drawThumb(g, packThumbFor(r), x+6*s, y+5*s, th);
     const tx=x+th+16*s, tw=w-th-24*s;
@@ -9137,9 +9338,23 @@ function drawPack(g){
       ()=>{ G.packScroll=Math.min(maxScroll,(G.packScroll||0)+1); });
   }
   const back=G.packFrom==='play'?'Back to the seam':'Back to camp';
-  menuBtn(g,back,VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{
-    G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
-  });
+  const canEquip=G.packSel&&isEquipWeapon(G.packSel);
+  if(canEquip){
+    menuBtn(g,'Equip',VW/2-(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
+      wieldWeapon(G.packSel);
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+      G.faceOffer=0;
+    });
+    menuBtn(g,back,VW/2+(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
+      G.faceOffer=0; G.packSel=null;
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+    });
+  } else {
+    menuBtn(g,back,VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{
+      G.faceOffer=0; G.packSel=null;
+      G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
+    });
+  }
 }
 
 function wareCostGp(r){
@@ -9375,6 +9590,11 @@ function resolveTaps(){
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
       const dst=nearestWalk(w.x,w.y,p);
       if(dst){ p.dest={x:dst.x,y:dst.y}; p.stuck=0; p.lastD=undefined; }
+      continue;
+    }
+    if(G.talk){
+      const hit=(UI.talkHits||[]).find(z=>t.x>=z.x&&t.x<=z.x+z.w&&t.y>=z.y&&t.y<=z.y+z.h);
+      if(hit) pickTalk(hit.i);
       continue;
     }
     for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); break; }
