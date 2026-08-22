@@ -38,6 +38,35 @@ export class CraftingEngine {
     return CraftingEngine.byId[id] || null;
   }
 
+  /**
+   * Recipes a field station may roll. Sapper recipes (Borga's Burp) stay off
+   * this pool — the sapper brings them when he is with the kin.
+   */
+  static stationPool(): CraftRecipe[] {
+    return CraftingEngine.recipes.filter(r => !r.sapper && (!r.station || r.station === 'field'));
+  }
+
+  /**
+   * Pick `count` distinct recipes from the station pool (Fisher–Yates prefix).
+   * `rng` should return [0, 1). Defaults to Math.random.
+   */
+  static pickRandom(count: number, rng?: () => number, filter?: (r: CraftRecipe) => boolean): CraftRecipe[] {
+    const roll = rng || Math.random;
+    let pool = CraftingEngine.stationPool();
+    if (filter) pool = pool.filter(filter);
+    const n = Math.max(0, Math.min(count | 0, pool.length));
+    const copy = pool.slice();
+    const out: CraftRecipe[] = [];
+    for (let i = 0; i < n; i++) {
+      const j = i + Math.floor(roll() * (copy.length - i));
+      const tmp = copy[i];
+      copy[i] = copy[j];
+      copy[j] = tmp;
+      out.push(copy[i]);
+    }
+    return out;
+  }
+
   /** Verify ingredients and optional skill rank without mutating inventory. */
   static canCraft(recipeId: string, bridge: CraftingBridge): CraftCheck {
     const recipe = CraftingEngine.get(recipeId);
