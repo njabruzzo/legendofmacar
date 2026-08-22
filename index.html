@@ -7142,9 +7142,19 @@ function placeCraftStations(L){
   };
   const want=spots[L.n]||spots[1];
   want.forEach(s=>{
-    const x=s[0], y=s[1];
-    const ix=x|0, iy=y|0;
-    if(!L.grid[iy]||(L.grid[iy][ix]!==0 && L.grid[iy][ix]!==3)) return;
+    let x=s[0], y=s[1];
+    const walk=t=>t===0||t===3;
+    const tile=(tx,ty)=>{ const g=L.grid[ty|0]; return g?g[tx|0]:1; };
+    if(!walk(tile(x,y))){
+      let found=0;
+      for(let r=1;r<=4&&!found;r++){
+        for(let dy=-r;dy<=r&&!found;dy++) for(let dx=-r;dx<=r&&!found;dx++){
+          const nx=x+dx, ny=y+dy;
+          if(walk(tile(nx,ny))){ x=nx+0.5; y=ny+0.5; found=1; }
+        }
+      }
+      if(!found) return;
+    }
     addCraftStation(x,y,s[2],L);
   });
 }
