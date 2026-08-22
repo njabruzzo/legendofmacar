@@ -15,10 +15,11 @@
 <link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=32" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{width:100%;height:100%;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
+  html,body{width:100%;height:100%;height:100svh;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
     font-family:"Trebuchet MS","Gill Sans",Optima,Candara,sans-serif;color:#e8d9b8;
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-  canvas{display:block;position:absolute;left:0;top:0;touch-action:none}
+  canvas{display:block;position:fixed;left:0;top:0;width:100%;height:100%;height:100svh;background:#07060a;
+    touch-action:none;image-rendering:pixelated}
 </style>
 </head>
 <body>
@@ -54,37 +55,71 @@ let GRAINPAT = null;
 let BX_KEY = '';
 const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
 let CAMSX=0, CAMSY=0;
+let LAST_LAYOUT={w:0,h:0,dpr:0};
 
 /* DPR must stay a whole number. At 1.25 every drawImage lands on a fractional
    device pixel, so smoothed edges bleed and produce shimmering hairline seams
    that read as flashing lines. Integer scale = clean edges, and it's faster. */
 function gfxDprCap(){ return 1; }
+/* Assigning canvas.width to the same value still clears the bitmap on
+   Chromium. Only write when the size actually changed. */
+function setCanvasSize(c, w, h){
+  w=Math.max(2, w|0); h=Math.max(2, h|0);
+  if(c.width!==w) c.width=w;
+  if(c.height!==h) c.height=h;
+}
 function applyGfxBuffers(keepTiles){
   BX_KEY='';
   if(!keepTiles) TILEBLIT.key='';
-  /* Phones: keep offscreen passes closer to screen size. A 0.28–0.45 mask
-     or 1/4 lightmap, bilinear-scaled up, posters into colored scanlines
-     on Adreno/Mali. */
-  const bx = IS_TOUCH ? (QUALITY?0.85:0.7) : (QUALITY?0.45:0.28);
-  const lmDiv = IS_TOUCH ? (QUALITY?1.15:1.6) : (QUALITY?2:4);
-  const blDiv = IS_TOUCH ? 3 : 5;
-  BX.width = Math.max(2,Math.floor(VW*bx)); BX.height = Math.max(2,Math.floor(VH*bx));
-  LM.width = Math.max(2,Math.floor(VW/lmDiv));
-  LM.height = Math.max(2,Math.floor(VH/lmDiv));
-  BL.width = Math.max(2,Math.floor(VW/blDiv)); BL.height = Math.max(2,Math.floor(VH/blDiv));
+  /* Phones: 1:1 offscreen passes. Any non-integer upscale (0.85, 1.15, …)
+     plus nearest-neighbor duplicates some rows more than others, which
+     reads as colored horizontal scanlines on Adreno/Mali. Desktop can
+     keep the cheap low-res bilinear lightmap. */
+  const bx = IS_TOUCH ? 1 : (QUALITY?0.45:0.28);
+  const lmDiv = IS_TOUCH ? 1 : (QUALITY?2:4);
+  const blDiv = IS_TOUCH ? 2 : 5;
+  setCanvasSize(BX, Math.floor(VW*bx), Math.floor(VH*bx));
+  setCanvasSize(LM, Math.floor(VW/lmDiv), Math.floor(VH/lmDiv));
+  setCanvasSize(BL, Math.floor(VW/blDiv), Math.floor(VH/blDiv));
 }
 function viewSize(){
+  /* Android Chrome's visualViewport (and often innerHeight) tracks the
+     URL bar every frame. Resizing the bitmap that often flashes torn
+     colored bands. The layout / svh size stays put. */
+  if(IS_ANDROID){
+    const de=document.documentElement;
+    const w=de.clientWidth||window.innerWidth;
+    let h=de.clientHeight||window.innerHeight;
+    if(LAST_LAYOUT.h>0 && LAST_LAYOUT.w===Math.round(w)){
+      const dh=Math.abs(Math.round(h)-LAST_LAYOUT.h);
+      if(dh>0 && dh<96) h=LAST_LAYOUT.h;
+      else h=Math.round(h);
+    } else h=Math.round(h);
+    return {w:Math.max(240, Math.round(w)), h:Math.max(240, h)};
+  }
   const vv=window.visualViewport;
   const w=vv&&vv.width?vv.width:window.innerWidth;
   const h=vv&&vv.height?vv.height:window.innerHeight;
   return {w:Math.max(240, Math.round(w)), h:Math.max(240, Math.round(h))};
 }
 function blitScaled(g, src, dx, dy, dw, dh){
+  if(src.width===dw && src.height===dh && !dx && !dy){
+    g.drawImage(src, 0, 0);
+    return;
+  }
   const smooth=!IS_TOUCH;
   const prev=g.imageSmoothingEnabled;
   g.imageSmoothingEnabled=smooth;
   if(g.imageSmoothingQuality) g.imageSmoothingQuality=smooth?'medium':'low';
   g.drawImage(src, dx, dy, dw, dh);
+  g.imageSmoothingEnabled=prev;
+}
+function drawPhoto(g, img, dx, dy, dw, dh){
+  if(!img) return;
+  const prev=g.imageSmoothingEnabled;
+  g.imageSmoothingEnabled=true;
+  if(g.imageSmoothingQuality) g.imageSmoothingQuality='medium';
+  g.drawImage(img, dx, dy, dw, dh);
   g.imageSmoothingEnabled=prev;
 }
 function syncCamProj(){
@@ -120,16 +155,18 @@ function cycleGfx(){
    play. A full resize re-bakes the whole tileset (makeWorkedFace x2 + cap), which
    is a multi-frame hitch. When only the height moved by a bar-sized amount we take
    a soft path: keep ZOOM/TW/TH frozen, keep the tile cache, just re-fit the canvas. */
-let LAST_LAYOUT={w:0,h:0,dpr:0};
 function resize(force){
   const nDPR = Math.min(window.devicePixelRatio||1, gfxDprCap());
   const vs=viewSize();
   const nVW  = vs.w, nVH = vs.h;
+  if(!force && LAST_LAYOUT.w===nVW && LAST_LAYOUT.h===nVH && LAST_LAYOUT.dpr===nDPR) return;
   const soft = !force && LAST_LAYOUT.h>0 && LAST_LAYOUT.w===nVW && LAST_LAYOUT.dpr===nDPR
                && Math.abs(LAST_LAYOUT.h-nVH)<=140 && (nVH>nVW)===(LAST_LAYOUT.h>LAST_LAYOUT.w);
   DPR = nDPR; VW = nVW; VH = nVH;
-  cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
-  cv.style.width=VW+'px'; cv.style.height=VH+'px';
+  setCanvasSize(cv, Math.floor(VW*DPR), Math.floor(VH*DPR));
+  const cssW=VW+'px', cssH=VH+'px';
+  if(cv.style.width!==cssW) cv.style.width=cssW;
+  if(cv.style.height!==cssH) cv.style.height=cssH;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.imageSmoothingEnabled = !IS_TOUCH;
   if(ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = IS_TOUCH?'low':'medium';
@@ -156,7 +193,9 @@ window.addEventListener('resize', requestResize);
 window.addEventListener('orientationchange', ()=>setTimeout(()=>resize(true),200));
 if(window.visualViewport){
   visualViewport.addEventListener('resize', requestResize, {passive:true});
-  visualViewport.addEventListener('scroll', requestResize, {passive:true});
+  /* Android: visualViewport.scroll is the URL bar sliding. Listening
+     here was forcing a canvas reset (and a torn frame) every tick. */
+  if(!IS_ANDROID) visualViewport.addEventListener('scroll', requestResize, {passive:true});
 }
 CAN_BLUR=false;
 
@@ -5367,7 +5406,7 @@ function render(){
   syncCamProj();
   try{
   g.save();
-  if(QUALITY && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
+  if(QUALITY && !IS_TOUCH && G.shake>0) g.translate(rnd(G.shake,-G.shake)*.3,rnd(G.shake,-G.shake)*.3);
   const L=G.lvl;
   g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
@@ -5383,7 +5422,7 @@ function render(){
   g.restore();
   if(G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   if(G.hurt>0.02){
-    if(!QUALITY){
+    if(!QUALITY || IS_TOUCH){
       g.globalAlpha=G.hurt*0.25; g.fillStyle='#6a0000'; g.fillRect(0,0,VW,VH); g.globalAlpha=1;
     } else {
       const v=g.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*.25,VW/2,VH/2,Math.max(VW,VH)*.62);
@@ -5718,7 +5757,7 @@ function applyLighting(g,L){
   const scx=w/Math.max(1,VW), scy=h/Math.max(1,VH);
   for(const li of gatherLightsCapped(L)){
     const s=w2s(li.x,li.y), cx=s.x*scx, cy=(s.y-TH*.8)*scy;
-    const flick = (QUALITY && li.fl)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
+    const flick = (QUALITY && li.fl && !IS_TOUCH)? (0.90+Math.sin(G.elapsed*7.3+li.x*3.1)*0.06+Math.sin(G.elapsed*17+li.y)*0.035) : 1;
     const rad=li.r*TW*0.27*li.f*flick*(w/Math.max(1,VW*0.5));
     if(cx<-rad||cy<-rad||cx>w+rad||cy>h+rad) continue;
     const c=rgbOf(li.c);
@@ -5868,7 +5907,7 @@ function drawAtmosphere(g,L){
   g.fillRect(0,0,VW,VH*0.05);
   g.fillStyle=hexA(L.pal.fogTop, QUALITY?0.08:0.04);
   g.fillRect(0,VH*0.95,VW,VH*0.05);
-  if(!QUALITY) return;
+  if(!QUALITY || IS_TOUCH) return;
   const haze=g.createRadialGradient(VW*0.62,VH*0.36,20,VW/2,VH/2,Math.max(VW,VH)*0.72);
   haze.addColorStop(0,hexA(L.pal.key,0.04)); haze.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=haze; g.fillRect(0,0,VW,VH);
@@ -8017,7 +8056,7 @@ function drawSleepRest(g){
     const sc=Math.min(maxW/img.width, maxH/img.height);
     const w=img.width*sc, h=img.height*sc;
     g.globalAlpha=a;
-    g.drawImage(img, (VW-w)/2, VH*0.10, w, h);
+    drawPhoto(g, img, (VW-w)/2, VH*0.10, w, h);
   }
   g.globalAlpha=a;
   g.font='600 '+((PORT?12.5:16)*s)+'px '+FONT_UI;
@@ -8079,11 +8118,14 @@ function drawTitleCavern(g){
 function drawSplashCover(g, img){
   if(!img||!img.width) return false;
   const iw=img.width, ih=img.height;
-  const pulse=1+Math.sin(G.t*0.07)*0.022;
-  const sc=Math.max(VW/iw, VH/ih)*pulse*1.05;
+  /* Ken Burns + nearest-neighbor on Android crawls colored scanlines
+     across the JPEG every frame. Keep the cover still and smoothed. */
+  const pulse=IS_TOUCH?1:(1+Math.sin(G.t*0.07)*0.022);
+  const sc=Math.max(VW/iw, VH/ih)*pulse*(IS_TOUCH?1:1.05);
   const w=iw*sc, h=ih*sc;
-  const ox=Math.sin(G.t*0.04)*18, oy=Math.cos(G.t*0.03)*10;
-  g.drawImage(img, (VW-w)/2+ox, (VH-h)/2+oy-VH*0.02, w, h);
+  const ox=IS_TOUCH?0:Math.sin(G.t*0.04)*18;
+  const oy=IS_TOUCH?0:Math.cos(G.t*0.03)*10;
+  drawPhoto(g, img, (VW-w)/2+ox, (VH-h)/2+oy-(IS_TOUCH?0:VH*0.02), w, h);
   return true;
 }
 
