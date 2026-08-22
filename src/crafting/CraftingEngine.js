@@ -12,7 +12,6 @@
         id: 'healing_potion',
         name: 'Healing Potion',
         group: 'BREWERY',
-        station: 'camp',
         skill: 'forage',
         skillLevel: 1,
         skillXp: 6,
@@ -27,7 +26,6 @@
         id: 'longsword',
         name: 'Long Sword',
         group: 'FORGE',
-        station: 'camp',
         skill: 'weapon',
         skillLevel: 2,
         skillXp: 10,
@@ -38,11 +36,82 @@
             n: 'Long Sword',
             cat: 'Sword',
             k: 'weapon',
-            d: 'Forged at the camp anvil. Plain steel, honest edge.',
+            d: 'Forged at the station anvil. Plain steel, honest edge.',
             plus: 0
           }
         },
         info: "Plain long sword into MACAR's pack. Weapon Smithing rank 2."
+      },
+      {
+        id: 'pack_bombs',
+        name: 'Pack Bombs',
+        group: 'BENCH',
+        station: 'field',
+        skill: 'bomb',
+        skillLevel: 1,
+        skillXp: 10,
+        ingredients: { powder: 2, ironstone: 1 },
+        output: { kind: 'pack', field: 'bombs', count: 2, packKey: 'macar' },
+        info: "Powder, casing, fuse — two 10d10 throwables into MACAR's pack."
+      },
+      {
+        id: 'resin_fuse_bombs',
+        name: 'Resin-Fuse Bombs',
+        group: 'BENCH',
+        station: 'field',
+        skill: 'bomb',
+        skillLevel: 2,
+        skillXp: 8,
+        ingredients: { powder: 1, resin: 2 },
+        output: { kind: 'pack', field: 'bombs', count: 2, packKey: 'macar' },
+        info: 'Tackier fuse. Two more 10d10 bombs.'
+      },
+      {
+        id: 'cave_ale',
+        name: 'Cave Ale',
+        group: 'BREWERY',
+        station: 'field',
+        skill: 'ale',
+        skillLevel: 1,
+        skillXp: 8,
+        ingredients: { barley: 2 },
+        output: { kind: 'pack', field: 'ales', count: 2, packKey: 'macar' },
+        info: 'Two draughts. Each heals d10.'
+      },
+      {
+        id: 'hide_cloak',
+        name: 'Hide Cloak',
+        group: 'TAILOR',
+        station: 'field',
+        skill: 'cloth',
+        skillLevel: 1,
+        skillXp: 8,
+        ingredients: { hide: 2, silk: 1 },
+        output: {
+          kind: 'armor',
+          item: {
+            n: 'Hide Cloak',
+            cat: 'Armor/Shield',
+            k: 'armor',
+            d: 'Sewn at a field station. Quiet hide over the mail.',
+            plus: 0
+          }
+        },
+        info: "A hide cloak into MACAR's pack."
+      },
+      {
+        id: 'borgas_burp',
+        name: "Borga's Burp",
+        group: 'BENCH',
+        station: 'field',
+        sapper: true,
+        knownBy: 'pordoom',
+        skill: 'bomb',
+        skillLevel: 1,
+        skillXp: 8,
+        ingredients: { powder: 1, barley: 1, resin: 1 },
+        output: { kind: 'pack', field: 'burps', count: 1, packKey: 'pordoom' },
+        info: "The sapper's brew-bomb. 3d10 in a wet cough of fire."
       }
     ]
   };
@@ -88,6 +157,37 @@
 
   CraftingEngine.get = function (id) {
     return CraftingEngine.byId[id] || null;
+  };
+
+  CraftingEngine.stationPool = function () {
+    var out = [];
+    for (var i = 0; i < CraftingEngine.recipes.length; i++) {
+      var r = CraftingEngine.recipes[i];
+      if (r.sapper) continue;
+      if (!r.station || r.station === 'field') out.push(r);
+    }
+    return out;
+  };
+
+  CraftingEngine.pickRandom = function (count, rng, filter) {
+    var roll = rng || Math.random;
+    var pool = CraftingEngine.stationPool();
+    if (filter) {
+      var filtered = [];
+      for (var f = 0; f < pool.length; f++) if (filter(pool[f])) filtered.push(pool[f]);
+      pool = filtered;
+    }
+    var n = Math.max(0, Math.min(count | 0, pool.length));
+    var copy = pool.slice();
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var j = i + Math.floor(roll() * (copy.length - i));
+      var tmp = copy[i];
+      copy[i] = copy[j];
+      copy[j] = tmp;
+      out.push(copy[i]);
+    }
+    return out;
   };
 
   CraftingEngine.canCraft = function (recipeId, bridge) {

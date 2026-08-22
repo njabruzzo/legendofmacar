@@ -3,6 +3,9 @@ export type ResourceId = string;
 
 export type CraftItemKind = 'potion' | 'weapon' | 'armor' | 'magic' | 'pack';
 
+/** Where a recipe can appear. Unscoped recipes are valid at camp and field stations. */
+export type CraftStationKind = 'camp' | 'field';
+
 /** Item payload stowed via givePotion / giveMagic / addToPack */
 export interface CraftItemDef {
   n: string;
@@ -29,10 +32,13 @@ export interface CraftRecipe {
   id: string;
   name: string;
   group: string;
-  station?: 'camp' | 'field';
+  station?: CraftStationKind;
   skill?: string;
   skillLevel?: number;
   skillXp?: number;
+  /** Sapper-only recipe (Pordoom). Never rolled into a station's d4 pool. */
+  sapper?: boolean;
+  knownBy?: string;
   ingredients: Record<ResourceId, number>;
   output: CraftOutput;
   info?: string;
