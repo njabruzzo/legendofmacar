@@ -311,7 +311,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='39';
+const ASSET_VER='41';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -483,6 +483,7 @@ const SPRITE_FILES={
   icon_climb:'assets/ui/icon_climb.png',
   icon_attack:'assets/ui/icon_attack.png',
   icon_defend:'assets/ui/icon_defend.png',
+  icon_craft:'assets/ui/icon_craft.png',
   title_splash:'assets/ui/title_splash.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg'
 };
@@ -542,11 +543,11 @@ const ICON_SPR={
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
   plant:'icon_plant', shovel:'icon_shovel', campfire:'icon_campfire',
   crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
-  attack:'icon_attack', defend:'icon_defend'
+  attack:'icon_attack', defend:'icon_defend', craft:'icon_craft'
 };
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','skill_icons','macar','pordoom','fendur','orbo','talpor',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft','skill_icons','macar','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
@@ -4750,7 +4751,10 @@ const HUDSKILLS=[
   {key:'secret', ico:'secret', label:'Search'},
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
+  {key:'craft', ico:'craft', label:'Craft', pinned:1},
 ];
+const HUD_PINNED=HUDSKILLS.filter(b=>b.pinned);
+const HUD_ROW=HUDSKILLS.filter(b=>!b.pinned);
 
 function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h); }
 
@@ -4758,13 +4762,14 @@ function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
   const oneLine = !PORT;
-  const rows = oneLine ? [HUDSKILLS] : [HUDSKILLS.slice(0,5), HUDSKILLS.slice(5)];
+  const rows = oneLine ? [HUD_ROW] : [HUD_ROW.slice(0,5), HUD_ROW.slice(5)];
   const perRow = Math.max(...rows.map(r=>r.length));
   const stickR = PORT?32*s:34*s;
   const stickX = PORT?48*s: 14*s+stickR;
   const gap = PORT? 4*s : 5*s;
   const rowGap = PORT? 14*s : 8*s;
-  const rightReserve = 10*s;
+  const pinReserve = HUD_PINNED.length ? (PORT?58*s:52*s) : 0;
+  const rightReserve = 10*s + pinReserve;
   const stickReserve = stickX + stickR + (PORT?10*s:12*s);
   const availW = Math.max(180, VW - stickReserve - rightReserve);
   const slot = Math.min(PORT?54:46, Math.max(32, (availW - (perRow-1)*gap)/perRow));
@@ -4789,6 +4794,10 @@ function layoutUI(){
       if(b.key==='pack') UI.orb={r:slot/2, x, y};
       UIBTN.push(btn);
     });
+  });
+  HUD_PINNED.forEach(b=>{
+    const x=VW-rightReserve+pinReserve/2, y=midY;
+    UIBTN.push({x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, pinned:1});
   });
   UI.hudTop = topY - slot/2 - (PORT?14:10)*s;
   UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
@@ -4853,6 +4862,10 @@ window.addEventListener('keydown',e=>{
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
     return;
   }
+  if(G.scene==='craft' && e.key==='Escape'){
+    G.scene=G.craftFrom||'play';
+    return;
+  }
   if(G.scene!=='play'){ IN.taps.push({x:VW/2,y:VH/2}); return; }
   if(G.sleepShow){
     if(e.key==='Escape') G.paused=!G.paused;
@@ -4873,6 +4886,7 @@ window.addEventListener('keydown',e=>{
   if(k==='f') fire('search');
   if(k==='t') fire('secret');
   if(k==='g') fire('shovel');
+  if(k==='k') fire('craft');
   if(e.key==='9') debugKillOnScreen();
   if(e.key==='Escape'){
     if(G.talk){ closeTalk(); if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); } return; }
@@ -4987,6 +5001,7 @@ function fire(key){
     return;
   }
   if(key==='camp'){ campRest(); return; }
+  if(key==='craft'){ openCraftBench(); return; }
   if(key==='pack'){
     G.packFrom='play'; G.packWho=G.packWho||'macar';
     ensurePacks(); syncPackTotals();
@@ -5438,6 +5453,7 @@ function render(){
   if(G.scene==='credits') drawCredits(g);
   if(G.scene==='intro') drawIntro(g);
   if(G.scene==='camp') drawCamp(g);
+  if(G.scene==='craft') drawCraft(g);
   if(G.scene==='pack') drawPack(g);
   if(G.scene==='trade') drawTrade(g);
   if(G.scene==='dead') drawDead(g);
@@ -7456,6 +7472,26 @@ function modularCraftCampActions(){
     fn: function(){}
   }));
 }
+function craftBenchActions(){
+  if(!window.CraftingEngine) return [];
+  return CraftingEngine.list().map(recipe=>({
+    grp: recipe.group||'CRAFT',
+    t: 'Craft '+recipe.name,
+    cost: recipe.ingredients,
+    info: recipe.info||'',
+    craftRecipeId: recipe.id,
+    fn: function(){}
+  }));
+}
+function openCraftBench(){
+  const p=player(); if(!p) return;
+  if(G.scene==='craft'){ G.scene=G.craftFrom||'play'; return; }
+  if(G.fightOn || nearestFoe(p,7)){ hint('Not while blades are out.',2.6); return; }
+  G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; p.dest=null;
+  G.craftFrom=G.scene==='play'?'play':G.scene;
+  G.scene='craft';
+  hint('Tap a recipe to craft. Materials come from your stock.',4);
+}
 
 /* ==========================================================================
    CAMP  -  the "night". Forge, bench, brewery, tailor, fire.
@@ -7934,6 +7970,19 @@ function icon(g,kind,x,y,s,col){
     g.beginPath(); g.moveTo(0,8*s); g.quadraticCurveTo(-7*s,-2*s,0,-12*s); g.quadraticCurveTo(7*s,-2*s,0,8*s); g.fill();
     g.fillStyle='#ffe08a';
     g.beginPath(); g.moveTo(0,6*s); g.quadraticCurveTo(-3.2*s,-1*s,0,-8*s); g.quadraticCurveTo(3.2*s,-1*s,0,6*s); g.fill(); }
+  if(kind==='craft'){
+    g.fillStyle='#4a4038';
+    g.fillRect(-10*s,8*s,20*s,4*s);
+    g.fillStyle='#6a5340';
+    g.fillRect(-8*s,4*s,16*s,5*s);
+    g.fillStyle='#8a93a0';
+    g.beginPath();
+    g.moveTo(-9*s,4*s); g.lineTo(-9*s,-1*s); g.lineTo(-4*s,-4*s); g.lineTo(8*s,-4*s);
+    g.lineTo(8*s,4*s); g.closePath(); g.fill();
+    g.fillStyle=col;
+    g.beginPath(); g.moveTo(-9*s,-1*s); g.lineTo(-12*s,-6*s); g.lineTo(-4*s,-4*s); g.closePath(); g.fill();
+    g.fillStyle='#ffb45c';
+    g.fillRect(-3*s,-6*s,8*s,2*s); }
   g.restore();
 }
 
@@ -7943,7 +7992,7 @@ function slotAnimImg(b){
   if(!k) return null;
   const ab=ABIL.find(a=>a.key===b.key);
   if(b.hold && SPR[k+'_atk']) return SPR[k+'_atk'];
-  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)) return SPR[k+'_atk']||SPR[k]||null;
+  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')) return SPR[k+'_atk']||SPR[k]||null;
   if(ab && cds[ab.key]>0 && cds[ab.key]>ab.cd-0.22 && SPR[k+'_atk']) return SPR[k+'_atk'];
   if(QUALITY && !(ab && cds[ab.key]>0)){
     const a=SPR[k+'_w1'], c=SPR[k+'_w2']||SPR[k];
@@ -7958,7 +8007,7 @@ function drawSlot(g,b,s){
   const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
-  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)){
+  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')){
     g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
@@ -8662,12 +8711,68 @@ function drawTrade(g){
   menuBtn(g,'Back to the cavern',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
 }
 
+function drawCraft(g){
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
+  g.textAlign='center';
+  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
+  g.fillText('CRAFT BENCH  \u00b7  MATERIALS TO ITEMS', VW/2, VH*.075);
+  g.textAlign='left';
+
+  const top=VH*.105, rw=VW-20*s;
+  plate(g,10*s,top,rw,PORT?58*s:36*s,5,.72);
+  g.font='800 '+(PORT?10*s:11.5*s)+'px "Trebuchet MS",sans-serif';
+  RES.forEach((r,i)=>{
+    const per=PORT?3:6;
+    const cx=18*s+(i%per)*(rw/per), cy=top+(PORT? 18*s+((i/per)|0)*24*s : 23*s);
+    const m=RESMETA[r], have=G.res[r]||0;
+    g.fillStyle= have? m.c : 'rgba(120,110,96,0.45)';
+    g.beginPath(); g.moveTo(cx-6*s,cy-4*s); g.lineTo(cx,cy-9*s); g.lineTo(cx+6*s,cy-4*s);
+    g.lineTo(cx+2.5*s,cy+3*s); g.lineTo(cx-2.5*s,cy+3*s); g.closePath(); g.fill();
+    g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.stroke();
+    g.fillStyle= have? 'rgba(238,224,192,0.95)':'rgba(130,120,102,0.55)';
+    g.fillText(have+'  '+m.n, cx+11*s, cy+3.5*s);
+  });
+
+  const acts=craftBenchActions();
+  const listTop=top+(PORT?66*s:44*s)+8*s;
+  const listBot=VH-70*s;
+  const rowH=Math.min(PORT?40*s:44*s,(listBot-listTop)/Math.max(1,acts.length||1));
+  if(!acts.length){
+    g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
+    g.fillText('No recipes loaded.', VW/2, VH*.45);
+    g.textAlign='left';
+  }
+  acts.forEach((a,i)=>{
+    const y=listTop+i*rowH, h=rowH-4*s, x=10*s, w=VW-20*s;
+    const can=campActionReady(a);
+    plate(g,x,y,w,h,5, can?.82:.5);
+    if(can){ g.strokeStyle='rgba(255,208,124,0.45)'; g.lineWidth=1.6; roundPath(g,x,y,w,h,5); g.stroke();
+      menuHits.push({x,y,w,h,fn:()=>runCampAction(a)}); }
+    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle= can?'rgba(255,196,110,0.85)':'rgba(130,116,94,0.5)';
+    g.fillText(a.grp, x+11*s, y+13*s);
+    g.font='700 '+(PORT?11*s:12.5*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle= can?'#f4e2b8':'rgba(140,126,104,0.55)';
+    g.fillText(a.t, x+11*s, y+h*0.62);
+    g.font='600 '+(9*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle= can?'rgba(200,182,146,0.7)':'rgba(120,108,88,0.5)';
+    g.fillText(a.info, x+11*s, y+h-5*s);
+    g.textAlign='right';
+    g.font='700 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
+    g.fillStyle= can?'rgba(214,190,140,0.9)':'rgba(180,90,70,0.7)';
+    g.fillText(costText(a.cost), x+w-11*s, y+h*0.62);
+    g.textAlign='left';
+  });
+  menuBtn(g,'Back',VW/2,VH-22*s,Math.min(220*s,VW*.56),34*s,()=>{G.scene=G.craftFrom||'play';});
+}
+
 function drawPause(g){
   menuHits=[]; const s=UIS; darken(g,.72);
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp  ·  9 slay screen',VW/2,VH*.31);
+  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen',VW/2,VH*.31);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
