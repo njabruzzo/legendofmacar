@@ -311,7 +311,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='41';
+const ASSET_VER='42';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -449,6 +449,7 @@ const SPRITE_FILES={
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
   rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
+  rubypillar:'assets/props/prop_rubypillar.png',
   stairs:'assets/props/prop_stairs.png',
   names:'assets/props/prop_names.png', throne:'assets/props/prop_throne.png',
   barrel:'assets/props/prop_barrel.png', stalagmite:'assets/props/prop_stalagmite.png',
@@ -1194,6 +1195,7 @@ function propSpriteH(p,z){
   if(k==='timber') return 100*z;
   if(k==='lantern') return 102*z;
   if(k==='lift') return 72*z;
+  if(k==='rubypillar') return 78*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z*(p.s||1);
   if(k==='bones') return 42*z;
   if(k==='shroom') return 54*z*(p.s||1);
@@ -2120,17 +2122,26 @@ function makeChapter(n){
           [[33.6,12.4],[39.2,12.2],[32.4,14.6],[40.1,14.8],[36.4,13.6],[34.8,15.8]].forEach((s,i)=>{
             const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
           say('The guardians wake from the stone around the door.','#d8cbb0');
-          hint('Six guardians. Kill them, then the elevator will descend.',6);
+          hint('Six guardians. Slay them, then seek the ruby pillar.',6);
         });
       }
       if(L.flags.touched && !L.flags.cleared && !foesLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
         say('The last guardian falls. Every ruby in the chamber cracks.','#ff8a5a');
-        say('The elevator groans and begins its descent into the depths.','#ffd27a');
-        L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
-        hint('Ride the elevator down.',5);
+        say('A pillar has appeared in the middle of this chamber.','#ffd27a');
+        if(!(G.props||[]).some(p=>p.k==='rubypillar'))
+          G.props.push({x:36.5,y:21.5,k:'rubypillar'});
+        hint('Touch the ruby on the pillar.',6);
       }
-      if(L.flags.cleared && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
+      if(L.flags.cleared && !L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3){
+        interact('Touch the ruby pillar',()=>{
+          L.flags.elevReady=1; shake(20); G.flash={c:'#ff2030',a:.5};
+          say('The ruby flares. The elevator groans and begins its descent into the depths.','#ffd27a');
+          L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
+          hint('Ride the elevator down.',5);
+        });
+      }
+      if(L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
     };
   }
 
@@ -4705,6 +4716,9 @@ function buildGoblinWarrens(L, sec){
     }
   });
 }
+function foesVisible(){
+  return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&tileVisible(e.x,e.y));
+}
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   const party=e&&e.team==='party';
   for(const o of G.ents){
@@ -4751,10 +4765,8 @@ const HUDSKILLS=[
   {key:'secret', ico:'secret', label:'Search'},
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
-  {key:'craft', ico:'craft', label:'Craft', pinned:1},
+  {key:'craft', ico:'craft', label:'Craft'},
 ];
-const HUD_PINNED=HUDSKILLS.filter(b=>b.pinned);
-const HUD_ROW=HUDSKILLS.filter(b=>!b.pinned);
 
 function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h); }
 
@@ -4762,14 +4774,13 @@ function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
   const oneLine = !PORT;
-  const rows = oneLine ? [HUD_ROW] : [HUD_ROW.slice(0,5), HUD_ROW.slice(5)];
+  const rows = oneLine ? [HUDSKILLS] : [HUDSKILLS.slice(0,5), HUDSKILLS.slice(5)];
   const perRow = Math.max(...rows.map(r=>r.length));
   const stickR = PORT?32*s:34*s;
   const stickX = PORT?48*s: 14*s+stickR;
   const gap = PORT? 4*s : 5*s;
   const rowGap = PORT? 14*s : 8*s;
-  const pinReserve = HUD_PINNED.length ? (PORT?58*s:52*s) : 0;
-  const rightReserve = 10*s + pinReserve;
+  const rightReserve = 10*s;
   const stickReserve = stickX + stickR + (PORT?10*s:12*s);
   const availW = Math.max(180, VW - stickReserve - rightReserve);
   const slot = Math.min(PORT?54:46, Math.max(32, (availW - (perRow-1)*gap)/perRow));
@@ -4794,10 +4805,6 @@ function layoutUI(){
       if(b.key==='pack') UI.orb={r:slot/2, x, y};
       UIBTN.push(btn);
     });
-  });
-  HUD_PINNED.forEach(b=>{
-    const x=VW-rightReserve+pinReserve/2, y=midY;
-    UIBTN.push({x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, pinned:1});
   });
   UI.hudTop = topY - slot/2 - (PORT?14:10)*s;
   UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
@@ -6137,9 +6144,13 @@ function drawProp(g,p,pal){
     }else if(k==='bell'){
       emit(s.x,s.y-28*z,22*z,'#d4a04a',0.45);
     }else if(k==='lift'){
-      const on=G.lvl&&(G.lvl.flags.cleared||G.lvl.n===2);
+      const on=G.lvl&&(G.lvl.flags.elevReady||G.lvl.n===2);
       if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
         ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
+    }else if(k==='rubypillar'){
+      const b=.55+Math.sin(G.elapsed*3.2+p.x)*.25;
+      emit(s.x,s.y-52*z,52*z,'#ff2a3c',0.95+b*0.2);
+      ray(s.x,s.y-58*z,44*z,'#ff4058',0.55);
     }else if(k==='altar'){
       const b=.4+Math.sin(G.elapsed*1.8)*.2;
       emit(s.x,s.y-14*z,46*z,'#c81824',0.5*b+0.3);
@@ -6304,7 +6315,7 @@ function drawProp(g,p,pal){
     const gemB=drawFacetGem(g,0,-78*z,26*z,34*z,on,z);
     if(on){ emit(s.x,s.y-48*z,58*z*gemB,'#ff2a3c',1.05); ray(s.x,s.y-56*z,48*z,'#ff4058',0.55); }
     break; }
-  case 'lift':{ const on=G.lvl&&(G.lvl.flags.cleared||G.lvl.n===2);
+  case 'lift':{ const on=G.lvl&&(G.lvl.flags.elevReady||G.lvl.n===2);
     softShadow(g,0,0,54*z,26*z,.6);
     g.beginPath(); g.ellipse(0,0,46*z,23*z,0,0,TAU); sc(g,'#4a3a26',-16*z,20*z,3);
     for(let i=0;i<8;i++){ const a=i*TAU/8;
@@ -6317,6 +6328,15 @@ function drawProp(g,p,pal){
       g.beginPath(); g.moveTo(Math.cos(a)*42*z,Math.sin(a)*21*z); g.lineTo(Math.cos(a)*42*z,Math.sin(a)*21*z-100*z); g.stroke(); }
     if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
       ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
+    break; }
+  case 'rubypillar':{ softShadow(g,0,2*z,20*z,10*z,.55);
+    g.beginPath(); g.rect(-11*z,-52*z,22*z,52*z); sc(g,'#5d4a35',-52*z,0,2);
+    g.fillStyle='rgba(0,0,0,0.28)'; g.fillRect(2*z,-52*z,9*z,52*z);
+    g.beginPath(); g.rect(-14*z,-58*z,28*z,8*z); sc(g,'#6d573e',-58*z,-50*z,2);
+    g.beginPath(); g.rect(-12*z,-4*z,24*z,6*z); sc(g,'#6d573e',-4*z,2*z,2);
+    drawFacetGem(g,0,-66*z,10*z,14*z,1,z);
+    emit(s.x,s.y-52*z,52*z,'#ff2a3c',0.95);
+    ray(s.x,s.y-58*z,44*z,'#ff4058',0.55);
     break; }
   case 'gate':{ drawCarvedArch(g,z,34*z,122*z,'#2a241c');
     g.strokeStyle='rgba(127,216,255,0.55)'; g.lineWidth=2.6*z;
@@ -7486,7 +7506,7 @@ function craftBenchActions(){
 function openCraftBench(){
   const p=player(); if(!p) return;
   if(G.scene==='craft'){ G.scene=G.craftFrom||'play'; return; }
-  if(G.fightOn || nearestFoe(p,7)){ hint('Not while blades are out.',2.6); return; }
+  if(foesVisible()){ hint('Not while enemies are in sight.',2.6); return; }
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; p.dest=null;
   G.craftFrom=G.scene==='play'?'play':G.scene;
   G.scene='craft';
