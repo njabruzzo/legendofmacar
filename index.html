@@ -190,6 +190,10 @@ function requestResize(){
   if(RSZ_PENDING) return;
   RSZ_PENDING = requestAnimationFrame(()=>{ RSZ_PENDING=0; resize(); });
 }
+window.addEventListener('wheel', e=>{
+  if(G.scene==='pack'){ G.packScroll=Math.max(0,(G.packScroll||0)+Math.sign(e.deltaY)); }
+  if(G.scene==='craft'){ G.craftScroll=Math.max(0,(G.craftScroll||0)+Math.sign(e.deltaY)); }
+}, {passive:true});
 window.addEventListener('resize', requestResize);
 window.addEventListener('orientationchange', ()=>setTimeout(()=>resize(true),200));
 if(window.visualViewport){
@@ -5010,9 +5014,7 @@ function fire(key){
   if(key==='camp'){ campRest(); return; }
   if(key==='craft'){ openCraftBench(); return; }
   if(key==='pack'){
-    G.packFrom='play'; G.packWho=G.packWho||'macar';
-    ensurePacks(); syncPackTotals();
-    G.scene='pack';
+    openPackMenu('play');
     return;
   }
   if(key==='bomb'){
@@ -7485,7 +7487,7 @@ function modularCraftCampActions(){
   if(!window.CraftingEngine) return [];
   return CraftingEngine.list('camp').map(recipe=>({
     grp: recipe.group||'CRAFT',
-    t: 'Craft '+recipe.name,
+    t: recipe.name,
     cost: recipe.ingredients,
     info: recipe.info||'',
     craftRecipeId: recipe.id,
@@ -7496,7 +7498,7 @@ function craftBenchActions(){
   if(!window.CraftingEngine) return [];
   return CraftingEngine.list().map(recipe=>({
     grp: recipe.group||'CRAFT',
-    t: 'Craft '+recipe.name,
+    t: recipe.name,
     cost: recipe.ingredients,
     info: recipe.info||'',
     craftRecipeId: recipe.id,
@@ -7509,8 +7511,11 @@ function openCraftBench(){
   if(foesVisible()){ hint('Not while enemies are in sight.',2.6); return; }
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; p.dest=null;
   G.craftFrom=G.scene==='play'?'play':G.scene;
+  G.craftTab=G.craftTab||'ALL';
+  G.craftSel=null;
+  G.craftScroll=0;
   G.scene='craft';
-  hint('Tap a recipe to craft. Materials come from your stock.',4);
+  hint('Pick a recipe, then forge it. Materials come from your stock.',4);
 }
 
 /* ==========================================================================
@@ -7586,7 +7591,7 @@ function campActions(){
   a.push({grp:'PACK',t:'Open a kin\'s pack (supplies, magic, potions, herbs)',cost:{},
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
-    fn:()=>{ G.packFrom='camp'; G.packWho='macar'; G.scene='pack'; }});
+    fn:()=>{ openPackMenu('camp'); }});
   a.push.apply(a, modularCraftCampActions());
   return a;
 }
@@ -7617,6 +7622,96 @@ function carveFrame(g,x,y,w,h,r,a){
   });
 }
 function plate(g,x,y,w,h,r,a){ carveFrame(g,x,y,w,h,r,a); }
+function ellipsize(g, txt, maxW){
+  txt=String(txt||'');
+  if(!maxW || g.measureText(txt).width<=maxW) return txt;
+  while(txt.length>1 && g.measureText(txt+'\u2026').width>maxW) txt=txt.slice(0,-1);
+  return txt+'\u2026';
+}
+function drawMenuWash(g){
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH);
+  embers(g); darken(g,.50);
+}
+function drawThumb(g, img, x, y, sz, fill){
+  carveFrame(g, x, y, sz, sz, 5, .92);
+  g.save();
+  roundPath(g, x+3, y+3, sz-6, sz-6, 3); g.clip();
+  g.fillStyle=fill||'#1c140e'; g.fillRect(x,y,sz,sz);
+  if(img&&img.width){
+    const sc=Math.max((sz-8)/img.width,(sz-8)/img.height);
+    const w=img.width*sc, h=img.height*sc;
+    g.drawImage(img, x+sz/2-w/2, y+sz/2-h/2, w, h);
+  }
+  g.restore();
+}
+function drawChip(g, x, y, w, h, label, on, col){
+  plate(g, x, y, w, h, 5, on?0.9:0.46);
+  if(on){ g.strokeStyle=col||'rgba(255,208,124,0.72)'; g.lineWidth=1.5; roundPath(g,x,y,w,h,5); g.stroke(); }
+  g.textAlign='center';
+  g.font='800 '+Math.max(8, h*0.36)+'px '+FONT_UI;
+  g.fillStyle=on?(col||'#ffe9c0'):'rgba(160,140,110,0.78)';
+  g.fillText(ellipsize(g,label,w-8), x+w/2, y+h*0.64);
+  g.textAlign='left';
+}
+function drawStockStrip(g, x, y, w){
+  const s=UIS, per=PORT?5:10, rh=PORT?26*s:22*s;
+  const rows=Math.ceil(RES.length/per), h=rows*rh+10*s;
+  plate(g, x, y, w, h, 5, .74);
+  g.font='800 '+(PORT?9*s:10*s)+'px '+FONT_UI;
+  RES.forEach((r,i)=>{
+    const cx=x+10*s+(i%per)*((w-14*s)/per);
+    const cy=y+12*s+((i/per)|0)*rh;
+    const m=RESMETA[r], have=G.res[r]||0;
+    g.fillStyle=have?m.c:'rgba(120,110,96,0.38)';
+    g.beginPath();
+    g.moveTo(cx-5*s,cy-3*s); g.lineTo(cx,cy-8*s); g.lineTo(cx+5*s,cy-3*s);
+    g.lineTo(cx+2*s,cy+3*s); g.lineTo(cx-2*s,cy+3*s); g.closePath(); g.fill();
+    g.fillStyle=have?'rgba(238,224,192,0.95)':'rgba(130,120,102,0.5)';
+    g.fillText(have+' '+m.s, cx+8*s, cy+3.2*s);
+  });
+  return h;
+}
+function packThumbFor(row){
+  if(row.kind==='magic'){
+    const it=row.it||{};
+    if(isEquipWeapon(it)||it.k==='weapon'||/sword|axe|hammer|mace/i.test(it.cat||it.n||'')) return SPR.icon_sword||SPR.loot_chest;
+    if(isEquipArmor(it)||it.k==='armor'||/armor|mail|shield/i.test(it.cat||it.n||'')) return SPR.icon_shield;
+    if(it.k==='ring'||it.cat==='Ring') return SPR.loot_jewelry;
+    return SPR.loot_chest;
+  }
+  if(row.kind==='potion'||row.kind==='ale') return SPR.loot_potion||SPR.icon_flask;
+  if(row.kind==='gem') return SPR.loot_gems||SPR.loot_ruby;
+  if(row.kind==='herb') return SPR.loot_herbs;
+  if(row.kind==='kit') return SPR.icon_bomb||SPR.icon_craft;
+  return SPR.icon_pack;
+}
+function craftThumbFor(grp){
+  if(grp==='FORGE') return SPR.icon_craft||SPR.icon_sword;
+  if(grp==='BREWERY') return SPR.loot_potion||SPR.icon_flask;
+  if(grp==='BENCH') return SPR.icon_bomb;
+  if(grp==='TAILOR') return SPR.icon_pack;
+  return SPR.icon_craft;
+}
+function packKindColor(kind){
+  return kind==='magic'?'#ffd27a':kind==='potion'?'#e0d2ff':kind==='gem'?'#ff6a6a':kind==='ale'?'#d2bd63':kind==='kit'?'#ffb45c':'#6aff8a';
+}
+function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
+  const s=UIS, bw=28*s;
+  g.textAlign='center';
+  if(canUp){
+    plate(g,x,y,bw,26*s,5,.88);
+    g.fillStyle='#ffe9c0'; g.font='800 '+(13*s)+'px '+FONT_UI;
+    g.fillText('\u25B2', x+bw/2, y+18*s);
+    menuHits.push({x,y,w:bw,h:26*s,fn:upFn});
+  }
+  if(canDn){
+    plate(g,x,y+h-26*s,bw,26*s,5,.88);
+    g.fillStyle='#ffe9c0'; g.font='800 '+(13*s)+'px '+FONT_UI;
+    g.fillText('\u25BC', x+bw/2, y+h-8*s);
+    menuHits.push({x,y:y+h-26*s,w:bw,h:26*s,fn:dnFn});
+  }
+  g.textAlign='left';
+}
 function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
 function face(g,cx,cy,rr,c,dead,ghost){
@@ -8447,22 +8542,10 @@ function drawCamp(g){
 
   // ---- stock
   const top=VH*.105, rw=VW-20*s;
-  plate(g,10*s,top,rw,PORT?58*s:36*s,5,.72);
-  g.font='800 '+(PORT?10*s:11.5*s)+'px "Trebuchet MS",sans-serif';
-  RES.forEach((r,i)=>{
-    const per=PORT?3:6;
-    const cx=18*s+(i%per)*(rw/per), cy=top+(PORT? 18*s+((i/per)|0)*24*s : 23*s);
-    const m=RESMETA[r], have=G.res[r]||0;
-    g.fillStyle= have? m.c : 'rgba(120,110,96,0.45)';
-    g.beginPath(); g.moveTo(cx-6*s,cy-4*s); g.lineTo(cx,cy-9*s); g.lineTo(cx+6*s,cy-4*s);
-    g.lineTo(cx+2.5*s,cy+3*s); g.lineTo(cx-2.5*s,cy+3*s); g.closePath(); g.fill();
-    g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.stroke();
-    g.fillStyle= have? 'rgba(238,224,192,0.95)':'rgba(130,120,102,0.55)';
-    g.fillText(have+'  '+m.n, cx+11*s, cy+3.5*s);
-  });
+  const stockH=drawStockStrip(g,10*s,top,rw);
 
   // ---- skills
-  const sy0=top+(PORT?66*s:44*s);
+  const sy0=top+stockH+10*s;
   g.font='700 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,166,120,0.6)'; g.fillText('CRAFT SKILLS', 12*s, sy0-2*s);
   const per2=PORT?2:4, cellW=(VW-20*s)/per2;
@@ -8552,41 +8635,16 @@ function packUser(){
   const key=G.packWho||'macar';
   return (G.ents||[]).find(e=>e.team==='party'&&e.col&&e.col.key===key&&!e.dead)||player();
 }
-function drawPack(g){
-  menuHits=[]; const s=UIS;
-  ensurePacks();
-  if(!G.packWho) G.packWho='macar';
-  const pk=packOf(G.packWho);
-  syncPackTotals();
-  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.5);
-  g.textAlign='center';
-  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('BACKPACK  \u00b7  ITEMS, COIN, AND MAGIC', VW/2, VH*.055);
-  g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.75)';
-  const c=G.coin||{};
-  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.09);
-  g.textAlign='left';
-  const tabW=(VW-20*s)/ROSTER.length, tabH=PORT?26*s:28*s, tabY=VH*.11;
-  ROSTER.forEach((r,i)=>{
-    const x=10*s+i*tabW, on=G.packWho===r.key;
-    plate(g,x+2*s,tabY,tabW-4*s,tabH,5,on?.9:.5);
-    if(on){ g.strokeStyle='rgba(255,208,124,0.7)'; g.lineWidth=1.6; roundPath(g,x+2*s,tabY,tabW-4*s,tabH,5); g.stroke(); }
-    g.font='800 '+(PORT?8*s:9.5*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-    g.fillStyle=on?'#ffe9c0':'rgba(160,140,110,0.75)';
-    g.fillText(r.name, x+tabW/2, tabY+tabH*0.62);
-    g.textAlign='left';
-    menuHits.push({x:x+2*s,y:tabY,w:tabW-4*s,h:tabH,fn:()=>{ G.packWho=r.key; syncPackTotals(); }});
-  });
-  const sheet=G.abil&&G.abil[G.packWho];
-  g.font='600 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle='rgba(210,190,150,0.85)';
-  g.fillText((sheet?fmtAbil(sheet)+'  HP '+sheet.maxhp:'')+'   bombs '+(pk.bombs||0)+
-    '  beer '+((pk.ales||0)+((pk.healPots||[]).length))+'  rations '+(pk.rations||0)+'  torches '+(pk.torches||0)+
-    (pk.ammo?'  bolts '+pk.ammo:'')+(pk.bombKit?'  bomb kit':''), 14*s, tabY+tabH+16*s);
+function openPackMenu(from){
+  G.packFrom=from||'play';
+  G.packWho=G.packWho||'macar';
+  G.packTab=G.packTab||'all';
+  G.packScroll=0;
+  ensurePacks(); syncPackTotals();
+  G.scene='pack';
+}
+function collectPackRows(pk){
   const eq=G.equipped||{};
-  const mag=pk.magic||[];
-  const herbs=Object.keys(pk.herbs||{});
-  const gems=pk.gems||[];
   const rows=[];
   const flaskN=(pk.ales||0)+((pk.healPots||[]).length);
   if(flaskN){
@@ -8600,10 +8658,10 @@ function drawPack(g){
       info:'Casings, fuses, and tools. Pack bombs at the camp bench.',
       tag:'Kit'});
   }
-  mag.forEach((it,i)=>{
+  (pk.magic||[]).forEach((it,i)=>{
     const worn=eq.weapon===it||eq.armor===it||eq.ring===it||eq.wand===it;
     const canEq=isEquipWeapon(it)||isEquipArmor(it)||it.k==='ring'||it.cat==='Ring';
-    rows.push({kind:'magic',it,i,t:(worn?'[E] ':'')+it.n,
+    rows.push({kind:'magic',it,i,t:it.n, worn,
       info:canEq?(worn?'Equipped. Tap to wield again. ':'Tap to equip. ')+(it.d||''):(it.d||''),
       tag:it.cat||'Magic'});
   });
@@ -8611,66 +8669,169 @@ function drawPack(g){
     if(isHealPotion(p)) return;
     rows.push({kind:'potion',p,i,t:p.n,info:p.d,tag:'Potion'});
   });
-  gems.forEach((gm,i)=>rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:gm.d||'',tag:'Gem'}));
-  herbs.forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
-  const top=tabY+tabH+26*s, bot=VH-58*s, h=Math.min(PORT?34*s:38*s, Math.max(26*s,(bot-top)/Math.max(1,rows.length||1)));
+  (pk.gems||[]).forEach((gm,i)=>rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:gm.d||'',tag:'Gem'}));
+  Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),info:(HERBS.find(h=>h.n===n)||{}).d||'',tag:'Herb'}));
+  return rows;
+}
+function usePackRow(r){
+  const who=packUser();
+  const bag=packOf(G.packWho);
+  const inField=G.packFrom==='play';
+  if(r.kind==='magic'){
+    const it=bag.magic[r.i];
+    if(!it) return;
+    const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal'||it.k==='ammo';
+    if(inField){
+      const spent=useMagicItem(it, who);
+      if(spent==='spent'||consume) bag.magic.splice(r.i,1);
+    } else if(consume){
+      bag.magic.splice(r.i,1);
+      G.carryEffects=G.carryEffects||[];
+      G.carryEffects.push({t:'magic',it});
+      say('Set aside for the next descent: '+it.n,'#ffd27a');
+    } else {
+      useMagicItem(it, who);
+    }
+  } else if(r.kind==='ale'){
+    if(inField){ G.scene='play'; fire('ale'); }
+    else say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
+  } else if(r.kind==='potion'){
+    const pot=bag.potions.splice(r.i,1)[0];
+    if(!pot) return;
+    if(inField) drinkPotion(pot, who);
+    else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
+  } else if(r.kind==='gem'){
+    const gm=(bag.gems||[])[r.i];
+    if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
+  } else if(r.kind==='kit'){
+    say('Bomb kit stays in the pack. Craft more bombs at the bench.','#ffb45c');
+  } else {
+    if(inField) useHerb(r.n, who);
+    else { if(bag.herbs[r.n]){ bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n]; }
+      G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'herb',n:r.n}); say('Herb packed: '+r.n,'#6aff8a'); }
+  }
+  syncPackTotals();
+}
+function drawPack(g){
+  menuHits=[]; const s=UIS;
+  ensurePacks();
+  if(!G.packWho) G.packWho='macar';
+  if(!G.packTab) G.packTab='all';
+  const pk=packOf(G.packWho);
+  syncPackTotals();
+  drawMenuWash(g);
+
+  const packImg=SPR.icon_pack;
+  const headY=VH*0.018, headH=PORT?36*s:40*s;
+  if(packImg) drawThumb(g, packImg, 10*s, headY, headH, '#2a1c12');
+  g.font='800 '+(PORT?13*s:16*s)+'px '+FONT_TITLE;
+  g.fillStyle='#ffe9c0';
+  g.fillText('BACKPACK', 10*s+headH+10*s, headY+16*s);
+  g.font='600 '+(9*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(200,180,140,0.78)';
+  g.fillText(G.packFrom==='play'?'Tap an item to use it in the seam.':'Set potions and herbs aside for the next descent.', 10*s+headH+10*s, headY+30*s);
+
+  const coin=G.coin||{};
+  const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
+  const coinY=headY+headH+6*s, coinH=PORT?22*s:24*s, coinW=(VW-20*s)/coins.length;
+  coins.forEach((cn,i)=>{
+    const x=10*s+i*coinW+2*s, w=coinW-4*s, have=coin[cn.k]||0;
+    plate(g,x,coinY,w,coinH,5,have?0.86:0.42);
+    g.textAlign='center';
+    g.font='800 '+(8*s)+'px '+FONT_UI; g.fillStyle=cn.c;
+    g.fillText(have+' '+cn.n, x+w/2, coinY+coinH*0.66);
+    g.textAlign='left';
+  });
+
+  const tabY=coinY+coinH+8*s, tabH=PORT?46*s:50*s, tabW=(VW-20*s)/ROSTER.length;
+  ROSTER.forEach((r,i)=>{
+    const x=10*s+i*tabW+2*s, w=tabW-4*s, on=G.packWho===r.key;
+    plate(g,x,tabY,w,tabH,6,on?0.92:0.48);
+    if(on){ g.strokeStyle='rgba(255,208,124,0.75)'; g.lineWidth=1.7; roundPath(g,x,tabY,w,tabH,6); g.stroke(); }
+    const e=(G.ents||[]).find(z=>z.col&&z.col.key===r.key);
+    face(g, x+14*s, tabY+tabH*0.46, 12*s, r, !!(e&&e.dead), !!(e&&e.ghost));
+    g.font='800 '+(PORT?7.5*s:8.5*s)+'px '+FONT_UI;
+    g.fillStyle=on?'#ffe9c0':'rgba(170,150,120,0.78)';
+    g.fillText(ellipsize(g,r.name,w-32*s), x+28*s, tabY+tabH*0.42);
+    const bag=packOf(r.key);
+    const n=(bag.magic||[]).length+(bag.potions||[]).length+(bag.gems||[]).length+Object.keys(bag.herbs||{}).length;
+    g.font='700 '+(7.5*s)+'px '+FONT_UI;
+    g.fillStyle=on?'rgba(255,210,122,0.85)':'rgba(140,120,96,0.7)';
+    g.fillText(n?'x'+n:'kit', x+28*s, tabY+tabH*0.72);
+    menuHits.push({x,y:tabY,w,h:tabH,fn:()=>{ G.packWho=r.key; G.packScroll=0; syncPackTotals(); }});
+  });
+
+  const whoE=packUser();
+  const sheet=G.abil&&G.abil[G.packWho];
+  const kitY=tabY+tabH+6*s, kitH=PORT?24*s:26*s;
+  const kit=[
+    whoE?('HP '+sheetHpNow(whoE)+'/'+sheetHpMax(whoE)): (sheet?('HP '+sheet.maxhp):''),
+    pk.bombs?('Bombs '+pk.bombs):'',
+    ((pk.ales||0)+((pk.healPots||[]).length))?('Beer '+((pk.ales||0)+((pk.healPots||[]).length))):'',
+    pk.rations?('Rations '+pk.rations):'',
+    pk.torches?('Torches '+pk.torches):'',
+    pk.ammo?('Bolts '+pk.ammo):'',
+    pk.bombKit?('Kit '+pk.bombKit):''
+  ].filter(Boolean);
+  plate(g,10*s,kitY,VW-20*s,kitH,5,.7);
+  g.font='700 '+(8.5*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(220,200,160,0.88)';
+  g.fillText(ellipsize(g, kit.join('   \u00b7   '), VW-36*s), 18*s, kitY+kitH*0.66);
+
+  const CATS=[{k:'all',n:'All'},{k:'magic',n:'Magic'},{k:'potion',n:'Brews'},{k:'gem',n:'Gems'},{k:'herb',n:'Herbs'}];
+  const catY=kitY+kitH+6*s, catH=PORT?24*s:26*s, catW=(VW-20*s)/CATS.length;
+  CATS.forEach((c,i)=>{
+    const x=10*s+i*catW+2*s, w=catW-4*s, on=G.packTab===c.k;
+    drawChip(g,x,catY,w,catH,c.n,on,'#ffe9c0');
+    menuHits.push({x,y:catY,w,h:catH,fn:()=>{ G.packTab=c.k; G.packScroll=0; }});
+  });
+
+  let rows=collectPackRows(pk);
+  if(G.packTab!=='all'){
+    rows=rows.filter(r=>{
+      if(G.packTab==='potion') return r.kind==='potion'||r.kind==='ale';
+      return r.kind===G.packTab;
+    });
+  }
+  const listTop=catY+catH+8*s, listBot=VH-52*s, listH=listBot-listTop;
+  const rowH=Math.min(PORT?56*s:58*s, Math.max(44*s, listH/Math.max(1,Math.min(rows.length||1, PORT?5:6))));
+  const vis=Math.max(1, Math.floor(listH/rowH));
+  const maxScroll=Math.max(0, rows.length-vis);
+  G.packScroll=clamp(G.packScroll||0, 0, maxScroll);
+  const shown=rows.slice(G.packScroll, G.packScroll+vis);
+  const listW=VW-20*s-(maxScroll?32*s:0);
+
   if(!rows.length){
-    g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
-    g.fillText('This pack holds kit only. Loot potions go to MACAR. Tap another name.', VW/2, VH*.48);
+    plate(g,10*s,listTop,VW-20*s,Math.min(90*s,listH),6,.7);
+    g.textAlign='center';
+    g.font='700 '+(12*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.8)';
+    g.fillText(G.packTab==='all'?'Kit only in this pack.':'Nothing in this pouch.', VW/2, listTop+36*s);
+    g.font='600 '+(10*s)+'px '+FONT_UI; g.fillStyle='rgba(170,150,120,0.7)';
+    g.fillText(G.packTab==='all'?'Loot potions and gems go to MACAR.':'Try All, or another kin.', VW/2, listTop+56*s);
     g.textAlign='left';
   }
-  const inField=G.packFrom==='play';
-  rows.slice(0,10).forEach((r,i)=>{
-    const y=top+i*h, x=10*s, w=VW-20*s;
-    plate(g,x,y,w,h-3*s,5,.8);
-    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=r.kind==='magic'?'#ffd27a':r.kind==='potion'?'#e0d2ff':r.kind==='gem'?'#ff6a6a':r.kind==='ale'?'#d2bd63':'#6aff8a';
-    g.fillText((r.tag||r.kind).toUpperCase(), x+10*s, y+12*s);
-    g.font='700 '+(PORT?11*s:12*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle='#f4e2b8'; g.fillText(r.t, x+10*s, y+h*0.58);
-    g.font='600 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle='rgba(190,170,130,0.7)'; g.fillText((r.info||'').slice(0,72), x+10*s, y+h-8*s);
-    menuHits.push({x,y,w,h:h-3*s,fn:()=>{
-      const who=packUser();
-      const bag=packOf(G.packWho);
-      if(r.kind==='magic'){
-        const it=bag.magic[r.i];
-        if(!it) return;
-        const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal'||it.k==='ammo';
-        if(inField){
-          const spent=useMagicItem(it, who);
-          if(spent==='spent'||consume) bag.magic.splice(r.i,1);
-        } else if(consume){
-          bag.magic.splice(r.i,1);
-          G.carryEffects=G.carryEffects||[];
-          G.carryEffects.push({t:'magic',it});
-          say('Set aside for the next descent: '+it.n,'#ffd27a');
-        } else {
-          useMagicItem(it, who);
-        }
-      } else if(r.kind==='ale'){
-        if(inField){
-          G.scene='play';
-          fire('ale');
-        } else {
-          say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
-        }
-      } else if(r.kind==='potion'){
-        const pot=bag.potions.splice(r.i,1)[0];
-        if(!pot) return;
-        if(inField) drinkPotion(pot, who);
-        else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
-      } else if(r.kind==='gem'){
-        const gm=(bag.gems||[])[r.i];
-        if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
-      } else {
-        if(inField) useHerb(r.n, who);
-        else { if(bag.herbs[r.n]){ bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n]; }
-          G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'herb',n:r.n}); say('Herb packed: '+r.n,'#6aff8a'); }
-      }
-      syncPackTotals();
-    }});
+  shown.forEach((r,i)=>{
+    const y=listTop+i*rowH, x=10*s, h=rowH-4*s, w=listW;
+    plate(g,x,y,w,h,6,.84);
+    const th=h-10*s;
+    drawThumb(g, packThumbFor(r), x+6*s, y+5*s, th);
+    const tx=x+th+16*s, tw=w-th-24*s;
+    g.font='800 '+(8*s)+'px '+FONT_UI;
+    g.fillStyle=packKindColor(r.kind);
+    g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':''), tx, y+14*s);
+    g.font='700 '+(PORT?12*s:13*s)+'px '+FONT_UI;
+    g.fillStyle='#f4e2b8';
+    g.fillText(ellipsize(g, r.t, tw), tx, y+h*0.52);
+    g.font='600 '+(8.5*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(190,170,130,0.72)';
+    g.fillText(ellipsize(g, r.info||'', tw), tx, y+h-8*s);
+    menuHits.push({x,y,w,h,fn:()=>usePackRow(r)});
   });
+  if(maxScroll){
+    drawScrollArrows(g, VW-36*s, listTop, listH, G.packScroll>0, G.packScroll<maxScroll,
+      ()=>{ G.packScroll=Math.max(0,(G.packScroll||0)-1); },
+      ()=>{ G.packScroll=Math.min(maxScroll,(G.packScroll||0)+1); });
+  }
   const back=G.packFrom==='play'?'Back to the seam':'Back to camp';
   menuBtn(g,back,VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
@@ -8733,57 +8894,119 @@ function drawTrade(g){
 
 function drawCraft(g){
   menuHits=[]; const s=UIS;
-  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
-  g.textAlign='center';
-  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('CRAFT BENCH  \u00b7  MATERIALS TO ITEMS', VW/2, VH*.075);
-  g.textAlign='left';
+  if(!G.craftTab) G.craftTab='ALL';
+  drawMenuWash(g);
 
-  const top=VH*.105, rw=VW-20*s;
-  plate(g,10*s,top,rw,PORT?58*s:36*s,5,.72);
-  g.font='800 '+(PORT?10*s:11.5*s)+'px "Trebuchet MS",sans-serif';
-  RES.forEach((r,i)=>{
-    const per=PORT?3:6;
-    const cx=18*s+(i%per)*(rw/per), cy=top+(PORT? 18*s+((i/per)|0)*24*s : 23*s);
-    const m=RESMETA[r], have=G.res[r]||0;
-    g.fillStyle= have? m.c : 'rgba(120,110,96,0.45)';
-    g.beginPath(); g.moveTo(cx-6*s,cy-4*s); g.lineTo(cx,cy-9*s); g.lineTo(cx+6*s,cy-4*s);
-    g.lineTo(cx+2.5*s,cy+3*s); g.lineTo(cx-2.5*s,cy+3*s); g.closePath(); g.fill();
-    g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.stroke();
-    g.fillStyle= have? 'rgba(238,224,192,0.95)':'rgba(130,120,102,0.55)';
-    g.fillText(have+'  '+m.n, cx+11*s, cy+3.5*s);
+  const anvil=SPR.icon_craft;
+  const headY=VH*0.018, headH=PORT?36*s:40*s;
+  if(anvil) drawThumb(g, anvil, 10*s, headY, headH, '#2a1c12');
+  else { plate(g,10*s,headY,headH,headH,6,.9); icon(g,'craft',10*s+headH/2,headY+headH/2,1.15*s,'#ffd27a'); }
+  g.font='800 '+(PORT?13*s:16*s)+'px '+FONT_TITLE;
+  g.fillStyle='#ffe9c0';
+  g.fillText('CRAFT BENCH', 10*s+headH+10*s, headY+16*s);
+  g.font='600 '+(9*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(200,180,140,0.78)';
+  g.fillText('Pick a recipe, then forge it from your stock.', 10*s+headH+10*s, headY+30*s);
+
+  const stockY=headY+headH+8*s, stockH=drawStockStrip(g,10*s,stockY,VW-20*s);
+  const acts=craftBenchActions();
+  const groups=['ALL'].concat(Array.from(new Set(acts.map(a=>a.grp).filter(Boolean))));
+  const tabY=stockY+stockH+8*s, tabH=PORT?24*s:26*s, tabW=(VW-20*s)/Math.max(1,groups.length);
+  groups.forEach((grp,i)=>{
+    const x=10*s+i*tabW+2*s, w=tabW-4*s, on=G.craftTab===grp;
+    drawChip(g,x,tabY,w,tabH,grp,on,'#ffe9c0');
+    menuHits.push({x,y:tabY,w,h:tabH,fn:()=>{ G.craftTab=grp; G.craftScroll=0; }});
   });
 
-  const acts=craftBenchActions();
-  const listTop=top+(PORT?66*s:44*s)+8*s;
-  const listBot=VH-70*s;
-  const rowH=Math.min(PORT?40*s:44*s,(listBot-listTop)/Math.max(1,acts.length||1));
-  if(!acts.length){
-    g.textAlign='center'; g.fillStyle='rgba(180,160,120,0.7)';
-    g.fillText('No recipes loaded.', VW/2, VH*.45);
+  const filtered=G.craftTab==='ALL'?acts:acts.filter(a=>a.grp===G.craftTab);
+  if(G.craftSel && !filtered.some(a=>a.craftRecipeId===G.craftSel)) G.craftSel=null;
+  const detailH=PORT?118*s:108*s;
+  const listTop=tabY+tabH+8*s, listBot=VH-52*s-detailH, listH=Math.max(80*s, listBot-listTop);
+  const rowH=Math.min(PORT?58*s:56*s, Math.max(46*s, listH/Math.max(1,Math.min(filtered.length||1, PORT?4:5))));
+  const vis=Math.max(1, Math.floor(listH/rowH));
+  const maxScroll=Math.max(0, filtered.length-vis);
+  G.craftScroll=clamp(G.craftScroll||0, 0, maxScroll);
+  const shown=filtered.slice(G.craftScroll, G.craftScroll+vis);
+  const listW=VW-20*s-(maxScroll?32*s:0);
+
+  if(!filtered.length){
+    plate(g,10*s,listTop,VW-20*s,70*s,6,.7);
+    g.textAlign='center'; g.fillStyle='rgba(200,180,140,0.75)';
+    g.font='700 '+(12*s)+'px '+FONT_UI;
+    g.fillText('No recipes in this station.', VW/2, listTop+40*s);
     g.textAlign='left';
   }
-  acts.forEach((a,i)=>{
-    const y=listTop+i*rowH, h=rowH-4*s, x=10*s, w=VW-20*s;
+  shown.forEach((a,i)=>{
+    const y=listTop+i*rowH, h=rowH-4*s, x=10*s, w=listW;
     const can=campActionReady(a);
-    plate(g,x,y,w,h,5, can?.82:.5);
-    if(can){ g.strokeStyle='rgba(255,208,124,0.45)'; g.lineWidth=1.6; roundPath(g,x,y,w,h,5); g.stroke();
-      menuHits.push({x,y,w,h,fn:()=>runCampAction(a)}); }
-    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(255,196,110,0.85)':'rgba(130,116,94,0.5)';
-    g.fillText(a.grp, x+11*s, y+13*s);
-    g.font='700 '+(PORT?11*s:12.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'#f4e2b8':'rgba(140,126,104,0.55)';
-    g.fillText(a.t, x+11*s, y+h*0.62);
-    g.font='600 '+(9*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(200,182,146,0.7)':'rgba(120,108,88,0.5)';
-    g.fillText(a.info, x+11*s, y+h-5*s);
-    g.textAlign='right';
-    g.font='700 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(214,190,140,0.9)':'rgba(180,90,70,0.7)';
-    g.fillText(costText(a.cost), x+w-11*s, y+h*0.62);
-    g.textAlign='left';
+    const on=G.craftSel===a.craftRecipeId;
+    plate(g,x,y,w,h,6, can?0.86:0.5);
+    if(on){ g.strokeStyle='rgba(255,208,124,0.8)'; g.lineWidth=2; roundPath(g,x,y,w,h,6); g.stroke(); }
+    else if(can){ g.strokeStyle='rgba(255,208,124,0.35)'; g.lineWidth=1.4; roundPath(g,x,y,w,h,6); g.stroke(); }
+    const th=h-10*s;
+    drawThumb(g, craftThumbFor(a.grp), x+6*s, y+5*s, th);
+    const tx=x+th+16*s, tw=w-th-24*s;
+    g.font='800 '+(8*s)+'px '+FONT_UI;
+    g.fillStyle=can?'rgba(255,196,110,0.9)':'rgba(130,116,94,0.55)';
+    g.fillText(a.grp+(can?'  \u00b7  READY':'  \u00b7  LOCKED'), tx, y+14*s);
+    g.font='700 '+(PORT?13*s:14*s)+'px '+FONT_UI;
+    g.fillStyle=can?'#f4e2b8':'rgba(140,126,104,0.6)';
+    g.fillText(ellipsize(g, a.t, tw), tx, y+h*0.48);
+    const cost=a.cost||{};
+    let cx=tx;
+    g.font='700 '+(8*s)+'px '+FONT_UI;
+    Object.keys(cost).forEach(k=>{
+      const m=RESMETA[k], need=cost[k], have=G.res[k]||0, ok=have>=need;
+      const label=need+' '+(m?m.s:k);
+      const ww=g.measureText(label).width+14*s;
+      g.fillStyle=ok?(m?m.c:'#d2bd63'):'rgba(180,90,70,0.85)';
+      g.beginPath(); g.arc(cx+4*s, y+h-11*s, 3.2*s, 0, TAU); g.fill();
+      g.fillText(label, cx+10*s, y+h-8*s);
+      cx+=ww;
+    });
+    menuHits.push({x,y,w,h,fn:()=>{ G.craftSel=a.craftRecipeId; }});
   });
+  if(maxScroll){
+    drawScrollArrows(g, VW-36*s, listTop, listH, G.craftScroll>0, G.craftScroll<maxScroll,
+      ()=>{ G.craftScroll=Math.max(0,(G.craftScroll||0)-1); },
+      ()=>{ G.craftScroll=Math.min(maxScroll,(G.craftScroll||0)+1); });
+  }
+
+  const dY=VH-48*s-detailH, dX=10*s, dW=VW-20*s;
+  plate(g,dX,dY,dW,detailH-6*s,7,.88);
+  const sel=filtered.find(a=>a.craftRecipeId===G.craftSel)||filtered[0];
+  if(sel && !G.craftSel) G.craftSel=sel.craftRecipeId;
+  if(sel){
+    const rec=window.CraftingEngine&&CraftingEngine.get(sel.craftRecipeId);
+    const check=rec&&window.CraftingEngine?CraftingEngine.canCraft(sel.craftRecipeId, makeCraftingBridge()):{ok:campActionReady(sel),message:''};
+    const can=!!check.ok;
+    g.font='800 '+(13*s)+'px '+FONT_TITLE;
+    g.fillStyle='#ffe9c0';
+    g.fillText(ellipsize(g, sel.t, dW-140*s), dX+14*s, dY+22*s);
+    g.font='600 '+(9.5*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(210,190,150,0.82)';
+    const info=sel.info||(rec&&rec.info)||'';
+    g.fillText(ellipsize(g, info, dW-28*s), dX+14*s, dY+40*s);
+    const sk=rec&&rec.skill&&SKILLS.find(z=>z.k===rec.skill);
+    g.font='700 '+(8.5*s)+'px '+FONT_UI;
+    g.fillStyle=can?'rgba(150,200,130,0.9)':'rgba(200,120,90,0.9)';
+    const why=can?'Ready to forge.':(check.message||'Missing materials or skill.');
+    g.fillText(ellipsize(g, (sk?sk.n+(rec.skillLevel!=null?' '+rec.skillLevel:'')+'  \u00b7  ':'')+why, dW-150*s), dX+14*s, dY+58*s);
+    const bw=Math.min(150*s, dW*0.38), bh=PORT?36*s:34*s;
+    const bx=dX+dW-bw-12*s, by=dY+detailH-bh-18*s;
+    plate(g,bx,by,bw,bh,6,can?0.92:0.45);
+    if(can){ g.strokeStyle='rgba(255,208,124,0.75)'; g.lineWidth=1.7; roundPath(g,bx,by,bw,bh,6); g.stroke();
+      menuHits.push({x:bx,y:by,w:bw,h:bh,fn:()=>runCampAction(sel)}); }
+    g.textAlign='center';
+    g.font='800 '+(12*s)+'px '+FONT_UI;
+    g.fillStyle=can?'#ffe9c0':'rgba(140,120,100,0.55)';
+    g.fillText(can?'FORGE':'LOCKED', bx+bw/2, by+bh*0.64);
+    g.textAlign='left';
+  } else {
+    g.font='600 '+(11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(180,160,120,0.7)';
+    g.fillText('Choose a recipe above.', dX+16*s, dY+detailH*0.5);
+  }
   menuBtn(g,'Back',VW/2,VH-22*s,Math.min(220*s,VW*.56),34*s,()=>{G.scene=G.craftFrom||'play';});
 }
 
