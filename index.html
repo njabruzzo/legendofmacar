@@ -8526,11 +8526,11 @@ function drawPortraitStack(g,s){
     UI.portraitHits.push({x,y:yy,w,h,key:e.col.key});
     carveFrame(g,x,yy,w,h,6,.88);
     if(e.hero){ g.strokeStyle='rgba(255,210,130,0.7)'; g.lineWidth=1.6; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke();
-      const kit=SPR.icon_doll||SPR.icon_pack;
-      if(kit&&kit.width){
-        const kz=Math.min(16*s, h-8*s);
-        g.drawImage(kit, x+w-kz-5*s, yy+4*s, kz, kz);
-      }
+      g.font='800 '+(7.5*s)+'px '+FONT_UI;
+      g.fillStyle='#ffe08a';
+      g.textAlign='right';
+      g.fillText('GEAR', x+w-8*s, yy+13*s);
+      g.textAlign='left';
     }
     if(e.ghost){ g.strokeStyle='rgba(120,210,255,0.75)'; g.lineWidth=1.5; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     if(G.inspect===e.col.key){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
@@ -9621,8 +9621,8 @@ function usePackRow(r){
   syncPackTotals();
 }
 function dollSlotLayout(x, y, w, h){
-  const pad=6, innerH=h-pad*2, rowH=innerH/7;
-  const slot=Math.max(26, Math.min((w-pad*2)/3.35, rowH-3, 46));
+  const pad=6, innerH=Math.max(80, h-pad*2), rowH=innerH/7;
+  const slot=Math.max(16, Math.min((w-pad*2)/3.35, rowH*0.86, 46));
   const cx=x+w/2;
   const cell=(k, px, py, sw, sh)=>{
     if(typeof EquipmentSlots!=='undefined' && EquipmentSlots.slotCell) return EquipmentSlots.slotCell(k, px, py, sw, sh);
@@ -9716,9 +9716,12 @@ function drawEquipDoll(g, x, y, w, h){
     roundPath(g, c.x, c.y, c.w, c.h, 5); g.stroke();
     const thumb=slotThumbFor(it, c.k);
     if(filled && thumb) drawThumb(g, thumb, c.x+3, c.y+3, Math.min(c.w, c.h)-6);
-    else if(!filled && thumb){
-      g.globalAlpha=0.28;
-      drawThumb(g, thumb, c.x+4, c.y+4, Math.min(c.w, c.h)-8);
+    else if(!filled && thumb && thumb.width){
+      g.globalAlpha=0.62;
+      const sz=Math.min(c.w, c.h)-8;
+      const sc=Math.min(sz/thumb.width, sz/thumb.height);
+      const tw=thumb.width*sc, th=thumb.height*sc;
+      g.drawImage(thumb, c.x+c.w/2-tw/2, c.y+c.h/2-th/2-3, tw, th);
       g.globalAlpha=1;
     }
     const def=ES&&ES.slotDef?ES.slotDef(c.k):{short:c.k,label:c.k};
@@ -9823,6 +9826,10 @@ function drawPack(g){
   const split=!PORT && VW>=640;
   const dollTop=kitY+kitH+6*s;
   const dollBot=VH-52*s;
+  const dollAvail=Math.max(120*s, dollBot-dollTop);
+  const packDollH=PORT
+    ? Math.min(310*s, Math.max(230*s, dollAvail*0.52))
+    : Math.min(236*s, Math.max(188*s, dollAvail*0.42));
   let dollW=0, dollX=10*s, listX=10*s, listWidth=VW-20*s;
   if(split){
     dollW=Math.min(300*s, VW*0.40);
@@ -9830,12 +9837,11 @@ function drawPack(g){
     listX=dollX+dollW+8*s;
     listWidth=VW-listX-10*s;
   } else {
-    const dollH=Math.min(236*s, Math.max(188*s, (dollBot-dollTop)*0.42));
-    drawEquipDoll(g, 10*s, dollTop, VW-20*s, dollH);
+    drawEquipDoll(g, 10*s, dollTop, VW-20*s, packDollH);
     listX=10*s;
     listWidth=VW-20*s;
   }
-  const dollHUsed=split?(dollBot-dollTop):Math.min(236*s, Math.max(188*s, (dollBot-dollTop)*0.42));
+  const dollHUsed=split?(dollBot-dollTop):packDollH;
 
   const CATS=[{k:'all',n:'All'},{k:'gear',n:'Gear'},{k:'magic',n:'Magic'},{k:'potion',n:'Brews'},{k:'gem',n:'Gems'},{k:'herb',n:'Herbs'}];
   const catY=split?dollTop:(dollTop+dollHUsed+6*s);

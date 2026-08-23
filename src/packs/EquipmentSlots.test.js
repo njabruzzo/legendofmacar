@@ -117,6 +117,7 @@ assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit'
 assert(/computeWornAC/.test(html), 'party AC uses worn 1e values');
 assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && /icon_doll/.test(html), 'inventory slot graphics are registered');
 assert(/ph\.key==='macar'/.test(html) && /openPackMenu\('play'\)/.test(html), 'Macar portrait opens the pack doll');
+assert(/GEAR/.test(html), 'Macar portrait marks the gear screen');
 
 if (failed) {
   console.error('\n' + failed + ' failed');
