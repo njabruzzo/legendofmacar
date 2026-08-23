@@ -1163,11 +1163,21 @@ function wantsBackView(e){
   if(e.team==='party' && e.ghost && p && p.defending) return true;
   return ((e.fdx||0)+(e.fdy||0)) < -0.42;
 }
+function attackProgress(e){
+  if(!e||!(e.atk>0)) return 0;
+  return clamp(1-e.atk/Math.max(0.01,e.atkMax),0,1);
+}
+function wantsMeleePose(e){
+  if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
+  const t=attackProgress(e);
+  // Idle → raised hammer → recovery. A single frozen wind-up for the whole
+  // cooldown looked like Macar was just standing there.
+  return t>=0.08 && t<=0.78;
+}
 function entAnimImg(e){
   const k=entSpriteKey(e);
   if(!k) return null;
   if(e.dead||e.crushed) return SPR[k+'_dead']||null;
-  if(wantsBackView(e) && SPR[k+'_back']) return SPR[k+'_back'];
   if(e.atk>0 && e.atkKind==='bow'){
     // The melee frame is a two-handed hammer swing, which is plainly wrong for
     // a crossbow shot, so hold the standing frame until dwarf_macar_atk_bow.png
@@ -1175,7 +1185,10 @@ function entAnimImg(e){
     if(SPR[k+'_atk_bow']) return SPR[k+'_atk_bow'];
     return SPR[k]||null;
   }
-  if(e.atk>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
+  // Attack pose beats the back sprite. Facing the ruby-door wall used to keep
+  // dwarf_macar_back.png up for the whole swing, so Attack looked like a no-op.
+  if(wantsMeleePose(e) && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if(wantsBackView(e) && SPR[k+'_back']) return SPR[k+'_back'];
   if(QUALITY && e.moving){
     const a=SPR[k+'_w1'], b=SPR[k+'_w2'];
     if(a||b){
@@ -3275,7 +3288,13 @@ function treasureGp(coins, gems, jew){
   const c=coins||{};
   return Math.round((c.gp||0)+(c.pp||0)*5+(c.ep||0)*0.5+(c.sp||0)*0.1+(c.cp||0)*0.01+(gems||0)*50+(jew||0)*200);
 }
-function rosterCls(r){ return r.role==='faith'?'c':r.role==='bolt'?'t':'f'; }
+function rosterCls(r){
+  if(!r) return 'f';
+  if(r.role==='faith') return 'c';
+  if(r.role==='bolt') return 't';
+  // Miners (Macar, Pordoom, Orbo) fight on the fighter matrix. DMG I.B.
+  return 'f';
+}
 function rosterDice(r){
   if(r.role==='hero') return '1d8';
   if(r.role==='bolt') return '1d6';
@@ -3685,23 +3704,17 @@ function monsterHD(e){
   const raw=e.maxhp||e.hp||8;
   return Math.max(0.5, +(raw/32).toFixed(1));
 }
+/* AD&D 1e DMG p.74–75 attack matrices. Columns are AC −10 … AC 10.
+   Fighters use the printed 2-level bands (not the optional +1/level house rule). */
 const THAC_F=[
   [25,24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10],
-  [24,23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9],
   [23,22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8],
-  [22,21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7],
   [21,20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6],
-  [20,20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5],
   [20,20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4],
-  [20,20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3],
   [20,20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2],
-  [20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1],
   [20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
-  [19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1],
   [18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2],
-  [17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3],
   [16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4],
-  [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4,-5],
   [14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,-1,-2,-3,-4,-5,-6]
 ];
 const THAC_M=[
@@ -3736,23 +3749,52 @@ const THAC_T=[
   [20,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1]
 ];
 function acCol(ac){ return clamp((ac|0)+10,0,20); }
+function attackClass(atk){
+  if(!atk) return 'f';
+  const role=String(atk.role||'').toLowerCase();
+  const cls=String(atk.cls||'').toLowerCase();
+  if(role==='faith' || cls==='c') return 'c';
+  if(role==='bolt' || cls==='t') return 't';
+  if(atk.team==='party' || atk.hero || role==='pick' || role==='miner' || role==='hero' || cls==='f' || cls==='miner')
+    return 'f';
+  return 'm';
+}
+function fighterMatrixRow(lv){
+  lv=lv|0;
+  if(lv<=2) return 0;
+  if(lv<=4) return 1;
+  if(lv<=6) return 2;
+  if(lv<=8) return 3;
+  if(lv<=10) return 4;
+  if(lv<=12) return 5;
+  if(lv<=14) return 6;
+  if(lv<=16) return 7;
+  return 8;
+}
+function monsterMatrixRow(hd){
+  hd=+hd;
+  if(!(hd>0)) hd=0.5;
+  if(hd<0.875) return 0;
+  if(hd<1) return 1;
+  if(hd<=1) return 2;
+  if(hd<2) return 3;
+  if(hd<4) return 4;
+  if(hd<6) return 5;
+  if(hd<8) return 6;
+  if(hd<10) return 7;
+  if(hd<12) return 8;
+  if(hd<14) return 9;
+  if(hd<16) return 10;
+  return 11;
+}
 function thacNeed(atk, ac){
   const col=acCol(ac);
-  if(atk.team==='party'){
-    const lv=clamp(atk.lvl||partyLevel(),1,17);
-    const cls=atk.cls||(atk.role==='faith'?'c':atk.role==='bolt'?'t':'f');
-    if(cls==='c'){ const row=clamp(Math.floor((lv-1)/3),0,6); return THAC_C[row][col]; }
-    if(cls==='t'){ const row=clamp(Math.floor((lv-1)/4),0,5); return THAC_T[row][col]; }
-    return THAC_F[lv-1][col];
-  }
-  const hd=monsterHD(atk);
-  let row=0;
-  if(hd<1) row=0; else if(hd<1.01) row=2; else if(hd<2) row=3;
-  else if(hd<4) row=4; else if(hd<6) row=5; else if(hd<8) row=6;
-  else if(hd<10) row=7; else if(hd<12) row=8; else if(hd<14) row=9;
-  else if(hd<16) row=10; else row=11;
-  if(hd<=0.5) row=0; else if(hd<1) row=1;
-  return THAC_M[row][col];
+  const kind=attackClass(atk);
+  const lv=clamp((atk&&atk.lvl)||partyLevel(),1,21);
+  if(kind==='c') return THAC_C[clamp(Math.floor((lv-1)/3),0,6)][col];
+  if(kind==='t') return THAC_T[clamp(Math.floor((lv-1)/4),0,5)][col];
+  if(kind==='f') return THAC_F[fighterMatrixRow(lv)][col];
+  return THAC_M[monsterMatrixRow(monsterHD(atk))][col];
 }
 function hitBonus(e){
   let b=0;
@@ -3764,7 +3806,7 @@ function hitBonus(e){
     if(e.buff>0) b+=2;
     if((g.wd||1)<=0) b-=2;
     if(e.ranged) b+=dexMissile(ab&&ab.dex);
-    else b+=strMods(ab, e.cls||'f').hit;
+    else b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
   } else {
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
   }
@@ -5255,7 +5297,14 @@ function fire(key){
   if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
     ensureShadowCleaverWielded();
-    p.dest=null; if(p.ct<=0){ p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
+    p.dest=null; p.moving=0; p.ix=0; p.iy=0;
+    p.atkKind='melee';
+    if(p.atk<=0){
+      p.atk=p.atkMax;
+      if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
+      else p.swung=1;
+    }
+    return;
   }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
   if(key==='wall'){
@@ -6910,14 +6959,15 @@ function drawEnt(g,e){
     else if(e.kind==='king') drawKing(g,e,z,sw);
     else drawStatue(g,e,z,sw);
   }
+  if(e.hero && e.atk>0 && !e.dead && e.atkKind!=='bow') drawHeroMeleeArc(g,e,z);
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
   if(e.hero && e.atk>0 && !e.dead){
-    const t=1-e.atk/Math.max(0.01,e.atkMax);
+    const t=attackProgress(e);
     const ang=-1.25+t*2.55, rad=26*z;
     const col=wieldsShadowCleaver()?'#c8b8ff':'#ffd27a';
-    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 18*z, col, 0.55);
+    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 22*z, col, 0.7);
   }
 
   if(e.flash>0 && !e.dead){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
@@ -7005,6 +7055,26 @@ function drawBeard(g,z,c,len,braids){
   }
 }
 
+function drawHeroMeleeArc(g,e,z){
+  const t=attackProgress(e);
+  const sw=Math.sin(t*Math.PI);
+  if(sw<0.08) return;
+  const axe=wieldsShadowCleaver();
+  g.save();
+  g.translate(12*z,-36*z);
+  const steps=10;
+  for(let i=0;i<steps;i++){
+    const f=i/steps;
+    const aa=-1.65+t*2.7-f*0.42;
+    g.strokeStyle=axe
+      ?('rgba(200,184,255,'+(sw*0.55*(1-f))+')')
+      :('rgba(255,'+Math.round(210-f*70)+',110,'+(sw*0.58*(1-f))+')');
+    g.lineWidth=(11-f*8)*z;
+    g.lineCap='round';
+    g.beginPath(); g.arc(-4*z,8*z,42*z,aa-0.16,aa+0.16); g.stroke();
+  }
+  g.restore();
+}
 function drawDwarf(g,e,z,sw){
   const c=e.col, step=Math.sin(e.anim*9)*(e.moving?1:0);
   // back arm
