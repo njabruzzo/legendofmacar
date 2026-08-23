@@ -786,7 +786,7 @@ const TILESET={
     pillars:[208,209,211,213,216,221],
     arches:[192,193,197,199,200,203,210,214,215,218,219],
     sprites:{floors:['floor_mine','floor_hall','floor_ruin'], walls:['wall_face','wall_face_shade','wall_worked'],
-      pillars:['pillar','names'], arches:['rubydoor_face','bronzedoor','gate','tunnel']},
+      pillars:['pillar','names'], arches:['rubydoor_face','bronzedoor','gate']},
     floor:{w:192,h:96,ox:96,oy:48, layer:'background'},
     wall:{w:178,h:328,ox:96,oy:287, layer:'object'},
     wallR:{w:178,h:328,ox:82,oy:287, layer:'object'},
@@ -802,7 +802,7 @@ const TILESET={
     pillars:[144,145,146,147,148,149],
     overlays:[224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239],
     sprites:{floors:['floor_mine','floor_fungi'], walls:['wall_cave_face','wall_cave_face_shade','wall_cave'],
-      seams:['wall_cave'], pillars:['stalagmite','pillar'], arches:['gate','tunnel']},
+      seams:['wall_cave'], pillars:['stalagmite','pillar'], arches:['gate']},
     floor:{w:192,h:96,ox:96,oy:48, layer:'background'},
     seamL:{w:114,h:96,ox:18,oy:48, layer:'background'},
     seamR:{w:114,h:96,ox:96,oy:48, layer:'background'},
@@ -840,7 +840,7 @@ function drawObjectProp(g, img, h, m){
 function tilesetPropMetric(k, L){
   const pack=tilesetPack(L||G.lvl);
   if(k==='pillar'||k==='names'||k==='stalagmite') return pack.pillar;
-  if(k==='gate'||k==='bronzedoor'||k==='tunnel'||k==='altar'||k==='throne'||k==='stairs') return pack.arch;
+  if(k==='gate'||k==='bronzedoor'||k==='altar'||k==='throne'||k==='stairs') return pack.arch;
   return null;
 }
 function wallFaceSprite(L, lit){
@@ -1246,7 +1246,7 @@ function propSpriteH(p,z){
   if(k==='dwarfface') return dwarfFaceH();
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
-  if(k==='gate'||k==='tunnel'||k==='bronzedoor') return 132*z;
+  if(k==='gate'||k==='bronzedoor') return 132*z;
   if(k==='stairs') return 96*z*(p.s||1);
   if(k==='bell') return 58*z;
   if(k==='chain') return 96*z;
@@ -2126,7 +2126,7 @@ function makeChapter(n){
               {x:15.35,y:21.45,c:'#ffc07a',r:5.2,f:1.08},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
               {x:43.2,y:7.6,c:'#c9b895',r:4.4,f:0.7},
-              {x:26.4,y:21.5,c:'#ff6a4c',r:7.2,f:1.15},
+              {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:27,y:12,c:'#a06cff',r:4.2,f:0.9},{x:42,y:13,c:'#a06cff',r:4.4,f:0.9},
@@ -2138,7 +2138,10 @@ function makeChapter(n){
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
-      {x:24.4,y:21.5,k:'tunnel'},{x:32.4,y:16.8,k:'trap',trap:'trap_runes'}];
+      {x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
+      {x:24.15,y:15.25,k:'timber'},{x:24.35,y:28.85,k:'timber'},
+      {x:23.35,y:15.55,k:'lantern'},{x:25.55,y:14.85,k:'orepile'},
+      {x:25.45,y:29.15,k:'pickpile'},{x:23.55,y:28.45,k:'crate'}];
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
@@ -2349,7 +2352,8 @@ function makeChapter(n){
       {x:32,y:36,k:'pillar'},{x:40,y:14,k:'pillar'},{x:52,y:14,k:'pillar'},{x:40,y:26,k:'pillar'},{x:52,y:26,k:'pillar'},
       {x:46,y:14,k:'names'},{x:38,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:38,y:48,k:'brazier'},{x:58,y:48,k:'brazier'},
       {x:48,y:34.28,k:'rubydoor'},{x:24,y:31,k:'cart'},{x:29,y:25,k:'bones'},{x:22,y:33,k:'bones'},{x:44,y:22,k:'bones'},
-      {x:16,y:28,k:'tunnel'},{x:34,y:24,k:'tunnel'},
+      {x:16.2,y:26.15,k:'lantern'},{x:15.8,y:29.85,k:'timber'},{x:17.1,y:29.7,k:'barrel'},
+      {x:32.4,y:21.2,k:'banner'},{x:33.6,y:36.2,k:'crate'},{x:33.2,y:21.6,k:'urn'},
       {x:26,y:28,k:'trap',trap:'trap_spikes'},{x:44,y:20,k:'trap',trap:'trap_runes'},
       {x:40,y:40,k:'trap',trap:'trap_pit'},{x:52,y:42,k:'trap',trap:'trap_spikes'}];
     L.guide=()=>!L.flags.w1?{x:26,y:28}:!L.flags.w2?{x:46,y:20}:!L.flags.boss?{x:48,y:40}:null;
@@ -2400,7 +2404,8 @@ function makeChapter(n){
       {x:34,y:36,k:'pillar'},{x:44,y:10,k:'pillar'},{x:56,y:10,k:'pillar'},{x:44,y:22,k:'names'},
       {x:40,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:40,y:48,k:'altar'},{x:52,y:42,k:'throne'},
       {x:26,y:24,k:'bones'},{x:30,y:32,k:'bones'},{x:48,y:18,k:'bones'},
-      {x:16,y:28,k:'tunnel'},{x:38,y:22,k:'tunnel'},
+      {x:16.2,y:26.15,k:'lantern'},{x:15.8,y:29.85,k:'timber'},{x:17.2,y:29.65,k:'slime'},
+      {x:37.2,y:19.2,k:'urn'},{x:39.1,y:23.6,k:'banner'},{x:36.6,y:23.4,k:'bones'},
       {x:28,y:28,k:'trap',trap:'trap_spikes'},{x:46,y:16,k:'trap',trap:'trap_runes'},
       {x:44,y:40,k:'trap',trap:'trap_pit'},{x:54,y:44,k:'trap',trap:'trap_spikes'}];
     L.guide=()=>!L.flags.w1?{x:28,y:28}:!L.flags.w2?{x:50,y:16}:!L.flags.boss?{x:52,y:42}:null;
@@ -2444,7 +2449,8 @@ function makeChapter(n){
       {x:18,y:31,k:'brazier'},{x:40,y:31,k:'brazier'},{x:20,y:16,k:'pillar'},{x:38,y:16,k:'pillar'},
       {x:20,y:28,k:'pillar'},{x:38,y:28,k:'pillar'},{x:29,y:14.5,k:'altar'},{x:29,y:10,k:'throne'},
       {x:24,y:33,k:'bones'},{x:34,y:33,k:'bones'},
-      {x:22,y:40,k:'tunnel'},{x:29,y:36,k:'trap',trap:'trap_runes'},
+      {x:20.2,y:37.15,k:'urn'},{x:23.8,y:42.85,k:'banner'},{x:21.4,y:42.6,k:'bones'},
+      {x:29,y:36,k:'trap',trap:'trap_runes'},
       {x:24,y:22,k:'trap',trap:'trap_spikes'},{x:34,y:22,k:'trap',trap:'trap_pit'}];
     L.guide=()=>!L.flags.start?{x:29,y:20}:null;
     L.tick=()=>{
@@ -2627,7 +2633,6 @@ function openPassagesAt(x,y){
       if(t===0||t===3||t===4){ seen[k]=1; q.push([ni,nj,d+1]); }
     }
   }
-  if((G.props||[]).some(p=>p.k==='tunnel'&&seen[(p.x|0)+','+(p.y|0)])) return true;
   return false;
 }
 function wanderKinds(){
