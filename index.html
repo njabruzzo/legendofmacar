@@ -7424,6 +7424,7 @@ function placeCraftCaches(L){
 }
 function addCraftStation(x,y,seed,L){
   G.props=G.props||[];
+  if((G.props||[]).some(p=>p&&p.k==='craftstation')) return null;
   G.props.push({x,y,k:'craftstation',s:1.05,seed:seed||1,station:1});
   const lvl=L||G.lvl;
   if(lvl&&lvl.lights) lvl.lights.push({x,y,c:'#ffc061',r:3.6,f:0.72});

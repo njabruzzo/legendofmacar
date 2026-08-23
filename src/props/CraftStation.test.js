@@ -52,6 +52,7 @@ assert(/k:'craftstation'/.test(html), 'prop kind craftstation');
 
 assert(/CS\.planPlacement/.test(html), 'index uses CraftStation.planPlacement');
 assert(!/43\.15\s*,\s*30\.55/.test(html), 'chapter 2 no longer has a second station');
+assert(/some\(p=>p&&p\.k==='craftstation'\)/.test(html), 'addCraftStation refuses a second forge');
 
 if (failed) {
   console.error('\n' + failed + ' failed');
