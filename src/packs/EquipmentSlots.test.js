@@ -53,6 +53,20 @@ assert(byId.macar_pants.slot === 'pants' && byId.macar_boots.slot === 'boots', '
 assert(byId.macar_hammer.slot === 'primary', 'starting hammer is primary');
 assert(byId.macar_crossbow.slot === 'secondary', 'starting crossbow is secondary');
 assert(byId.macar_quiver.slot === 'quiver', 'starting quiver');
+assert(byId.macar_helm.spr === 'icon_helm', 'helm uses helm graphic');
+assert(byId.macar_leather.spr === 'icon_chest', 'leather uses chest graphic');
+assert(byId.macar_pants.spr === 'icon_pants', 'trousers use pants graphic');
+assert(byId.macar_boots.spr === 'icon_boots', 'boots use boots graphic');
+assert(byId.macar_quiver.spr === 'icon_quiver', 'quiver uses quiver graphic');
+assert(Eq.slotIcon('helmet') === 'icon_helm' && Eq.slotIcon('quiver') === 'icon_quiver', 'slot icon map');
+
+const cellSq = Eq.slotCell('helmet', 100, 50, 32);
+assert(isFinite(cellSq.x) && isFinite(cellSq.y) && isFinite(cellSq.w) && isFinite(cellSq.h), 'slotCell without height is finite');
+assert(cellSq.y === 34 && cellSq.h === 32, 'missing height defaults to width');
+const cellRect = Eq.slotCell('quiver', 100, 50, 40, 20);
+assert(cellRect.h === 20 && cellRect.y === 40, 'explicit height is used');
+const cellBad = Eq.slotCell('chest', 10, 10, 24, undefined);
+assert(isFinite(cellBad.y) && cellBad.h === 24, 'undefined height does not produce NaN');
 
 let eq = Eq.emptyEquipped();
 start.forEach(it => {
@@ -101,6 +115,9 @@ assert(/src\/packs\/EquipmentSlots\.js/.test(html), 'index.html loads EquipmentS
 assert(/drawEquipDoll|drawPaperDoll/.test(html), 'pack screen draws the paper doll');
 assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit');
 assert(/computeWornAC/.test(html), 'party AC uses worn 1e values');
+assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && /icon_doll/.test(html), 'inventory slot graphics are registered');
+assert(/ph\.key==='macar'/.test(html) && /openPackMenu\('play'\)/.test(html), 'Macar portrait opens the pack doll');
+assert(/GEAR/.test(html), 'Macar portrait marks the gear screen');
 
 if (failed) {
   console.error('\n' + failed + ' failed');

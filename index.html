@@ -320,7 +320,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='47';
+const ASSET_VER='48';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -500,6 +500,15 @@ const SPRITE_FILES={
   icon_attack:'assets/ui/icon_attack.png',
   icon_defend:'assets/ui/icon_defend.png',
   icon_craft:'assets/ui/icon_craft.png',
+  icon_helm:'assets/ui/icon_helm.png',
+  icon_necklace:'assets/ui/icon_necklace.png',
+  icon_chest:'assets/ui/icon_chest.png',
+  icon_bracers:'assets/ui/icon_bracers.png',
+  icon_gloves:'assets/ui/icon_gloves.png',
+  icon_pants:'assets/ui/icon_pants.png',
+  icon_boots:'assets/ui/icon_boots.png',
+  icon_quiver:'assets/ui/icon_quiver.png',
+  icon_doll:'assets/ui/icon_doll.png',
   title_splash:'assets/ui/title_splash.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg'
 };
@@ -563,7 +572,9 @@ const ICON_SPR={
 };
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft','skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
+    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll',
+    'skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
@@ -3777,6 +3788,7 @@ function ensureMacarStartingGear(pk){
       if(have.ac==null && it.ac!=null) have.ac=it.ac;
       if(have.acBonus==null && it.acBonus!=null) have.acBonus=it.acBonus;
       if(!have.armorType && it.armorType) have.armorType=it.armorType;
+      if(it.spr) have.spr=it.spr;
     }
     if(!G.macarGearReady){
       const slot=have.slot||(ES&&ES.itemSlot&&ES.itemSlot(have));
@@ -5318,7 +5330,17 @@ function onDown(id,x,y,ptr){
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
   if(G.inspect){ G.inspect=null; return; }
   const ph=(UI.portraitHits||[]).find(z=>x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h);
-  if(ph){ G.inspect=ph.key; return; }
+  if(ph){
+    if(ph.key==='macar'){
+      G.inspect=null;
+      G.packWho='macar';
+      G.packTab='gear';
+      openPackMenu('play');
+      return;
+    }
+    G.inspect=ph.key;
+    return;
+  }
   if(G.showObjs){
     if(hitRect(UI.objHit,x,y)){ G.showObjs=0; return; }
     if(hitRect(UI.objPanel,x,y)) return;
@@ -5510,6 +5532,8 @@ function fire(key){
   if(key==='camp'){ campRest(); return; }
   if(key==='craft'){ openCraftBench(); return; }
   if(key==='pack'){
+    G.inspect=null;
+    G.packWho=G.packWho||'macar';
     openPackMenu('play');
     return;
   }
@@ -8309,12 +8333,16 @@ function roundPath(g,x,y,w,h,r){ r=Math.min(r,w/2,h/2);
   g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h); g.lineTo(x+r,y+h);
   g.quadraticCurveTo(x,y+h,x,y+h-r); g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y); g.closePath(); }
 function carveFrame(g,x,y,w,h,r,a){
+  x=+x; y=+y; w=+w; h=+h;
+  if(!isFinite(x)||!isFinite(y)||!isFinite(w)||!isFinite(h)||w<=0||h<=0) return;
   r=Math.min(r||7,w/2,h/2);
+  if(!isFinite(r)||r<0) r=0;
   g.fillStyle='rgba(8,6,5,'+(a===undefined?0.84:a)+')'; roundPath(g,x,y,w,h,r); g.fill();
   if(!QUALITY){
     g.strokeStyle='rgba(214,176,112,0.5)'; g.lineWidth=1.5; roundPath(g,x+1,y+1,w-2,h-2,r); g.stroke();
     return;
   }
+  if(h<0.5) return;
   const ig=g.createLinearGradient(x,y,x,y+h);
   ig.addColorStop(0,'rgba(48,36,24,0.55)'); ig.addColorStop(1,'rgba(14,10,8,0.35)');
   g.fillStyle=ig; roundPath(g,x+3,y+3,w-6,h-6,Math.max(2,r-2)); g.fill();
@@ -8376,16 +8404,25 @@ function drawStockStrip(g, x, y, w){
   });
   return h;
 }
+function slotSprite(slot){
+  const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+  const key=(ES&&ES.slotIcon)?ES.slotIcon(slot):(ES&&ES.SLOT_ICON&&ES.SLOT_ICON[slot]);
+  return (key&&SPR[key])||SPR.icon_pack;
+}
 function packThumbFor(row){
   if(row.kind==='magic'){
     const it=row.it||{};
     if(it.spr&&SPR[it.spr]) return SPR[it.spr];
     if(it.k==='key'||it.cat==='Key') return SPR.dwarfkey||SPR.loot_jewelry;
     const slot=it.slot||(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.itemSlot&&EquipmentSlots.itemSlot(it));
+    if(slot){
+      const slotSpr=slotSprite(slot);
+      if(slotSpr) return slotSpr;
+    }
     if(slot==='secondary'||/crossbow|bow/i.test(it.n||'')) return SPR.icon_crossbow||SPR.icon_sword;
-    if(slot==='quiver') return SPR.icon_crossbow||SPR.icon_sword;
+    if(slot==='quiver') return SPR.icon_quiver||SPR.icon_crossbow||SPR.icon_sword;
     if(isEquipWeapon(it)||it.k==='weapon'||/sword|axe|hammer|mace/i.test(it.cat||it.n||'')) return (it.id==='macar_hammer'||/hammer/i.test(it.n||''))? (SPR.icon_attack||SPR.icon_sword): (SPR.icon_sword||SPR.loot_chest);
-    if(isEquipArmor(it)||it.k==='armor'||/armor|mail|shield|helm|boot|trouser|pant/i.test(it.cat||it.n||'')) return SPR.icon_shield;
+    if(isEquipArmor(it)||it.k==='armor'||/armor|mail|shield|helm|boot|trouser|pant/i.test(it.cat||it.n||'')) return SPR.icon_chest||SPR.icon_shield;
     if(it.k==='ring'||it.cat==='Ring') return SPR.loot_jewelry;
     return SPR.loot_chest;
   }
@@ -8488,7 +8525,13 @@ function drawPortraitStack(g,s){
     const yy=y+i*(h+gap);
     UI.portraitHits.push({x,y:yy,w,h,key:e.col.key});
     carveFrame(g,x,yy,w,h,6,.88);
-    if(e.hero){ g.strokeStyle='rgba(255,210,130,0.7)'; g.lineWidth=1.6; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
+    if(e.hero){ g.strokeStyle='rgba(255,210,130,0.7)'; g.lineWidth=1.6; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke();
+      g.font='800 '+(7.5*s)+'px '+FONT_UI;
+      g.fillStyle='#ffe08a';
+      g.textAlign='right';
+      g.fillText('GEAR', x+w-8*s, yy+13*s);
+      g.textAlign='left';
+    }
     if(e.ghost){ g.strokeStyle='rgba(120,210,255,0.75)'; g.lineWidth=1.5; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     if(G.inspect===e.col.key){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     const rr=PORT?15*s:17*s, cx=x+rr+8*s, cy=yy+h/2;
@@ -8680,6 +8723,13 @@ function drawBackpack(g,s){
 function drawOrb(g,s){ drawBackpack(g,s); }
 function drawInspect(g,s){
   if(!G.inspect) return;
+  if(G.inspect==='macar'){
+    G.inspect=null;
+    G.packWho='macar';
+    G.packTab='gear';
+    openPackMenu('play');
+    return;
+  }
   ensureCharXp();
   const e=(G.ents||[]).find(z=>z.col&&z.col.key===G.inspect)||player();
   if(!e) return;
@@ -9571,10 +9621,14 @@ function usePackRow(r){
   syncPackTotals();
 }
 function dollSlotLayout(x, y, w, h){
-  const pad=6, innerH=h-pad*2, rowH=innerH/7;
-  const slot=Math.max(26, Math.min((w-pad*2)/3.35, rowH-3, 46));
+  const pad=6, innerH=Math.max(80, h-pad*2), rowH=innerH/7;
+  const slot=Math.max(16, Math.min((w-pad*2)/3.35, rowH*0.86, 46));
   const cx=x+w/2;
-  const cell=(k, px, py, sw, sh)=>({k, x:px-sw/2, y:py-sh/2, w:sw, h:sh||sw});
+  const cell=(k, px, py, sw, sh)=>{
+    if(typeof EquipmentSlots!=='undefined' && EquipmentSlots.slotCell) return EquipmentSlots.slotCell(k, px, py, sw, sh);
+    sh=(sh==null || !isFinite(sh) || sh<=0)?sw:sh;
+    return {k, x:px-sw/2, y:py-sh/2, w:sw, h:sh};
+  };
   const mid=y+pad+rowH*2.5;
   return {
     slot,
@@ -9595,10 +9649,7 @@ function dollSlotLayout(x, y, w, h){
 }
 function slotThumbFor(it, slot){
   if(it) return packThumbFor({kind:'magic', it});
-  if(slot==='primary') return SPR.icon_attack||SPR.icon_sword;
-  if(slot==='secondary'||slot==='quiver') return SPR.icon_crossbow||SPR.icon_sword;
-  if(slot==='chest'||slot==='helmet') return SPR.icon_shield;
-  return SPR.icon_pack;
+  return slotSprite(slot);
 }
 function togglePackSlot(slot){
   ensureEquippedShape();
@@ -9640,7 +9691,7 @@ function drawEquipDoll(g, x, y, w, h){
 
   const lay=dollSlotLayout(x, y+22*s, w, h-28*s);
   const body=lay.body;
-  const img=SPR.macar;
+  const img=SPR.icon_doll||SPR.macar;
   if(img&&img.width){
     const sc=Math.min(body.w/img.width, body.h/img.height);
     g.save();
@@ -9665,9 +9716,12 @@ function drawEquipDoll(g, x, y, w, h){
     roundPath(g, c.x, c.y, c.w, c.h, 5); g.stroke();
     const thumb=slotThumbFor(it, c.k);
     if(filled && thumb) drawThumb(g, thumb, c.x+3, c.y+3, Math.min(c.w, c.h)-6);
-    else if(!filled && thumb){
-      g.globalAlpha=0.28;
-      drawThumb(g, thumb, c.x+4, c.y+4, Math.min(c.w, c.h)-8);
+    else if(!filled && thumb && thumb.width){
+      g.globalAlpha=0.62;
+      const sz=Math.min(c.w, c.h)-8;
+      const sc=Math.min(sz/thumb.width, sz/thumb.height);
+      const tw=thumb.width*sc, th=thumb.height*sc;
+      g.drawImage(thumb, c.x+c.w/2-tw/2, c.y+c.h/2-th/2-3, tw, th);
       g.globalAlpha=1;
     }
     const def=ES&&ES.slotDef?ES.slotDef(c.k):{short:c.k,label:c.k};
@@ -9772,6 +9826,10 @@ function drawPack(g){
   const split=!PORT && VW>=640;
   const dollTop=kitY+kitH+6*s;
   const dollBot=VH-52*s;
+  const dollAvail=Math.max(120*s, dollBot-dollTop);
+  const packDollH=PORT
+    ? Math.min(310*s, Math.max(230*s, dollAvail*0.52))
+    : Math.min(236*s, Math.max(188*s, dollAvail*0.42));
   let dollW=0, dollX=10*s, listX=10*s, listWidth=VW-20*s;
   if(split){
     dollW=Math.min(300*s, VW*0.40);
@@ -9779,12 +9837,11 @@ function drawPack(g){
     listX=dollX+dollW+8*s;
     listWidth=VW-listX-10*s;
   } else {
-    const dollH=Math.min(236*s, Math.max(188*s, (dollBot-dollTop)*0.42));
-    drawEquipDoll(g, 10*s, dollTop, VW-20*s, dollH);
+    drawEquipDoll(g, 10*s, dollTop, VW-20*s, packDollH);
     listX=10*s;
     listWidth=VW-20*s;
   }
-  const dollHUsed=split?(dollBot-dollTop):Math.min(236*s, Math.max(188*s, (dollBot-dollTop)*0.42));
+  const dollHUsed=split?(dollBot-dollTop):packDollH;
 
   const CATS=[{k:'all',n:'All'},{k:'gear',n:'Gear'},{k:'magic',n:'Magic'},{k:'potion',n:'Brews'},{k:'gem',n:'Gems'},{k:'herb',n:'Herbs'}];
   const catY=split?dollTop:(dollTop+dollHUsed+6*s);
