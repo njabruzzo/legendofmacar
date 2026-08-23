@@ -319,7 +319,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='44';
+const ASSET_VER='46';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -416,7 +416,9 @@ function syncMusic(){
 playMusic('title');
 tryPlayMusic();
 const SPRITE_FILES={
-  macar:'assets/creatures/dwarf_macar.png', pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
+  macar:'assets/creatures/dwarf_macar.png',
+  macar_axe:'assets/creatures/dwarf_macar_axe.png',
+  pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
   pordoom_ghost:'assets/creatures/dwarf_pordoom_ghost.png', fendur_ghost:'assets/creatures/dwarf_fendur_ghost.png',
   orbo_ghost:'assets/creatures/dwarf_orbo_ghost.png', talpor_ghost:'assets/creatures/dwarf_talpor_ghost.png',
@@ -560,10 +562,10 @@ const ICON_SPR={
 };
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft','skill_icons','macar','pordoom','fendur','orbo','talpor',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft','skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
-    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
@@ -600,7 +602,8 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_back','macar_atk','macar_atk_bow']
+  ['macar','macar_w1','macar_w2','macar_back','macar_atk','macar_atk_bow',
+    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk']
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 function ensureDeadSprites(){
@@ -638,7 +641,8 @@ function drawBillboard(g,img,h){
    the art. FIT multiplies the frame's drawn height; 1.29 came from the helmet
    crown, 54px tall in the idle frame against 42px in the attack frame. */
 const FRAME_FIT={
-  macar_atk:1.29
+  macar_atk:1.29,
+  macar_axe_atk:1.18
   // If a new frame is drawn with the figure at a different size inside the
   // canvas, add it here. Measure the helmet crown against the idle frame and
   // divide: idle_crown / new_crown.
@@ -1139,6 +1143,7 @@ function entSpriteKey(e){
   if(e.kind==='dwarf'){
     const k=e.col && e.col.key;
     if(e.ghost && k) return k+'_ghost';
+    if(k==='macar' && wieldsShadowCleaver()) return 'macar_axe';
     return k;
   }
   if(e.sprite) return e.sprite;
@@ -3595,8 +3600,26 @@ function takeHealCharge(){
   if(k) return {kind:'ale', key:k};
   return null;
 }
+function isShadowCleaver(it){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isShadowCleaver&&DwarfMouth.isShadowCleaver(it)); }
+function findShadowCleaver(){
+  if(typeof DwarfMouth==='undefined'||!DwarfMouth.findShadowCleaver) return null;
+  return DwarfMouth.findShadowCleaver(G.packs, G.equipped);
+}
+function wieldsShadowCleaver(){ return isShadowCleaver(G.equipped&&G.equipped.weapon); }
+function ensureShadowCleaverWielded(){
+  if(wieldsShadowCleaver()) return G.equipped.weapon;
+  const axe=findShadowCleaver();
+  if(!axe) return null;
+  wieldWeapon(axe);
+  return axe;
+}
 function maybeAutoEquip(it){
   if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  if(isShadowCleaver(it)){
+    G.equipped.weapon=it;
+    applyEquipped();
+    return 'weapon';
+  }
   if(!it||it.noAuto) return null;
   if(isEquipWeapon(it) && !G.equipped.weapon){ G.equipped.weapon=it; applyEquipped(); return 'weapon'; }
   if(isEquipArmor(it) && !G.equipped.armor){ G.equipped.armor=it; applyEquipped(); return 'armor'; }
@@ -5224,6 +5247,7 @@ function fire(key){
   const p=player(); if(!p) return;
   if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
+    ensureShadowCleaverWielded();
     p.dest=null; if(p.ct<=0){ p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; } return;
   }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
@@ -5462,6 +5486,7 @@ function update(dt){
     if(!G.digging && !p.defending){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
+        ensureShadowCleaverWielded();
         turnToward(p, t.x-p.x, t.y-p.y, dt, 18);
         p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
       if(!t) p.aim=null;
@@ -6884,7 +6909,8 @@ function drawEnt(g,e){
   if(e.hero && e.atk>0 && !e.dead){
     const t=1-e.atk/Math.max(0.01,e.atkMax);
     const ang=-1.25+t*2.55, rad=26*z;
-    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 18*z, '#ffd27a', 0.55);
+    const col=wieldsShadowCleaver()?'#c8b8ff':'#ffd27a';
+    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 18*z, col, 0.55);
   }
 
   if(e.flash>0 && !e.dead){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);

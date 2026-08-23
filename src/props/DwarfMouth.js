@@ -15,6 +15,20 @@
       d:'Silver dwarven battle axe +2/+2. Double damage versus spiders and the undead.'
     };
   }
+  function isShadowCleaver(it){
+    if(!it) return false;
+    if(it.id==='shadow_cleaver') return true;
+    return /shadow\s*cleaver/i.test(it.n||'');
+  }
+  function findShadowCleaver(packs, equipped){
+    const wep=equipped&&equipped.weapon;
+    if(isShadowCleaver(wep)) return wep;
+    const magic=(packs&&packs.macar&&packs.macar.magic)||[];
+    for(let i=0;i<magic.length;i++){
+      if(isShadowCleaver(magic[i])) return magic[i];
+    }
+    return null;
+  }
   function dwarfMouthKey(){
     return {
       id:'dwarf_mouth_key', n:'Dwarven Mouth-Key', k:'key', cat:'Key',
@@ -55,7 +69,7 @@
   }
 
   global.DwarfMouth={
-    macarHammerItem, shadowCleaverItem, dwarfMouthKey,
+    macarHammerItem, shadowCleaverItem, dwarfMouthKey, isShadowCleaver, findShadowCleaver,
     isGuardianRuby, isSpiderFoe, isUndeadFoe, weaponVsDouble,
     resolveMouthDrop, takeGemByRef
   };
