@@ -320,7 +320,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='48';
+const ASSET_VER='49';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -563,6 +563,13 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
    file is missing, buildHeroAttackFrames() draws one at load. */
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
+SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
+SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
+SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
+SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
+SPRITE_FILES.macar_axe_back='assets/creatures/dwarf_macar_axe_back.png';
+SPRITE_FILES.macar_axe_back_w1='assets/creatures/dwarf_macar_axe_back_w1.png';
+SPRITE_FILES.macar_axe_back_w2='assets/creatures/dwarf_macar_axe_back_w2.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
@@ -576,8 +583,8 @@ function loadSprites(done){
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll',
     'skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
-    'macar_back','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
-    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
+    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
@@ -621,8 +628,8 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_back','macar_atk','macar_atk_bow',
-    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk']
+  ['macar','macar_w1','macar_w2','macar_back','macar_back_w1','macar_back_w2','macar_atk','macar_atk_bow','macar_atk_recover',
+    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2']
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 function ensureDeadSprites(){
@@ -701,7 +708,7 @@ function frameFit(e,img){
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
-  for(const suffix of ['_atk_bow','_atk','_back','_w1','_w2','_sleep']){
+  for(const suffix of ['_atk_recover','_atk_bow','_back_w1','_back_w2','_atk','_back','_w1','_w2','_sleep']){
     if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
   }
   return 1;
@@ -1182,9 +1189,19 @@ function attackProgress(e){
 function wantsMeleePose(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  // Idle → raised hammer → recovery. A single frozen wind-up for the whole
-  // cooldown looked like Macar was just standing there.
-  return t>=0.08 && t<=0.78;
+  // Raised hammer / axe until the blow lands. Follow-through is a later pose.
+  return t>=0.08 && t<0.55;
+}
+function wantsMeleeRecover(e){
+  if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
+  const t=attackProgress(e);
+  return t>=0.55 && t<=0.96;
+}
+function gaitImg(a,b,e){
+  const frames=[a,b].filter(img=>img&&img.width);
+  if(!frames.length) return null;
+  const phase=((e.gait||0)%1)<0.5?0:1;
+  return frames[phase%frames.length];
 }
 function entAnimImg(e){
   const k=entSpriteKey(e);
@@ -1199,15 +1216,18 @@ function entAnimImg(e){
   }
   // Attack pose beats the back sprite. Facing the ruby-door wall used to keep
   // dwarf_macar_back.png up for the whole swing, so Attack looked like a no-op.
+  if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) return SPR[k+'_atk_recover'];
   if(wantsMeleePose(e) && SPR[k+'_atk']) return SPR[k+'_atk'];
-  if(wantsBackView(e) && SPR[k+'_back']) return SPR[k+'_back'];
-  if(QUALITY && e.moving){
-    const a=SPR[k+'_w1'], b=SPR[k+'_w2'];
-    if(a||b){
-      const frames=[a,b].filter(Boolean);
-      const phase=((e.gait||0)%1)<0.5?0:1;
-      return frames[phase%frames.length];
+  if(wantsBackView(e)){
+    if(QUALITY && e.moving && !e.defending){
+      const away=gaitImg(SPR[k+'_back_w1']||SPR.macar_back_w1, SPR[k+'_back_w2']||SPR.macar_back_w2, e);
+      if(away) return away;
     }
+    if(SPR[k+'_back']) return SPR[k+'_back'];
+  }
+  if(QUALITY && e.moving){
+    const step=gaitImg(SPR[k+'_w1'], SPR[k+'_w2'], e);
+    if(step) return step;
   }
   return SPR[k]||null;
 }
