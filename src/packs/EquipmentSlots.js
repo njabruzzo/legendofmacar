@@ -78,7 +78,7 @@
 
   function isShield(it) {
     if (!it) return false;
-    return /shield/i.test(String(it.n || '') + ' ' + String(it.cat || ''));
+    return /shield/i.test(String(it.n || ''));
   }
 
   function itemSlot(it) {
@@ -94,7 +94,7 @@
     if (/pant|trouser|greave|legging/i.test(n)) return 'pants';
     if (it.k === 'ammo' && /(arrow|bolt|quarrel)/i.test(n)) return null;
     if (/crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(n) && it.k !== 'ammo') return 'secondary';
-    if (/shield/i.test(n)) return 'secondary';
+    if (/shield/i.test(it.n || '')) return 'secondary';
     if (it.k === 'weapon' || it.cat === 'Sword' || it.cat === 'Weapon') return 'primary';
     if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
     if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';

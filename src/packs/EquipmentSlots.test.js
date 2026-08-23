@@ -23,7 +23,8 @@ assert(Eq.ARMOR_AC.studded === 7 && Eq.ARMOR_AC.scale === 6 && Eq.ARMOR_AC.splin
 
 assert(Eq.itemSlot({n:'Iron Helm', k:'armor'}) === 'helmet', 'helm → helmet');
 assert(Eq.itemSlot({n:'Necklace of Adaptation', k:'misc'}) === 'necklace', 'necklace');
-assert(Eq.itemSlot({n:'Leather Armor', k:'armor'}) === 'chest', 'leather → chest');
+assert(Eq.itemSlot({n:'Leather Armor', k:'armor', cat:'Armor/Shield'}) === 'chest', 'leather → chest');
+assert(!Eq.isShield({n:'Leather Armor', cat:'Armor/Shield'}), 'Armor/Shield category is not a shield');
 assert(Eq.itemSlot({n:'Chain Mail +1', k:'armor'}) === 'chest', 'chain → chest');
 assert(Eq.itemSlot({n:'Bracers of Defense', k:'misc'}) === 'bracers', 'bracers');
 assert(Eq.itemSlot({n:'Gauntlets of Ogre Power', k:'misc'}) === 'gloves', 'gauntlets → gloves');
