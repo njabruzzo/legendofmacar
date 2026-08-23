@@ -319,7 +319,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='46';
+const ASSET_VER='47';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -594,7 +594,14 @@ function loadSprites(done){
         else next();
       };
       img.onload=()=>fin(true);
-      img.onerror=()=>fin(false);
+      img.onerror=()=>{
+        if(!img.__retried){
+          img.__retried=1;
+          img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
+          return;
+        }
+        fin(false);
+      };
       img.src=assetUrl(SPRITE_FILES[k]);
     }
   }
@@ -7113,6 +7120,16 @@ function drawDwarf(g,e,z,sw){
     g.beginPath(); g.rect(12*z,-2.8*z,31*z,5.6*z); sc(g,'#6a5232',-2.8*z,2.8*z,1.5);
     g.beginPath(); g.moveTo(34*z,-15*z); g.quadraticCurveTo(47*z,-8*z,45*z,7*z);
     g.quadraticCurveTo(38*z,-2*z,32*z,-2*z); g.closePath(); sc(g,'#c6cfd9',-15*z,7*z,1.6);
+  } else if(e.hero && wieldsShadowCleaver()){
+    // Painted axe sheet missing: keep the rune-axe, never the old hammer head.
+    g.beginPath(); g.rect(12*z,-3.2*z,28*z,5.2*z); sc(g,'#4a3424',-3.2*z,2.0*z,1.5);
+    g.fillStyle='#c8d0dc';
+    g.beginPath(); g.arc(44*z,0,11*z,Math.PI*0.18,Math.PI*1.18); g.fill();
+    g.beginPath(); g.arc(36*z,0,6*z,Math.PI*1.18,Math.PI*2.18); g.fill();
+    g.strokeStyle='#1a1420'; g.lineWidth=1.2*ZOOM;
+    g.beginPath(); g.arc(44*z,0,8.5*z,Math.PI*0.28,Math.PI*1.08); g.stroke();
+    g.strokeStyle='#9aa4b4'; g.lineWidth=1.4*ZOOM;
+    g.beginPath(); g.moveTo(12*z,0); g.lineTo(38*z,0); g.stroke();
   } else {
     g.beginPath(); g.rect(12*z,-3.2*z,25*z,6.4*z); sc(g,'#6a5232',-3.2*z,3.2*z,1.6);
     g.save(); g.translate(39*z,0); g.rotate(-.2);
