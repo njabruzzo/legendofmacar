@@ -21,6 +21,18 @@
   var LEGACY_KEYS = ['weapon', 'armor', 'ring', 'wand'];
   var ALL_KEYS = SLOT_KEYS.concat(LEGACY_KEYS);
   var START_WORN = ['helmet', 'chest', 'pants', 'boots', 'primary', 'secondary', 'quiver'];
+  var SLOT_ICON = {
+    helmet: 'icon_helm',
+    necklace: 'icon_necklace',
+    chest: 'icon_chest',
+    bracers: 'icon_bracers',
+    gloves: 'icon_gloves',
+    pants: 'icon_pants',
+    boots: 'icon_boots',
+    primary: 'icon_attack',
+    secondary: 'icon_crossbow',
+    quiver: 'icon_quiver'
+  };
 
   /* PHB armor table. Lower is better. Shield is a further −1, applied separately. */
   var ARMOR_AC = {
@@ -132,22 +144,22 @@
     return [
       {
         id: 'macar_helm', n: 'Iron Helm', k: 'armor', cat: 'Armor/Shield', slot: 'helmet',
-        acBonus: 1, spr: 'icon_shield',
+        acBonus: 1, spr: 'icon_helm',
         d: 'A miner\'s helm. Improves Armor Class by 1 (AD&D 1e).'
       },
       {
         id: 'macar_leather', n: 'Leather Armor', k: 'armor', cat: 'Armor/Shield', slot: 'chest',
-        armorType: 'leather', ac: 8, plus: 0, spr: 'icon_shield',
+        armorType: 'leather', ac: 8, plus: 0, spr: 'icon_chest',
         d: 'Hardened hide. AD&D 1e leather — Armor Class 8.'
       },
       {
         id: 'macar_pants', n: 'Wool Trousers', k: 'armor', cat: 'Clothes', slot: 'pants',
-        spr: 'icon_pack',
+        spr: 'icon_pants',
         d: 'Sturdy miner\'s trousers. No Armor Class.'
       },
       {
         id: 'macar_boots', n: 'Leather Boots', k: 'armor', cat: 'Clothes', slot: 'boots',
-        spr: 'icon_pack',
+        spr: 'icon_boots',
         d: 'Normal boots. No Armor Class.'
       },
       hammer,
@@ -158,7 +170,7 @@
       },
       {
         id: 'macar_quiver', n: 'Bolt Quiver', k: 'ammo', cat: 'Ammo', slot: 'quiver',
-        ammoType: 'bolt', spr: 'icon_crossbow',
+        ammoType: 'bolt', spr: 'icon_quiver',
         d: 'A leather quiver. The count is the quarrels you can loose.'
       }
     ];
@@ -296,12 +308,26 @@
     return {k: k, label: k, short: k};
   }
 
+  function slotIcon(slot) {
+    return SLOT_ICON[slot] || 'icon_pack';
+  }
+
+  /** Centered slot rect. Missing / non-finite height falls back to width so canvas gradients stay finite. */
+  function slotCell(k, px, py, sw, sh) {
+    sw = Number(sw);
+    if (!isFinite(sw) || sw <= 0) sw = 32;
+    sh = Number(sh);
+    if (!isFinite(sh) || sh <= 0) sh = sw;
+    return {k: k, x: px - sw / 2, y: py - sh / 2, w: sw, h: sh};
+  }
+
   var EquipmentSlots = {
     SLOTS: SLOTS,
     SLOT_KEYS: SLOT_KEYS,
     LEGACY_KEYS: LEGACY_KEYS,
     ALL_KEYS: ALL_KEYS,
     START_WORN: START_WORN,
+    SLOT_ICON: SLOT_ICON,
     ARMOR_AC: ARMOR_AC,
     emptyEquipped: emptyEquipped,
     ensureShape: ensureShape,
@@ -319,7 +345,9 @@
     computeWornAC: computeWornAC,
     magicAcBonus: magicAcBonus,
     describeAC: describeAC,
-    slotDef: slotDef
+    slotDef: slotDef,
+    slotIcon: slotIcon,
+    slotCell: slotCell
   };
 
   root.EquipmentSlots = EquipmentSlots;
