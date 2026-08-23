@@ -73,9 +73,12 @@
       if (!itemMatch(arr[i], loan)) continue;
       var it = arr.splice(i, 1)[0];
       if (equipped) {
-        ['weapon', 'armor', 'ring', 'wand'].forEach(function (s) {
+        var slots = (root.EquipmentSlots && EquipmentSlots.ALL_KEYS) || ['weapon', 'armor', 'ring', 'wand'];
+        slots.forEach(function (s) {
           if (equipped[s] === it) equipped[s] = null;
         });
+        if (equipped.primary == null) equipped.weapon = null;
+        if (equipped.chest == null) equipped.armor = null;
       }
       return unmark(it);
     }

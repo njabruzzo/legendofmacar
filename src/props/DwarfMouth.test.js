@@ -30,7 +30,7 @@ assert(M.weaponVsDouble(axe,{kind:'undead'}), 'double vs undead');
 assert(!M.weaponVsDouble(axe,{kind:'goblin'}), 'no double vs goblin');
 
 const ham=M.macarHammerItem();
-assert(ham.id==='macar_hammer' && ham.dice==='1d8', 'hammer item');
+assert(ham.id==='macar_hammer' && ham.dice==='1d8' && ham.slot==='primary', 'hammer item is primary');
 assert(M.dwarfMouthKey().k==='key', 'mouth key');
 
 const ruby={n:'Ruby', guardian:1, d:'A blood-red shard from a ruby guardian.'};

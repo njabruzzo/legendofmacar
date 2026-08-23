@@ -1,0 +1,326 @@
+/**
+ * AD&D 1e paper-doll slots and armor-class values.
+ * Used by the pack screen and by partyAC for Macar.
+ */
+(function (root) {
+  'use strict';
+
+  var SLOTS = [
+    {k:'helmet', label:'Helmet', short:'Helm'},
+    {k:'necklace', label:'Necklace', short:'Neck'},
+    {k:'chest', label:'Chest', short:'Chest'},
+    {k:'bracers', label:'Bracers', short:'Brace'},
+    {k:'gloves', label:'Gloves', short:'Hand'},
+    {k:'pants', label:'Pants', short:'Pants'},
+    {k:'boots', label:'Boots', short:'Boot'},
+    {k:'primary', label:'Primary', short:'Main'},
+    {k:'secondary', label:'Secondary', short:'Off'},
+    {k:'quiver', label:'Quiver', short:'Qvr'}
+  ];
+  var SLOT_KEYS = SLOTS.map(function (s) { return s.k; });
+  var LEGACY_KEYS = ['weapon', 'armor', 'ring', 'wand'];
+  var ALL_KEYS = SLOT_KEYS.concat(LEGACY_KEYS);
+  var START_WORN = ['helmet', 'chest', 'pants', 'boots', 'primary', 'secondary', 'quiver'];
+
+  /* PHB armor table. Lower is better. Shield is a further −1, applied separately. */
+  var ARMOR_AC = {
+    none: 10,
+    padded: 8,
+    leather: 8,
+    studded: 7,
+    ring: 7,
+    scale: 6,
+    chain: 5,
+    banded: 4,
+    splint: 4,
+    plate: 3,
+    field: 2,
+    full: 1
+  };
+
+  function emptyEquipped() {
+    var eq = {};
+    ALL_KEYS.forEach(function (k) { eq[k] = null; });
+    return eq;
+  }
+
+  function ensureShape(eq) {
+    var out = emptyEquipped();
+    if (eq) {
+      ALL_KEYS.forEach(function (k) {
+        if (eq[k] != null) out[k] = eq[k];
+      });
+    }
+    if (out.weapon && !out.primary) out.primary = out.weapon;
+    if (out.armor && !out.chest) out.chest = out.armor;
+    out.weapon = out.primary;
+    out.armor = out.chest;
+    return out;
+  }
+
+  function inferArmorType(name) {
+    var n = String(name || '').toLowerCase();
+    if (/full\s*plate/.test(n)) return 'full';
+    if (/field\s*plate/.test(n)) return 'field';
+    if (/plate/.test(n)) return 'plate';
+    if (/banded/.test(n)) return 'banded';
+    if (/splint/.test(n)) return 'splint';
+    if (/chain/.test(n)) return 'chain';
+    if (/scale/.test(n)) return 'scale';
+    if (/ring\s*mail/.test(n)) return 'ring';
+    if (/studded/.test(n)) return 'studded';
+    if (/padded/.test(n)) return 'padded';
+    if (/leather/.test(n)) return 'leather';
+    if (/shield/.test(n)) return null;
+    if (/armor|mail/.test(n)) return 'chain';
+    return null;
+  }
+
+  function isShield(it) {
+    if (!it) return false;
+    return /shield/i.test(String(it.n || '') + ' ' + String(it.cat || ''));
+  }
+
+  function itemSlot(it) {
+    if (!it) return null;
+    if (it.slot && SLOT_KEYS.indexOf(it.slot) >= 0) return it.slot;
+    var n = String(it.n || '') + ' ' + String(it.cat || '') + ' ' + String(it.k || '');
+    if (/quiver/i.test(n)) return 'quiver';
+    if (/helm|helmet/i.test(n)) return 'helmet';
+    if (/necklace|amulet|medallion|periapt|pendant|torc/i.test(n)) return 'necklace';
+    if (/bracer/i.test(n)) return 'bracers';
+    if (/glove|gauntlet/i.test(n)) return 'gloves';
+    if (/boot|shoe/i.test(n)) return 'boots';
+    if (/pant|trouser|greave|legging/i.test(n)) return 'pants';
+    if (it.k === 'ammo' && /(arrow|bolt|quarrel)/i.test(n)) return null;
+    if (/crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(n) && it.k !== 'ammo') return 'secondary';
+    if (/shield/i.test(n)) return 'secondary';
+    if (it.k === 'weapon' || it.cat === 'Sword' || it.cat === 'Weapon') return 'primary';
+    if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
+    if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';
+    if (it.k === 'ring' || it.cat === 'Ring') return 'necklace';
+    if (/cloak of protection/i.test(n)) return 'necklace';
+    return null;
+  }
+
+  function isEquippable(it) {
+    return !!itemSlot(it);
+  }
+
+  function annotate(it) {
+    if (!it || typeof it !== 'object') return it;
+    var slot = itemSlot(it);
+    if (slot) it.slot = slot;
+    if (slot === 'chest' && !isShield(it)) {
+      it.armorType = it.armorType || inferArmorType(it.n);
+      if (it.ac == null && it.armorType && ARMOR_AC[it.armorType] != null) it.ac = ARMOR_AC[it.armorType];
+    }
+    if (slot === 'helmet' && it.acBonus == null) it.acBonus = (it.plus || 1);
+    return it;
+  }
+
+  function startingItems(hammerFactory) {
+    var hammer = typeof hammerFactory === 'function' ? hammerFactory() : null;
+    if (!hammer) {
+      hammer = {
+        id: 'macar_hammer', n: "Macar's War Hammer", k: 'weapon', cat: 'Weapon',
+        plus: 0, dice: '1d8', defaultWep: 1, spr: 'icon_attack',
+        d: 'Your war hammer. Honest steel from the seam.'
+      };
+    }
+    hammer.slot = 'primary';
+    return [
+      {
+        id: 'macar_helm', n: 'Iron Helm', k: 'armor', cat: 'Armor/Shield', slot: 'helmet',
+        acBonus: 1, spr: 'icon_shield',
+        d: 'A miner\'s helm. Improves Armor Class by 1 (AD&D 1e).'
+      },
+      {
+        id: 'macar_leather', n: 'Leather Armor', k: 'armor', cat: 'Armor/Shield', slot: 'chest',
+        armorType: 'leather', ac: 8, plus: 0, spr: 'icon_shield',
+        d: 'Hardened hide. AD&D 1e leather — Armor Class 8.'
+      },
+      {
+        id: 'macar_pants', n: 'Wool Trousers', k: 'armor', cat: 'Clothes', slot: 'pants',
+        spr: 'icon_pack',
+        d: 'Sturdy miner\'s trousers. No Armor Class.'
+      },
+      {
+        id: 'macar_boots', n: 'Leather Boots', k: 'armor', cat: 'Clothes', slot: 'boots',
+        spr: 'icon_pack',
+        d: 'Normal boots. No Armor Class.'
+      },
+      hammer,
+      {
+        id: 'macar_crossbow', n: 'Light Crossbow', k: 'weapon', cat: 'Weapon', slot: 'secondary',
+        dice: '1d4', spr: 'icon_crossbow', ranged: 1,
+        d: 'Light crossbow. AD&D 1e: 1–4 vs S-M or L. Spends a quarrel from the quiver.'
+      },
+      {
+        id: 'macar_quiver', n: 'Bolt Quiver', k: 'ammo', cat: 'Ammo', slot: 'quiver',
+        ammoType: 'bolt', spr: 'icon_crossbow',
+        d: 'A leather quiver. The count is the quarrels you can loose.'
+      }
+    ];
+  }
+
+  function slotHas(eq, it) {
+    if (!eq || !it) return false;
+    for (var i = 0; i < ALL_KEYS.length; i++) {
+      if (eq[ALL_KEYS[i]] === it) return true;
+    }
+    return false;
+  }
+
+  function clearItem(eq, it) {
+    if (!eq || !it) return eq;
+    ALL_KEYS.forEach(function (k) {
+      if (eq[k] === it) eq[k] = null;
+    });
+    eq.weapon = eq.primary;
+    eq.armor = eq.chest;
+    return eq;
+  }
+
+  function equip(eq, it) {
+    eq = ensureShape(eq);
+    it = annotate(it);
+    var slot = itemSlot(it);
+    if (!slot) return {ok: false, reason: 'no-slot', equipped: eq};
+    var cur = eq[slot];
+    if (cur && cur !== it && cur.cursed) return {ok: false, reason: 'cursed', slot: slot, equipped: eq};
+    if (cur === it) return {ok: true, slot: slot, equipped: eq, already: true};
+    clearItem(eq, it);
+    eq[slot] = it;
+    if (slot === 'primary') eq.weapon = it;
+    if (slot === 'chest') eq.armor = it;
+    if (slot === 'necklace' && (it.k === 'ring' || it.cat === 'Ring' || /protection/i.test(it.n || ''))) eq.ring = it;
+    eq.weapon = eq.primary;
+    eq.armor = eq.chest;
+    return {ok: true, slot: slot, equipped: eq, prev: cur || null};
+  }
+
+  function unequip(eq, slot) {
+    eq = ensureShape(eq);
+    var it = eq[slot];
+    if (!it) return {ok: true, equipped: eq};
+    if (it.cursed) return {ok: false, reason: 'cursed', equipped: eq, item: it};
+    eq[slot] = null;
+    if (slot === 'primary') eq.weapon = null;
+    if (slot === 'chest') eq.armor = null;
+    if (eq.ring === it) eq.ring = null;
+    eq.weapon = eq.primary;
+    eq.armor = eq.chest;
+    return {ok: true, equipped: eq, item: it};
+  }
+
+  function wornBonus(it) {
+    if (!it) return 0;
+    var n = 0;
+    if (it.acBonus) n += it.acBonus;
+    else if (it.plus) n += it.plus;
+    return n;
+  }
+
+  /**
+   * Descending AC from worn kit only (no Dex, no Defend).
+   * Leather 8 + helm +1 → 7. Shield is another −1 if worn in a hand.
+   */
+  function computeWornAC(eq, opts) {
+    opts = opts || {};
+    eq = eq || {};
+    var chest = eq.chest || eq.armor;
+    var base = 10;
+    if (chest && !isShield(chest)) {
+      if (typeof chest.ac === 'number') base = chest.ac;
+      else {
+        var t = chest.armorType || inferArmorType(chest.n);
+        if (t && ARMOR_AC[t] != null) base = ARMOR_AC[t];
+      }
+      if (chest.plus) base -= chest.plus;
+    }
+    var helm = eq.helmet;
+    if (helm) {
+      var hb = helm.acBonus != null ? helm.acBonus : (helm.plus || 1);
+      base -= hb;
+    }
+    ['bracers', 'gloves', 'pants', 'boots', 'necklace'].forEach(function (s) {
+      var it = eq[s];
+      if (!it) return;
+      if (it.acBonus) base -= it.acBonus;
+      else if (it.plus) base -= it.plus;
+    });
+    if (eq.ring && eq.ring !== eq.necklace && eq.ring.plus) base -= eq.ring.plus;
+    if (!opts.noShield) {
+      var sh = isShield(eq.secondary) ? eq.secondary : (isShield(eq.primary) ? eq.primary : null);
+      if (sh) base -= 1 + (sh.plus || 0);
+    }
+    return base;
+  }
+
+  function magicAcBonus(eq) {
+    eq = eq || {};
+    var n = 0;
+    var chest = eq.chest || eq.armor;
+    if (chest && chest.plus) n += chest.plus;
+    if (eq.ring && eq.ring.plus) n += eq.ring.plus;
+    else if (eq.necklace && eq.necklace.plus && eq.necklace.k === 'ring') n += eq.necklace.plus;
+    return n;
+  }
+
+  function describeAC(eq) {
+    eq = eq || {};
+    var parts = [];
+    var chest = eq.chest || eq.armor;
+    if (chest && !isShield(chest)) {
+      var t = chest.armorType || inferArmorType(chest.n) || 'armor';
+      var ac = (typeof chest.ac === 'number') ? chest.ac : (ARMOR_AC[t] != null ? ARMOR_AC[t] : 10);
+      parts.push(t + ' AC ' + ac);
+      if (chest.plus) parts.push((chest.plus > 0 ? '+' : '') + chest.plus);
+    } else {
+      parts.push('unarmored AC 10');
+    }
+    if (eq.helmet) parts.push('helm +' + (eq.helmet.acBonus != null ? eq.helmet.acBonus : (eq.helmet.plus || 1)));
+    if (isShield(eq.secondary) || isShield(eq.primary)) parts.push('shield');
+    if (eq.necklace && eq.necklace.plus) parts.push((eq.necklace.n || 'ward') + ' +' + eq.necklace.plus);
+    else if (eq.ring && eq.ring.plus) parts.push((eq.ring.n || 'ring') + ' +' + eq.ring.plus);
+    return {
+      ac: computeWornAC(eq),
+      note: parts.join(', '),
+      parts: parts
+    };
+  }
+
+  function slotDef(k) {
+    for (var i = 0; i < SLOTS.length; i++) if (SLOTS[i].k === k) return SLOTS[i];
+    return {k: k, label: k, short: k};
+  }
+
+  var EquipmentSlots = {
+    SLOTS: SLOTS,
+    SLOT_KEYS: SLOT_KEYS,
+    LEGACY_KEYS: LEGACY_KEYS,
+    ALL_KEYS: ALL_KEYS,
+    START_WORN: START_WORN,
+    ARMOR_AC: ARMOR_AC,
+    emptyEquipped: emptyEquipped,
+    ensureShape: ensureShape,
+    inferArmorType: inferArmorType,
+    isShield: isShield,
+    itemSlot: itemSlot,
+    isEquippable: isEquippable,
+    annotate: annotate,
+    startingItems: startingItems,
+    slotHas: slotHas,
+    clearItem: clearItem,
+    equip: equip,
+    unequip: unequip,
+    wornBonus: wornBonus,
+    computeWornAC: computeWornAC,
+    magicAcBonus: magicAcBonus,
+    describeAC: describeAC,
+    slotDef: slotDef
+  };
+
+  root.EquipmentSlots = EquipmentSlots;
+})(typeof window !== 'undefined' ? window : globalThis);
