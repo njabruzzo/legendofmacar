@@ -4,14 +4,14 @@
   function macarHammerItem(){
     return {
       id:'macar_hammer', n:"Macar's War Hammer", k:'weapon', cat:'Weapon',
-      plus:0, dice:'1d8', defaultWep:1, spr:'icon_attack',
+      plus:0, dice:'1d8', defaultWep:1, slot:'primary', spr:'icon_attack',
       d:'Your war hammer. Honest steel from the seam.'
     };
   }
   function shadowCleaverItem(){
     return {
       id:'shadow_cleaver', n:'Shadow Cleaver', k:'weapon', cat:'Weapon',
-      plus:2, dice:'1d8', vs:'spider,undead', vsDouble:1, noAuto:1, spr:'shadowcleaver',
+      plus:2, dice:'1d8', vs:'spider,undead', vsDouble:1, noAuto:1, slot:'primary', spr:'shadowcleaver',
       d:'Silver dwarven battle axe +2/+2. Double damage versus spiders and the undead.'
     };
   }
@@ -21,7 +21,7 @@
     return /shadow\s*cleaver/i.test(it.n||'');
   }
   function findShadowCleaver(packs, equipped){
-    const wep=equipped&&equipped.weapon;
+    const wep=(equipped&&(equipped.primary||equipped.weapon));
     if(isShadowCleaver(wep)) return wep;
     const magic=(packs&&packs.macar&&packs.macar.magic)||[];
     for(let i=0;i<magic.length;i++){
