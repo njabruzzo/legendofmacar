@@ -23,7 +23,7 @@ const ctx={
 };
 vm.createContext(ctx);
 ['THAC_F','THAC_M','THAC_C','THAC_T'].forEach(n=>vm.runInContext(extractConst(n), ctx));
-['monsterHD','acCol','attackClass','fighterMatrixRow','monsterMatrixRow','thacNeed','rosterCls','attackProgress','wantsMeleePose'].forEach(n=>vm.runInContext(extractFn(n), ctx));
+['monsterHD','acCol','attackClass','fighterMatrixRow','monsterMatrixRow','thacNeed','rosterCls','attackProgress','wantsMeleePose','wantsMeleeRecover'].forEach(n=>vm.runInContext(extractFn(n), ctx));
 
 let failed=0;
 function assert(cond, msg){
@@ -31,7 +31,7 @@ function assert(cond, msg){
   else console.log('ok   ', msg);
 }
 
-const {thacNeed, attackClass, rosterCls, fighterMatrixRow, monsterMatrixRow, wantsMeleePose, attackProgress}=ctx;
+const {thacNeed, attackClass, rosterCls, fighterMatrixRow, monsterMatrixRow, wantsMeleePose, wantsMeleeRecover, attackProgress}=ctx;
 
 assert(rosterCls({role:'pick'})==='f', 'miner (pick) uses fighter class');
 assert(rosterCls({role:'hero'})==='f', 'Macar uses fighter class');
@@ -72,13 +72,25 @@ assert(thacNeed({team:'foe', hd:0.5}, 10)===11, 'up to 1-1 vs AC 10 needs 11');
 const macarAtk={hero:1, atk:0.5, atkMax:0.78, atkKind:'melee'};
 assert(attackProgress(macarAtk)>0.2, 'attack progress advances while atk ticks down');
 assert(wantsMeleePose(macarAtk)===true, 'mid-swing uses the melee pose');
-assert(wantsMeleePose({hero:1, atk:0.02, atkMax:0.78, atkKind:'melee'})===false, 'recovery drops the melee pose');
+const recoverAtk={hero:1, atk:0.2, atkMax:0.78, atkKind:'melee'};
+assert(attackProgress(recoverAtk)>0.7, 'late swing is follow-through time');
+assert(wantsMeleePose(recoverAtk)===false, 'raised pose ends once the blow has landed');
+assert(wantsMeleeRecover(recoverAtk)===true, 'follow-through pose after the swing');
+assert(wantsMeleeRecover({hero:1, atk:0.02, atkMax:0.78, atkKind:'melee'})===false, 'very end of cooldown returns to idle');
 assert(wantsMeleePose({hero:1, atk:0, atkMax:0.78})===false, 'no pose when not attacking');
+assert(wantsMeleeRecover({hero:1, atk:0, atkMax:0.78})===false, 'no recover pose when not attacking');
 
+const recoverIdx=html.indexOf("if(wantsMeleeRecover(e) && SPR[k+'_atk_recover'])");
 const atkIdx=html.indexOf("if(wantsMeleePose(e) && SPR[k+'_atk'])");
-const backIdx=html.indexOf("if(wantsBackView(e) && SPR[k+'_back'])");
-assert(atkIdx>0 && backIdx>atkIdx, 'attack sprite is chosen before the back sprite');
+const backWalkIdx=html.indexOf("SPR[k+'_back_w1']");
+assert(recoverIdx>0 && atkIdx>recoverIdx, 'follow-through sprite is chosen before the raised swing');
+assert(atkIdx>0 && backWalkIdx>atkIdx, 'attack sprite is chosen before the back walk');
 assert(/p\.moving=0; p\.ix=0; p\.iy=0;/.test(html), 'Attack click stops walk so the swing can play');
+assert(/dwarf_macar_atk_recover\.png/.test(html) && /dwarf_macar_axe_atk_recover\.png/.test(html), 'hammer and axe recover frames registered');
+assert(/dwarf_macar_back_w1\.png/.test(html) && /dwarf_macar_back_w2\.png/.test(html), 'angled walk-away frames registered');
+['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png','dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'].forEach(f=>{
+  assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+});
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('Attack matrix + swing pose tests passed');
