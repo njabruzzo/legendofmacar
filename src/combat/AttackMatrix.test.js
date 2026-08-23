@@ -81,7 +81,7 @@ assert(wantsMeleePose({hero:1, atk:0, atkMax:0.78})===false, 'no pose when not a
 assert(wantsMeleeRecover({hero:1, atk:0, atkMax:0.78})===false, 'no recover pose when not attacking');
 
 const recoverIdx=html.indexOf("if(wantsMeleeRecover(e) && SPR[k+'_atk_recover'])");
-const atkIdx=html.indexOf("if(wantsMeleePose(e) && SPR[k+'_atk'])");
+const atkIdx=html.indexOf("if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk'])");
 const backWalkIdx=html.indexOf("SPR[k+'_back_w1']");
 assert(recoverIdx>0 && atkIdx>recoverIdx, 'follow-through sprite is chosen before the raised swing');
 assert(atkIdx>0 && backWalkIdx>atkIdx, 'attack sprite is chosen before the back walk');
