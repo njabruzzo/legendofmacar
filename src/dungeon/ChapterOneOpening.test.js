@@ -18,9 +18,10 @@ assert(/const crush=\(n===1 && !hero && !raised\) \? CRUSH_SPOTS\[r\.key\] : nul
 assert(!/const crush=n===1 && !hero && CRUSH_SPOTS\[r\.key\] && !raised/.test(html),
   'save-load no longer boolean-ands the crush coordinates away');
 
-assert(/tall:1/.test(html) && /spill:1/.test(html) && /backwall:1,tall:1/.test(html),
-  'west collapse is marked tall and spills into the entry');
-assert(/p\.tall\|\|p\.backwall\?120:52/.test(html), 'back-wall rubble uses ceiling height');
+assert(/p\.tall\?120:52/.test(html) && /spill:1/.test(html) && /backwall:1/.test(html),
+  'west collapse spills into the entry and can draw tall rubble');
+assert(/function drawCaveinFace\(/.test(html), 'cave-in wall has a jagged rock face, not masonry coping');
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_cavein_wall.png')), 'cave-in wall texture on disk');
 assert(/L\.spawn=\{x:18\.4,y:21\.8\}/.test(html), 'Macar starts beside the fallen kin');
 
 const ch1=html.match(/if\(n===1\)\{[\s\S]*?if\(n===2\)\{/);

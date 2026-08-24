@@ -463,6 +463,7 @@ const SPRITE_FILES={
   tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', sack:'assets/props/prop_sack.png',
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
+  cavein_wall:'assets/props/prop_cavein_wall.png',
   rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   rubypillar:'assets/props/prop_rubypillar.png',
@@ -600,7 +601,7 @@ function loadSprites(done){
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'boulder','boulder2','cavein','rubble','rubble2',
+    'boulder','boulder2','cavein','cavein_wall','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
@@ -1123,6 +1124,24 @@ function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
   }
   g.restore();
 }
+function drawCaveinFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
+  const t=0.58;
+  const ix=inx*t, iy=iny*t;
+  const u=h2((seed|0), 9);
+  const jag=(h2(seed, 4)-0.45)*18*ZOOM;
+  drawIsoPlaneImg(g, img, x0+ix, y0+iy, x1+ix, y1+iy, H+jag, {u:u+0.18, shade:0.58, stroke:0});
+  drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, {u:u, shade:0.18});
+  const fa=w2s(x0,y0), fb=w2s(x1,y1);
+  g.save();
+  g.fillStyle='rgba(0,0,0,0.42)';
+  g.beginPath();
+  g.moveTo(fa.x, fa.y);
+  g.lineTo(fb.x, fb.y);
+  g.lineTo(fb.x+(fb.x-fa.x)*0.05, fb.y+TH*0.28);
+  g.lineTo(fa.x-(fb.x-fa.x)*0.05, fa.y+TH*0.28);
+  g.closePath(); g.fill();
+  g.restore();
+}
 function drawMasonryFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
   const t=0.42;
   const ix=inx*t, iy=iny*t;
@@ -1288,8 +1307,8 @@ function propAnimImg(p){
 }
 function propSpriteH(p,z){
   const k=p.k;
-  if(k==='cavein') return 132*z*(p.s||1);
-  if(k==='rubble') return (p.tall||p.backwall?120:52)*z*(p.s||1);
+  if(k==='cavein') return (p.tall?148:118)*z*(p.s||1);
+  if(k==='rubble') return (p.tall?120:52)*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
   if(k==='rubydoor') return rubyDoorH();
@@ -2118,18 +2137,16 @@ function startRubbleSpr(seed, n){
 }
 function startBackWallRubble(){
   const out=[];
-  // Ceiling stack against the sealed west wall — hides the black void.
-  for(let i=0;i<18;i++){
-    const y=15.55+i*0.76+(h01(i,2,81)-0.5)*0.16;
-    const x=14.06+(h01(i,3,81)-0.5)*0.10;
-    const s=0.92+h01(i,5,81)*0.38;
-    const spr=(i%3===0)?'cavein':startRubbleSpr(81,i);
-    out.push({x,y,k:spr==='cavein'?'cavein':'rubble',spr,s,seed:900+i,backwall:1,tall:1});
+  // Foot of the sealed west wall — the wall face itself is the ceiling-high collapse.
+  for(let i=0;i<14;i++){
+    const y=15.7+i*0.92+(h01(i,2,81)-0.5)*0.16;
+    const x=14.18+(h01(i,3,81)-0.5)*0.10;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(81,i),s:0.38+h01(i,5,81)*0.42,seed:900+i,backwall:1});
   }
-  for(let i=0;i<12;i++){
-    const y=16.15+i*1.02+(h01(i,6,81)-0.5)*0.20;
-    const x=14.48+(h01(i,8,81)-0.5)*0.14;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.78+h01(i,9,81)*0.42,seed:940+i,backwall:1,tall:1});
+  for(let i=0;i<8;i++){
+    const y=16.4+i*1.35+(h01(i,6,81)-0.5)*0.20;
+    const x=14.52+(h01(i,8,81)-0.5)*0.12;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.32+h01(i,9,81)*0.36,seed:940+i,backwall:1});
   }
   // Tongue of spill into the paved entry toward the hall mouth.
   const spills=[
@@ -3109,6 +3126,7 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  if(n===1){ G.cam.x=sp.x-0.9; G.cam.y=sp.y; }
   rebuildVision();
   if(n===1 && G.lvl && G.lvl.seen){
     Object.keys(CRUSH_SPOTS).forEach(k=>{
@@ -6508,12 +6526,23 @@ function drawWorld(g,L){
   }
 
   function drawWallCell(x,y){
-    if(isStartBackWall(L,x,y)) return;
     const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
     const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
     const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
     if(!oS&&!oE&&!oN&&!oW) return;
+    if(isStartBackWall(L,x,y)){
+      const H=wallFaceH(L)*1.08;
+      const img=SPR.cavein_wall||SPR.cavein||SPR.rubble;
+      const sid=x*31+y*17;
+      if(img){
+        if(oS) drawCaveinFace(g, img, x, y+1, x+1.14, y+1, H, 0, -1, sid);
+        if(oE) drawCaveinFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
+        if(oN) drawCaveinFace(g, img, x, y, x+1.14, y, H, 0, 1, sid+7);
+        if(oW) drawCaveinFace(g, img, x, y, x, y+1.14, H, 1, 0, sid+11);
+      }
+      return;
+    }
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
