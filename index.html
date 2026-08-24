@@ -320,7 +320,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='51';
+const ASSET_VER='53';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -529,7 +529,8 @@ const UNDERDARK=[
   'xorn_elder','xorn_minor','earthelem_elder','magmaelem_elder',
   'kobold_emperor','goblin_king','orc_overlord','gibberling_abom',
   'duergar_thane','drow_matron','grimlock_champ','troglodyte_avatar',
-  'kuotoa_leviathan','quaggoth_beastlord','svirfneblin_king','bugbear_tyrant'
+  'kuotoa_leviathan','quaggoth_beastlord','svirfneblin_king','bugbear_tyrant',
+  'warg'
 ];
 UNDERDARK.forEach(k=>{ SPRITE_FILES[k]='assets/creatures/mon_'+k+'.png'; });
 Object.keys(SPRITE_FILES).forEach(k=>{
@@ -594,7 +595,7 @@ function loadSprites(done){
     'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-    'thinone_dead','goblin_dead','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
+    'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
@@ -1982,6 +1983,7 @@ const BESTIARY={
   duergar:{n:'Duergar',spr:'duergar',hp:10,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#ff5a48',sc:1.05},
   gibberling:{n:'Gibberling',spr:'gibberling',hp:8,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#c9b895',sc:.88},
   goblin:{n:'Goblin',spr:'goblin',hp:7,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#6a8a4a',sc:.82,r:.3},
+  warg:{n:'Warg',spr:'warg',hp:36,ac:6,mv:18,at:1,dmg:5,tt:'Nil',dc:0,g:'#8a6a4a',sc:1.18,r:.42,k:'warg',sa:'Bite'},
   orc:{n:'Orc',spr:'orc',hp:8,ac:6,mv:12,at:1,dmg:4.5,tt:'J',dc:40,g:'#6a8a3a',sc:1.05},
   purpleworm:{n:'PURPLE WORM',spr:'purpleworm',hp:120,ac:6,mv:9,at:2,dmg:18,tt:'Nil',dc:0,g:'#a35bff',sc:1.75,r:.6,boss:1,sa:'Swallow Whole'},
   giantslug:{n:'Giant Slug',spr:'giantslug',hp:96,ac:4,mv:12,at:2,dmg:7,tt:'Nil',dc:0,g:'#c9b895',sc:1.45,r:.55,ranged:1,rng:5.5},
@@ -2163,6 +2165,9 @@ function makeChapter(n){
     rect(g,48,16,5,12,3); rect(g,34,17,9,9,3);
     L.spawn={x:20.5,y:22.0}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
+    L.secrets=[];
+    addSecretDoor(L,{x:36.5,y:35.05,i:35,j:35,w:3,h:1,kind:'treasure',face:'n',
+      hint:'The south wall of the new hall is too even — a colder, greyer face. SEARCH it.'});
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
@@ -2258,7 +2263,7 @@ function makeChapter(n){
 
   if(n===2){
     L.title='Chapter II'; L.sub='The First Floor'; L.pal=PAL.mine;
-    L.w=80; L.h=64; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=96; L.h=80; const g=newGrid(L.w,L.h,1); L.grid=g;
     caveDisk(g,40,8,5.0,4.0,3);
     caveDisk(g,40,16,7.8,6.3,0);
     carvePath(g,[[40,10],[40,16]],3.5,0);
@@ -2288,10 +2293,13 @@ function makeChapter(n){
     L.secrets=[{x:40.0,y:41.05,i:39,j:40,w:3,h:1,open:0,kind:'warrens',face:'n'}];
     // Keep the north secret as solid stone until SEARCH opens it.
     for(let ii=39;ii<=41;ii++){ if(g[40]) g[40][ii]=1; if(g[39]) g[39][ii]=1; }
+    addSecretDoor(L,{x:64.5,y:20.1,i:63,j:20,w:3,h:1,kind:'treasure',face:'n',
+      hint:'South of the bronze door the rock sits too square. SEARCH the grey face.'});
     L.warrenSeed=((Math.random()*1e9)|0)+1;
     L.objs=[{t:'Stand in the four-way cavern',d:0},{t:'Break the goblin band',d:0},
             {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
-            {t:'Climb the south stair to the ruins',d:0}];
+            {t:'Climb the south stair to the ruins',d:0},
+            {t:'If the warrens open, descend to the Goblin King',d:0}];
     L.lights=[{x:40,y:8.4,c:'#ff2f3a',r:8.4,f:1.5},{x:40,y:16,c:'#ffb45c',r:6.4,f:1},
       {x:66.5,y:16.05,c:'#d4a04a',r:8.2,f:1.45},{x:40,y:32,c:'#ff8a3a',r:6.8,f:1.1},
       {x:40,y:54,c:'#6fd0ff',r:5.6,f:0.95},{x:10,y:31,c:'#c07bff',r:6.2,f:1.05},
@@ -2314,12 +2322,11 @@ function makeChapter(n){
       const p=player(); if(!p) return;
       if(!L.flags.placed){
         L.flags.placed=1;
-        wave([['goblin',38.2,31.1],['goblin',42.1,33.2],['goblin',38.8,34.1],['goblin',41.6,30.6],['kobold',40.2,32.15]]);
-        G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'){ e.aggro=4.2; } });
+        spawnLairGroup(40.1, 32.1, {leader:'goblinBoss', pack:[['goblin',4],['kobold',1]], spread:1.7, aggro:4.2});
         const noz=ALLY.noz(); noz.x=40.45; noz.y=31.35; G.ents.push(noz);
-        wave([['spider',32.2,16.1],['spider',26.1,14.6],['rat',20.2,17.2],['beetle',14.1,15.7],
-          ['spider',10.2,20.4],['centipede',8.4,25.6],['spiderLord',10.1,31.0]]);
-        G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.aggro) e.aggro=3.1; });
+        spawnLairGroup(26.2, 15.2, {pack:[['spider',3]], spread:1.4, aggro:3.1});
+        spawnLairGroup(16.4, 16.4, {pack:[['rat',2],['beetle',2]], spread:1.2, aggro:2.6});
+        spawnLairGroup(10.1, 31.0, {leader:'spiderLord', pack:[['spider',2],['centipede',1]], spread:1.6, aggro:3.4});
         say('The ruby cage opens on a four-way in living rock. Left, bronze and gems. Right, silk. Straight, goblin-talk.','#c9b895');
       }
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
@@ -2377,6 +2384,12 @@ function makeChapter(n){
         L.flags.secretHint=1;
         say('The north wall of this rough tunnel is too even — a colder, greyer face. SEARCH it.','#c9b895');
       }
+      if(L.warrenStair && dist(p,L.warrenStair)<2.3){
+        interact('Descend to the Goblin King',()=>{
+          if(L.objs&&L.objs[5]) L.objs[5].d=1;
+          enterGoblinKingLevel(L);
+        });
+      }
       if(dist(p,L.stair)<2.3){
         interact('Climb down to the ruins',()=>{ L.objs[4].d=1; endChapter(); });
       }
@@ -2385,11 +2398,12 @@ function makeChapter(n){
 
   if(n===3){
     L.title='Chapter III'; L.sub='The Ruin'; L.pal=PAL.ruin;
-    L.w=66; L.h=54; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=90; L.h=72; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,24,10,8,3); corridor(g,12,28,24,28,4,0); rect(g,18,20,16,18,0);
     corridor(g,33,28,44,20,4,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,4,0);
     rect(g,36,34,24,16,0); rect(g,46,40,6,6,3);
     L.spawn={x:8,y:28};
+    L.dressSeed=((Math.random()*1e9)|0)+3;
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
       {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6}];
@@ -2401,24 +2415,38 @@ function makeChapter(n){
       {x:32.4,y:21.2,k:'banner'},{x:33.6,y:36.2,k:'crate'},{x:33.2,y:21.6,k:'urn'},
       {x:26,y:28,k:'trap',trap:'trap_spikes'},{x:44,y:20,k:'trap',trap:'trap_runes'},
       {x:40,y:40,k:'trap',trap:'trap_pit'},{x:52,y:42,k:'trap',trap:'trap_spikes'}];
+    dressRuinBuildings(L);
+    L.secrets=[];
+    addSecretDoor(L,{x:46.4,y:11.15,i:45,j:11,w:3,h:1,kind:'treasure',face:'s',
+      hint:'The Hall of Names has a colder north face. SEARCH the grey brick.'});
     L.guide=()=>!L.flags.w1?{x:26,y:28}:!L.flags.w2?{x:46,y:20}:!L.flags.boss?{x:48,y:40}:null;
     L.tick=(dt)=>{
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
-        wave([['duergar',22,23],['hookedhorror',28,24],['duergar',24,34],['construct',30,33],['duergar',26,28],['duergarX',31,28],
-          ['orc',20,26],['bugbear',28,30],['gargoyle',23,21],['rustmonster',27,32],['cockatrice',25,22],['pech',29,34]]);}
+        spawnLairGroup(26,28,{leader:'duergarX',pack:[['duergar',4]],spread:1.7,aggro:4.0});
+        spawnLairGroup(22,23,{pack:[['pech',2],['construct',1]],spread:1.3,aggro:3.2});
+        spawnLairGroup(29,32,{leader:'bugbear',pack:[['orc',2]],spread:1.4,aggro:3.6});}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
         say('An eye opens in the Hall of Names.','#ff7ad9');
         const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
-        wave([['drow',42,14],['drowMage',50,15],['hookedhorror',44,24],['drow',51,23],['duergarX',41,20],
-          ['drider',47,16],['cloaker',43,22],['minotaur',50,20],['gauth',45,18],
-          ['drowElite',43,18],['spectator',48,12],['margoyle',52,22]]);}
+        spawnLairGroup(46,16,{leader:'drowMage',pack:[['drow',3],['drowElite',1]],spread:2.0,aggro:4.2});
+        spawnLairGroup(50,22,{pack:[['hookedhorror',2],['drider',1]],spread:1.4,aggro:3.4});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
-        wave([['undead',42,44],['umberhulk',54,44],['burrower',48,46],['otyugh',45,42],['roper',51,46],['gelcube',48,40],
-          ['puddingBrown',44,42],['basiliskGreater',52,40]]);
+        spawnLairGroup(43,44,{pack:[['undead',3]],spread:1.5,aggro:3.8});
+        spawnLairGroup(52,43,{pack:[['gelcube',1],['puddingBrown',1],['otyugh',1]],spread:1.6,aggro:3.2});
+        spawnLairGroup(54,46,{pack:[['umberhulk',1],['roper',1]],spread:1.4,aggro:3.5});
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
         hint('Keep moving. Defend when he winds up.',5);}
+      if(!L.flags.ruinNW&&p.x<16&&p.y<18){L.flags.ruinNW=1;
+        spawnLairGroup(11,12,{leader:'grimlockChief',pack:[['grimlock',3]],spread:1.5,aggro:3.8});
+        say('Grimlocks nest in the fallen house.','#c9b895');}
+      if(!L.flags.ruinE&&p.x>64&&p.y>20&&p.y<38){L.flags.ruinE=1;
+        spawnLairGroup(72,28,{pack:[['myconid',3],['shrieker',1]],spread:1.6,aggro:3.2});
+        say('The east manor is a spore-choked wreck.','#a35bff');}
+      if(!L.flags.ruinS&&p.y>54&&p.x>18&&p.x<46){L.flags.ruinS=1;
+        spawnLairGroup(30,58,{pack:[['troglodyte',3],['crawler',1]],spread:1.5,aggro:3.5});
+        say('Troglodytes hold the south street of broken halls.','#6aff8a');}
       if(L.flags.w1 && !G.fightOn){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
@@ -2442,6 +2470,9 @@ function makeChapter(n){
     corridor(g,37,28,48,16,4,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,4,0);
     rect(g,38,34,24,16,0); rect(g,50,40,8,6,3);
     L.spawn={x:8,y:28};
+    L.secrets=[];
+    addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'s',
+      hint:'The outpost\'s north wall is a false course. SEARCH the grey brick.'});
     L.objs=[{t:'Clear the drowned streets',d:0},{t:'Break the illithid outpost',d:0},{t:'Destroy the Elder Brain',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:28,y:28,c:'#7ad0ff',r:9,f:1.25},
       {x:50,y:16,c:'#c07bff',r:10,f:1.35},{x:52,y:42,c:'#ff7ad9',r:12,f:1.7}];
@@ -2458,20 +2489,19 @@ function makeChapter(n){
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>18){L.flags.w1=1;
         say('The streets still hold water. Something older than dwarves kept the tide.','#7ad0ff');
-        wave([['kuotoa',24,22],['ixzan',30,24],['morkoth',26,32],['grayooze',32,30],['ochrejelly',28,28],
-          ['aboleth',33,26],['giantslug',22,30],['slithertracker',27,20],
-          ['xorn',24,26],['crysmal',31,22],['sandling',29,34],['khargra',21,24]]);}
+        spawnLairGroup(28,26,{leader:'aboleth',pack:[['kuotoa',3],['ixzan',1]],spread:1.9,aggro:4.0});
+        spawnLairGroup(26,32,{pack:[['grayooze',1],['ochrejelly',1],['slithertracker',1]],spread:1.4,aggro:3.0});
+        spawnLairGroup(22,24,{pack:[['xorn',1],['crysmal',2]],spread:1.3,aggro:3.2});}
       if(L.flags.w1&&!L.flags.w2&&p.x>40&&p.y<26){L.flags.w2=1;L.objs[0].d=1;
         say('Illithids. They have been farming this city for minds.','#c07bff');
-        wave([['mindflayer',46,12],['mindflayer',54,14],['gauth',50,18],['vampire',44,20],['ghost',56,16],
-          ['lich',48,10],['medusa',52,22],['neothelid',50,14],
-          ['drowMatron',47,16],['urophion',53,12],['neootyugh',45,20]]);}
+        spawnLairGroup(50,14,{leader:'neothelid',pack:[['mindflayer',2],['gauth',1]],spread:1.9,aggro:4.4});
+        spawnLairGroup(47,18,{leader:'drowMatron',pack:[['urophion',1],['drow',2]],spread:1.5,aggro:3.8});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
         const b=FOE.elderbrain(); b.x=52; b.y=42; G.ents.push(b);
         const t=FOE.deathtyrant(); t.x=46; t.y=40; G.ents.push(t);
-        wave([['deepspawn',56,46],['lurker',48,48],['trapper',54,38],['blackpudding',50,44],['mustardjelly',58,42],
-          ['galebduhr',44,44],['tenebrous',58,48],['earthelem',50,38],
-          ['xornElder',46,42],['puddingWhite',54,44],['magmaelemElder',48,38]]);
+        spawnLairGroup(54,44,{pack:[['blackpudding',1],['mustardjelly',1],['puddingWhite',1]],spread:1.6,aggro:3.2});
+        spawnLairGroup(48,46,{pack:[['deepspawn',1],['lurker',1],['trapper',1]],spread:1.7,aggro:3.6});
+        spawnLairGroup(50,38,{pack:[['earthelem',1],['xornElder',1]],spread:1.5,aggro:3.4});
         say('ELDER BRAIN - the pool that rules the dead city.','#ff7ad9'); shake(22);
         hint('Kill the Death Tyrant first if the rays pin you.',5);}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
@@ -2486,6 +2516,9 @@ function makeChapter(n){
     rect(g,6,40,12,8,3); corridor(g,16,44,28,44,5,0); rect(g,18,36,24,8,0);
     rect(g,14,8,30,28,0); rect(g,26,12,6,6,3);
     L.spawn={x:10,y:44};
+    L.secrets=[];
+    addSecretDoor(L,{x:13.15,y:20.1,i:13,j:19,w:1,h:3,kind:'treasure',face:'e',
+      hint:'A side chapel is bricked over on the west wall. SEARCH the grey course.'});
     L.objs=[{t:'Enter the chamber of the oath',d:0},{t:'End the Undying King',d:0}];
     L.lights=[{x:10,y:44,c:'#ffb45c',r:5,f:1},{x:29,y:15,c:'#ffd24a',r:12,f:1.6},
       {x:18,y:12,c:'#ff7a3a',r:7,f:1.2},{x:40,y:12,c:'#ff7a3a',r:7,f:1.2},
@@ -2504,7 +2537,9 @@ function makeChapter(n){
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
         say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
         const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
-        wave([['golemBrass',22,20],['golemSilver',36,20],['drow',29,24],['dao',26,22],['earthelem',32,18]]);}
+        spawnLairGroup(22,20,{pack:[['golemBrass',1],['golemSilver',1]],spread:2.2,aggro:4.0});
+        spawnLairGroup(29,24,{pack:[['drow',2]],spread:1.2,aggro:3.6});
+        spawnLairGroup(32,18,{pack:[['dao',1],['earthelem',1]],spread:1.5,aggro:3.4});}
       const k=G.ents.find(e=>e.kind==='king'&&!e.dead);
       if(k){ const f=k.hp/k.maxhp;
         if(f<.66&&!L.flags.p2){L.flags.p2=1; say('Gold steps down from the colonnade.','#ffd24a');
@@ -2541,7 +2576,7 @@ function dressDungeon(L){
     2:[['web',4],['eggs',3],['stalagmite',2],['bones',3],
        ['crystal',2],['sack',2],['crate',1],['timber',2],['orepile',2]],
     3:[['bones',4],['urn',3],['banner',2],['crate',2],['cart',1],['idol',2],
-       ['rubble',2],['timber',2],['orepile',2],['hidepile',2],['barrel',1]],
+       ['rubble',5],['timber',3],['orepile',2],['hidepile',2],['barrel',1],['pillar',2]],
     4:[['bones',4],['slime',4],['urn',2],['banner',2],['crate',2],
        ['hidepile',2],['timber',1],['idol',1],['barrel',1],['pillar',1]],
     5:[['urn',3],['idol',3],['banner',2],['bones',3],['crystal',3],['hidepile',2],
@@ -2568,7 +2603,7 @@ function dressDungeon(L){
     if(!wall && h3(x,y,seed)<0.78) continue;
     floors.push({x:x+0.5,y:y+0.5,wall});
   }
-  const want=L.n===1?10:L.n===2?16:L.n===5?12:14;
+  const want=L.n===1?10:L.n===2?16:L.n===3?22:L.n===5?12:14;
   let placed=0, tries=0;
   while(placed<want && tries<floors.length*4){
     tries++;
@@ -2623,7 +2658,7 @@ function placePlantClusters(L){
     if(wall) floors.push({x:x+0.5,y:y+0.5});
   }
   if(!floors.length) return;
-  const nCl=L.n===2?5:L.n===1?3:3;
+  const nCl=L.n===2?5:L.n===3?5:L.n===1?3:3;
   const keep=[];
   G.props.forEach(p=>keep.push({x:p.x,y:p.y,r:1.05}));
   if(L.spawn) keep.push({x:L.spawn.x,y:L.spawn.y,r:2.2});
@@ -2703,10 +2738,10 @@ function spawnWanderers(p){
   const kinds=wanderKinds().filter(k=>typeof FOE[k]==='function');
   if(!kinds.length && typeof FOE.rat==='function') kinds.push('rat');
   const spots=wanderSpawnSpots(p);
-  const n=Math.min(ri(1,3), Math.max(1,spots.length));
+  const n=Math.min(ri(2,4), Math.max(1,spots.length));
   const spawned=[];
+  const k=kinds[ri(0,kinds.length-1)]||'rat';
   for(let i=0;i<n;i++){
-    const k=kinds[ri(0,kinds.length-1)]||'rat';
     const make=FOE[k]||FOE.rat;
     if(typeof make!=='function') continue;
     const s=spots[i]||spots[0];
@@ -2939,8 +2974,37 @@ function lootCorpse(e){
     }
   }
 }
-function wave(list){ list.forEach(([k,x,y])=>{ const e=FOE[k](); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
-  e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10); }); }
+function wave(list){ list.forEach(([k,x,y])=>{
+  const make=FOE[k]; if(typeof make!=='function') return;
+  const e=make(); e.x=x+rnd(.6,-.6); e.y=y+rnd(.6,-.6);
+  e.stun=rnd(.5,.1); G.ents.push(e); burst(e.x,e.y,'#5a4a3a',10);
+}); }
+function wavePack(cx, cy, kinds, spread){
+  spread=spread==null?1.35:spread;
+  const list=[];
+  (kinds||[]).forEach((k,i)=>{
+    const a=(i/Math.max(1,kinds.length))*Math.PI*2;
+    const r=spread*(0.34+(i%3)*0.28);
+    list.push([k, cx+Math.cos(a)*r, cy+Math.sin(a)*r*0.85]);
+  });
+  wave(list);
+}
+function spawnLairGroup(cx, cy, spec){
+  spec=spec||{};
+  const kinds=[];
+  (spec.pack||[]).forEach(row=>{
+    const k=row[0], n=row[1]||1;
+    for(let i=0;i<n;i++) kinds.push(k);
+  });
+  if(spec.leader) kinds.unshift(spec.leader);
+  wavePack(cx, cy, kinds, spec.spread||1.5);
+  if(spec.aggro){
+    const reach=(spec.spread||1.5)+2.4;
+    G.ents.forEach(e=>{
+      if(e.team==='foe' && Math.hypot(e.x-cx,e.y-cy)<reach && !e.aggro) e.aggro=spec.aggro;
+    });
+  }
+}
 function joinAllies(list){
   list.forEach(([k,x,y])=>{
     const e=ALLY[k](); e.x=x+rnd(.4,-.4); e.y=y+rnd(.4,-.4); e.stun=.25;
@@ -5143,6 +5207,115 @@ function tryRetrieveBolt(s){
     ftext(s.x,s.y,'bolt snaps '+roll,'#9a8a78');
   }
 }
+function secretHoardLetter(ch){
+  const tables={1:['B','C'],2:['C','D'],3:['D','E'],4:['E','F','I'],5:['F','G']};
+  const t=tables[ch]||['C'];
+  return t[(Math.random()*t.length)|0];
+}
+function sealSecretCells(g, sec){
+  if(!g||!sec) return;
+  const i=sec.i||(sec.x|0), j=sec.j||(sec.y|0);
+  const w=sec.w||3, h=sec.h||1;
+  for(let yy=j; yy<j+h; yy++) for(let xx=i; xx<i+w; xx++){
+    if(g[yy] && g[yy][xx]!==undefined) g[yy][xx]=1;
+  }
+}
+function addSecretDoor(L, spec){
+  if(!L) return null;
+  L.secrets=L.secrets||[];
+  const sec=Object.assign({open:0,w:3,h:1,kind:'treasure'}, spec);
+  L.secrets.push(sec);
+  sealSecretCells(L.grid, sec);
+  return sec;
+}
+function secretRoomAnchor(sec){
+  const x=(sec.x!=null?sec.x:sec.i), y=(sec.y!=null?sec.y:sec.j);
+  const d=sec.room||5.1;
+  const face=sec.face||'n';
+  if(face==='n') return {x:x+1.1, y:y+d};
+  if(face==='s') return {x:x+1.1, y:y-d};
+  if(face==='e') return {x:x-d, y:y+0.4};
+  return {x:x+d, y:y+0.4};
+}
+function maybeHintSecret(L, p){
+  if(!L||!p||!L.secrets) return;
+  L.secrets.forEach(sec=>{
+    if(sec.open||sec.hinted) return;
+    const d=Math.hypot(p.x-(sec.x||sec.i), p.y-(sec.y||sec.j));
+    if(d<4.4){
+      sec.hinted=1;
+      say(sec.hint||'The wall here is too even — a colder, greyer face. SEARCH it.','#c9b895');
+    }
+  });
+}
+function placeSecretHoard(x, y, letter){
+  const hoard=rollLair(letter)||rollLair('C');
+  let pile=hoardToPile(hoard);
+  if(!pile){
+    pile={kind:'chest', coins:{gp:30+ri(10,90), sp:ri(20,120)}, gems:ri(0,3), jew:0,
+      potions:[], items:[], glow:'#ffd27a'};
+  }
+  pile.label='Hidden hoard (type '+letter+')';
+  pile.glow=pile.glow||'#ffd27a';
+  spawnLoot(x, y, pile);
+  return letter;
+}
+function buildSecretTreasureRoom(L, sec){
+  const g=L.grid;
+  const dest=secretRoomAnchor(sec);
+  dest.x=clamp(dest.x, 4, L.w-5);
+  dest.y=clamp(dest.y, 4, L.h-5);
+  const sx=sec.x||sec.i, sy=sec.y||sec.j;
+  carvePath(g, [[sx+0.8,sy],[dest.x,dest.y]], 2.05, 0);
+  caveDisk(g, dest.x, dest.y, 3.5, 2.9, 0);
+  rect(g, (dest.x-2)|0, (dest.y-2)|0, 5, 5, 0);
+  const letter=sec.treasure||secretHoardLetter(L.n);
+  placeSecretHoard(dest.x, dest.y, letter);
+  G.props=G.props||[];
+  G.props.push({x:dest.x+1.15,y:dest.y-0.7,k:'crate',s:0.95});
+  G.props.push({x:dest.x-1.05,y:dest.y+0.85,k:'urn',s:0.88});
+  L.lights=L.lights||[];
+  L.lights.push({x:dest.x,y:dest.y,c:'#ffd27a',r:4.6,f:0.95});
+  say('A hidden vault. DMG treasure type '+letter+' waits in the dark.','#ffe08a');
+  hint('Secret hoard. Type '+letter+' from the Dungeon Masters Guide.',4.4);
+  L.flags.secretHoard=letter;
+}
+function dressRuinBuildings(L){
+  const g=L.grid; if(!g) return;
+  G.props=G.props||[];
+  L.lights=L.lights||[];
+  const seed=L.dressSeed||11;
+  const footprints=[
+    [6,8,12,10],[22,6,14,10],[56,6,18,12],
+    [64,20,18,16],[6,38,12,12],[64,42,18,16],[20,54,24,12]
+  ];
+  footprints.forEach((fp, idx)=>{
+    const [x,y,w,h]=fp;
+    if(x+w>=L.w-1 || y+h>=L.h-1) return;
+    rect(g,x,y,w,h,0);
+    for(let j=y;j<y+h;j++){
+      for(let i=x;i<x+w;i++){
+        if(!g[j]||g[j][i]===undefined) continue;
+        const edge=i===x||i===x+w-1||j===y||j===y+h-1;
+        if(edge && h3(i,j,seed+idx)<0.58) g[j][i]=1;
+        else if(!edge && h3(i*3,j*5,seed+idx+7)<0.09) g[j][i]=3;
+      }
+    }
+    const doorx=x+((w/2)|0);
+    const doory=(y+h<30)?y+h-1:y;
+    rect(g, doorx-1, doory, 3, 1, 0);
+    const tx=x<30?26:(y<30?46:48);
+    const ty=x<30?28:(y<30?20:42);
+    corridor(g, doorx, doory, tx, ty, 3, 0);
+    G.props.push({x:x+w*0.34,y:y+h*0.42,k:'rubble',spr:'rubble2',n:8,s:1.12,seed:80+idx});
+    G.props.push({x:x+w*0.66,y:y+h*0.62,k:'rubble',spr:'rubble',n:6,s:0.98,seed:90+idx});
+    G.props.push({x:x+w*0.5,y:y+h*0.28,k:'timber',s:0.9,seed:70+idx});
+    if(idx%2===0) G.props.push({x:x+2.1,y:y+2.0,k:'pillar',s:0.86});
+    if(idx%3===0) G.props.push({x:x+w-2.3,y:y+h-2.1,k:'banner',s:0.88});
+    if(idx%2===1) G.props.push({x:x+w*0.45,y:y+h*0.55,k:'urn',s:0.8});
+    L.lights.push({x:x+w/2,y:y+h/2,c:'#c9a070',r:4.1,f:0.52});
+  });
+}
 function tryFindSecret(p, mode){
   const L=G.lvl; if(!p||!L||!L.secrets) return;
   mode=mode||'search';
@@ -5190,6 +5363,10 @@ function openSecret(sec){
     buildGoblinWarrens(L, sec);
     return;
   }
+  if(sec.kind==='treasure'){
+    buildSecretTreasureRoom(L, sec);
+    return;
+  }
   if(sec.path) carvePath(g, sec.path, 2.1, 0);
   caveDisk(g, L.dungeon?L.dungeon.x:44, L.dungeon?L.dungeon.y:11, 5.2, 4.2, 0);
   say('A hidden door in the brick. A tunnel beyond.','#ffe08a');
@@ -5207,48 +5384,98 @@ function seedRng(s){
 function buildGoblinWarrens(L, sec){
   const g=L.grid, rnd=seedRng(L.warrenSeed||((Math.random()*1e9)|0)+7);
   const sx=sec.x||sec.i, sy=sec.y||sec.j;
-  const stair={x:sx+6.2, y:sy+4.4};
-  carvePath(g, [[sx+1.2,sy],[sx+3.8,sy+1.6],[stair.x,stair.y]], 2.85, 0);
-  caveDisk(g, stair.x, stair.y, 2.8, 2.4, 3);
-  G.props.push({x:stair.x,y:stair.y,k:'stairs',s:1.28,label:'Goblin Warrens'});
-  L.lights.push({x:stair.x,y:stair.y,c:'#7dff9a',r:6.4,f:1.15});
-  L.lights.push({x:stair.x,y:stair.y-1.2,c:'#ffb45c',r:4.2,f:0.9});
-  L.warrenStair={x:stair.x,y:stair.y};
-  say('A hidden door. Stairs drop toward goblin-work.','#ffe08a');
-  hint('Goblin Warrens. The stair leads into a random den.',4.6);
+  const mouth={x:sx+4.8, y:sy+3.6};
+  carvePath(g, [[sx+1.2,sy],[sx+3.2,sy+1.4],[mouth.x,mouth.y]], 2.85, 0);
+  caveDisk(g, mouth.x, mouth.y, 3.4, 2.8, 0);
+  L.lights.push({x:mouth.x,y:mouth.y,c:'#7dff9a',r:5.4,f:1.05});
+  say('A hidden door. The goblin lair opens wide under the stone.','#ffe08a');
+  hint('Goblin Warrens. Stairs at the far den drop to the king.',4.8);
   const rooms=[];
-  let cx=stair.x+3.5, cy=stair.y+5.5;
-  const n=5+(rnd()*3)|0;
+  let cx=mouth.x+3.2, cy=mouth.y+4.8;
+  const n=8+(rnd()*4)|0;
   for(let i=0;i<n;i++){
-    cx += 2.4+rnd()*5.5;
-    cy += (rnd()<0.45?-1:1)*(1.8+rnd()*4.5);
-    cx=clamp(cx, 48, L.w-7);
-    cy=clamp(cy, 38, L.h-7);
-    const rw=3.1+rnd()*2.3, rh=2.6+rnd()*2.0;
+    cx += 2.6+rnd()*5.8;
+    cy += (rnd()<0.42?-1:1)*(1.6+rnd()*4.2);
+    cx=clamp(cx, 46, L.w-9);
+    cy=clamp(cy, 38, Math.min(56, L.h-22));
+    const rw=3.6+rnd()*2.6, rh=3.0+rnd()*2.2;
     caveDisk(g, cx, cy, rw, rh, 0);
-    const prev=rooms.length?rooms[rooms.length-1]:stair;
-    carvePath(g, [[prev.x,prev.y],[cx,cy]], 1.85, 0);
+    const prev=rooms.length?rooms[rooms.length-1]:mouth;
+    carvePath(g, [[prev.x,prev.y],[cx,cy]], 2.05, 0);
     rooms.push({x:cx,y:cy,rw,rh});
-    L.lights.push({x:cx,y:cy,c:'#6a8a4a',r:3.5,f:0.55});
-    if(rnd()<0.45) G.props.push({x:cx+(rnd()-0.5)*1.6,y:cy+(rnd()-0.5)*1.2,k:rnd()<0.5?'bones':'crate'});
+    L.lights.push({x:cx,y:cy,c:'#6a8a4a',r:3.8,f:0.58});
+    if(rnd()<0.55) G.props.push({x:cx+(rnd()-0.5)*1.8,y:cy+(rnd()-0.5)*1.3,k:rnd()<0.5?'bones':'crate'});
   }
-  L.dungeon=rooms[rooms.length-1]||stair;
+  L.dungeon=rooms[rooms.length-1]||mouth;
   L.flags.dungeon=1;
-  const denizens=['goblin','goblin','kobold','rat','beetle','orc','gibberling'];
-  const list=[];
-  rooms.forEach(r=>{
-    const k=denizens[(rnd()*denizens.length)|0];
-    list.push([k, r.x+(rnd()-0.5)*1.8, r.y+(rnd()-0.5)*1.4]);
-    if(rnd()<0.6) list.push(['goblin', r.x+1.1, r.y-0.5]);
+  const packs=[
+    {leader:'goblinBoss', pack:[['goblin',3]]},
+    {pack:[['goblin',3],['kobold',1]]},
+    {pack:[['orc',3]]},
+    {pack:[['gibberling',3]]},
+    {leader:'goblinChieftain', pack:[['goblin',2]]},
+    {pack:[['rat',3],['beetle',1]]},
+    {leader:'bugbear', pack:[['goblin',2]]},
+    {pack:[['kobold',4]]}
+  ];
+  rooms.forEach((r,i)=>{
+    const spec=packs[i%packs.length];
+    spawnLairGroup(r.x, r.y, {leader:spec.leader, pack:spec.pack, spread:1.35+rnd()*0.4, aggro:3.6});
   });
-  const last=rooms[rooms.length-1];
-  if(last) list.push(['goblin', last.x, last.y]);
-  wave(list);
-  G.ents.forEach(e=>{
-    if(e.team==='foe' && (e.kind==='goblin'||e.kind==='kobold'||e.kind==='orc'||e.kind==='bugbear'||e.kind==='gibberling')){
-      if(!e.aggro) e.aggro=3.4;
-    }
-  });
+  const last=rooms[rooms.length-1]||mouth;
+  L.warrenStair={x:last.x, y:last.y};
+  caveDisk(g, last.x, last.y, 3.2, 2.6, 3);
+  G.props.push({x:last.x,y:last.y,k:'stairs',s:1.32,label:'Goblin King'});
+  L.lights.push({x:last.x,y:last.y,c:'#ffd27a',r:6.2,f:1.2});
+  L.climbs=L.climbs||[];
+  L.climbs.push({x:last.x,y:last.y,fn:()=>{
+    if(L.objs&&L.objs[5]) L.objs[5].d=1;
+    enterGoblinKingLevel(L);
+  }});
+  spawnLairGroup(last.x-1.6, last.y+1.2, {leader:'goblinChieftain', pack:[['goblin',2]], spread:1.3, aggro:4.0});
+}
+function enterGoblinKingLevel(L){
+  if(!L) return;
+  if(!L.flags.kingLevel){
+    L.flags.kingLevel=1;
+    buildGoblinKingLevel(L);
+  }
+  const p=player();
+  const dest=L.kingEntry;
+  if(p&&dest){
+    p.x=dest.x; p.y=dest.y; p.dest=null; p.moving=0; p.ix=0; p.iy=0;
+  }
+  say('The stair drops into a throne-hall of stolen dwarven gold.','#ffe08a');
+  hint('The Goblin King and his wargs hold the deep.',5.2);
+  if(dest) burst(dest.x, dest.y, '#7dff9a', 22, 3);
+}
+function buildGoblinKingLevel(L){
+  const g=L.grid;
+  const kx=74, ky=68;
+  L.kingEntry={x:62.4, y:64.2};
+  rect(g, 58, 58, 32, 18, 0);
+  rect(g, 68, 62, 12, 9, 3);
+  caveDisk(g, kx, ky, 11, 7.2, 0);
+  if(L.warrenStair) carvePath(g, [[L.warrenStair.x,L.warrenStair.y],[L.kingEntry.x,L.kingEntry.y],[kx,ky]], 2.4, 0);
+  carvePath(g, [[L.kingEntry.x,L.kingEntry.y],[kx,ky]], 2.6, 0);
+  G.props=G.props||[];
+  G.props.push({x:kx,y:ky-1.4,k:'throne',s:1.2});
+  G.props.push({x:kx-4.2,y:ky-2.2,k:'brazier',s:1.0});
+  G.props.push({x:kx+4.2,y:ky-2.2,k:'brazier',s:1.0});
+  G.props.push({x:kx-3.4,y:ky+2.6,k:'bones',s:0.95});
+  G.props.push({x:kx+3.6,y:ky+2.4,k:'crate',s:0.9});
+  G.props.push({x:kx+1.8,y:ky+3.1,k:'banner',s:0.95});
+  L.lights=L.lights||[];
+  L.lights.push({x:kx,y:ky,c:'#ff8a3a',r:8.4,f:1.35});
+  L.lights.push({x:L.kingEntry.x,y:L.kingEntry.y,c:'#7dff9a',r:5.2,f:1.05});
+  const king=FOE.goblinKing(); king.x=kx; king.y=ky-0.4; king.aggro=6; G.ents.push(king);
+  spawnLairGroup(kx-3.2, ky+1.4, {leader:'goblinWarlord', pack:[['goblin',3]], spread:1.6, aggro:4.6});
+  spawnLairGroup(kx+3.4, ky+1.2, {leader:'goblinChieftain', pack:[['goblinBoss',1],['goblin',2]], spread:1.5, aggro:4.4});
+  spawnLairGroup(kx-1.2, ky+3.2, {pack:[['warg',3]], spread:1.8, aggro:4.8});
+  spawnLairGroup(kx+5.2, ky-0.6, {pack:[['warg',2],['goblin',1]], spread:1.4, aggro:4.5});
+  placeSecretHoard(kx+0.4, ky+1.1, 'H');
+  say('GOBLIN KING — the warg-lord of the deep lair.','#ff6a4a');
+  shake(16);
 }
 function foesVisible(){
   return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&tileVisible(e.x,e.y));
@@ -5789,6 +6016,7 @@ function update(dt){
       forageHerbs(nearestShroom(p,1.6)||p);
     }
     p.secretCd=Math.max(0,(p.secretCd||0)-dt);
+    maybeHintSecret(L, p);
     tryFindSecret(p,'pass');
     if(G.secretSearch && (p.secretCd||0)<=0){ p.secretCd=1.6; tryFindSecret(p,'search'); }
     if(G.digging){
