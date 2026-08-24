@@ -9441,10 +9441,17 @@ function bigTitle(g,txt,y,size,col){
   gr.addColorStop(0,col||'#ffe8b6'); gr.addColorStop(1,'#bd8639');
   g.fillStyle=gr; g.fillText(txt,VW/2,y); g.textAlign='left';
 }
-function menuBtn(g,label,cx,cy,w,h,fn,dim){
+function menuBtn(g,label,cx,cy,w,h,fn,dim,icon){
   const s=UIS;
   plate(g,cx-w/2,cy-h/2,w,h,6,dim?.5:.84);
   if(!dim){ g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.9; roundPath(g,cx-w/2,cy-h/2,w,h,6); g.stroke(); }
+  if(icon && icon.width){
+    const ih=h*0.78, iw=ih;
+    g.save();
+    g.globalAlpha=dim?0.42:1;
+    drawPhoto(g, icon, cx-w/2+4*s, cy-ih/2, iw, ih);
+    g.restore();
+  }
   g.textAlign='center'; g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle=dim?'rgba(150,130,100,0.5)':'#ffe9c0'; g.fillText(label,cx,cy+5.6*s); g.textAlign='left';
   if(!dim) menuHits.push({x:cx-w/2,y:cy-h/2,w,h,fn});
@@ -9595,7 +9602,7 @@ function drawTitle(g){
   const bw=Math.min(280*s, VW*.62);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
   if(hasSave){
-    menuBtn(g,'Continue', VW/2, VH-bar-78*s, bw, 44*s, ()=>loadSavedGame());
+    menuBtn(g,'Continue', VW/2, VH-bar-78*s, bw, 44*s, ()=>loadSavedGame(), false, SPR.icon_save);
     menuBtn(g,'New descent', VW/2, VH-bar-36*s, Math.min(220*s,VW*.55), 32*s, ()=>startChapter(1));
   } else {
     menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
@@ -9802,7 +9809,7 @@ function drawCamp(g){
     VW/2, VH-46*s);
   g.textAlign='left';
   const nxt=G.ch===3?5:G.ch+1;
-  menuBtn(g,'Save',VW/2-Math.min(80*s,VW*.2)-6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>writeGameSave());
+  menuBtn(g,'Save',VW/2-Math.min(80*s,VW*.2)-6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
     menuBtn(g,'Go deeper',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>startChapter(nxt));
   else menuBtn(g,'Chapters',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{G.scene='chapters';});
@@ -10578,7 +10585,7 @@ function drawPause(g){
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
   g.textAlign='left';
   menuBtn(g,'Resume',VW/2,VH*.385,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;});
-  menuBtn(g,'Save game',VW/2,VH*.47,Math.min(230*s,VW*.66),38*s,()=>writeGameSave());
+  menuBtn(g,'Save game',VW/2,VH*.47,Math.min(230*s,VW*.66),38*s,()=>writeGameSave(), false, SPR.icon_save);
   menuBtn(g,'Effects: '+gfxLabel(),VW/2,VH*.555,Math.min(230*s,VW*.66),36*s,()=>{cycleGfx();});
   menuBtn(g,'Restart chapter',VW/2,VH*.64,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;startChapter(G.ch);});
   menuBtn(g,'Chapters',VW/2,VH*.725,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;G.scene='chapters';});

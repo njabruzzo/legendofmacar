@@ -61,6 +61,7 @@ assert(/Save game/.test(html) && /function writeGameSave\(/.test(html), 'pause c
 assert(/Continue/.test(html) && /function loadSavedGame\(/.test(html), 'title can continue a save');
 assert(/G\._keepProgress/.test(html) && /G\._forceSeeds/.test(html), 'load keeps campaign and dungeon seeds');
 assert(/icon_save/.test(html) && /ruin_house/.test(html) && /secret_door/.test(html), 'save and ruin art are registered');
+assert(/SPR\.icon_save/.test(html), 'save book is drawn on Save and Continue');
 assert(fs.existsSync(path.join(__dirname,'../../assets/ui/icon_save.png')), 'save icon on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ruin_house.png')), 'ruin house on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_secret_door.png')), 'secret door on disk');
