@@ -5307,21 +5307,65 @@ function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y
 function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
-  const oneLine = !PORT;
-  const rows = oneLine ? [HUDSKILLS] : [HUDSKILLS.slice(0,5), HUDSKILLS.slice(5)];
-  const perRow = Math.max(...rows.map(r=>r.length));
   const stickR = PORT?32*s:34*s;
   const stickX = PORT?48*s: 14*s+stickR;
   const gap = PORT? 4*s : 5*s;
   const rowGap = PORT? 14*s : 8*s;
+  const combatKeys={attack:1, wall:1};
+  const combat=HUDSKILLS.filter(b=>combatKeys[b.key]);
+  const rest=HUDSKILLS.filter(b=>!combatKeys[b.key]);
+  const mobile = PORT || IS_TOUCH;
+
+  if(mobile){
+    /* Combat on the right thumb. Utilities stay left of that, after the stick. */
+    const pad = PORT?16*s:12*s;
+    const cSlot = Math.min(PORT?64:52, Math.max(42, Math.min(VW,VH)*0.125));
+    const cx = VW - pad - cSlot/2;
+    const attackY = VH - (PORT?22*s:14*s) - cSlot/2;
+    const defendY = attackY - (cSlot + rowGap);
+    UI.attack={x:cx,y:attackY,r:cSlot/2};
+    combat.forEach(b=>{
+      const y = b.key==='attack' ? attackY : defendY;
+      const btn={x:cx, y, r:cSlot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
+      if(b.key==='attack') UI.attack=btn;
+      UIBTN.push(btn);
+    });
+    const perRow = Math.ceil(rest.length/2);
+    const rightReserve = pad + cSlot + 14*s;
+    const stickReserve = stickX + stickR + (PORT?10*s:12*s);
+    const availW = Math.max(150, VW - stickReserve - rightReserve);
+    const slot = Math.min(PORT?50:42, Math.max(30, (availW - (perRow-1)*gap)/perRow));
+    const rows = [rest.slice(0, perRow), rest.slice(perRow)];
+    const by = VH - (PORT? 26*s : 16*s) - slot/2;
+    const topY = by - (rows.length-1)*(slot+rowGap);
+    const midY = (topY+by)/2;
+    const left = stickReserve;
+    UI.orb = { r:slot/2, x:left+slot/2, y:midY };
+    rows.forEach((row,ri)=>{
+      const y = topY + ri*(slot+rowGap);
+      row.forEach((b,i)=>{
+        const x = left + i*(slot+gap) + slot/2;
+        const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
+        if(b.key==='pack') UI.orb={r:slot/2, x, y};
+        UIBTN.push(btn);
+      });
+    });
+    UI.hudTop = Math.min(topY, defendY) - Math.max(slot,cSlot)/2 - (PORT?14:10)*s;
+    UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
+    UI.stickHome={ x: stickX, y: midY, r: stickR };
+    return;
+  }
+
+  const rows = [HUDSKILLS];
+  const perRow = HUDSKILLS.length;
   const rightReserve = 10*s;
-  const stickReserve = stickX + stickR + (PORT?10*s:12*s);
+  const stickReserve = stickX + stickR + 12*s;
   const availW = Math.max(180, VW - stickReserve - rightReserve);
-  const slot = Math.min(PORT?54:46, Math.max(32, (availW - (perRow-1)*gap)/perRow));
+  const slot = Math.min(46, Math.max(32, (availW - (perRow-1)*gap)/perRow));
   const skillsW = perRow*slot + (perRow-1)*gap;
-  const by = VH - (PORT? 26*s : 16*s) - slot/2;
-  const topY = by - (rows.length-1)*(slot+rowGap);
-  const midY = (topY+by)/2;
+  const by = VH - 16*s - slot/2;
+  const topY = by;
+  const midY = by;
   let left = stickReserve;
   const extra = VW - stickReserve - rightReserve - skillsW;
   if(extra>0) left = stickReserve + extra*0.15;
@@ -5340,7 +5384,7 @@ function layoutUI(){
       UIBTN.push(btn);
     });
   });
-  UI.hudTop = topY - slot/2 - (PORT?14:10)*s;
+  UI.hudTop = topY - slot/2 - 10*s;
   UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
   UI.stickHome={ x: stickX, y: midY, r: stickR };
 }
