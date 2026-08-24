@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=47">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=47">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=56">
+<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=56">
 <link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=47" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -321,7 +321,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='55';
+const ASSET_VER='56';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -463,6 +463,7 @@ const SPRITE_FILES={
   tunnel:'assets/props/prop_tunnel.png', crate:'assets/props/prop_crate.png', sack:'assets/props/prop_sack.png',
   timber:'assets/props/prop_timber.png', chain:'assets/props/prop_chain.png', bones:'assets/props/prop_bones.png',
   boulder:'assets/props/prop_boulder.png', boulder2:'assets/props/prop_boulder2.png', cavein:'assets/props/prop_cavein.png',
+  cavein_wall:'assets/props/prop_cavein_wall.png',
   rubble:'assets/props/prop_rubble.png', rubble2:'assets/props/prop_rubble2.png',
   altar:'assets/props/prop_altar.png', gate:'assets/props/prop_gate.png', lift:'assets/props/prop_lift.png',
   rubypillar:'assets/props/prop_rubypillar.png',
@@ -600,7 +601,7 @@ function loadSprites(done){
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'boulder','boulder2','cavein','rubble','rubble2',
+    'boulder','boulder2','cavein','cavein_wall','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
@@ -1123,6 +1124,24 @@ function drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, opt){
   }
   g.restore();
 }
+function drawCaveinFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
+  const t=0.58;
+  const ix=inx*t, iy=iny*t;
+  const u=h2((seed|0), 9);
+  const jag=(h2(seed, 4)-0.45)*18*ZOOM;
+  drawIsoPlaneImg(g, img, x0+ix, y0+iy, x1+ix, y1+iy, H+jag, {u:u+0.18, shade:0.58, stroke:0});
+  drawIsoPlaneImg(g, img, x0, y0, x1, y1, H, {u:u, shade:0.18});
+  const fa=w2s(x0,y0), fb=w2s(x1,y1);
+  g.save();
+  g.fillStyle='rgba(0,0,0,0.42)';
+  g.beginPath();
+  g.moveTo(fa.x, fa.y);
+  g.lineTo(fb.x, fb.y);
+  g.lineTo(fb.x+(fb.x-fa.x)*0.05, fb.y+TH*0.28);
+  g.lineTo(fa.x-(fb.x-fa.x)*0.05, fa.y+TH*0.28);
+  g.closePath(); g.fill();
+  g.restore();
+}
 function drawMasonryFace(g, img, x0, y0, x1, y1, H, inx, iny, seed){
   const t=0.42;
   const ix=inx*t, iy=iny*t;
@@ -1288,8 +1307,8 @@ function propAnimImg(p){
 }
 function propSpriteH(p,z){
   const k=p.k;
-  if(k==='cavein') return 118*z;
-  if(k==='rubble') return 52*z*(p.s||1);
+  if(k==='cavein') return (p.tall?148:118)*z*(p.s||1);
+  if(k==='rubble') return (p.tall?120:52)*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
   if(k==='rubydoor') return rubyDoorH();
@@ -2118,18 +2137,28 @@ function startRubbleSpr(seed, n){
 }
 function startBackWallRubble(){
   const out=[];
-  for(let i=0;i<16;i++){
-    const y=16.4+i*0.68+(h01(i,2,81)-0.5)*0.22;
-    const x=14.12+(h01(i,3,81)-0.5)*0.20;
-    const s=0.55+h01(i,5,81)*0.85;
-    const spr=startRubbleSpr(81,i);
-    out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+  // Foot of the sealed west wall — the wall face itself is the ceiling-high collapse.
+  for(let i=0;i<14;i++){
+    const y=15.7+i*0.92+(h01(i,2,81)-0.5)*0.16;
+    const x=14.18+(h01(i,3,81)-0.5)*0.10;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(81,i),s:0.38+h01(i,5,81)*0.42,seed:900+i,backwall:1});
   }
-  for(let i=0;i<10;i++){
-    const y=16.8+i*0.95+(h01(i,6,81)-0.5)*0.28;
-    const x=14.55+(h01(i,8,81)-0.5)*0.24;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.28+h01(i,9,81)*0.42,seed:940+i,backwall:1});
+  for(let i=0;i<8;i++){
+    const y=16.4+i*1.35+(h01(i,6,81)-0.5)*0.20;
+    const x=14.52+(h01(i,8,81)-0.5)*0.12;
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.32+h01(i,9,81)*0.36,seed:940+i,backwall:1});
   }
+  // Tongue of spill into the paved entry toward the hall mouth.
+  const spills=[
+    [15.28,17.35,0.70],[15.48,18.55,0.62],[15.22,19.85,0.58],
+    [15.72,21.15,0.66],[16.35,21.85,0.48],[16.95,22.15,0.36],
+    [15.58,23.55,0.54],[15.38,24.85,0.62],[15.82,26.25,0.58],
+    [16.55,20.55,0.40],[17.25,21.55,0.32]
+  ];
+  spills.forEach((s,i)=>{
+    if(nearCrush(s[0],s[1],0.58)) return;
+    out.push({x:s[0],y:s[1],k:'rubble',spr:startRubbleSpr(91,i),s:s[2],seed:980+i,scatter:1,spill:1});
+  });
   return out;
 }
 function scatterStartRubble(L){
@@ -2138,7 +2167,7 @@ function scatterStartRubble(L){
   const clusters=[
     [14.55,17.15,6,0.88,1.05],[14.70,19.35,7,0.95,1.12],[14.50,21.55,5,0.78,0.92],
     [14.75,23.85,7,0.92,1.08],[14.55,26.15,5,0.80,0.90],
-    [16.05,18.40,3,0.55,0.52],[16.20,22.20,3,0.50,0.48],[16.00,25.20,3,0.52,0.46]
+    [15.85,18.55,2,0.42,0.46],[15.70,25.40,2,0.40,0.44]
   ];
   let n=0;
   clusters.forEach(c=>{
@@ -2148,7 +2177,7 @@ function scatterStartRubble(L){
       const rad=Math.pow(h01(n,5,seed),0.65)*c[3];
       const jx=c[0]+Math.cos(ang)*rad;
       const jy=c[1]+Math.sin(ang)*rad*0.78;
-      if(Math.hypot(jx-19.2, jy-21.5)<1.55) continue;
+      if(Math.hypot(jx-18.4, jy-21.8)<1.45) continue;
       if(nearCrush(jx,jy,0.62)) continue;
       const ti=jx|0, tj=jy|0;
       if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
@@ -2169,7 +2198,7 @@ function makeChapter(n){
     L.w=60; L.h=48; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,14,14,18,16,0); rect(g,24,7,28,28,0);
     rect(g,48,16,5,12,3); rect(g,34,17,9,9,3);
-    L.spawn={x:20.5,y:22.0}; L.flags.broke=1;
+    L.spawn={x:18.4,y:21.8}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
     L.secrets=[];
     addSecretDoor(L,{x:36.5,y:35.05,i:35,j:35,w:3,h:1,kind:'treasure',face:'n',
@@ -2188,9 +2217,10 @@ function makeChapter(n){
               {x:27,y:12,c:'#a06cff',r:4.2,f:0.9},{x:42,y:13,c:'#a06cff',r:4.4,f:0.9},
               {x:26,y:30,c:'#a06cff',r:4.0,f:0.85},{x:45,y:29,c:'#a06cff',r:4.6,f:0.95}];
     G.props=[{x:15.4,y:16.35,k:'lantern'},{x:18.2,y:27.15,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
-      {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
-      {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
-      {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
+      {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},{x:35.5,y:12.85,k:'lantern'},{x:35.5,y:29.15,k:'lantern'},
+      {x:14.62,y:17.05,k:'timber'},{x:14.55,y:26.85,k:'timber'},
+      {x:26.5,y:12.5,k:'pillar'},{x:35.5,y:12.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},
+      {x:26.5,y:29.5,k:'pillar'},{x:35.5,y:29.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
@@ -2578,8 +2608,7 @@ function dressDungeon(L){
   if(!L||!L.grid) return;
   G.props=G.props||[];
   const tables={
-    1:[['rubble',4],['timber',5],['barrel',2],['crate',2],['orepile',4],
-       ['pickpile',3],['sack',2],['lantern',2],['bones',2],['banner',1]],
+    1:[['rubble',5],['orepile',2],['bones',2],['sack',1],['banner',1]],
     2:[['web',4],['eggs',3],['stalagmite',2],['bones',3],
        ['crystal',2],['sack',2],['crate',1],['timber',2],['orepile',2]],
     3:[['bones',4],['urn',3],['banner',2],['crate',2],['cart',1],['idol',2],
@@ -2610,7 +2639,7 @@ function dressDungeon(L){
     if(!wall && h3(x,y,seed)<0.78) continue;
     floors.push({x:x+0.5,y:y+0.5,wall});
   }
-  const want=L.n===1?10:L.n===2?16:L.n===3?22:L.n===5?12:14;
+  const want=L.n===1?4:L.n===2?16:L.n===3?22:L.n===5?12:14;
   let placed=0, tries=0;
   while(placed<want && tries<floors.length*4){
     tries++;
@@ -2665,7 +2694,7 @@ function placePlantClusters(L){
     if(wall) floors.push({x:x+0.5,y:y+0.5});
   }
   if(!floors.length) return;
-  const nCl=L.n===2?5:L.n===3?5:L.n===1?3:3;
+  const nCl=L.n===2?5:L.n===3?5:L.n===1?2:3;
   const keep=[];
   G.props.forEach(p=>keep.push({x:p.x,y:p.y,r:1.05}));
   if(L.spawn) keep.push({x:L.spawn.x,y:L.spawn.y,r:2.2});
@@ -3054,7 +3083,7 @@ function startChapter(n){
     const hp=sheet.maxhp*ADD_SCALE;
     const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
     const raised=!!(G.ghostAllies&&G.ghostAllies[r.key]);
-    const crush=n===1 && !hero && CRUSH_SPOTS[r.key] && !raised;
+    const crush=(n===1 && !hero && !raised) ? CRUSH_SPOTS[r.key] : null;
     if(!hero && n!==1 && !raised) return;
     const x=crush?crush.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
     const y=crush?crush.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
@@ -3097,7 +3126,17 @@ function startChapter(n){
   });
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  if(n===1){ G.cam.x=sp.x-0.9; G.cam.y=sp.y; }
   rebuildVision();
+  if(n===1 && G.lvl && G.lvl.seen){
+    Object.keys(CRUSH_SPOTS).forEach(k=>{
+      const s=CRUSH_SPOTS[k];
+      const i=s.x|0, j=s.y|0;
+      for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
+        if(G.lvl.seen[j+dj] && G.lvl.seen[j+dj][i+di]!==undefined) G.lvl.seen[j+dj][i+di]=1;
+      }
+    });
+  }
   if(keep && loadSnap){
     applyPlaySave(loadSnap.play);
     G.scene=loadSnap.scene==='camp'?'camp':'play';
@@ -6487,12 +6526,23 @@ function drawWorld(g,L){
   }
 
   function drawWallCell(x,y){
-    if(isStartBackWall(L,x,y)) return;
     const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
     const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
     const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
     if(!oS&&!oE&&!oN&&!oW) return;
+    if(isStartBackWall(L,x,y)){
+      const H=wallFaceH(L)*1.08;
+      const img=SPR.cavein_wall||SPR.cavein||SPR.rubble;
+      const sid=x*31+y*17;
+      if(img){
+        if(oS) drawCaveinFace(g, img, x, y+1, x+1.14, y+1, H, 0, -1, sid);
+        if(oE) drawCaveinFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
+        if(oN) drawCaveinFace(g, img, x, y, x+1.14, y, H, 0, 1, sid+7);
+        if(oW) drawCaveinFace(g, img, x, y, x, y+1.14, H, 1, 0, sid+11);
+      }
+      return;
+    }
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
@@ -8082,7 +8132,7 @@ function placeCraftCaches(L){
   G.props=G.props||[];
   const seed=L.dressSeed||1;
   const kits={
-    1:[['orepile',3],['timber',2],['pickpile',1],['bones',1]],
+    1:[['orepile',1],['pickpile',1],['bones',1]],
     2:[['web',3],['eggs',2],['orepile',1],['timber',1],['bones',1]],
     3:[['bones',2],['hidepile',2],['timber',1],['orepile',1],['crystal',1]],
     4:[['slime',2],['bones',2],['hidepile',1]],
@@ -8093,6 +8143,13 @@ function placeCraftCaches(L){
   for(let y=2;y<L.h-2;y++) for(let x=2;x<L.w-2;x++){
     const t=L.grid[y][x];
     if(t!==0 && t!==3) continue;
+    if(L.n===1){
+      let wall=0;
+      for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){
+        if(L.grid[y+j]&&L.grid[y+j][x+i]===1) wall=1;
+      }
+      if(!wall) continue;
+    }
     floors.push({x:x+0.5,y:y+0.5});
   }
   if(!floors.length) return;
@@ -9511,13 +9568,13 @@ function drawTitleCavern(g){
     g.beginPath(); g.moveTo(x,y-20*z); g.lineTo(x+40*z,y); g.lineTo(x,y+20*z); g.lineTo(x-40*z,y); g.closePath(); g.stroke();
   }
   g.restore();
-  g.save(); g.translate(cx, cy-28*z);
+  g.save(); g.translate(cx+140*z, cy-52*z);
   if(SPR.rubydoor){
-    drawBillboard(g, SPR.rubydoor, 340*z);
+    drawBillboard(g, SPR.rubydoor, 220*z);
     const pulse=.7+Math.sin(G.t*2.4)*.3;
-    const glow=g.createRadialGradient(0,-120*z,8,0,-120*z,170*z);
+    const glow=g.createRadialGradient(0,-80*z,8,0,-80*z,110*z);
     glow.addColorStop(0,'rgba(255,40,50,'+(0.38*pulse)+')'); glow.addColorStop(1,'rgba(255,40,50,0)');
-    g.fillStyle=glow; g.beginPath(); g.arc(0,-120*z,170*z,0,TAU); g.fill();
+    g.fillStyle=glow; g.beginPath(); g.arc(0,-80*z,110*z,0,TAU); g.fill();
   }
   g.restore();
   function mush(mx,my,sc){
@@ -9527,15 +9584,26 @@ function drawTitleCavern(g){
   }
   mush(cx-250*z, cy+90*z, 1.7); mush(cx-190*z, cy+114*z, 1.1);
   mush(cx+230*z, cy+84*z, 1.8); mush(cx+170*z, cy+118*z, 1.2);
-  const keys=['pordoom','fendur','macar','orbo','talpor'];
-  for(let i=0;i<5;i++){
-    const dx=(i-2)*42*z, dy=cy+148*z + Math.abs(i-2)*10*z;
-    g.save(); g.translate(cx+dx, dy);
-    g.fillStyle='rgba(8,6,5,0.55)';
-    g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
-    if(SPR[keys[i]]) drawBillboard(g, SPR[keys[i]], 64*z);
+  g.save(); g.translate(cx-70*z, cy+8*z);
+  if(SPR.cavein) drawBillboard(g, SPR.cavein, 210*z);
+  else if(SPR.rubble) drawBillboard(g, SPR.rubble, 180*z);
+  g.restore();
+  g.save(); g.translate(cx-20*z, cy+48*z);
+  if(SPR.rubble2||SPR.rubble) drawBillboard(g, SPR.rubble2||SPR.rubble, 88*z);
+  g.restore();
+  const fallen=[['pordoom_dead',-118,52],['fendur_dead',-52,66],['orbo_dead',58,60],['talpor_dead',122,48]];
+  fallen.forEach(([k,dx,dy])=>{
+    g.save(); g.translate(cx+dx*z, cy+dy*z);
+    g.fillStyle='rgba(8,6,5,0.5)';
+    g.beginPath(); g.ellipse(0, 6*z, 16*z, 7*z, 0,0,TAU); g.fill();
+    if(SPR[k]) drawBillboard(g, SPR[k], 46*z);
     g.restore();
-  }
+  });
+  g.save(); g.translate(cx+6*z, cy+128*z);
+  g.fillStyle='rgba(8,6,5,0.55)';
+  g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
+  if(SPR.macar_back||SPR.macar) drawBillboard(g, SPR.macar_back||SPR.macar, 72*z);
+  g.restore();
 }
 function drawSplashCover(g, img){
   if(!img||!img.width) return false;
