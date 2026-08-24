@@ -2546,11 +2546,11 @@ function makeChapter(n){
 
   if(n===4){
     L.title='Chapter IV'; L.sub='The Dead City'; L.pal=PAL.ruin;
-    L.w=68; L.h=70; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=68; L.h=72; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,3,22,14,12,3); corridor(g,14,28,26,28,4,0); rect(g,20,18,18,20,0);
     corridor(g,37,28,48,16,4,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,4,0);
     rect(g,38,34,24,16,0); rect(g,50,40,8,6,3);
-    corridor(g,50,50,50,58,5,0); rect(g,42,56,16,12,3);
+    corridor(g,50,50,50,58,5,0); rect(g,42,56,16,14,3);
     L.spawn={x:9.2,y:28};
     L.stair={x:50.1,y:61.2};
     L.secrets=[];
@@ -5632,6 +5632,7 @@ function buildGoblinWarrens(L, sec){
   ];
   if(!L.flags.warrenSpawned){
     rooms.forEach((r,i)=>{
+      if(i===rooms.length-1) return;
       const spec=packs[i%packs.length];
       spawnLairGroup(r.x, r.y, {leader:spec.leader, pack:spec.pack, spread:1.35+rnd()*0.4, aggro:3.6});
     });

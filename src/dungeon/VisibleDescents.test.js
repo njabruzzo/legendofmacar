@@ -62,7 +62,7 @@ assert(!/setTimeout\(\(\)=>\{ ?if\(G\.scene==='play'\) endChapter/.test(ch3),
 assert(/Climb down to the dead city/.test(ch3) && /The south stair waits/.test(ch3),
   'chapter III stair is visible before the warden falls, usable after');
 
-assert(/L\.h=70/.test(ch4) && /rect\(g,42,56,16,12,3\)/.test(ch4),
+assert(/L\.h=72/.test(ch4) && /rect\(g,42,56,16,14,3\)/.test(ch4),
   'chapter IV map grew a south stair hall');
 assert(/L\.stair=\{x:50\.1,y:61\.2\}/.test(ch4) && /k:'stairs',s:1\.4/.test(ch4),
   'chapter IV stairs sit inset in the new hall');
@@ -75,6 +75,8 @@ assert(/caveDisk\(g, last\.x, last\.y, 6\.6, 5\.4, 3\)/.test(html),
 assert(/rect\(g, Math\.round\(last\.x-6\), Math\.round\(last\.y-5\), 12, 11, 3\)/.test(html),
   'king-stair den is recarved to a 12 by 11 pad');
 assert(/k:'stairs',s:1\.46/.test(html), 'warren stairs are large');
+assert(/if\(i===rooms\.length-1\) return/.test(html),
+  'the king-stair den stays clear of a lair pack');
 assert(/if\(L\.stair\) keep\.push\(\{x:L\.stair\.x,y:L\.stair\.y,r:3\.8\}\)/.test(html),
   'random dress keeps a wide clear ring around stairs');
 assert(/if\(L\.lift\) keep\.push\(\{x:L\.lift\.x,y:L\.lift\.y,r:3\.6\}\)/.test(html),
