@@ -32,6 +32,7 @@
 <script src="src/props/DwarfMouth.js"></script>
 <script src="src/props/CraftStation.js"></script>
 <script src="src/packs/GhostKit.js"></script>
+<script src="src/saves/GameSave.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -320,7 +321,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='54';
+const ASSET_VER='55';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -500,6 +501,9 @@ const SPRITE_FILES={
   icon_attack:'assets/ui/icon_attack.png',
   icon_defend:'assets/ui/icon_defend.png',
   icon_craft:'assets/ui/icon_craft.png',
+  icon_save:'assets/ui/icon_save.png',
+  ruin_house:'assets/props/prop_ruin_house.png',
+  secret_door:'assets/props/prop_secret_door.png',
   icon_helm:'assets/ui/icon_helm.png',
   icon_necklace:'assets/ui/icon_necklace.png',
   icon_chest:'assets/ui/icon_chest.png',
@@ -586,7 +590,7 @@ const ICON_SPR={
 function loadSprites(done){
   const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
-    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll',
+    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
     'skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
@@ -599,7 +603,7 @@ function loadSprites(done){
     'boulder','boulder2','cavein','rubble','rubble2',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
     'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
-    'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots',
+    'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
     'glowcap','cavefern','sporepuff','nightbloom','lichen'];
   const seen={};
   const queue=[];
@@ -1292,6 +1296,8 @@ function propSpriteH(p,z){
   if(k==='dwarfface') return dwarfFaceH();
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
+  if(k==='ruin_house') return 128*z*(p.s||1);
+  if(k==='secret_door') return 92*z*(p.s||1);
   if(k==='gate'||k==='bronzedoor') return 132*z;
   if(k==='stairs') return 96*z*(p.s||1);
   if(k==='bell') return 58*z;
@@ -2295,7 +2301,7 @@ function makeChapter(n){
     for(let ii=39;ii<=41;ii++){ if(g[40]) g[40][ii]=1; if(g[39]) g[39][ii]=1; }
     addSecretDoor(L,{x:64.5,y:20.1,i:63,j:20,w:3,h:1,kind:'treasure',face:'n',
       hint:'South of the bronze door the rock sits too square. SEARCH the grey face.'});
-    L.warrenSeed=((Math.random()*1e9)|0)+1;
+    L.warrenSeed=(G._forceSeeds&&G._forceSeeds.warrenSeed)||((Math.random()*1e9)|0)+1;
     L.objs=[{t:'Stand in the four-way cavern',d:0},{t:'Break the goblin band',d:0},
             {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
             {t:'Climb the south stair to the ruins',d:0},
@@ -2403,7 +2409,7 @@ function makeChapter(n){
     corridor(g,33,28,44,20,4,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,4,0);
     rect(g,36,34,24,16,0); rect(g,46,40,6,6,3);
     L.spawn={x:8,y:28};
-    L.dressSeed=((Math.random()*1e9)|0)+3;
+    L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
       {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6}];
@@ -2557,6 +2563,7 @@ function makeChapter(n){
   sealOuter(L.grid);
   L.seen=newGrid(L.w,L.h,0);
   L.vis=newGrid(L.w,L.h,0);
+  markSecretProps(L);
   dressDungeon(L);
   return L;
 }
@@ -3019,6 +3026,9 @@ const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new c
 const CHAPTERS=[1,2,3,4,5];
 
 function startChapter(n){
+  const keep=!!G._keepProgress;
+  const loadSnap=G._loadSnap||null;
+  G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
@@ -3026,14 +3036,16 @@ function startChapter(n){
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
+  if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
+  G._forceSeeds=null;
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
   ensurePartySheets();
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
-  if(n===1){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
+  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
   G.inspect=null; G.showObjs=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
@@ -3041,8 +3053,8 @@ function startChapter(n){
     const cls=sheet.cls;
     const hp=sheet.maxhp*ADD_SCALE;
     const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
-    const crush=n===1 && !hero && CRUSH_SPOTS[r.key];
     const raised=!!(G.ghostAllies&&G.ghostAllies[r.key]);
+    const crush=n===1 && !hero && CRUSH_SPOTS[r.key] && !raised;
     if(!hero && n!==1 && !raised) return;
     const x=crush?crush.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
     const y=crush?crush.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
@@ -3058,10 +3070,12 @@ function startChapter(n){
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
       e.kit=Object.assign({}, crush.kit||{}); e.corpse=1; e.looted=0;
-      const pk=packOf(r.key);
-      pk.potions=[]; pk.healPots=[]; pk.herbs={}; pk.magic=[]; pk.gems=[];
-      pk.bombs=0; pk.ales=0; pk.rations=0; pk.torches=0; pk.ammo=0; pk.bombKit=0; pk.burps=0;
-      syncPackTotals();
+      if(!keep){
+        const pk=packOf(r.key);
+        pk.potions=[]; pk.healPots=[]; pk.herbs={}; pk.magic=[]; pk.gems=[];
+        pk.bombs=0; pk.ales=0; pk.rations=0; pk.torches=0; pk.ammo=0; pk.bombKit=0; pk.burps=0;
+        syncPackTotals();
+      }
     } else if(raised){
       e.ghost=1; e.glow='#7ad8ff'; e.looted=1;
     }
@@ -3084,18 +3098,106 @@ function startChapter(n){
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
   rebuildVision();
+  if(keep && loadSnap){
+    applyPlaySave(loadSnap.play);
+    G.scene=loadSnap.scene==='camp'?'camp':'play';
+    G.introT=99; G.paused=false;
+  }
   say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. A ruby door is set in this chamber\'s north wall.',
     2:'The cage opens on a four-way cavern. Left, a gem-bronze door. Right, webs. Straight, goblins with a bound gnome.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
     5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
 }
+function capturePlaySave(){
+  const L=G.lvl, p=player();
+  if(!L||!p) return null;
+  return {
+    x:p.x, y:p.y, hp:p.hp, maxhp:p.maxhp,
+    flags:Object.assign({}, L.flags||{}),
+    secrets:(L.secrets||[]).map(s=>({i:s.i,j:s.j,kind:s.kind,open:!!s.open,hinted:!!s.hinted})),
+    loot:(G.loot||[]).filter(z=>!z.gone).map(z=>({
+      x:z.x,y:z.y,kind:z.kind,coins:z.coins,gems:z.gems,jew:z.jew,
+      potions:z.potions,items:z.items,label:z.label,glow:z.glow
+    })),
+    warrenSeed:L.warrenSeed||0,
+    dressSeed:L.dressSeed||0,
+    kingLevel:!!(L.flags&&L.flags.kingLevel),
+    party:(G.ents||[]).filter(e=>e.team==='party'&&e.col).map(e=>({
+      key:e.col.key, hp:e.hp, maxhp:e.maxhp, dead:!!e.dead, ghost:!!e.ghost,
+      crushed:!!e.crushed, x:e.x, y:e.y
+    }))
+  };
+}
+function writeGameSave(quiet){
+  if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
+  const extra={scene:(G.scene==='camp')?'camp':'play'};
+  if(G.scene==='play'||G.scene==='intro'||G.paused) extra.play=capturePlaySave();
+  const snap=GameSave.snapshot(G, extra);
+  try{ GameSave.write(localStorage, snap); }
+  catch(err){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
+  if(!quiet){
+    say('The book is marked. Progress is kept.','#ffe08a');
+    hint('Saved. '+GameSave.label(snap), 3.8);
+  }
+  return true;
+}
+function applyPlaySave(play){
+  const L=G.lvl; if(!L||!play) return;
+  L.flags=Object.assign({}, L.flags||{}, play.flags||{});
+  if(play.secrets&&L.secrets){
+    play.secrets.forEach(sv=>{
+      const sec=L.secrets.find(s=>s.kind===sv.kind && (s.i===sv.i || s.kind==='warrens'&&sv.kind==='warrens'));
+      if(!sec||!sv.open||sec.open) return;
+      openSecret(sec);
+    });
+  }
+  if(play.kingLevel){
+    L.flags.kingLevel=0;
+    enterGoblinKingLevel(L);
+  }
+  G.loot=[];
+  (play.loot||[]).forEach(z=>spawnLoot(z.x,z.y,{
+    kind:z.kind, coins:z.coins||{}, gems:z.gems||0, jew:z.jew||0,
+    potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow
+  }));
+  (play.party||[]).forEach(sv=>{
+    const e=(G.ents||[]).find(z=>z.col&&z.col.key===sv.key);
+    if(!e) return;
+    e.x=sv.x; e.y=sv.y; e.hp=sv.hp; e.maxhp=sv.maxhp||e.maxhp;
+    e.dead=!!sv.dead; e.ghost=!!sv.ghost; e.crushed=!!sv.crushed;
+    if(e.crushed){ e.prone=1; e.corpse=1; e.moving=0; }
+  });
+  const p=player();
+  if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
+  try{ rebuildVision(); }catch(e){}
+}
+function loadSavedGame(){
+  if(typeof GameSave==='undefined') return;
+  const snap=GameSave.read(localStorage);
+  if(!snap){ hint('No save to load.',2.4); say('The book is blank.','#9a8a78'); return; }
+  GameSave.applyCampaign(G, snap);
+  ensurePacks();
+  if(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ensureShape) G.equipped=EquipmentSlots.ensureShape(G.equipped||{});
+  if(typeof applyEquipped==='function') applyEquipped();
+  if(snap.scene==='camp'){
+    G.scene='camp'; G.paused=false; G.lvl=null;
+    say('The camp fire is as you left it.','#c9b895');
+    return;
+  }
+  G._keepProgress=1;
+  G._loadSnap=snap;
+  startChapter(snap.ch||1);
+  say('The book opens where you left the mark.','#ffe08a');
+}
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
   G.sang=false; G.campScroll=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
-  G.scene='camp'; }
+  G.scene='camp';
+  writeGameSave(true);
+}
 
 let PROMPT=null;
 function interact(label,fn){ PROMPT={label,fn}; }
@@ -5220,6 +5322,16 @@ function sealSecretCells(g, sec){
     if(g[yy] && g[yy][xx]!==undefined) g[yy][xx]=1;
   }
 }
+function markSecretProps(L){
+  if(!L||!L.secrets) return;
+  G.props=G.props||[];
+  L.secrets.forEach(sec=>{
+    if(sec.open) return;
+    const x=(sec.x!=null?sec.x:sec.i)+((sec.w||3)*0.35);
+    const y=(sec.y!=null?sec.y:sec.j)+0.18;
+    G.props.push({x,y,k:'secret_door',s:1.02,face:sec.face||'n'});
+  });
+}
 function addSecretDoor(L, spec){
   if(!L) return null;
   L.secrets=L.secrets||[];
@@ -5307,6 +5419,7 @@ function dressRuinBuildings(L){
     const tx=x<30?26:(y<30?46:48);
     const ty=x<30?28:(y<30?20:42);
     corridor(g, doorx, doory, tx, ty, 3, 0);
+    G.props.push({x:x+w*0.5,y:y+h*0.52,k:'ruin_house',s:1.08+(idx%3)*0.06,seed:60+idx});
     G.props.push({x:x+w*0.34,y:y+h*0.42,k:'rubble',spr:'rubble2',n:8,s:1.12,seed:80+idx});
     G.props.push({x:x+w*0.66,y:y+h*0.62,k:'rubble',spr:'rubble',n:6,s:0.98,seed:90+idx});
     G.props.push({x:x+w*0.5,y:y+h*0.28,k:'timber',s:0.9,seed:70+idx});
@@ -5355,6 +5468,9 @@ function openSecret(sec){
   if(!sec||sec.open) return;
   sec.open=1;
   const L=G.lvl, g=L.grid;
+  (G.props||[]).forEach(p=>{
+    if(p.k==='secret_door' && Math.hypot(p.x-(sec.x||sec.i), p.y-(sec.y||sec.j))<2.6) p.gone=1;
+  });
   const i=sec.i||(sec.x|0), j=sec.j||(sec.y|0);
   rect(g, i, j, sec.w||2, Math.max(1,sec.h||1), 0);
   if(sec.face==='n') rect(g, i, j+1, sec.w||3, 1, 0);
@@ -5418,10 +5534,13 @@ function buildGoblinWarrens(L, sec){
     {leader:'bugbear', pack:[['goblin',2]]},
     {pack:[['kobold',4]]}
   ];
-  rooms.forEach((r,i)=>{
-    const spec=packs[i%packs.length];
-    spawnLairGroup(r.x, r.y, {leader:spec.leader, pack:spec.pack, spread:1.35+rnd()*0.4, aggro:3.6});
-  });
+  if(!L.flags.warrenSpawned){
+    rooms.forEach((r,i)=>{
+      const spec=packs[i%packs.length];
+      spawnLairGroup(r.x, r.y, {leader:spec.leader, pack:spec.pack, spread:1.35+rnd()*0.4, aggro:3.6});
+    });
+    L.flags.warrenSpawned=1;
+  }
   const last=rooms[rooms.length-1]||mouth;
   L.warrenStair={x:last.x, y:last.y};
   caveDisk(g, last.x, last.y, 3.2, 2.6, 3);
@@ -5432,7 +5551,6 @@ function buildGoblinWarrens(L, sec){
     if(L.objs&&L.objs[5]) L.objs[5].d=1;
     enterGoblinKingLevel(L);
   }});
-  spawnLairGroup(last.x-1.6, last.y+1.2, {leader:'goblinChieftain', pack:[['goblin',2]], spread:1.3, aggro:4.0});
 }
 function enterGoblinKingLevel(L){
   if(!L) return;
@@ -5468,14 +5586,17 @@ function buildGoblinKingLevel(L){
   L.lights=L.lights||[];
   L.lights.push({x:kx,y:ky,c:'#ff8a3a',r:8.4,f:1.35});
   L.lights.push({x:L.kingEntry.x,y:L.kingEntry.y,c:'#7dff9a',r:5.2,f:1.05});
-  const king=FOE.goblinKing(); king.x=kx; king.y=ky-0.4; king.aggro=6; G.ents.push(king);
-  spawnLairGroup(kx-3.2, ky+1.4, {leader:'goblinWarlord', pack:[['goblin',3]], spread:1.6, aggro:4.6});
-  spawnLairGroup(kx+3.4, ky+1.2, {leader:'goblinChieftain', pack:[['goblinBoss',1],['goblin',2]], spread:1.5, aggro:4.4});
-  spawnLairGroup(kx-1.2, ky+3.2, {pack:[['warg',3]], spread:1.8, aggro:4.8});
-  spawnLairGroup(kx+5.2, ky-0.6, {pack:[['warg',2],['goblin',1]], spread:1.4, aggro:4.5});
-  placeSecretHoard(kx+0.4, ky+1.1, 'H');
-  say('GOBLIN KING — the warg-lord of the deep lair.','#ff6a4a');
-  shake(16);
+  if(!L.flags.kingSpawned){
+    const king=FOE.goblinKing(); king.x=kx; king.y=ky-0.4; king.aggro=6; G.ents.push(king);
+    spawnLairGroup(kx-3.2, ky+1.4, {leader:'goblinWarlord', pack:[['goblin',3]], spread:1.6, aggro:4.6});
+    spawnLairGroup(kx+3.4, ky+1.2, {leader:'goblinChieftain', pack:[['goblinBoss',1],['goblin',2]], spread:1.5, aggro:4.4});
+    spawnLairGroup(kx-1.2, ky+3.2, {pack:[['warg',3]], spread:1.8, aggro:4.8});
+    spawnLairGroup(kx+5.2, ky-0.6, {pack:[['warg',2],['goblin',1]], spread:1.4, aggro:4.5});
+    placeSecretHoard(kx+0.4, ky+1.1, 'H');
+    L.flags.kingSpawned=1;
+    say('GOBLIN KING — the warg-lord of the deep lair.','#ff6a4a');
+    shake(16);
+  }
 }
 function foesVisible(){
   return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&tileVisible(e.x,e.y));
@@ -7019,6 +7140,10 @@ function drawProp(g,p,pal){
       emit(s.x,s.y-14*z,46*z,'#c81824',0.5*b+0.3);
     }else if(k==='throne'){
       emit(s.x,s.y-136*z,40*z,'#ffd24a',0.4);
+    }else if(k==='secret_door'){
+      emit(s.x,s.y-36*z,22*z,'#8aa0b8',0.35);
+    }else if(k==='ruin_house'){
+      emit(s.x,s.y-40*z,18*z,'#c9a070',0.22);
     }else if(k==='trap'&&p.trap==='trap_runes'){
       emit(s.x,s.y-8*z,28*z,'#c07bff',0.55);
     }
@@ -9468,11 +9593,17 @@ function drawTitle(g){
   g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, bar+(PORT?68:86)*s);
   g.globalAlpha=1;
   const bw=Math.min(280*s, VW*.62);
-  menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
+  const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
+  if(hasSave){
+    menuBtn(g,'Continue', VW/2, VH-bar-78*s, bw, 44*s, ()=>loadSavedGame());
+    menuBtn(g,'New descent', VW/2, VH-bar-36*s, Math.min(220*s,VW*.55), 32*s, ()=>startChapter(1));
+  } else {
+    menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
+  }
   const smallW=Math.min(168*s, VW*.42);
   const rowY=VH-bar-6*s;
-  menuBtn(g,'Chapters', VW/2-smallW/2-6*s, rowY, smallW, 40*s, ()=>{G.scene='chapters';});
-  menuBtn(g,'Credits', VW/2+smallW/2+6*s, rowY, smallW, 40*s, ()=>openCredits('title'));
+  menuBtn(g,'Chapters', VW/2-smallW/2-6*s, rowY, smallW, 36*s, ()=>{G.scene='chapters';});
+  menuBtn(g,'Credits', VW/2+smallW/2+6*s, rowY, smallW, 36*s, ()=>openCredits('title'));
   g.textAlign='center'; g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
   g.fillText('Click the ground to walk  \u00b7  WASD  \u00b7  Space strike', VW/2, VH-10*s);
@@ -9671,9 +9802,10 @@ function drawCamp(g){
     VW/2, VH-46*s);
   g.textAlign='left';
   const nxt=G.ch===3?5:G.ch+1;
+  menuBtn(g,'Save',VW/2-Math.min(80*s,VW*.2)-6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>writeGameSave());
   if(CH_META[nxt]&&!CH_META[nxt].locked)
-    menuBtn(g,'Go deeper',VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>startChapter(nxt));
-  else menuBtn(g,'Chapters',VW/2,VH-22*s,Math.min(230*s,VW*.56),34*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Go deeper',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>startChapter(nxt));
+  else menuBtn(g,'Chapters',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{G.scene='chapters';});
 }
 
 function drawDead(g){
@@ -10445,11 +10577,12 @@ function drawPause(g){
   g.fillStyle='rgba(160,140,110,0.7)';
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
   g.textAlign='left';
-  menuBtn(g,'Resume',VW/2,VH*.40,Math.min(230*s,VW*.66),42*s,()=>{G.paused=false;});
-  menuBtn(g,'Effects: '+gfxLabel(),VW/2,VH*.505,Math.min(230*s,VW*.66),38*s,()=>{cycleGfx();});
-  menuBtn(g,'Restart chapter',VW/2,VH*.61,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;startChapter(G.ch);});
-  menuBtn(g,'Chapters',VW/2,VH*.715,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;G.scene='chapters';});
-  menuBtn(g,'Credits',VW/2,VH*.82,Math.min(230*s,VW*.66),38*s,()=>openCredits('pause'));
+  menuBtn(g,'Resume',VW/2,VH*.385,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;});
+  menuBtn(g,'Save game',VW/2,VH*.47,Math.min(230*s,VW*.66),38*s,()=>writeGameSave());
+  menuBtn(g,'Effects: '+gfxLabel(),VW/2,VH*.555,Math.min(230*s,VW*.66),36*s,()=>{cycleGfx();});
+  menuBtn(g,'Restart chapter',VW/2,VH*.64,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;startChapter(G.ch);});
+  menuBtn(g,'Chapters',VW/2,VH*.725,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Credits',VW/2,VH*.81,Math.min(230*s,VW*.66),36*s,()=>openCredits('pause'));
 }
 
 /* ---------------------------- tap resolution ---------------------------- */
