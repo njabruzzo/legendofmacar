@@ -713,15 +713,21 @@ function spriteBounds(img){
     d=x.getImageData(0,0,w,h).data;
   }catch(_){ d=null; }
   if(!d) return stampMetrics(img,miss);
-  let lo=w, hi=-1, bot=-1;
+  let lo=w, hi=-1, top=h, bot=-1;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
     if(d[(y*w+x)*4+3]<=30) continue;
     if(x<lo) lo=x;
     if(x>hi) hi=x;
+    if(y<top) top=y;
     if(y>bot) bot=y;
   }
   if(bot<0) return stampMetrics(img,miss);
-  return stampMetrics(img,{ok:true, botY:(bot+1)/h, cx:((lo+hi+1)/2)/w});
+  return stampMetrics(img,{
+    ok:true,
+    botY:(bot+1)/h,
+    cx:((lo+hi+1)/2)/w,
+    x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h
+  });
 }
 function frameFit(e,img){
   const k=entSpriteKey(e);
@@ -735,12 +741,17 @@ function frameFit(e,img){
 function drawEntBillboard(g,e,img,z){
   if(!img||!img.width) return false;
   if(e.crushed||e.prone){
+    const b=spriteBounds(img);
+    const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;
+    const sy=(b&&b.ok&&b.y0!=null)?b.y0*img.height:0;
+    const sw=(b&&b.ok&&b.x1!=null)?Math.max(8,(b.x1-b.x0)*img.width):img.width;
+    const sh=(b&&b.ok&&b.y1!=null)?Math.max(8,(b.y1-b.y0)*img.height):img.height;
     const macarH=78*z;
-    const maxW=macarH*1.08, maxH=macarH*0.62;
-    const aspect=img.width/Math.max(1,img.height);
+    const maxW=macarH*1.85, maxH=macarH*1.15;
+    const aspect=sw/Math.max(1,sh);
     let pw=maxW, ph=pw/aspect;
     if(ph>maxH){ ph=maxH; pw=ph*aspect; }
-    g.drawImage(img, -pw/2, -ph*0.78, pw, ph);
+    g.drawImage(img, sx, sy, sw, sh, -pw/2, -ph*0.82, pw, ph);
     return true;
   }
   // Frames differ in how large the figure is drawn inside the canvas, so apply
@@ -764,34 +775,30 @@ function drawEntBillboard(g,e,img,z){
 }
 function drawDeadBillboard(g,e,img,z){
   if(!img||!img.width) return false;
-  const maxW=entSpriteH({kind:'dwarf'},z)*(e.crushed?1.42:1.08);
-  const maxH=entSpriteH({kind:'dwarf'},z)*(e.crushed?0.88:0.62);
-  const aspect=img.width/Math.max(1,img.height);
+  const b=spriteBounds(img);
+  const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;
+  const sy=(b&&b.ok&&b.y0!=null)?b.y0*img.height:0;
+  const sw=(b&&b.ok&&b.x1!=null)?Math.max(8,(b.x1-b.x0)*img.width):img.width;
+  const sh=(b&&b.ok&&b.y1!=null)?Math.max(8,(b.y1-b.y0)*img.height):img.height;
+  const maxW=entSpriteH({kind:'dwarf'},z)*(e.crushed?2.35:1.08);
+  const maxH=entSpriteH({kind:'dwarf'},z)*(e.crushed?1.45:0.62);
+  const aspect=sw/Math.max(1,sh);
   let W=maxW, H=W/aspect;
   if(H>maxH){ H=maxH; W=H*aspect; }
-  const dx=-W/2, dy=-H*0.78;
+  const dx=-W/2, dy=-H*0.82;
   if(e.crushed){
     g.save();
-    g.shadowColor='rgba(255,232,176,0.95)';
-    g.shadowBlur=18*z;
-    g.drawImage(img, dx, dy, W, H);
-    g.shadowBlur=8*z;
-    g.shadowColor='rgba(255,248,220,0.9)';
-    g.drawImage(img, dx, dy, W, H);
+    if(!PHONE_GFX){
+      g.shadowColor='rgba(255,232,176,0.95)';
+      g.shadowBlur=14*z;
+    }
+    g.drawImage(img, sx, sy, sw, sh, dx, dy, W, H);
+    g.shadowBlur=0;
+    g.drawImage(img, sx, sy, sw, sh, dx, dy, W, H);
     g.restore();
-    g.strokeStyle='rgba(255,236,186,0.92)';
-    g.lineWidth=2.4*z;
-    g.beginPath();
-    g.ellipse(0, -H*0.40, W*0.48, H*0.36, -0.12, 0, TAU);
-    g.stroke();
-    g.strokeStyle='rgba(255,210,130,0.45)';
-    g.lineWidth=4.2*z;
-    g.beginPath();
-    g.ellipse(0, -H*0.40, W*0.54, H*0.42, -0.12, 0, TAU);
-    g.stroke();
     return true;
   }
-  g.drawImage(img, dx, dy, W, H);
+  g.drawImage(img, sx, sy, sw, sh, dx, dy, W, H);
   return true;
 }
 function palFloorKey(pal){
@@ -1733,12 +1740,12 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  // Open floor of the west shaft — not on the void-edge wall, so fog cannot eat them.
-  // Party total on the fallen: 14 rations (two weeks) and 8 beer draughts (d10 each).
-  pordoom:{x:16.55,y:20.05,seed:3,stone:0.22,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.16,y:0.38}},
-  fendur:{x:16.72,y:23.18,seed:11,stone:0.20,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.14,y:0.36}},
-  orbo:{x:17.48,y:20.82,seed:19,stone:0.21,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.18,y:0.34}},
-  talpor:{x:17.62,y:22.72,seed:7,stone:0.20,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.14,y:0.36}}
+  // Open floor one step west of Macar (20.5, 22). In the first camera frame,
+  // in lantern light, not on the void wall and not under the pin-rocks.
+  pordoom:{x:19.20,y:20.90,seed:3,stone:0.18,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.95,y:0.82}},
+  fendur:{x:18.28,y:21.35,seed:11,stone:0.17,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.92,y:0.80}},
+  orbo:{x:19.42,y:22.70,seed:19,stone:0.18,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.90,y:0.78}},
+  talpor:{x:18.38,y:23.15,seed:7,stone:0.17,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.94,y:0.76}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -1751,7 +1758,7 @@ function nearCrush(x,y,r){
 const ROSTER=[
  {key:'macar',  name:'MACAR',   init:1, role:'hero',  beard:'#9c5027', hair:'#71351a', skin:'#c98f63',
   cloth:'#7d5c31', metal:'#93805a', trim:'#d3ab4d', cap:null},
- {key:'pordoom',name:'PORDOOM', init:6, role:'pick',  beard:'#c9682c', hair:'#a4511f', skin:'#cd9468',
+ {key:'pordoom',name:'PORDUM', init:6, role:'pick',  beard:'#c9682c', hair:'#a4511f', skin:'#cd9468',
   cloth:'#6e4c3a', metal:'#7f6c49', trim:'#bb9540', cap:'#a92e25'},
  {key:'fendur', name:'FENDUR',  init:5, role:'bolt',  beard:'#714226', hair:'#502d17', skin:'#c78c60',
   cloth:'#605439', metal:'#8d7d59', trim:'#ab9352', cap:null},
@@ -2209,18 +2216,13 @@ function makeChapter(n){
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.16,y:0.36};
-      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.22,pin:1,seed:s.seed});
+      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.62,y:0.55};
+      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.16,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
       if(p.pin||p.cover) return true;
-      if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,0.95)) return false;
+      if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,1.35)) return false;
       return true;
-    });
-    Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.28,y:s.y+0.46,k:'rubble',s:0.16+((s.seed||0)%5)*0.03,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed, 40)});
-      G.props.push({x:s.x+0.42,y:s.y+0.40,k:'rubble',s:0.14+((s.seed||0)%4)*0.03,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed, 51)});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -2839,13 +2841,13 @@ function lootNearbyCorpses(e, r){
 const GHOST_RETURN=600;
 const GHOST_DAY_SECS=720;
 const GHOST_RISE={
-  pordoom:'PORDOOM: "Get your grubby hands off me, Macar! I was having a perfectly decent nap under that rock."',
+  pordoom:'PORDUM: "Get your grubby hands off me, Macar! I was having a perfectly decent nap under that rock."',
   fendur:'FENDUR: "Paws off the bolts, captain. I am not a loot pile. I am Fendur, slightly less solid."',
   orbo:'ORBO: "That is my coin-purse, you scavenger. I am using it. Also I am dead. Details."',
   talpor:'TALPOR: "I am a cleric, Macar, not a sack of torch-ends. Kindly unhand the faithful."'
 };
 const GHOST_RETURN_LINE={
-  pordoom:'PORDOOM: "Ten minutes. That is all the peace a dwarf gets around you."',
+  pordoom:'PORDUM: "Ten minutes. That is all the peace a dwarf gets around you."',
   fendur:'FENDUR: "I floated back. Try not to loot me again while I am busy not dying."',
   orbo:'ORBO: "Miss me? The shield still works. The rest of me is a suggestion."',
   talpor:'TALPOR: "The stone would not keep me. Macar, try to look surprised."'
@@ -2881,7 +2883,7 @@ function tryPordoomGifts(){
   G.pordoomGiftDay=day;
   addToPack('pordoom','bombs',1);
   addToPack('macar','bombs',1);
-  say('PORDOOM: "Catch, you grave-robbing lump. I only make two a day, and one of them is wasted on you."','#ffb45c');
+  say('PORDUM: "Catch, you grave-robbing lump. I only make two a day, and one of them is wasted on you."','#ffb45c');
 }
 function returnGhost(e, fromCamp){
   if(!e||!e.ghost) return;
@@ -2922,7 +2924,7 @@ function ghostSapperBomb(e, dt){
   packOf('pordoom').bombs--; syncPackTotals();
   G.thrown.push({sx:e.x,sy:e.y,tx:t.x,ty:t.y,x:e.x,y:e.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0});
   e.bombCd=20;
-  say('PORDOOM: "Heads down. Short fuse. I packed this one for the rocks, not for you."','#ffb45c');
+  say('PORDUM: "Heads down. Short fuse. I packed this one for the rocks, not for you."','#ffb45c');
 }
 function isMagicAttack(src){
   if(!src) return false;
@@ -3106,9 +3108,12 @@ function startChapter(n){
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
   rebuildVision();
+  pinFallenKin();
   revealCrushTiles();
   if(keep && loadSnap){
     applyPlaySave(loadSnap.play);
+    pinFallenKin();
+    revealCrushTiles();
     G.scene=loadSnap.scene==='camp'?'camp':'play';
     G.introT=99; G.paused=false;
   }
@@ -3118,22 +3123,74 @@ function startChapter(n){
     4:'Cut stone. Dwarf work. Very old.',
     5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
 }
+function pinFallenKin(){
+  const L=G.lvl;
+  if(!L||L.n!==1) return;
+  for(const e of (G.ents||[])){
+    if(!e.crushed || e.ghost || !e.col) continue;
+    const spot=CRUSH_SPOTS[e.col.key];
+    if(!spot) continue;
+    e.x=spot.x; e.y=spot.y;
+    e.dead=1; e.corpse=1; e.prone=1; e.moving=0; e.hidden=0;
+  }
+}
 function drawFallenKin(g){
   g.save();
   g.globalCompositeOperation='source-over';
   g.globalAlpha=1;
   for(const e of (G.ents||[])){
     if(!e.crushed || e.ghost) continue;
-    const s=w2s(e.x,e.y), z=ZOOM*(e.scale||1);
-    g.save();
-    g.fillStyle='rgba(255,196,90,0.28)';
-    g.beginPath(); g.ellipse(s.x, s.y+4*z, 28*z, 14*z, 0, 0, TAU); g.fill();
-    g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2.4*z;
-    g.beginPath(); g.ellipse(s.x, s.y+4*z, 24*z, 12*z, 0, 0, TAU); g.stroke();
-    g.restore();
-    drawEnt(g,e);
+    drawCrushedKin(g,e);
   }
   g.restore();
+}
+function drawCrushedKin(g,e){
+  const s=w2s(e.x,e.y);
+  const z=ZOOM*Math.max(1, e.scale||1);
+  const key=e.col&&e.col.key;
+  const dead=(key&&SPR[key+'_dead'])||null;
+  const live=(key&&SPR[key])||null;
+  const col=e.col||{};
+  g.save();
+  g.translate(s.x, s.y);
+  g.fillStyle='rgba(8,5,2,0.72)';
+  g.beginPath(); g.ellipse(2*z, 10*z, 48*z, 20*z, -0.22, 0, TAU); g.fill();
+  g.fillStyle='rgba(255,196,90,0.28)';
+  g.beginPath(); g.ellipse(0, 8*z, 44*z, 18*z, -0.22, 0, TAU); g.fill();
+  g.strokeStyle='rgba(255,226,150,0.95)'; g.lineWidth=2.8*z;
+  g.beginPath(); g.ellipse(0, 8*z, 40*z, 16*z, -0.22, 0, TAU); g.stroke();
+  // Painted dwarf first so a missing or faint sheet cannot hide the body.
+  if(col&&typeof drawDwarf==='function'){
+    g.save();
+    g.translate(6*z, 14*z);
+    g.rotate(1.32);
+    g.scale(1.18, 0.78);
+    try{ drawDwarf(g,e,z,0); }catch(_){}
+    g.restore();
+  }
+  const prone=dead&&dead.width?dead:null;
+  const stand=live&&live.width?live:null;
+  if(prone){
+    const dw=Math.max(TW*1.85, 148*z);
+    const dh=dw*(prone.height/Math.max(1,prone.width));
+    g.drawImage(prone, -dw/2, -dh*0.78, dw, dh);
+  } else if(stand){
+    g.save();
+    g.rotate(1.22);
+    const H=96*z;
+    const W=stand.width*(H/Math.max(1,stand.height));
+    g.drawImage(stand, -W/2, -H*0.82, W, H);
+    g.restore();
+  }
+  g.restore();
+  g.font='800 '+(15*z)+'px '+FONT_TITLE;
+  g.textAlign='center';
+  const tag=e.name||'Kin';
+  g.lineWidth=5*z; g.strokeStyle='rgba(0,0,0,0.92)';
+  g.strokeText(tag, s.x, s.y-46*z);
+  g.fillStyle='#ffe7b8';
+  g.fillText(tag, s.x, s.y-46*z);
+  g.textAlign='left';
 }
 function revealCrushTiles(){
   const L=G.lvl;
@@ -3206,8 +3263,9 @@ function applyPlaySave(play){
     if(!e) return;
     e.x=sv.x; e.y=sv.y; e.hp=sv.hp; e.maxhp=sv.maxhp||e.maxhp;
     e.dead=!!sv.dead; e.ghost=!!sv.ghost; e.crushed=!!sv.crushed;
-    if(e.crushed){ e.prone=1; e.corpse=1; e.moving=0; }
+    if(e.crushed){ e.prone=1; e.corpse=1; e.moving=0; e.hidden=0; }
   });
+  pinFallenKin();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   try{ rebuildVision(); }catch(e){}
@@ -3550,7 +3608,7 @@ function rosterCls(r){
   if(!r) return 'f';
   if(r.role==='faith') return 'c';
   if(r.role==='bolt') return 't';
-  // Miners (Macar, Pordoom, Orbo) fight on the fighter matrix. DMG I.B.
+  // Miners (Macar, Pordum, Orbo) fight on the fighter matrix. DMG I.B.
   return 'f';
 }
 function rosterDice(r){
@@ -6197,7 +6255,10 @@ function update(dt){
       }
     }
     const body=nearestCorpse(p,1.72);
-    if(body) lootNearbyCorpses(p,1.72);
+    if(body){
+      const reach=(body.crushed&&body.team==='party')?0.98:1.72;
+      if(dist(p,body)<reach) lootNearbyCorpses(p,reach);
+    }
     if(!PROMPT){
       const more=nearestCorpse(p,2.15);
       if(more) interact((more.crushed&&more.team==='party'?'Rouse ':'Loot ')+(more.name||'the fallen'),()=>lootCorpse(more));
@@ -6502,7 +6563,11 @@ function drawWorld(g,L){
   for(const d of G.decals) if(near(d)&&seenAt(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents)  if(!e.crushed&&showEnt(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const e of G.ents){
+    if(!showEnt(e)) continue;
+    if(e.crushed) push((e.x+e.y)|0,()=>drawCrushedKin(g,e));
+    else push((e.x+e.y)|0,()=>drawEnt(g,e));
+  }
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
@@ -8250,7 +8315,7 @@ const SKILLS=[
   {k:'weapon',n:'Weapon Smithing',who:'MACAR'},
   {k:'armour',n:'Armour Smithing',who:'ORBO'},
   {k:'bomb',  n:'Bomb Making',    who:'FENDUR'},
-  {k:'ale',   n:'Ale Making',     who:'PORDOOM'},
+  {k:'ale',   n:'Ale Making',     who:'PORDUM'},
   {k:'cloth', n:'Clothing Tailor',who:'TALPOR'},
   {k:'song',  n:'Singing',        who:'TALPOR'},
   {k:'mining',n:'Mining',         who:'MACAR'},
@@ -8590,7 +8655,7 @@ function throwBomb(){
   const a=ang(G.aim.x-p.x, G.aim.y-p.y);
   p.fdx=Math.cos(a); p.fdy=Math.sin(a);
   G.thrown.push({sx:p.x,sy:p.y,tx:G.aim.x,ty:G.aim.y,x:p.x,y:p.y,t:0,dur:0.62,fuse:0.55,state:0,spin:0,kind});
-  if(kind==='burp') say("PORDOOM: Borga's Burp. Don't sniff the cork.",'#d2bd63');
+  if(kind==='burp') say("PORDUM: Borga's Burp. Don't sniff the cork.",'#d2bd63');
   else say('A bomb from the packs. Fuse lit.','#ffb45c');
   G.aim=null;
   learn('bomb',2);
@@ -8760,7 +8825,7 @@ function campActions(){
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
   if(partyCount('bombKit')>0) a.push({grp:'BENCH',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
-    info:'Pordoom\'s kit. 10d10 throwables into Macar\'s pack',
+    info:'Pordum\'s kit. 10d10 throwables into Macar\'s pack',
     fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
       say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
   if(skillLvl('bomb')>=2) a.push({grp:'BENCH',t:'Resin-fuse bombs (+2)',cost:{powder:1,resin:2},
@@ -9815,7 +9880,7 @@ function drawIntro(g){
   drawGoldRule(g, VW/2, VH*0.102, 180*s);
   bigTitle(g,L.sub,VH*(PORT?0.16:0.175),(PORT?24:34)*s);
   const fl={
-    1:'The tunnel is choked with rubble. Pordoom, Fendur, Orbo and Talpor lie dead under the stones.',
+    1:'The tunnel is choked with rubble. Pordum, Fendur, Orbo and Talpor lie dead under the stones.',
     2:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
     3:'They kept working. Nobody told them to stop. The dead still walk.',
     4:'Cut stone. Dwarf work. Very old. The water remembers the city.',
@@ -9996,7 +10061,7 @@ function collectPackRows(pk, who){
   }
   if(pk.burps){
     rows.push({kind:'burp', t:"Borga's Burp  \u00d7"+(pk.burps||0),
-      info:lend+"Pordoom's brew-bomb. 3d10.",
+      info:lend+"Pordum's brew-bomb. 3d10.",
       tag:'Bomb'});
   }
   if(pk.ammo){
@@ -10673,7 +10738,7 @@ function drawCraft(g){
     const sk=rec&&rec.skill&&SKILLS.find(z=>z.k===rec.skill);
     g.fillStyle=can?'rgba(150,200,130,0.9)':'rgba(200,120,90,0.9)';
     const why=can?'Ready to forge.':(check.message||'Missing materials or skill.');
-    const sap=rec&&rec.sapper?'PORDOOM  \u00b7  ':'';
+    const sap=rec&&rec.sapper?'PORDUM  \u00b7  ':'';
     g.fillText(ellipsize(g, sap+(sk?sk.n+(rec.skillLevel!=null?' '+rec.skillLevel:'')+'  \u00b7  ':'')+why, dW-150*s), dX+14*s, dY+72*s);
     const bw=Math.min(150*s, dW*0.38), bh=PORT?36*s:34*s;
     const bx=dX+dW-bw-12*s, by=dY+detailH-bh-18*s;
