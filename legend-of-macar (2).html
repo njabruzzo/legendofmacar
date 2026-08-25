@@ -3119,10 +3119,21 @@ function startChapter(n){
     5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
 }
 function drawFallenKin(g){
+  g.save();
+  g.globalCompositeOperation='source-over';
+  g.globalAlpha=1;
   for(const e of (G.ents||[])){
     if(!e.crushed || e.ghost) continue;
+    const s=w2s(e.x,e.y), z=ZOOM*(e.scale||1);
+    g.save();
+    g.fillStyle='rgba(255,196,90,0.28)';
+    g.beginPath(); g.ellipse(s.x, s.y+4*z, 28*z, 14*z, 0, 0, TAU); g.fill();
+    g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2.4*z;
+    g.beginPath(); g.ellipse(s.x, s.y+4*z, 24*z, 12*z, 0, 0, TAU); g.stroke();
+    g.restore();
     drawEnt(g,e);
   }
+  g.restore();
 }
 function revealCrushTiles(){
   const L=G.lvl;
@@ -6420,11 +6431,15 @@ function render(){
     if(QUALITY && !PHONE_GFX){ if(DIAG.godrays) drawGodRays(g); if(DIAG.bloom) drawBloom(g); }
     if(DIAG.memshade) drawMemoryShade(g,L);
     if(DIAG.beyond) drawBeyondMask(g,L);
-    if(DIAG.world) drawFallenKin(g);
     if(DIAG.atmos) drawAtmosphere(g,L);
     if(DIAG.floaters) drawFloaters(g);
   }
   g.restore();
+  if(inWorld && DIAG.world){
+    ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=1;
+    drawFallenKin(ctx);
+  }
   if(DIAG.flash && G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   if(DIAG.hurt && G.hurt>0.02){
     if(!QUALITY || PHONE_GFX){
@@ -7642,11 +7657,13 @@ function drawEnt(g,e){
   if(e.crushed){
     emit(s.x, s.y-10*ZOOM, 26*ZOOM, '#ffe2b0', 0.72);
     ray(s.x, s.y-8*ZOOM, 20*ZOOM, '#ffd48a', 0.28);
-    ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    ctx.strokeStyle='rgba(255,214,140,0.9)'; ctx.lineWidth=2.2*ZOOM;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y+2*ZOOM, 22*ZOOM, 11*ZOOM, 0, 0, TAU); ctx.stroke();
+    ctx.font='800 '+(12*ZOOM)+'px '+FONT_TITLE; ctx.textAlign='center';
     const tag=e.name||'Kin';
-    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
-    ctx.strokeText(tag,s.x,s.y-26*ZOOM);
-    ctx.fillStyle='#ffe7b8'; ctx.fillText(tag,s.x,s.y-26*ZOOM); ctx.textAlign='left';
+    ctx.lineWidth=4*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.88)';
+    ctx.strokeText(tag,s.x,s.y-34*ZOOM);
+    ctx.fillStyle='#ffe7b8'; ctx.fillText(tag,s.x,s.y-34*ZOOM); ctx.textAlign='left';
   }
   if(!e.dead&&e.npc&&e.name){
     ctx.font='700 '+(10*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
@@ -8984,7 +9001,7 @@ function drawHUD(g){
 
 function drawPortraitStack(g,s){
   const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key))
-    .filter(e=>e && (e.hero || e.ghost));
+    .filter(e=>e && (e.hero || e.ghost || e.crushed));
   const x=8*s, y=8*s, w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
   const h=Math.min(PORT?46*s:50*s, (avail-y)/Math.max(1,party.length)-gap);
@@ -9007,7 +9024,7 @@ function drawPortraitStack(g,s){
     const tx=cx+rr+8*s;
     g.font='800 '+(PORT?11*s:12.5*s)+'px '+FONT_UI;
     g.fillStyle=e.dead?'#6b5b48':(e.ghost?'#cfefff':'#f2e0b6');
-    g.fillText(e.col.name+(e.ghost?'  GHOST':'')+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
+    g.fillText(e.col.name+(e.ghost?'  GHOST':e.crushed?'  FALLEN':'')+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
     g.font='700 '+(PORT?8*s:8.5*s)+'px '+FONT_UI;
     g.fillStyle='rgba(200,170,120,0.78)';
     const ab=entityAbil(e);
@@ -10755,8 +10772,12 @@ bakeTextures(PAL.mine);
 loadSprites(()=>{});
 if(window.CraftingEngine) CraftingEngine.load('src/crafting/recipes.json');
 try{
-  if(/play/.test((location.hash||'')+(location.search||''))) { startChapter(1); G.scene='play'; }
-}catch(e){ console.error(e); }
+  if(/play/.test((location.hash||'')+(location.search||''))) {
+    startChapter(1); G.scene='play'; G.introT=99;
+    const fallen=(G.ents||[]).filter(e=>e.crushed).map(e=>e.name);
+    document.title='KIN '+fallen.length+': '+fallen.join(', ');
+  }
+}catch(e){ console.error(e); document.title='START ERR '+e; }
 render();
 requestAnimationFrame(loop);
 
