@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=47">
-<link rel="preload" as="image" href="assets/ui/intro_cavein.jpg?v=47">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=47" type="audio/mpeg">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=56">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=56">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=56" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;height:100svh;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
@@ -24,7 +24,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=47"></audio>
+<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=56"></audio>
 <script src="SkillSystem.js"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
@@ -321,7 +321,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='55';
+const ASSET_VER='56';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -514,7 +514,12 @@ const SPRITE_FILES={
   icon_quiver:'assets/ui/icon_quiver.png',
   icon_doll:'assets/ui/icon_doll.png',
   title_splash:'assets/ui/title_splash.jpg',
-  intro_cavein:'assets/ui/intro_cavein.jpg'
+  intro_cavein:'assets/ui/intro_cavein.jpg',
+  intro_ch1:'assets/ui/intro_ch1.jpg',
+  intro_ch2:'assets/ui/intro_ch2.jpg',
+  intro_ch3:'assets/ui/intro_ch3.jpg',
+  intro_ch4:'assets/ui/intro_ch4.jpg',
+  intro_ch5:'assets/ui/intro_ch5.jpg'
 };
 const UNDERDARK=[
   'centipede','kobold','goblin','orc','piercer','gibberling','ixzan','grimlock',
@@ -588,7 +593,7 @@ const ICON_SPR={
   attack:'icon_attack', defend:'icon_defend', craft:'icon_craft'
 };
 function loadSprites(done){
-  const first=['title_splash','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
+  const first=['title_splash','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
     'skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
@@ -759,8 +764,8 @@ function drawEntBillboard(g,e,img,z){
 }
 function drawDeadBillboard(g,e,img,z){
   if(!img||!img.width) return false;
-  const maxW=entSpriteH({kind:'dwarf'},z)*1.08;
-  const maxH=entSpriteH({kind:'dwarf'},z)*0.62;
+  const maxW=entSpriteH({kind:'dwarf'},z)*(e.crushed?1.42:1.08);
+  const maxH=entSpriteH({kind:'dwarf'},z)*(e.crushed?0.88:0.62);
   const aspect=img.width/Math.max(1,img.height);
   let W=maxW, H=W/aspect;
   if(H>maxH){ H=maxH; W=H*aspect; }
@@ -1728,11 +1733,12 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  // Original kits. Party total on the fallen: 14 rations (two weeks) and 8 beer draughts (d10 each).
-  pordoom:{x:14.88,y:20.18,seed:3,stone:0.28,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.08,y:0.32}},
-  fendur:{x:14.96,y:22.82,seed:11,stone:0.26,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.06,y:0.30}},
-  orbo:{x:15.58,y:20.52,seed:19,stone:0.27,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.10,y:0.28}},
-  talpor:{x:15.62,y:22.48,seed:7,stone:0.26,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.06,y:0.32}}
+  // Open floor of the west shaft — not on the void-edge wall, so fog cannot eat them.
+  // Party total on the fallen: 14 rations (two weeks) and 8 beer draughts (d10 each).
+  pordoom:{x:16.55,y:20.05,seed:3,stone:0.22,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.16,y:0.38}},
+  fendur:{x:16.72,y:23.18,seed:11,stone:0.20,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.14,y:0.36}},
+  orbo:{x:17.48,y:20.82,seed:19,stone:0.21,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.18,y:0.34}},
+  talpor:{x:17.62,y:22.72,seed:7,stone:0.20,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.14,y:0.36}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -2121,6 +2127,7 @@ function startBackWallRubble(){
   for(let i=0;i<16;i++){
     const y=16.4+i*0.68+(h01(i,2,81)-0.5)*0.22;
     const x=14.12+(h01(i,3,81)-0.5)*0.20;
+    if(nearCrush(x,y,1.15)) continue;
     const s=0.55+h01(i,5,81)*0.85;
     const spr=startRubbleSpr(81,i);
     out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
@@ -2128,6 +2135,7 @@ function startBackWallRubble(){
   for(let i=0;i<10;i++){
     const y=16.8+i*0.95+(h01(i,6,81)-0.5)*0.28;
     const x=14.55+(h01(i,8,81)-0.5)*0.24;
+    if(nearCrush(x,y,1.15)) continue;
     out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.28+h01(i,9,81)*0.42,seed:940+i,backwall:1});
   }
   return out;
@@ -2179,7 +2187,7 @@ function makeChapter(n){
     L.rubyDoor={x:36.5,y:7.28};
     L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
               {x:19.0,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:15.35,y:21.45,c:'#ffc07a',r:5.2,f:1.08},
+              {x:17.05,y:21.55,c:'#ffc07a',r:5.6,f:1.12},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
               {x:43.2,y:7.6,c:'#c9b895',r:4.4,f:0.7},
               {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
@@ -2200,19 +2208,20 @@ function makeChapter(n){
       {x:25.45,y:29.15,k:'pickpile'},{x:23.55,y:28.45,k:'crate'}];
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
+    G.props.push({x:14.28,y:21.55,k:'cavein',s:0.92,backwall:1,seed:88});
     Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.10,y:0.26};
-      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.34,pin:1,seed:s.seed});
+      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.16,y:0.36};
+      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.22,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
-      if(p.pin||p.cover||p.backwall||p.k==='cavein') return true;
-      if((p.k==='rubble'||p.k==='boulder') && nearCrush(p.x,p.y,0.70)) return false;
+      if(p.pin||p.cover) return true;
+      if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,0.95)) return false;
       return true;
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.18,y:s.y+0.38,k:'rubble',s:0.22+((s.seed||0)%5)*0.04,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed, 40)});
-      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.18+((s.seed||0)%4)*0.05,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed, 51)});
+      G.props.push({x:s.x-0.28,y:s.y+0.46,k:'rubble',s:0.16+((s.seed||0)%5)*0.03,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed, 40)});
+      G.props.push({x:s.x+0.42,y:s.y+0.40,k:'rubble',s:0.14+((s.seed||0)%4)*0.03,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed, 51)});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -3064,7 +3073,7 @@ function startChapter(n){
     e.ac=partyAC(e);
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
-    if(n===1){ e.fdx=1; e.fdy=0; }
+    if(n===1){ e.fdx=hero?-1:1; e.fdy=0; }
     if(n===2){ e.fdx=0; e.fdy=1; }
     if(hero){ e.atkMax=0.78; }
     if(crush){
@@ -3098,6 +3107,7 @@ function startChapter(n){
   G.carryEffects=[];
   G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
   rebuildVision();
+  revealCrushTiles();
   if(keep && loadSnap){
     applyPlaySave(loadSnap.play);
     G.scene=loadSnap.scene==='camp'?'camp':'play';
@@ -3108,6 +3118,20 @@ function startChapter(n){
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
     5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
+}
+function revealCrushTiles(){
+  const L=G.lvl;
+  if(!L||L.n!==1||!L.seen) return;
+  Object.keys(CRUSH_SPOTS).forEach(k=>{
+    const s=CRUSH_SPOTS[k];
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){
+      const x=(s.x|0)+di, y=(s.y|0)+dj;
+      if(y<0||x<0||y>=L.h||x>=L.w) continue;
+      L.seen[y][x]=1;
+      if(L.vis&&L.vis[y]) L.vis[y][x]=1;
+    }
+  });
+  G.seenRev=(G.seenRev||0)+1; BX_KEY='';
 }
 function capturePlaySave(){
   const L=G.lvl, p=player();
@@ -6384,7 +6408,7 @@ function render(){
   const L=G.lvl;
   g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
-    && !(G.scene==='intro' && G.ch===1 && SPR.intro_cavein);
+    && !(G.scene==='intro' && chapterSplashImg(G.ch));
   if(inWorld){
     if(DIAG.world) drawWorld(g,L);
     if(DIAG.lighting) applyLighting(g,L);
@@ -6558,10 +6582,10 @@ function drawWorld(g,L){
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
-  // Pinning slabs first, then the kin (lit outlines), then small limb-cover rocks.
+  // Pinning slabs and pebbles first, then the fallen kin on top so they stay readable.
   for(const p of G.props) if(p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
-  for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
   for(const p of G.props) if(p.cover && !p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
+  for(const e of G.ents) if(e.crushed && showEnt(e)) drawEnt(g,e);
 }
 function drawCracks(g,sx,sy,WH,f){
   g.save(); g.globalAlpha=clamp(f*1.15,0,1);
@@ -6704,6 +6728,7 @@ function gatherLights(L){
   const p=player();
   if(p) out.push({x:p.x,y:p.y,c:'#ffd6a0',r:6.6,f:1.05,fl:0});
   for(const e of G.ents) if(!e.dead&&e.boss&&e.glow) out.push({x:e.x,y:e.y,c:e.glow,r:7,f:1.3,fl:1});
+  for(const e of G.ents) if(e.crushed&&e.corpse&&!e.ghost&&seen(e.x,e.y)) out.push({x:e.x,y:e.y,c:'#ffc07a',r:2.8,f:0.72,fl:1});
   for(const s of G.shots) out.push({x:s.x,y:s.y,c:s.col,r:2.6,f:1.1,fl:0});
   for(const pr of G.props){
     if(!seen(pr.x,pr.y)) continue;
@@ -6861,6 +6886,14 @@ function drawBeyondMask(g,L){
       if(!L.seen[y]||!L.seen[y][x]) continue;
       const t=L.grid[y][x];
       const s=w2s(x,y);
+      if(isStartBackWall(L,x,y)){
+        const oE=L.grid[y]&&open(L.grid[y][x+1])&&L.seen[y][x+1];
+        if(!oE) continue;
+        mg.beginPath();
+        mg.ellipse(Math.round(s.x+TW*0.18), Math.round(s.y), TW*0.62*pad, TH*0.78*pad, 0, 0, TAU);
+        mg.fill();
+        continue;
+      }
       if(open(t)){
         mg.beginPath();
         mg.ellipse(Math.round(s.x), Math.round(s.y), TW*0.92*pad, TH*0.92*pad, 0, 0, TAU);
@@ -9537,6 +9570,9 @@ function drawTitleCavern(g){
     g.restore();
   }
 }
+function chapterSplashImg(n){
+  return SPR['intro_ch'+n] || (n===1?SPR.intro_cavein:null) || null;
+}
 function drawSplashCover(g, img){
   if(!img||!img.width) return false;
   const iw=img.width, ih=img.height;
@@ -9547,6 +9583,54 @@ function drawSplashCover(g, img){
   const oy=PHONE_GFX?0:Math.cos(G.t*0.03)*10;
   drawPhoto(g, img, (VW-w)/2+ox, (VH-h)/2+oy-(PHONE_GFX?0:VH*0.02), w, h);
   return true;
+}
+function drawArtFrame(g, x, y, w, h, r){
+  g.save();
+  g.strokeStyle='rgba(232,196,120,0.28)'; g.lineWidth=1;
+  roundPath(g,x,y,w,h,r||10); g.stroke();
+  g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.8;
+  roundPath(g,x+4,y+4,w-8,h-8,Math.max(4,(r||10)-3)); g.stroke();
+  g.fillStyle='rgba(196,158,88,0.8)';
+  [[x+10,y+10],[x+w-10,y+10],[x+10,y+h-10],[x+w-10,y+h-10]].forEach(p=>{
+    g.beginPath(); g.arc(p[0],p[1],2.2,0,TAU); g.fill();
+  });
+  g.restore();
+}
+function drawLetterbox(g, topH, botH, topA, botA){
+  const tg=g.createLinearGradient(0,0,0,topH);
+  tg.addColorStop(0,'rgba(0,0,0,'+topA+')'); tg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=tg; g.fillRect(0,0,VW,topH);
+  const bg=g.createLinearGradient(0,VH-botH,0,VH);
+  bg.addColorStop(0,'rgba(0,0,0,0)'); bg.addColorStop(1,'rgba(0,0,0,'+botA+')');
+  g.fillStyle=bg; g.fillRect(0,VH-botH,VW,botH);
+}
+function drawGoldRule(g, cx, y, w){
+  g.strokeStyle='rgba(232,196,120,0.42)'; g.lineWidth=1;
+  g.beginPath(); g.moveTo(cx-w/2,y); g.lineTo(cx+w/2,y); g.stroke();
+  g.fillStyle='rgba(255,48,58,0.88)';
+  g.beginPath(); g.arc(cx,y,2.6,0,TAU); g.fill();
+}
+function wrapLines(g, txt, maxW){
+  const words=String(txt||'').split(/\s+/);
+  const lines=[]; let cur='';
+  words.forEach(w=>{
+    const t=cur?cur+' '+w:w;
+    if(cur && g.measureText(t).width>maxW){ lines.push(cur); cur=w; }
+    else cur=t;
+  });
+  if(cur) lines.push(cur);
+  return lines;
+}
+function drawArtRect(g, img, x, y, w, h, r){
+  g.save();
+  roundPath(g,x,y,w,h,r||8); g.clip();
+  g.fillStyle='#0a0706'; g.fillRect(x,y,w,h);
+  if(img&&img.width){
+    const sc=Math.max(w/img.width, h/img.height);
+    const iw=img.width*sc, ih=img.height*sc;
+    drawPhoto(g, img, x+(w-iw)/2, y+(h-ih)/2, iw, ih);
+  }
+  g.restore();
 }
 
 function drawTitle(g){
@@ -9566,60 +9650,47 @@ function drawTitle(g){
     g.fillStyle=rg; g.fillRect(0,0,VW,VH);
   }
   embers(g);
-  if(PHONE_GFX){
-    g.fillStyle='rgba(0,0,0,0.42)'; g.fillRect(0,0,VW,VH*0.18);
-    g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,VH*0.78,VW,VH*0.22);
-  } else {
-    const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.85);
-    vg.addColorStop(0,'rgba(0,0,0,0)');
-    vg.addColorStop(0.62,'rgba(0,0,0,0.08)');
-    vg.addColorStop(1,'rgba(0,0,0,0.55)');
-    g.fillStyle=vg; g.fillRect(0,0,VW,VH);
-  }
-  const bar=Math.max(28*s, VH*0.06);
-  const fade=g.createLinearGradient(0,0,0,bar+44*s);
-  fade.addColorStop(0,'rgba(0,0,0,0.82)'); fade.addColorStop(0.6,'rgba(0,0,0,0.32)'); fade.addColorStop(1,'rgba(0,0,0,0)');
-  g.fillStyle=fade; g.fillRect(0,0,VW,bar+44*s);
-  const fadeB=g.createLinearGradient(0,VH-bar-70*s,0,VH);
-  fadeB.addColorStop(0,'rgba(0,0,0,0)'); fadeB.addColorStop(0.5,'rgba(0,0,0,0.35)'); fadeB.addColorStop(1,'rgba(0,0,0,0.88)');
-  g.fillStyle=fadeB; g.fillRect(0,VH-bar-70*s,VW,bar+70*s);
+  drawLetterbox(g, VH*0.30, VH*0.42, PHONE_GFX?0.82:0.78, 0.92);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const a=clamp((G.t-0.12)/1.1,0,1);
   g.globalAlpha=a;
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
-  g.fillStyle='rgba(232,196,120,0.84)';
-  g.fillText('B O O K   O N E', VW/2, bar+8*s);
-  g.strokeStyle='rgba(255,208,124,0.28)'; g.lineWidth=1;
-  g.beginPath(); g.moveTo(VW/2-90*s, bar+16*s); g.lineTo(VW/2+90*s, bar+16*s); g.stroke();
-  bigTitle(g,'THE LEGEND OF MACAR', bar+(PORT?38:50)*s, (PORT?26:40)*s);
-  g.font='italic 600 '+((PORT?11:13.5)*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(215,190,145,0.9)';
-  g.fillText('He went down a miner. Something else came back up.', VW/2, bar+(PORT?54:70)*s);
+  g.fillStyle='rgba(232,196,120,0.9)';
+  g.fillText('B O O K   O N E', VW/2, VH*0.075);
+  drawGoldRule(g, VW/2, VH*0.092, 200*s);
+  bigTitle(g,'THE LEGEND OF MACAR', VH*(PORT?0.155:0.168), (PORT?28:44)*s);
+  g.font='italic 600 '+((PORT?11.5:14)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(225,200,155,0.92)';
+  g.fillText('He went down a miner. Something else came back up.', VW/2, VH*(PORT?0.195:0.215));
   g.font='600 '+((PORT?8.5:10)*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(160,140,110,0.62)';
-  g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, bar+(PORT?68:86)*s);
+  g.fillStyle='rgba(160,140,110,0.68)';
+  g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, VH*(PORT?0.218:0.242));
   g.globalAlpha=1;
-  const bw=Math.min(280*s, VW*.62);
+  const bw=Math.min(300*s, VW*.64);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
+  const baseY=VH-(PORT?118:108)*s;
   if(hasSave){
-    menuBtn(g,'Continue', VW/2, VH-bar-78*s, bw, 44*s, ()=>loadSavedGame(), false, SPR.icon_save);
-    menuBtn(g,'New descent', VW/2, VH-bar-36*s, Math.min(220*s,VW*.55), 32*s, ()=>startChapter(1));
+    menuBtn(g,'Continue', VW/2, baseY-40*s, bw, 46*s, ()=>loadSavedGame(), false, SPR.icon_save);
+    menuBtn(g,'New descent', VW/2, baseY, Math.min(230*s,VW*.55), 34*s, ()=>startChapter(1));
   } else {
-    menuBtn(g,'Enter the Deep', VW/2, VH-bar-56*s, bw, 50*s, ()=>startChapter(1));
+    menuBtn(g,'Enter the Deep', VW/2, baseY-8*s, bw, 52*s, ()=>startChapter(1));
   }
-  const smallW=Math.min(168*s, VW*.42);
-  const rowY=VH-bar-6*s;
-  menuBtn(g,'Chapters', VW/2-smallW/2-6*s, rowY, smallW, 36*s, ()=>{G.scene='chapters';});
-  menuBtn(g,'Credits', VW/2+smallW/2+6*s, rowY, smallW, 36*s, ()=>openCredits('title'));
+  const smallW=Math.min(176*s, VW*.42);
+  menuBtn(g,'Chapters', VW/2-smallW/2-7*s, VH-38*s, smallW, 38*s, ()=>{G.scene='chapters';});
+  menuBtn(g,'Credits', VW/2+smallW/2+7*s, VH-38*s, smallW, 38*s, ()=>openCredits('title'));
   g.textAlign='center'; g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
-  g.fillText('Click the ground to walk  \u00b7  WASD  \u00b7  Space strike', VW/2, VH-10*s);
+  g.fillText('Click the ground to walk  \u00b7  WASD  \u00b7  Space strike', VW/2, VH-12*s);
   g.textAlign='left';
 }
 
 function drawCredits(g){
   menuHits=[]; const s=UIS;
-  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
+  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH);
+  if(!drawSplashCover(g, SPR.title_splash)) embers(g);
+  darken(g,.62);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   bigTitle(g,'CREDITS', VH*.09, (PORT?22:30)*s);
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
@@ -9649,78 +9720,98 @@ function drawCredits(g){
 
 function drawChapterSelect(g){
   menuHits=[]; const s=UIS;
-  g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.35);
-  bigTitle(g,'BOOK I \u2014 CHAPTERS',VH*.14,(PORT?22:30)*s);
-  const cols=(VW>820&&!PORT)?2:1;
-  const bw=Math.min(340*s,VW*.88/cols), bh=(PORT?50:56)*s;
+  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+  if(!drawSplashCover(g, SPR.title_splash)) embers(g);
+  darken(g,.55);
+  drawLetterbox(g, VH*0.16, VH*0.16, 0.78, 0.86);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
+  g.textAlign='center';
+  g.font='700 '+(11*s)+'px '+FONT_TITLE;
+  g.fillStyle='rgba(232,196,120,0.88)';
+  g.fillText('B O O K   O N E', VW/2, VH*0.072);
+  bigTitle(g,'CHAPTERS', VH*0.118, (PORT?22:30)*s);
+  g.textAlign='left';
+  const nums=['I','II','III','IV','V'];
+  const gap=10*s;
+  const top=VH*0.15, bot=VH-62*s;
+  const cols=PORT?1:(VW>980?3:2);
+  const rows=Math.ceil(5/cols);
+  const cw=Math.min((VW-36*s)/cols-gap, 360*s);
+  const ch=Math.min((bot-top)/rows-gap, PORT?92*s:148*s);
   [1,2,3,4,5].forEach((n,i)=>{
-    const col=i%cols,row=(i/cols)|0;
-    const cx=VW/2+(cols===2?(col?1:-1)*(bw/2+10*s):0);
-    const cy=VH*(PORT?.26:.30)+row*(bh+11*s);
+    const col=i%cols, row=(i/cols)|0;
+    const x=VW/2 - (cols*cw+(cols-1)*gap)/2 + col*(cw+gap);
+    const y=top + row*(ch+gap);
     const m=CH_META[n], locked=m.locked||n>G.unlocked;
-    plate(g,cx-bw/2,cy-bh/2,bw,bh,6,locked?.42:.82);
-    if(!locked){ g.strokeStyle=G.cleared[n]?'rgba(150,200,130,0.5)':'rgba(255,208,124,0.5)'; g.lineWidth=1.9;
-      roundPath(g,cx-bw/2,cy-bh/2,bw,bh,6); g.stroke();
-      menuHits.push({x:cx-bw/2,y:cy-bh/2,w:bw,h:bh,fn:()=>startChapter(n)}); }
-    g.font='800 '+(14.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=locked?'rgba(140,120,95,0.5)':'#ffe9c0';
-    g.fillText(['I','II','III','IV','V'][n-1]+'.  '+m.t,cx-bw/2+16*s,cy-2*s);
-    g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle=locked?'rgba(130,110,88,0.5)':'rgba(205,185,145,0.8)';
-    g.fillText(m.s,cx-bw/2+16*s,cy+14*s);
-    if(G.cleared[n]){ g.textAlign='right'; g.fillStyle='rgba(150,200,130,0.85)';
-      g.fillText('cleared',cx+bw/2-14*s,cy+4*s); g.textAlign='left'; }
+    drawArtRect(g, chapterSplashImg(n)||SPR.title_splash, x, y, cw, ch, 8);
+    const shade=g.createLinearGradient(x,y+ch*0.35,x,y+ch);
+    shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,0.82)');
+    g.save(); roundPath(g,x,y,cw,ch,8); g.clip();
+    g.fillStyle=shade; g.fillRect(x,y,cw,ch);
+    if(locked){ g.fillStyle='rgba(4,3,2,0.58)'; g.fillRect(x,y,cw,ch); }
+    g.restore();
+    g.strokeStyle=locked?'rgba(120,100,80,0.35)':(G.cleared[n]?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
+    g.lineWidth=1.8; roundPath(g,x,y,cw,ch,8); g.stroke();
+    if(!locked) menuHits.push({x,y,w:cw,h:ch,fn:()=>startChapter(n)});
+    g.font='700 '+(10*s)+'px '+FONT_TITLE;
+    g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(232,196,120,0.9)';
+    g.fillText('CHAPTER  '+nums[n-1], x+14*s, y+ch-32*s);
+    g.font='800 '+(15*s)+'px '+FONT_TITLE;
+    g.fillStyle=locked?'rgba(180,160,130,0.55)':'#ffe9c0';
+    g.fillText(ellipsize(g,m.t,cw-28*s), x+14*s, y+ch-12*s);
+    if(G.cleared[n]){
+      g.font='700 '+(10*s)+'px '+FONT_UI;
+      g.fillStyle='rgba(150,200,130,0.9)';
+      g.textAlign='right'; g.fillText('cleared', x+cw-12*s, y+16*s); g.textAlign='left';
+    } else if(locked){
+      g.font='700 '+(10*s)+'px '+FONT_UI;
+      g.fillStyle='rgba(160,140,110,0.7)';
+      g.textAlign='right'; g.fillText('sealed', x+cw-12*s, y+16*s); g.textAlign='left';
+    }
   });
-  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-46*s,Math.min(180*s,VW*.42),42*s,()=>{G.scene='title';});
-  menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-46*s,Math.min(180*s,VW*.42),42*s,()=>openCredits('chapters'));
+  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>{G.scene='title';});
+  menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>openCredits('chapters'));
 }
 
 function drawIntro(g){
   menuHits=[]; const s=UIS; const L=G.lvl;
   G.introT+=1/60;
   const a=clamp(G.introT/.7,0,1);
-  if(L.n===1 && SPR.intro_cavein){
-    g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-    drawSplashCover(g, SPR.intro_cavein);
-    if(PHONE_GFX){
-      g.fillStyle='rgba(0,0,0,0.40)'; g.fillRect(0,0,VW,VH*0.22);
-      g.fillStyle='rgba(0,0,0,0.62)'; g.fillRect(0,VH*0.62,VW,VH*0.38);
-    } else {
-      const vg=g.createRadialGradient(VW/2,VH*.48,40,VW/2,VH*.5,Math.max(VW,VH)*.9);
-      vg.addColorStop(0,'rgba(0,0,0,0)');
-      vg.addColorStop(0.62,'rgba(0,0,0,0.12)');
-      vg.addColorStop(1,'rgba(0,0,0,0.62)');
-      g.fillStyle=vg; g.fillRect(0,0,VW,VH);
-    }
-    const fade=g.createLinearGradient(0,0,0,VH*0.28);
-    fade.addColorStop(0,'rgba(0,0,0,0.78)'); fade.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=fade; g.fillRect(0,0,VW,VH*0.28);
-    const fadeB=g.createLinearGradient(0,VH*0.52,0,VH);
-    fadeB.addColorStop(0,'rgba(0,0,0,0)'); fadeB.addColorStop(0.45,'rgba(0,0,0,0.45)'); fadeB.addColorStop(1,'rgba(0,0,0,0.9)');
-    g.fillStyle=fadeB; g.fillRect(0,VH*0.52,VW,VH*0.48);
+  const art=chapterSplashImg(L.n);
+  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+  if(art){
+    drawSplashCover(g, art);
   } else {
-    darken(g, L.n===1?0.48:.86);
-    if(L.n===1){
-      g.fillStyle='rgba(6,4,3,0.55)';
-      g.fillRect(VW*0.08, VH*.28, VW*0.84, VH*.36);
-    }
+    darken(g, .86);
   }
+  drawLetterbox(g, VH*0.34, VH*0.46, 0.86, 0.94);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.globalAlpha=a; g.textAlign='center';
-  g.font='700 '+(12*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,170,120,0.85)';
-  g.fillText(L.title.toUpperCase(),VW/2,VH*.12);
-  bigTitle(g,L.sub,VH*.20,(PORT?22:30)*s);
-  g.font='italic 600 '+((PORT?11.5:13.5)*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle='rgba(210,188,145,0.88)';
-  const fl={1:'The tunnel is choked with rubble. Your kin lie dead under the boulders.',2:'A four-way in living rock. West bronze. North goblins. East webs.',
-    3:'They kept working. Nobody told them to stop. The dead still walk.',5:'Two brothers went in. One wore the crown out.'}[L.n]||'';
-  g.fillText(fl,VW/2,VH*.28);
-  g.font='700 '+(11*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(180,158,120,0.8)';
-  g.fillText(L.n===1?'You are MACAR. Loot the fallen. The ruby door is on this room\'s north wall.':
+  g.font='700 '+(12*s)+'px '+FONT_TITLE;
+  g.fillStyle='rgba(232,196,120,0.9)';
+  g.fillText((L.title||('Chapter '+L.n)).toUpperCase(),VW/2,VH*0.085);
+  drawGoldRule(g, VW/2, VH*0.102, 180*s);
+  bigTitle(g,L.sub,VH*(PORT?0.16:0.175),(PORT?24:34)*s);
+  const fl={
+    1:'The tunnel is choked with rubble. Pordoom, Fendur, Orbo and Talpor lie dead under the stones.',
+    2:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
+    3:'They kept working. Nobody told them to stop. The dead still walk.',
+    4:'Cut stone. Dwarf work. Very old. The water remembers the city.',
+    5:'Two brothers went in. One wore the crown out.'
+  }[L.n]||'';
+  const ask=L.n===1?'You are MACAR. Walk to your kin and take what they still carry. The ruby door waits on this room\'s north wall.':
     L.n===2?'You are MACAR. Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.':
-    'You are MACAR.',VW/2,VH*.335);
+    'You are MACAR.';
+  g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(220,196,150,0.92)';
+  const lines=wrapLines(g, fl, VW*0.82);
+  lines.forEach((ln,i)=>g.fillText(ln, VW/2, VH*(PORT?0.72:0.70)+i*18*s));
+  g.font='700 '+((PORT?11:12.5)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(190,168,128,0.88)';
+  wrapLines(g, ask, VW*0.80).forEach((ln,i)=>g.fillText(ln, VW/2, VH*(PORT?0.80:0.78)+i*16*s));
   g.textAlign='left'; g.globalAlpha=1;
-  menuBtn(g,'Descend',VW/2,VH*.86,Math.min(230*s,VW*.65),50*s,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Loot the kin under the boulders. The ruby door is on this room\'s north wall.',6); }
+  menuBtn(g,'Descend',VW/2,VH-48*s,Math.min(240*s,VW*.65),50*s,()=>{ G.scene='play';
+    if(G.ch===1){ hint('Your kin lie west, under the stones. Walk over them to take their kit.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }
@@ -9728,16 +9819,22 @@ function drawIntro(g){
 }
 
 function drawBetween(g){
-  menuHits=[]; const s=UIS; darken(g,.88); g.textAlign='center';
-  g.font='700 '+(12*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('CHAPTER CLEARED',VW/2,VH*.28);
-  bigTitle(g,CH_META[G.ch].t,VH*.38,(PORT?26:34)*s);
-  g.font='600 '+(12.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(210,190,150,0.85)';
-  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.46);
-  g.textAlign='left';
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
   const nxt=G.ch===3?5:G.ch+1;
-  if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH*.60,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
-  menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+  if(!drawSplashCover(g, chapterSplashImg(nxt)||chapterSplashImg(G.ch)||SPR.title_splash)) darken(g,.88);
+  else darken(g,.55);
+  drawLetterbox(g, VH*0.32, VH*0.40, 0.84, 0.92);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
+  g.textAlign='center';
+  g.font='700 '+(12*s)+'px '+FONT_TITLE; g.fillStyle='rgba(190,220,170,0.92)';
+  g.fillText('CHAPTER CLEARED',VW/2,VH*.14);
+  bigTitle(g,CH_META[G.ch].t,VH*.22,(PORT?26:34)*s);
+  g.font='600 '+(12.5*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.88)';
+  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.30);
+  g.textAlign='left';
+  if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
+  menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
 }
 
 
