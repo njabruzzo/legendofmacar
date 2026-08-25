@@ -38,7 +38,7 @@ const out = Kit.restore(loans, packs, equipped);
 
 assert(out.returned === 3, 'all three loans return at camp');
 assert(out.borrowed.length === 0, 'loan ledger clears after camp');
-assert(packs.pordoom.bombs === 1, 'used Pordoom bomb returns after camp');
+assert(packs.pordoom.bombs === 1, 'used Pordum bomb returns after camp');
 assert(packs.macar.bombs === 2, 'Macar\'s own bombs are not reclaimed for an unheld loan');
 assert(packs.fendur.ammo === 20, 'shared bolts return to Fendur');
 assert(packs.macar.ammo === 0, 'unused shared bolts leave Macar\'s pack');

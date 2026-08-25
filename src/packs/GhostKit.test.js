@@ -7,7 +7,7 @@ function assert(cond, msg){
 }
 
 const macar={col:{key:'macar'}, hero:1, team:'party', dead:0};
-const pordoom={col:{key:'pordoom'}, ghost:1, team:'party', dead:0, name:'PORDOOM'};
+const pordoom={col:{key:'pordoom'}, ghost:1, team:'party', dead:0, name:'PORDUM'};
 assert(K.isGhostKin(pordoom), 'pordoom is a ghost kin');
 assert(!K.isGhostKin(macar), 'macar is not a ghost');
 assert(K.packUseTarget([macar,pordoom],'pordoom',macar)===macar, 'ghost pack uses Macar');

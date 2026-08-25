@@ -36,7 +36,7 @@ export interface CraftRecipe {
   skill?: string;
   skillLevel?: number;
   skillXp?: number;
-  /** Sapper-only recipe (Pordoom). Never rolled into a station's d4 pool. */
+  /** Sapper-only recipe (Pordum). Never rolled into a station's d4 pool. */
   sapper?: boolean;
   knownBy?: string;
   ingredients: Record<ResourceId, number>;

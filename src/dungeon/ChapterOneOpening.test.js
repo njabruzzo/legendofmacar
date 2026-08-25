@@ -13,10 +13,11 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/const crush=\(n===1 && !hero && !raised\) \? CRUSH_SPOTS\[r\.key\] : null/.test(html),
-  'crush keeps the boulder spot object, not a boolean');
-assert(!/const crush=n===1 && !hero && CRUSH_SPOTS\[r\.key\] && !raised/.test(html),
-  'save-load no longer boolean-ands the crush coordinates away');
+assert(/const spot=CRUSH_SPOTS\[r\.key\]/.test(html), 'crush coordinates live on the spot object');
+assert(/const crush=n===1 && !hero && !!spot && !raised/.test(html),
+  'crush flag is a boolean; it does not boolean-and the spot away');
+assert(/crush\?spot\.x/.test(html) && /crush\?spot\.y/.test(html),
+  'fallen-kin spawn reads x/y from the spot, not from the flag');
 
 assert(/p\.tall\?120:52/.test(html) && /spill:1/.test(html) && /backwall:1/.test(html),
   'west collapse spills into the entry and can draw tall rubble');
@@ -43,7 +44,8 @@ assert(/1:\[\['orepile',1\],\['pickpile',1\],\['bones',1\]\]/.test(html),
 assert(/pordoom_dead/.test(html) && /macar_back\|\|SPR\.macar/.test(html),
   'title fallback shows Macar standing over the fallen kin');
 assert(fs.existsSync(path.join(__dirname,'../../assets/ui/title_splash.jpg')), 'title splash on disk');
-assert(fs.existsSync(path.join(__dirname,'../../assets/ui/intro_cavein.jpg')), 'intro cave-in on disk');
+assert(fs.existsSync(path.join(__dirname,'../../assets/ui/intro_ch1.jpg')), 'chapter I intro on disk');
+assert(fs.existsSync(path.join(__dirname,'../../assets/ui/intro_cavein.jpg')), 'intro cave-in fallback on disk');
 assert(/ASSET_VER='56'/.test(html), 'asset version bumped for new splash art');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
