@@ -1740,12 +1740,11 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
-  // Open floor one step west of Macar (20.5, 22). In the first camera frame,
-  // in lantern light, not on the void wall and not under the pin-rocks.
-  pordoom:{x:19.20,y:20.90,seed:3,stone:0.18,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.95,y:0.82}},
-  fendur:{x:18.28,y:21.35,seed:11,stone:0.17,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.92,y:0.80}},
-  orbo:{x:19.42,y:22.70,seed:19,stone:0.18,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.90,y:0.78}},
-  talpor:{x:18.38,y:23.15,seed:7,stone:0.17,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.94,y:0.76}}
+  // Open floor west of Macar (20.5, 22). Spread so four named bodies do not stack.
+  pordoom:{x:19.15,y:20.35,seed:3,stone:0.18,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.95,y:0.82}},
+  fendur:{x:17.55,y:21.20,seed:11,stone:0.17,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.92,y:0.80}},
+  orbo:{x:19.35,y:23.45,seed:19,stone:0.18,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.90,y:0.78}},
+  talpor:{x:17.65,y:23.90,seed:7,stone:0.17,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.94,y:0.76}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -3064,10 +3063,11 @@ function startChapter(n){
     const hp=sheet.maxhp*ADD_SCALE;
     const atkCd=hero?1.05:r.role==='bolt'?1.7:r.role==='faith'?1.25:1.15;
     const raised=!!(G.ghostAllies&&G.ghostAllies[r.key]);
-    const crush=n===1 && !hero && CRUSH_SPOTS[r.key] && !raised;
+    const spot=CRUSH_SPOTS[r.key];
+    const crush=n===1 && !hero && !!spot && !raised;
     if(!hero && n!==1 && !raised) return;
-    const x=crush?crush.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
-    const y=crush?crush.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
+    const x=crush?spot.x:sp.x+(hero?0:Math.cos(i*1.3)*1.5);
+    const y=crush?spot.y:sp.y+(hero?0:Math.sin(i*1.3)*1.5);
     const e=ent({kind:'dwarf',team:'party',x,y, hp, sp:hero?4.3:4.0, dmg:8, range:hero?1.4:1.15, cd:atkCd,
       r:.36, col:r, name:r.name, hero, role:r.role, gear:G.gear[r.key],
       lvl:sheet.lvl||PARTY_LVL, cls, race:'dwarf', abil:sheet, ac:5, dice:sheet.dice});
@@ -3079,7 +3079,7 @@ function startChapter(n){
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
-      e.kit=Object.assign({}, crush.kit||{}); e.corpse=1; e.looted=0;
+      e.kit=Object.assign({}, spot.kit||{}); e.corpse=1; e.looted=0;
       if(!keep){
         const pk=packOf(r.key);
         pk.potions=[]; pk.healPots=[]; pk.herbs={}; pk.magic=[]; pk.gems=[];
@@ -3159,8 +3159,10 @@ function drawCrushedKin(g,e){
   g.beginPath(); g.ellipse(0, 8*z, 44*z, 18*z, -0.22, 0, TAU); g.fill();
   g.strokeStyle='rgba(255,226,150,0.95)'; g.lineWidth=2.8*z;
   g.beginPath(); g.ellipse(0, 8*z, 40*z, 16*z, -0.22, 0, TAU); g.stroke();
-  // Painted dwarf first so a missing or faint sheet cannot hide the body.
-  if(col&&typeof drawDwarf==='function'){
+  const prone=dead&&dead.width?dead:null;
+  const stand=live&&live.width?live:null;
+  // Painted dwarf only if both sheets fail — stacking all three made one pile.
+  if(!prone && !stand && col && typeof drawDwarf==='function'){
     g.save();
     g.translate(6*z, 14*z);
     g.rotate(1.32);
@@ -3168,16 +3170,14 @@ function drawCrushedKin(g,e){
     try{ drawDwarf(g,e,z,0); }catch(_){}
     g.restore();
   }
-  const prone=dead&&dead.width?dead:null;
-  const stand=live&&live.width?live:null;
   if(prone){
-    const dw=Math.max(TW*1.85, 148*z);
+    const dw=Math.max(TW*1.55, 128*z);
     const dh=dw*(prone.height/Math.max(1,prone.width));
     g.drawImage(prone, -dw/2, -dh*0.78, dw, dh);
   } else if(stand){
     g.save();
     g.rotate(1.22);
-    const H=96*z;
+    const H=88*z;
     const W=stand.width*(H/Math.max(1,stand.height));
     g.drawImage(stand, -W/2, -H*0.82, W, H);
     g.restore();
@@ -6563,11 +6563,7 @@ function drawWorld(g,L){
   for(const d of G.decals) if(near(d)&&seenAt(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents){
-    if(!showEnt(e)) continue;
-    if(e.crushed) push((e.x+e.y)|0,()=>drawCrushedKin(g,e));
-    else push((e.x+e.y)|0,()=>drawEnt(g,e));
-  }
+  for(const e of G.ents) if(!e.crushed&&showEnt(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
