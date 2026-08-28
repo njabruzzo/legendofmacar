@@ -10124,7 +10124,7 @@ function drawIntro(g){
   lay.ask.forEach(ln=>{ if(y<=copyBot){ g.fillText(ln, VW/2, y); y+=askGap; }});
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,descendY,Math.min(240*s,VW*.65),descendH,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Your kin lie west, under the stones. Walk over them to take their kit.',6); }
+    if(G.ch===1){ hint('Pordum and Fendur lie west. Walk to them to raise them. The other two stay fallen.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }

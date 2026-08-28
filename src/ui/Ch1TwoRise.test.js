@@ -39,6 +39,10 @@ assert(/z\.crushed&&z\.corpse&&!z\.ghost&&canRiseKin\(z\)/.test(html),
 assert(/Raise only Pordum and Fendur/.test(html), 'intro ask says raise only two');
 assert(/Four kin lie dead\. Raise Pordum and Fendur\. The other two stay fallen/.test(html),
   'descend log matches the two-rise opening');
+assert(/Pordum and Fendur lie west\. Walk to them to raise them/.test(html),
+  'after Descend, the hint names the two who rise');
+assert(!/Walk over them to take their kit/.test(html),
+  'post-descend hint no longer treats all four as a loot walk');
 assert(/r\.key!=='macar' && !CH1_RISE\[r\.key\]/.test(html),
   'opening sheet dump is Macar plus the two, not all four fallen');
 
