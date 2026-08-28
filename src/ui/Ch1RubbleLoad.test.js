@@ -43,9 +43,9 @@ assert(/srcId=\(floorSrc&&floorSrc\.width/.test(html),
   'tile blit cache includes the actual sprite identity so a later load rebakes');
 assert(!/else if\(okTex\)\{/.test(html),
   'generated TEX diamonds are not a first-frame floor/wall fallback');
-assert(/tile_floor_mine\.png\?v=59/.test(html) && /tile_wall_worked\.png\?v=59/.test(html),
+assert(/tile_floor_mine\.png\?v=60/.test(html) && /tile_wall_worked\.png\?v=60/.test(html),
   'mine floor and worked wall are preloaded before first present');
-assert(/ASSET_VER='59'/.test(html), 'asset cache-bust matches the new plates');
+assert(/ASSET_VER='60'/.test(html), 'asset cache-bust matches the new plates');
 assert(/chapters_plate\.jpg/.test(html) && fs.existsSync(path.join(__dirname,'../../assets/ui/chapters_plate.jpg')),
   'chapters plate art is in-repo');
 ['intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5'].forEach(k=>{
