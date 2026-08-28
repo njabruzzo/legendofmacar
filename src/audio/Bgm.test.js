@@ -45,8 +45,10 @@ assert(/playSting\(sting\)/.test(html) && /bossWin/.test(html), 'combat-end play
 assert(/chapter:'assets\/music\/TheDistantSun\.mp3'/.test(html), 'chapter screens use The Distant Sun');
 assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Song of the Forge');
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
-assert(/function endFightIfClear/.test(html) && /function livingFightFoes/.test(html),
-  'combat ends when the current pack is gone, not only when the whole floor is empty');
+assert(/function facingRef\(e\)\{/.test(html) && /e\.team==='party' && e\.ghost/.test(html.match(/function facingRef[\s\S]*?\n\}/)[0]),
+  'ghost kin sprites follow Macar facing so the line does not mix left/right');
+assert(/endFightIfClear\(\)/.test(html.match(/if\(e\.hp<=0\)\{[\s\S]*?function onHitFx/)[0]),
+  'last foe dead calls endFightIfClear immediately');
 assert(/G\.fightGotKill/.test(html) && /won=\!\!\(G\.fightGotKill\|\|bossWin\)/.test(html),
   'victory sting fires on last foe dead, not on a bloodless flee');
 const bgmSrc = fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8');

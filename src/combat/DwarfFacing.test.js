@@ -30,14 +30,18 @@ function extract(name){
   return m[0];
 }
 const table=html.match(/const DWARF_FACE_SX=\{[\s\S]*?\n\};/)[0];
+const facingSrc=html.match(/function facingRef\(e\)\{[\s\S]*?\n  return e;\n\}/)[0];
 const ctx={};
 vm.createContext(ctx);
+vm.runInContext('function player(){ return null; }', ctx);
 vm.runInContext(table, ctx);
+vm.runInContext(facingSrc, ctx);
 vm.runInContext(extract('sheetFaceSX'), ctx);
 vm.runInContext(extract('moveHeadingSX'), ctx);
 vm.runInContext('function entSpriteKey(e){ return e.k; }\n'+extract('wantsSpriteFlip'), ctx);
 
-const {sheetFaceSX, moveHeadingSX, wantsSpriteFlip}=ctx;
+const {sheetFaceSX, moveHeadingSX, wantsSpriteFlip, facingRef}=ctx;
+assert(typeof facingRef==='function', 'ghosts share Macar heading via facingRef');
 assert(sheetFaceSX('macar')===-1 && sheetFaceSX('orbo_ghost_w1')===-1, 'walk frames inherit the kin facing');
 assert(sheetFaceSX('talpor_ghost_back')===-1, 'back frames inherit the kin facing');
 

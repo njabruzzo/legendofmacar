@@ -1222,12 +1222,22 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
+function facingRef(e){
+  if(!e) return e;
+  if(e.atk>0 || e.defending || e.dead || e.crushed || e.sleeping) return e;
+  if(e.team==='party' && e.ghost){
+    const p=player();
+    if(p && !p.dead) return p;
+  }
+  return e;
+}
 function wantsBackView(e){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  return ((e.fdx||0)+(e.fdy||0)) < -0.42;
+  const src=facingRef(e);
+  return ((src.fdx||0)+(src.fdy||0)) < -0.42;
 }
 /* Party dwarf sheets are painted facing iso SW (screen-left / A).
    World +x is screen SE, +y is screen SW; headingSX = ix-iy (positive = screen-right).
@@ -1247,9 +1257,10 @@ function sheetFaceSX(k){
   return -1;
 }
 function moveHeadingSX(e){
-  if(!e) return 0;
-  if(e.moving && ((e.ix||0)||(e.iy||0))) return (e.ix||0)-(e.iy||0);
-  return (e.fdx||0)-(e.fdy||0);
+  const src=facingRef(e)||e;
+  if(!src) return 0;
+  if(src.moving && ((src.ix||0)||(src.iy||0))) return (src.ix||0)-(src.iy||0);
+  return (src.fdx||0)-(src.fdy||0);
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
@@ -4513,10 +4524,10 @@ function livingFightFoes(p){
   p=p||player();
   return (G.ents||[]).some(e=>{
     if(!e||e.team!=='foe'||e.dead||e.npc) return false;
-    if(!p) return !!(e.engaged||e.boss);
+    if(!p) return !!(e.boss);
     const d=dist(e,p);
-    if(d<6.5) return true;
-    if((e.engaged||e.boss)&&d<12) return true;
+    if(d<7.5) return true;
+    if(e.boss && d<14) return true;
     return false;
   });
 }
@@ -5445,6 +5456,7 @@ function damage(e,amt,col,src){
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; G.fightWasBoss=1; }
+      endFightIfClear();
     } else if(e.ghost){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
