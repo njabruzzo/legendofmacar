@@ -37,11 +37,13 @@ assert(/e\.crushed&&e\.corpse&&!e\.ghost/.test(html),
 assert(/z\.crushed&&z\.corpse&&!z\.ghost/.test(html),
   'east chamber opens after all four rise');
 
-assert(/Walk to each of them and Rouse them/.test(html), 'intro ask tells Macar to rouse each kin');
-assert(/Pordum, Fendur, Orbo and Talpor lie dead under the boulders\. Raise all four/.test(html),
-  'descend log names all four to raise');
-assert(/Pordum, Fendur, Orbo and Talpor lie west\. Walk to each and Rouse them/.test(html),
-  'after Descend, the hint names all four');
+assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(html),
+  'entrance copy says the brothers died and Macar is alone');
+assert(!/Walk to each of them and Rouse them/.test(html), 'intro card does not lecture Rouse');
+assert(!/Pordum, Fendur, Orbo and Talpor lie west\. Walk to each and Rouse them/.test(html),
+  'after Descend, the first-room hint does not lecture Rouse');
+assert(/if\(G\.ch===1\)\{ \/\* first room stays quiet/.test(html),
+  'Chapter I skips the overlay hint after Descend');
 
 assert(/orbo:\{x:19\.35/.test(html) && /talpor:\{x:17\.65/.test(html),
   'Orbo and Talpor still spawn as named corpses with kits');

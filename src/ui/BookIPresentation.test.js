@@ -16,31 +16,37 @@ function assert(cond, msg){
 const intro=html.match(/const CH_INTRO=\{[\s\S]*?\n\};/);
 assert(!!intro, 'CH_INTRO copy table exists');
 const block=intro?intro[0]:'';
-assert(/north wall/.test(block), 'Chapter I ask keeps the full ruby-door sentence');
-assert(/Pordum, Fendur, Orbo and Talpor/.test(block), 'Chapter I names the four fallen kin');
-assert(/Walk to each of them and Rouse them/.test(block), 'Chapter I ask raises all four as ghosts');
+assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(block),
+  'Chapter I entrance copy is the cave-in sentence');
+assert(!/Walk to each of them and Rouse them/.test(block), 'Chapter I card does not lecture Rouse');
+assert(!/ruby door waits/.test(block), 'Chapter I card is not a ruby-door tutorial');
 assert(!/Raise only Pordum and Fendur/.test(block), 'Chapter I no longer says raise only two');
 assert(!/Take kit from the other two/.test(block), 'Chapter I no longer treats Orbo and Talpor as loot-only');
 assert(/gem-bronze door/.test(block) && /Spider Lord/.test(block), 'Chapter II intro copy is complete');
 assert(/dead still walk/.test(block), 'Chapter III flavor is a full sentence');
 assert(/water remembers the city/.test(block), 'Chapter IV flavor is a full sentence');
 assert(/wore the crown out/.test(block), 'Chapter V flavor is a full sentence');
-assert(/You are MACAR/.test(block), 'Every chapter card still addresses Macar');
+assert(/You are MACAR/.test(block), 'Later chapter cards still address Macar');
 
 assert(/function centerCopyY\(ceil, floor, blockH\)/.test(html), 'centerCopyY helper exists');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro exists');
 assert(/descendTop=descendY-descendH\/2/.test(html), 'intro keeps a clear band above Descend');
-assert(/centerCopyY\(groupCeil, groupFloor, plateH\)/.test(html), 'intro story plate is centered between header and Descend');
+assert(/centerCopyY\(groupCeil, groupFloor, blockH\)/.test(html), 'intro copy is centered between header and Descend');
 assert(/layoutIntroCopy/.test(html), 'intro copy wraps and shrinks to the band above Descend');
 assert(/CH_INTRO\[L\.n\]/.test(html), 'intro draws CH_INTRO, not a clipped inline stub');
-assert(/plateH=lay\.h\+platePad\*2/.test(html), 'intro plate wraps the copy block instead of stretching to Descend');
+assert(/drawCopyVeil/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
+  'intro uses a soft title-card veil, not a gold box');
+assert(!/plate\(g, plateX, plateTop, plateW, plateH/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
+  'intro no longer parks copy in a gold plate');
 assert(!/if\(y<=copyBot\)/.test(html), 'intro does not clip wrapped lines against Descend');
-assert(/ay:0\.46/.test(html) && /zoom:1/.test(html), 'chapter splash covers as a painted plate, no extra zoom');
+assert(/ay:0\.52/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]) && /zoom:1/.test(html),
+  'chapter splash covers as a painted plate, no extra zoom');
 assert(!/VH\*\(PORT\?0\.80:0\.78\)/.test(html), 'intro no longer parks body text on a fixed 78% line over Descend');
 assert(!/copyBot-lay\.h/.test(html), 'intro no longer shoves body text against the bottom band');
-assert(/goldTitleLine\(g, ln, y, titleSize\)/.test(html), 'intro gold title is drawn inside the story plate');
+assert(/FONT_DISPLAY/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
+  'intro gold title uses the display face');
 assert(/MUSIC_LABEL\.chapter/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
-  'intro story plate includes the music credit');
+  'intro title card includes the music credit');
 assert(/enterPlayFromIntro/.test(html), 'Descend waits for world art instead of presenting a half-loaded frame');
 
 assert(/function drawChapterSelect\(g\)\{/.test(html), 'drawChapterSelect exists');
@@ -68,7 +74,7 @@ function checkIntroBand(name, vw, vh, port){
   const s=Math.min(1.30, Math.max(0.66, Math.min(vw,vh)/(port?430:700)));
   const descendY=vh-(port?52:48)*s;
   const descendTop=descendY-50*s/2;
-  const groupCeil=vh*(port?0.075:0.068);
+  const groupCeil=vh*(port?0.08:0.072);
   const groupFloor=descendTop-16*s;
   const plateH=160*s;
   const y=centerCopyY(groupCeil, groupFloor, plateH);
