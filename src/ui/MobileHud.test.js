@@ -48,7 +48,7 @@ function sim(vw, vh, s, inset){
   const defendY=attackY - (cSlot + rowGap);
   const stickR=Math.max(TAP/2, PORT?26*s:28*s);
   const stickX=padL + 6 + stickR;
-  const stickReserve=stickX + stickR + 8;
+  const stickReserve=stickX + stickR + 16;
   const rightReserve=(vw-cx) + cSlot/2 + 8;
   const availW=Math.max(TAP, vw - stickReserve - rightReserve);
   const fit=Math.floor((availW+gap)/(TAP+gap));
@@ -64,7 +64,6 @@ function sim(vw, vh, s, inset){
   const nRows=Math.ceil((primary.length+1)/perRow);
   const by=vh - padB - 8 - slot/2;
   const topY=by - (nRows-1)*(slot+rowGap);
-  const midY=(topY+by)/2;
   const left=stickReserve;
   const btns=[];
   primary.concat(['more']).forEach((key,i)=>{
@@ -73,7 +72,7 @@ function sim(vw, vh, s, inset){
   });
   btns.push({key:'attack', x:cx, y:attackY, r:cSlot/2});
   btns.push({key:'wall', x:cx, y:defendY, r:cSlot/2});
-  const stick={x:stickX, y:midY, r:stickR};
+  const stick={x:stickX, y:by, r:stickR};
   return {slot, cSlot, perRow, primary, overflow, btns, stick, nRows, availW};
 }
 
@@ -89,6 +88,10 @@ assert(phone.primary.includes('pack') && phone.primary.includes('search') && pho
   '390×844 keeps PACK, Herbs, Camp on the thumb row');
 assert(!phone.primary.includes('rally') && phone.overflow[0]==='rally', '390×844 Rally is overflow, not primary');
 assert(phone.btns.every(b=>!circlesOverlap(b, phone.stick, 2)), '390×844 skill circles do not overlap the stick');
+const camp=phone.btns.find(b=>b.key==='camp');
+assert(!camp || !circlesOverlap(camp, phone.stick, 8), 'Camp does not sit on the movement stick');
+const pack=phone.btns.find(b=>b.key==='pack');
+assert(pack && pack.x-pack.r > phone.stick.x+phone.stick.r+4, 'PACK is to the right of the stick, not on it');
 const attack=phone.btns.find(b=>b.key==='attack');
 assert(attack && !circlesOverlap(attack, phone.stick, 8), 'Attack does not overlap the movement stick');
 assert(phone.stick.x-phone.stick.r > 4, 'stick sits off the left edge');

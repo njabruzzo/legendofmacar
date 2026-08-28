@@ -5810,7 +5810,7 @@ function layoutUI(){
 
     const stickR=Math.max(TAP/2, PORT?26*s:28*s);
     const stickX=padL + 6 + stickR;
-    const stickReserve=stickX + stickR + 8;
+    const stickReserve=stickX + stickR + 16;
     const rightReserve=(VW-cx) + cSlot/2 + 8;
     const availW=Math.max(TAP, VW - stickReserve - rightReserve);
     const fit=Math.floor((availW+gap)/(TAP+gap));
@@ -5837,9 +5837,11 @@ function layoutUI(){
     const nRows=Math.max(1, rows.length);
     const by=VH - padB - 8 - slot/2;
     const topY=by - (nRows-1)*(slot+rowGap);
-    const midY=(topY+by)/2;
     const left=stickReserve;
-    UI.orb={ r:slot/2, x:left+slot/2, y:midY };
+    /* Stick in the left thumb corner, aligned with the bottom row, with a
+       real gap so it cannot eat Camp / PACK. Not vertically centered on the grid. */
+    const stickY=by;
+    UI.orb={ r:slot/2, x:left+slot/2, y:nRows>1?topY:by };
     UI.more=null;
     rows.forEach((row,ri)=>{
       const y=topY + ri*(slot+rowGap);
@@ -5874,7 +5876,7 @@ function layoutUI(){
 
     UI.hudTop=Math.min(topY, defendY) - Math.max(slot,cSlot)/2 - 14;
     UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: Math.max(18, 16*s), key:'pause'});
-    UI.stickHome={ x: stickX, y: midY, r: stickR };
+    UI.stickHome={ x: stickX, y: stickY, r: stickR };
     return;
   }
 
