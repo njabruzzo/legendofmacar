@@ -51,6 +51,7 @@ assert(!/Walk to each of them and Rouse them/.test(html), 'no Rouse tutorial on 
 assert(!/ruby door waits on this room/.test(html), 'no ruby-door tutorial on the entrance card');
 assert(/The Rubble and the Ruby/.test(html), 'Chapter I still keeps its gold title');
 assert(/pack\.ask\?wrapLines\(g, pack\.ask/.test(html), 'empty Chapter I ask is skipped in the title-card layout');
+assert(!/You are MACAR/.test(html), 'no chapter plate names the player');
 assert(/drawCopyVeil/.test(html), 'chapter cards use a soft veil instead of a gold box');
 assert(/Rouse ':'Loot /.test(html), 'walking up still offers Rouse on crushed kin');
 

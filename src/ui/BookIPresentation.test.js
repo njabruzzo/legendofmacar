@@ -26,7 +26,7 @@ assert(/gem-bronze door/.test(block) && /Spider Lord/.test(block), 'Chapter II i
 assert(/dead still walk/.test(block), 'Chapter III flavor is a full sentence');
 assert(/water remembers the city/.test(block), 'Chapter IV flavor is a full sentence');
 assert(/wore the crown out/.test(block), 'Chapter V flavor is a full sentence');
-assert(/You are MACAR/.test(block), 'Later chapter cards still address Macar');
+assert(!/You are MACAR/.test(block), 'chapter plates do not name the player');
 
 assert(/function centerCopyY\(ceil, floor, blockH\)/.test(html), 'centerCopyY helper exists');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro exists');
