@@ -10032,7 +10032,7 @@ function drawChapterSelect(g){
     const innerW=cw-32*s;
     const pad=14*s;
     let tSize=(PORT?13:16)*s, sSize=(PORT?8.5:10)*s, labSize=10*s;
-    let tStep=tSize*1.18, sStep=sSize*1.28, labGap=8*s, midGap=6*s;
+    let tStep=tSize*1.22, sStep=sSize*1.32, labGap=10*s, midGap=8*s;
     function layoutCard(ts, ss, ls, tg, sg, lg, mg){
       g.font='800 '+ts+'px '+FONT_TITLE;
       const tLines=wrapLines(g, m.t, innerW);
@@ -10044,25 +10044,26 @@ function drawChapterSelect(g){
     let lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     while(lay.h>ch-pad*2 && tSize>9){
       tSize-=0.7; sSize=Math.max(8, sSize-0.5); labSize=Math.max(8, labSize-0.3);
-      tStep=tSize*1.16; sStep=sSize*1.26; labGap=Math.max(6*s, labGap-0.4); midGap=Math.max(4*s, midGap-0.3);
+      tStep=tSize*1.20; sStep=sSize*1.30; labGap=Math.max(8*s, tSize*0.55); midGap=Math.max(6*s, midGap-0.3);
       lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     }
     const t0=centerCopyY(y+pad, y+ch-pad, lay.h);
     const cx=x+cw/2;
-    plate(g, x+10*s, t0-12*s, cw-20*s, lay.h+20*s, 8, 0.72);
+    plate(g, x+10*s, t0-10*s, cw-20*s, lay.h+18*s, 8, 0.72);
     g.textAlign='center';
     g.font='700 '+labSize+'px '+FONT_TITLE;
     g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(232,196,120,0.9)';
-    g.fillText('CHAPTER  '+nums[n-1], cx, t0+labSize*0.85);
-    let yy=t0+labSize+labGap;
+    let yy=t0+labSize;
+    g.fillText('CHAPTER  '+nums[n-1], cx, yy);
+    yy+=labGap;
     g.font='800 '+tSize+'px '+FONT_TITLE;
     g.fillStyle=locked?'rgba(180,160,130,0.55)':'#ffe9c0';
-    lay.tLines.forEach(ln=>{ g.fillText(ln, cx, yy); yy+=tStep; });
+    lay.tLines.forEach(ln=>{ yy+=tSize; g.fillText(ln, cx, yy); yy+=tStep-tSize; });
     if(lay.sLines.length){
-      yy+=midGap-sStep*0.25;
+      yy+=midGap;
       g.font='600 '+sSize+'px '+FONT_UI;
       g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(210,190,150,0.92)';
-      lay.sLines.forEach(ln=>{ g.fillText(ln, cx, yy); yy+=sStep; });
+      lay.sLines.forEach(ln=>{ yy+=sSize; g.fillText(ln, cx, yy); yy+=sStep-sSize; });
     }
     g.textAlign='left';
     if(G.cleared[n]){
@@ -10103,6 +10104,7 @@ function drawIntro(g){
   const titleY=VH*(PORT?0.155:0.165);
   const titleSize=(PORT?22:30)*s;
   bigTitle(g,L.sub,titleY,titleSize);
+  g.textAlign='center';
   g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.78)';
   const musicY=titleY+(PORT?20:24)*s;
@@ -10134,6 +10136,7 @@ function drawIntro(g){
   plate(g, VW*0.11, plateTop, VW*0.78, plateH, 12, 0.86);
   g.strokeStyle='rgba(232,196,120,0.32)'; g.lineWidth=1.2;
   roundPath(g, VW*0.11, plateTop, VW*0.78, plateH, 12); g.stroke();
+  g.textAlign='center';
   g.font='italic 600 '+flSize+'px '+FONT_UI;
   g.fillStyle='rgba(220,196,150,0.96)';
   lay.fl.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=flGap; });

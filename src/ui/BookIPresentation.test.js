@@ -41,6 +41,8 @@ assert(!/if\(y<=copyBot\)/.test(di), 'intro does not clip wrapped lines against 
 assert(/ay:0\.40/.test(di) && /zoom:1/.test(di), 'chapter splash does not extra-zoom the foreground close-ups');
 assert(!/VH\*\(PORT\?0\.80:0\.78\)/.test(di), 'intro no longer parks body text on a fixed 78% line over Descend');
 assert(!/copyBot-lay\.h/.test(di), 'intro no longer shoves body text against the bottom band');
+assert(/bigTitle\(g,L\.sub,titleY,titleSize\);\s*g\.textAlign='center'/.test(di),
+  'intro restores center align after the gold title so body copy is not shoved to the right');
 
 const select=html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\n\}/);
 assert(!!select, 'drawChapterSelect exists');
@@ -51,6 +53,8 @@ assert(!/\.slice\(0,2\)/.test(ds), 'chapter select does not clip subtitles to tw
 assert(!/PORT\?92\*s:148\*s/.test(ds), 'chapter cards are not height-capped into a bottom strip');
 assert(/centerCopyY\(y\+pad, y\+ch-pad, lay\.h\)/.test(ds), 'chapter-select body text is centered in each card');
 assert(/g\.textAlign='center'/.test(ds), 'chapter-select copy is centered on the card');
+assert(/yy=t0\+labSize/.test(ds) && /yy\+=labGap/.test(ds),
+  'chapter-select CHAPTER label sits above the gold title with a gap, not overlapping it');
 assert(!/ellipsize\(g,m\.t/.test(ds), 'chapter select does not cut titles with ellipses');
 
 function centerCopyY(ceil, floor, blockH){
