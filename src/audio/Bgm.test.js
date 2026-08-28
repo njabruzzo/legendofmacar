@@ -1,6 +1,6 @@
 'use strict';
 /**
- * BGM policy + manager: unlock, one voice, combat seek, resume, no autoplay.
+ * BGM policy + manager: launch play, gesture fallback, one voice, combat seek.
  * Run: node src/audio/Bgm.test.js
  */
 const fs = require('fs');
@@ -39,10 +39,18 @@ assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Son
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
 assert(/function endFightIfClear/.test(html) && /dist\(e,p\)<11/.test(html),
   'combat ends when nearby foes are gone (win or flee), not only when the whole floor is empty');
-assert(/visibilitychange/.test(fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8')), 'pauseOnBlur via visibilitychange');
-assert(/linearRampToValueAtTime/.test(fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8')), 'crossfade on the audio clock via GainNodes');
-assert(!/createMediaElementSource[\s\S]{0,200}decodeAudioData/.test(fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8')),
+const bgmSrc = fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8');
+assert(/visibilitychange/.test(bgmSrc), 'pauseOnBlur via visibilitychange');
+assert(/linearRampToValueAtTime/.test(bgmSrc), 'crossfade on the audio clock via GainNodes');
+assert(!/createMediaElementSource[\s\S]{0,200}decodeAudioData/.test(bgmSrc),
   'streams HTMLAudio; does not decode the OST into RAM');
+assert(/_tryLaunchPlay/.test(bgmSrc) && /fromLaunch/.test(bgmSrc),
+  'on load, resume+play title without waiting for a custom press-any-key gate');
+assert(/pointerdown/.test(bgmSrc) && /keydown/.test(bgmSrc) && /touchstart/.test(bgmSrc) && /click/.test(bgmSrc),
+  'autoplay-block fallback is first pointerdown/keydown/touchstart/click');
+assert(/_tryMutedThenUnmute/.test(bgmSrc), 'muted-autoplay-then-unmute is attempted when unmuted play is blocked');
+assert(!/CLICK TO START/i.test(html), 'no blocking CLICK TO START overlay');
+assert(/Click anywhere to hear the music/.test(html), 'title still hints if launch play is blocked');
 
 const credits = html.match(/const MUSIC_CREDITS=\[[\s\S]*?\];/)[0];
 assert(/Song of the Forge/.test(credits) && /Scott Buckley/.test(credits), 'title credit: Scott Buckley');
@@ -78,12 +86,18 @@ function FakeAudio() {
   this.preload = 'auto';
   this.crossOrigin = '';
   this.autoplay = false;
+  this.muted = false;
   this._listeners = {};
   this.play = () => { this.paused = false; return Promise.resolve(); };
   this.pause = () => { this.paused = true; };
   this.load = () => {};
   this.setAttribute = () => {};
   this.addEventListener = (ev, fn) => { (this._listeners[ev] = this._listeners[ev] || []).push(fn); };
+}
+function deny() {
+  const err = new Error('autoplay');
+  err.name = 'NotAllowedError';
+  return Promise.reject(err);
 }
 function FakeGain() {
   const node = {
@@ -103,6 +117,10 @@ function FakeAC() {
   this.resume = () => { this.state = 'running'; return Promise.resolve(); };
   this.suspend = () => { this.state = 'suspended'; return Promise.resolve(); };
 }
+function BlockedResumeAC() {
+  FakeAC.call(this);
+  this.resume = () => Promise.reject((() => { const e = new Error('resume'); e.name = 'NotAllowedError'; return e; })());
+}
 
 const tracks = {
   title: 'assets/music/SongOfTheForge.mp3',
@@ -111,61 +129,161 @@ const tracks = {
   ch2: 'assets/music/Dungeon_1.mp3',
   battle: 'assets/music/Goliath.mp3'
 };
-const bgm = Bgm.create({
-  tracks,
-  Audio: FakeAudio,
-  AudioContext: FakeAC,
-  document: { hidden: false, addEventListener() {} },
-  window: { addEventListener() {} },
-  assetUrl: s => s
+
+function flush(n) {
+  let p = Promise.resolve();
+  for (let i = 0; i < (n == null ? 8 : n); i++) p = p.then(() => Promise.resolve());
+  return p;
+}
+
+function makeBgm(extra) {
+  extra = extra || {};
+  const winEvents = [];
+  const win = extra.window || {
+    addEventListener(ev, fn) { winEvents.push(ev); this._fns = this._fns || {}; this._fns[ev] = this._fns[ev] || []; this._fns[ev].push(fn); }
+  };
+  const bgm = Bgm.create(Object.assign({
+    tracks,
+    Audio: extra.Audio || FakeAudio,
+    AudioContext: extra.AudioContext || FakeAC,
+    document: extra.document || { hidden: false, addEventListener() {} },
+    window: win,
+    assetUrl: s => s
+  }, extra.opts || {}));
+  bgm._winEvents = winEvents;
+  bgm._win = win;
+  return bgm;
+}
+
+function fire(win, ev) {
+  const list = (win._fns && win._fns[ev]) || [];
+  list.forEach(fn => fn());
+}
+
+(async function runManager() {
+  const bgm = makeBgm();
+  assert(bgm.ctx && bgm.ctx.state === 'suspended', 'AudioContext is created early and starts suspended');
+  assert(bgm.unlocked === false, 'does not unlock on construct');
+  bgm.installUnlock();
+  assert(['pointerdown', 'keydown', 'touchstart', 'click'].every(e => bgm._winEvents.includes(e)),
+    'unlock listens on pointerdown/keydown/touchstart/click (including canvas via capture)');
+  bgm.want('title');
+  assert(bgm.slots.every(s => !s.el || s.el.autoplay === false), 'elements are not autoplay');
+  await flush();
+  assert(bgm.unlocked && bgm.ctx.state === 'running', 'launch resume() runs the context without a tap');
+  assert(bgm.currentId === 'title' && bgm.state === 'title' && bgm.isPlaying(),
+    'title (Song of the Forge) starts on load when autoplay is allowed');
+  assert(!bgm.slots.some(s => s.el && s.el.muted), 'launch play is not left muted');
+
+  const titleSrc = bgm.slots.find(s => s.id === 'title').el.src;
+  bgm.play('title');
+  assert(bgm.slots.find(s => s.id === 'title').el.src === titleSrc, 'same-key play is a no-op');
+
+  bgm.play('chapter');
+  assert(bgm.currentId === 'chapter' && bgm.state === 'menu', 'chapter screens swap to The Distant Sun');
+
+  bgm.play('ch1');
+  const explore = bgm.slots.find(s => s.id === 'ch1');
+  explore.el.currentTime = 12.5;
+  assert(bgm.state === 'explore' && bgm.exploreId === 'ch1', 'dungeon sets exploreId');
+
+  bgm.play('ch1');
+  assert(explore.el.currentTime === 12.5, 'same dungeon key does not restart (rooms are a no-op)');
+
+  bgm.play('battle');
+  assert(bgm.state === 'combat' && bgm.currentId === 'battle', 'combat plays Goliath');
+  assert(bgm.exploreId === 'ch1' && Math.abs(bgm.exploreSeek - 12.5) < 0.01, 'combat saves explore seek');
+  assert(bgm.slots.filter(s => s.el && !s.el.paused).length <= 2, 'never stacks more than a crossfade pair');
+
+  bgm.play('ch1');
+  const resumed = bgm.slots.find(s => s.id === 'ch1');
+  assert(bgm.state === 'explore', 'combat end returns to dungeon music');
+  assert(Math.abs(resumed.el.currentTime - 12.5) < 0.01, 'dungeon resumes from saved seek');
+
+  bgm.play('ch2');
+  assert(bgm.exploreId === 'ch2', 'a later floor uses its own dungeon loop');
+
+  const playingSlot = bgm.slots.find(s => s.id === bgm.currentId);
+  assert(playingSlot && playingSlot.gain && typeof playingSlot.gain.gain.linearRampToValueAtTime === 'function',
+    'slot volume is a GainNode (iOS HTMLAudio.volume is a no-op)');
+
+  bgm.pauseForBlur();
+  assert(bgm.pausedByBlur && !bgm.isPlaying(), 'visibility hide pauses BGM');
+  bgm.resumeFromBlur();
+  assert(!bgm.pausedByBlur && bgm.isPlaying(), 'visibility show resumes BGM');
+
+  /* resume() blocked: queue title, first gesture starts it */
+  const blocked = makeBgm({ AudioContext: BlockedResumeAC });
+  blocked.installUnlock();
+  blocked.want('title');
+  await flush();
+  assert(!blocked.unlocked && blocked.queued === 'title' && !blocked.isPlaying(),
+    'if resume() rejects, title stays queued and does not play');
+  fire(blocked._win, 'pointerdown');
+  await flush();
+  assert(blocked.unlocked && blocked.currentId === 'title' && blocked.isPlaying(),
+    'first pointerdown starts queued title when autoplay was blocked');
+
+  /* play() blocked, muted-then-unmute works */
+  function MuteThenUnmuteAudio() {
+    FakeAudio.call(this);
+    this.play = () => {
+      if (!this.muted && !this._unmutedOk) return deny();
+      this.paused = false;
+      return Promise.resolve();
+    };
+  }
+  const mutedOk = makeBgm({ Audio: MuteThenUnmuteAudio });
+  mutedOk.want('title');
+  await flush();
+  const mutedSlot = mutedOk.slots.find(s => s.id === 'title');
+  assert(mutedOk.unlocked && mutedOk.isPlaying(), 'muted autoplay then unmute can start title on load');
+  assert(mutedSlot && mutedSlot.el.muted === false, 'muted-then-unmute does not leave the track muted');
+
+  /* muted play works but unmute does not: rewind, do not blast later */
+  function StickyMuteAudio() {
+    FakeAudio.call(this);
+    this.play = () => {
+      if (!this.muted) return deny();
+      this.paused = false;
+      Object.defineProperty(this, 'muted', { get() { return true; }, set() {}, configurable: true });
+      return Promise.resolve();
+    };
+  }
+  const sticky = makeBgm({ Audio: StickyMuteAudio });
+  sticky.want('title');
+  await flush();
+  const stickySlot = sticky.slots.find(s => s.id === 'title');
+  assert(!sticky.unlocked && sticky.queued === 'title' && !sticky.isPlaying(),
+    'if unmute is ignored, abort so the track does not run silent then blast');
+  assert(stickySlot && stickySlot.el.paused, 'silent muted play is paused');
+  assert(stickySlot && stickySlot.el.currentTime === 0, 'silent muted play is rewound to the start');
+
+  /* play() rejects until a gesture; keydown unlocks */
+  let allowPlay = false;
+  function GatedAudio() {
+    FakeAudio.call(this);
+    this.play = () => {
+      if (!allowPlay) return deny();
+      this.paused = false;
+      return Promise.resolve();
+    };
+  }
+  const gated = makeBgm({ Audio: GatedAudio });
+  gated.installUnlock();
+  gated.want('title');
+  await flush();
+  assert(!gated.unlocked && gated.queued === 'title' && !gated.isPlaying(),
+    'if play() rejects, title stays queued');
+  allowPlay = true;
+  fire(gated._win, 'keydown');
+  await flush();
+  assert(gated.unlocked && gated.isPlaying() && gated.currentId === 'title',
+    'first keydown starts Forge after a blocked launch');
+
+  if (failed) { console.error('\n' + failed + ' failed'); process.exit(1); }
+  console.log('\nBGM checks passed');
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
 });
-
-assert(bgm.ctx && bgm.ctx.state === 'suspended', 'AudioContext is created early and starts suspended');
-assert(bgm.unlocked === false, 'does not unlock on construct');
-bgm.want('title');
-assert(bgm.queued === 'title' && !bgm.isPlaying(), 'queues title until the first tap; never play() on load');
-assert(bgm.slots.every(s => !s.el || s.el.autoplay === false), 'elements are not autoplay');
-
-bgm.unlock();
-assert(bgm.unlocked && bgm.ctx.state === 'running', 'first tap resumes the context');
-assert(bgm.currentId === 'title' && bgm.state === 'title' && bgm.isPlaying(), 'title starts after unlock');
-
-const titleSrc = bgm.slots.find(s => s.id === 'title').el.src;
-bgm.play('title');
-assert(bgm.slots.find(s => s.id === 'title').el.src === titleSrc, 'same-key play is a no-op');
-
-bgm.play('chapter');
-assert(bgm.currentId === 'chapter' && bgm.state === 'menu', 'chapter screens swap to The Distant Sun');
-
-bgm.play('ch1');
-const explore = bgm.slots.find(s => s.id === 'ch1');
-explore.el.currentTime = 12.5;
-assert(bgm.state === 'explore' && bgm.exploreId === 'ch1', 'dungeon sets exploreId');
-
-bgm.play('ch1');
-assert(explore.el.currentTime === 12.5, 'same dungeon key does not restart (rooms are a no-op)');
-
-bgm.play('battle');
-assert(bgm.state === 'combat' && bgm.currentId === 'battle', 'combat plays Goliath');
-assert(bgm.exploreId === 'ch1' && Math.abs(bgm.exploreSeek - 12.5) < 0.01, 'combat saves explore seek');
-assert(bgm.slots.filter(s => s.el && !s.el.paused).length <= 2, 'never stacks more than a crossfade pair');
-
-bgm.play('ch1');
-const resumed = bgm.slots.find(s => s.id === 'ch1');
-assert(bgm.state === 'explore', 'combat end returns to dungeon music');
-assert(Math.abs(resumed.el.currentTime - 12.5) < 0.01, 'dungeon resumes from saved seek');
-
-bgm.play('ch2');
-assert(bgm.exploreId === 'ch2', 'a later floor uses its own dungeon loop');
-
-const playingSlot = bgm.slots.find(s => s.id === bgm.currentId);
-assert(playingSlot && playingSlot.gain && typeof playingSlot.gain.gain.linearRampToValueAtTime === 'function',
-  'slot volume is a GainNode (iOS HTMLAudio.volume is a no-op)');
-
-bgm.pauseForBlur();
-assert(bgm.pausedByBlur && !bgm.isPlaying(), 'visibility hide pauses BGM');
-bgm.resumeFromBlur();
-assert(!bgm.pausedByBlur && bgm.isPlaying(), 'visibility show resumes BGM');
-
-if (failed) { console.error('\n' + failed + ' failed'); process.exit(1); }
-console.log('\nBGM checks passed');

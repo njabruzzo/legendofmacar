@@ -1,8 +1,9 @@
 /**
  * One looping BGM, streamed (HTMLAudio), faded on the audio clock (GainNode).
- * Patterns only (no vendored engines): gesture unlock, one playlist voice,
- * keep explore seek across combat, pause on hide. iOS ignores HTMLAudio.volume
- * so fades live on Web Audio gains — never two BGM at full volume.
+ * Patterns only (no vendored engines): best-effort title play on load,
+ * gesture unlock if autoplay is blocked, one playlist voice, keep explore
+ * seek across combat, pause on hide. iOS ignores HTMLAudio.volume so fades
+ * live on Web Audio gains — never two BGM at full volume.
  */
 (function (root) {
   'use strict';
@@ -63,6 +64,8 @@
     this.pausedByBlur = false;
     this._wantId = null;
     this._installed = false;
+    this._launchTried = false;
+    this._muteTried = false;
 
     this._ensureContext();
   }
@@ -118,6 +121,7 @@
       el.setAttribute('webkit-playsinline', '');
     } catch (_) {}
     el.autoplay = false;
+    el.muted = false;
     el.volume = 1;
     return el;
   };
@@ -171,13 +175,136 @@
     return false;
   };
 
+  Bgm.prototype._unmuteEl = function (el) {
+    if (!el) return;
+    try { el.muted = false; } catch (_) {}
+  };
+
+  Bgm.prototype._abortSilentPlay = function (slot) {
+    if (!slot || !slot.el) return;
+    try { slot.el.pause(); } catch (_) {}
+    try { slot.el.currentTime = 0; } catch (_) {}
+    this._unmuteEl(slot.el);
+    slot.playP = null;
+    this.unlocked = false;
+    this.queued = this.queued || slot.id || this._wantId;
+  };
+
+  Bgm.prototype._onAudible = function (slot) {
+    if (this.unlocked) {
+      this._unmuteEl(slot && slot.el);
+      this.queued = null;
+      return;
+    }
+    if (slot && slot.el && slot.el.muted) this._unmuteEl(slot.el);
+    if (slot && slot.el && slot.el.muted) {
+      this._abortSilentPlay(slot);
+      return;
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this._abortSilentPlay(slot);
+      return;
+    }
+    this.unlocked = true;
+    this.queued = null;
+  };
+
+  Bgm.prototype._tryMutedThenUnmute = function (slot) {
+    if (!slot || !slot.el || this._muteTried || this.unlocked) return;
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this._abortSilentPlay(slot);
+      return;
+    }
+    this._muteTried = true;
+    var self = this;
+    var el = slot.el;
+    try { el.muted = true; } catch (_) {}
+    var p;
+    try { p = el.play(); } catch (e) {
+      this._unmuteEl(el);
+      this.unlocked = false;
+      this.queued = this.queued || slot.id || this._wantId;
+      return;
+    }
+    if (p && p.then) {
+      slot.playP = p;
+      p.then(function () {
+        slot.playP = null;
+        self._unmuteEl(el);
+        self._onAudible(slot);
+      }).catch(function () {
+        slot.playP = null;
+        self._unmuteEl(el);
+        self.unlocked = false;
+        self.queued = self.queued || slot.id || self._wantId;
+      });
+    } else {
+      this._unmuteEl(el);
+      this._onAudible(slot);
+    }
+  };
+
+  Bgm.prototype._retryOnCanPlay = function (slot) {
+    if (!slot || !slot.el || slot._armedCanplay) return;
+    slot._armedCanplay = true;
+    var self = this;
+    var el = slot.el;
+    if (typeof el.addEventListener !== 'function') return;
+    el.addEventListener('canplay', function () {
+      if (self.pausedByBlur) return;
+      if (!el.paused && !el.ended) return;
+      self._startEl(slot);
+    }, { once: true });
+  };
+
+  Bgm.prototype._tryLaunchPlay = function (id) {
+    if (this._launchTried || this.unlocked) return;
+    this._launchTried = true;
+    var self = this;
+    this._ensureContext();
+
+    var go = function () {
+      if (self.unlocked) return;
+      var want = self.queued || id || self._wantId;
+      if (self.ctx && self.ctx.state === 'suspended') {
+        self.queued = want;
+        self.unlocked = false;
+        return;
+      }
+      if (want) self.play(want, { fromLaunch: true });
+    };
+
+    var p = this._resumeCtx();
+    if (p && p.then) {
+      p.then(go, function () {
+        self.queued = self.queued || id;
+        self.unlocked = false;
+      });
+      return;
+    }
+    go();
+  };
+
+  Bgm.prototype._resumeCtx = function () {
+    if (!this.ctx || !this.ctx.resume) return null;
+    if (this.ctx.state === 'running') return null;
+    var p = null;
+    try { p = this.ctx.resume(); } catch (_) { return null; }
+    if (p && p.catch) p.catch(function () {});
+    return p;
+  };
+
   Bgm.prototype.unlock = function () {
     this.unlocked = true;
+    this._muteTried = false;
     this._ensureContext();
     var self = this;
-    if (this.ctx && this.ctx.state === 'suspended' && this.ctx.resume) {
-      try { this.ctx.resume(); } catch (_) {}
+    var i, s;
+    for (i = 0; i < this.slots.length; i++) {
+      s = this.slots[i];
+      this._unmuteEl(s && s.el);
     }
+    this._resumeCtx();
     var want = this.queued || this._wantId;
     this.queued = null;
     if (want) this.play(want);
@@ -188,6 +315,7 @@
     this._wantId = id;
     if (!this.unlocked) {
       this.queued = id;
+      this._tryLaunchPlay(id);
       return;
     }
     this.play(id);
@@ -230,14 +358,34 @@
   };
 
   Bgm.prototype._startEl = function (slot) {
-    if (!slot || !slot.el || !this.unlocked) return;
+    if (!slot || !slot.el) return;
     if (!slot.el.paused && !slot.el.ended) return;
+    var self = this;
+    this._unmuteEl(slot.el);
     slot.playP = null;
     var p;
-    try { p = slot.el.play(); } catch (e) { return; }
+    try { p = slot.el.play(); } catch (e) {
+      if (!this.unlocked) this._tryMutedThenUnmute(slot);
+      return;
+    }
     if (p && p.then) {
       slot.playP = p;
-      p.then(function () { slot.playP = null; }).catch(function () { slot.playP = null; });
+      p.then(function () {
+        slot.playP = null;
+        self._onAudible(slot);
+      }).catch(function (err) {
+        slot.playP = null;
+        if (self.unlocked) return;
+        var name = err && err.name;
+        if (name === 'AbortError') {
+          self._retryOnCanPlay(slot);
+          return;
+        }
+        if (!name || name === 'NotAllowedError') self._tryMutedThenUnmute(slot);
+        else self._retryOnCanPlay(slot);
+      });
+    } else {
+      this._onAudible(slot);
     }
   };
 
@@ -264,14 +412,12 @@
     opts = opts || {};
     if (!id || !this.tracks[id]) return;
     this._wantId = id;
-    if (!this.unlocked) {
+    if (!this.unlocked && !opts.fromLaunch) {
       this.queued = id;
       return;
     }
     this._ensureContext();
-    if (this.ctx && this.ctx.state === 'suspended' && this.ctx.resume) {
-      try { this.ctx.resume(); } catch (_) {}
-    }
+    this._resumeCtx();
 
     if (this.currentId === id) {
       var cur = this._slotById(id);
@@ -345,9 +491,7 @@
   Bgm.prototype.resumeFromBlur = function () {
     if (!this.pausedByBlur) return;
     this.pausedByBlur = false;
-    if (this.ctx && this.ctx.resume) {
-      try { this.ctx.resume(); } catch (_) {}
-    }
+    this._resumeCtx();
     if (this.currentId && this.unlocked) {
       var slot = this._slotById(this.currentId);
       if (slot) this._startEl(slot);
@@ -363,7 +507,7 @@
     var doc = this._doc;
     if (!win || !win.addEventListener) return;
     var unlock = function () { self.unlock(); };
-    ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'click'].forEach(function (ev) {
+    ['pointerdown', 'keydown', 'touchstart', 'click', 'mousedown'].forEach(function (ev) {
       win.addEventListener(ev, unlock, { capture: true });
     });
     if (doc && doc.addEventListener) {

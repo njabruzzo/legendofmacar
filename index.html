@@ -375,7 +375,7 @@ function syncMusic(){
     if(bgm.currentId) bgm.play(bgm.currentId, {force:true});
   }
 }
-bgm.want('title');
+bgm.want('title'); /* resume+play now; first gesture if the browser blocks autoplay */
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png',
   macar_axe:'assets/creatures/dwarf_macar_axe.png',
