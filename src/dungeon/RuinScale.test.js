@@ -23,8 +23,8 @@ assert(/function dressRuinBuildings\(/.test(html), 'ruin-building helper exists'
 assert(/fallen house/.test(ch3) && /east manor/.test(ch3) && /south street/.test(ch3),
   'side ruins have their own monster nests');
 assert(/L\.n===3\?22/.test(html), 'ruin dressing scatters more rubble than other halls');
-assert(/footprints=\[/.test(html) && /\[6,8,12,10\]/.test(html) && /\[20,54,24,12\]/.test(html),
-  'ancient building footprints cover north and south streets');
+assert(/footprints=\[/.test(html) && /\[6,8,12,10\]/.test(html) && /\[8,54,20,12\]/.test(html),
+  'ancient building footprints cover north and south streets, west of the descent');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nruin scale checks passed');
