@@ -1726,11 +1726,17 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 /* ---------------------------- roster ---------------------------- */
 const CRUSH_SPOTS={
   // Open floor west of Macar (20.5, 22). Spread so four named bodies do not stack.
+  // Chapter I raises only Pordum (sapper) and Fendur (bolts). Orbo and Talpor stay corpses/loot.
   pordoom:{x:19.15,y:20.35,seed:3,stone:0.18,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.95,y:0.82}},
   fendur:{x:17.55,y:21.20,seed:11,stone:0.17,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.92,y:0.80}},
   orbo:{x:19.35,y:23.45,seed:19,stone:0.18,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.90,y:0.78}},
   talpor:{x:17.65,y:23.90,seed:7,stone:0.17,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.94,y:0.76}}
 };
+const CH1_RISE={pordoom:1, fendur:1};
+function canRiseKin(e){
+  const k=e&&e.col&&e.col.key;
+  return !!(k && CH1_RISE[k]);
+}
 function nearCrush(x,y,r){
   r=r||1.25;
   for(const k of Object.keys(CRUSH_SPOTS)){
@@ -2173,7 +2179,7 @@ function makeChapter(n){
     L.secrets=[];
     addSecretDoor(L,{x:36.5,y:35.05,i:35,j:35,w:3,h:1,kind:'treasure',face:'n',
       hint:'The south wall of the new hall is too even — a colder, greyer face. SEARCH it.'});
-    L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
+    L.objs=[{t:'Wake Pordum and Fendur under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
     L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
@@ -2213,7 +2219,7 @@ function makeChapter(n){
     });
     L.guide=()=>{
       const p=player();
-      const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.ghost);
+      const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.ghost&&canRiseKin(e));
       if(bodies.length){
         if(!p) return {x:bodies[0].x,y:bodies[0].y};
         bodies.sort((a,b)=>dist(p,a)-dist(p,b));
@@ -2839,8 +2845,8 @@ const GHOST_RETURN_LINE={
 };
 function ghostKey(e){ return e&&e.col&&e.col.key; }
 function markChapterGhosts(){
-  const L=G.lvl; if(!L||L.n!==1) return;
-  const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.ghost).length;
+  const L=G.lvl; if(!L||L.n!==1||L.flags.looted) return;
+  const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.ghost&&canRiseKin(z)).length;
   if(!left){
     L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
     hint('A chamber has opened east. The ruby waits on the far wall.',6);
@@ -2923,7 +2929,7 @@ function isMagicAttack(src){
 }
 function lootCorpse(e){
   if(!isLootableBody(e)) return;
-  if(e.crushed && e.col && e.team==='party'){
+  if(e.crushed && e.col && e.team==='party' && canRiseKin(e)){
     makeGhostAlly(e);
     return;
   }
@@ -2967,14 +2973,7 @@ function lootCorpse(e){
     e.drop=null;
   }
   packGainNote(bits, e.name);
-  const L=G.lvl;
-  if(L&&L.n===1){
-    const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.looted).length;
-    if(!left){
-      L.flags.looted=1; if(L.objs[0]) L.objs[0].d=1;
-      hint('A chamber has opened east. The ruby waits on the far wall.',6);
-    }
-  }
+  markChapterGhosts();
 }
 function wave(list){ list.forEach(([k,x,y])=>{
   const make=FOE[k]; if(typeof make!=='function') return;
@@ -3020,7 +3019,7 @@ const CH_META={1:{t:'The Beginning',s:'Rubble, the fallen, and a ruby in a new c
   5:{t:'The Holy Sacrifice',s:'Mordain\u2019s Temple Guardians'}};
 const CH_INTRO={
   1:{fl:'The tunnel is choked with rubble. Pordum, Fendur, Orbo and Talpor lie dead under the stones.',
-     ask:'You are MACAR. Walk to your kin and take what they still carry. The ruby door waits on this room\'s north wall.'},
+     ask:'You are MACAR. Raise only Pordum and Fendur. Take kit from the other two if you need it. The ruby door waits on this room\'s north wall.'},
   2:{fl:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
      ask:'You are MACAR. Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.'},
   3:{fl:'They kept working. Nobody told them to stop. The dead still walk.',
@@ -3092,6 +3091,7 @@ function startChapter(n){
   if(!G.abilSaid){
     G.abilSaid=1;
     ROSTER.forEach(r=>{
+      if(r.key!=='macar' && !CH1_RISE[r.key]) return;
       const a=G.abil[r.key];
       say(r.name+'  '+clsLabel(a.cls)+PARTY_LVL+'  HP '+a.maxhp+' (max HD + CON)  '+fmtAbil(a),'#c9b895');
     });
@@ -3115,7 +3115,7 @@ function startChapter(n){
     G.scene=loadSnap.scene==='camp'?'camp':'play';
     G.introT=99; G.paused=false;
   }
-  say(({1:'The tunnel is filled with rubble. Your kin lie dead under the boulders. A ruby door is set in this chamber\'s north wall.',
+  say(({1:'The tunnel is filled with rubble. Four kin lie dead. Raise Pordum and Fendur. The other two stay fallen. A ruby door is set in this chamber\'s north wall.',
     2:'The cage opens on a four-way cavern. Left, a gem-bronze door. Right, webs. Straight, goblins with a bound gnome.',
     3:'Purple light. The stone sweats.',
     4:'Cut stone. Dwarf work. Very old.',
@@ -6384,7 +6384,7 @@ function update(dt){
     }
     if(!PROMPT){
       const more=nearestCorpse(p,2.15);
-      if(more) interact((more.crushed&&more.team==='party'?'Rouse ':'Loot ')+(more.name||'the fallen'),()=>lootCorpse(more));
+      if(more) interact((more.crushed&&more.team==='party'&&canRiseKin(more)?'Rouse ':'Loot ')+(more.name||'the fallen'),()=>lootCorpse(more));
     }
     const pile=nearestLoot(p,1.12);
     if(pile) takeLoot(pile, true);
@@ -9198,7 +9198,7 @@ function drawHUD(g){
 
 function drawPortraitStack(g,s){
   const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key))
-    .filter(e=>e && (e.hero || e.ghost || e.crushed));
+    .filter(e=>e && (e.hero || e.ghost || (e.crushed && canRiseKin(e))));
   const inset=UI.pad||{l:0,t:0};
   const x=Math.max(8*s, inset.l+8), y=Math.max(8*s, inset.t+8), w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
@@ -10124,7 +10124,7 @@ function drawIntro(g){
   lay.ask.forEach(ln=>{ if(y<=copyBot){ g.fillText(ln, VW/2, y); y+=askGap; }});
   g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,descendY,Math.min(240*s,VW*.65),descendH,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Your kin lie west, under the stones. Walk over them to take their kit.',6); }
+    if(G.ch===1){ hint('Pordum and Fendur lie west. Walk to them to raise them. The other two stay fallen.',6); }
     else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
     else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
     else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }
@@ -10144,7 +10144,8 @@ function drawBetween(g){
   g.fillText('CHAPTER CLEARED',VW/2,VH*.14);
   bigTitle(g,CH_META[G.ch].t,VH*.22,(PORT?26:34)*s);
   g.font='600 '+(12.5*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.88)';
-  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.30);
+  const kinHud=G.ents.filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||canRiseKin(e)));
+  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+kinHud.filter(e=>!e.dead).length+'/'+Math.max(1,kinHud.length),VW/2,VH*.30);
   g.textAlign='left';
   if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
   menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
