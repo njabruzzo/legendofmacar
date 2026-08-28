@@ -15,6 +15,8 @@
 <link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=56" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{--sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);
+    --sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px)}
   html,body{width:100%;height:100%;height:100svh;overflow:hidden;background:#07060a;touch-action:none;overscroll-behavior:none;
     font-family:"Trebuchet MS","Gill Sans",Optima,Candara,sans-serif;color:#e8d9b8;
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -58,10 +60,11 @@ let GFX_MODE = IS_TOUCH ? 'auto' : 'high';   // fast | auto | high — phones st
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
 let GRAINPAT = null;
-/* ---- DIAGNOSTIC PASS TOGGLES (⚑ button, bottom-left) -------------------
+/* ---- DIAGNOSTIC PASS TOGGLES (pause / ?diag=1 — not on the play HUD) ---
    Every entry starts true = normal rendering. Flip one off at a time on the
    real device to bisect which pass is producing the colour-line artifact.
-   Phone GPUs still force the safe implementations inside those passes. */
+   Phone GPUs still force the safe implementations inside those passes.
+   The old ⚑ DOM button sat on the movement stick; it is gone from play. */
 const DIAG = { world:1, lighting:1, godrays:1, bloom:1, memshade:1, beyond:1,
                atmos:1, floaters:1, grain:1, hurt:1, flash:1, shake:1, hud:1,
                smooth: 1, dpr2:0 };
@@ -1729,7 +1732,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   fightOn:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
-  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[] };
+  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[],
+  hudMore:0 };
 
 function say(t,c,k){
   const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
@@ -2103,7 +2107,7 @@ const ABIL=[
  {key:'pack', label:'PACK', ico:'pack',  cd:0, hint:'Each kin keeps their own pack'},
  {key:'wall', label:'Defend',ico:'shield',cd:0, hint:'Armor class +4. No attacks while the shield is up'},
  {key:'ale',  label:'Heal', ico:'flask', cd:12,hint:'A draught of beer. Heals d10'},
- {key:'rally',label:'RALLY',ico:'horn',  cd:26,hint:'Kin hit harder, all heal'},
+ {key:'rally',label:'RALLY',ico:'horn',  cd:26,hint:'Living kin heal 30 and hit harder for 8s'},
 ];
 const cds={}; ABIL.forEach(a=>cds[a.key]=0);
 
@@ -5754,28 +5758,48 @@ const HUDSKILLS=[
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
 ];
+/* Mobile primary bar never includes Rally. It is a war-horn (heal + 8s hit buff),
+   not a party-gather, and it lives on More / pause so the thumb row stays usable. */
+const HUD_TAP=44;
+const HUD_OVERFLOW={rally:1};
+const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','bow','bomb'];
 
 function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h); }
+
+function safeInsets(){
+  const cs=getComputedStyle(document.documentElement);
+  const px=n=>{ const f=parseFloat(cs.getPropertyValue(n)); return Number.isFinite(f)?f:0; };
+  return {t:px('--sat'), r:px('--sar'), b:px('--sab'), l:px('--sal')};
+}
 
 function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
-  const stickR = PORT?32*s:34*s;
-  const stickX = PORT?48*s: 14*s+stickR;
-  const gap = PORT? 4*s : 5*s;
-  const rowGap = PORT? 14*s : 8*s;
-  const combatKeys={attack:1, wall:1};
-  const combat=HUDSKILLS.filter(b=>combatKeys[b.key]);
-  const rest=HUDSKILLS.filter(b=>!combatKeys[b.key]);
+  const inset=safeInsets();
+  UI.inset=inset;
   const mobile = PORT || IS_TOUCH;
+  const padL=Math.max(inset.l, 8);
+  const padR=Math.max(inset.r, 8);
+  const padB=Math.max(inset.b, mobile?(PORT?10:8):8);
+  const padT=Math.max(inset.t, 8);
+  UI.pad={l:padL,r:padR,b:padB,t:padT};
 
   if(mobile){
-    /* Combat on the right thumb. Utilities stay left of that, after the stick. */
-    const pad = PORT?16*s:12*s;
-    const cSlot = Math.min(PORT?64:52, Math.max(42, Math.min(VW,VH)*0.125));
-    const cx = VW - pad - cSlot/2;
-    const attackY = VH - (PORT?22*s:14*s) - cSlot/2;
-    const defendY = attackY - (cSlot + rowGap);
+    /* Left thumb: stick. Right thumb: Attack / Defend. Center: 44px verbs.
+       Rally and any verb that will not fit go in the More tray. */
+    const TAP=HUD_TAP;
+    const gap=5;
+    const rowGap=PORT?16:12;
+    const combatKeys={attack:1, wall:1};
+    const combat=HUDSKILLS.filter(b=>combatKeys[b.key]);
+    const rest=HUD_MOBILE_ORDER.map(k=>HUDSKILLS.find(b=>b.key===k)).filter(Boolean)
+      .filter(b=>!combatKeys[b.key] && !HUD_OVERFLOW[b.key]);
+    const overflowSkills=HUDSKILLS.filter(b=>HUD_OVERFLOW[b.key]);
+
+    const cSlot=Math.max(TAP, Math.min(PORT?64:56, Math.min(VW,VH)*0.125));
+    const cx=VW - padR - 8 - cSlot/2;
+    const attackY=VH - padB - 8 - cSlot/2;
+    const defendY=attackY - (cSlot + rowGap);
     UI.attack={x:cx,y:attackY,r:cSlot/2};
     combat.forEach(b=>{
       const y = b.key==='attack' ? attackY : defendY;
@@ -5783,40 +5807,91 @@ function layoutUI(){
       if(b.key==='attack') UI.attack=btn;
       UIBTN.push(btn);
     });
-    const perRow = Math.ceil(rest.length/2);
-    const rightReserve = pad + cSlot + 14*s;
-    const stickReserve = stickX + stickR + (PORT?10*s:12*s);
-    const availW = Math.max(150, VW - stickReserve - rightReserve);
-    const slot = Math.min(PORT?50:42, Math.max(30, (availW - (perRow-1)*gap)/perRow));
-    const rows = [rest.slice(0, perRow), rest.slice(perRow)];
-    const by = VH - (PORT? 26*s : 16*s) - slot/2;
-    const topY = by - (rows.length-1)*(slot+rowGap);
-    const midY = (topY+by)/2;
-    const left = stickReserve;
-    UI.orb = { r:slot/2, x:left+slot/2, y:midY };
+
+    const stickR=Math.max(TAP/2, PORT?26*s:28*s);
+    const stickX=padL + 6 + stickR;
+    const stickReserve=stickX + stickR + 16;
+    const rightReserve=(VW-cx) + cSlot/2 + 8;
+    const availW=Math.max(TAP, VW - stickReserve - rightReserve);
+    const fit=Math.floor((availW+gap)/(TAP+gap));
+    const perRow=Math.max(1, Math.min(5, fit||1));
+    const raw=(availW-(perRow-1)*gap)/perRow;
+    const slot=Math.min(Math.max(TAP, Math.min(PORT?52:48, raw)), raw);
+
+    const maxPrimary=perRow*2;
+    const needMore=overflowSkills.length>0 || rest.length>maxPrimary;
+    const primaryCap=needMore?Math.max(1, maxPrimary-1):maxPrimary;
+    const primary=rest.slice(0, primaryCap);
+    const extra=rest.slice(primaryCap);
+    const overflow=overflowSkills.concat(extra);
+
+    const rows=[];
+    for(let i=0;i<primary.length;i+=perRow) rows.push(primary.slice(i,i+perRow));
+    if(overflow.length){
+      if(!rows.length) rows.push([]);
+      const last=rows[rows.length-1];
+      if(last.length>=perRow) rows.push([{key:'more', ico:'more', label:'More'}]);
+      else last.push({key:'more', ico:'more', label:'More'});
+    }
+
+    const nRows=Math.max(1, rows.length);
+    const by=VH - padB - 8 - slot/2;
+    const topY=by - (nRows-1)*(slot+rowGap);
+    const left=stickReserve;
+    /* Stick in the left thumb corner, aligned with the bottom row, with a
+       real gap so it cannot eat Camp / PACK. Not vertically centered on the grid. */
+    const stickY=by;
+    UI.orb={ r:slot/2, x:left+slot/2, y:nRows>1?topY:by };
+    UI.more=null;
     rows.forEach((row,ri)=>{
-      const y = topY + ri*(slot+rowGap);
+      const y=topY + ri*(slot+rowGap);
       row.forEach((b,i)=>{
-        const x = left + i*(slot+gap) + slot/2;
+        const x=left + i*(slot+gap) + slot/2;
         const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
         if(b.key==='pack') UI.orb={r:slot/2, x, y};
+        if(b.key==='more') UI.more=btn;
         UIBTN.push(btn);
       });
     });
-    UI.hudTop = Math.min(topY, defendY) - Math.max(slot,cSlot)/2 - (PORT?14:10)*s;
-    UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
-    UI.stickHome={ x: stickX, y: midY, r: stickR };
+
+    UI.overflow=[];
+    overflow.forEach((b,i)=>{
+      const cols=Math.min(overflow.length, Math.max(3, perRow));
+      const n=Math.min(overflow.length, cols);
+      const ox=VW/2 - ((n-1)*(slot+gap))/2;
+      const row=(i/cols)|0;
+      const col=i%cols;
+      const x=ox + col*(slot+gap);
+      const y=topY - 18 - slot/2 - row*(slot+rowGap);
+      const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, overflow:1};
+      UI.overflow.push(btn);
+      UIBTN.push(btn);
+    });
+    UI.overflowBox=UI.overflow.length?{
+      x:Math.min.apply(null, UI.overflow.map(b=>b.x-b.r))-12,
+      y:Math.min.apply(null, UI.overflow.map(b=>b.y-b.r))-24,
+      w:Math.max.apply(null, UI.overflow.map(b=>b.x+b.r))-Math.min.apply(null, UI.overflow.map(b=>b.x-b.r))+24,
+      h:Math.max.apply(null, UI.overflow.map(b=>b.y+b.r))-Math.min.apply(null, UI.overflow.map(b=>b.y-b.r))+40
+    }:null;
+
+    UI.hudTop=Math.min(topY, defendY) - Math.max(slot,cSlot)/2 - 14;
+    UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: Math.max(18, 16*s), key:'pause'});
+    UI.stickHome={ x: stickX, y: stickY, r: stickR };
     return;
   }
 
+  const stickR = 34*s;
+  const stickX = padL + 14*s + stickR;
+  const gap = 5*s;
+  const rowGap = 8*s;
   const rows = [HUDSKILLS];
   const perRow = HUDSKILLS.length;
-  const rightReserve = 10*s;
+  const rightReserve = padR + 10*s;
   const stickReserve = stickX + stickR + 12*s;
   const availW = Math.max(180, VW - stickReserve - rightReserve);
   const slot = Math.min(46, Math.max(32, (availW - (perRow-1)*gap)/perRow));
   const skillsW = perRow*slot + (perRow-1)*gap;
-  const by = VH - 16*s - slot/2;
+  const by = VH - padB - 16*s - slot/2;
   const topY = by;
   const midY = by;
   let left = stickReserve;
@@ -5825,6 +5900,7 @@ function layoutUI(){
 
   UI.orb = { r:slot/2, x:left+slot/2, y:midY };
   UI.attack={x:0,y:0,r:slot/2};
+  UI.more=null; UI.overflow=[]; UI.overflowBox=null;
   rows.forEach((row,ri)=>{
     const y = topY + ri*(slot+rowGap);
     const rowW = row.length*slot + (row.length-1)*gap;
@@ -5838,10 +5914,16 @@ function layoutUI(){
     });
   });
   UI.hudTop = topY - slot/2 - 10*s;
-  UIBTN.push({x: 20*s, y: 20*s, r: 16*s, key:'pause'});
+  UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: 16*s, key:'pause'});
   UI.stickHome={ x: stickX, y: midY, r: stickR };
 }
-function btnAt(x,y){ for(const b of UIBTN) if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) return b; return null; }
+function btnAt(x,y){
+  for(const b of UIBTN){
+    if(b.overflow && !G.hudMore) continue;
+    if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) return b;
+  }
+  return null;
+}
 
 const pressed={};
 function onDown(id,x,y,ptr){
@@ -5858,6 +5940,7 @@ function onDown(id,x,y,ptr){
   }
   const b=btnAt(x,y);
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
+  if(G.hudMore){ G.hudMore=0; return; }
   if(G.inspect){ G.inspect=null; return; }
   const ph=(UI.portraitHits||[]).find(z=>x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h);
   if(ph){
@@ -5943,7 +6026,9 @@ window.addEventListener('keydown',e=>{
     if(G.talk){ closeTalk(); if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); } return; }
     if(G.inspect){ G.inspect=null; return; }
     if(G.showObjs){ G.showObjs=0; return; }
+    if(G.hudMore){ G.hudMore=0; return; }
     G.paused=!G.paused;
+    G.hudMore=0;
   }
   if(G.talk && e.key>='1' && e.key<='9'){ pickTalk((+e.key)-1); return; }
 });
@@ -5972,8 +6057,14 @@ function refuseAttack(p){
 }
 function fire(key){
   if(G.scene!=='play') return;
-  if(key==='pause'){ G.paused=!G.paused; return; }
+  if(key==='pause'){ G.paused=!G.paused; G.hudMore=0; return; }
   if(key==='objectives'){ G.showObjs=!G.showObjs; return; }
+  if(key==='more'){
+    if(G.sleepShow||G.paused) return;
+    G.hudMore=!G.hudMore;
+    return;
+  }
+  if(G.hudMore) G.hudMore=0;
   if(G.sleepShow) return;
   if(G.paused) return;
   const p=player(); if(!p) return;
@@ -6130,7 +6221,8 @@ function fire(key){
     say((thrower.name||'PICK')+' hurls a pick. d20 vs AC.','#ffb45c'); }
   if(key==='rally'){ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.buff=8; e.hp=Math.min(e.maxhp,e.hp+30);
       burst(e.x,e.y,'#ffd27a',10,2);} }); ftext(p.x,p.y-.8,'RALLY','#ffd27a',1);
-    say('MACAR raises the hammer. The kin answer.','#ffd27a'); }
+    say('MACAR sounds Rally. Living kin heal 30 and hit harder for 8s.','#ffd27a');
+    hint('Rally: heal 30, +2 to hit, 1.5× damage for 8s.',3.4); }
 }
 
 /* ==========================================================================
@@ -9092,7 +9184,8 @@ function drawHUD(g){
 function drawPortraitStack(g,s){
   const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key))
     .filter(e=>e && (e.hero || e.ghost || e.crushed));
-  const x=8*s, y=8*s, w=PORT?152*s:188*s, gap=3*s;
+  const inset=UI.pad||{l:0,t:0};
+  const x=Math.max(8*s, inset.l+8), y=Math.max(8*s, inset.t+8), w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
   const h=Math.min(PORT?46*s:50*s, (avail-y)/Math.max(1,party.length)-gap);
   UI.portraitHits=[];
@@ -9139,7 +9232,8 @@ function drawPortraitStack(g,s){
 let MINI=null, MINI_KEY='';
 function drawMinimap(g,s){
   const L=G.lvl; if(!L) return;
-  const sz=PORT?88*s:96*s, x=VW-sz-10*s, y=8*s;
+  const inset=UI.pad||{r:0,t:0};
+  const sz=PORT?88*s:96*s, x=VW-sz-10*s-inset.r, y=Math.max(8*s, inset.t+8);
   carveFrame(g,x,y,sz,sz,6,.88);
   const p=player(); if(!p) return;
   const pad=7*s, inner=sz-pad*2, cell=inner/28, ox=x+sz/2-p.x*cell, oy=y+sz/2-p.y*cell;
@@ -9194,10 +9288,11 @@ function drawMinimap(g,s){
 function drawObjectives(g,s){
   const L=G.lvl; if(!L) return;
   UI.objHit=null; UI.objPanel=null;
+  const inset=UI.pad||{r:0,t:0};
   const w=PORT?132*s:160*s;
-  const x=VW-w-10*s;
+  const x=VW-w-10*s-inset.r;
   const miniH=PORT?88*s:96*s;
-  const y=8*s+miniH+6*s;
+  const y=Math.max(8*s, inset.t+8)+miniH+6*s;
   const linkH=28*s;
   const open=!!G.showObjs;
   const row=PORT?18*s:20*s;
@@ -9236,8 +9331,9 @@ function drawObjectives(g,s){
 }
 
 function drawLog(g,s){
+  const inset=UI.pad||{r:0};
   const w=Math.min(248*s, VW*0.46), h=PORT?92*s:104*s;
-  const x=VW-w-10*s;
+  const x=VW-w-10*s-inset.r;
   const y=Math.max(8*s, (UI.hudTop||VH-(PORT?96:94)*s)-h-8*s);
   carveFrame(g,x,y,w,h,6,.8);
   g.font='800 '+(10*s)+'px '+FONT_TITLE; g.fillStyle='rgba(232,217,184,0.9)';
@@ -9409,6 +9505,10 @@ function icon(g,kind,x,y,s,col){
     g.beginPath(); g.moveTo(-8.5*s,-1*s); g.quadraticCurveTo(0,1.5*s,8.5*s,-1*s); g.stroke();
     g.beginPath(); g.moveTo(-6*s,-8.5*s); g.quadraticCurveTo(-11*s,-2*s,-6*s,9*s); g.stroke();
     g.beginPath(); g.moveTo(6*s,-8.5*s); g.quadraticCurveTo(11*s,-2*s,6*s,9*s); g.stroke(); }
+  if(kind==='more'){
+    g.beginPath(); g.arc(-6.2*s,0,2.15*s,0,TAU); g.fill();
+    g.beginPath(); g.arc(0,0,2.15*s,0,TAU); g.fill();
+    g.beginPath(); g.arc(6.2*s,0,2.15*s,0,TAU); g.fill(); }
   if(kind==='cross'){ g.beginPath(); g.arc(0,0,11*s,0,TAU); g.stroke();
     g.fillRect(-2.2*s,-8*s,4.4*s,16*s); g.fillRect(-8*s,-2.2*s,16*s,4.4*s); }
   if(kind==='plant'){
@@ -9525,10 +9625,23 @@ function drawSlot(g,b,s){
 }
 
 function drawButtons(g,s){
+  if(G.hudMore && UI.overflowBox){
+    const box=UI.overflowBox;
+    carveFrame(g, box.x, box.y, box.w, box.h, 8, .94);
+    g.font='700 '+(9.5*s)+'px '+FONT_UI; g.textAlign='center';
+    g.fillStyle='#ffe08a';
+    g.fillText('Rally: war-horn  ·  heal 30  ·  harder hits 8s', box.x+box.w/2, box.y+16*s);
+    g.textAlign='left';
+  }
   for(const b of UIBTN){
+    if(b.overflow && !G.hudMore) continue;
     if(b.key==='pause'){ carveFrame(g,b.x-b.r,b.y-b.r,b.r*2,b.r*2,b.r*.4,.7);
       g.fillStyle='rgba(232,212,172,0.85)';
       g.fillRect(b.x-5*s,b.y-6*s,3.6*s,12*s); g.fillRect(b.x+1.6*s,b.y-6*s,3.6*s,12*s); continue; }
+    if(b.key==='more' && G.hudMore){
+      g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
+      roundPath(g,b.x-b.r-2.5*s,b.y-b.r-2.5*s,b.r*2+5*s,b.r*2+5*s,6); g.stroke();
+    }
     drawSlot(g,b,s);
   }
 }
@@ -9536,7 +9649,8 @@ function drawButtons(g,s){
 function drawOre(g,s){
   const show=RES.filter(r=>(G.res[r]||0)>0);
   if(!show.length) return;
-  const w=PORT?132*s:160*s, x=VW-w-10*s;
+  const inset=UI.pad||{r:0};
+  const w=PORT?132*s:160*s, x=VW-w-10*s-inset.r;
   const y=(UI.questBottom||((PORT?108*s:118*s)+40*s))+8*s;
   g.font='800 '+(PORT?9.5*s:11*s)+'px '+FONT_UI;
   show.slice(0,9).forEach((r,i)=>{
@@ -10817,20 +10931,41 @@ function drawCraft(g){
 
 function drawPause(g){
   menuHits=[]; const s=UIS; darken(g,.72);
-  bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
-  g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
+  bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
+  g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('D Defend  ·  1 Attack  ·  5 Rally  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F Herbs  ·  T Seams  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen',VW/2,VH*.31);
+  const keys='D Defend  ·  1 Attack  ·  5 Rally  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F Herbs  ·  T Seams  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
+  const maxW=VW*0.92; let ky=VH*.255;
+  const words=keys.split('  ·  '); let line='';
+  words.forEach((w,i)=>{
+    const next=line?line+'  ·  '+w:w;
+    if(g.measureText(next).width>maxW && line){ g.fillText(line,VW/2,ky); ky+=14*s; line=w; }
+    else line=next;
+    if(i===words.length-1 && line){ g.fillText(line,VW/2,ky); ky+=14*s; }
+  });
+  g.font='600 '+(PORT?9.5:10.5)*s+'px "Trebuchet MS",sans-serif';
+  g.fillStyle='rgba(255,208,124,0.92)';
+  const rallyNote='Rally (5 / More): war-horn — living kin heal 30 and hit harder for 8s (+2 to hit, 1.5× damage). 26s cooldown. Not a party-gather.';
+  let ry=ky+2*s, rline='';
+  rallyNote.split(' ').forEach((w,i,arr)=>{
+    const next=rline?rline+' '+w:w;
+    if(g.measureText(next).width>maxW && rline){ g.fillText(rline,VW/2,ry); ry+=13*s; rline=w; }
+    else rline=next;
+    if(i===arr.length-1 && rline){ g.fillText(rline,VW/2,ry); ry+=13*s; }
+  });
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
-  g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
+  g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2, ry+2*s);
   g.textAlign='left';
-  menuBtn(g,'Resume',VW/2,VH*.385,Math.min(230*s,VW*.66),38*s,()=>{G.paused=false;});
-  menuBtn(g,'Save game',VW/2,VH*.47,Math.min(230*s,VW*.66),38*s,()=>writeGameSave(), false, SPR.icon_save);
-  menuBtn(g,'Effects: '+gfxLabel(),VW/2,VH*.555,Math.min(230*s,VW*.66),36*s,()=>{cycleGfx();});
-  menuBtn(g,'Restart chapter',VW/2,VH*.64,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;startChapter(G.ch);});
-  menuBtn(g,'Chapters',VW/2,VH*.725,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;G.scene='chapters';});
-  menuBtn(g,'Credits',VW/2,VH*.81,Math.min(230*s,VW*.66),36*s,()=>openCredits('pause'));
+  const top=Math.min(VH*.42, ry+18*s);
+  const gap=PORT?0.075:0.078;
+  menuBtn(g,'Resume',VW/2,top,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;});
+  menuBtn(g,'Save game',VW/2,top+VH*gap,Math.min(230*s,VW*.66),36*s,()=>writeGameSave(), false, SPR.icon_save);
+  menuBtn(g,'Effects: '+gfxLabel(),VW/2,top+VH*gap*2,Math.min(230*s,VW*.66),34*s,()=>{cycleGfx();});
+  menuBtn(g,'Render passes',VW/2,top+VH*gap*3,Math.min(230*s,VW*.66),34*s,()=>{ if(typeof toggleDiagPanel==='function') toggleDiagPanel(); });
+  menuBtn(g,'Restart chapter',VW/2,top+VH*gap*4,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;startChapter(G.ch);});
+  menuBtn(g,'Chapters',VW/2,top+VH*gap*5,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Credits',VW/2,top+VH*gap*6,Math.min(230*s,VW*.66),34*s,()=>openCredits('pause'));
 }
 
 /* ---------------------------- tap resolution ---------------------------- */
@@ -10903,10 +11038,11 @@ try{
 render();
 requestAnimationFrame(loop);
 
-/* ===================== DIAGNOSTIC OVERLAY (⚑) =========================
-   Pure DOM, composited by the browser OUTSIDE the canvas. If the colour
-   lines appear across this panel too, the fault is not in the canvas
-   render code at all — it's the compositor or the GPU driver. */
+/* ===================== DIAGNOSTIC OVERLAY (pause / ?diag=1) ===============
+   Pure DOM, composited by the browser OUTSIDE the canvas. The old ⚑ button
+   lived at bottom-left on top of the movement stick; it is not drawn in play.
+   Open from Pause → Render passes, or load with ?diag=1. */
+let toggleDiagPanel=function(){};
 (function(){
   const PASSES=[
     ['world','World tiles'],['lighting','Lighting (multiply)'],
@@ -10918,13 +11054,11 @@ requestAnimationFrame(loop);
   ];
   const css=document.createElement('style');
   css.textContent=
-  '#dgBtn{position:fixed;left:8px;bottom:8px;z-index:99999;width:44px;height:44px;'+
-  'border-radius:22px;background:#1b1410;color:#ffcf7a;border:2px solid #6b4d28;'+
-  'font:700 20px/1 sans-serif;display:flex;align-items:center;justify-content:center;'+
-  'opacity:.55;-webkit-tap-highlight-color:transparent}'+
-  '#dgPanel{position:fixed;left:8px;right:8px;bottom:60px;z-index:99999;display:none;'+
+  '#dgPanel{position:fixed;left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));'+
+  'bottom:max(8px,env(safe-area-inset-bottom));z-index:99999;display:none;'+
   'background:rgba(13,10,8,.95);border:2px solid #6b4d28;border-radius:10px;padding:10px;'+
-  'color:#e8d9bd;font:12px/1.35 ui-monospace,monospace;max-height:70vh;overflow:auto}'+
+  'color:#e8d9bd;font:12px/1.35 ui-monospace,monospace;max-height:70vh;overflow:auto;'+
+  'pointer-events:auto}'+
   '#dgPanel h4{margin:0 0 6px;color:#ffcf7a;font-size:12px;letter-spacing:.08em}'+
   '#dgRead{white-space:pre;color:#9fd6a0;margin-bottom:8px;font-size:11px}'+
   '#dgPanel label{display:flex;align-items:center;gap:8px;padding:5px 2px;'+
@@ -10932,13 +11066,12 @@ requestAnimationFrame(loop);
   '#dgPanel input{width:18px;height:18px;accent-color:#c8912f}'+
   '#dgRow{display:flex;gap:6px;margin-top:8px}'+
   '#dgPanel button{flex:1;background:#241a12;color:#ffcf7a;border:1px solid #6b4d28;'+
-  'border-radius:6px;padding:8px;font:600 12px sans-serif}';
+  'border-radius:6px;padding:8px;font:600 12px sans-serif;min-height:44px}';
   document.head.appendChild(css);
 
-  const btn=document.createElement('div'); btn.id='dgBtn'; btn.textContent='\u2691';
   const pan=document.createElement('div'); pan.id='dgPanel';
   pan.innerHTML='<h4>RENDER PASS DIAGNOSTIC</h4><div id="dgRead"></div>';
-  document.body.appendChild(btn); document.body.appendChild(pan);
+  document.body.appendChild(pan);
 
   const KEYS=PASSES.map(p=>p[0]).concat(['smooth','dpr2']);
   const mk=(key,label,after)=>{
@@ -10955,7 +11088,8 @@ requestAnimationFrame(loop);
   const row=document.createElement('div'); row.id='dgRow';
   const bAll=document.createElement('button'); bAll.textContent='All on';
   const bMin=document.createElement('button'); bMin.textContent='World only';
-  row.appendChild(bAll); row.appendChild(bMin); pan.appendChild(row);
+  const bClose=document.createElement('button'); bClose.textContent='Close';
+  row.appendChild(bAll); row.appendChild(bMin); row.appendChild(bClose); pan.appendChild(row);
   const sync=function(){
     const ins=pan.querySelectorAll('input');
     for(let n=0;n<ins.length;n++) ins[n].checked=!!DIAG[KEYS[n]];
@@ -10964,8 +11098,14 @@ requestAnimationFrame(loop);
     PASSES.forEach(function(p){DIAG[p[0]]=1;}); DIAG.smooth=1; sync(); resize(true);});
   bMin.addEventListener('click',function(){
     PASSES.forEach(function(p){DIAG[p[0]]=0;}); DIAG.world=1; DIAG.hud=1; sync();});
-  btn.addEventListener('click',function(){
-    pan.style.display = (pan.style.display==='block') ? 'none' : 'block';});
+  toggleDiagPanel=function(force){
+    const on=force===true?true:force===false?false:pan.style.display!=='block';
+    pan.style.display=on?'block':'none';
+  };
+  bClose.addEventListener('click',function(){ toggleDiagPanel(false); });
+
+  const wantDiag=/[?&#]diag=1\b/.test((location.search||'')+(location.hash||''));
+  if(wantDiag) toggleDiagPanel(true);
 
   const read=document.getElementById('dgRead');
   setInterval(function(){
