@@ -1761,10 +1761,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 const CRUSH_SPOTS={
   // Open floor west of Macar (20.5, 22). Spread so four named bodies do not stack.
   // Chapter I raises all four: Pordum, Fendur, Orbo, and Talpor. Kit rides with each ghost.
-  pordoom:{x:19.15,y:20.35,seed:3,stone:0.52,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.10,y:0.22}},
-  fendur:{x:17.55,y:21.20,seed:11,stone:0.50,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.08,y:0.20}},
-  orbo:{x:19.35,y:23.45,seed:19,stone:0.52,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.12,y:0.24}},
-  talpor:{x:17.65,y:23.90,seed:7,stone:0.50,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.09,y:0.21}}
+  pordoom:{x:19.15,y:20.35,seed:3,stone:0.28,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.10,y:0.22}},
+  fendur:{x:17.55,y:21.20,seed:11,stone:0.26,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.08,y:0.20}},
+  orbo:{x:19.35,y:23.45,seed:19,stone:0.28,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.12,y:0.24}},
+  talpor:{x:17.65,y:23.90,seed:7,stone:0.26,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.09,y:0.21}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -2245,8 +2245,8 @@ function makeChapter(n){
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.28,y:s.y+0.36,k:'rubble',s:0.48,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed,40)});
-      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.40,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed,51)});
+      G.props.push({x:s.x-0.32,y:s.y+0.38,k:'boulder',s:0.28,seed:s.seed+40,cover:1,spr:'boulder'});
+      G.props.push({x:s.x+0.36,y:s.y+0.32,k:'boulder',s:0.24,seed:s.seed+51,cover:1,spr:'boulder2'});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -3251,14 +3251,10 @@ function blitCrushRock(g, key, dx, dy, h){
   g.restore();
 }
 function drawKinRubbleOverlay(g,e,z,dwarfH){
-  const seed=(e.col&&CRUSH_SPOTS[e.col.key]&&CRUSH_SPOTS[e.col.key].seed)||e.id||1;
-  const sprA=startRubbleSpr(seed, 40);
-  const sprB=startRubbleSpr(seed, 51);
-  const sprC=(CRUSH_SPOTS[e.col&&e.col.key]&&CRUSH_SPOTS[e.col.key].spr)||'boulder';
-  /* Legs and hips only — head, beard, and torso stay readable. */
-  blitCrushRock(g, sprA, -16*z, 14*z, dwarfH*0.34);
-  blitCrushRock(g, sprB, 15*z, 12*z, dwarfH*0.28);
-  blitCrushRock(g, sprC, 1*z, 18*z, dwarfH*0.24);
+  /* Single stones on the legs — the rubble-pile sheet reads as a full mound
+     and hid the dwarf. Head, beard, and torso stay in the open. */
+  blitCrushRock(g, 'boulder', -18*z, 16*z, dwarfH*0.22);
+  blitCrushRock(g, 'boulder2', 17*z, 14*z, dwarfH*0.20);
 }
 function drawCrushCover(g){
   const pal=(G.lvl&&G.lvl.pal)||null;
