@@ -3499,7 +3499,7 @@ function ftext(x,y,txt,c,big,kind){
   const n=G.texts.filter(t=>Math.hypot(t.ox-x,t.oy-y)<0.45).length;
   const ox=kind==='miss'?-0.42:(kind==='dmg'?0.16:0);
   const oy=n*0.38;
-  G.texts.push({x:x+ox,y:y-oy,ox:x,oy:y,txt,c,kind,life:kind==='dmg'?1.2:.95,big:!!big||kind==='dmg'});
+  G.texts.push({x:x+ox,y:y-oy,ox:x,oy:y,txt,c,kind,life:kind==='dmg'?1.65:kind==='miss'?1.35:.95,big:!!big||kind==='dmg'});
 }
 
 
@@ -7046,10 +7046,10 @@ function drawGrain(g){
 
 function drawFloaters(g){
   for(const t of G.texts){
-    const s=w2s(t.x,t.y); g.globalAlpha=clamp(t.life/(t.kind==='dmg'?1.2:.95),0,1);
-    const px=t.kind==='dmg'?28:t.kind==='miss'?20:(t.big?23:16);
+    const s=w2s(t.x,t.y); g.globalAlpha=clamp(t.life/(t.kind==='dmg'?1.65:t.kind==='miss'?1.35:.95),0,1);
+    const px=t.kind==='dmg'?32:t.kind==='miss'?22:(t.big?23:16);
     g.font='800 '+(px*ZOOM)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-    g.lineWidth=(t.kind==='dmg'?4.4:3.6)*ZOOM; g.strokeStyle='rgba(0,0,0,0.85)';
+    g.lineWidth=(t.kind==='dmg'?5.2:3.8)*ZOOM; g.strokeStyle='rgba(0,0,0,0.88)';
     g.strokeText(t.txt,s.x,s.y-50*ZOOM); g.fillStyle=t.c; g.fillText(t.txt,s.x,s.y-50*ZOOM);
     g.textAlign='left'; g.globalAlpha=1;
   }
@@ -7637,8 +7637,8 @@ function drawEnt(g,e){
     g.strokeStyle='rgba(255,140,110,'+(b*0.5)+')'; g.lineWidth=1.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
   }
-  if(!e.dead && e.team==='foe' && e.atk>0){
-    const winding=attackProgress(e)<0.55;
+  if(!e.dead && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
+    const winding=e.atk>0?attackProgress(e)<0.55:true;
     const b=.50+Math.sin(G.elapsed*9)*.28;
     g.strokeStyle='rgba(255,72,48,'+(winding?b:b*0.42)+')';
     g.lineWidth=(winding?3.4:1.8)*ZOOM;
@@ -9495,7 +9495,9 @@ function drawSlot(g,b,s){
     g.fillStyle='rgba(244,226,186,0.92)'; g.fillText(Math.ceil(cds[ab.key]),b.x,b.y+4*s); g.textAlign='left';
   }
   if(b.key==='craft' && !atForge){
-    g.fillStyle='rgba(8,5,3,0.52)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
+    g.fillStyle='rgba(8,5,3,0.62)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
+    g.font='800 '+(8*s)+'px '+FONT_UI; g.textAlign='center';
+    g.fillStyle='rgba(200,170,120,0.9)'; g.fillText('ANVIL', b.x, b.y+4*s); g.textAlign='left';
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();

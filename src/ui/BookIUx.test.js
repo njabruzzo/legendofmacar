@@ -26,8 +26,8 @@ assert(/drawLog\(g,s\)/.test(html.match(/function drawHUD\(g\)\{[\s\S]*?\n\}/)[0
 assert(/say\(line, hit\?'#ff6a5a':'#9a8a78', 'combat'\)/.test(html), 'to-hit lines go to the combat log');
 assert(/ftext\(def\.x,def\.y,'MISS'/.test(html), 'miss numbers are a distinct MISS floater');
 assert(/ftext\(e\.x,e\.y,'-'\+amt[\s\S]*?'dmg'\)/.test(html), 'damage numbers are tagged dmg');
-assert(/t\.kind==='dmg'\?28/.test(html), 'damage floaters draw larger than miss/to-hit');
-assert(/e\.team==='foe' && e\.atk>0/.test(html), 'foes telegraph with a wind-up ring while e.atk is up');
+assert(/t\.kind==='dmg'\?32/.test(html), 'damage floaters draw larger than miss/to-hit');
+assert(/e\.team==='foe' && \(e\.atk>0 || \(e\.engaged && e\.ct>0 && e\.ct<0\.4\)\)/.test(html), 'foes telegraph with a wind-up ring while e.atk is up');
 
 assert(/atForge/.test(html) && /nearestCraftStation\(player\(\),1\.7\)/.test(html), 'Craft dims unless Macar is at the station');
 assert(/G\.craftGuide/.test(html) && /G\.craftGuideT/.test(html), 'Craft far from the anvil points a guide arrow');
