@@ -20,7 +20,10 @@ const labels=[...block.matchAll(/label:'([^']+)'/g)].map(m=>m[1]);
 assert(labels.includes('Herbs') && labels.includes('Seams'), 'herb-search and secret-search have unique names');
 assert(!labels.some((n,i)=>n==='Search'&&labels.indexOf(n)!==i) && !labels.includes('Search'), 'HUD no longer has two Search labels');
 assert(new Set(labels).size===labels.length, 'HUD verb labels are unique');
-assert(/key:'rally'/.test(block) && /label:'Rally'/.test(block), 'Rally is on the HUD bar');
+assert(/key:'rally'/.test(block) && /label:'Rally'/.test(block), 'Rally still exists as a HUD skill');
+assert(/HUD_OVERFLOW=\{rally:1\}/.test(html), 'Rally is overflow on mobile, not a primary-bar mystery verb');
+assert(/HUD_TAP=44/.test(html), 'mobile tap target floor is 44px');
+assert(/key:'more'/.test(html) && /label:'More'/.test(html), 'mobile overflow More control exists');
 
 assert(/drawLog\(g,s\)/.test(html.match(/function drawHUD\(g\)\{[\s\S]*?\n\}/)[0]), 'drawHUD actually paints the combat log');
 assert(/say\(line, hit\?'#ff6a5a':'#9a8a78', 'combat'\)/.test(html), 'to-hit lines go to the combat log');
