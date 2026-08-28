@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=56">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=56">
-<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=56" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=57" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{--sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);
@@ -26,8 +26,8 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<audio id="bgm" autoplay loop playsinline preload="auto" src="assets/music/SongOfTheForge.mp3?v=56"></audio>
 <script src="SkillSystem.js"></script>
+<script src="src/audio/Bgm.js"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
 <script src="src/packs/EquipmentSlots.js"></script>
@@ -324,7 +324,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='56';
+const ASSET_VER='57';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -335,15 +335,25 @@ function assetUrl(src){
 /* ---------------------------- looping BGM ---------------------------- */
 const MUSIC={
   title:'assets/music/SongOfTheForge.mp3',
+  chapter:'assets/music/TheDistantSun.mp3',
   ch1:'assets/music/TheCave.mp3',
   ch2:'assets/music/Dungeon_1.mp3',
-  battle:'assets/music/SongOfTheForge.mp3'
+  battle:'assets/music/Goliath.mp3'
 };
 const MUSIC_CREDITS=[
-  {use:'Title screen and battle', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
-  {use:'Chapter I', title:'The Cave', owner:'HitCtrl', extra:'RPG \u2014 The Cave (Ambient)', license:'CC-BY (credit HitCtrl)'},
-  {use:'Chapter II', title:'Dungeon_01', owner:'Beau Buckley', extra:'Emberstorm Music Collection', license:'CC BY-SA 4.0'}
+  {use:'Title screen', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
+  {use:'Chapter screens', title:'The Distant Sun', owner:'Scott Buckley', extra:'Monomyth  \u00b7  www.scottbuckley.com.au', license:'CC BY 4.0'},
+  {use:'Chapter I dungeon', title:'The Cave', owner:'HitCtrl', extra:'RPG \u2014 The Cave (Ambient)', license:'CC-BY (credit HitCtrl)'},
+  {use:'Chapter II+ dungeon', title:'Dungeon_01', owner:'Beau Buckley', extra:'Emberstorm Music Collection', license:'CC BY-SA 4.0'},
+  {use:'Combat', title:'Goliath', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'}
 ];
+const MUSIC_LABEL={
+  title:'Music: Song of the Forge \u2014 Scott Buckley',
+  chapter:'Music: The Distant Sun \u2014 Scott Buckley',
+  ch1:'Music: The Cave \u2014 HitCtrl',
+  ch2:'Music: Dungeon_01 \u2014 Beau Buckley',
+  battle:'Music: Goliath \u2014 Scott Buckley'
+};
 function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
 function leaveCredits(){
   const from=G.creditsFrom||'title';
@@ -351,75 +361,21 @@ function leaveCredits(){
   if(from==='pause'){ G.scene='play'; G.paused=true; }
   else G.scene=from;
 }
-let musicEl=null, musicKey=null, musicUnlocked=true, musicRetryAt=0, musicPlayP=null;
-function musicIsPlaying(){
-  return !!(musicEl && !musicEl.paused && !musicEl.ended);
-}
-function ensureMusic(){
-  if(musicEl) return musicEl;
-  musicEl=document.getElementById('bgm')||new Audio();
-  musicEl.loop=true;
-  musicEl.preload='auto';
-  musicEl.playsInline=true;
-  musicEl.setAttribute('playsinline','');
-  musicEl.setAttribute('webkit-playsinline','');
-  musicEl.autoplay=true;
-  musicEl.volume=0.55;
-  musicEl.addEventListener('canplay', tryPlayMusic);
-  musicEl.addEventListener('canplaythrough', tryPlayMusic);
-  return musicEl;
-}
-function tryPlayMusic(){
-  if(!musicUnlocked || !musicEl || !musicEl.src) return;
-  if(musicIsPlaying() || musicPlayP) return;
-  musicPlayP=musicEl.play();
-  if(musicPlayP&&musicPlayP.then){
-    musicPlayP.then(()=>{ musicPlayP=null; }).catch(()=>{ musicPlayP=null; });
-  } else musicPlayP=null;
-}
-function unlockMusic(){
-  musicUnlocked=true;
-  ensureMusic();
-  tryPlayMusic();
-}
-function playMusic(key){
-  const src=MUSIC[key];
-  if(!src) return;
-  const el=ensureMusic();
-  const name=src.split('/').pop();
-  const already=el.currentSrc||el.src||'';
-  const same=already.indexOf(name)>=0;
-  if(musicKey===key && same){
-    if(!musicIsPlaying()) tryPlayMusic();
-    return;
-  }
-  musicKey=key;
-  if(same){ tryPlayMusic(); return; }
-  musicPlayP=null;
-  el.loop=true;
-  el.volume=0.55;
-  el.src=assetUrl(src);
-  try{ el.load(); }catch(_){}
-}
-function wantedMusic(){
-  if(!G || !G.scene) return 'title';
-  const sc=G.scene;
-  if(sc==='title' || sc==='chapters' || sc==='credits' || sc==='intro') return 'title';
-  if(sc==='play' && G.fightOn) return 'battle';
-  return (G.ch===1 || (G.lvl && G.lvl.n===1)) ? 'ch1' : 'ch2';
-}
+const bgm=Bgm.create({ tracks:MUSIC, assetUrl, volume:0.55, fadeSec:0.55 });
+bgm.installUnlock();
+function musicIsPlaying(){ return bgm.isPlaying(); }
+function unlockMusic(){ bgm.unlock(); }
+function playMusic(key){ bgm.play(key); }
+function wantedMusic(){ return Bgm.wanted(G); }
+function musicNowLabel(){ return MUSIC_LABEL[wantedMusic()]||MUSIC_LABEL.title; }
 function syncMusic(){
-  playMusic(wantedMusic());
-  if(musicUnlocked && musicEl && !musicIsPlaying() && G && G.t>=musicRetryAt){
-    musicRetryAt=G.t+1.6;
-    tryPlayMusic();
+  bgm.sync(G);
+  if(bgm.unlocked && !bgm.isPlaying() && G && G.t>=(syncMusic._retry||0)){
+    syncMusic._retry=G.t+1.6;
+    if(bgm.currentId) bgm.play(bgm.currentId, {force:true});
   }
 }
-['pointerdown','touchstart','mousedown','keydown','click'].forEach(ev=>{
-  window.addEventListener(ev, unlockMusic, {capture:true});
-});
-playMusic('title');
-tryPlayMusic();
+bgm.want('title');
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png',
   macar_axe:'assets/creatures/dwarf_macar_axe.png',
@@ -4365,7 +4321,6 @@ function savingThrow(e, kind){
 function beginFight(foe){
   G.fightOn=1;
   playMusic('battle');
-  tryPlayMusic();
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
   const pSur=pSeg<=(sneak?4:2), fSur=fSeg<=(sneak?1:2);
@@ -4408,7 +4363,10 @@ function beginFight(foe){
   }
 }
 function endFightIfClear(){
-  if(G.fightOn && !G.ents.some(e=>e.team==='foe'&&!e.dead)){
+  if(!G.fightOn) return;
+  const p=player();
+  const near=G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&p&&dist(e,p)<11);
+  if(!near){
     G.fightOn=0;
     syncMusic();
   }
@@ -9900,7 +9858,7 @@ function drawTitle(g){
   g.fillText('He went down a miner. Something else came back up.', VW/2, VH*(PORT?0.195:0.215));
   g.font='600 '+((PORT?8.5:10)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.68)';
-  g.fillText(musicIsPlaying()?'Music: Song of the Forge \u2014 Scott Buckley':'Click anywhere to hear the music', VW/2, VH*(PORT?0.218:0.242));
+  g.fillText(musicIsPlaying()?musicNowLabel():'Click anywhere to hear the music', VW/2, VH*(PORT?0.218:0.242));
   g.globalAlpha=1;
   const bw=Math.min(300*s, VW*.64);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
@@ -9946,24 +9904,25 @@ function drawCredits(g){
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
   g.fillStyle='rgba(232,196,120,0.84)';
-  g.fillText('M U S I C', VW/2, VH*.145);
+  g.fillText('M U S I C', VW/2, VH*.132);
   const rows=MUSIC_CREDITS;
-  const top=VH*.18, bot=VH-72*s;
+  const top=VH*.155, bot=VH-68*s;
   const slot=(bot-top)/rows.length;
+  const compact=slot<88*s;
   rows.forEach((r,i)=>{
-    const y=top+i*slot+slot*0.38;
-    g.font='600 '+(10*s)+'px '+FONT_UI;
+    const y=top+i*slot+slot*(compact?0.42:0.38);
+    g.font='600 '+((compact?8:10)*s)+'px '+FONT_UI;
     g.fillStyle='rgba(160,140,110,0.72)';
-    g.fillText(r.use, VW/2, y-18*s);
-    g.font='800 '+(15*s)+'px '+FONT_TITLE;
+    g.fillText(r.use, VW/2, y-(compact?12:16)*s);
+    g.font='800 '+((compact?13:15)*s)+'px '+FONT_TITLE;
     g.fillStyle='#ffe9c0';
     g.fillText(r.title, VW/2, y);
-    g.font='700 '+(13*s)+'px '+FONT_UI;
+    g.font='700 '+((compact?10:12)*s)+'px '+FONT_UI;
     g.fillStyle='#e8c478';
-    g.fillText('Owner: '+r.owner, VW/2, y+20*s);
-    g.font='600 '+(10*s)+'px '+FONT_UI;
+    g.fillText('Owner: '+r.owner, VW/2, y+(compact?14:18)*s);
+    g.font='600 '+((compact?8.5:10)*s)+'px '+FONT_UI;
     g.fillStyle='rgba(190,170,130,0.75)';
-    g.fillText(r.extra+'  \u00b7  '+r.license, VW/2, y+36*s);
+    g.fillText(r.extra+'  \u00b7  '+r.license, VW/2, y+(compact?26:32)*s);
   });
   g.textAlign='left';
   menuBtn(g,'Back',VW/2,VH-36*s,Math.min(180*s,VW*.5),42*s,()=>leaveCredits());
@@ -9981,6 +9940,9 @@ function drawChapterSelect(g){
   g.fillStyle='rgba(232,196,120,0.88)';
   g.fillText('B O O K   O N E', VW/2, VH*0.072);
   bigTitle(g,'CHAPTERS', VH*0.118, (PORT?22:30)*s);
+  g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(160,140,110,0.7)';
+  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*0.142);
   g.textAlign='left';
   const nums=['I','II','III','IV','V'];
   const gap=10*s;
@@ -10043,6 +10005,9 @@ function drawIntro(g){
   g.fillText((L.title||('Chapter '+L.n)).toUpperCase(),VW/2,VH*0.085);
   drawGoldRule(g, VW/2, VH*0.102, 180*s);
   bigTitle(g,L.sub,VH*(PORT?0.16:0.175),(PORT?24:34)*s);
+  g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(160,140,110,0.7)';
+  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*(PORT?0.195:0.208));
   const fl={
     1:'The tunnel is choked with rubble. Pordum, Fendur, Orbo and Talpor lie dead under the stones.',
     2:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
@@ -10955,7 +10920,7 @@ function drawPause(g){
   });
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
-  g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2, ry+2*s);
+  g.fillText(musicNowLabel(),VW/2, ry+2*s);
   g.textAlign='left';
   const top=Math.min(VH*.42, ry+18*s);
   const gap=PORT?0.075:0.078;
