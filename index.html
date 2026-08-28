@@ -2245,9 +2245,8 @@ function makeChapter(n){
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.16,y:s.y+0.28,k:'rubble',s:0.82,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed,40)});
-      G.props.push({x:s.x+0.26,y:s.y+0.18,k:'rubble',s:0.68,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed,51)});
-      G.props.push({x:s.x+0.04,y:s.y+0.34,k:'boulder',s:0.46,seed:s.seed+62,cover:1,spr:s.spr||'boulder'});
+      G.props.push({x:s.x-0.28,y:s.y+0.36,k:'rubble',s:0.48,seed:s.seed+40,cover:1,spr:startRubbleSpr(s.seed,40)});
+      G.props.push({x:s.x+0.34,y:s.y+0.30,k:'rubble',s:0.40,seed:s.seed+51,cover:1,spr:startRubbleSpr(s.seed,51)});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -3224,14 +3223,25 @@ function drawCrushedKin(g,e){
   }
   drawKinRubbleOverlay(g, e, z, dwarfH);
   g.restore();
-  g.font='800 '+(11*z)+'px '+FONT_TITLE;
-  g.textAlign='center';
-  const tag=e.name||'Kin';
-  g.lineWidth=4*z; g.strokeStyle='rgba(0,0,0,0.92)';
-  g.strokeText(tag, s.x, s.y-28*z);
-  g.fillStyle='#ffe7b8';
-  g.fillText(tag, s.x, s.y-28*z);
+}
+function drawFallenKinLabels(g){
+  g.save();
+  g.globalCompositeOperation='source-over';
+  g.globalAlpha=1;
+  for(const e of (G.ents||[])){
+    if(!e.crushed || e.ghost) continue;
+    const s=w2s(e.x,e.y);
+    const z=ZOOM*Math.max(1, e.scale||1);
+    g.font='800 '+(11*z)+'px '+FONT_TITLE;
+    g.textAlign='center';
+    const tag=e.name||'Kin';
+    g.lineWidth=4*z; g.strokeStyle='rgba(0,0,0,0.92)';
+    g.strokeText(tag, s.x, s.y-36*z);
+    g.fillStyle='#ffe7b8';
+    g.fillText(tag, s.x, s.y-36*z);
+  }
   g.textAlign='left';
+  g.restore();
 }
 function blitCrushRock(g, key, dx, dy, h){
   const img=SPR[key]||SPR.rubble||SPR.rubble2||SPR.boulder||SPR.boulder2;
@@ -3245,10 +3255,10 @@ function drawKinRubbleOverlay(g,e,z,dwarfH){
   const sprA=startRubbleSpr(seed, 40);
   const sprB=startRubbleSpr(seed, 51);
   const sprC=(CRUSH_SPOTS[e.col&&e.col.key]&&CRUSH_SPOTS[e.col.key].spr)||'boulder';
-  /* Lower body and hips — leave the head and name tag clear so they still read. */
-  blitCrushRock(g, sprA, -12*z, 10*z, dwarfH*0.58);
-  blitCrushRock(g, sprB, 14*z, 6*z, dwarfH*0.46);
-  blitCrushRock(g, sprC, 2*z, 16*z, dwarfH*0.40);
+  /* Legs and hips only — head, beard, and torso stay readable. */
+  blitCrushRock(g, sprA, -16*z, 14*z, dwarfH*0.34);
+  blitCrushRock(g, sprB, 15*z, 12*z, dwarfH*0.28);
+  blitCrushRock(g, sprC, 1*z, 18*z, dwarfH*0.24);
 }
 function drawCrushCover(g){
   const pal=(G.lvl&&G.lvl.pal)||null;
@@ -6687,6 +6697,7 @@ function render(){
     ctx.globalAlpha=1;
     drawFallenKin(ctx);
     drawCrushCover(ctx);
+    drawFallenKinLabels(ctx);
   }
   if(DIAG.flash && G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   if(DIAG.hurt && G.hurt>0.02){

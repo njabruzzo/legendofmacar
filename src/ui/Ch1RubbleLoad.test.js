@@ -17,8 +17,9 @@ assert(/cover:1/.test(html) && /drawCrushCover/.test(html),
   'crush spots spawn cover rubble drawn over the fallen kin');
 assert(/drawKinRubbleOverlay/.test(html) && /blitCrushRock/.test(html),
   'each crushed body paints rubble/boulder sprites over the lower torso');
-assert(/drawFallenKin\(ctx\)/.test(html) && /drawCrushCover\(ctx\)/.test(html),
-  'cover stones paint after the bodies so kin are buried, not lying on top');
+assert(/drawFallenKin\(ctx\)/.test(html) && /drawCrushCover\(ctx\)/.test(html)
+  && /drawFallenKinLabels\(ctx\)/.test(html),
+  'cover stones paint after the bodies; names paint last so they stay readable');
 assert(/pordoom_dead/.test(html) && /fendur_dead/.test(html)
   && /orbo_dead/.test(html) && /talpor_dead/.test(html),
   'all four named dead sheets still exist');
