@@ -2,6 +2,8 @@ Legend of Macar — music credits
 ================================
 
 Each track is listed with its owner (composer / rights holder).
+All new files are CC-BY 4.0 (Scott Buckley) or already-cleared Macar tracks.
+No commercial OSTs.
 
 Song of the Forge
   Owner: Scott Buckley
@@ -9,15 +11,22 @@ Song of the Forge
   License: CC BY 4.0
   https://creativecommons.org/licenses/by/4.0/
   File: assets/music/SongOfTheForge.mp3
-  Used on the title / starting screen (starts on launch),
-  and again when a battle begins (fight music).
+  Used on the title screen (starts after the first tap; browsers block silent autoplay).
+
+The Distant Sun
+  Owner: Scott Buckley
+  Album: Monomyth
+  https://www.scottbuckley.com.au/library/the-distant-sun/
+  License: CC BY 4.0
+  File: assets/music/TheDistantSun.mp3
+  Used on chapter screens (chapter select, intro splash, camp, between, win).
 
 The Cave (Ambient)
   Owner: HitCtrl
   Source: OpenGameArt.org — "RPG - The Cave (Ambient)"
   License: credit HitCtrl
   File: assets/music/TheCave.mp3
-  Used during Chapter I (first level).
+  Used during Chapter I dungeon exploration (one loop for the whole level; does not restart per room).
 
 Dungeon_01
   Owner: Beau Buckley
@@ -26,4 +35,12 @@ Dungeon_01
   License: CC BY-SA 4.0
   https://creativecommons.org/licenses/by-sa/4.0/
   File: assets/music/Dungeon_1.mp3 (converted from the published OGG)
-  Used during Chapter II (second level) and later floors.
+  Used during Chapter II and later floors (one loop per level; does not restart per room).
+
+Goliath
+  Owner: Scott Buckley
+  https://www.scottbuckley.com.au/library/goliath/
+  License: CC BY 4.0
+  File: assets/music/Goliath.mp3
+  Used when combat starts. Distinct from the title theme. When the fight
+  ends (foes down or fled), dungeon music resumes from the saved seek.
