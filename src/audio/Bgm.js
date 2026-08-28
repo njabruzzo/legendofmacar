@@ -186,6 +186,12 @@
 
   Bgm.prototype.isPlaying = function () {
     var i, s;
+    if (this._stinging) {
+      if (this._sting && this._sting.el) {
+        if (!this._sting.el.paused && !this._sting.el.ended) return true;
+      } else if (this._sting && !this._sting.paused && !this._sting.ended) return true;
+      return true;
+    }
     for (i = 0; i < this.slots.length; i++) {
       s = this.slots[i];
       if (s.el && !s.el.paused && !s.el.ended) return true;
@@ -499,6 +505,21 @@
     if (this._sting) {
       try { this._sting.pause(); } catch (_) {}
     }
+    if (this._stingGain) this._ramp(this._stingGain, 0, 0.08);
+  };
+
+  Bgm.prototype._wireSting = function () {
+    if (this._stingNode || !this.ctx || !this._sting) return;
+    try {
+      this._stingNode = this.ctx.createMediaElementSource(this._sting);
+      this._stingGain = this.ctx.createGain();
+      this._stingGain.gain.value = 1;
+      this._stingNode.connect(this._stingGain);
+      if (this.master) this._stingGain.connect(this.master);
+    } catch (e) {
+      this._stingNode = null;
+      this._stingGain = null;
+    }
   };
 
   Bgm.prototype.playSting = function (id, opts) {
@@ -518,13 +539,17 @@
     var i, s;
     for (i = 0; i < this.slots.length; i++) {
       s = this.slots[i];
-      if (s.gain) this._ramp(s.gain, 0.06, 0.16);
+      if (s.gain) this._ramp(s.gain, 0, 0.12);
     }
     if (!this._sting) {
       this._sting = this._makeEl();
     }
     var el = this._sting;
     el.loop = false;
+    this._wireSting();
+    if (this._stingGain) {
+      try { this._stingGain.gain.value = 1; } catch (_) {}
+    }
     var url = this.assetUrl(src);
     el.src = url;
     try { el.load(); } catch (_) {}
@@ -539,6 +564,7 @@
         self._stingTimer = 0;
       }
       try { el.pause(); } catch (_) {}
+      if (self._stingGain) self._ramp(self._stingGain, 0, 0.08);
       try {
         if (opts.onEnd) opts.onEnd();
         else if (self._lastG) self.sync(self._lastG);
@@ -548,15 +574,21 @@
     };
     if (typeof el.addEventListener === 'function') {
       el.addEventListener('ended', done, { once: true });
+      el.addEventListener('canplay', function () {
+        if (finished || gen !== self._stingGen) return;
+        if (!el.paused && !el.ended) return;
+        var rp;
+        try { rp = el.play(); } catch (_) { return; }
+        if (rp && rp.then) rp.catch(function () {});
+      }, { once: true });
     }
     var ms = opts.ms || (id === 'bossWin' ? 7800 : 2300);
     this._stingTimer = setTimeout(done, ms + 240);
     var p;
     try { p = el.play(); } catch (e) {
-      done();
       return true;
     }
-    if (p && p.then) p.catch(function () { done(); });
+    if (p && p.then) p.catch(function () {});
     return true;
   };
 
@@ -574,6 +606,9 @@
       try { if (s.el) s.el.pause(); } catch (_) {}
       s.playP = null;
     }
+    if (this._sting) {
+      try { this._sting.pause(); } catch (_) {}
+    }
     if (this.ctx && this.ctx.suspend) {
       try { this.ctx.suspend(); } catch (_) {}
     }
@@ -583,6 +618,12 @@
     if (!this.pausedByBlur) return;
     this.pausedByBlur = false;
     this._resumeCtx();
+    if (this._stinging && this._sting) {
+      var sp;
+      try { sp = this._sting.play(); } catch (_) {}
+      if (sp && sp.then) sp.catch(function () {});
+      return;
+    }
     if (this.currentId && this.unlocked) {
       var slot = this._slotById(this.currentId);
       if (slot) this._startEl(slot);

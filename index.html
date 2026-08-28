@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='60';
+const ASSET_VER='61';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -385,6 +385,7 @@ function wantedMusic(){ return Bgm.wanted(G); }
 function musicNowLabel(){ return MUSIC_LABEL[wantedMusic()]||MUSIC_LABEL.title; }
 function syncMusic(){
   bgm.sync(G);
+  if(bgm._stinging) return;
   if(bgm.unlocked && !bgm.isPlaying() && G && G.t>=(syncMusic._retry||0)){
     syncMusic._retry=G.t+1.6;
     if(bgm.currentId) bgm.play(bgm.currentId, {force:true});
@@ -1228,6 +1229,34 @@ function wantsBackView(e){
   if(e.team==='party' && e.ghost && p && p.defending) return true;
   return ((e.fdx||0)+(e.fdy||0)) < -0.42;
 }
+/* Party dwarf sheets are painted facing iso SW (screen-left / A).
+   World +x is screen SE, +y is screen SW; headingSX = ix-iy (positive = screen-right).
+   Canvas scale(-1,1) when heading disagrees with the sheet's native face. */
+const DWARF_FACE_SX={
+  macar:-1, macar_axe:-1,
+  pordoom:-1, pordoom_ghost:-1,
+  fendur:-1, fendur_ghost:-1,
+  orbo:-1, orbo_ghost:-1,
+  talpor:-1, talpor_ghost:-1
+};
+function sheetFaceSX(k){
+  if(!k) return -1;
+  if(DWARF_FACE_SX[k]!=null) return DWARF_FACE_SX[k];
+  const base=String(k).replace(/_(w1|w2|atk|atk_recover|atk_bow|back|back_w1|back_w2|sleep)$/,'');
+  if(DWARF_FACE_SX[base]!=null) return DWARF_FACE_SX[base];
+  return -1;
+}
+function moveHeadingSX(e){
+  if(!e) return 0;
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return (e.ix||0)-(e.iy||0);
+  return (e.fdx||0)-(e.fdy||0);
+}
+function wantsSpriteFlip(e){
+  if(!e||e.crushed||e.dead) return false;
+  const heading=moveHeadingSX(e);
+  const native=sheetFaceSX(entSpriteKey(e));
+  return heading*native < -0.02;
+}
 function attackProgress(e){
   if(!e||!(e.atk>0)) return 0;
   return clamp(1-e.atk/Math.max(0.01,e.atkMax),0,1);
@@ -1746,7 +1775,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:null, macarGearReady:0,
-  fightOn:0, fightWasBoss:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
+  fightOn:0, fightWasBoss:0, fightGotKill:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[],
@@ -3057,13 +3086,13 @@ const CH_INTRO={
   1:{fl:'Your dwarf brothers were killed in the cave-in. The tunnel behind you collapsed. You are alone.',
      ask:''},
   2:{fl:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
-     ask:'You are MACAR. Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.'},
+     ask:'Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.'},
   3:{fl:'They kept working. Nobody told them to stop. The dead still walk.',
-     ask:'You are MACAR. Purple light. The stone sweats. Go on, into the ruin.'},
+     ask:'Purple light. The stone sweats. Go on, into the ruin.'},
   4:{fl:'Cut stone. Dwarf work. Very old. The water remembers the city.',
-     ask:'You are MACAR. Illithids hunt the drowned streets. Keep your head.'},
+     ask:'Illithids hunt the drowned streets. Keep your head.'},
   5:{fl:'Two brothers went in. One wore the crown out.',
-     ask:'You are MACAR. A brother\'s blood, still bright after nine hundred years.'}
+     ask:'A brother\'s blood, still bright after nine hundred years.'}
 };
 const CHAPTERS=[1,2,3,4,5];
 
@@ -3074,7 +3103,7 @@ function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
-  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.trail=[];
+  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
@@ -4435,6 +4464,7 @@ function savingThrow(e, kind){
 }
 function beginFight(foe){
   G.fightOn=1;
+  G.fightGotKill=0;
   G.fightWasBoss=!!(foe&&foe.boss)||(typeof Bgm!=='undefined'&&Bgm.livingBoss&&Bgm.livingBoss(G));
   if(bgm&&bgm.cancelSting) bgm.cancelSting();
   syncMusic();
@@ -4479,17 +4509,29 @@ function beginFight(foe){
     });
   }
 }
+function livingFightFoes(p){
+  p=p||player();
+  return (G.ents||[]).some(e=>{
+    if(!e||e.team!=='foe'||e.dead||e.npc) return false;
+    if(!p) return !!(e.engaged||e.boss);
+    const d=dist(e,p);
+    if(d<6.5) return true;
+    if((e.engaged||e.boss)&&d<12) return true;
+    return false;
+  });
+}
 function endFightIfClear(){
   if(!G.fightOn) return;
-  const p=player();
-  const near=G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&p&&dist(e,p)<11);
-  if(!near){
-    const bossWin=!!G.fightWasBoss;
-    G.fightOn=0;
-    G.fightWasBoss=0;
+  if(livingFightFoes()) return;
+  const bossWin=!!G.fightWasBoss;
+  const won=!!(G.fightGotKill||bossWin);
+  G.fightOn=0;
+  G.fightWasBoss=0;
+  G.fightGotKill=0;
+  if(won){
     const sting=bossWin?'bossWin':'packWin';
     if(!(bgm&&bgm.playSting&&bgm.playSting(sting))) syncMusic();
-  }
+  } else syncMusic();
 }
 
 const POTIONS=[
@@ -5398,6 +5440,7 @@ function damage(e,amt,col,src){
   if(e.hero) G.hurt=Math.min(1,G.hurt+amt/70);
   if(e.hp<=0){ e.dead=1; e.deadT=0;
     if(e.team==='foe'){ G.kills++;
+      if(G.fightOn) G.fightGotKill=1;
       awardPartyXp(monsterXpValue(e), e.name||'Foe', e);
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
@@ -7841,8 +7884,7 @@ function drawEnt(g,e){
     softShadow(g,1*z,3*z,22*z,10*z,0.55);
   }
 
-  const heading=(e.moving&&((e.ix||0)||(e.iy||0)))?((e.ix||0)-(e.iy||0)):(e.fdx-e.fdy);
-  const flip=!e.crushed && !e.dead && heading>0;
+  const flip=wantsSpriteFlip(e);
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
@@ -8722,7 +8764,7 @@ function initEconomy(){
   G.inspect=null;
   G.equipped=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.emptyEquipped)?EquipmentSlots.emptyEquipped():{weapon:null,armor:null,ring:null,wand:null};
   G.macarGearReady=0;
-  G.fightOn=0; G.carryEffects=G.carryEffects||[];
+  G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.carryEffects=G.carryEffects||[];
   G.borrowed=[];
   syncPackTotals();
 }
@@ -10219,7 +10261,7 @@ function drawIntro(g){
   }
   drawLetterbox(g, VH*0.22, VH*0.18, 0.70, 0.78);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
-  const pack=CH_INTRO[L.n]||{fl:'',ask:'You are MACAR.'};
+  const pack=CH_INTRO[L.n]||{fl:'',ask:''};
   const chTitle=(L.title||('Chapter '+L.n)).toUpperCase();
   const goldTitle=L.sub||((CH_META[L.n]&&CH_META[L.n].t)||'');
   const music=MUSIC_LABEL.chapter;

@@ -45,11 +45,15 @@ assert(/playSting\(sting\)/.test(html) && /bossWin/.test(html), 'combat-end play
 assert(/chapter:'assets\/music\/TheDistantSun\.mp3'/.test(html), 'chapter screens use The Distant Sun');
 assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Song of the Forge');
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
-assert(/function endFightIfClear/.test(html) && /dist\(e,p\)<11/.test(html),
-  'combat ends when nearby foes are gone (win or flee), not only when the whole floor is empty');
+assert(/function endFightIfClear/.test(html) && /function livingFightFoes/.test(html),
+  'combat ends when the current pack is gone, not only when the whole floor is empty');
+assert(/G\.fightGotKill/.test(html) && /won=\!\!\(G\.fightGotKill\|\|bossWin\)/.test(html),
+  'victory sting fires on last foe dead, not on a bloodless flee');
 const bgmSrc = fs.readFileSync(path.join(__dirname, 'Bgm.js'), 'utf8');
 assert(/visibilitychange/.test(bgmSrc), 'pauseOnBlur via visibilitychange');
 assert(/linearRampToValueAtTime/.test(bgmSrc), 'crossfade on the audio clock via GainNodes');
+assert(/_wireSting/.test(bgmSrc), 'victory sting is wired through the same Web Audio graph as BGM');
+assert(/_ramp\(s\.gain, 0, 0\.12\)/.test(bgmSrc), 'combat BGM ducks to silence so the sting can be heard');
 assert(!/createMediaElementSource[\s\S]{0,200}decodeAudioData/.test(bgmSrc),
   'streams HTMLAudio; does not decode the OST into RAM');
 assert(/_tryLaunchPlay/.test(bgmSrc) && /fromLaunch/.test(bgmSrc),
@@ -310,6 +314,7 @@ function fire(win, ev) {
   await flush();
   const started = held.playSting('packWin', { ms: 30, onEnd() { held.sync({ scene: 'play', ch: 1, fightOn: 0 }); } });
   assert(started && held._stinging, 'pack victory sting holds explore resume');
+  assert(held.isPlaying(), 'sting counts as audible so syncMusic does not restart Goliath over it');
   held.sync({ scene: 'play', ch: 1, fightOn: 0 });
   assert(held._stinging && held.currentId === 'battle', 'sync is a no-op during a victory sting');
   const ended = (held._sting && held._sting._listeners && held._sting._listeners.ended) || [];

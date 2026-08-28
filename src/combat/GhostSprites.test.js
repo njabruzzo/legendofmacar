@@ -27,6 +27,7 @@ assert(/macarKey=\(k==='macar'\|\|k==='macar_axe'\)/.test(html), 'living Macar b
 assert(/wantsMeleeRecover\(e\)\) && SPR\[k\+'_atk'\]/.test(html) || /\(wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\)/.test(html),
   'ghost combat holds a ghost attack pose through follow-through');
 assert(/pordoom_ghost_back_w1/.test(html) && /talpor_ghost_atk_recover/.test(html), 'ghost angled walk and recover keys preload');
+assert(/DWARF_FACE_SX/.test(html) && /wantsSpriteFlip/.test(html), 'ghost kin use the same facing table as Macar');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost sprite checks passed');
