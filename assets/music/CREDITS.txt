@@ -43,4 +43,25 @@ Goliath
   License: CC BY 4.0
   File: assets/music/Goliath.mp3
   Used when combat starts. Distinct from the title theme. When the fight
-  ends (foes down or fled), dungeon music resumes from the saved seek.
+  ends (foes down or fled), a short victory sting plays, then dungeon
+  music resumes from the saved seek.
+
+Terminus
+  Owner: Scott Buckley
+  https://www.scottbuckley.com.au/library/terminus/
+  License: CC BY 4.0
+  File: assets/music/Terminus.mp3
+  Used when a living boss is in the fight (Ruby Warden, Goblin King,
+  Spider Lord, named lords with e.boss). Distinct from Goliath.
+
+Pack victory sting
+  Owner: Scott Buckley
+  Source: short excerpt of Terminus (opening hit), adapted under CC BY 4.0
+  File: assets/music/PackVictory.mp3
+  Plays when a pack fight ends, then explore BGM resumes.
+
+Boss victory sting
+  Owner: Scott Buckley
+  Source: longer excerpt of Terminus (closing fanfare), adapted under CC BY 4.0
+  File: assets/music/BossVictory.mp3
+  Plays when a boss fight ends, then explore BGM resumes.

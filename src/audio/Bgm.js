@@ -15,9 +15,21 @@
   function roleOf(id) {
     if (id === 'title') return 'title';
     if (id === 'chapter') return 'menu';
-    if (id === 'battle') return 'combat';
+    if (id === 'battle' || id === 'boss') return 'combat';
+    if (id === 'packWin' || id === 'bossWin') return 'sting';
     if (EXPLORE_IDS[id]) return 'explore';
     return 'idle';
+  }
+
+  function livingBoss(G) {
+    var ents = G && G.ents;
+    if (!ents || !ents.length) return false;
+    var i, e;
+    for (i = 0; i < ents.length; i++) {
+      e = ents[i];
+      if (e && e.team === 'foe' && e.boss && !e.dead && !e.npc) return true;
+    }
+    return false;
   }
 
   function wanted(G) {
@@ -26,7 +38,7 @@
     if (sc === 'title' || sc === 'credits') return 'title';
     if (sc === 'chapters' || sc === 'intro' || sc === 'between' || sc === 'win' || sc === 'camp' || sc === 'dead' || sc === 'trade')
       return 'chapter';
-    if (G.fightOn) return 'battle';
+    if (G.fightOn) return livingBoss(G) ? 'boss' : 'battle';
     if (G.ch === 1 || (G.lvl && G.lvl.n === 1)) return 'ch1';
     return 'ch2';
   }
@@ -66,12 +78,18 @@
     this._installed = false;
     this._launchTried = false;
     this._muteTried = false;
+    this._stinging = false;
+    this._sting = null;
+    this._stingTimer = 0;
+    this._stingGen = 0;
+    this._lastG = null;
 
     this._ensureContext();
   }
 
   Bgm.wanted = wanted;
   Bgm.roleOf = roleOf;
+  Bgm.livingBoss = livingBoss;
   Bgm.FADE_SEC = FADE_SEC;
 
   Bgm.prototype._ensureContext = function () {
@@ -432,7 +450,7 @@
     if (nextRole === 'combat') this._captureExplore();
 
     var resumeSeek = opts.seek;
-    if (resumeSeek == null && this.currentId === 'battle' && nextRole === 'explore' &&
+    if (resumeSeek == null && roleOf(this.currentId) === 'combat' && nextRole === 'explore' &&
         id === this.exploreId && this.exploreSeek > 0.05) {
       resumeSeek = this.exploreSeek;
     }
@@ -466,7 +484,76 @@
   };
 
   Bgm.prototype.sync = function (G) {
+    this._lastG = G;
+    if (this._stinging) return;
     this.want(wanted(G));
+  };
+
+  Bgm.prototype.cancelSting = function () {
+    this._stingGen = (this._stingGen || 0) + 1;
+    this._stinging = false;
+    if (this._stingTimer) {
+      try { clearTimeout(this._stingTimer); } catch (_) {}
+      this._stingTimer = 0;
+    }
+    if (this._sting) {
+      try { this._sting.pause(); } catch (_) {}
+    }
+  };
+
+  Bgm.prototype.playSting = function (id, opts) {
+    opts = opts || {};
+    var src = this.tracks[id];
+    var self = this;
+    if (!src || !this._Audio) {
+      this.cancelSting();
+      if (opts.onEnd) opts.onEnd();
+      return false;
+    }
+    this.cancelSting();
+    var gen = this._stingGen;
+    this._stinging = true;
+    this._ensureContext();
+    this._resumeCtx();
+    var i, s;
+    for (i = 0; i < this.slots.length; i++) {
+      s = this.slots[i];
+      if (s.gain) this._ramp(s.gain, 0.06, 0.16);
+    }
+    if (!this._sting) {
+      this._sting = this._makeEl();
+    }
+    var el = this._sting;
+    el.loop = false;
+    var url = this.assetUrl(src);
+    el.src = url;
+    try { el.load(); } catch (_) {}
+    try { el.currentTime = 0; } catch (_) {}
+    var finished = false;
+    var done = function () {
+      if (finished || gen !== self._stingGen) return;
+      finished = true;
+      self._stinging = false;
+      if (self._stingTimer) {
+        try { clearTimeout(self._stingTimer); } catch (_) {}
+        self._stingTimer = 0;
+      }
+      try { el.pause(); } catch (_) {}
+      if (opts.onEnd) opts.onEnd();
+      else if (self._lastG) self.sync(self._lastG);
+    };
+    if (typeof el.addEventListener === 'function') {
+      el.addEventListener('ended', done, { once: true });
+    }
+    var ms = opts.ms || (id === 'bossWin' ? 7800 : 2300);
+    this._stingTimer = setTimeout(done, ms + 240);
+    var p;
+    try { p = el.play(); } catch (e) {
+      done();
+      return true;
+    }
+    if (p && p.then) p.catch(function () { done(); });
+    return true;
   };
 
   Bgm.prototype.pauseForBlur = function () {
