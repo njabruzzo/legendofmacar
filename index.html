@@ -587,7 +587,7 @@ SPRITE_FILES.macar_axe_back_w2='assets/creatures/dwarf_macar_axe_back_w2.png';
 });
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
-  cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb', horn:'icon_cross',
+  cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
   plant:'icon_plant', shovel:'icon_shovel', campfire:'icon_campfire',
   crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
   attack:'icon_attack', defend:'icon_defend', craft:'icon_craft'
@@ -1731,8 +1731,8 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[] };
 
-function say(t,c){
-  const combat=/attack|goes down|broken|swing|hammer|guard|rally|combat|preparing/i.test(t);
+function say(t,c,k){
+  const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
   G.log.push({t,c:c||'#c9b895',a:1,k:combat?'combat':'log'}); if(G.log.length>10) G.log.shift();
 }
 function hint(t,secs){ G.hint={t,life:secs||4.5,max:secs||4.5}; }
@@ -2813,7 +2813,8 @@ function campRest(){
   G.flash={c:'#ffb45c',a:.18};
   say('Macar decides to camp to rest and heal.','#ffe08a');
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
-  hint(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.',5);
+  writeGameSave(true);
+  hint((healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.')+' The book is marked.',5);
 }
 function isLootableBody(o){
   if(!o||o.hero) return false;
@@ -3493,7 +3494,13 @@ function burst(x,y,c,n,spd){ spd=spd||3;
   for(let i=0;i<n;i++){ const a=rnd(TAU);
     G.parts.push({x,y,z:rnd(.5,.1),vx:Math.cos(a)*rnd(spd,.3),vy:Math.sin(a)*rnd(spd,.3),vz:rnd(3.6,.6),
       life:rnd(.85,.35),max:.85,c,s:rnd(4,1.6)}); } }
-function ftext(x,y,txt,c,big){ G.texts.push({x,y,txt,c,life:.95,big:!!big}); }
+function ftext(x,y,txt,c,big,kind){
+  kind=kind||'';
+  const n=G.texts.filter(t=>Math.hypot(t.ox-x,t.oy-y)<0.45).length;
+  const ox=kind==='miss'?-0.42:(kind==='dmg'?0.16:0);
+  const oy=n*0.38;
+  G.texts.push({x:x+ox,y:y-oy,ox:x,oy:y,txt,c,kind,life:kind==='dmg'?1.65:kind==='miss'?1.35:.95,big:!!big||kind==='dmg'});
+}
 
 
 /* ==========================================================================
@@ -4274,9 +4281,8 @@ function addAttack(atk, def){
   const hit=roll===20 || tot>=need;
   const pct=hitChancePct(need, bonus);
   const line=(atk.name||'atk')+' d20 '+roll+(bonus?((bonus>=0?'+':'')+bonus):'')+'='+tot+' vs '+need+' (AC '+ac+') '+pct+'%'+(hit?' hit':' miss')+(rear?' rear':'');
-  if(atk.team==='party') say(line, hit?'#ff6a5a':'#9a8a78');
-  if(!hit){ ftext(def.x,def.y,'miss '+tot,'#8a7a68'); return 0; }
-  ftext(def.x,def.y,tot+' vs '+need,'#ffe6a8');
+  say(line, hit?'#ff6a5a':'#9a8a78', 'combat');
+  if(!hit){ ftext(def.x,def.y,'MISS','#c9b8a0',1,'miss'); return 0; }
   let raw;
   if(atk.dice) raw=rollExpr(atk.dice);
   else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8':atk.ranged?'1d6':'1d6+1');
@@ -5305,7 +5311,7 @@ function damage(e,amt,col,src){
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
   if(e.hp>0) e.flash=.18;
-  ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),e.boss);
+  ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),true,'dmg');
   if(e.hp>0) burst(e.x,e.y, e.glow||(e.kind==='statue'?'#b8b0a0':e.kind==='undead'?'#7cff9c':e.kind==='spider'?'#9a6bff':'#a3241f'),7,2.2);
   if(e.hero) G.hurt=Math.min(1,G.hurt+amt/70);
   if(e.hp<=0){ e.dead=1; e.deadT=0;
@@ -5741,8 +5747,9 @@ const HUDSKILLS=[
   {key:'bow', ico:'crossbow', label:'Shoot'},
   {key:'bomb', ico:'bomb', label:'Throw'},
   {key:'ale', ico:'flask', label:'Heal'},
-  {key:'search', ico:'plant', label:'Search'},
-  {key:'secret', ico:'secret', label:'Search'},
+  {key:'rally', ico:'horn', label:'Rally'},
+  {key:'search', ico:'plant', label:'Herbs'},
+  {key:'secret', ico:'secret', label:'Seams'},
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
@@ -6053,7 +6060,15 @@ function fire(key){
     return;
   }
   if(key==='camp'){ campRest(); return; }
-  if(key==='craft'){ openCraftBench(); return; }
+  if(key==='craft'){
+    const station=nearestCraftStation(p,1.7);
+    if(!station){
+      const far=nearestCraftStation(p,99);
+      if(far){ G.craftGuide=far; G.craftGuideT=8; }
+    } else { G.craftGuide=null; G.craftGuideT=0; }
+    openCraftBench(station||undefined);
+    return;
+  }
   if(key==='pack'){
     G.inspect=null;
     G.packWho=G.packWho||'macar';
@@ -6139,6 +6154,7 @@ function update(dt){
   PROMPT=null;
   runSystems(dt, { ents:G.ents, abilities:ABIL, cds:cds });
   if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
+  if((G.craftGuideT||0)>0){ G.craftGuideT-=dt; if(G.craftGuideT<=0){ G.craftGuideT=0; G.craftGuide=null; } }
   G.hurt=Math.max(0,G.hurt-dt*1.4);
 
   const p=player();
@@ -7030,9 +7046,10 @@ function drawGrain(g){
 
 function drawFloaters(g){
   for(const t of G.texts){
-    const s=w2s(t.x,t.y); g.globalAlpha=clamp(t.life/.95,0,1);
-    g.font='800 '+((t.big?23:16)*ZOOM)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-    g.lineWidth=3.6*ZOOM; g.strokeStyle='rgba(0,0,0,0.85)';
+    const s=w2s(t.x,t.y); g.globalAlpha=clamp(t.life/(t.kind==='dmg'?1.65:t.kind==='miss'?1.35:.95),0,1);
+    const px=t.kind==='dmg'?32:t.kind==='miss'?22:(t.big?23:16);
+    g.font='800 '+(px*ZOOM)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
+    g.lineWidth=(t.kind==='dmg'?5.2:3.8)*ZOOM; g.strokeStyle='rgba(0,0,0,0.88)';
     g.strokeText(t.txt,s.x,s.y-50*ZOOM); g.fillStyle=t.c; g.fillText(t.txt,s.x,s.y-50*ZOOM);
     g.textAlign='left'; g.globalAlpha=1;
   }
@@ -7619,6 +7636,17 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,0,20*z,10*z,0,0,TAU); g.stroke();
     g.strokeStyle='rgba(255,140,110,'+(b*0.5)+')'; g.lineWidth=1.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
+  }
+  if(!e.dead && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
+    const winding=e.atk>0?attackProgress(e)<0.55:true;
+    const b=.50+Math.sin(G.elapsed*9)*.28;
+    g.strokeStyle='rgba(255,72,48,'+(winding?b:b*0.42)+')';
+    g.lineWidth=(winding?3.4:1.8)*ZOOM;
+    g.beginPath(); g.ellipse(0,0,20*z,10*z,0,0,TAU); g.stroke();
+    if(winding){
+      g.strokeStyle='rgba(255,160,90,'+(b*0.55)+')'; g.lineWidth=1.5*ZOOM;
+      g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
+    }
   }
   if(!e.dead&&e.hero){
     g.strokeStyle='rgba(255,214,140,0.55)'; g.lineWidth=2.4*ZOOM;
@@ -9053,6 +9081,7 @@ function drawHUD(g){
   drawOre(g,s);
   drawStickBase(g,s);
   drawButtons(g,s);
+  drawLog(g,s);
   drawPromptBtn(g,s);
   drawThrowBtn(g,s);
   drawHint(g,s);
@@ -9207,7 +9236,9 @@ function drawObjectives(g,s){
 }
 
 function drawLog(g,s){
-  const w=236*s,h=108*s,x=VW-w-10*s,y=VH-h-(PORT?96*s:94*s);
+  const w=Math.min(248*s, VW*0.46), h=PORT?92*s:104*s;
+  const x=VW-w-10*s;
+  const y=Math.max(8*s, (UI.hudTop||VH-(PORT?96:94)*s)-h-8*s);
   carveFrame(g,x,y,w,h,6,.8);
   g.font='800 '+(10*s)+'px '+FONT_TITLE; g.fillStyle='rgba(232,217,184,0.9)';
   g.fillText('COMBAT LOG',x+12*s,y+16*s);
@@ -9232,9 +9263,10 @@ function drawLog(g,s){
 
 // on-screen compass to the next objective - the single biggest nav win
 function drawGuideArrow(g,s){
-  const L=G.lvl,p=player(); if(!L||!p||!L.guide) return;
-  const gd=L.guide(); if(!gd) return;
-  if(dist(p,gd)<3.2) return;
+  const L=G.lvl,p=player(); if(!L||!p) return;
+  const craft=(G.craftGuideT||0)>0 && G.craftGuide;
+  const gd=craft?G.craftGuide:(L.guide?L.guide():null); if(!gd) return;
+  if(dist(p,gd)<(craft?1.8:3.2)){ if(craft){ G.craftGuide=null; G.craftGuideT=0; } return; }
   const ps=w2s(p.x,p.y), ts=w2s(gd.x,gd.y);
   const a=Math.atan2(ts.y-ps.y,ts.x-ps.x);
   const rad=(PORT?64:78)*s;
@@ -9431,6 +9463,7 @@ function drawSlot(g,b,s){
   const R=b.r, x=b.x-R, y=b.y-R, w=R*2, h=R*2;
   const ab=ABIL.find(a=>a.key===b.key);
   const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
+  const atForge=b.key!=='craft' || (!foesVisible() && !!(player()&&nearestCraftStation(player(),1.7)));
   const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
@@ -9442,7 +9475,7 @@ function drawSlot(g,b,s){
   if(simg){
     g.save();
     roundPath(g,x+3*s,y+3*s,w-6*s,h-6*s,3); g.clip();
-    g.globalAlpha=ready?1:0.42;
+    g.globalAlpha=(ready&&atForge)?1:0.42;
     const iw=Math.max(1,simg.width), ih=Math.max(1,simg.height);
     const dw=w-6*s, dh=h-6*s;
     const sc=Math.max(dw/iw, dh/ih);
@@ -9450,7 +9483,7 @@ function drawSlot(g,b,s){
     g.drawImage(simg, x+3*s+(dw-rw)/2, y+3*s+(dh-rh)/2, rw, rh);
     g.globalAlpha=1; g.restore();
   } else {
-    icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, col);
+    icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, atForge?col:'rgba(160,140,110,0.42)');
   }
   if(b.num){
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='left';
@@ -9460,6 +9493,11 @@ function drawSlot(g,b,s){
     g.fillStyle='rgba(6,4,2,0.66)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
     g.font='800 '+(12*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='rgba(244,226,186,0.92)'; g.fillText(Math.ceil(cds[ab.key]),b.x,b.y+4*s); g.textAlign='left';
+  }
+  if(b.key==='craft' && !atForge){
+    g.fillStyle='rgba(8,5,3,0.62)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
+    g.font='800 '+(8*s)+'px '+FONT_UI; g.textAlign='center';
+    g.fillStyle='rgba(200,170,120,0.9)'; g.fillText('ANVIL', b.x, b.y+4*s); g.textAlign='left';
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();
@@ -9753,15 +9791,31 @@ function drawTitle(g){
   const bw=Math.min(300*s, VW*.64);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
   const baseY=VH-(PORT?118:108)*s;
-  if(hasSave){
+  if(G.wipeAsk){
+    g.textAlign='center';
+    g.font='700 '+((PORT?12:14)*s)+'px '+FONT_UI;
+    g.fillStyle='#ffe08a';
+    g.fillText('This burns the book. Start the descent over?', VW/2, baseY-52*s);
+    g.font='600 '+(11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(200,180,140,0.82)';
+    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, baseY-32*s);
+    g.textAlign='left';
+    menuBtn(g,'Burn it', VW/2-Math.min(90*s,VW*.22)-6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{
+      if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
+      G.wipeAsk=0; startChapter(1);
+    });
+    menuBtn(g,'Keep the mark', VW/2+Math.min(90*s,VW*.22)+6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{ G.wipeAsk=0; });
+  } else if(hasSave){
     menuBtn(g,'Continue', VW/2, baseY-40*s, bw, 46*s, ()=>loadSavedGame(), false, SPR.icon_save);
-    menuBtn(g,'New descent', VW/2, baseY, Math.min(230*s,VW*.55), 34*s, ()=>startChapter(1));
+    menuBtn(g,'New descent', VW/2, baseY, Math.min(230*s,VW*.55), 34*s, ()=>{ G.wipeAsk=1; });
   } else {
     menuBtn(g,'Enter the Deep', VW/2, baseY-8*s, bw, 52*s, ()=>startChapter(1));
   }
-  const smallW=Math.min(176*s, VW*.42);
-  menuBtn(g,'Chapters', VW/2-smallW/2-7*s, VH-38*s, smallW, 38*s, ()=>{G.scene='chapters';});
-  menuBtn(g,'Credits', VW/2+smallW/2+7*s, VH-38*s, smallW, 38*s, ()=>openCredits('title'));
+  if(!G.wipeAsk){
+    const smallW=Math.min(176*s, VW*.42);
+    menuBtn(g,'Chapters', VW/2-smallW/2-7*s, VH-38*s, smallW, 38*s, ()=>{G.scene='chapters';});
+    menuBtn(g,'Credits', VW/2+smallW/2+7*s, VH-38*s, smallW, 38*s, ()=>openCredits('title'));
+  }
   g.textAlign='center'; g.font='600 '+(10*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.72)';
   g.fillText('Click the ground to walk  \u00b7  WASD  \u00b7  Space strike', VW/2, VH-12*s);
@@ -9997,13 +10051,20 @@ function drawCamp(g){
 
 function drawDead(g){
   menuHits=[]; const s=UIS; darken(g,.9);
-  bigTitle(g,'MACAR FALLS',VH*.36,(PORT?30:40)*s,'#ff9a7a');
+  const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
+  bigTitle(g,'MACAR FALLS',VH*.32,(PORT?30:40)*s,'#ff9a7a');
   g.textAlign='center'; g.font='italic 600 '+((PORT?11.5:14)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,180,150,0.8)';
-  g.fillText('The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.45);
+  g.fillText(hasSave?'The book still holds your last camp.':'The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.42);
   g.textAlign='left';
-  menuBtn(g,'Try again',VW/2,VH*.60,Math.min(240*s,VW*.68),50*s,()=>startChapter(G.ch));
-  menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+  if(hasSave){
+    menuBtn(g,'Continue',VW/2,VH*.54,Math.min(240*s,VW*.68),50*s,()=>loadSavedGame(), false, SPR.icon_save);
+    menuBtn(g,'Try again',VW/2,VH*.66,Math.min(240*s,VW*.68),40*s,()=>startChapter(G.ch));
+    menuBtn(g,'Chapters',VW/2,VH*.77,Math.min(240*s,VW*.68),38*s,()=>{G.scene='chapters';});
+  } else {
+    menuBtn(g,'Try again',VW/2,VH*.60,Math.min(240*s,VW*.68),50*s,()=>startChapter(G.ch));
+    menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+  }
 }
 
 function drawWin(g){
@@ -10759,7 +10820,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.24,(PORT?26:34)*s);
   g.textAlign='center'; g.font='600 '+(11*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  g.fillText('D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F/T Search  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen',VW/2,VH*.31);
+  g.fillText('D Defend  ·  1 Attack  ·  5 Rally  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F Herbs  ·  T Seams  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen',VW/2,VH*.31);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
   g.fillText(G.ch===1?'Music: The Cave — HitCtrl':'Music: Dungeon_01 — Beau Buckley',VW/2,VH*.355);
