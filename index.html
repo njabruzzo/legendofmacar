@@ -27,7 +27,7 @@
 <body>
 <canvas id="c"></canvas>
 <script src="SkillSystem.js"></script>
-<script src="src/audio/Bgm.js"></script>
+<script src="src/audio/Bgm.js?v=58"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
 <script src="src/packs/EquipmentSlots.js"></script>
@@ -184,7 +184,7 @@ function resize(force){
   if(!soft){
     GRAINPAT = null;
     UIS  = clamp(Math.min(VW,VH)/(PORT?430:700), 0.66, 1.30);
-    ZOOM = clamp(Math.min(VW,VH*1.5)/780, 0.78, 1.55);
+    ZOOM = clamp(Math.min(VW,VH*1.5)/780, 0.78, 1.38);
     TW = Math.round(84*ZOOM); TH = Math.round(42*ZOOM);
     if(TW&1) TW++; if(TH&1) TH++;
   }
@@ -324,7 +324,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='57';
+const ASSET_VER='58';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -338,21 +338,30 @@ const MUSIC={
   chapter:'assets/music/TheDistantSun.mp3',
   ch1:'assets/music/TheCave.mp3',
   ch2:'assets/music/Dungeon_1.mp3',
-  battle:'assets/music/Goliath.mp3'
+  battle:'assets/music/Goliath.mp3',
+  boss:'assets/music/Terminus.mp3',
+  packWin:'assets/music/PackVictory.mp3',
+  bossWin:'assets/music/BossVictory.mp3'
 };
 const MUSIC_CREDITS=[
   {use:'Title screen', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
   {use:'Chapter screens', title:'The Distant Sun', owner:'Scott Buckley', extra:'Monomyth  \u00b7  www.scottbuckley.com.au', license:'CC BY 4.0'},
   {use:'Chapter I dungeon', title:'The Cave', owner:'HitCtrl', extra:'RPG \u2014 The Cave (Ambient)', license:'CC-BY (credit HitCtrl)'},
   {use:'Chapter II+ dungeon', title:'Dungeon_01', owner:'Beau Buckley', extra:'Emberstorm Music Collection', license:'CC BY-SA 4.0'},
-  {use:'Combat', title:'Goliath', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'}
+  {use:'Combat', title:'Goliath', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
+  {use:'Boss fights', title:'Terminus', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
+  {use:'Pack victory', title:'Terminus (sting)', owner:'Scott Buckley', extra:'short excerpt  \u00b7  CC BY 4.0', license:'CC BY 4.0'},
+  {use:'Boss victory', title:'Terminus (fanfare)', owner:'Scott Buckley', extra:'longer excerpt  \u00b7  CC BY 4.0', license:'CC BY 4.0'}
 ];
 const MUSIC_LABEL={
   title:'Music: Song of the Forge \u2014 Scott Buckley',
   chapter:'Music: The Distant Sun \u2014 Scott Buckley',
   ch1:'Music: The Cave \u2014 HitCtrl',
   ch2:'Music: Dungeon_01 \u2014 Beau Buckley',
-  battle:'Music: Goliath \u2014 Scott Buckley'
+  battle:'Music: Goliath \u2014 Scott Buckley',
+  boss:'Music: Terminus \u2014 Scott Buckley',
+  packWin:'Music: Terminus \u2014 Scott Buckley',
+  bossWin:'Music: Terminus \u2014 Scott Buckley'
 };
 function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
 function leaveCredits(){
@@ -868,6 +877,22 @@ function useWallFaces(L){
 function wallFaceH(L){
   const oy=tilesetPack(L||G.lvl).wall.oy;
   return oy*(TH/TILESET.srcH);
+}
+/* Masonry faces were ~3× tile height, so the near-wall floor diamond (loot, rats,
+   corpses) sat behind the south/east wall sprite. Scale faces only — ruby doors
+   and descents keep wallFaceH() so they stay readable. */
+const WALL_HALL_SCALE=0.70;
+function hallWallH(L){ return wallFaceH(L)*WALL_HALL_SCALE; }
+function wallHidesFloor(L,x,y){
+  if(!L||!L.grid) return false;
+  const ix=x|0, iy=y|0;
+  const south=L.grid[iy+1]&&L.grid[iy+1][ix]===1;
+  const east=L.grid[iy]&&L.grid[iy][ix+1]===1;
+  return !!(south||east);
+}
+function actorDrawDepth(o){
+  const d=(o.x+o.y);
+  return wallHidesFloor(G.lvl,o.x,o.y)?(d+1)|0:d|0;
 }
 function rubyDoorH(L){
   return wallFaceH(L)*1.28;
@@ -1429,7 +1454,7 @@ function rebuildVision(){
   if(fresh){ G.seenRev=(G.seenRev||0)+1; BX_KEY=''; }
 }
 function corridor(g,x1,y1,x2,y2,wd,t){
-  wd=wd||3; const hw=(wd/2)|0;
+  wd=wd||5; const hw=(wd/2)|0;
   const sx=Math.min(x1,x2),ex=Math.max(x1,x2),sy=Math.min(y1,y2),ey=Math.max(y1,y2);
   rect(g,sx,y1-hw,ex-sx+1,wd,t);
   rect(g,x2-hw,sy,wd,ey-sy+1,t);
@@ -1685,7 +1710,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:null, macarGearReady:0,
-  fightOn:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
+  fightOn:0, fightWasBoss:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[],
@@ -2374,8 +2399,8 @@ function makeChapter(n){
   if(n===3){
     L.title='Chapter III'; L.sub='The Ruin'; L.pal=PAL.ruin;
     L.w=90; L.h=72; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,4,24,10,8,3); corridor(g,12,28,24,28,4,0); rect(g,18,20,16,18,0);
-    corridor(g,33,28,44,20,4,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,4,0);
+    rect(g,4,24,10,8,3); corridor(g,12,28,24,28,6,0); rect(g,18,20,16,18,0);
+    corridor(g,33,28,44,20,6,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,6,0);
     rect(g,36,34,24,16,0); rect(g,46,40,6,6,3);
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
@@ -2441,8 +2466,8 @@ function makeChapter(n){
   if(n===4){
     L.title='Chapter IV'; L.sub='The Dead City'; L.pal=PAL.ruin;
     L.w=68; L.h=56; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,4,24,12,8,3); corridor(g,14,28,26,28,4,0); rect(g,20,18,18,20,0);
-    corridor(g,37,28,48,16,4,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,4,0);
+    rect(g,4,24,12,8,3); corridor(g,14,28,26,28,6,0); rect(g,20,18,18,20,0);
+    corridor(g,37,28,48,16,6,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,6,0);
     rect(g,38,34,24,16,0); rect(g,50,40,8,6,3);
     L.spawn={x:8,y:28};
     L.secrets=[];
@@ -2488,7 +2513,7 @@ function makeChapter(n){
   if(n===5){
     L.title='Chapter V'; L.sub='The Holy Sacrifice'; L.pal=PAL.hall;
     L.w=52; L.h=54; const g=newGrid(L.w,L.h,1); L.grid=g;
-    rect(g,6,40,12,8,3); corridor(g,16,44,28,44,5,0); rect(g,18,36,24,8,0);
+    rect(g,6,40,12,8,3); corridor(g,16,44,28,44,6,0); rect(g,18,36,24,8,0);
     rect(g,14,8,30,28,0); rect(g,26,12,6,6,3);
     L.spawn={x:10,y:44};
     L.secrets=[];
@@ -3014,7 +3039,7 @@ function startChapter(n){
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
-  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.trail=[];
+  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
@@ -4340,7 +4365,9 @@ function savingThrow(e, kind){
 }
 function beginFight(foe){
   G.fightOn=1;
-  playMusic('battle');
+  G.fightWasBoss=!!(foe&&foe.boss)||(typeof Bgm!=='undefined'&&Bgm.livingBoss&&Bgm.livingBoss(G));
+  if(bgm&&bgm.cancelSting) bgm.cancelSting();
+  syncMusic();
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
   const pSur=pSeg<=(sneak?4:2), fSur=fSeg<=(sneak?1:2);
@@ -4387,8 +4414,11 @@ function endFightIfClear(){
   const p=player();
   const near=G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&p&&dist(e,p)<11);
   if(!near){
+    const bossWin=!!G.fightWasBoss;
     G.fightOn=0;
-    syncMusic();
+    G.fightWasBoss=0;
+    const sting=bossWin?'bossWin':'packWin';
+    if(!(bgm&&bgm.playSting&&bgm.playSting(sting))) syncMusic();
   }
 }
 
@@ -5301,7 +5331,7 @@ function damage(e,amt,col,src){
       awardPartyXp(monsterXpValue(e), e.name||'Foe', e);
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
-      if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; }
+      if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; G.fightWasBoss=1; }
     } else if(e.ghost){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
@@ -6653,10 +6683,10 @@ function drawWorld(g,L){
     if((e.dead||e.corpse||e.crushed) && !seenAt(e)) return false;
     return true;
   };
-  for(const d of G.decals) if(near(d)&&seenAt(d)) push((d.x+d.y)|0,()=>drawDecal(g,d));
-  for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push((p.x+p.y)|0,()=>drawProp(g,p,pal));
-  for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push((q.x+q.y)|0,()=>drawLoot(g,q));
-  for(const e of G.ents) if(!e.crushed&&showEnt(e)) push((e.x+e.y)|0,()=>drawEnt(g,e));
+  for(const d of G.decals) if(near(d)&&seenAt(d)) push(actorDrawDepth(d),()=>drawDecal(g,d));
+  for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push(actorDrawDepth(p),()=>drawProp(g,p,pal));
+  for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push(actorDrawDepth(q),()=>drawLoot(g,q));
+  for(const e of G.ents) if(!e.crushed&&showEnt(e)) push(actorDrawDepth(e),()=>drawEnt(g,e));
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
@@ -6695,7 +6725,7 @@ function drawWorld(g,L){
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
-    const H=wallFaceH(L);
+    const H=hallWallH(L);
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;

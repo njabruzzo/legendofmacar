@@ -23,10 +23,14 @@ assert(Bgm.wanted({ scene: 'intro', ch: 1 }) === 'chapter', 'intro splash uses t
 assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 0 }) === 'ch1', 'ch1 dungeon is The Cave');
 assert(Bgm.wanted({ scene: 'play', ch: 2, fightOn: 0, lvl: { n: 2 } }) === 'ch2', 'ch2 dungeon is Dungeon_01');
 assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 1 }) === 'battle', 'combat wants Goliath, not the title');
+assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 1, ents: [{ team: 'foe', boss: 1, dead: 0 }] }) === 'boss',
+  'a living boss wants Terminus, not Goliath');
+assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 1, ents: [{ team: 'foe', boss: 1, dead: 1 }] }) === 'battle',
+  'a dead boss does not keep the boss theme');
 assert(Bgm.wanted({ scene: 'pack', ch: 1, fightOn: 1 }) === 'battle', 'pack overlay during a fight stays on combat');
 assert(Bgm.wanted({ scene: 'craft', ch: 2, fightOn: 0 }) === 'ch2', 'craft overlay keeps dungeon music');
 assert(Bgm.wanted({ scene: 'camp', ch: 2 }) === 'chapter', 'camp uses the chapter theme');
-assert(Bgm.roleOf('title') === 'title' && Bgm.roleOf('chapter') === 'menu' && Bgm.roleOf('ch1') === 'explore' && Bgm.roleOf('battle') === 'combat',
+assert(Bgm.roleOf('title') === 'title' && Bgm.roleOf('chapter') === 'menu' && Bgm.roleOf('ch1') === 'explore' && Bgm.roleOf('battle') === 'combat' && Bgm.roleOf('boss') === 'combat',
   'states are idle/title/menu/explore/combat');
 
 /* ---------- HTML: no autoplay, relative mp3, credits ---------- */
@@ -34,6 +38,10 @@ assert(!/<audio[^>]*autoplay/i.test(html), 'no autoplay attribute on <audio>');
 assert(!/<audio id="bgm"/i.test(html), 'no stacked looping <audio id=bgm> tag');
 assert(/src\/audio\/Bgm\.js/.test(html), 'Bgm.js is loaded as a script');
 assert(/battle:'assets\/music\/Goliath\.mp3'/.test(html), 'battle BGM is Goliath, not Song of the Forge');
+assert(/boss:'assets\/music\/Terminus\.mp3'/.test(html), 'boss BGM is Terminus, not Goliath or the title');
+assert(/packWin:'assets\/music\/PackVictory\.mp3'/.test(html), 'pack victory sting is registered');
+assert(/bossWin:'assets\/music\/BossVictory\.mp3'/.test(html), 'boss victory sting is registered');
+assert(/playSting\(sting\)/.test(html) && /bossWin/.test(html), 'combat-end plays a victory sting before explore resume');
 assert(/chapter:'assets\/music\/TheDistantSun\.mp3'/.test(html), 'chapter screens use The Distant Sun');
 assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Song of the Forge');
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
@@ -58,10 +66,11 @@ assert(/The Distant Sun/.test(credits) && /Chapter screens/.test(credits), 'chap
 assert(/The Cave/.test(credits) && /HitCtrl/.test(credits), 'HitCtrl still credited');
 assert(/Dungeon_01/.test(credits) && /Beau Buckley/.test(credits), 'Beau Buckley still credited');
 assert(/Goliath/.test(credits) && /Combat/.test(credits), 'Goliath credited as combat');
+assert(/Terminus/.test(credits) && /Boss fights/.test(credits), 'Terminus credited as boss music');
 assert(/CC BY 4\.0/.test(credits), 'Scott Buckley tracks marked CC BY 4.0');
 
 const musicDir = path.join(__dirname, '../../assets/music');
-['SongOfTheForge.mp3', 'TheCave.mp3', 'Dungeon_1.mp3', 'TheDistantSun.mp3', 'Goliath.mp3'].forEach(f => {
+['SongOfTheForge.mp3', 'TheCave.mp3', 'Dungeon_1.mp3', 'TheDistantSun.mp3', 'Goliath.mp3', 'Terminus.mp3', 'PackVictory.mp3', 'BossVictory.mp3'].forEach(f => {
   const p = path.join(musicDir, f);
   assert(fs.existsSync(p) && fs.statSync(p).size > 1000, f + ' exists as mp3 (not LFS pointer)');
   const head = fs.readFileSync(p).subarray(0, 3).toString();
@@ -71,7 +80,7 @@ assert(!fs.existsSync(path.join(musicDir, 'Goliath.ogg')), 'no OGG-only battle t
 assert(!fs.existsSync(path.join(musicDir, 'Goliath.wav')), 'no WAV battle track');
 
 const credTxt = fs.readFileSync(path.join(musicDir, 'CREDITS.txt'), 'utf8');
-assert(/Goliath/.test(credTxt) && /The Distant Sun/.test(credTxt), 'CREDITS.txt lists the new tracks');
+assert(/Goliath/.test(credTxt) && /The Distant Sun/.test(credTxt) && /Terminus/.test(credTxt), 'CREDITS.txt lists the new tracks');
 assert(/CC BY 4\.0/.test(credTxt), 'CREDITS.txt names CC BY 4.0');
 
 /* ---------- manager behaviour with mocks ---------- */
@@ -127,7 +136,10 @@ const tracks = {
   chapter: 'assets/music/TheDistantSun.mp3',
   ch1: 'assets/music/TheCave.mp3',
   ch2: 'assets/music/Dungeon_1.mp3',
-  battle: 'assets/music/Goliath.mp3'
+  battle: 'assets/music/Goliath.mp3',
+  boss: 'assets/music/Terminus.mp3',
+  packWin: 'assets/music/PackVictory.mp3',
+  bossWin: 'assets/music/BossVictory.mp3'
 };
 
 function flush(n) {
@@ -280,6 +292,45 @@ function fire(win, ev) {
   await flush();
   assert(gated.unlocked && gated.isPlaying() && gated.currentId === 'title',
     'first keydown starts Forge after a blocked launch');
+
+  const stingBgm = makeBgm();
+  stingBgm.unlocked = true;
+  stingBgm.ctx.state = 'running';
+  stingBgm.play('ch1');
+  await flush();
+  stingBgm.play('battle');
+  await flush();
+  assert(stingBgm.currentId === 'battle', 'combat captured explore before the sting');
+  stingBgm.sync({ scene: 'play', ch: 1, fightOn: 0 });
+  await flush();
+  const held = makeBgm();
+  held.unlocked = true;
+  held.ctx.state = 'running';
+  held.play('battle');
+  await flush();
+  const started = held.playSting('packWin', { ms: 30, onEnd() { held.sync({ scene: 'play', ch: 1, fightOn: 0 }); } });
+  assert(started && held._stinging, 'pack victory sting holds explore resume');
+  held.sync({ scene: 'play', ch: 1, fightOn: 0 });
+  assert(held._stinging && held.currentId === 'battle', 'sync is a no-op during a victory sting');
+  const ended = (held._sting && held._sting._listeners && held._sting._listeners.ended) || [];
+  ended.forEach(fn => fn());
+  await flush();
+  assert(!held._stinging && held.currentId === 'ch1', 'sting end returns to dungeon BGM');
+
+  const bossSting = makeBgm();
+  bossSting.unlocked = true;
+  bossSting.ctx.state = 'running';
+  bossSting.play('boss');
+  await flush();
+  assert(bossSting.currentId === 'boss', 'boss fights play Terminus');
+  const bossEnded = [];
+  bossSting.playSting('bossWin', { ms: 40, onEnd() { bossEnded.push(1); bossSting.sync({ scene: 'play', ch: 1, fightOn: 0 }); } });
+  assert(bossSting._stinging && bossSting.currentId === 'boss', 'boss victory sting holds Terminus until it ends');
+  bossSting.cancelSting();
+  bossSting.sync({ scene: 'play', ch: 1, fightOn: 1, ents: [{ team: 'foe', boss: 1, dead: 0 }] });
+  await flush();
+  assert(!bossSting._stinging && bossSting.currentId === 'boss' && bossEnded.length === 0,
+    'a new boss fight cancels a leftover sting without firing its explore resume');
 
   if (failed) { console.error('\n' + failed + ' failed'); process.exit(1); }
   console.log('\nBGM checks passed');
