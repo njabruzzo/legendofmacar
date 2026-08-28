@@ -539,8 +539,12 @@
         self._stingTimer = 0;
       }
       try { el.pause(); } catch (_) {}
-      if (opts.onEnd) opts.onEnd();
-      else if (self._lastG) self.sync(self._lastG);
+      try {
+        if (opts.onEnd) opts.onEnd();
+        else if (self._lastG) self.sync(self._lastG);
+      } catch (_) {
+        if (self._lastG) self.sync(self._lastG);
+      }
     };
     if (typeof el.addEventListener === 'function') {
       el.addEventListener('ended', done, { once: true });
