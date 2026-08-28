@@ -10,8 +10,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=56">
-<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=56">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=59">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=59">
+<link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=59">
+<link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=59">
+<link rel="preload" as="image" href="assets/tiles/tile_wall_worked.png?v=59">
+<link rel="preload" as="image" href="assets/tiles/tile_wall_face.png?v=59">
 <link rel="preload" as="audio" href="assets/music/SongOfTheForge.mp3?v=57" type="audio/mpeg">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -324,7 +328,7 @@ const FONT_TITLE='Cinzel,Palatino,"Palatino Linotype",Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='58';
+const ASSET_VER='59';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -482,6 +486,7 @@ const SPRITE_FILES={
   icon_quiver:'assets/ui/icon_quiver.png',
   icon_doll:'assets/ui/icon_doll.png',
   title_splash:'assets/ui/title_splash.jpg',
+  chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
   intro_ch2:'assets/ui/intro_ch2.jpg',
@@ -560,22 +565,43 @@ const ICON_SPR={
   crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
   attack:'icon_attack', defend:'icon_defend', craft:'icon_craft'
 };
+/* First in-world Chapter I frame needs these decoded, or the canvas paints
+   generated TEX diamonds / unscaled kin, then pops to the painted sheets. */
+const WORLD_ART_KEYS={
+  1:['floor_mine','wall_worked','wall_face','wall_face_shade','macar',
+     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+     'rubble','rubble2','boulder','boulder2','lantern'],
+  2:['floor_mine','wall_cave','wall_cave_face','macar'],
+  3:['floor_ruin','wall_worked','wall_face','macar'],
+  4:['floor_ruin','wall_worked','wall_face','macar'],
+  5:['floor_hall','wall_worked','wall_face','macar']
+};
+function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
+function worldArtReady(n){
+  n=n||(G&&G.ch)||1;
+  const keys=WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1];
+  for(let i=0;i<keys.length;i++) if(!sprReady(keys[i])) return false;
+  return true;
+}
 function loadSprites(done){
-  const first=['title_splash','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein','icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
+  const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
+    'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
+    'macar','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'rubble','rubble2','boulder','boulder2','lantern',
+    'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
-    'skill_icons','macar','macar_axe','pordoom','fendur','orbo','talpor',
+    'skill_icons','macar_axe','pordoom','fendur','orbo','talpor',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'pordoom_ghost_w1','pordoom_ghost_w2','pordoom_ghost_atk','pordoom_ghost_atk_recover','pordoom_ghost_back_w1','pordoom_ghost_back_w2',
     'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
     'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
-    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'boulder','boulder2','cavein','rubble','rubble2',
-    'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','lantern','stairs','floor_mine','wall_cave','wall_worked',
-    'wall_face','wall_face_shade','wall_cave_face','wall_cave_face_shade',
+    'cavein',
+    'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
     'glowcap','cavefern','sporepuff','nightbloom','lichen'];
   const seen={};
@@ -596,7 +622,8 @@ function loadSprites(done){
         if(ok) SPR[k]=img;
         if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
         inflight--; finished++;
-        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); done(); }
+        try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
+        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){} done(); }
         else next();
       };
       img.onload=()=>fin(true);
@@ -868,11 +895,10 @@ function wallFaceSprite(L, lit){
     : (SPR.wall_face_shade||SPR.wall_face);
 }
 function useWallFaces(L){
-  if(palWallKey(L)==='wall_cave'){
-    const img=SPR.wall_cave_face||SPR.wall_cave_face_shade;
-    return !!(img&&img.width);
-  }
-  return true;
+  const img=palWallKey(L)==='wall_cave'
+    ? (SPR.wall_cave_face||SPR.wall_cave_face_shade)
+    : (SPR.wall_face||SPR.wall_face_shade);
+  return !!(img&&img.width);
 }
 function wallFaceH(L){
   const oy=tilesetPack(L||G.lvl).wall.oy;
@@ -1160,15 +1186,23 @@ function scaleBlit(img,w,h){
 function ensureTileBlit(L){
   const palKey=L?palFloorKey(L.pal):'floor_mine';
   const wallKey=L?palWallKey(L):'wall_worked';
+  const floorSrc=SPR[palKey], wallSrc=SPR[wallKey];
   const srcL=wallFaceSprite(L,1), srcR=wallFaceSprite(L,0);
   const faceId=(srcL&&srcL.width||0)+':'+(srcR&&srcR.width||0);
   const pack=tilesetPack(L);
-  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+pack.wall.oy+'|'+faceId;
+  const srcId=(floorSrc&&floorSrc.width||0)+'x'+(wallSrc&&wallSrc.width||0);
+  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+pack.wall.oy+'|'+faceId+'|'+srcId;
   if(TILEBLIT.key===k && TILEBLIT.floor && TILEBLIT.wall) return;
+  /* Never lock a blit on wall_cave-as-worked or empty images. That first-frame
+     fallback was the old-tile flash: generated / wrong sheet, then the real one. */
+  if(!floorSrc||!floorSrc.width||!wallSrc||!wallSrc.width){
+    TILEBLIT.key=''; TILEBLIT.floor=null; TILEBLIT.wall=null;
+    return;
+  }
   const sc=TW/RTW, SH=(RWH+RTH)*sc;
-  const wall=scaleBlit(SPR[wallKey]||SPR.wall_cave||SPR.wall_worked, TW, SH);
+  const wall=scaleBlit(wallSrc, TW, SH);
   const {sx,sy}=tilesetScale();
-  const floor=scaleBlit(SPR[palKey], Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
+  const floor=scaleBlit(floorSrc, Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
   const faceL=makeWorkedFace(L, 1, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const faceR=makeWorkedFace(L, 0, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const cap=makeWorkedCap(Math.max(96,(TW*3)|0), Math.max(96,(TH*6)|0));
@@ -1727,10 +1761,10 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 const CRUSH_SPOTS={
   // Open floor west of Macar (20.5, 22). Spread so four named bodies do not stack.
   // Chapter I raises all four: Pordum, Fendur, Orbo, and Talpor. Kit rides with each ghost.
-  pordoom:{x:19.15,y:20.35,seed:3,stone:0.18,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.95,y:0.82}},
-  fendur:{x:17.55,y:21.20,seed:11,stone:0.17,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.92,y:0.80}},
-  orbo:{x:19.35,y:23.45,seed:19,stone:0.18,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.90,y:0.78}},
-  talpor:{x:17.65,y:23.90,seed:7,stone:0.17,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.94,y:0.76}}
+  pordoom:{x:19.15,y:20.35,seed:3,stone:0.38,kit:{bombs:4,bombKit:1,rations:7,ales:2},spr:'boulder', pin:{x:0.08,y:0.18}},
+  fendur:{x:17.55,y:21.20,seed:11,stone:0.36,kit:{ammo:12,torches:4,rations:2,ales:2},spr:'boulder2', pin:{x:0.06,y:0.16}},
+  orbo:{x:19.35,y:23.45,seed:19,stone:0.38,kit:{gp:18,rations:2,ales:2},spr:'boulder', pin:{x:0.10,y:0.20}},
+  talpor:{x:17.65,y:23.90,seed:7,stone:0.36,kit:{torches:3,rations:3,ales:2},spr:'boulder2', pin:{x:0.07,y:0.17}}
 };
 function nearCrush(x,y,r){
   r=r||1.25;
@@ -2201,13 +2235,18 @@ function makeChapter(n){
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
-      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.62,y:0.55};
-      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.16,pin:1,seed:s.seed});
+      const s=CRUSH_SPOTS[k], off=s.pin||{x:0.10,y:0.22};
+      G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.50,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
       if(p.pin||p.cover) return true;
       if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,1.35)) return false;
       return true;
+    });
+    Object.keys(CRUSH_SPOTS).forEach(k=>{
+      const s=CRUSH_SPOTS[k];
+      G.props.push({x:s.x-0.28,y:s.y+0.40,k:'boulder',s:0.55,seed:s.seed+40,cover:1,spr:'boulder'});
+      G.props.push({x:s.x+0.32,y:s.y+0.34,k:'boulder',s:0.48,seed:s.seed+51,cover:1,spr:'boulder2'});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -3098,7 +3137,7 @@ function startChapter(n){
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
-  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0;
+  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0; G._wantPlay=0;
   rebuildVision();
   pinFallenKin();
   revealCrushTiles();
@@ -3182,15 +3221,50 @@ function drawCrushedKin(g,e){
     g.drawImage(stand, -W/2, -H*0.82, W, H);
     g.restore();
   }
+  drawKinRubbleOverlay(g, e, z, dwarfH);
   g.restore();
-  g.font='800 '+(11*z)+'px '+FONT_TITLE;
-  g.textAlign='center';
-  const tag=e.name||'Kin';
-  g.lineWidth=4*z; g.strokeStyle='rgba(0,0,0,0.92)';
-  g.strokeText(tag, s.x, s.y-28*z);
-  g.fillStyle='#ffe7b8';
-  g.fillText(tag, s.x, s.y-28*z);
+}
+function drawFallenKinLabels(g){
+  g.save();
+  g.globalCompositeOperation='source-over';
+  g.globalAlpha=1;
+  for(const e of (G.ents||[])){
+    if(!e.crushed || e.ghost) continue;
+    const s=w2s(e.x,e.y);
+    const z=ZOOM*Math.max(1, e.scale||1);
+    g.font='800 '+(11*z)+'px '+FONT_TITLE;
+    g.textAlign='center';
+    const tag=e.name||'Kin';
+    g.lineWidth=4*z; g.strokeStyle='rgba(0,0,0,0.92)';
+    g.strokeText(tag, s.x, s.y-36*z);
+    g.fillStyle='#ffe7b8';
+    g.fillText(tag, s.x, s.y-36*z);
+  }
   g.textAlign='left';
+  g.restore();
+}
+function blitCrushRock(g, key, dx, dy, h){
+  const img=SPR[key]||SPR.rubble||SPR.rubble2||SPR.boulder||SPR.boulder2;
+  g.save(); g.translate(dx, dy);
+  if(img&&img.width) drawBillboard(g, img, h);
+  else if(typeof drawRubbleLocal==='function') drawRubbleLocal(g, h/52, 7, (key&&key.length)||3, 0);
+  g.restore();
+}
+function drawKinRubbleOverlay(g,e,z,dwarfH){
+  /* Single boulders on the legs — big enough to read as crush, small enough
+     that beard, helm, and torso stay in the open. */
+  blitCrushRock(g, 'boulder', -14*z, 12*z, dwarfH*0.42);
+  blitCrushRock(g, 'boulder2', 16*z, 10*z, dwarfH*0.36);
+}
+function drawCrushCover(g){
+  const pal=(G.lvl&&G.lvl.pal)||null;
+  for(const p of (G.props||[])){
+    if(!p.cover || p.pin) continue;
+    const s=w2s(p.x,p.y);
+    if(s.x<-80||s.x>VW+80||s.y<-80||s.y>VH+80) continue;
+    if(G.lvl&&G.lvl.seen&&!tileExplored(p.x,p.y)) continue;
+    drawProp(g,p,pal);
+  }
 }
 function revealCrushTiles(){
   const L=G.lvl;
@@ -6602,7 +6676,8 @@ function render(){
   const L=G.lvl;
   g.fillStyle='#000000'; g.fillRect(-40,-40,VW+80,VH+80);
   const inWorld = L && G.scene!=='title' && G.scene!=='chapters' && G.scene!=='credits'
-    && !(G.scene==='intro' && chapterSplashImg(G.ch));
+    && !(G.scene==='intro' && chapterSplashImg(G.ch))
+    && !(G.scene==='play' && !worldArtReady(G.ch));
   if(inWorld){
     if(DIAG.world) drawWorld(g,L);
     if(DIAG.lighting) applyLighting(g,L);
@@ -6617,6 +6692,8 @@ function render(){
     ctx.globalCompositeOperation='source-over';
     ctx.globalAlpha=1;
     drawFallenKin(ctx);
+    drawCrushCover(ctx);
+    drawFallenKinLabels(ctx);
   }
   if(DIAG.flash && G.flash){ g.globalAlpha=clamp(G.flash.a,0,1); g.fillStyle=G.flash.c; g.fillRect(0,0,VW,VH); g.globalAlpha=1; }
   if(DIAG.hurt && G.hurt>0.02){
@@ -6629,19 +6706,25 @@ function render(){
     }
   }
   if(DIAG.grain && inWorld && QUALITY && !PHONE_GFX) drawGrain(g);
-  if(DIAG.hud && G.scene==='play') drawHUD(g);
-  if(G.sleepShow && G.scene==='play') drawSleepRest(g);
+  if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
+  if(G.sleepShow && G.scene==='play' && worldArtReady(G.ch)) drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
   if(G.scene==='intro') drawIntro(g);
+  if(G.scene==='play' && !worldArtReady(G.ch)){
+    /* Hold the title card (or a black frame) until Ch1 sprites are decoded.
+       Painting the world early is the old-graphics flash. */
+    if(L) drawIntro(g);
+    else { g.fillStyle='#050308'; g.fillRect(0,0,VW,VH); }
+  }
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='craft') drawCraft(g);
   if(G.scene==='pack'){ drawPack(g); drawTalk(g); }
   if(G.scene==='trade') drawTrade(g);
   if(G.scene==='dead') drawDead(g);
   if(G.scene==='win') drawWin(g);
-  if(G.paused&&G.scene==='play') drawPause(g);
+  if(G.paused&&G.scene==='play' && worldArtReady(G.ch)) drawPause(g);
   }catch(err){
     try{
       g.setTransform(DPR,0,0,DPR,0,0);
@@ -6689,7 +6772,6 @@ function drawWorld(g,L){
 
   const WH=RWH*(TW/RTW);
   const p=player();
-  const okTex=TEX.ready;
   const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
   const pack=tilesetPack(L);
   const {sx,sy}=tilesetScale();
@@ -6703,10 +6785,7 @@ function drawWorld(g,L){
     const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
     if(fl){
       g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
-    } else if(okTex){
-      const arr=t===3?TEX.floorA:TEX.floor;
-      g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
-    } else { g.fillStyle=pal.fA; diamondPath(g,s.x,s.y); g.fill(); }
+    }
   }
 
   function drawWallCell(x,y){
@@ -6733,12 +6812,7 @@ function drawWorld(g,L){
       const m=oE&&!oS?pack.wallR:pack.wall;
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
       else g.drawImage(wallImg, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
-    } else if(okTex){
-      const vein=h2(x*3,y*7)>0.86;
-      const arr=vein?TEX.wallVein:TEX.wall;
-      const m=pack.wall;
-      g.drawImage(arr[(h2(x,y)*arr.length)|0], s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
-    } else { g.fillStyle=pal.wT; g.fillRect(s.x-TW/2,s.y-WH,TW,WH); }
+    }
     if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-H*0.35, TW*0.30, pal.key, 0.5);
     if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,H,1-rk.hp/rk.max);
     if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,H);
@@ -6781,9 +6855,8 @@ function drawWorld(g,L){
     }
     const b=B[d]; if(b) for(const f of b) f();
   }
-  // Pinning slabs and pebbles only. Fallen kin are drawn after fog so the void cannot eat them.
+  // Pinning slabs only. Cover rubble is drawn after fallen kin so stones sit on the bodies.
   for(const p of G.props) if(p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
-  for(const p of G.props) if(p.cover && !p.pin && near(p) && seenAt(p)) drawProp(g,p,pal);
 }
 function drawCracks(g,sx,sy,WH,f){
   g.save(); g.globalAlpha=clamp(f*1.15,0,1);
@@ -9994,62 +10067,57 @@ function drawCredits(g){
 function drawChapterSelect(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  if(!drawSplashCover(g, SPR.title_splash)) embers(g);
-  darken(g,.55);
-  drawLetterbox(g, VH*0.16, VH*0.16, 0.78, 0.86);
+  if(!drawSplashCover(g, SPR.chapters_plate||SPR.title_splash, {zoom:1, ay:0.48, nudgeY:0})) embers(g);
+  darken(g,.36);
+  drawLetterbox(g, VH*0.14, VH*0.12, 0.70, 0.78);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
   g.fillStyle='rgba(232,196,120,0.88)';
-  g.fillText('B O O K   O N E', VW/2, VH*0.072);
-  bigTitle(g,'CHAPTERS', VH*0.118, (PORT?22:30)*s);
+  g.fillText('B O O K   O N E', VW/2, VH*0.058);
+  bigTitle(g,'CHAPTERS', VH*0.102, (PORT?20:28)*s);
+  g.textAlign='center';
   g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(160,140,110,0.7)';
-  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*0.142);
+  g.fillStyle='rgba(160,140,110,0.78)';
+  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*0.128);
   g.textAlign='left';
   const nums=['I','II','III','IV','V'];
   const gap=10*s;
-  const top=VH*0.16, bot=VH-62*s;
-  const cols=PORT?1:(VW>980?3:2);
+  const top=VH*0.148, bot=VH-62*s;
+  const cols=PORT?1:2;
   const rows=Math.ceil(5/cols);
-  const cw=Math.min((VW-36*s)/cols-gap, 400*s);
+  const cw=Math.min((VW-36*s)/cols-gap, PORT?VW-36*s:560*s);
   const ch=(bot-top)/rows-gap;
   [1,2,3,4,5].forEach((n,i)=>{
     const col=i%cols, row=(i/cols)|0;
     const x=VW/2 - (cols*cw+(cols-1)*gap)/2 + col*(cw+gap);
     const y=top + row*(ch+gap);
     const m=CH_META[n], locked=m.locked||n>G.unlocked;
-    drawArtRect(g, chapterSplashImg(n)||SPR.title_splash, x, y, cw, ch, 8);
-    const shade=g.createLinearGradient(x,y,x,y+ch);
-    shade.addColorStop(0,'rgba(0,0,0,0.42)'); shade.addColorStop(0.5,'rgba(0,0,0,0.62)'); shade.addColorStop(1,'rgba(0,0,0,0.78)');
-    g.save(); roundPath(g,x,y,cw,ch,8); g.clip();
-    g.fillStyle=shade; g.fillRect(x,y,cw,ch);
-    if(locked){ g.fillStyle='rgba(4,3,2,0.58)'; g.fillRect(x,y,cw,ch); }
-    g.restore();
+    const intro=CH_INTRO[n]||{fl:m.s||''};
+    plate(g, x, y, cw, ch, 10, locked?0.52:0.86);
     g.strokeStyle=locked?'rgba(120,100,80,0.35)':(G.cleared[n]?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
-    g.lineWidth=1.8; roundPath(g,x,y,cw,ch,8); g.stroke();
+    g.lineWidth=1.8; roundPath(g,x,y,cw,ch,10); g.stroke();
     if(!locked) menuHits.push({x,y,w:cw,h:ch,fn:()=>startChapter(n)});
-    const innerW=cw-32*s;
-    const pad=14*s;
-    let tSize=(PORT?13:16)*s, sSize=(PORT?8.5:10)*s, labSize=10*s;
-    let tStep=tSize*1.22, sStep=sSize*1.32, labGap=10*s, midGap=8*s;
+    const innerW=cw-36*s;
+    const pad=12*s;
+    let tSize=(PORT?13:16)*s, sSize=(PORT?9:11)*s, labSize=10*s;
+    let tStep=tSize*1.18, sStep=sSize*1.32, labGap=8*s, midGap=7*s;
     function layoutCard(ts, ss, ls, tg, sg, lg, mg){
       g.font='800 '+ts+'px '+FONT_TITLE;
       const tLines=wrapLines(g, m.t, innerW);
       g.font='600 '+ss+'px '+FONT_UI;
-      const sLines=wrapLines(g, m.s||'', innerW);
+      const sLines=wrapLines(g, intro.fl||m.s||'', innerW);
       const h=ls+lg+tLines.length*tg+(sLines.length?mg+sLines.length*sg:0);
       return {tLines, sLines, h};
     }
     let lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     while(lay.h>ch-pad*2 && tSize>9){
-      tSize-=0.7; sSize=Math.max(8, sSize-0.5); labSize=Math.max(8, labSize-0.3);
-      tStep=tSize*1.20; sStep=sSize*1.30; labGap=Math.max(8*s, tSize*0.55); midGap=Math.max(6*s, midGap-0.3);
+      tSize-=0.7; sSize=Math.max(8, sSize-0.45); labSize=Math.max(8, labSize-0.3);
+      tStep=tSize*1.16; sStep=sSize*1.28; labGap=Math.max(6*s, tSize*0.5); midGap=Math.max(5*s, midGap-0.3);
       lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     }
     const t0=centerCopyY(y+pad, y+ch-pad, lay.h);
     const cx=x+cw/2;
-    plate(g, x+10*s, t0-10*s, cw-20*s, lay.h+18*s, 8, 0.72);
     g.textAlign='center';
     g.font='700 '+labSize+'px '+FONT_TITLE;
     g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(232,196,120,0.9)';
@@ -10062,7 +10130,7 @@ function drawChapterSelect(g){
     if(lay.sLines.length){
       yy+=midGap;
       g.font='600 '+sSize+'px '+FONT_UI;
-      g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(210,190,150,0.92)';
+      g.fillStyle=locked?'rgba(160,140,110,0.55)':'rgba(210,190,150,0.94)';
       lay.sLines.forEach(ln=>{ yy+=sSize; g.fillText(ln, cx, yy); yy+=sStep-sSize; });
     }
     g.textAlign='left';
@@ -10080,63 +10148,95 @@ function drawChapterSelect(g){
   menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>openCredits('chapters'));
 }
 
+function enterPlayFromIntro(){
+  G._wantPlay=1;
+  if(!tryEnterPlay()) hint('The seam is still settling.',1.8);
+}
+function tryEnterPlay(){
+  if(!G._wantPlay) return false;
+  if(G.scene!=='intro' && G.scene!=='play') return false;
+  if(!worldArtReady(G.ch)) return false;
+  G._wantPlay=0;
+  if(G.scene==='play') return true;
+  G.scene='play';
+  if(G.ch===1){ hint('Pordum, Fendur, Orbo and Talpor lie west. Walk to each and Rouse them.',6); }
+  else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
+  else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
+  else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }
+  else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Four ways. Left bronze and a bell. Straight goblins carry Noz. Right, the Spider Lord.',6); }
+  return true;
+}
+function goldTitleLine(g, txt, y, size){
+  g.font='800 '+size+'px '+FONT_TITLE;
+  g.lineWidth=size*.14; g.strokeStyle='rgba(0,0,0,0.85)'; g.strokeText(txt,VW/2,y);
+  const gr=g.createLinearGradient(0,y-size*.85,0,y+size*.2);
+  gr.addColorStop(0,'#ffe8b6'); gr.addColorStop(1,'#bd8639');
+  g.fillStyle=gr; g.fillText(txt,VW/2,y);
+}
 function drawIntro(g){
   menuHits=[]; const s=UIS; const L=G.lvl;
   G.introT+=1/60;
   const a=clamp(G.introT/.7,0,1);
   const art=chapterSplashImg(L.n);
-  const descendH=50*s, descendY=VH-48*s;
+  const descendH=50*s, descendY=VH-(PORT?52:48)*s;
   const descendTop=descendY-descendH/2;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
   if(art){
-    /* Cover without the extra 1.05 zoom; bias up so tunnel/Macar read, not giant close-ups. */
-    drawSplashCover(g, art, {zoom:1, ay:0.40, nudgeY:0});
+    drawSplashCover(g, art, {zoom:1, ay:0.46, nudgeY:0});
   } else {
     darken(g, .86);
   }
-  drawLetterbox(g, VH*0.24, VH*0.24, 0.78, 0.86);
+  drawLetterbox(g, VH*0.16, VH*0.14, 0.62, 0.72);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
-  g.globalAlpha=a; g.textAlign='center';
-  g.font='700 '+(12*s)+'px '+FONT_TITLE;
-  g.fillStyle='rgba(232,196,120,0.9)';
-  g.fillText((L.title||('Chapter '+L.n)).toUpperCase(),VW/2,VH*0.085);
-  drawGoldRule(g, VW/2, VH*0.102, 180*s);
-  const titleY=VH*(PORT?0.155:0.165);
-  const titleSize=(PORT?22:30)*s;
-  bigTitle(g,L.sub,titleY,titleSize);
-  g.textAlign='center';
-  g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(160,140,110,0.78)';
-  const musicY=titleY+(PORT?20:24)*s;
-  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, musicY);
   const pack=CH_INTRO[L.n]||{fl:'',ask:'You are MACAR.'};
-  const maxW=Math.min(VW*0.70, 560*s);
-  const copyCeil=Math.max(titleY+titleSize*0.28, musicY)+22*s;
-  const copyFloor=descendTop-18*s;
-  const band=Math.max(48*s, copyFloor-copyCeil);
-  let flSize=(PORT?13:15)*s, askSize=(PORT?12:13.5)*s;
-  let flGap=Math.max(16*s, flSize*1.32), askGap=Math.max(15*s, askSize*1.28);
-  function layoutIntroCopy(fs, as, fg, ag){
+  const chTitle=(L.title||('Chapter '+L.n)).toUpperCase();
+  const goldTitle=L.sub||((CH_META[L.n]&&CH_META[L.n].t)||'');
+  const music=MUSIC_LABEL.chapter;
+  const plateW=Math.min(VW*0.84, 640*s);
+  const plateX=(VW-plateW)/2;
+  const maxW=plateW-52*s;
+  const groupCeil=VH*(PORT?0.075:0.068);
+  const groupFloor=descendTop-16*s;
+  let labSize=(PORT?11:13)*s, titleSize=(PORT?20:28)*s;
+  let flSize=(PORT?13:15)*s, askSize=(PORT?12:13.5)*s, musSize=(PORT?8:9.5)*s;
+  let labGap=10*s, titleGap=12*s, flGap, askGap, musGap=12*s;
+  function layoutIntroCopy(ls, ts, fs, as, ms, lg, tg, mg){
+    flGap=Math.max(15*s, fs*1.30); askGap=Math.max(14*s, as*1.26);
+    g.font='800 '+ts+'px '+FONT_TITLE;
+    const tLines=wrapLines(g, goldTitle, maxW);
     g.font='italic 600 '+fs+'px '+FONT_UI;
     const fl=wrapLines(g, pack.fl, maxW);
     g.font='700 '+as+'px '+FONT_UI;
     const ask=wrapLines(g, pack.ask, maxW);
-    return {fl, ask, h:fl.length*fg + 10*s + ask.length*ag};
+    g.font='600 '+ms+'px '+FONT_UI;
+    const mus=wrapLines(g, music, maxW);
+    const h=ls+lg+tLines.length*(ts*1.18)+tg+fl.length*flGap+8*s+ask.length*askGap+mg+mus.length*(ms*1.35);
+    return {tLines, fl, ask, mus, h};
   }
-  let lay=layoutIntroCopy(flSize, askSize, flGap, askGap);
-  while(lay.h>band && flSize>9){
-    flSize-=0.8; askSize=Math.max(9, askSize-0.7);
-    flGap=Math.max(13*s, flSize*1.26); askGap=Math.max(12*s, askSize*1.22);
-    lay=layoutIntroCopy(flSize, askSize, flGap, askGap);
+  let lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
+  const band=Math.max(64*s, groupFloor-groupCeil);
+  while(lay.h+40*s>band && titleSize>12){
+    titleSize-=0.8; flSize=Math.max(9, flSize-0.55); askSize=Math.max(9, askSize-0.5);
+    labSize=Math.max(8, labSize-0.3); musSize=Math.max(7, musSize-0.2);
+    labGap=Math.max(6*s, labGap-0.35); titleGap=Math.max(8*s, titleGap-0.35);
+    lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
   }
-  let y=centerCopyY(copyCeil, copyFloor, lay.h);
   const platePad=20*s;
-  const plateTop=y-platePad;
   const plateH=lay.h+platePad*2;
-  plate(g, VW*0.11, plateTop, VW*0.78, plateH, 12, 0.86);
-  g.strokeStyle='rgba(232,196,120,0.32)'; g.lineWidth=1.2;
-  roundPath(g, VW*0.11, plateTop, VW*0.78, plateH, 12); g.stroke();
-  g.textAlign='center';
+  const plateTop=centerCopyY(groupCeil, groupFloor, plateH);
+  plate(g, plateX, plateTop, plateW, plateH, 12, 0.88);
+  g.strokeStyle='rgba(232,196,120,0.38)'; g.lineWidth=1.4;
+  roundPath(g, plateX, plateTop, plateW, plateH, 12); g.stroke();
+  g.globalAlpha=a; g.textAlign='center';
+  let y=plateTop+platePad+labSize;
+  g.font='700 '+labSize+'px '+FONT_TITLE;
+  g.fillStyle='rgba(232,196,120,0.92)';
+  g.fillText(chTitle, VW/2, y);
+  y+=labGap;
+  lay.tLines.forEach(ln=>{ y+=titleSize; goldTitleLine(g, ln, y, titleSize); y+=titleSize*0.18; });
+  y+=titleGap*0.35;
+  drawGoldRule(g, VW/2, y, Math.min(180*s, plateW*0.42));
+  y+=titleGap*0.55;
   g.font='italic 600 '+flSize+'px '+FONT_UI;
   g.fillStyle='rgba(220,196,150,0.96)';
   lay.fl.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=flGap; });
@@ -10144,13 +10244,12 @@ function drawIntro(g){
   g.font='700 '+askSize+'px '+FONT_UI;
   g.fillStyle='rgba(210,186,140,0.96)';
   lay.ask.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=askGap; });
+  y+=musGap;
+  g.font='600 '+musSize+'px '+FONT_UI;
+  g.fillStyle='rgba(160,140,110,0.82)';
+  lay.mus.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=musSize*1.35; });
   g.textAlign='left'; g.globalAlpha=1;
-  menuBtn(g,'Descend',VW/2,descendY,Math.min(240*s,VW*.65),descendH,()=>{ G.scene='play';
-    if(G.ch===1){ hint('Pordum, Fendur, Orbo and Talpor lie west. Walk to each and Rouse them.',6); }
-    else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
-    else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
-    else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }
-    else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Four ways. Left bronze and a bell. Straight goblins carry Noz. Right, the Spider Lord.',6); } });
+  menuBtn(g,'Descend',VW/2,descendY,Math.min(240*s,VW*.65),descendH,()=>enterPlayFromIntro());
 }
 
 function drawBetween(g){
@@ -11100,10 +11199,9 @@ let last=performance.now();
 function loop(now){
   let dt=(now-last)/1000; last=now; dt=Math.min(dt,.05); G.t+=dt;
   tickGfx(dt);
-  /* SkillSystem is registered on ENGINE.systems (after ABIL/cds).
-     update() → runSystems(dt) ticks it every unpaused play frame, before
-     movement (steerWalk / move) and the entity position loop. */
-  if(G.hitstop>0) G.hitstop-=dt; else update(dt);
+  const holdingWorld=G.scene==='play' && !worldArtReady(G.ch);
+  if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld) update(dt);
+  tryEnterPlay();
   syncMusic();
   render(); resolveTaps();
   requestAnimationFrame(loop);
@@ -11114,7 +11212,9 @@ loadSprites(()=>{});
 if(window.CraftingEngine) CraftingEngine.load('src/crafting/recipes.json');
 try{
   if(/play/.test((location.hash||'')+(location.search||''))) {
-    startChapter(1); G.scene='play'; G.introT=99;
+    startChapter(1);
+    G._wantPlay=1;
+    if(!tryEnterPlay()) G.introT=99;
     const fallen=(G.ents||[]).filter(e=>e.crushed).map(e=>e.name);
     document.title='KIN '+fallen.length+': '+fallen.join(', ');
   }

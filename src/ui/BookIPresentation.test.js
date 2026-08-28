@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Book I presentation: chapter-card copy, fallen-kin scale, desktop HUD size.
+ * Book I presentation: chapter title cards, fallen-kin scale, desktop HUD size.
  * Run: node src/ui/BookIPresentation.test.js
  */
 const fs=require('fs');
@@ -28,34 +28,34 @@ assert(/wore the crown out/.test(block), 'Chapter V flavor is a full sentence');
 assert(/You are MACAR/.test(block), 'Every chapter card still addresses Macar');
 
 assert(/function centerCopyY\(ceil, floor, blockH\)/.test(html), 'centerCopyY helper exists');
+assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro exists');
+assert(/descendTop=descendY-descendH\/2/.test(html), 'intro keeps a clear band above Descend');
+assert(/centerCopyY\(groupCeil, groupFloor, plateH\)/.test(html), 'intro story plate is centered between header and Descend');
+assert(/layoutIntroCopy/.test(html), 'intro copy wraps and shrinks to the band above Descend');
+assert(/CH_INTRO\[L\.n\]/.test(html), 'intro draws CH_INTRO, not a clipped inline stub');
+assert(/plateH=lay\.h\+platePad\*2/.test(html), 'intro plate wraps the copy block instead of stretching to Descend');
+assert(!/if\(y<=copyBot\)/.test(html), 'intro does not clip wrapped lines against Descend');
+assert(/ay:0\.46/.test(html) && /zoom:1/.test(html), 'chapter splash covers as a painted plate, no extra zoom');
+assert(!/VH\*\(PORT\?0\.80:0\.78\)/.test(html), 'intro no longer parks body text on a fixed 78% line over Descend');
+assert(!/copyBot-lay\.h/.test(html), 'intro no longer shoves body text against the bottom band');
+assert(/goldTitleLine\(g, ln, y, titleSize\)/.test(html), 'intro gold title is drawn inside the story plate');
+assert(/MUSIC_LABEL\.chapter/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
+  'intro story plate includes the music credit');
+assert(/enterPlayFromIntro/.test(html), 'Descend waits for world art instead of presenting a half-loaded frame');
 
-const drawIntro=html.match(/function drawIntro\(g\)\{[\s\S]*?\n\}/);
-assert(!!drawIntro, 'drawIntro exists');
-const di=drawIntro?drawIntro[0]:'';
-assert(/descendTop=descendY-descendH\/2/.test(di), 'intro keeps a clear band above Descend');
-assert(/centerCopyY\(copyCeil, copyFloor, lay\.h\)/.test(di), 'intro body is vertically centered between the gold title and Descend');
-assert(/layoutIntroCopy/.test(di), 'intro copy wraps and shrinks to the band above Descend');
-assert(/CH_INTRO\[L\.n\]/.test(di), 'intro draws CH_INTRO, not a clipped inline stub');
-assert(/plateH=lay\.h\+platePad\*2/.test(di), 'intro plate wraps the copy block instead of stretching to Descend');
-assert(!/if\(y<=copyBot\)/.test(di), 'intro does not clip wrapped lines against Descend');
-assert(/ay:0\.40/.test(di) && /zoom:1/.test(di), 'chapter splash does not extra-zoom the foreground close-ups');
-assert(!/VH\*\(PORT\?0\.80:0\.78\)/.test(di), 'intro no longer parks body text on a fixed 78% line over Descend');
-assert(!/copyBot-lay\.h/.test(di), 'intro no longer shoves body text against the bottom band');
-assert(/bigTitle\(g,L\.sub,titleY,titleSize\);\s*g\.textAlign='center'/.test(di),
-  'intro restores center align after the gold title so body copy is not shoved to the right');
-
-const select=html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\n\}/);
-assert(!!select, 'drawChapterSelect exists');
-const ds=select?select[0]:'';
-assert(/wrapLines\(g, m\.t/.test(ds), 'chapter select wraps titles instead of ellipsizing them');
-assert(/wrapLines\(g, m\.s\|\|''/.test(ds), 'chapter select shows wrapped subtitles');
-assert(!/\.slice\(0,2\)/.test(ds), 'chapter select does not clip subtitles to two lines');
-assert(!/PORT\?92\*s:148\*s/.test(ds), 'chapter cards are not height-capped into a bottom strip');
-assert(/centerCopyY\(y\+pad, y\+ch-pad, lay\.h\)/.test(ds), 'chapter-select body text is centered in each card');
-assert(/g\.textAlign='center'/.test(ds), 'chapter-select copy is centered on the card');
-assert(/yy=t0\+labSize/.test(ds) && /yy\+=labGap/.test(ds),
+assert(/function drawChapterSelect\(g\)\{/.test(html), 'drawChapterSelect exists');
+assert(/SPR\.chapters_plate/.test(html), 'chapter select uses the painted chapters plate, not a screenshot strip');
+assert(/cols=PORT\?1:2/.test(html), 'chapter select is at most two columns so sentences fit');
+assert(!/VW>980\?3:2/.test(html), 'chapter select is not a three-column thumbnail grid');
+assert(/wrapLines\(g, m\.t/.test(html), 'chapter select wraps titles instead of ellipsizing them');
+assert(/wrapLines\(g, intro\.fl\|\|m\.s\|\|''/.test(html), 'chapter select shows full CH_INTRO flavor sentences');
+assert(!/\.slice\(0,2\)/.test(html), 'chapter select does not clip subtitles to two lines');
+assert(!/PORT\?92\*s:148\*s/.test(html), 'chapter cards are not height-capped into a bottom strip');
+assert(/centerCopyY\(y\+pad, y\+ch-pad, lay\.h\)/.test(html), 'chapter-select body text is centered in each card');
+assert(/yy=t0\+labSize/.test(html) && /yy\+=labGap/.test(html),
   'chapter-select CHAPTER label sits above the gold title with a gap, not overlapping it');
-assert(!/ellipsize\(g,m\.t/.test(ds), 'chapter select does not cut titles with ellipses');
+assert(!/ellipsize\(g,m\.t/.test(html), 'chapter select does not cut titles with ellipses');
+assert(!/drawArtRect\(g, chapterSplashImg/.test(html), 'chapter select is not a tiny text box on a screenshot');
 
 function centerCopyY(ceil, floor, blockH){
   const mid=(ceil+floor)*0.5;
@@ -66,33 +66,32 @@ function centerCopyY(ceil, floor, blockH){
 }
 function checkIntroBand(name, vw, vh, port){
   const s=Math.min(1.30, Math.max(0.66, Math.min(vw,vh)/(port?430:700)));
-  const titleY=vh*(port?0.155:0.165);
-  const titleSize=(port?22:30)*s;
-  const musicY=titleY+(port?20:24)*s;
-  const copyCeil=Math.max(titleY+titleSize*0.28, musicY)+22*s;
-  const descendY=vh-48*s;
+  const descendY=vh-(port?52:48)*s;
   const descendTop=descendY-50*s/2;
-  const copyFloor=descendTop-18*s;
-  const blockH=120*s;
-  const y=centerCopyY(copyCeil, copyFloor, blockH);
-  const mid=y+blockH/2;
-  const bandMid=(copyCeil+copyFloor)/2;
-  assert(copyCeil>titleY, name+': copy band starts below the gold title');
-  assert(copyFloor<descendTop, name+': copy band ends above Descend');
-  assert(Math.abs(mid-bandMid)<0.5, name+': copy block is centered in the title-to-Descend band');
-  assert(mid>vh*0.32 && mid<vh*0.68, name+': copy sits in the middle of the screen (mid='+mid.toFixed(1)+')');
-  assert(y+blockH<=copyFloor+0.01, name+': copy is not clipped by Descend');
+  const groupCeil=vh*(port?0.075:0.068);
+  const groupFloor=descendTop-16*s;
+  const plateH=160*s;
+  const y=centerCopyY(groupCeil, groupFloor, plateH);
+  const mid=y+plateH/2;
+  const bandMid=(groupCeil+groupFloor)/2;
+  assert(groupCeil>vh*0.04, name+': story plate starts below the top frame');
+  assert(groupFloor<descendTop, name+': story plate ends above Descend');
+  assert(Math.abs(mid-bandMid)<0.5, name+': story plate is centered in the title-card band');
+  assert(mid>vh*0.32 && mid<vh*0.68, name+': plate sits in the middle of the screen (mid='+mid.toFixed(1)+')');
+  assert(y+plateH<=groupFloor+0.01, name+': plate is not clipped by Descend');
 }
 checkIntroBand('desktop 1440x900', 1440, 900, false);
 checkIntroBand('phone 390x844', 390, 844, true);
 
 const crush=html.match(/function drawCrushedKin\(g,e\)\{[\s\S]*?\n\}/);
 assert(!!crush, 'drawCrushedKin exists');
-const ck=crush?crush[0]:'';
-assert(/dwarfH=entSpriteH\(\{kind:'dwarf'\}/.test(ck), 'fallen kin size is keyed to living dwarf height');
-assert(/maxW=dwarfH\*1\.12/.test(ck) && /maxH=dwarfH\*0\.82/.test(ck), 'crush sprites stay near Macar scale, not giant close-ups');
-assert(!/128\*z/.test(ck) && !/TW\*1\.55/.test(ck), 'old 128*z / TW*1.55 crush draw size is gone');
-assert(/ellipse\(2\*z, 8\*z, 20\*z, 9\*z/.test(ck), 'crush glow matches dwarf footprint, not a half-screen ring');
+assert(/dwarfH=entSpriteH\(\{kind:'dwarf'\}/.test(html), 'fallen kin size is keyed to living dwarf height');
+assert(/maxW=dwarfH\*1\.12/.test(html) && /maxH=dwarfH\*0\.82/.test(html), 'crush sprites stay near Macar scale, not giant close-ups');
+assert(!/128\*z/.test(html.match(/function drawCrushedKin[\s\S]*function blitCrushRock/)[0]) &&
+  !/TW\*1\.55/.test(html.match(/function drawCrushedKin[\s\S]*function blitCrushRock/)[0]),
+  'old 128*z / TW*1.55 crush draw size is gone');
+assert(/ellipse\(2\*z, 8\*z, 20\*z, 9\*z/.test(html), 'crush glow matches dwarf footprint, not a half-screen ring');
+assert(/drawKinRubbleOverlay/.test(html), 'fallen kin draw crush/rubble over the bodies');
 
 assert(/HUD_DESK_WIDE=1280/.test(html), 'desktop HUD wide breakpoint is 1280px');
 assert(/HUD_DESK_SLOT_MIN=60/.test(html), 'desktop HUD icons floor at 60px');
@@ -103,7 +102,7 @@ assert(!/#dgBtn\{position:fixed;left:8px;bottom:8px/.test(html), 'diagnostic fla
 
 /* Desktop bar math for a 1440×900 mouse layout (not a phone). */
 function deskSim(vw, vh, s){
-  const padL=8, padR=8, padB=8;
+  const padL=8, padR=8;
   const deskWide=vw>=1280;
   const stickR=(deskWide?42:34)*s;
   const stickX=padL+14*s+stickR;
