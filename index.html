@@ -889,8 +889,10 @@ function dwarfIdleFrac(e){
   const k=entSpriteKey(e);
   const idle=k&&SPR[k];
   const b=spriteBounds(idle);
-  const frac=figurePersonFrac(b);
-  return frac||MACAR_IDLE_FRAC;
+  // Idle sheets still carry fringe on some kin — use the opaque box, not
+  // a foot-column crown that can undershoot on those older plants.
+  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, 0.55, 1);
+  return MACAR_IDLE_FRAC;
 }
 /* Every party dwarf — living and ghost — keeps one world height from idle
    through walk, strike, and recover. Do not scale attack 1.29x. */
