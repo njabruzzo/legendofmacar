@@ -14,21 +14,21 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/function screenCardinal\(e\)\{/.test(html), 'screen cardinal is dx-dy vs dx+dy, not a per-frame table');
+assert(/function screenOctant\(e\)\{/.test(html), 'walk uses 8 iso octants, not a 4-way snap');
 assert(!/const DWARF_FACE_SX=\{/.test(html), 'old native-facing table is gone');
 assert(/function wantsSpriteFlip\(e\)\{/.test(html), 'billboard still mirrors west from the east sheet');
 assert(/function faceToward\(/.test(html) && /function faceVec\(/.test(html),
   'attack and walk heading share one face vector');
-assert(/function dwarfAngleKey\(/.test(html) && /function entAnimKey\(/.test(html),
-  'walk picks a painted east/south/back sheet from the cardinal');
+assert(/function dwarfAngleKey\(/.test(html) && /oct==='nw'/.test(html) && /k\+'_nw_w1'/.test(html),
+  'NW walk uses a painted back-left sheet');
 assert(/function moveHeadingSX\(e\)\{/.test(html), 'iso screen-x heading is ix-iy');
 assert(/blitFacing\(g,img,dx,dy,W,H,flip\)/.test(html),
   'billboard mirrors with negative-width drawImage, not a context scale the hero path can drop');
 assert(/function blitFacing\(g,img,dx,dy,W,H,flip\)\{/.test(html) &&
   /drawImage\(img, dx\+W, dy, -W, H\)/.test(html),
   'left-heading flip is a negative destination width');
-assert(/return screenCardinal\(e\)==='n'/.test(html),
-  'back view is iso north only — west walk keeps the side sheet');
+assert(/return screenOctant\(e\)==='n'/.test(html),
+  'full back view is screen-up only — NW uses the painted back-left sheet');
 assert(/Party kin share Macar heading/.test(html),
   'followers face Macar while they trail, not their scramble vector');
 assert(/lead\.fdx!=null\?lead\.fdx/.test(html),
@@ -43,8 +43,8 @@ assert(/faceToward\(p, foe\.x, foe\.y\)/.test(html), 'Attack snaps Macar toward 
 assert(/e\.fdx=dx; e\.fdy=dy/.test(html), 'walk snaps facing to the travel vector');
 assert(/k==='v'\) fire\('wall'\)/.test(html) && !/k==='d'\) fire\('wall'\)/.test(html),
   'D is walk-right, not Defend — V raises the shield');
-assert(/key\.indexOf\('_e_'\)>=0/.test(html) && /return card==='w'/.test(html),
-  'east sheets flip only for screen-west; they stay as painted on D');
+assert(/key\.indexOf\('_nw_'\)>=0/.test(html) && /key\.indexOf\('_se_'\)>=0/.test(html),
+  'NW sheets are never flipped; SE sheets flip only for SW');
 
 function faceVec(e, lead){
   if(!e) return {dx:0,dy:0};
@@ -60,38 +60,50 @@ function faceVec(e, lead){
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
-function screenCardinal(e, lead){
+function screenOctant(e, lead){
   const v=faceVec(e, lead);
   const sx=(v.dx||0)-(v.dy||0);
   const sy=(v.dx||0)+(v.dy||0);
-  if(Math.abs(sx)>=Math.abs(sy)) return sx>=0?'e':'w';
-  return sy>=0?'s':'n';
+  if(!(sx||sy)) return 's';
+  const deg=((Math.atan2(sy,sx)*180/Math.PI)+360)%360;
+  const bin=Math.round(deg/45)%8;
+  return ['e','se','s','sw','w','nw','n','ne'][bin];
 }
 function wantsSpriteFlip(e, lead){
   if(!e||e.crushed||e.dead) return false;
-  const card=screenCardinal(e, lead);
+  const oct=screenOctant(e, lead);
   const key=e.animKey||'macar_e_w1';
-  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return card==='w';
+  if(key.indexOf('_nw_')>=0 || key.indexOf('_ne_')>=0) return false;
+  if(key.indexOf('_se_')>=0) return oct==='sw';
+  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return oct==='w';
   if(key.indexOf('_s_')>=0 || /_s$/.test(key) || key.indexOf('_back')>=0) return false;
-  return card==='w';
+  return oct==='w'||oct==='sw';
 }
 function wantsBackView(e, lead){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
-  return screenCardinal(e, lead)==='n';
+  return screenOctant(e, lead)==='n';
 }
 
-assert(screenCardinal({moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7})==='e',
-  'D / screen-right is the east cardinal');
-assert(screenCardinal({moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7})==='w',
-  'A / screen-left is the west cardinal');
-assert(screenCardinal({moving:1, ix:-0.7, iy:-0.7, fdx:-0.7, fdy:-0.7})==='n',
-  'W / screen-up is the north cardinal');
-assert(screenCardinal({moving:1, ix:0.7, iy:0.7, fdx:0.7, fdy:0.7})==='s',
-  'S / screen-down is the south cardinal');
-assert(screenCardinal({moving:0, ix:0, iy:0, fdx:0, fdy:1})==='w' ||
-       screenCardinal({moving:0, ix:0, iy:0, fdx:0, fdy:1})==='s',
-  'fdx===0 is still a real heading, not a missing fallback');
+assert(screenOctant({moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7})==='e',
+  'D / screen-right is east');
+assert(screenOctant({moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7})==='w',
+  'A / screen-left is west');
+assert(screenOctant({moving:1, ix:-0.7, iy:-0.7, fdx:-0.7, fdy:-0.7})==='n',
+  'W / screen-up is north');
+assert(screenOctant({moving:1, ix:0.7, iy:0.7, fdx:0.7, fdy:0.7})==='s',
+  'S / screen-down is south');
+assert(screenOctant({moving:1, ix:-1, iy:0, fdx:-1, fdy:0})==='nw',
+  'W+A / world -x is northwest (screen top-left)');
+assert(screenOctant({moving:1, ix:0, iy:-1, fdx:0, fdy:-1})==='ne',
+  'W+D / world -y is northeast');
+assert(screenOctant({moving:1, ix:0, iy:1, fdx:0, fdy:1})==='sw',
+  'S+A / world +y is southwest');
+assert(screenOctant({moving:1, ix:1, iy:0, fdx:1, fdy:0})==='se',
+  'S+D / world +x is southeast');
+assert(!wantsSpriteFlip({animKey:'macar_nw_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0}),
+  'NW sheet is painted back-left and is not flipped');
+assert(!wantsBackView({fdx:-1, fdy:0}), 'NW does not steal the straight-back sheet');
 
 const leftMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
 const rightMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
@@ -131,8 +143,10 @@ assert(wantsBackView({atk:0.4, aim:{x:9,y:9,dead:0}, x:10, y:10, fdx:0, fdy:1}),
 
 const root=path.join(__dirname,'../../assets/creatures');
 ['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_s_w1.png','dwarf_macar_s_w2.png',
+ 'dwarf_macar_nw_w1.png','dwarf_macar_ne_w1.png','dwarf_macar_se_w1.png',
  'dwarf_orbo_ghost_e_w1.png','dwarf_fendur_ghost_e_w1.png','dwarf_pordoom_ghost_e_w1.png','dwarf_talpor_ghost_e_w1.png',
  'dwarf_orbo_ghost_s_w1.png','dwarf_fendur_ghost_s_w1.png','dwarf_pordoom_ghost_s_w1.png','dwarf_talpor_ghost_s_w1.png',
+ 'dwarf_orbo_ghost_nw_w1.png','dwarf_fendur_ghost_nw_w1.png','dwarf_pordoom_ghost_nw_w1.png','dwarf_talpor_ghost_nw_w1.png',
  'dwarf_orbo_e_w1.png','dwarf_fendur_e_w1.png','dwarf_pordoom_e_w1.png','dwarf_talpor_e_w1.png']
   .forEach(f=>assert(fs.existsSync(path.join(root,f)), f+' exists'));
 

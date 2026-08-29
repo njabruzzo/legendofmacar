@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=62">
-<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=62">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=64">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=64">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
 <link rel="preload" as="image" href="assets/tiles/tile_wall_worked.png?v=60">
@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='63';
+const ASSET_VER='64';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -580,6 +580,18 @@ SPRITE_FILES.macar_axe_e_atk='assets/creatures/dwarf_macar_axe_e_atk.png';
   SPRITE_FILES[k+'_ghost_s_w1']='assets/creatures/dwarf_'+k+'_ghost_s_w1.png';
   SPRITE_FILES[k+'_ghost_s_w2']='assets/creatures/dwarf_'+k+'_ghost_s_w2.png';
 });
+['macar','macar_axe'].forEach(k=>{
+  ['nw','ne','se'].forEach(ang=>{
+    SPRITE_FILES[k+'_'+ang+'_w1']='assets/creatures/dwarf_'+k+'_'+ang+'_w1.png';
+    SPRITE_FILES[k+'_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_'+ang+'_w2.png';
+  });
+});
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
+  ['nw','ne','se'].forEach(ang=>{
+    SPRITE_FILES[k+'_ghost_'+ang+'_w1']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w1.png';
+    SPRITE_FILES[k+'_ghost_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w2.png';
+  });
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -621,10 +633,15 @@ function loadSprites(done){
     'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
     'macar_e_w1','macar_e_w2','macar_s_w1','macar_s_w2','macar_e_atk',
+    'macar_nw_w1','macar_nw_w2','macar_ne_w1','macar_ne_w2','macar_se_w1','macar_se_w2',
     'pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2',
     'fendur_ghost_e_w1','fendur_ghost_e_w2','fendur_ghost_s_w1','fendur_ghost_s_w2',
     'orbo_ghost_e_w1','orbo_ghost_e_w2','orbo_ghost_s_w1','orbo_ghost_s_w2',
     'talpor_ghost_e_w1','talpor_ghost_e_w2','talpor_ghost_s_w1','talpor_ghost_s_w2',
+    'pordoom_ghost_nw_w1','pordoom_ghost_nw_w2','pordoom_ghost_ne_w1','pordoom_ghost_ne_w2','pordoom_ghost_se_w1','pordoom_ghost_se_w2',
+    'fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
+    'orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
+    'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'cavein',
@@ -793,7 +810,7 @@ function frameFit(e,img){
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
-  for(const suffix of ['_atk_recover','_atk_bow','_e_atk','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2','_atk','_back','_w1','_w2','_sleep']){
+  for(const suffix of ['_atk_recover','_atk_bow','_e_atk','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2','_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2','_atk','_back','_w1','_w2','_sleep']){
     if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
   }
   return 1;
@@ -1313,26 +1330,34 @@ function faceVec(e){
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
-function screenCardinal(e){
+function screenOctant(e){
   const v=faceVec(e);
   const sx=(v.dx||0)-(v.dy||0);
   const sy=(v.dx||0)+(v.dy||0);
-  if(Math.abs(sx)>=Math.abs(sy)) return sx>=0?'e':'w';
-  return sy>=0?'s':'n';
+  if(!(sx||sy)) return 's';
+  const deg=((Math.atan2(sy,sx)*180/Math.PI)+360)%360;
+  const bin=Math.round(deg/45)%8;
+  return ['e','se','s','sw','w','nw','n','ne'][bin];
+}
+function screenCardinal(e){
+  const o=screenOctant(e);
+  if(o==='se'||o==='sw') return o==='se'?'e':'w';
+  if(o==='ne'||o==='nw') return o==='ne'?'e':'w';
+  return o;
 }
 function wantsBackView(e){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  return screenCardinal(e)==='n';
+  return screenOctant(e)==='n';
 }
 function moveHeadingSX(e){
   const v=faceVec(e);
   return (v.dx||0)-(v.dy||0);
 }
 function dwarfAngleKey(e,k){
-  const card=screenCardinal(e);
+  const oct=screenOctant(e);
   const moving=QUALITY && e.moving && !e.defending;
   const phase=((e.gait||0)%1)<0.5?'w1':'w2';
   function gait(a,b,idle){
@@ -1347,7 +1372,7 @@ function dwarfAngleKey(e,k){
     if(b && SPR[b]) return b;
     return null;
   }
-  if(card==='n'){
+  if(oct==='n'){
     const macarKey=(k==='macar'||k==='macar_axe');
     const aKey=k+'_back_w1', bKey=k+'_back_w2';
     const a=SPR[aKey]?aKey:(macarKey&&SPR.macar_back_w1?'macar_back_w1':null);
@@ -1358,18 +1383,23 @@ function dwarfAngleKey(e,k){
     if(macarKey && SPR.macar_back) return 'macar_back';
     return null;
   }
-  if(card==='s') return gait(k+'_s_w1', k+'_s_w2', k+'_s');
+  if(oct==='s') return gait(k+'_s_w1', k+'_s_w2', k+'_s');
+  if(oct==='nw') return gait(k+'_nw_w1', k+'_nw_w2', k+'_nw');
+  if(oct==='ne') return gait(k+'_ne_w1', k+'_ne_w2', k+'_ne');
+  if(oct==='se'||oct==='sw') return gait(k+'_se_w1', k+'_se_w2', k);
   let ek=k;
   if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') ek='macar';
   return gait(ek+'_e_w1', ek+'_e_w2', ek+'_e');
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
-  const card=screenCardinal(e);
+  const oct=screenOctant(e);
   const key=entAnimKey(e)||'';
-  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return card==='w';
+  if(key.indexOf('_nw_')>=0 || key.indexOf('_ne_')>=0) return false;
+  if(key.indexOf('_se_')>=0) return oct==='sw';
+  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return oct==='w';
   if(key.indexOf('_s_')>=0 || /_s$/.test(key) || key.indexOf('_back')>=0) return false;
-  return card==='w';
+  return oct==='w'||oct==='sw';
 }
 function attackProgress(e){
   if(!e||!(e.atk>0)) return 0;

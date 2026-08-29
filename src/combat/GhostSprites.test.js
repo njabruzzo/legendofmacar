@@ -7,7 +7,7 @@ const fs=require('fs');
 const path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 const KIN=['pordoom','fendur','orbo','talpor'];
-const FRAMES=['','_w1','_w2','_atk','_atk_recover','_back','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2'];
+const FRAMES=['','_w1','_w2','_atk','_atk_recover','_back','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2','_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2'];
 
 let failed=0;
 function assert(cond, msg){
