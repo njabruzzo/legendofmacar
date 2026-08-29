@@ -29,5 +29,27 @@ assert(/footprints=\[/.test(html) && /\[6,8,12,10\]/.test(html) && /\[20,54,24,1
   && /\[84,8,16,12\]/.test(html) && /\[100,40,14,16\]/.test(html),
   'ancient building footprints cover north, south, and new east streets');
 
+const ch1=html.slice(html.indexOf('if(n===1){'), html.indexOf('if(n===2){'));
+assert(/L\.w=96; L\.h=76/.test(ch1), 'chapter I mine is a larger hall field');
+assert(/rect\(g,14,14,18,16,0\)/.test(ch1) && /rect\(g,24,7,28,28,0\)/.test(ch1),
+  'chapter I start rooms stay on the old tiles');
+assert(/L\.rubyDoor=\{x:36\.5,y:7\.28\}/.test(ch1) && /k:'lift'/.test(ch1),
+  'ruby door and lift stay findable');
+assert(/rect\(g,22,52,18,14,0\)/.test(ch1) && /rect\(g,72,16,16,12,0\)/.test(ch1),
+  'chapter I adds a south store and east shop');
+
+const ch4=html.slice(html.indexOf('if(n===4){'), html.indexOf('if(n===5){'));
+assert(/L\.w=110; L\.h=88/.test(ch4), 'chapter IV drowned city is a larger street field');
+assert(/rect\(g,42,8,18,16,0\)/.test(ch4) && /rect\(g,38,34,24,16,0\)/.test(ch4),
+  'illithid outpost and brain chamber stay on the old tiles');
+assert(/rect\(g,82,8,20,14,0\)/.test(ch4) && /rect\(g,38,68,24,14,0\)/.test(ch4),
+  'chapter IV adds an east quay and south cistern');
+
+const ch5=html.slice(html.indexOf('if(n===5){'), html.indexOf('sealOuter(L.grid);'));
+assert(/L\.w=88; L\.h=80/.test(ch5), 'chapter V temple is a larger hall');
+assert(/k:'altar'/.test(ch5) && /k:'throne'/.test(ch5), 'altar and throne stay findable');
+assert(/rect\(g,64,14,18,16,0\)/.test(ch5) && /rect\(g,18,56,22,14,0\)/.test(ch5),
+  'chapter V adds an east chapel and south court');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nruin scale checks passed');
