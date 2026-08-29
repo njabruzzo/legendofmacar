@@ -1,7 +1,8 @@
 'use strict';
 /**
- * Party dwarves face the way they walk: painted east sheets for D, flipped for A,
- * back sheets for W, south sheets for S. Followers copy Macar heading.
+ * Party dwarves face the way they walk: painted-east sheets for screen-right,
+ * baked-mirror of those sheets for screen-left (A / left-stick / SW / NW).
+ * NW painted sheets face upper-right and must not be used for west.
  * Run: node src/combat/DwarfFacing.test.js
  */
 const fs=require('fs');
@@ -19,16 +20,15 @@ assert(!/const DWARF_FACE_SX=\{/.test(html), 'old native-facing table is gone');
 assert(/function wantsSpriteFlip\(e\)\{/.test(html), 'billboard still mirrors west from the east sheet');
 assert(/function faceToward\(/.test(html) && /function faceVec\(/.test(html),
   'attack and walk heading share one face vector');
-assert(/function dwarfAngleKey\(/.test(html) && /oct==='nw'/.test(html) && /k\+'_nw_w1'/.test(html),
-  'NW walk uses a painted back-left sheet');
+assert(/function dwarfAngleKey\(/.test(html) && /oct==='w'\|\|oct==='sw'\|\|oct==='nw'/.test(html),
+  'screen-left octants (A / SW / NW) share the east-painted walk');
 assert(/function moveHeadingSX\(e\)\{/.test(html), 'iso screen-x heading is ix-iy');
-assert(/blitFacing\(g,img,dx,dy,W,H,flip\)/.test(html),
-  'billboard mirrors with negative-width drawImage, not a context scale the hero path can drop');
-assert(/function blitFacing\(g,img,dx,dy,W,H,flip\)\{/.test(html) &&
-  /drawImage\(img, dx\+W, dy, -W, H\)/.test(html),
-  'left-heading flip is a negative destination width');
+assert(/function flippedSprite\(img\)\{/.test(html) && /function blitFacing\(/.test(html),
+  'west facing bakes a mirrored canvas instead of relying on negative dest width');
+assert(/return moveHeadingSX\(e\) < -0\.02/.test(html),
+  'any screen-left heading flips the east profile, not only oct===w');
 assert(/return screenOctant\(e\)==='n'/.test(html),
-  'full back view is screen-up only — NW uses the painted back-left sheet');
+  'full back view is screen-up only');
 assert(/Party kin share Macar heading/.test(html),
   'followers face Macar while they trail, not their scramble vector');
 assert(/lead\.fdx!=null\?lead\.fdx/.test(html),
@@ -43,8 +43,10 @@ assert(/faceToward\(p, foe\.x, foe\.y\)/.test(html), 'Attack snaps Macar toward 
 assert(/e\.fdx=dx; e\.fdy=dy/.test(html), 'walk snaps facing to the travel vector');
 assert(/k==='v'\) fire\('wall'\)/.test(html) && !/k==='d'\) fire\('wall'\)/.test(html),
   'D is walk-right, not Defend — V raises the shield');
-assert(/key\.indexOf\('_nw_'\)>=0/.test(html) && /key\.indexOf\('_se_'\)>=0/.test(html),
-  'NW sheets are never flipped; SE sheets flip only for SW');
+assert(/The _nw_ sheets are painted walking upper-right/.test(html),
+  'NW moonwalk is called out: those sheets are not selected for west');
+assert(/macar_title/.test(html) && /dwarf_macar_title\.png/.test(html),
+  'title fallback uses the two-hand shoulder-maul still');
 
 function faceVec(e, lead){
   if(!e) return {dx:0,dy:0};
@@ -69,15 +71,17 @@ function screenOctant(e, lead){
   const bin=Math.round(deg/45)%8;
   return ['e','se','s','sw','w','nw','n','ne'][bin];
 }
+function moveHeadingSX(e, lead){
+  const v=faceVec(e, lead);
+  return (v.dx||0)-(v.dy||0);
+}
 function wantsSpriteFlip(e, lead){
   if(!e||e.crushed||e.dead) return false;
-  const oct=screenOctant(e, lead);
   const key=e.animKey||'macar_e_w1';
-  if(key.indexOf('_nw_')>=0 || key.indexOf('_ne_')>=0) return false;
-  if(key.indexOf('_se_')>=0) return oct==='sw';
-  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return oct==='w';
-  if(key.indexOf('_s_')>=0 || /_s$/.test(key) || key.indexOf('_back')>=0) return false;
-  return oct==='w'||oct==='sw';
+  if(key.indexOf('_back')>=0) return false;
+  if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
+  if(key.indexOf('_ne_')>=0) return false;
+  return moveHeadingSX(e, lead) < -0.02;
 }
 function wantsBackView(e, lead){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
@@ -101,9 +105,6 @@ assert(screenOctant({moving:1, ix:0, iy:1, fdx:0, fdy:1})==='sw',
   'S+A / world +y is southwest');
 assert(screenOctant({moving:1, ix:1, iy:0, fdx:1, fdy:0})==='se',
   'S+D / world +x is southeast');
-assert(!wantsSpriteFlip({animKey:'macar_nw_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0}),
-  'NW sheet is painted back-left and is not flipped');
-assert(!wantsBackView({fdx:-1, fdy:0}), 'NW does not steal the straight-back sheet');
 
 const leftMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
 const rightMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
@@ -114,6 +115,11 @@ assert(!wantsSpriteFlip(rightMacar), 'Macar walking right keeps the painted-righ
 assert(wantsSpriteFlip(leftGhost), 'ghost kin walking left face left');
 assert(!wantsSpriteFlip(rightGhost), 'ghost kin walking right face right');
 assert(!wantsSpriteFlip({k:'fendur_ghost', dead:1, moving:1, ix:-0.7, iy:0.7}), 'corpses are not flipped');
+
+const nwMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0};
+assert(wantsSpriteFlip(nwMacar), 'NW / W+A also mirrors the east sheet (nw art faces the wrong way)');
+const swMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:0, iy:1, fdx:0, fdy:1};
+assert(wantsSpriteFlip(swMacar), 'SW / S+A mirrors the east sheet');
 
 const ghostGoingRight={k:'pordoom_ghost', team:'party', ghost:1, moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, animKey:'pordoom_ghost_e_w1'};
 const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
@@ -143,12 +149,14 @@ assert(wantsBackView({atk:0.4, aim:{x:9,y:9,dead:0}, x:10, y:10, fdx:0, fdy:1}),
 
 const root=path.join(__dirname,'../../assets/creatures');
 ['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_s_w1.png','dwarf_macar_s_w2.png',
- 'dwarf_macar_nw_w1.png','dwarf_macar_ne_w1.png','dwarf_macar_se_w1.png',
+ 'dwarf_macar_title.png',
  'dwarf_orbo_ghost_e_w1.png','dwarf_fendur_ghost_e_w1.png','dwarf_pordoom_ghost_e_w1.png','dwarf_talpor_ghost_e_w1.png',
  'dwarf_orbo_ghost_s_w1.png','dwarf_fendur_ghost_s_w1.png','dwarf_pordoom_ghost_s_w1.png','dwarf_talpor_ghost_s_w1.png',
- 'dwarf_orbo_ghost_nw_w1.png','dwarf_fendur_ghost_nw_w1.png','dwarf_pordoom_ghost_nw_w1.png','dwarf_talpor_ghost_nw_w1.png',
  'dwarf_orbo_e_w1.png','dwarf_fendur_e_w1.png','dwarf_pordoom_e_w1.png','dwarf_talpor_e_w1.png']
   .forEach(f=>assert(fs.existsSync(path.join(root,f)), f+' exists'));
+
+const ui=path.join(__dirname,'../../assets/ui');
+['title_splash.jpg','intro_ch1.jpg'].forEach(f=>assert(fs.existsSync(path.join(ui,f)), f+' exists'));
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ndwarf facing checks passed');

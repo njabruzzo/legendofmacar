@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=64">
-<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=64">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=66">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
 <link rel="preload" as="image" href="assets/tiles/tile_wall_worked.png?v=60">
@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='65';
+const ASSET_VER='66';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -394,6 +394,7 @@ function syncMusic(){
 bgm.want('title'); /* resume+play now; first gesture if the browser blocks autoplay */
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png',
+  macar_title:'assets/creatures/dwarf_macar_title.png',
   macar_axe:'assets/creatures/dwarf_macar_axe.png',
   pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
@@ -522,14 +523,14 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(!src || SPRITE_FILES[k+'_dead']) return;
   if(/_(w1|w2|atk|dead|sleep|back)\./.test(src)) return;
-  if(/_ghost$/.test(k) || /_back$/.test(k)) return;
+  if(/_ghost$/.test(k) || /_back$/.test(k) || /_title$/.test(k)) return;
   if(/\/(mon_|dwarf_)/.test(src)) SPRITE_FILES[k+'_dead']=src.replace(/\.png$/,'_dead.png');
 });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk|dead|sleep|back)\.png$/.test(src)) return;
   if(/_(dead|sleep|back)$/.test(k)) return;
-  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src)) return;
+  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /_title$/.test(k)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
   if(/_face\.png$/.test(src)) return;
@@ -620,7 +621,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_title','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -815,9 +816,23 @@ function frameFit(e,img){
   }
   return 1;
 }
+const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
+function flippedSprite(img){
+  if(!img||!img.width) return img;
+  if(FLIP_CACHE&&FLIP_CACHE.has(img)) return FLIP_CACHE.get(img);
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const fg=c.getContext('2d');
+  fg.translate(c.width,0); fg.scale(-1,1);
+  fg.drawImage(img,0,0);
+  if(FLIP_CACHE) FLIP_CACHE.set(img,c);
+  return c;
+}
 function blitFacing(g,img,dx,dy,W,H,flip){
-  if(flip) g.drawImage(img, dx+W, dy, -W, H);
-  else g.drawImage(img, dx, dy, W, H);
+  // Bake a mirrored canvas and draw it unflipped so west never depends on
+  // negative-width drawImage (some GPU paths ignore dest-width sign).
+  const src=flip?flippedSprite(img):img;
+  g.drawImage(src, dx, dy, W, H);
 }
 function drawEntBillboard(g,e,img,z,flip){
   if(!img||!img.width) return false;
@@ -1392,22 +1407,29 @@ function dwarfAngleKey(e,k){
     return null;
   }
   if(oct==='s') return gait(k+'_s_w1', k+'_s_w2', k+'_s');
-  if(oct==='nw') return gait(k+'_nw_w1', k+'_nw_w2', k+'_nw');
+  // Screen-left (A / left-stick / SW / NW): always the east-painted walk.
+  // The _nw_ sheets are painted walking upper-right; using them for west
+  // without a flip is the moonwalk after #105.
+  if(oct==='w'||oct==='sw'||oct==='nw'){
+    let wk=k;
+    if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') wk='macar';
+    return gait(wk+'_e_w1', wk+'_e_w2', wk+'_e');
+  }
   if(oct==='ne') return gait(k+'_ne_w1', k+'_ne_w2', k+'_ne');
-  if(oct==='se'||oct==='sw') return gait(k+'_se_w1', k+'_se_w2', k);
+  if(oct==='se') return gait(k+'_se_w1', k+'_se_w2', k);
   let ek=k;
   if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') ek='macar';
   return gait(ek+'_e_w1', ek+'_e_w2', ek+'_e');
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
-  const oct=screenOctant(e);
   const key=entAnimKey(e)||'';
-  if(key.indexOf('_nw_')>=0 || key.indexOf('_ne_')>=0) return false;
-  if(key.indexOf('_se_')>=0) return oct==='sw';
-  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return oct==='w';
-  if(key.indexOf('_s_')>=0 || /_s$/.test(key) || key.indexOf('_back')>=0) return false;
-  return oct==='w'||oct==='sw';
+  if(key.indexOf('_back')>=0) return false;
+  if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
+  if(key.indexOf('_ne_')>=0) return false;
+  // East profiles and default stills: mirror whenever heading is screen-left.
+  // Do not require oct==='w' — SW/NW also travel left.
+  return moveHeadingSX(e) < -0.02;
 }
 function attackProgress(e){
   if(!e||!(e.atk>0)) return 0;
@@ -10525,7 +10547,7 @@ function drawTitleCavern(g){
     g.save(); g.translate(cx+dx, dy);
     g.fillStyle='rgba(8,6,5,0.55)';
     g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
-    const spr=(keys[i]==='macar'&&SPR.macar_back)?SPR.macar_back:SPR[keys[i]];
+    const spr=(keys[i]==='macar'&&(SPR.macar_title||SPR.macar_back))?(SPR.macar_title||SPR.macar_back):SPR[keys[i]];
     if(spr) drawBillboard(g, spr, (keys[i]==='macar'?74:64)*z);
     g.restore();
   }
