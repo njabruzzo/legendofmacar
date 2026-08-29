@@ -674,6 +674,44 @@ function drawBillboard(g,img,h){
   const W=h*(img.width/Math.max(1,img.height));
   g.drawImage(img,-W/2,-h,W,h); return true;
 }
+function drawStairWell(g,z,p){
+  const pulse=.55+Math.sin((G.elapsed||0)*3.6+(p&&p.x||0))*.22;
+  const H=propSpriteH(p,z);
+  const rw=H*0.50, rh=H*0.25;
+  g.save();
+  g.fillStyle='rgba(4,2,1,0.96)';
+  g.beginPath(); g.ellipse(0, H*0.06, rw, rh, 0, 0, TAU); g.fill();
+  g.fillStyle='rgba(0,0,0,0.92)';
+  g.beginPath(); g.ellipse(H*0.04, H*0.12, rw*0.62, rh*0.62, 0, 0, TAU); g.fill();
+  g.strokeStyle='rgba(210,158,62,'+(0.88+pulse*0.12)+')';
+  g.lineWidth=Math.max(3, H*0.045);
+  g.beginPath(); g.ellipse(0, H*0.06, rw+H*0.02, rh+H*0.012, 0, 0, TAU); g.stroke();
+  g.strokeStyle='rgba(255,226,160,0.62)';
+  g.lineWidth=Math.max(1.4, H*0.018);
+  g.beginPath(); g.ellipse(0, H*0.06, rw-H*0.03, rh-H*0.02, 0, 0, TAU); g.stroke();
+  g.strokeStyle='rgba(70,58,42,0.92)';
+  g.lineWidth=Math.max(1.4, H*0.016);
+  for(let i=0;i<5;i++){
+    const t=(i+1)/6;
+    g.beginPath();
+    g.ellipse(H*0.03*t, H*0.06+H*0.05*t, rw*(1-t*0.45), rh*(1-t*0.45), 0, 0, TAU);
+    g.stroke();
+  }
+  const post=Math.max(3, H*0.028);
+  g.strokeStyle='#9a7a42';
+  g.lineWidth=Math.max(2.2, H*0.022); g.lineCap='round';
+  g.beginPath(); g.moveTo(-rw*0.72, H*0.02); g.lineTo(-rw*0.62, -H*0.22); g.lineTo(rw*0.08, -H*0.28); g.stroke();
+  g.beginPath(); g.moveTo(rw*0.72, H*0.04); g.lineTo(rw*0.82, -H*0.18); g.lineTo(rw*1.12, -H*0.22); g.stroke();
+  g.fillStyle='#d4b056';
+  g.fillRect(-rw*0.72-post*0.4, -H*0.22, post, H*0.22);
+  g.fillRect(rw*0.82-post*0.4, -H*0.18, post, H*0.20);
+  const fl=1+Math.sin((G.elapsed||0)*8)*0.16;
+  g.fillStyle='#ff9a44';
+  g.beginPath(); g.arc(H*0.08, H*0.10, H*0.032*fl, 0, TAU); g.fill();
+  g.fillStyle='rgba(255,210,100,0.6)';
+  g.beginPath(); g.arc(H*0.08, H*0.08, H*0.018*fl, 0, TAU); g.fill();
+  g.restore();
+}
 /* ---------------------------- sprite fitting ----------------------------
    The painted frames are all 512 tall, but the figure is not drawn at the same
    size in each. To make room for the raised hammer, Macar is rendered about a
@@ -736,7 +774,11 @@ function frameFit(e,img){
   }
   return 1;
 }
-function drawEntBillboard(g,e,img,z){
+function blitFacing(g,img,dx,dy,W,H,flip){
+  if(flip) g.drawImage(img, dx+W, dy, -W, H);
+  else g.drawImage(img, dx, dy, W, H);
+}
+function drawEntBillboard(g,e,img,z,flip){
   if(!img||!img.width) return false;
   if(e.crushed||e.prone){
     const b=spriteBounds(img);
@@ -764,11 +806,11 @@ function drawEntBillboard(g,e,img,z){
     g.save();
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
-    g.drawImage(img, dx, dy, W, H);
+    blitFacing(g,img,dx,dy,W,H,flip);
     g.restore();
     return true;
   }
-  g.drawImage(img, dx, dy, W, H);
+  blitFacing(g,img,dx,dy,W,H,flip);
   return true;
 }
 function drawDeadBillboard(g,e,img,z){
@@ -883,7 +925,7 @@ function drawObjectProp(g, img, h, m){
 function tilesetPropMetric(k, L){
   const pack=tilesetPack(L||G.lvl);
   if(k==='pillar'||k==='names'||k==='stalagmite') return pack.pillar;
-  if(k==='gate'||k==='bronzedoor'||k==='altar'||k==='throne'||k==='stairs') return pack.arch;
+  if(k==='gate'||k==='bronzedoor'||k==='altar'||k==='throne') return pack.arch;
   return null;
 }
 function wallFaceSprite(L, lit){
@@ -1227,11 +1269,15 @@ function wantsBackView(e){
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  return ((e.fdx||0)+(e.fdy||0)) < -0.42;
+  const away=(e.fdx||0)+(e.fdy||0);
+  const side=Math.abs((e.fdx||0)-(e.fdy||0));
+  // Away = iso north (screen-up). West/east are side-on — do not swap in a back
+  // sheet or left-walk reads as facing top-right / moonwalk.
+  return away < -0.55 && side < 0.72;
 }
 /* Party dwarf sheets are painted facing iso SE (screen-right / D).
    World +x is screen SE, +y is screen SW; headingSX = ix-iy (positive = screen-right).
-   Canvas scale(-1,1) when walking screen-left so the SE sheet faces the travel vector.
+   Billboard uses a negative-width drawImage when heading is screen-left.
    Each dwarf uses its own ix/iy — ghosts do not inherit Macar heading. */
 const DWARF_FACE_SX={
   macar:1, macar_axe:1,
@@ -1361,7 +1407,7 @@ function propSpriteH(p,z){
   if(k==='ruin_house') return 128*z*(p.s||1);
   if(k==='secret_door') return 92*z*(p.s||1);
   if(k==='gate'||k==='bronzedoor') return 132*z;
-  if(k==='stairs') return 96*z*(p.s||1);
+  if(k==='stairs') return 124*z*(p.s||1);
   if(k==='bell') return 58*z;
   if(k==='chain') return 96*z;
   if(k==='timber') return 100*z;
@@ -7420,7 +7466,8 @@ function drawProp(g,p,pal){
   }
   const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
-    softShadow(g,2*z,1*z,18*z,8*z,.45);
+    if(p.k==='stairs') drawStairWell(g,z,p);
+    else softShadow(g,2*z,1*z,18*z,8*z,.45);
     const metric=tilesetPropMetric(p.k);
     if(metric) drawObjectProp(g,img,propSpriteH(p,z),metric);
     else drawBillboard(g,img,propSpriteH(p,z));
@@ -7459,10 +7506,12 @@ function drawProp(g,p,pal){
       emit(s.x,s.y-54*z,80*z,'#6fd0ff',0.75);
     }else if(k==='stairs'){
       const b=.55+Math.sin(G.elapsed*3.6+p.x)*.22;
-      emit(s.x,s.y-28*z,70*z,'#7dff9a',0.55+b*0.35);
-      emit(s.x-12*z,s.y-40*z,22*z,'#ffb45c',0.55);
-      emit(s.x+14*z,s.y-38*z,20*z,'#ffb45c',0.5);
-      ray(s.x,s.y-20*z,48*z,'#a8ffc8',0.35);
+      emit(s.x,s.y-8*z,52*z,'#1a0c08',0.55);
+      emit(s.x,s.y-22*z,86*z,'#7dff9a',0.62+b*0.38);
+      emit(s.x-10*z,s.y-36*z,28*z,'#ffb45c',0.72);
+      emit(s.x+16*z,s.y-34*z,26*z,'#ffb45c',0.68);
+      emit(s.x+8*z,s.y+6*z,18*z,'#ff9a44',0.55);
+      ray(s.x,s.y-16*z,64*z,'#c8ffd8',0.42);
     }else if(k==='bronzedoor'){
       const b=.55+Math.sin(G.elapsed*2.4)*.2;
       emit(s.x,s.y-54*z,92*z,'#d4a04a',b);
@@ -7502,6 +7551,9 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   switch(p.k){
+  case 'stairs':
+    drawStairWell(g,z,p);
+    break;
   case 'rubble':{
     const fb=SPR[p.spr||'rubble']||SPR.rubble||SPR.rubble2||SPR.boulder||SPR.cavein;
     if(fb){ softShadow(g,2*z,1*z,22*z,9*z,.5); drawBillboard(g,fb,propSpriteH(p,z)); break; }
@@ -7891,10 +7943,10 @@ function drawEnt(g,e){
   const squash=img?1:(1+sw*0.06);
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
   if(e.ghost && !e.dead) g.globalAlpha=0.84;
-  g.save(); g.translate(0,-bob0); g.scale(flip?-1:1,1); g.scale(1/squash,squash);
+  g.save(); g.translate(0,-bob0); g.scale(img?1:(flip?-1:1),1); g.scale(1/squash,squash);
   if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
     /* prone corpse sprite */
-  } else if(!(img && drawEntBillboard(g,e,img,z))){
+  } else if(!(img && drawEntBillboard(g,e,img,z,flip))){
     if(e.kind==='dwarf') drawDwarf(g,e,z,sw);
     else if(e.kind==='statue') drawStatue(g,e,z,sw);
     else if(e.kind==='spider') drawSpider(g,e,z,sw);
