@@ -26,18 +26,26 @@ assert(/FONT_QUOTE='"Cormorant Garamond"/.test(html), 'subtitle face is Cormoran
 assert(/family=Cinzel\+Decorative/.test(html) && /family=Cormorant\+Garamond/.test(html),
   'title fonts are loaded from Google Fonts');
 assert(/function displayTitle\(g,txt,y,size,col\)/.test(html), 'title uses a display-title helper');
-assert(/displayTitle\(g,'THE LEGEND OF MACAR', VH\*\(PORT\?0\.112:0\.102\)/.test(html),
-  'Book One display title sits near the top');
-assert(/let qy=VH\*\(PORT\?0\.198:0\.188\)/.test(html),
-  'subtitle quote sits well below the display title');
+assert(/function layoutHighPlate\(/.test(html) && /function paintHighPlate\(/.test(html),
+  'title and chapter plates share one high-stack layout');
+assert(/function highPlateMetrics\(/.test(html) && /ceilK: port\?0\.048:0\.038/.test(html),
+  'plate stack starts near the top');
+assert(/titleGap: 28\*s/.test(html) && /titleGapMin: 22\*s/.test(html),
+  'gold title keeps a generous, not-huge gap before flavor');
 const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0];
-assert(/VH\*\(PORT\?0\.048:0\.040\)/.test(titleFn), 'BOOK ONE label is close to the top edge');
+assert(/layoutHighPlate\(g, \{/.test(titleFn) && /label:'B O O K   O N E'/.test(titleFn),
+  'title splash uses the high-stack helper');
+assert(/title:'THE LEGEND OF MACAR'/.test(titleFn), 'Book One display title is in the compact top stack');
+assert(/btnFloor=VH-\(PORT\?118:108\)\*s/.test(titleFn), 'title buttons stay on the bottom band');
 assert(!/VH\*\(PORT\?0\.155:0\.162\)/.test(titleFn), 'old mid-high title Y is gone');
-assert(/titleGap=36\*s/.test(html), 'chapter intro keeps a wide title-to-flavor gap');
+assert(!/let qy=VH\*\(PORT\?0\.198:0\.188\)/.test(titleFn), 'quote is not a floating mid-dark percentage');
 assert(/midGap=16\*s/.test(html), 'chapter-select cards keep air between gold title and flavor');
-assert(/B O O K   O N E/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
-  'Book One label stays on the splash');
-assert(/He went down a miner\. Something else came back up\./.test(html), 'subtitle quote remains');
+assert(/B O O K   O N E/.test(titleFn), 'Book One label stays on the splash');
+assert(/From simple beginnings Macar would rise to become a hero among dwarves\./.test(html),
+  'title flavor is the rise-to-hero line');
+assert(!/He went down a miner\. Something else came back up\./.test(html),
+  'old miner-came-back quote is gone');
+assert(!/woulld/.test(html), 'title flavor uses would, not woulld');
 assert(/Enter the Deep/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
   'Enter the Deep remains on the title');
 assert(/menuBtn\(g,'Chapters'/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]) &&
@@ -60,7 +68,8 @@ assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you c
 assert(!/Walk to each of them and Rouse them/.test(html), 'no Rouse tutorial on the entrance card');
 assert(!/ruby door waits on this room/.test(html), 'no ruby-door tutorial on the entrance card');
 assert(/The Rubble and the Ruby/.test(html), 'Chapter I still keeps its gold title');
-assert(/pack\.ask\?wrapLines\(g, pack\.ask/.test(html), 'empty Chapter I ask is skipped in the title-card layout');
+assert(/if\(pack\.ask\)/.test(html) && /wrapLines\(g, pack\.ask/.test(html),
+  'empty Chapter I ask is skipped in the title-card layout');
 assert(!/You are MACAR/.test(html), 'no chapter plate names the player');
 const intro=html.match(/const CH_INTRO=\{[\s\S]*?\n\};/);
 assert(intro && !/Left, the gem-bronze door/.test(intro[0]),
