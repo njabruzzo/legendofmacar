@@ -41,7 +41,8 @@ assert(/battle:'assets\/music\/Goliath\.mp3'/.test(html), 'battle BGM is Goliath
 assert(/boss:'assets\/music\/Terminus\.mp3'/.test(html), 'boss BGM is Terminus, not Goliath or the title');
 assert(/packWin:'assets\/music\/PackVictory\.mp3'/.test(html), 'pack victory sting is registered');
 assert(/bossWin:'assets\/music\/BossVictory\.mp3'/.test(html), 'boss victory sting is registered');
-assert(/playSting\(sting\)/.test(html) && /bossWin/.test(html), 'combat-end plays a victory sting before explore resume');
+assert(/playSting\(sting\)/.test(html) && /bossHorn/.test(html) && /packHorn/.test(html),
+  'combat-end plays a victory horn sting before explore resume');
 assert(/chapter:'assets\/music\/TheDistantSun\.mp3'/.test(html), 'chapter screens use The Distant Sun');
 assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Song of the Forge');
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
