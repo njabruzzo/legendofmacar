@@ -23,7 +23,10 @@ function extractFn(name){
 
 assert(!/macar_atk:1\.29/.test(html), 'maul swing is not scaled 1.29 vs idle');
 assert(!/macar_axe_atk:1\.18/.test(html), 'axe swing is not scaled 1.18 vs idle');
+assert(/macar_atk:1\.11/.test(html), 'leftover strike crown uses idle/new FRAME_FIT 1.11');
 assert(/function heroFigureFit\(/.test(html), 'inset recover/back frames match idle height');
+assert(/function figurePersonFrac\(/.test(html), 'fit uses helmet-to-boot, not the weapon box');
+assert(/personY0/.test(html), 'spriteBounds records the foot-column crown');
 assert(/function solidMacarSprite\(/.test(html), 'living Macar pixels are flattened opaque');
 assert(/Living Macar is drawn solid after the light multiply/.test(html),
   'Macar is skipped in the washed world pass');
@@ -81,19 +84,23 @@ const ctx={
 };
 vm.createContext(ctx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;', ctx);
+vm.runInContext(extractFn('figurePersonFrac'), ctx);
 vm.runInContext(extractFn('heroFigureFit'), ctx);
 
-const idle={_b:{ok:true,y0:4/512,y1:509/512}};
-const atk={_b:{ok:true,y0:3/512,y1:508/512}};
-const recover={_b:{ok:true,y0:69/512,y1:443/512}};
-const back={_b:{ok:true,y0:40/512,y1:502/512}};
+const idle={_b:{ok:true,y0:4/512,y1:509/512,personY0:4/512}};
+const atk={_b:{ok:true,y0:3/512,y1:508/512,personY0:4/512}};
+const leftover={_b:{ok:true,y0:3/512,y1:508/512,personY0:52/512}};
+const recover={_b:{ok:true,y0:4/512,y1:508/512,personY0:4/512}};
+const back={_b:{ok:true,y0:40/512,y1:502/512,personY0:40/512}};
 const mac={hero:1,dead:0,ghost:0};
 const ghost={hero:0,dead:0,ghost:1};
 
 assert(Math.abs(ctx.heroFigureFit(mac,idle)-1)<0.02, 'idle figure fit is ~1');
 assert(Math.abs(ctx.heroFigureFit(mac,atk)-ctx.heroFigureFit(mac,idle))<0.02,
   'swing figure fit matches idle — no attack pop');
-assert(ctx.heroFigureFit(mac,recover)>1.2, 'inset recover is scaled up to idle height');
+assert(Math.abs(ctx.heroFigureFit(mac,recover)-1)<0.03, 'redrawn recover matches idle height');
+assert(ctx.heroFigureFit(mac,leftover)>1.08 && ctx.heroFigureFit(mac,leftover)<1.16,
+  'a shorter painted crown scales by idle_crown/new_crown');
 assert(ctx.heroFigureFit(mac,back)>1.05, 'inset back pose is scaled up to idle height');
 assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
