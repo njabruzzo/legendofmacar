@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='64';
+const ASSET_VER='65';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -995,6 +995,14 @@ function wallFaceH(L){
    and descents keep wallFaceH() so they stay readable. */
 const WALL_HALL_SCALE=0.70;
 function hallWallH(L){ return wallFaceH(L)*WALL_HALL_SCALE; }
+/* Chapter I ruby-chamber north face only. Halls stay WALL_HALL_SCALE so
+   south/east loot stays visible; this crown just has to clear the door arch
+   and the dwarf-face carving. Do not reuse for #81 descents or #44 black. */
+const WALL_RUBY_NORTH_SCALE=1.58;
+function isRubyNorthWall(L,x,y){
+  return !!(L && L.n===1 && y===6 && x>=24 && x<=51);
+}
+function rubyNorthWallH(L){ return wallFaceH(L)*WALL_RUBY_NORTH_SCALE; }
 function wallHidesFloor(L,x,y){
   if(!L||!L.grid) return false;
   const ix=x|0, iy=y|0;
@@ -1509,6 +1517,7 @@ function propSpriteH(p,z){
   const k=p.k;
   if(k==='cavein') return 118*z;
   if(k==='rubble') return 52*z*(p.s||1);
+  if(k==='dust') return 10*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
   if(k==='rubywall') return 108*z*(p.s||1);
   if(k==='rubydoor') return rubyDoorH();
@@ -2339,29 +2348,38 @@ function startRubbleSpr(seed, n){
 }
 function startBackWallRubble(){
   const out=[];
-  for(let i=0;i<16;i++){
-    const y=16.4+i*0.68+(h01(i,2,81)-0.5)*0.22;
+  for(let i=0;i<22;i++){
+    const y=16.2+i*0.58+(h01(i,2,81)-0.5)*0.22;
     const x=14.12+(h01(i,3,81)-0.5)*0.20;
     if(nearCrush(x,y,1.15)) continue;
     const s=0.55+h01(i,5,81)*0.85;
     const spr=startRubbleSpr(81,i);
     out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
   }
-  for(let i=0;i<10;i++){
-    const y=16.8+i*0.95+(h01(i,6,81)-0.5)*0.28;
+  for(let i=0;i<16;i++){
+    const y=16.5+i*0.72+(h01(i,6,81)-0.5)*0.28;
     const x=14.55+(h01(i,8,81)-0.5)*0.24;
     if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.28+h01(i,9,81)*0.42,seed:940+i,backwall:1});
+    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.22+h01(i,9,81)*0.40,seed:940+i,backwall:1});
   }
+  for(let i=0;i<7;i++){
+    const y=16.9+i*1.55+(h01(i,11,81)-0.5)*0.30;
+    const x=14.38+(h01(i,12,81)-0.5)*0.18;
+    if(nearCrush(x,y,1.15)) continue;
+    out.push({x,y,k:'timber',fallen:1,s:0.62+h01(i,14,81)*0.38,seed:980+i,backwall:1});
+  }
+  out.push({x:14.35,y:18.15,k:'cavein',s:0.78,seed:988,backwall:1});
+  out.push({x:14.42,y:25.55,k:'cavein',s:0.72,seed:989,backwall:1});
   return out;
 }
 function scatterStartRubble(L){
   const seed=2041;
   const out=[];
   const clusters=[
-    [14.55,17.15,6,0.88,1.05],[14.70,19.35,7,0.95,1.12],[14.50,21.55,5,0.78,0.92],
-    [14.75,23.85,7,0.92,1.08],[14.55,26.15,5,0.80,0.90],
-    [16.05,18.40,3,0.55,0.52],[16.20,22.20,3,0.50,0.48],[16.00,25.20,3,0.52,0.46]
+    [14.55,17.15,8,0.96,1.08],[14.70,19.35,9,1.02,1.14],[14.50,21.55,8,0.92,1.00],
+    [14.75,23.85,9,1.00,1.10],[14.55,26.15,8,0.90,0.98],
+    [15.85,17.80,5,0.72,0.70],[16.10,20.05,5,0.68,0.64],[15.70,24.55,5,0.70,0.66],
+    [16.05,18.40,4,0.58,0.54],[16.20,22.20,4,0.55,0.50],[16.00,25.20,4,0.56,0.50]
   ];
   let n=0;
   clusters.forEach(c=>{
@@ -2371,15 +2389,45 @@ function scatterStartRubble(L){
       const rad=Math.pow(h01(n,5,seed),0.65)*c[3];
       const jx=c[0]+Math.cos(ang)*rad;
       const jy=c[1]+Math.sin(ang)*rad*0.78;
-      if(Math.hypot(jx-19.2, jy-21.5)<1.55) continue;
+      if(Math.hypot(jx-20.5, jy-22.0)<0.88) continue;
       if(nearCrush(jx,jy,0.62)) continue;
       const ti=jx|0, tj=jy|0;
       if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
-      const s=(0.24+h01(n,12,seed)*0.92)*c[4];
+      const s=(0.22+h01(n,12,seed)*0.88)*c[4];
+      if(h01(n,15,seed)<0.16){
+        out.push({x:jx,y:jy,k:'dust',s:0.55+h01(n,16,seed)*0.55,seed:n*17+3,scatter:1});
+        continue;
+      }
       const spr=startRubbleSpr(seed, n);
       const k=(s>1.05 && /boulder/.test(spr))?'boulder':'rubble';
       out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
     }
+  });
+  return out;
+}
+function scatterBurialRubble(){
+  const out=[];
+  Object.keys(CRUSH_SPOTS).forEach(k=>{
+    const s=CRUSH_SPOTS[k];
+    out.push({x:s.x-0.46,y:s.y+0.58,k:'rubble',spr:'rubble2',s:0.34,seed:s.seed+70,cover:1});
+    out.push({x:s.x+0.44,y:s.y+0.62,k:'rubble',spr:'rubble',s:0.28,seed:s.seed+71,cover:1});
+    out.push({x:s.x+0.08,y:s.y+0.72,k:'timber',fallen:1,s:0.70,seed:s.seed+72,cover:1});
+    out.push({x:s.x-0.18,y:s.y+0.26,k:'dust',s:0.82,seed:s.seed+73,cover:1});
+    out.push({x:s.x+0.30,y:s.y+0.14,k:'dust',s:0.64,seed:s.seed+74,cover:1});
+  });
+  const extra=[
+    [15.15,19.85,0.38,'rubble2'],[15.35,22.40,0.42,'rubble'],[15.20,24.10,0.36,'boulder2'],
+    [16.35,19.20,0.30,'rubble'],[16.55,24.80,0.32,'rubble2'],[15.55,21.05,0.26,'rubble']
+  ];
+  extra.forEach((e,i)=>{
+    if(nearCrush(e[0],e[1],0.55)) return;
+    out.push({x:e[0],y:e[1],k:'rubble',spr:e[3],s:e[2],seed:1100+i,scatter:1});
+  });
+  [[15.05,18.55],[15.25,23.15],[16.40,21.70],[15.60,26.05]].forEach((pt,i)=>{
+    out.push({x:pt[0],y:pt[1],k:'timber',fallen:1,s:0.58+i*0.06,seed:1120+i,scatter:1});
+  });
+  [[15.4,20.2],[15.8,22.8],[16.1,25.4],[14.9,17.6]].forEach((pt,i)=>{
+    out.push({x:pt[0],y:pt[1],k:'dust',s:0.70+i*0.08,seed:1140+i,scatter:1});
   });
   return out;
 }
@@ -2434,12 +2482,13 @@ function makeChapter(n){
       {x:58.6,y:46.2,k:'lantern'},{x:62.4,y:50.1,k:'bones'},{x:80.2,y:36.2,k:'rubble',spr:'rubble2'}];
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
+    G.props.push.apply(G.props, scatterBurialRubble());
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k], off=s.pin||{x:0.10,y:0.22};
       G.props.push({x:s.x+off.x,y:s.y+off.y,k:'boulder',spr:s.spr||'boulder',s:s.stone||0.50,pin:1,seed:s.seed});
     });
     G.props=G.props.filter(p=>{
-      if(p.pin||p.cover) return true;
+      if(p.pin||p.cover||p.fallen||p.k==='dust') return true;
       if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,1.35)) return false;
       return true;
     });
@@ -3611,6 +3660,7 @@ function drawKinRubbleOverlay(g,e,z,dwarfH){
      that beard, helm, and torso stay in the open. */
   blitCrushRock(g, 'boulder', -14*z, 12*z, dwarfH*0.42);
   blitCrushRock(g, 'boulder2', 16*z, 10*z, dwarfH*0.36);
+  blitCrushRock(g, 'rubble2', 2*z, 16*z, dwarfH*0.24);
 }
 function drawCrushCover(g){
   const pal=(G.lvl&&G.lvl.pal)||null;
@@ -7279,24 +7329,25 @@ function drawWorld(g,L){
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
     const H=hallWallH(L);
+    const faceH=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):H;
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
       const sid=x*31+y*17;
-      if(oS) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, H, 0, -1, sid);
-      if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, H, -1, 0, sid+3);
-      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, H, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, faceR, x, y, x, y+1.14, H, 1, 0, sid+11);
-      drawMasonryCoping(g, x, y, H, oN, oE, oS, oW);
+      if(oS) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
+      if(oW) drawMasonryFace(g, faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
       else g.drawImage(wallImg, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
     }
-    if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-H*0.35, TW*0.30, pal.key, 0.5);
-    if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,H,1-rk.hp/rk.max);
-    if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,H);
-    if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
+    if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-faceH*0.35, TW*0.30, pal.key, 0.5);
+    if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,faceH,1-rk.hp/rk.max);
+    if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,faceH);
+    if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,faceH,G.dig.min/digNeedMinutes());
     if(L.secrets){
       for(const sec of L.secrets){
         if(sec.open) continue;
@@ -7656,7 +7707,7 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
-          const tall=useWallFaces(L)?wallFaceH(L):TH;
+          const tall=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(useWallFaces(L)?wallFaceH(L):TH);
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -7718,6 +7769,53 @@ function drawRubbleAt(g,x,y,n,sc,seed,dmg){
   g.save(); g.translate(s.x,s.y);
   drawRubbleLocal(g,z,n,seed,dmg);
   g.restore();
+}
+function drawFallenBeam(g,p,z){
+  const sc=p.s||1, seed=p.seed||0;
+  const L=92*z*sc, th=9*z*sc;
+  const ang=(-0.42+(h2(seed,3)-0.5)*0.55);
+  g.save();
+  g.rotate(ang);
+  softShadow(g,0,2*z,L*0.48,th*0.9,0.5);
+  g.beginPath();
+  g.moveTo(-L*0.5,-th*0.35); g.lineTo(L*0.42,-th*0.45); g.lineTo(L*0.5,th*0.15);
+  g.lineTo(L*0.38,th*0.55); g.lineTo(-L*0.46,th*0.42); g.closePath();
+  const gr=g.createLinearGradient(-L*0.5,-th,L*0.5,th);
+  gr.addColorStop(0,'#8a6238'); gr.addColorStop(0.45,'#5c4024'); gr.addColorStop(1,'#2a1a10');
+  g.fillStyle=gr; g.fill();
+  g.strokeStyle='rgba(18,10,6,0.72)'; g.lineWidth=1.4*z; g.stroke();
+  g.strokeStyle='rgba(0,0,0,0.28)'; g.lineWidth=1*z;
+  for(let i=0;i<5;i++){
+    const t=-L*0.42+i*L*0.18;
+    g.beginPath(); g.moveTo(t,-th*0.28); g.lineTo(t+6*z,th*0.32); g.stroke();
+  }
+  g.fillStyle='#3a2614';
+  g.beginPath(); g.moveTo(L*0.42,-th*0.45); g.lineTo(L*0.58,-th*0.05); g.lineTo(L*0.5,th*0.15); g.closePath(); g.fill();
+  g.restore();
+  if(h2(seed,8)>0.45){
+    g.save();
+    g.translate(18*z*sc,-8*z*sc);
+    g.rotate(ang+1.15);
+    g.fillStyle='#4a3220';
+    g.fillRect(-22*z*sc,-3.2*z*sc,34*z*sc,6.4*z*sc);
+    g.restore();
+  }
+}
+function drawFloorDust(g,p,z){
+  const sc=p.s||1, seed=p.seed||0;
+  const rx=28*z*sc, ry=14*z*sc;
+  const gr=g.createRadialGradient(0,0,1,0,0,rx);
+  gr.addColorStop(0,'rgba(92,70,46,0.55)');
+  gr.addColorStop(0.55,'rgba(58,42,28,0.28)');
+  gr.addColorStop(1,'rgba(40,28,18,0)');
+  g.fillStyle=gr;
+  g.beginPath(); g.ellipse(0,0,rx,ry,0,0,TAU); g.fill();
+  for(let i=0;i<7;i++){
+    const px=(h2(seed+i,4)-0.5)*rx*1.15, py=(h2(seed+i,9)-0.5)*ry*1.05;
+    const sz=(1.4+h2(seed+i,6)*2.6)*z;
+    g.fillStyle=i%2?'rgba(74,56,36,0.55)':'rgba(36,24,16,0.5)';
+    g.beginPath(); g.ellipse(px,py,sz,sz*0.55,0,0,TAU); g.fill();
+  }
 }
 function drawRubbleLocal(g,z,n,seed,dmg){
   dmg=dmg||0; n=n||14; seed=seed||0;
@@ -7836,6 +7934,14 @@ function drawProp(g,p,pal){
     return;
   }
   g.save(); g.translate(s.x,s.y);
+  if(p.k==='dust'){
+    drawFloorDust(g,p,z);
+    g.restore(); return;
+  }
+  if(p.k==='timber' && p.fallen){
+    drawFallenBeam(g,p,z);
+    g.restore(); return;
+  }
   if(p.k==='web'){
     const img=TEX.web;
     if(img){
