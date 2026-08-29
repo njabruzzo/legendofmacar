@@ -288,7 +288,7 @@ function steerWalk(e,dx,dy,sp,dt){
   if(!(dx||dy) || sp<=0){ e.ix=0; e.iy=0; e.moving=0; return 0; }
   const m=Math.hypot(dx,dy)||1;
   dx/=m; dy/=m;
-  turnToward(e, dx, dy, dt, 22);
+  e.fdx=dx; e.fdy=dy;
   const aligned=e.fdx*dx+e.fdy*dy;
   if(aligned<0.16){
     e.ix=0; e.iy=0; e.moving=1;
@@ -1264,27 +1264,50 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
+function faceToward(e,x,y){
+  if(!e) return;
+  const dx=x-e.x, dy=y-e.y;
+  if(!(dx||dy)) return;
+  const m=Math.hypot(dx,dy)||1;
+  e.fdx=dx/m; e.fdy=dy/m;
+}
+function faceVec(e){
+  if(!e) return {dx:0,dy:0};
+  if(e.atk>0 && e.aim && !e.aim.dead && e.aim.x!=null){
+    const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
+    if(dx||dy) return {dx,dy};
+  }
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
+  return {dx:e.fdx||0, dy:e.fdy||0};
+}
 function wantsBackView(e){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  const away=(e.fdx||0)+(e.fdy||0);
-  const side=Math.abs((e.fdx||0)-(e.fdy||0));
+  const v=faceVec(e);
+  const away=(v.dx||0)+(v.dy||0);
+  const side=Math.abs((v.dx||0)-(v.dy||0));
   // Away = iso north (screen-up). West/east are side-on — do not swap in a back
   // sheet or left-walk reads as facing top-right / moonwalk.
   return away < -0.55 && side < 0.72;
 }
-/* Party dwarf sheets are painted facing iso SE (screen-right / D).
-   World +x is screen SE, +y is screen SW; headingSX = ix-iy (positive = screen-right).
-   Billboard uses a negative-width drawImage when heading is screen-left.
-   Each dwarf uses its own ix/iy — ghosts do not inherit Macar heading. */
+/* Per-frame native facing. +1 = painted iso SE (screen-right / D).
+   -1 = painted iso SW (screen-left / A). macar_w2 and the axe sheets are
+   left-painted — flipping the kin default on those frames moonwalks.
+   headingSX = travelX-travelY (positive = screen-right). Billboard mirrors
+   when heading * native < 0. Each dwarf uses its own ix/iy. */
 const DWARF_FACE_SX={
-  macar:1, macar_axe:1,
-  pordoom:1, pordoom_ghost:1,
-  fendur:1, fendur_ghost:1,
-  orbo:1, orbo_ghost:1,
-  talpor:1, talpor_ghost:1
+  macar:1, macar_w1:1, macar_w2:-1, macar_atk:1, macar_atk_recover:1,
+  macar_axe:-1, macar_axe_w1:-1, macar_axe_w2:-1, macar_axe_atk:-1, macar_axe_atk_recover:-1,
+  pordoom:1, pordoom_w1:1, pordoom_w2:1, pordoom_atk:1,
+  pordoom_ghost:1, pordoom_ghost_w1:1, pordoom_ghost_w2:-1,
+  fendur:1, fendur_w1:1, fendur_w2:1, fendur_atk:1,
+  fendur_ghost:-1, fendur_ghost_w1:1, fendur_ghost_w2:1,
+  orbo:-1, orbo_w1:-1, orbo_w2:1, orbo_atk:-1,
+  orbo_ghost:1, orbo_ghost_w1:1, orbo_ghost_w2:1, orbo_ghost_atk:-1,
+  talpor:1, talpor_w1:1, talpor_w2:1, talpor_atk:1,
+  talpor_ghost:1, talpor_ghost_w1:1, talpor_ghost_w2:1, talpor_ghost_atk:1
 };
 function sheetFaceSX(k){
   if(!k) return 1;
@@ -1294,14 +1317,13 @@ function sheetFaceSX(k){
   return 1;
 }
 function moveHeadingSX(e){
-  if(!e) return 0;
-  if(e.moving && ((e.ix||0)||(e.iy||0))) return (e.ix||0)-(e.iy||0);
-  return (e.fdx||0)-(e.fdy||0);
+  const v=faceVec(e);
+  return (v.dx||0)-(v.dy||0);
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
   const heading=moveHeadingSX(e);
-  const native=sheetFaceSX(entSpriteKey(e));
+  const native=sheetFaceSX(entAnimKey(e)||entSpriteKey(e));
   return heading*native < -0.02;
 }
 function attackProgress(e){
@@ -1325,37 +1347,42 @@ function gaitImg(a,b,e){
   const phase=((e.gait||0)%1)<0.5?0:1;
   return frames[phase%frames.length];
 }
-function entAnimImg(e){
+function entAnimKey(e){
   const k=entSpriteKey(e);
   if(!k) return null;
-  if(e.dead||e.crushed) return SPR[k+'_dead']||null;
+  if(e.dead||e.crushed) return SPR[k+'_dead']?k+'_dead':k;
   if(e.atk>0 && e.atkKind==='bow'){
-    // The melee frame is a two-handed hammer swing, which is plainly wrong for
-    // a crossbow shot, so hold the standing frame until dwarf_macar_atk_bow.png
-    // exists. The bolt and the shot line already sell the action.
-    if(SPR[k+'_atk_bow']) return SPR[k+'_atk_bow'];
-    return SPR[k]||null;
+    if(SPR[k+'_atk_bow']) return k+'_atk_bow';
+    return k;
   }
-  // Attack pose beats the back sprite. Facing the ruby-door wall used to keep
-  // dwarf_macar_back.png up for the whole swing, so Attack looked like a no-op.
-  if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) return SPR[k+'_atk_recover'];
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']) return SPR[k+'_atk'];
+  if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) return k+'_atk_recover';
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']) return k+'_atk';
   if(wantsBackView(e)){
     if(QUALITY && e.moving && !e.defending){
       const macarKey=(k==='macar'||k==='macar_axe');
-      const away=gaitImg(
-        SPR[k+'_back_w1']||(macarKey?SPR.macar_back_w1:null),
-        SPR[k+'_back_w2']||(macarKey?SPR.macar_back_w2:null),
-        e);
-      if(away) return away;
+      const a=k+'_back_w1', b=k+'_back_w2';
+      const aOk=!!(SPR[a]||(macarKey&&SPR.macar_back_w1));
+      const bOk=!!(SPR[b]||(macarKey&&SPR.macar_back_w2));
+      if(aOk||bOk){
+        const phase=((e.gait||0)%1)<0.5?0:1;
+        if(phase===0 && aOk) return SPR[a]?a:'macar_back_w1';
+        if(phase===1 && bOk) return SPR[b]?b:'macar_back_w2';
+        return SPR[a]?a:(SPR[b]?b:k);
+      }
     }
-    if(SPR[k+'_back']) return SPR[k+'_back'];
+    if(SPR[k+'_back']) return k+'_back';
   }
   if(QUALITY && e.moving){
-    const step=gaitImg(SPR[k+'_w1'], SPR[k+'_w2'], e);
-    if(step) return step;
+    const phase=((e.gait||0)%1)<0.5?'_w1':'_w2';
+    if(SPR[k+phase]) return k+phase;
+    if(SPR[k+'_w1']) return k+'_w1';
+    if(SPR[k+'_w2']) return k+'_w2';
   }
-  return SPR[k]||null;
+  return k;
+}
+function entAnimImg(e){
+  const key=entAnimKey(e);
+  return key?(SPR[key]||null):null;
 }
 function entSpriteH(e,z){
   if(e.kind==='dwarf') return 78*z;
@@ -6364,7 +6391,7 @@ window.addEventListener('keydown',e=>{
   if(e.key==='3'||k==='c') fire('camp');
   if(e.key==='4'||k==='i'||k==='p') fire('pack');
   if(e.key==='5') fire('rally');
-  if(k==='d') fire('wall');
+  if(k==='v') fire('wall');
   if(k==='q') fire('attack');
   if(k==='r') fire('throw');
   if(k==='b') fire('bomb');
@@ -6426,6 +6453,8 @@ function fire(key){
     ensureShadowCleaverWielded();
     p.dest=null; p.moving=0; p.ix=0; p.iy=0;
     p.atkKind='melee';
+    const foe=nearestFoe(p, p.range+2.8)||(p.aim&&!p.aim.dead?p.aim:null);
+    if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
     if(p.atk<=0){
       p.atk=p.atkMax;
       if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
@@ -6682,7 +6711,7 @@ function update(dt){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
-        turnToward(p, t.x-p.x, t.y-p.y, dt, 18);
+        faceToward(p, t.x, t.y);
         p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
       if(!t) p.aim=null;
     } else if(p.defending) p.aim=null;
@@ -6871,8 +6900,8 @@ function update(dt){
       } else {
         e.ix=0; e.iy=0; e.moving=0;
         if(form&&p) turnToward(e, p.fdx, p.fdy, dt, 8);
-        else turnToward(e, tgt.x-e.x, tgt.y-e.y, dt, 14);
-        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; }
+        else faceToward(e, tgt.x, tgt.y);
+        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; e.aim=tgt; }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
@@ -11442,7 +11471,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
   g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  const keys='D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
+  const keys='V Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
   const maxW=VW*0.92; let ky=VH*.255;
   const words=keys.split('  ·  '); let line='';
   words.forEach((w,i)=>{
