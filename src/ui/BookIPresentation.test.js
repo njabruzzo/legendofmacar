@@ -112,7 +112,7 @@ assert(/HUD_DESK_WIDE=1280/.test(html), 'desktop HUD wide breakpoint is 1280px')
 assert(/HUD_DESK_SLOT_MIN=60/.test(html), 'desktop HUD icons floor at 60px');
 assert(/HUD_DESK_SLOT_MAX=80/.test(html), 'desktop HUD icons may reach 80px');
 assert(/HUD_TAP=44/.test(html), 'mobile HUD_TAP stays 44');
-assert(/HUD_OVERFLOW=\{rally:1\}/.test(html), 'mobile Rally stays in More');
+assert(/HUD_OVERFLOW=\{\}/.test(html), 'mobile HUD has no Rally overflow icon');
 assert(!/#dgBtn\{position:fixed;left:8px;bottom:8px/.test(html), 'diagnostic flag is still off the stick');
 
 /* Desktop bar math for a 1440×900 mouse layout (not a phone). */
@@ -122,7 +122,7 @@ function deskSim(vw, vh, s){
   const stickR=(deskWide?42:34)*s;
   const stickX=padL+14*s+stickR;
   const gap=5*s;
-  const perRow=12;
+  const perRow=11;
   const rightReserve=padR+10*s;
   const stickReserve=stickX+stickR+12*s;
   const availW=Math.max(180, vw-stickReserve-rightReserve);
