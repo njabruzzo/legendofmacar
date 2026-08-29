@@ -3149,7 +3149,7 @@ function startChapter(n){
   G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
-  ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
+  ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
@@ -3608,13 +3608,31 @@ function pickTalk(i){
   if(typeof c.then==='function') c.then();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
 }
+function beginUiLayer(g){
+  g.setTransform(DPR,0,0,DPR,0,0);
+  g.globalCompositeOperation='source-over';
+  g.globalAlpha=1;
+}
+function drawPlayPlates(g){
+  if(!(G.talk || G.hint || G.inspect || PROMPT)) return;
+  if(G.scene!=='play' && G.scene!=='pack') return;
+  beginUiLayer(g);
+  const s=UIS;
+  drawPromptBtn(g,s);
+  drawHint(g,s);
+  drawInspect(g,s);
+  drawTalk(g);
+}
 function drawTalk(g){
   const talk=G.talk; if(!talk) return;
   const s=UIS;
+  const inset=UI.pad||{t:0};
   g.fillStyle='rgba(4,3,2,0.62)'; g.fillRect(0,0,VW,VH);
-  const w=Math.min(520*s, VW*0.86), h=Math.min(280*s, VH*0.58);
-  const x=VW/2-w/2, y=VH*0.18;
-  carveFrame(g,x,y,w,h,8,.94);
+  const w=Math.min(520*s, VW*0.86), h=Math.min(280*s, VH*0.50);
+  const x=VW/2-w/2, y=Math.max(10*s, (inset.t||0)+10*s);
+  g.fillStyle='#0a0705';
+  roundPath(g,x,y,w,h,8); g.fill();
+  carveFrame(g,x,y,w,h,8,1);
   g.font='800 '+(16*s)+'px '+FONT_TITLE;
   g.fillStyle='#ffe08a'; g.fillText(talk.who, x+18*s, y+28*s);
   g.font='600 '+(12.5*s)+'px '+FONT_UI;
@@ -6813,11 +6831,13 @@ function render(){
   }
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='craft') drawCraft(g);
-  if(G.scene==='pack'){ drawPack(g); drawTalk(g); }
+  if(G.scene==='pack') drawPack(g);
   if(G.scene==='trade') drawTrade(g);
   if(G.scene==='dead') drawDead(g);
   if(G.scene==='win') drawWin(g);
   if(G.paused&&G.scene==='play' && worldArtReady(G.ch)) drawPause(g);
+  /* Highest UI layer: talk / hint / inspect / prompt after every wall pass. */
+  drawPlayPlates(g);
   }catch(err){
     try{
       g.setTransform(DPR,0,0,DPR,0,0);
@@ -9354,11 +9374,7 @@ function drawHUD(g){
   drawStickBase(g,s);
   drawButtons(g,s);
   drawLog(g,s);
-  drawPromptBtn(g,s);
   drawThrowBtn(g,s);
-  drawHint(g,s);
-  drawInspect(g,s);
-  drawTalk(g);
 }
 
 function drawPortraitStack(g,s){
@@ -9872,7 +9888,8 @@ function drawHint(g,s){
   const a=clamp(G.hint.life/Math.min(1,G.hint.max),0,1)*clamp((G.hint.max-G.hint.life)/.3,0,1);
   g.globalAlpha=a;
   g.font='700 '+(13*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-  const w=g.measureText(G.hint.t).width+30*s, x=VW/2-w/2, y=PORT?VH*0.30:VH*0.16;
+  const w=g.measureText(G.hint.t).width+30*s, x=VW/2-w/2;
+  const y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
   plate(g,x,y,w,30*s,5,.78);
   g.fillStyle='#f0dcb0'; g.fillText(G.hint.t,VW/2,y+20*s); g.textAlign='left';
   g.globalAlpha=1;
