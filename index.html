@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=69">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=70">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -331,7 +331,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='69';
+const ASSET_VER='70';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -10716,6 +10716,102 @@ function centerCopyY(ceil, floor, blockH){
   if(y+blockH>floor) y=Math.max(ceil, floor-blockH);
   return y;
 }
+/* Title + every chapter plate: compact head at the TOP, air before flavor, buttons stay low. */
+function highPlateMetrics(s, port){
+  return {
+    ceilK: port?0.048:0.038,
+    labGap: 8*s,
+    titleGap: 28*s,
+    titleGapMin: 22*s,
+    musGap: 10*s
+  };
+}
+function layoutHighPlate(g, spec){
+  const s=spec.s, maxW=spec.maxW;
+  const lab=spec.label||'', title=spec.title||'', flavor=spec.flavor||'', music=spec.music||'';
+  let labSize=spec.labSize, titleSize=spec.titleSize, flSize=spec.flSize, musSize=spec.musSize;
+  let labGap=spec.labGap, titleGap=spec.titleGap, musGap=spec.musGap;
+  const titleGapMin=spec.titleGapMin!=null?spec.titleGapMin:titleGap;
+  const ceil=spec.ceil, floor=spec.floor;
+  function measure(ls, ts, fs, ms, lg, tg, mg){
+    g.font='700 '+ls+'px '+FONT_TITLE;
+    const labLines=lab?wrapLines(g, lab, maxW):[];
+    g.font='700 '+ts+'px '+FONT_DISPLAY;
+    const tLines=title?wrapLines(g, title, maxW):[];
+    g.font='italic 600 '+fs+'px '+FONT_QUOTE;
+    const fl=flavor?wrapLines(g, flavor, maxW):[];
+    g.font='600 '+ms+'px '+FONT_UI;
+    const mus=music?wrapLines(g, music, maxW):[];
+    const labH=labLines.length?ls+(labLines.length-1)*ls*1.12:0;
+    const titleH=tLines.length?ts+(tLines.length-1)*(ts*1.18)+ts*0.12:0;
+    const flH=fl.length?fl.length*Math.max(16*s, fs*1.32):0;
+    const musH=mus.length?ms*1.35*mus.length:0;
+    const h=labH+(labH?lg:0)+titleH+(fl.length?tg:0)+flH+(mus.length?mg+musH:0);
+    return {labLines, tLines, fl, mus, labH, titleH, flH, musH, h};
+  }
+  let lay=measure(labSize, titleSize, flSize, musSize, labGap, titleGap, musGap);
+  const band=Math.max(48*s, floor-ceil);
+  while(lay.h+20*s>band && titleSize>14){
+    titleSize-=0.8; flSize=Math.max(14, flSize-0.4); musSize=Math.max(7, musSize-0.12);
+    labSize=Math.max(9, labSize-0.2);
+    labGap=Math.max(6*s, labGap-0.25); titleGap=Math.max(titleGapMin, titleGap-0.3);
+    lay=measure(labSize, titleSize, flSize, musSize, labGap, titleGap, musGap);
+  }
+  const t0=ceil;
+  let y=t0;
+  const labelY=lay.labLines.length?y+labSize:y;
+  if(lay.labLines.length) y=labelY+(lay.labLines.length-1)*labSize*1.12+labGap;
+  const titleY=lay.tLines.length?y+titleSize:y;
+  if(lay.tLines.length) y=titleY+lay.titleH-titleSize;
+  const ruleY=lay.fl.length?y+titleGap*0.38:y;
+  const flavorY=lay.fl.length?y+titleGap:y;
+  if(lay.fl.length) y=flavorY+lay.flH;
+  const musicY=lay.mus.length?y+musGap+musSize:y;
+  if(lay.mus.length) y=musicY+(lay.mus.length-1)*musSize*1.35;
+  return {
+    t0, labelY, titleY, ruleY, flavorY, musicY, bottom:y,
+    labSize, titleSize, flSize, musSize, labGap, titleGap, musGap,
+    labLines:lay.labLines, tLines:lay.tLines, fl:lay.fl, mus:lay.mus, h:lay.h
+  };
+}
+function paintHighPlate(g, lay, spec){
+  const a=spec.alpha!=null?spec.alpha:1;
+  g.globalAlpha=a; g.textAlign='center';
+  if(lay.labLines.length){
+    g.font='700 '+lay.labSize+'px '+FONT_TITLE;
+    let y=lay.labelY;
+    lay.labLines.forEach((ln,i)=>{ strokeFillCenter(g, ln, y, spec.labelFill||'rgba(232,196,120,0.94)'); y+=lay.labSize*1.12; });
+  }
+  if(lay.tLines.length){
+    let y=lay.titleY;
+    lay.tLines.forEach(ln=>{
+      if(spec.paintTitle) spec.paintTitle(g, ln, y, lay.titleSize);
+      else {
+        g.font='700 '+lay.titleSize+'px '+FONT_DISPLAY;
+        g.lineWidth=lay.titleSize*.16; g.strokeStyle='rgba(0,0,0,0.9)'; g.strokeText(ln,VW/2,y);
+        const gr=g.createLinearGradient(0,y-lay.titleSize*.85,0,y+lay.titleSize*.2);
+        gr.addColorStop(0,'#fff3cc'); gr.addColorStop(0.45,'#ffe08a'); gr.addColorStop(1,'#b57a2c');
+        g.fillStyle=gr; g.fillText(ln,VW/2,y);
+      }
+      y+=lay.titleSize*1.18;
+    });
+    if(spec.rule!==false && lay.fl.length) drawGoldRule(g, VW/2, lay.ruleY, spec.ruleW||Math.min(200*UIS, (spec.maxW||VW*0.7)*0.42));
+  }
+  if(lay.fl.length){
+    g.font='italic 600 '+lay.flSize+'px '+FONT_QUOTE;
+    let y=lay.flavorY;
+    const step=Math.max(16*UIS, lay.flSize*1.32);
+    lay.fl.forEach(ln=>{ strokeFillCenter(g, ln, y, spec.flavorFill||'rgba(236,214,176,0.96)'); y+=step; });
+  }
+  if(lay.mus.length){
+    g.font='600 '+lay.musSize+'px '+FONT_UI;
+    g.fillStyle=spec.musicFill||'rgba(160,140,110,0.70)';
+    let y=lay.musicY;
+    lay.mus.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=lay.musSize*1.35; });
+  }
+  g.textAlign='left'; g.globalAlpha=1;
+  return lay.bottom;
+}
 function drawArtRect(g, img, x, y, w, h, r){
   g.save();
   roundPath(g,x,y,w,h,r||8); g.clip();
@@ -10745,27 +10841,24 @@ function drawTitle(g){
     g.fillStyle=rg; g.fillRect(0,0,VW,VH);
   }
   embers(g);
-  drawLetterbox(g, VH*0.28, VH*0.24, PHONE_GFX?0.80:0.70, 0.90);
+  drawLetterbox(g, VH*0.22, VH*0.24, PHONE_GFX?0.80:0.70, 0.90);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const a=clamp((G.t-0.12)/1.1,0,1);
-  g.globalAlpha=a;
-  g.textAlign='center';
-  g.font='700 '+(13*s)+'px '+FONT_TITLE;
-  g.fillStyle='rgba(232,196,120,0.94)';
-  g.fillText('B O O K   O N E', VW/2, VH*(PORT?0.048:0.040));
-  drawGoldRule(g, VW/2, VH*(PORT?0.062:0.054), 220*s);
-  displayTitle(g,'THE LEGEND OF MACAR', VH*(PORT?0.112:0.102), (PORT?32:48)*s);
-  g.font='italic 600 '+((PORT?14:18)*s)+'px '+FONT_QUOTE;
-  g.fillStyle='rgba(236,214,176,0.96)';
-  const quote='\u201cHe went down a miner. Something else came back up.\u201d';
-  const qLines=wrapLines(g, quote, VW*0.86);
-  let qy=VH*(PORT?0.198:0.188);
-  qLines.forEach(ln=>{ strokeFillCenter(g, ln, qy, 'rgba(236,214,176,0.96)'); qy+=(PORT?16:20)*s; });
-  if(musicIsPlaying()){
-    g.font='600 '+((PORT?8:9)*s)+'px '+FONT_UI;
-    g.fillStyle='rgba(160,140,110,0.55)';
-    g.fillText(musicNowLabel(), VW/2, qy+2*s);
-  }
+  const m=highPlateMetrics(s, PORT);
+  const btnFloor=VH-(PORT?118:108)*s-(PORT?58:56)*s;
+  const titleLay=layoutHighPlate(g, {
+    s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:btnFloor-12*s,
+    label:'B O O K   O N E', title:'THE LEGEND OF MACAR',
+    flavor:'From simple beginnings Macar would rise to become a hero among dwarves.',
+    music:musicIsPlaying()?musicNowLabel():'',
+    labSize:13*s, titleSize:(PORT?32:48)*s, flSize:(PORT?14:18)*s, musSize:(PORT?8:9)*s,
+    labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
+  });
+  drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(VW*0.92, 780*s), titleLay.h+40*s, 0.52);
+  paintHighPlate(g, titleLay, {
+    alpha:a, maxW:VW*0.86, ruleW:220*s, musicFill:'rgba(160,140,110,0.55)',
+    paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
+  });
   g.globalAlpha=1;
   const bw=Math.min(300*s, VW*.64);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
@@ -10954,72 +11047,33 @@ function drawIntro(g){
   } else {
     darken(g, .86);
   }
-  drawLetterbox(g, VH*0.22, VH*0.18, 0.70, 0.78);
+  drawLetterbox(g, VH*0.20, VH*0.18, 0.70, 0.78);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const pack=CH_INTRO[L.n]||{fl:'',ask:''};
   const chTitle=(L.title||('Chapter '+L.n)).toUpperCase();
   const goldTitle=L.sub||((CH_META[L.n]&&CH_META[L.n].t)||'');
   const music=MUSIC_LABEL.chapter;
   const maxW=Math.min(VW*0.82, 680*s);
-  const groupCeil=VH*(PORT?0.048:0.038);
+  const m=highPlateMetrics(s, PORT);
+  const groupCeil=VH*m.ceilK;
   const groupFloor=descendTop-16*s;
-  let labSize=(PORT?12:14)*s, titleSize=(PORT?24:34)*s;
-  let flSize=(PORT?18:22)*s, askSize=(PORT?12:14)*s, musSize=(PORT?8:9)*s;
-  let labGap=10*s, titleGap=36*s, flGap, askGap, musGap=14*s;
-  function layoutIntroCopy(ls, ts, fs, as, ms, lg, tg, mg){
-    flGap=Math.max(18*s, fs*1.36); askGap=Math.max(16*s, as*1.28);
-    g.font='800 '+ts+'px '+FONT_DISPLAY;
-    const tLines=wrapLines(g, goldTitle, maxW);
-    g.font='italic 600 '+fs+'px '+FONT_QUOTE;
-    const fl=pack.fl?wrapLines(g, pack.fl, maxW):[];
-    g.font='700 '+as+'px '+FONT_UI;
-    const ask=pack.ask?wrapLines(g, pack.ask, maxW):[];
-    g.font='600 '+ms+'px '+FONT_UI;
-    const mus=wrapLines(g, music, maxW);
-    const h=ls+lg+tLines.length*(ts*1.18)+tg+fl.length*flGap+(ask.length?10*s+ask.length*askGap:0)+mg+mus.length*(ms*1.35);
-    return {tLines, fl, ask, mus, h};
-  }
-  let lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
-  const band=Math.max(64*s, groupFloor-groupCeil);
-  while(lay.h+36*s>band && titleSize>14){
-    titleSize-=0.8; flSize=Math.max(15, flSize-0.45); askSize=Math.max(10, askSize-0.4);
-    labSize=Math.max(9, labSize-0.25); musSize=Math.max(7, musSize-0.15);
-    labGap=Math.max(8*s, labGap-0.3); titleGap=Math.max(26*s, titleGap-0.35);
-    lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
-  }
-  const blockH=lay.h;
-  let t0=groupCeil;
-  if(t0+blockH>groupFloor) t0=Math.max(8*s, groupFloor-blockH);
-  drawCopyVeil(g, VW/2, t0+blockH/2, Math.min(VW*0.92, 760*s), blockH+48*s, 0.62);
-  g.globalAlpha=a; g.textAlign='center';
-  let y=t0+labSize;
-  g.font='700 '+labSize+'px '+FONT_TITLE;
-  strokeFillCenter(g, chTitle, y, 'rgba(232,196,120,0.94)');
-  y+=labGap;
-  lay.tLines.forEach(ln=>{
-    y+=titleSize;
-    g.font='700 '+titleSize+'px '+FONT_DISPLAY;
-    g.lineWidth=titleSize*.16; g.strokeStyle='rgba(0,0,0,0.9)'; g.strokeText(ln,VW/2,y);
-    const gr=g.createLinearGradient(0,y-titleSize*.85,0,y+titleSize*.2);
-    gr.addColorStop(0,'#fff3cc'); gr.addColorStop(0.45,'#ffe08a'); gr.addColorStop(1,'#b57a2c');
-    g.fillStyle=gr; g.fillText(ln,VW/2,y);
-    y+=titleSize*0.18;
+  const titleLay=layoutHighPlate(g, {
+    s, maxW, ceil:groupCeil, floor:groupFloor,
+    label:chTitle, title:goldTitle, flavor:pack.fl||'', music:music,
+    labSize:(PORT?12:14)*s, titleSize:(PORT?24:34)*s,
+    flSize:(PORT?18:22)*s, musSize:(PORT?8:9)*s,
+    labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
   });
-  y+=titleGap*0.40;
-  drawGoldRule(g, VW/2, y, Math.min(200*s, maxW*0.42));
-  y+=titleGap*0.65;
-  g.font='italic 600 '+flSize+'px '+FONT_QUOTE;
-  lay.fl.forEach(ln=>{ strokeFillCenter(g, ln, y, 'rgba(236,214,176,0.96)'); y+=flGap; });
-  if(lay.ask.length){
-    y+=8*s;
-    g.font='700 '+askSize+'px '+FONT_UI;
-    lay.ask.forEach(ln=>{ strokeFillCenter(g, ln, y, 'rgba(220,196,150,0.96)'); y+=askGap; });
+  drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(VW*0.92, 760*s), titleLay.h+48*s, 0.62);
+  paintHighPlate(g, titleLay, {alpha:a, maxW, ruleW:Math.min(200*s, maxW*0.42)});
+  if(pack.ask){
+    g.globalAlpha=a; g.textAlign='center';
+    g.font='700 '+((PORT?12:14)*s)+'px '+FONT_UI;
+    wrapLines(g, pack.ask, maxW).forEach((ln,i)=>{
+      strokeFillCenter(g, ln, titleLay.bottom+14*s+i*18*s, 'rgba(220,196,150,0.96)');
+    });
+    g.textAlign='left'; g.globalAlpha=1;
   }
-  y+=musGap;
-  g.font='600 '+musSize+'px '+FONT_UI;
-  g.fillStyle='rgba(160,140,110,0.70)';
-  lay.mus.forEach(ln=>{ g.fillText(ln, VW/2, y); y+=musSize*1.35; });
-  g.textAlign='left'; g.globalAlpha=1;
   menuBtn(g,'Descend',VW/2,descendY,Math.min(240*s,VW*.65),descendH,()=>enterPlayFromIntro());
 }
 
