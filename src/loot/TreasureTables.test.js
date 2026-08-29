@@ -31,8 +31,16 @@ assert(/if\(raw && !\/\^nil\$\/i\.test\(raw\)\) hoard=rollTreasureSpec\(raw\)/.t
 assert(!/const letter=raw\[0\]/.test(html), 'foeDrop no longer keeps only the first treasure letter');
 assert(!/\['ironstone','timber','bone','hide','resin','powder'\]/.test(html),
   'Nil corpses do not drop a fixed ore list');
-assert(/mergeHoards\(hoard, rollIndividual\('J'\)\)/.test(html),
-  'every kill falls back to individual type J so the corpse always has a roll');
+assert(/function rollKillIndividual\(/.test(html),
+  'every kill rolls a full DMG individual pocket, not copper only');
+assert(/rollIndividual\('S'\)/.test(html) && /rollIndividual\('T'\)/.test(html),
+  'kill pocket rolls potion (S) and scroll (T) tables');
+assert(/magKind:'any'/.test(html.match(/function rollKillIndividual[\s\S]*?\nfunction foeDrop/)[0]),
+  'kill pocket can roll any-item (swords, armor, misc)');
+assert(/mergeHoards\(hoard, rollKillIndividual\(e\)\)/.test(html),
+  'foeDrop always merges the individual pocket onto the corpse');
+assert(!/Empty lair chances still leave a DMG pocket \(type J = 3d8 cp\)/.test(html),
+  'Nil kills are no longer copper-only type J');
 assert(/spawnLoot\(e\.x\+ox, e\.y\+oy, pile\)/.test(html),
   'the rolled pile appears on the corpse tile at death');
 assert(/rollDungeonTreasure\(\(L\.n\|\|2\)\)/.test(html),
