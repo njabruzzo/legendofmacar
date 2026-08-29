@@ -23,8 +23,9 @@ assert(/globalCompositeOperation='source-over'/.test(html.match(/function beginU
 assert(/function drawPlayPlates\(g\)\{/.test(html), 'drawPlayPlates is the post-terrain UI pass');
 const plates=html.match(/function drawPlayPlates\(g\)\{[\s\S]*?\n\}/)[0];
 assert(/drawTalk\(g\)/.test(plates) && /drawHint\(g,s\)/.test(plates) &&
-  /drawInspect\(g,s\)/.test(plates) && /drawPromptBtn\(g,s\)/.test(plates),
-  'talk, hint, inspect, and prompt all ride the post-terrain pass');
+  /drawInspect\(g,s\)/.test(plates) && /drawPromptBtn\(g,s\)/.test(plates) &&
+  /drawLog\(g,s\)/.test(plates),
+  'talk, hint, inspect, prompt, and combat log all ride the post-terrain pass');
 
 const hud=html.match(/function drawHUD\(g\)\{[\s\S]*?\n\}/)[0];
 assert(!/drawTalk/.test(hud) && !/drawHint/.test(hud) && !/drawInspect/.test(hud) &&

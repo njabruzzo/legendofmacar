@@ -1824,7 +1824,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   inv:{potions:[],herbs:{},magic:[]}, equipped:null, macarGearReady:0,
   fightOn:0, fightWasBoss:0, fightGotKill:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
-  trail:[], charXp:null, inspect:null, loot:[], showObjs:0, faceOffer:0, faceDrop:null, packSel:null,
+  trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[],
   hudMore:0 };
 
@@ -3164,7 +3164,7 @@ function startChapter(n){
   ensurePacks();
   syncPackTotals();
   if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
-  G.inspect=null; G.showObjs=0;
+  G.inspect=null; G.showObjs=0; G.showLog=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
     const sheet=G.abil[r.key];
@@ -3614,10 +3614,11 @@ function beginUiLayer(g){
   g.globalAlpha=1;
 }
 function drawPlayPlates(g){
-  if(!(G.talk || G.hint || G.inspect || PROMPT)) return;
   if(G.scene!=='play' && G.scene!=='pack') return;
+  if(!(G.talk || G.hint || G.inspect || PROMPT || G.scene==='play')) return;
   beginUiLayer(g);
   const s=UIS;
+  if(G.scene==='play') drawLog(g,s);
   drawPromptBtn(g,s);
   drawHint(g,s);
   drawInspect(g,s);
@@ -6148,6 +6149,8 @@ function onDown(id,x,y,ptr){
     G.inspect=ph.key;
     return;
   }
+  if(hitRect(UI.logHit,x,y)){ G.showLog=!G.showLog; return; }
+  if(G.showLog && hitRect(UI.logPanel,x,y)) return;
   if(G.showObjs){
     if(hitRect(UI.objHit,x,y)){ G.showObjs=0; return; }
     if(hitRect(UI.objPanel,x,y)) return;
@@ -6219,6 +6222,7 @@ window.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(G.talk){ closeTalk(); if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); } return; }
     if(G.inspect){ G.inspect=null; return; }
+    if(G.showLog){ G.showLog=0; return; }
     if(G.showObjs){ G.showObjs=0; return; }
     if(G.hudMore){ G.hudMore=0; return; }
     G.paused=!G.paused;
@@ -9373,7 +9377,6 @@ function drawHUD(g){
   drawOre(g,s);
   drawStickBase(g,s);
   drawButtons(g,s);
-  drawLog(g,s);
   drawThrowBtn(g,s);
 }
 
@@ -9481,6 +9484,13 @@ function drawMinimap(g,s){
   g.restore();
 }
 
+function logStackTop(s){
+  const inset=UI.pad||{r:0,t:0};
+  const miniH=PORT?88*s:96*s;
+  return Math.max(8*s, inset.t+8)+miniH+6*s;
+}
+function logLinkH(s){ return 28*s; }
+function logListH(s){ return PORT?80*s:92*s; }
 function drawObjectives(g,s){
   const L=G.lvl; if(!L) return;
   UI.objHit=null; UI.objPanel=null;
@@ -9488,7 +9498,8 @@ function drawObjectives(g,s){
   const w=PORT?132*s:160*s;
   const x=VW-w-10*s-inset.r;
   const miniH=PORT?88*s:96*s;
-  const y=Math.max(8*s, inset.t+8)+miniH+6*s;
+  const logH=logLinkH(s)+(G.showLog?logListH(s):0);
+  const y=Math.max(8*s, inset.t+8)+miniH+6*s+logH+6*s;
   const linkH=28*s;
   const open=!!G.showObjs;
   const row=PORT?18*s:20*s;
@@ -9527,15 +9538,32 @@ function drawObjectives(g,s){
 }
 
 function drawLog(g,s){
-  const inset=UI.pad||{r:0};
-  const w=Math.min(248*s, VW*0.46), h=PORT?92*s:104*s;
-  const x=VW-w-10*s-inset.r;
-  const y=Math.max(8*s, (UI.hudTop||VH-(PORT?96:94)*s)-h-8*s);
-  carveFrame(g,x,y,w,h,6,.8);
-  g.font='800 '+(10*s)+'px '+FONT_TITLE; g.fillStyle='rgba(232,217,184,0.9)';
-  g.fillText('COMBAT LOG',x+12*s,y+16*s);
-  g.strokeStyle='rgba(190,150,90,0.3)'; g.lineWidth=1;
-  g.beginPath(); g.moveTo(x+10*s,y+22*s); g.lineTo(x+w-10*s,y+22*s); g.stroke();
+  UI.logHit=null; UI.logPanel=null;
+  const inset=UI.pad||{r:0,t:0};
+  const w=PORT?132*s:160*s, x=VW-w-10*s-inset.r;
+  const y=logStackTop(s);
+  const linkH=logLinkH(s), listH=logListH(s);
+  const open=!!G.showLog;
+  const h=open?(linkH+listH):linkH;
+  if(open){
+    g.fillStyle='#0a0705';
+    roundPath(g,x,y,w,h,6); g.fill();
+    carveFrame(g,x,y,w,h,6,1);
+    UI.logPanel={x,y:y+linkH,w,h:listH};
+  } else {
+    g.fillStyle='rgba(8,6,5,0.55)';
+    roundPath(g,x,y,w,linkH,6); g.fill();
+  }
+  UI.logHit={x,y,w,h:linkH};
+  const pulse=open?1:(0.72+Math.sin(G.elapsed*3.2)*0.12);
+  g.font='800 '+(PORT?10*s:11.5*s)+'px '+FONT_TITLE;
+  g.fillStyle='rgba(255,226,170,'+pulse+')';
+  const title='COMBAT LOG '+(open?'▾':'▸');
+  g.fillText(title, x+12*s, y+19*s);
+  const tw=g.measureText(title).width;
+  g.strokeStyle='rgba(255,214,140,'+(open?0.35:0.85)+')'; g.lineWidth=1.3;
+  g.beginPath(); g.moveTo(x+12*s, y+22*s); g.lineTo(x+12*s+tw, y+22*s); g.stroke();
+  if(!open) return;
   g.font='600 '+(10*s)+'px '+FONT_UI;
   const lines=[];
   for(const l of G.log){
@@ -9548,7 +9576,7 @@ function drawLog(g,s){
     g.globalAlpha=l.a;
     const combat=l.t.indexOf('[COMBAT]')===0 || l.k==='combat';
     g.fillStyle=combat?'#ff6a5a':(l.t.indexOf('[LOG]')===0?'#ffb45c':l.c);
-    g.fillText(l.t,x+12*s,y+38*s+i*12.2*s);
+    g.fillText(l.t,x+12*s,y+linkH+16*s+i*12.2*s);
   });
   g.globalAlpha=1;
 }
