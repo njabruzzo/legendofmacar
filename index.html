@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='65';
+const ASSET_VER='66';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -2680,7 +2680,7 @@ function makeChapter(n){
         spawnLairGroup(40.1, 70.2, {pack:[['warg',3]], spread:1.6, aggro:3.8});
         spawnLairGroup(66.2, 76.1, {pack:[['spiderHuge',1],['spider',2]], spread:1.4, aggro:3.2});
         spawnLairGroup(64.1, 46.2, {pack:[['orc',3]], spread:1.5, aggro:3.4});
-        say('The ruby cage opens on a four-way in living rock. Left, bronze and gems. Right, silk. Straight, goblin-talk.','#c9b895');
+        say((CH_INTRO[2]&&CH_INTRO[2].fl)||'The rock splits, and the dark does not choose for you.','#c9b895');
       }
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
       if(dist(p,L.camp)<7.2) G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'&&!e.dead) e.aggro=99; });
@@ -3553,11 +3553,7 @@ function startChapter(n){
     G.scene=loadSnap.scene==='camp'?'camp':'play';
     G.introT=99; G.paused=false;
   }
-  say(({1:'Your dwarf brothers were killed in the cave-in. The tunnel behind you collapsed. You are alone.',
-    2:'The cage opens on a four-way cavern. Left, a gem-bronze door. Right, webs. Straight, goblins with a bound gnome.',
-    3:'Purple light. The stone sweats.',
-    4:'Cut stone. Dwarf work. Very old.',
-    5:'A brother\u2019s blood, still bright after nine hundred years.'}[n])||'Deeper still.','#c9b895');
+  say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
 }
 function pinFallenKin(){
   const L=G.lvl;
@@ -10822,7 +10818,7 @@ function tryEnterPlay(){
   else if(!G.taught.move){ G.taught.move=1; hint('Drag the left side of the screen to walk',6); }
   else if(!G.taught.dig){ G.taught.dig=1; hint('Shovel: face solid rock. One square foot per 10 minutes.',6); }
   else if(!G.taught.herb){ G.taught.herb=1; hint('Plant icon (F): notice plants, roll the herb table, then recover that herb vs its chance.',6); }
-  else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; hint('Four ways. Left bronze and a bell. Straight goblins carry Noz. Right, the Spider Lord.',6); }
+  else if(G.ch===2&&!G.taught.floor){ G.taught.floor=1; }
   return true;
 }
 function goldTitleLine(g, txt, y, size){
