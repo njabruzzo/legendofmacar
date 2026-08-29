@@ -20,6 +20,12 @@ assert(/function wallHidesFloor\(L,x,y\)/.test(html), 'south/east walls are the 
 assert(/const H=hallWallH\(L\)/.test(html), 'drawWallCell uses the shorter hall face height');
 assert(/function rubyDoorH\(L\)\{/.test(html) && /return wallFaceH\(L\)\*1\.28/.test(html),
   'ruby doors still use full wallFaceH (do not fight descent visibility)');
+assert(/function isRubyNorthWall\(L,x,y\)/.test(html) && /L\.n===1 && y===6 && x>=24 && x<=51/.test(html),
+  'only the Chapter I ruby-chamber north face is raised');
+assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function rubyNorthWallH\(L\)/.test(html),
+  'ruby north wall is taller than the door arch, halls stay 0.70');
+assert(/const faceH=isRubyNorthWall\(L,x,y\)\?rubyNorthWallH\(L\):H/.test(html),
+  'drawWallCell keeps hallWallH and only swaps the ruby north face');
 
 assert(/push\(actorDrawDepth\(d\)/.test(html), 'decals sort past south/east walls');
 assert(/push\(actorDrawDepth\(p\)/.test(html), 'props sort past south/east walls');

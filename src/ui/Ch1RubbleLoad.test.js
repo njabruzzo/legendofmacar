@@ -45,7 +45,11 @@ assert(!/else if\(okTex\)\{/.test(html),
   'generated TEX diamonds are not a first-frame floor/wall fallback');
 assert(/tile_floor_mine\.png\?v=60/.test(html) && /tile_wall_worked\.png\?v=60/.test(html),
   'mine floor and worked wall are preloaded before first present');
-assert(/ASSET_VER='64'/.test(html), 'asset cache-bust matches the maul stills and NW walks');
+assert(/ASSET_VER='65'/.test(html), 'asset cache-bust matches the bas-relief dwarf face');
+assert(/function scatterBurialRubble\(/.test(html) && /fallen:1/.test(html) && /k:'dust'/.test(html),
+  'cave-in entry scatters extra timber, stone, and dust around the burial');
+assert(/function drawFallenBeam\(/.test(html) && /function drawFloorDust\(/.test(html),
+  'broken beams and floor dust have their own floor-hugging draws');
 assert(/chapters_plate\.jpg/.test(html) && fs.existsSync(path.join(__dirname,'../../assets/ui/chapters_plate.jpg')),
   'chapters plate art is in-repo');
 ['intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5'].forEach(k=>{
