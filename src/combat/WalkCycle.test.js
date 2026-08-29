@@ -87,6 +87,51 @@ const flipSrc=extractFn('wantsSpriteFlip');
 assert(/moveHeadingSX\(e\) < -0\.02/.test(flipSrc) && !/gait/.test(flipSrc) && !/phase/.test(flipSrc),
   'flip is heading-only — never per gait frame');
 
+/* Live D / A path: east stem only, same facing, heading flip never changes mid-gait. */
+['macar_s_w1','macar_s_w2','macar_back_w1','macar_back_w2','macar_ne_w1','macar_se_w1'].forEach(k=>{
+  SPR[k]={width:8};
+});
+function extractThrough(name, until){
+  const start=html.indexOf('function '+name+'(');
+  if(start<0) throw new Error('missing '+name);
+  const end=html.indexOf('\nfunction '+until+'(', start);
+  if(end<0) throw new Error('missing end '+until);
+  return html.slice(start, end);
+}
+Object.assign(ctx, {
+  TAU:Math.PI*2,
+  player(){ return null; },
+  wantsMeleePose(){ return false; },
+  wantsMeleeRecover(){ return false; },
+  entAnimKey(e){ return ctx.livingMacarAnimKey?ctx.livingMacarAnimKey(e):'macar_e_w1'; }
+});
+vm.runInContext(extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
+
+function holdWalk(ix, iy){
+  const samples=[];
+  for(let g=0; g<1; g+=0.05){
+    const e={
+      hero:1, moving:1, defending:0, dead:0, ghost:0, crushed:0,
+      atk:0, ix, iy, fdx:ix, fdy:iy, gait:g
+    };
+    samples.push({
+      gait:+g.toFixed(2),
+      oct:ctx.screenOctant(e),
+      key:ctx.livingMacarAnimKey(e),
+      flip:ctx.wantsSpriteFlip(e)
+    });
+  }
+  return samples;
+}
+const holdD=holdWalk(0.707, -0.707);
+const holdA=holdWalk(-0.707, 0.707);
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===false && !/_w3$/.test(s.key)),
+  'hold D: every gait frame is east-painted, unflipped, never w3');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===true && !/_w3$/.test(s.key)),
+  'hold A: every gait frame is the same east sheet flipped once, never w3');
+assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
+  'flip does not change across the gait while heading is fixed');
+
 const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
 party.forEach(stem=>{
   ['_w1.png','_w2.png','_w3.png'].forEach(suf=>{
