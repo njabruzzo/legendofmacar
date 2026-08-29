@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=60">
-<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=60">
-<link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=60">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=62">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=62">
+<link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
 <link rel="preload" as="image" href="assets/tiles/tile_wall_worked.png?v=60">
 <link rel="preload" as="image" href="assets/tiles/tile_wall_face.png?v=60">
@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='61';
+const ASSET_VER='62';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -10440,14 +10440,14 @@ function drawTitle(g){
   g.textAlign='center';
   g.font='700 '+(13*s)+'px '+FONT_TITLE;
   g.fillStyle='rgba(232,196,120,0.94)';
-  g.fillText('B O O K   O N E', VW/2, VH*(PORT?0.072:0.068));
-  drawGoldRule(g, VW/2, VH*(PORT?0.090:0.086), 240*s);
-  displayTitle(g,'THE LEGEND OF MACAR', VH*(PORT?0.155:0.162), (PORT?34:54)*s);
+  g.fillText('B O O K   O N E', VW/2, VH*(PORT?0.048:0.040));
+  drawGoldRule(g, VW/2, VH*(PORT?0.062:0.054), 220*s);
+  displayTitle(g,'THE LEGEND OF MACAR', VH*(PORT?0.112:0.102), (PORT?32:48)*s);
   g.font='italic 600 '+((PORT?14:18)*s)+'px '+FONT_QUOTE;
   g.fillStyle='rgba(236,214,176,0.96)';
   const quote='\u201cHe went down a miner. Something else came back up.\u201d';
   const qLines=wrapLines(g, quote, VW*0.86);
-  let qy=VH*(PORT?0.198:0.212);
+  let qy=VH*(PORT?0.198:0.188);
   qLines.forEach(ln=>{ strokeFillCenter(g, ln, qy, 'rgba(236,214,176,0.96)'); qy+=(PORT?16:20)*s; });
   if(musicIsPlaying()){
     g.font='600 '+((PORT?8:9)*s)+'px '+FONT_UI;
@@ -10492,11 +10492,11 @@ function drawCredits(g){
   if(!drawSplashCover(g, SPR.title_splash)) embers(g);
   darken(g,.62);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
-  bigTitle(g,'CREDITS', VH*.09, (PORT?22:30)*s);
+  bigTitle(g,'CREDITS', VH*.07, (PORT?22:30)*s);
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
   g.fillStyle='rgba(232,196,120,0.84)';
-  g.fillText('M U S I C', VW/2, VH*.132);
+  g.fillText('M U S I C', VW/2, VH*.122);
   const rows=MUSIC_CREDITS;
   const top=VH*.155, bot=VH-68*s;
   const slot=(bot-top)/rows.length;
@@ -10530,16 +10530,16 @@ function drawChapterSelect(g){
   g.textAlign='center';
   g.font='700 '+(11*s)+'px '+FONT_TITLE;
   g.fillStyle='rgba(232,196,120,0.88)';
-  g.fillText('B O O K   O N E', VW/2, VH*0.058);
-  bigTitle(g,'CHAPTERS', VH*0.102, (PORT?20:28)*s);
+  g.fillText('B O O K   O N E', VW/2, VH*0.038);
+  bigTitle(g,'CHAPTERS', VH*0.078, (PORT?20:28)*s);
   g.textAlign='center';
   g.font='600 '+((PORT?8:9.5)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(160,140,110,0.78)';
-  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*0.128);
+  g.fillText(musicIsPlaying()?MUSIC_LABEL.chapter:'Click anywhere to hear the music', VW/2, VH*0.108);
   g.textAlign='left';
   const nums=['I','II','III','IV','V'];
   const gap=10*s;
-  const top=VH*0.148, bot=VH-62*s;
+  const top=VH*0.128, bot=VH-62*s;
   const cols=PORT?1:2;
   const rows=Math.ceil(5/cols);
   const cw=Math.min((VW-36*s)/cols-gap, PORT?VW-36*s:560*s);
@@ -10557,7 +10557,7 @@ function drawChapterSelect(g){
     const innerW=cw-36*s;
     const pad=12*s;
     let tSize=(PORT?13:16)*s, sSize=(PORT?9:11)*s, labSize=10*s;
-    let tStep=tSize*1.18, sStep=sSize*1.32, labGap=8*s, midGap=7*s;
+    let tStep=tSize*1.18, sStep=sSize*1.32, labGap=8*s, midGap=16*s;
     function layoutCard(ts, ss, ls, tg, sg, lg, mg){
       g.font='800 '+ts+'px '+FONT_TITLE;
       const tLines=wrapLines(g, m.t, innerW);
@@ -10569,7 +10569,7 @@ function drawChapterSelect(g){
     let lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     while(lay.h>ch-pad*2 && tSize>9){
       tSize-=0.7; sSize=Math.max(8, sSize-0.45); labSize=Math.max(8, labSize-0.3);
-      tStep=tSize*1.16; sStep=sSize*1.28; labGap=Math.max(6*s, tSize*0.5); midGap=Math.max(5*s, midGap-0.3);
+      tStep=tSize*1.16; sStep=sSize*1.28; labGap=Math.max(6*s, tSize*0.5); midGap=Math.max(12*s, midGap-0.3);
       lay=layoutCard(tSize, sSize, labSize, tStep, sStep, labGap, midGap);
     }
     const t0=centerCopyY(y+pad, y+ch-pad, lay.h);
@@ -10649,11 +10649,11 @@ function drawIntro(g){
   const goldTitle=L.sub||((CH_META[L.n]&&CH_META[L.n].t)||'');
   const music=MUSIC_LABEL.chapter;
   const maxW=Math.min(VW*0.82, 680*s);
-  const groupCeil=VH*(PORT?0.08:0.072);
+  const groupCeil=VH*(PORT?0.048:0.038);
   const groupFloor=descendTop-16*s;
   let labSize=(PORT?12:14)*s, titleSize=(PORT?24:34)*s;
   let flSize=(PORT?18:22)*s, askSize=(PORT?12:14)*s, musSize=(PORT?8:9)*s;
-  let labGap=12*s, titleGap=14*s, flGap, askGap, musGap=14*s;
+  let labGap=10*s, titleGap=36*s, flGap, askGap, musGap=14*s;
   function layoutIntroCopy(ls, ts, fs, as, ms, lg, tg, mg){
     flGap=Math.max(18*s, fs*1.36); askGap=Math.max(16*s, as*1.28);
     g.font='800 '+ts+'px '+FONT_DISPLAY;
@@ -10672,11 +10672,12 @@ function drawIntro(g){
   while(lay.h+36*s>band && titleSize>14){
     titleSize-=0.8; flSize=Math.max(15, flSize-0.45); askSize=Math.max(10, askSize-0.4);
     labSize=Math.max(9, labSize-0.25); musSize=Math.max(7, musSize-0.15);
-    labGap=Math.max(8*s, labGap-0.3); titleGap=Math.max(10*s, titleGap-0.3);
+    labGap=Math.max(8*s, labGap-0.3); titleGap=Math.max(26*s, titleGap-0.35);
     lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
   }
   const blockH=lay.h;
-  const t0=centerCopyY(groupCeil, groupFloor, blockH);
+  let t0=groupCeil;
+  if(t0+blockH>groupFloor) t0=Math.max(8*s, groupFloor-blockH);
   drawCopyVeil(g, VW/2, t0+blockH/2, Math.min(VW*0.92, 760*s), blockH+48*s, 0.62);
   g.globalAlpha=a; g.textAlign='center';
   let y=t0+labSize;
@@ -10720,10 +10721,10 @@ function drawBetween(g){
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
   g.font='700 '+(12*s)+'px '+FONT_TITLE; g.fillStyle='rgba(190,220,170,0.92)';
-  g.fillText('CHAPTER CLEARED',VW/2,VH*.14);
-  bigTitle(g,CH_META[G.ch].t,VH*.22,(PORT?26:34)*s);
+  g.fillText('CHAPTER CLEARED',VW/2,VH*.08);
+  bigTitle(g,CH_META[G.ch].t,VH*.145,(PORT?24:32)*s);
   g.font='600 '+(12.5*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.88)';
-  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.30);
+  g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.255);
   g.textAlign='left';
   if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
   menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
