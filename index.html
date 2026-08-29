@@ -847,16 +847,12 @@ function solidMacarSprite(img){
     x.drawImage(img,0,0);
     const data=x.getImageData(0,0,c.width,c.height);
     const d=data.data;
+    /* Limner bake: binary alpha. a>40 stays in the silhouette at 255;
+       1–40 fringe/grain is punched out. No un-premultiply. */
     for(let i=0;i<d.length;i+=4){
       const a=d[i+3];
-      if(a<12) continue;
-      if(a<255){
-        const s=255/a;
-        d[i]=Math.min(255,(d[i]*s)|0);
-        d[i+1]=Math.min(255,(d[i+1]*s)|0);
-        d[i+2]=Math.min(255,(d[i+2]*s)|0);
-        d[i+3]=255;
-      }
+      if(a>40) d[i+3]=255;
+      else { d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0; }
     }
     x.putImageData(data,0,0);
     out=c;
@@ -917,6 +913,45 @@ function drawEntBillboard(g,e,img,z,flip){
   }
   blitFacing(g,img,dx,dy,W,H,flip);
   return true;
+}
+/* Living Macar only. East/south/back/axe sheets still carry fringe; standing
+   still used to pick e_w1 (no macar_e idle). Bind the binary idle/walk/atk
+   set and flip for west until those other sheets match dwarf_macar.png. */
+function livingMacarAnimKey(e){
+  if(!e||!e.hero||e.dead||e.ghost) return null;
+  if(wantsMeleeRecover(e) && SPR.macar_atk_recover) return 'macar_atk_recover';
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR.macar_atk) return 'macar_atk';
+  if(QUALITY && e.moving){
+    const phase=((e.gait||0)%1)<0.5?'_w1':'_w2';
+    if(SPR['macar'+phase]) return 'macar'+phase;
+    if(SPR.macar_w1) return 'macar_w1';
+    if(SPR.macar_w2) return 'macar_w2';
+  }
+  return SPR.macar?'macar':null;
+}
+/* Single source-over blit after multiply / bloom / grain. Floor contact is
+   softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
+function drawLivingMacar(g,e){
+  if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
+  const key=livingMacarAnimKey(e);
+  let img=key?SPR[key]:null;
+  if(!img||!img.width) img=SPR.macar;
+  if(!img||!img.width) return;
+  img=solidMacarSprite(img);
+  const s=w2s(e.x,e.y), z=ZOOM*e.scale;
+  const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
+  g.save();
+  g.globalAlpha=1;
+  g.globalCompositeOperation='source-over';
+  g.translate(s.x, s.y-bob0);
+  softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
+  const H=entSpriteH(e,z)*frameFit(e,img);
+  const W=img.width*(H/Math.max(1,img.height));
+  const b=spriteBounds(img);
+  const dx=(b&&b.ok)?-W*b.cx:-W/2;
+  const dy=(b&&b.ok)?-H*b.botY:-H;
+  blitFacing(g,img,dx,dy,W,H,wantsSpriteFlip(e));
+  g.restore();
 }
 function drawDeadBillboard(g,e,img,z){
   if(!img||!img.width) return false;
@@ -1502,6 +1537,7 @@ function gaitImg(a,b,e){
   return frames[phase%frames.length];
 }
 function entAnimKey(e){
+  if(e.hero && !e.dead && !e.ghost) return livingMacarAnimKey(e);
   const k=entSpriteKey(e);
   if(!k) return null;
   if(e.dead||e.crushed) return SPR[k+'_dead']?k+'_dead':k;
@@ -7360,7 +7396,7 @@ function render(){
     const mac=player();
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
-      drawEnt(g,mac);
+      drawLivingMacar(g,mac);
     }
   }
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
@@ -8483,6 +8519,9 @@ function drawGnome(g,e,z,sw){
 
 function drawEnt(g,e){
   if(e.hidden) return;
+  /* Living Macar: one after-grain source-over blit only. Do not paint him
+     here — gold disc / lighter flash / fringe sheets were the sparkle outline. */
+  if(e.hero && !e.dead && !e.ghost) return;
   if(e.ghost && e.dead) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   g.save(); g.translate(s.x,s.y);
@@ -8513,15 +8552,8 @@ function drawEnt(g,e){
       g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
     }
   }
-  if(!e.dead&&e.hero){
-    g.strokeStyle='rgba(255,214,140,0.55)'; g.lineWidth=2.4*ZOOM;
-    g.beginPath(); g.ellipse(0,0,18*z,9*z,0,0,TAU); g.stroke();
-    if(QUALITY){
-      const gr=g.createRadialGradient(0,0,1,0,0,26*z);
-      gr.addColorStop(0,'rgba(255,206,130,0.14)'); gr.addColorStop(1,'rgba(255,180,90,0)');
-      g.save(); g.scale(1,0.5); g.fillStyle=gr; g.beginPath(); g.arc(0,0,26*z,0,TAU); g.fill(); g.restore();
-    }
-  }
+  /* Living Macar gold foot ellipse / QUALITY radial disc removed — fringe
+     let that gold show through as a sparkle outline. Ghosts never got it. */
   const img=entAnimImg(e);
   const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
   if(!e.dead && !e.crushed){
@@ -8550,18 +8582,17 @@ function drawEnt(g,e){
     else if(e.kind==='king') drawKing(g,e,z,sw);
     else drawStatue(g,e,z,sw);
   }
-  if(e.hero && e.atk>0 && !e.dead && e.atkKind!=='bow') drawHeroMeleeArc(g,e,z);
+  if(e.ghost && e.atk>0 && !e.dead && e.atkKind!=='bow') drawHeroMeleeArc(g,e,z);
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
-  if(e.hero && e.atk>0 && !e.dead){
+  if(e.ghost && e.atk>0 && !e.dead){
     const t=attackProgress(e);
     const ang=-1.25+t*2.55, rad=26*z;
-    const col=wieldsShadowCleaver()?'#c8b8ff':'#ffd27a';
-    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 22*z, col, 0.7);
+    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 22*z, '#7ad8ff', 0.55);
   }
 
-  if(e.flash>0 && !e.dead){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
+  if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
     g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
     g.globalCompositeOperation='source-over'; g.globalAlpha=1; }
   if((e.webbed||0)>0){
