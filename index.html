@@ -10361,9 +10361,7 @@ function drawSlot(g,b,s){
     g.fillStyle='rgba(244,226,186,0.92)'; g.fillText(Math.ceil(cds[ab.key]),b.x,b.y+4*s); g.textAlign='left';
   }
   if(b.key==='craft' && !atForge){
-    g.fillStyle='rgba(8,5,3,0.62)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
-    g.font='800 '+(8*s)+'px '+FONT_UI; g.textAlign='center';
-    g.fillStyle='rgba(200,170,120,0.9)'; g.fillText('ANVIL', b.x, b.y+4*s); g.textAlign='left';
+    g.fillStyle='rgba(8,5,3,0.46)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();
@@ -10387,8 +10385,8 @@ function drawSlot(g,b,s){
     const labelPx=b.r>=28?Math.min(14, Math.max(11, b.r*0.34)):(PORT?9.5:8.5)*s;
     g.font='800 '+labelPx+'px '+FONT_UI; g.textAlign='center';
     g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText(b.label, b.x, b.y-R-3*s);
-    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-3*s); g.textAlign='left'; }
+    g.strokeText(b.label, b.x, b.y-R-7*s);
+    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-7*s); g.textAlign='left'; }
 }
 
 function drawButtons(g,s){

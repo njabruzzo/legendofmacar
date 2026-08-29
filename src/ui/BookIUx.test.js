@@ -37,6 +37,10 @@ assert(/t\.kind==='dmg'\?32/.test(html), 'damage floaters draw larger than miss/
 assert(/e\.team==='foe' && \(e\.atk>0 || \(e\.engaged && e\.ct>0 && e\.ct<0\.4\)\)/.test(html), 'foes telegraph with a wind-up ring while e.atk is up');
 
 assert(/atForge/.test(html) && /nearestCraftStation\(player\(\),1\.7\)/.test(html), 'Craft dims unless Macar is at the station');
+assert(!/fillText\('ANVIL'/.test(html), 'Craft slot does not write ANVIL on top of the icon');
+assert(/\{key:'craft', ico:'craft', label:'Craft'\}/.test(html), 'Craft uses the same above-icon title pattern as SEARCH');
+assert(/b\.y-R-7\*s/.test(html.match(/function drawSlot\(g,b,s\)\{[\s\S]*?\nfunction drawButtons/)[0]),
+  'HUD titles paint above the slot, not on the art');
 assert(/G\.craftGuide/.test(html) && /G\.craftGuideT/.test(html), 'Craft far from the anvil points a guide arrow');
 assert(!/5 Rally/.test(html) && /F SEARCH/.test(html) && /T SEARCH/.test(html),
   'pause key list has two SEARCH verbs and no Rally icon note');
