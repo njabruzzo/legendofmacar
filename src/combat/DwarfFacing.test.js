@@ -61,10 +61,8 @@ function faceVec(e, lead){
     if(dx||dy) return {dx,dy};
   }
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
-    if(lead.moving || (lead.ix||lead.iy)){
-      const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
-      if(hx||hy) return {dx:hx, dy:hy};
-    }
+    const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
+    if(hx||hy) return {dx:hx, dy:hy};
   }
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
@@ -103,6 +101,9 @@ const ghostGoingRight={k:'pordoom_ghost', team:'party', ghost:1, moving:1, ix:0.
 const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
 assert(wantsSpriteFlip(ghostGoingRight, macarGoingLeft),
   'a lagging ghost still faces Macar left, not its scramble right');
+const ghostIdleScramble={k:'orbo_ghost', team:'party', ghost:1, moving:0, ix:0, iy:0, fdx:0.7, fdy:-0.7};
+assert(wantsSpriteFlip(ghostIdleScramble, macarGoingLeft),
+  'a stopped ghost still faces Macar, not the last scramble heading');
 assert(wantsSpriteFlip(macarGoingLeft), 'Macar walking left faces left');
 assert(/fendur_ghost_w2:-1/.test(html), 'Fendur ghost w2 is painted iso SW — flip it on right-walk');
 assert(!wantsBackView({fdx:-0.7, fdy:0.7}), 'iso west / arrow-left keeps the front sheet');

@@ -1278,13 +1278,12 @@ function faceVec(e){
     if(dx||dy) return {dx,dy};
   }
   // Party kin share Macar heading while they follow so trail-lag scramble
-  // does not mix left/right in the line. Attack still snaps to the aim.
+  // does not mix left/right in the line — including when they stand still.
+  // Attack still snaps to the aim.
   const lead=e.hero?null:player();
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
-    if(lead.moving || (lead.ix||lead.iy)){
-      const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
-      if(hx||hy) return {dx:hx, dy:hy};
-    }
+    const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
+    if(hx||hy) return {dx:hx, dy:hy};
   }
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
