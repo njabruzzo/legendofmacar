@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=62">
-<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=62">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=64">
+<link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=64">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
 <link rel="preload" as="image" href="assets/tiles/tile_wall_worked.png?v=60">
@@ -330,7 +330,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='62';
+const ASSET_VER='64';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -561,6 +561,37 @@ SPRITE_FILES.macar_axe_back_w2='assets/creatures/dwarf_macar_axe_back_w2.png';
   SPRITE_FILES[k+'_ghost_back_w2']='assets/creatures/dwarf_'+k+'_ghost_back_w2.png';
   SPRITE_FILES[k+'_ghost_atk_recover']='assets/creatures/dwarf_'+k+'_ghost_atk_recover.png';
 });
+/* Painted screen-east (D) and screen-south (S) walks. West is the east sheet
+   flipped. North still uses the existing back sheets. Registered after the
+   _w1/_w2 derivation loops so they do not spawn phantom _e_w1_w1 files. */
+['macar','macar_axe','pordoom','fendur','orbo','talpor'].forEach(k=>{
+  SPRITE_FILES[k+'_e_w1']='assets/creatures/dwarf_'+k+'_e_w1.png';
+  SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
+});
+['macar','macar_axe'].forEach(k=>{
+  SPRITE_FILES[k+'_s_w1']='assets/creatures/dwarf_'+k+'_s_w1.png';
+  SPRITE_FILES[k+'_s_w2']='assets/creatures/dwarf_'+k+'_s_w2.png';
+});
+SPRITE_FILES.macar_e_atk='assets/creatures/dwarf_macar_e_atk.png';
+SPRITE_FILES.macar_axe_e_atk='assets/creatures/dwarf_macar_axe_e_atk.png';
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
+  SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
+  SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
+  SPRITE_FILES[k+'_ghost_s_w1']='assets/creatures/dwarf_'+k+'_ghost_s_w1.png';
+  SPRITE_FILES[k+'_ghost_s_w2']='assets/creatures/dwarf_'+k+'_ghost_s_w2.png';
+});
+['macar','macar_axe'].forEach(k=>{
+  ['nw','ne','se'].forEach(ang=>{
+    SPRITE_FILES[k+'_'+ang+'_w1']='assets/creatures/dwarf_'+k+'_'+ang+'_w1.png';
+    SPRITE_FILES[k+'_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_'+ang+'_w2.png';
+  });
+});
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
+  ['nw','ne','se'].forEach(ang=>{
+    SPRITE_FILES[k+'_ghost_'+ang+'_w1']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w1.png';
+    SPRITE_FILES[k+'_ghost_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w2.png';
+  });
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -601,6 +632,16 @@ function loadSprites(done){
     'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
     'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
+    'macar_e_w1','macar_e_w2','macar_s_w1','macar_s_w2','macar_e_atk',
+    'macar_nw_w1','macar_nw_w2','macar_ne_w1','macar_ne_w2','macar_se_w1','macar_se_w2',
+    'pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2',
+    'fendur_ghost_e_w1','fendur_ghost_e_w2','fendur_ghost_s_w1','fendur_ghost_s_w2',
+    'orbo_ghost_e_w1','orbo_ghost_e_w2','orbo_ghost_s_w1','orbo_ghost_s_w2',
+    'talpor_ghost_e_w1','talpor_ghost_e_w2','talpor_ghost_s_w1','talpor_ghost_s_w2',
+    'pordoom_ghost_nw_w1','pordoom_ghost_nw_w2','pordoom_ghost_ne_w1','pordoom_ghost_ne_w2','pordoom_ghost_se_w1','pordoom_ghost_se_w2',
+    'fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
+    'orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
+    'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
     'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'cavein',
@@ -769,7 +810,7 @@ function frameFit(e,img){
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
-  for(const suffix of ['_atk_recover','_atk_bow','_back_w1','_back_w2','_atk','_back','_w1','_w2','_sleep']){
+  for(const suffix of ['_atk_recover','_atk_bow','_e_atk','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2','_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2','_atk','_back','_w1','_w2','_sleep']){
     if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
   }
   return 1;
@@ -1279,66 +1320,86 @@ function faceVec(e){
   }
   // Party kin share Macar heading while they follow so trail-lag scramble
   // does not mix left/right in the line — including when they stand still.
-  // Attack still snaps to the aim.
+  // Attack still snaps to the aim. fdx===0 is a real south/north heading.
   const lead=e.hero?null:player();
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
-    const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
+    const hx=lead.fdx!=null?lead.fdx:(lead.ix||0);
+    const hy=lead.fdy!=null?lead.fdy:(lead.iy||0);
     if(hx||hy) return {dx:hx, dy:hy};
   }
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
+}
+function screenOctant(e){
+  const v=faceVec(e);
+  const sx=(v.dx||0)-(v.dy||0);
+  const sy=(v.dx||0)+(v.dy||0);
+  if(!(sx||sy)) return 's';
+  const deg=((Math.atan2(sy,sx)*180/Math.PI)+360)%360;
+  const bin=Math.round(deg/45)%8;
+  return ['e','se','s','sw','w','nw','n','ne'][bin];
+}
+function screenCardinal(e){
+  const o=screenOctant(e);
+  if(o==='se'||o==='sw') return o==='se'?'e':'w';
+  if(o==='ne'||o==='nw') return o==='ne'?'e':'w';
+  return o;
 }
 function wantsBackView(e){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  const v=faceVec(e);
-  const away=(v.dx||0)+(v.dy||0);
-  const side=Math.abs((v.dx||0)-(v.dy||0));
-  // Away = iso north (screen-up). West/east are side-on — do not swap in a back
-  // sheet or left-walk reads as facing top-right / moonwalk.
-  return away < -0.55 && side < 0.72;
-}
-/* Per-frame native facing. +1 = painted iso SE (screen-right / D).
-   -1 = painted iso SW (screen-left / A). macar_w2 and the axe sheets are
-   left-painted — flipping the kin default on those frames moonwalks.
-   headingSX = travelX-travelY (positive = screen-right). Billboard mirrors
-   when heading * native < 0. Party kin share Macar heading while they follow. */
-const DWARF_FACE_SX={
-  macar:1, macar_w1:1, macar_w2:-1, macar_atk:1, macar_atk_recover:1,
-  macar_axe:-1, macar_axe_w1:-1, macar_axe_w2:-1, macar_axe_atk:-1, macar_axe_atk_recover:-1,
-  pordoom:1, pordoom_w1:1, pordoom_w2:1, pordoom_atk:1,
-  pordoom_ghost:1, pordoom_ghost_w1:1, pordoom_ghost_w2:-1, pordoom_ghost_atk:1,
-  fendur:1, fendur_w1:1, fendur_w2:1, fendur_atk:1,
-  fendur_ghost:-1, fendur_ghost_w1:1, fendur_ghost_w2:-1, fendur_ghost_atk:1,
-  orbo:-1, orbo_w1:-1, orbo_w2:1, orbo_atk:-1,
-  orbo_ghost:1, orbo_ghost_w1:1, orbo_ghost_w2:1, orbo_ghost_atk:-1,
-  talpor:1, talpor_w1:1, talpor_w2:1, talpor_atk:1,
-  talpor_ghost:1, talpor_ghost_w1:1, talpor_ghost_w2:1, talpor_ghost_atk:1
-};
-function sheetFaceSX(k){
-  if(!k) return 1;
-  if(DWARF_FACE_SX[k]!=null) return DWARF_FACE_SX[k];
-  const s=String(k);
-  const suf=['_atk_recover','_atk_bow','_back_w1','_back_w2','_back','_atk','_w1','_w2','_sleep'];
-  for(let i=0;i<suf.length;i++){
-    if(s.endsWith(suf[i])){
-      const base=s.slice(0,-suf[i].length);
-      if(DWARF_FACE_SX[base]!=null) return DWARF_FACE_SX[base];
-    }
-  }
-  return 1;
+  return screenOctant(e)==='n';
 }
 function moveHeadingSX(e){
   const v=faceVec(e);
   return (v.dx||0)-(v.dy||0);
 }
+function dwarfAngleKey(e,k){
+  const oct=screenOctant(e);
+  const moving=QUALITY && e.moving && !e.defending;
+  const phase=((e.gait||0)%1)<0.5?'w1':'w2';
+  function gait(a,b,idle){
+    if(moving){
+      if(phase==='w1' && a && SPR[a]) return a;
+      if(phase==='w2' && b && SPR[b]) return b;
+      if(a && SPR[a]) return a;
+      if(b && SPR[b]) return b;
+    }
+    if(idle && SPR[idle]) return idle;
+    if(a && SPR[a]) return a;
+    if(b && SPR[b]) return b;
+    return null;
+  }
+  if(oct==='n'){
+    const macarKey=(k==='macar'||k==='macar_axe');
+    const aKey=k+'_back_w1', bKey=k+'_back_w2';
+    const a=SPR[aKey]?aKey:(macarKey&&SPR.macar_back_w1?'macar_back_w1':null);
+    const b=SPR[bKey]?bKey:(macarKey&&SPR.macar_back_w2?'macar_back_w2':null);
+    const hit=gait(a,b,null);
+    if(hit) return hit;
+    if(SPR[k+'_back']) return k+'_back';
+    if(macarKey && SPR.macar_back) return 'macar_back';
+    return null;
+  }
+  if(oct==='s') return gait(k+'_s_w1', k+'_s_w2', k+'_s');
+  if(oct==='nw') return gait(k+'_nw_w1', k+'_nw_w2', k+'_nw');
+  if(oct==='ne') return gait(k+'_ne_w1', k+'_ne_w2', k+'_ne');
+  if(oct==='se'||oct==='sw') return gait(k+'_se_w1', k+'_se_w2', k);
+  let ek=k;
+  if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') ek='macar';
+  return gait(ek+'_e_w1', ek+'_e_w2', ek+'_e');
+}
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
-  const heading=moveHeadingSX(e);
-  const native=sheetFaceSX(entAnimKey(e)||entSpriteKey(e));
-  return heading*native < -0.02;
+  const oct=screenOctant(e);
+  const key=entAnimKey(e)||'';
+  if(key.indexOf('_nw_')>=0 || key.indexOf('_ne_')>=0) return false;
+  if(key.indexOf('_se_')>=0) return oct==='sw';
+  if(key.indexOf('_e_')>=0 || /_e$/.test(key)) return oct==='w';
+  if(key.indexOf('_s_')>=0 || /_s$/.test(key) || key.indexOf('_back')>=0) return false;
+  return oct==='w'||oct==='sw';
 }
 function attackProgress(e){
   if(!e||!(e.atk>0)) return 0;
@@ -1370,13 +1431,22 @@ function entAnimKey(e){
     return k;
   }
   if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) return k+'_atk_recover';
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']) return k+'_atk';
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']){
+    const card=screenCardinal(e);
+    if((card==='e'||card==='w') && SPR[k+'_e_atk']) return k+'_e_atk';
+    if((card==='e'||card==='w') && k==='macar_axe' && SPR.macar_e_atk) return 'macar_e_atk';
+    return k+'_atk';
+  }
+  if(e.kind==='dwarf'){
+    const angled=dwarfAngleKey(e,k);
+    if(angled) return angled;
+  }
   if(wantsBackView(e)){
     if(QUALITY && e.moving && !e.defending){
       const macarKey=(k==='macar'||k==='macar_axe');
       const a=k+'_back_w1', b=k+'_back_w2';
-      const aOk=!!(SPR[a]||(macarKey&&SPR.macar_back_w1));
-      const bOk=!!(SPR[b]||(macarKey&&SPR.macar_back_w2));
+      const aOk=!!(SPR[k+'_back_w1']||(macarKey&&SPR.macar_back_w1));
+      const bOk=!!(SPR[k+'_back_w2']||(macarKey&&SPR.macar_back_w2));
       if(aOk||bOk){
         const phase=((e.gait||0)%1)<0.5?0:1;
         if(phase===0 && aOk) return SPR[a]?a:'macar_back_w1';
@@ -6996,16 +7066,24 @@ function update(dt){
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
           if(dd<(e.r+o.r)*1.15&&dd>.001){ vx+=(e.x-o.x)/dd*.35; vy+=(e.y-o.y)/dd*.35; } }
         steerWalk(e, vx, vy, go, dt);
-        if(form&&p&&(p.fdx||p.fdy)){ e.fdx=p.fdx; e.fdy=p.fdy; }
+        if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
-        if(form&&p) turnToward(e, p.fdx, p.fdy, dt, 8);
+        if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
         if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; e.aim=tgt; }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
+  }
+  if(p){
+    for(const e of G.ents){
+      if(e.team!=='party'||e.hero||e.dead||e.crushed||e.sleeping) continue;
+      if(e.defending||(e.atk>0)) continue;
+      if(!p.moving && (p.aim||p.atk>0)) continue;
+      e.fdx=p.fdx; e.fdy=p.fdy;
+    }
   }
 
   for(const s of G.shots){
