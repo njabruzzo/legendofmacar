@@ -568,6 +568,9 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
+  SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
+});
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 SPRITE_FILES.macar_axe_back='assets/creatures/dwarf_macar_axe_back.png';
@@ -704,7 +707,11 @@ function loadSprites(done){
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
   ['macar','macar_w1','macar_w2','macar_back','macar_back_w1','macar_back_w2','macar_atk','macar_atk_bow','macar_atk_recover',
-    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2']
+    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2',
+    'pordoom','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_atk','pordoom_ghost_atk_recover',
+    'fendur','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_atk','fendur_ghost_atk_recover',
+    'orbo','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_atk','orbo_ghost_atk_recover',
+    'talpor','talpor_atk','talpor_atk_recover','talpor_ghost','talpor_ghost_atk','talpor_ghost_atk_recover']
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 function ensureDeadSprites(){
@@ -824,8 +831,25 @@ function heroFigureFit(e,img){
   const frac=clamp(b.y1-b.y0, 0.55, 1);
   return MACAR_IDLE_FRAC/frac;
 }
+function dwarfIdleFrac(e){
+  const k=entSpriteKey(e);
+  const idle=k&&SPR[k];
+  const b=spriteBounds(idle);
+  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, 0.55, 1);
+  return MACAR_IDLE_FRAC;
+}
+/* Every party dwarf — living and ghost — keeps one world height from idle
+   through walk, strike, and recover. Do not scale attack 1.29x. */
+function dwarfFigureFit(e,img){
+  if(!e||e.kind!=='dwarf'||e.dead||e.crushed) return 1;
+  if(e.hero&&!e.ghost) return heroFigureFit(e,img);
+  const b=spriteBounds(img);
+  if(!b||!b.ok||b.y0==null||b.y1==null) return 1;
+  const frac=clamp(b.y1-b.y0, 0.55, 1);
+  return dwarfIdleFrac(e)/frac;
+}
 function frameFit(e,img){
-  if(e&&e.hero&&!e.dead&&!e.ghost) return heroFigureFit(e,img);
+  if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img);
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
