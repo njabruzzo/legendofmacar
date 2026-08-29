@@ -44,6 +44,10 @@ assert(!/ray\(s\.x,s\.y-16\*z,64\*z,'#c8ffd8'/.test(html),
   'stairs do not throw a mint god-ray');
 assert(/emit\(s\.x-10\*z,s\.y-36\*z,28\*z,'#ffb45c'/.test(html),
   'stair wells keep practical torch bloom');
+assert(!/if\(QUALITY && h2\(x\*3,y\*7\)>0\.86\) emit\(/.test(html),
+  'masonry no longer blooms QUALITY wall globes');
+assert(!/emit\(sx\.x,sx\.y-H\*0\.38,16\*z,'#c9b895'/.test(html),
+  'dwarf-face carving is not a beige orb');
 assert(!/emit\(s\.x,s\.y-28\*z, \(k==='lichen'\?18:36\)\*z\*b/.test(html),
   'plant sprites no longer emit floating orbs');
 assert(!/emit\(s\.x,s\.y-34\*z\*sz,42\*z\*b\*sz,'#b57cff'/.test(html),

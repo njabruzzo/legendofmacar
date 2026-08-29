@@ -55,6 +55,9 @@ const fs=require('fs');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 assert(/k:'dwarfface'/.test(html), 'chapter places dwarfface');
 assert(/prop_dwarfface\.png/.test(html), 'face sprite registered');
+assert(/timberOnDwarfMouthLane/.test(html) && /billboardCoversDwarfMouth/.test(html),
+  'T-post cannot sit on the open mouth');
+assert(!/\{x:43,y:14,k:'lantern'\}/.test(html), 'old face-line lantern is gone');
 assert(/loot_shadowcleaver\.png/.test(html), 'axe sprite registered');
 assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'idle axe PNG on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk.png')), 'swing axe PNG on disk');
