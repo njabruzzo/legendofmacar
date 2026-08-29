@@ -27,7 +27,10 @@ assert(/Descend to the Goblin King/.test(html), 'player can descend from the lai
 assert(/L\.climbs/.test(html) && /enterGoblinKingLevel\(L\)/.test(html), 'climb hook opens the king hall');
 assert(/placeSecretHoard\([^,]+,[^,]+,\s*'H'\)/.test(html), 'king hoard uses DMG type H');
 assert(/goblinWarlord/.test(html) && /goblinChieftain/.test(html), 'powerful goblin officers stand with the king');
-assert(/L\.w=96; L\.h=80/.test(html), 'first floor is enlarged for the deeper lair');
+assert(/L\.w=120; L\.h=100/.test(html), 'first floor is a wide warren with side caverns');
+assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
+  'chapter II adds south and east caverns beyond the four-way');
+assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'south stair stays on the old descent tile');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ngoblin warren checks passed');

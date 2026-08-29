@@ -2381,7 +2381,7 @@ function makeChapter(n){
 
   if(n===2){
     L.title='Chapter II'; L.sub='The First Floor'; L.pal=PAL.mine;
-    L.w=96; L.h=80; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=120; L.h=100; const g=newGrid(L.w,L.h,1); L.grid=g;
     caveDisk(g,40,8,5.0,4.0,3);
     caveDisk(g,40,16,7.8,6.3,0);
     carvePath(g,[[40,10],[40,16]],3.5,0);
@@ -2402,6 +2402,29 @@ function makeChapter(n){
     caveDisk(g,40,54,4.8,4.0,3);
     carvePath(g,[[40,46],[34,48],[28,50]],3.0,0);
     caveDisk(g,27.4,50,3.3,2.8,0);
+    // Wider first floor: side caverns and halls. Stair and bronze stay put.
+    carvePath(g,[[58,18],[58,26],[70,28],[82,28],[94,32]],3.1,0);
+    caveDisk(g,82,28,5.5,4.5,0);
+    caveDisk(g,96,32,5.0,4.2,0);
+    carvePath(g,[[82,30],[82,42],[90,50]],3.0,0);
+    caveDisk(g,90,50,5.2,4.4,0);
+    carvePath(g,[[10,33],[10,44],[14,54],[18,64]],3.0,0);
+    caveDisk(g,12,44,4.5,3.8,0);
+    caveDisk(g,18,64,5.5,4.6,0);
+    carvePath(g,[[40,56],[40,68],[40,80]],3.2,0);
+    caveDisk(g,40,70,5.8,4.8,0);
+    carvePath(g,[[40,70],[52,72],[64,76]],3.0,0);
+    caveDisk(g,66,76,5.0,4.2,0);
+    carvePath(g,[[40,70],[28,74],[22,84]],2.9,0);
+    caveDisk(g,22,84,4.8,4.0,0);
+    carvePath(g,[[44,32],[56,36],[64,46]],3.0,0);
+    caveDisk(g,64,46,5.2,4.4,0);
+    carvePath(g,[[50,16],[54,10],[60,6]],2.8,0);
+    caveDisk(g,60,6,3.8,3.2,0);
+    for(let j=12;j<=20;j++) if(g[j]) g[j][67]=1;
+    if(g[16]){ g[16][66]=0; g[16][67]=4; }
+    if(g[17]) g[17][66]=0;
+    if(g[15]) g[15][66]=0;
     L.spawn={x:40.15,y:8.55};
     L.door={x:66.48,y:16.05};
     L.bell={x:66.48,y:17.42};
@@ -2421,7 +2444,12 @@ function makeChapter(n){
     L.lights=[{x:40,y:8.4,c:'#ff2f3a',r:8.4,f:1.5},{x:40,y:16,c:'#ffb45c',r:6.4,f:1},
       {x:66.5,y:16.05,c:'#d4a04a',r:8.2,f:1.45},{x:40,y:32,c:'#ff8a3a',r:6.8,f:1.1},
       {x:40,y:54,c:'#6fd0ff',r:5.6,f:0.95},{x:10,y:31,c:'#c07bff',r:6.2,f:1.05},
-      {x:27,y:50,c:'#9a8163',r:3.8,f:0.6}];
+      {x:27,y:50,c:'#9a8163',r:3.8,f:0.6},
+      {x:82,y:28,c:'#ffb45c',r:5.4,f:0.85},{x:96,y:32,c:'#c9a070',r:4.8,f:0.7},
+      {x:90,y:50,c:'#8aa0b8',r:5.0,f:0.75},{x:12,y:44,c:'#9a8163',r:4.2,f:0.6},
+      {x:18,y:64,c:'#c07bff',r:5.2,f:0.8},{x:40,y:70,c:'#ff8a3a',r:5.8,f:0.9},
+      {x:66,y:76,c:'#6fd0ff',r:4.8,f:0.7},{x:64,y:46,c:'#d4a04a',r:5.0,f:0.75},
+      {x:60,y:6,c:'#ffb45c',r:3.8,f:0.55},{x:22,y:84,c:'#9a8163',r:4.0,f:0.6}];
     G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
       {x:66.48,y:16.05,k:'bronzedoor'},{x:66.48,y:17.42,k:'bell'},
       {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
@@ -2433,7 +2461,17 @@ function makeChapter(n){
       {x:24.2,y:49.4,k:'cavein',s:1.12},{x:25.6,y:51.1,k:'boulder',spr:'boulder2',s:1.05},
       {x:26.8,y:49.2,k:'rubble',spr:'rubble',n:10,s:1.05,seed:11},
       {x:23.5,y:50.6,k:'rubble',spr:'rubble2',n:9,s:1.0,seed:17},
-      {x:40.0,y:42.4,k:'lantern'},{x:38.2,y:43.2,k:'rubble',spr:'rubble2'}];
+      {x:40.0,y:42.4,k:'lantern'},{x:38.2,y:43.2,k:'rubble',spr:'rubble2'},
+      {x:80.6,y:26.8,k:'lantern'},{x:83.4,y:29.2,k:'crate'},{x:81.2,y:30.1,k:'bones'},
+      {x:94.8,y:31.2,k:'shroom'},{x:97.2,y:33.4,k:'web'},{x:88.6,y:48.8,k:'bones'},
+      {x:91.4,y:51.2,k:'lantern'},{x:11.2,y:43.2,k:'web'},{x:13.4,y:45.1,k:'bones'},
+      {x:16.8,y:63.2,k:'shroom'},{x:19.4,y:65.1,k:'crate'},{x:38.6,y:69.2,k:'lantern'},
+      {x:41.8,y:71.4,k:'sack'},{x:39.2,y:72.1,k:'bones'},{x:64.4,y:75.2,k:'lantern'},
+      {x:67.6,y:77.1,k:'crate'},{x:62.4,y:45.2,k:'banner'},{x:65.6,y:47.1,k:'urn'},
+      {x:58.8,y:5.4,k:'shroom'},{x:21.2,y:83.2,k:'rubble',spr:'rubble2'},{x:23.4,y:85.1,k:'bones'}];
+    [[82,28],[96,32],[90,50],[12,44],[18,64],[40,70],[66,76],[64,46]].forEach(pt=>{
+      placeDungeonCache(pt[0], pt[1], 2);
+    });
     L.lights.push({x:40.0,y:41.2,c:'#8aa0b8',r:3.6,f:0.55});
     L.guide=()=>!L.flags.fought?L.camp:!L.flags.home&&!L.flags.traded?L.door:L.stair;
     L.tick=(dt)=>{
@@ -2445,6 +2483,14 @@ function makeChapter(n){
         spawnLairGroup(26.2, 15.2, {pack:[['spider',3]], spread:1.4, aggro:3.1});
         spawnLairGroup(16.4, 16.4, {pack:[['rat',2],['beetle',2]], spread:1.2, aggro:2.6});
         spawnLairGroup(10.1, 31.0, {leader:'spiderLord', pack:[['spider',2],['centipede',1]], spread:1.6, aggro:3.4});
+        spawnLairGroup(82.2, 28.1, {pack:[['goblin',3],['kobold',2]], spread:1.6, aggro:3.4});
+        spawnLairGroup(96.1, 32.2, {leader:'koboldChief', pack:[['kobold',3]], spread:1.5, aggro:3.2});
+        spawnLairGroup(90.2, 50.1, {pack:[['spider',2],['beetle',2]], spread:1.4, aggro:3.0});
+        spawnLairGroup(12.2, 44.1, {pack:[['rat',3],['centipede',2]], spread:1.3, aggro:2.8});
+        spawnLairGroup(18.2, 64.1, {leader:'goblinBoss', pack:[['goblin',3]], spread:1.5, aggro:3.6});
+        spawnLairGroup(40.1, 70.2, {pack:[['warg',2],['goblin',2]], spread:1.6, aggro:3.8});
+        spawnLairGroup(66.2, 76.1, {pack:[['spiderHuge',1],['spider',2]], spread:1.4, aggro:3.2});
+        spawnLairGroup(64.1, 46.2, {pack:[['orc',2],['kobold',2]], spread:1.5, aggro:3.4});
         say('The ruby cage opens on a four-way in living rock. Left, bronze and gems. Right, silk. Straight, goblin-talk.','#c9b895');
       }
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
@@ -2516,15 +2562,26 @@ function makeChapter(n){
 
   if(n===3){
     L.title='Chapter III'; L.sub='The Ruin'; L.pal=PAL.ruin;
-    L.w=90; L.h=72; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=118; L.h=96; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,24,10,8,3); corridor(g,12,28,24,28,6,0); rect(g,18,20,16,18,0);
     corridor(g,33,28,44,20,6,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,6,0);
     rect(g,36,34,24,16,0); rect(g,46,40,6,6,3);
+    corridor(g,54,20,88,14,5,0); rect(g,82,8,20,14,0);
+    corridor(g,62,28,96,34,5,0); rect(g,88,28,20,16,0);
+    corridor(g,58,48,90,60,5,0); rect(g,78,52,24,16,0);
+    corridor(g,28,50,28,76,5,0); rect(g,18,68,28,16,0);
+    corridor(g,46,50,50,80,5,0); rect(g,40,72,26,16,0);
+    corridor(g,12,48,14,74,4,0); rect(g,6,68,16,16,0);
+    corridor(g,96,42,106,48,4,0); rect(g,100,40,14,16,0);
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
-      {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6}];
+      {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6},
+      {x:90,y:14,c:'#c9a070',r:6,f:0.85},{x:96,y:34,c:'#ffb45c',r:6.2,f:0.9},
+      {x:88,y:58,c:'#ff5a48',r:6.4,f:0.95},{x:30,y:76,c:'#c9a070',r:5.6,f:0.75},
+      {x:50,y:80,c:'#ffb45c',r:6.0,f:0.85},{x:12,y:74,c:'#9a8163',r:4.8,f:0.65},
+      {x:106,y:48,c:'#a35bff',r:5.4,f:0.8}];
     G.props=[{x:8,y:25,k:'lantern'},{x:20,y:22,k:'pillar'},{x:32,y:22,k:'pillar'},{x:20,y:36,k:'pillar'},
       {x:32,y:36,k:'pillar'},{x:40,y:14,k:'pillar'},{x:52,y:14,k:'pillar'},{x:40,y:26,k:'pillar'},{x:52,y:26,k:'pillar'},
       {x:46,y:14,k:'names'},{x:38,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:38,y:48,k:'brazier'},{x:58,y:48,k:'brazier'},
@@ -2532,8 +2589,15 @@ function makeChapter(n){
       {x:16.2,y:26.15,k:'lantern'},{x:15.8,y:29.85,k:'timber'},{x:17.1,y:29.7,k:'barrel'},
       {x:32.4,y:21.2,k:'banner'},{x:33.6,y:36.2,k:'crate'},{x:33.2,y:21.6,k:'urn'},
       {x:26,y:28,k:'trap',trap:'trap_spikes'},{x:44,y:20,k:'trap',trap:'trap_runes'},
-      {x:40,y:40,k:'trap',trap:'trap_pit'},{x:52,y:42,k:'trap',trap:'trap_spikes'}];
+      {x:40,y:40,k:'trap',trap:'trap_pit'},{x:52,y:42,k:'trap',trap:'trap_spikes'},
+      {x:88,y:12,k:'lantern'},{x:94,y:16,k:'pillar'},{x:92,y:32,k:'bones'},
+      {x:98,y:36,k:'banner'},{x:84,y:56,k:'brazier'},{x:92,y:60,k:'urn'},
+      {x:26,y:74,k:'lantern'},{x:48,y:78,k:'pillar'},{x:10,y:72,k:'timber'},
+      {x:104,y:46,k:'bones'}];
     dressRuinBuildings(L);
+    [[90,14],[96,34],[88,58],[30,76],[50,80],[12,74],[106,48]].forEach(pt=>{
+      placeDungeonCache(pt[0], pt[1], 3);
+    });
     L.secrets=[];
     addSecretDoor(L,{x:46.4,y:11.15,i:45,j:11,w:3,h:1,kind:'treasure',face:'s',
       hint:'The Hall of Names has a colder north face. SEARCH the grey brick.'});
@@ -2565,6 +2629,18 @@ function makeChapter(n){
       if(!L.flags.ruinS&&p.y>54&&p.x>18&&p.x<46){L.flags.ruinS=1;
         spawnLairGroup(30,58,{pack:[['troglodyte',3],['crawler',1]],spread:1.5,aggro:3.5});
         say('Troglodytes hold the south street of broken halls.','#6aff8a');}
+      if(!L.flags.ruinNE&&p.x>80&&p.y<22){L.flags.ruinNE=1;
+        spawnLairGroup(90,14,{leader:'drowElite',pack:[['drow',2]],spread:1.5,aggro:3.6});
+        say('A side manor still has a drow watch.','#c07bff');}
+      if(!L.flags.ruinSE&&p.x>76&&p.y>50){L.flags.ruinSE=1;
+        spawnLairGroup(88,58,{pack:[['undead',2],['wraith',1]],spread:1.5,aggro:3.4});
+        say('The southeast street is a grave of broken halls.','#7cff9c');}
+      if(!L.flags.ruinFarS&&p.y>70){L.flags.ruinFarS=1;
+        spawnLairGroup(50,80,{leader:'troglodyteChief',pack:[['troglodyte',3]],spread:1.6,aggro:3.6});
+        say('The far south courts are troglodyte-held.','#6aff8a');}
+      if(!L.flags.ruinFarE&&p.x>96){L.flags.ruinFarE=1;
+        spawnLairGroup(106,48,{pack:[['myconid',2],['violetfungus',1]],spread:1.4,aggro:3.2});
+        say('Spores take the eastern storehouse.','#a35bff');}
       if(L.flags.w1 && !G.fightOn){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
@@ -2940,6 +3016,11 @@ function lootNearbyCorpses(e, r){
     if(dist(e,o)<r){ lootCorpse(o); n++; }
   }
   return n;
+}
+function corpseWalkReach(body){
+  /* Walking onto a dead foe or fallen kin loots / rouses. Tap is only a fallback. */
+  if(body && body.crushed && body.team==='party') return 1.55;
+  return 1.88;
 }
 const GHOST_RETURN=600;
 const GHOST_DAY_SECS=720;
@@ -5409,14 +5490,89 @@ function rollIndividual(letter){
   else if(letter==='L') coins.ep=rollDice(2,6,0);
   else if(letter==='M') coins.gp=rollDice(2,4,0);
   else if(letter==='N') coins.pp=rollDice(1,6,0);
+  else if(letter==='O') coins.gp=rngAmt(10,40);
+  else if(letter==='P') coins.pp=rngAmt(1,20);
   else if(letter==='Q') return {coins:{},gems:chanceOk(50)?ri(1,4):0,jew:0,magN:0};
   else if(letter==='R') return {coins:{},gems:0,jew:chanceOk(50)?ri(2,8):0,magN:0};
   else if(letter==='S') return {coins:{},gems:0,jew:0,magN:chanceOk(40)?ri(1,8):0,magKind:'potion'};
   else if(letter==='T') return {coins:{},gems:0,jew:0,magN:chanceOk(50)?ri(1,4):0,magKind:'scroll'};
+  else if(letter==='U'){
+    return {coins:{}, gems:chanceOk(90)?rngAmt(10,40):0, jew:chanceOk(80)?rngAmt(5,30):0,
+      magN:(chanceOk(70)?1:0)+(chanceOk(60)?ri(1,4):0)+(chanceOk(50)?1:0), magKind:'any'};
+  }
+  else if(letter==='V'){
+    return {coins:{}, gems:chanceOk(90)?rngAmt(10,80):0, jew:chanceOk(90)?rngAmt(5,40):0,
+      magN:chanceOk(70)?3:0, magKind:'any'};
+  }
   else if(letter==='X') return {coins:{},gems:0,jew:0,magN:chanceOk(60)?2:0,magKind:'potion'};
   else if(letter==='Y'){ if(chanceOk(70)) coins.gp=rollDice(2,6,0)*100; }
+  else if(letter==='Z'){
+    if(chanceOk(55)) coins.cp=rngAmt(300,1800);
+    if(chanceOk(55)) coins.sp=rngAmt(300,1800);
+    if(chanceOk(55)) coins.ep=rngAmt(200,1200);
+    if(chanceOk(55)) coins.gp=rngAmt(300,2000);
+    if(chanceOk(30)) coins.pp=rngAmt(100,600);
+    return {coins, gems:chanceOk(50)?rngAmt(1,6):0, jew:chanceOk(50)?rngAmt(5,30):0,
+      magN:chanceOk(50)?3:0, magKind:'any'};
+  }
   else return null;
   return {coins,gems:0,jew:0,magN:0,magKind:'any'};
+}
+function mergeHoards(a,b){
+  if(!a) return b; if(!b) return a;
+  const coins={};
+  ['cp','sp','ep','gp','pp'].forEach(k=>{
+    const n=(a.coins&&a.coins[k]||0)+(b.coins&&b.coins[k]||0);
+    if(n) coins[k]=n;
+  });
+  return {coins, gems:(a.gems||0)+(b.gems||0), jew:(a.jew||0)+(b.jew||0),
+    magN:(a.magN||0)+(b.magN||0), magKind:(a.magN?a.magKind:b.magKind)||'any'};
+}
+function treasureLetters(raw){
+  return String(raw||'').split(/[,;\s+/]+/).map(s=>s.trim().toUpperCase())
+    .filter(c=>c.length===1 && /[A-Z]/.test(c));
+}
+function rollTreasureSpec(raw){
+  let hoard=null;
+  treasureLetters(raw).forEach(c=>{
+    const part=/[A-I]/.test(c)?rollLair(c):rollIndividual(c);
+    if(part) hoard=mergeHoards(hoard, part);
+  });
+  return hoard;
+}
+/* AD&D 1e DMG Appendix A Table V — unguarded dungeon treasure by level. */
+const DUNGEON_TREASURE={
+  1:{cp:[25,1,6,1000],sp:[30,1,6,100],ep:null,gp:[35,1,6,10],pp:null,gem:[5,1,4],jew:[2,1,1],mag:[5,1,'any']},
+  2:{cp:[20,1,8,1000],sp:[25,1,8,100],ep:[25,1,4,100],gp:[40,1,8,100],pp:null,gem:[10,1,6],jew:[5,1,1],mag:[8,1,'any']},
+  3:{cp:[15,2,12,1000],sp:[20,2,12,100],ep:[25,1,6,100],gp:[45,2,12,100],pp:null,gem:[15,1,8],jew:[8,1,2],mag:[10,1,'any']},
+  4:{cp:[10,3,18,1000],sp:[15,3,18,100],ep:[25,1,8,100],gp:[50,3,18,100],pp:[25,1,2,100],gem:[20,1,10],jew:[10,1,2],mag:[12,1,'any']},
+  5:{cp:[5,4,24,1000],sp:[10,4,24,100],ep:[25,1,10,100],gp:[50,4,24,100],pp:[25,1,4,100],gem:[30,1,12],jew:[15,1,3],mag:[15,2,'any']},
+  6:{cp:null,sp:[5,5,30,100],ep:[15,1,12,100],gp:[55,5,30,100],pp:[30,1,6,100],gem:[35,2,16],jew:[20,1,4],mag:[16,2,'any']},
+  7:{cp:null,sp:null,ep:[10,1,12,100],gp:[60,6,36,100],pp:[35,1,8,100],gem:[40,3,18],jew:[25,1,6],mag:[18,3,'any']},
+  8:{cp:null,sp:null,ep:null,gp:[65,8,48,100],pp:[40,1,10,100],gem:[45,4,24],jew:[30,1,8],mag:[20,4,'any']}
+};
+function rollDungeonTreasure(level){
+  const lv=Math.max(1, Math.min(8, (level|0)||1));
+  const T=DUNGEON_TREASURE[lv]||DUNGEON_TREASURE[1];
+  const coins={}; let gems=0,jew=0,magN=0,magKind='any';
+  const coin=(key,row)=>{
+    if(!row) return;
+    if(chanceOk(row[0])) coins[key]=rngAmt(row[1],row[2])*(row[3]||1);
+  };
+  coin('cp',T.cp); coin('sp',T.sp); coin('ep',T.ep); coin('gp',T.gp); coin('pp',T.pp);
+  if(T.gem&&chanceOk(T.gem[0])) gems=rngAmt(T.gem[1],T.gem[2]);
+  if(T.jew&&chanceOk(T.jew[0])) jew=rngAmt(T.jew[1],T.jew[2]);
+  if(T.mag&&chanceOk(T.mag[0])){ magN=T.mag[1]||1; magKind=T.mag[2]||'any'; }
+  return {coins,gems,jew,magN,magKind};
+}
+function placeDungeonCache(x, y, level){
+  const lv=level||((G.lvl&&G.lvl.n)||1);
+  const pile=hoardToPile(rollDungeonTreasure(lv));
+  if(!pile) return null;
+  pile.label='Dungeon cache (level '+lv+')';
+  pile.glow=pile.glow||'#ffd27a';
+  spawnLoot(x, y, pile);
+  return pile;
 }
 function applyHeal(e, n){
   if(!e||e.dead) return 0;
@@ -5695,7 +5851,8 @@ function dressRuinBuildings(L){
   const seed=L.dressSeed||11;
   const footprints=[
     [6,8,12,10],[22,6,14,10],[56,6,18,12],
-    [64,20,18,16],[6,38,12,12],[64,42,18,16],[20,54,24,12]
+    [64,20,18,16],[6,38,12,12],[64,42,18,16],[20,54,24,12],
+    [84,8,16,12],[92,28,18,14],[80,54,22,14],[8,70,16,14],[42,74,22,14],[72,76,18,12],[100,40,14,16]
   ];
   footprints.forEach((fp, idx)=>{
     const [x,y,w,h]=fp;
@@ -5939,19 +6096,17 @@ const HUDSKILLS=[
   {key:'bow', ico:'crossbow', label:'Shoot'},
   {key:'bomb', ico:'bomb', label:'Throw'},
   {key:'ale', ico:'flask', label:'Heal'},
-  {key:'rally', ico:'horn', label:'Rally'},
-  {key:'search', ico:'plant', label:'Herbs'},
-  {key:'secret', ico:'secret', label:'Seams'},
+  {key:'search', ico:'plant', label:'SEARCH'},
+  {key:'secret', ico:'secret', label:'SEARCH'},
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
 ];
-/* Mobile primary bar never includes Rally. It is a war-horn (heal + 8s hit buff),
-   not a party-gather, and it lives on More / pause so the thumb row stays usable. */
+/* Rally is not a HUD verb (bar or More). Key 5 still fires the war-horn if remembered. */
 const HUD_TAP=44;
-const HUD_OVERFLOW={rally:1};
+const HUD_OVERFLOW={};
 const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','bow','bomb'];
-/* Desktop skill bar (mouse, landscape). Mobile keeps HUD_TAP=44 and Rally-in-More. */
+/* Desktop skill bar (mouse, landscape). Mobile keeps HUD_TAP=44. */
 const HUD_DESK_WIDE=1280;
 const HUD_DESK_SLOT_MIN=60;
 const HUD_DESK_SLOT_MAX=80;
@@ -5978,7 +6133,7 @@ function layoutUI(){
 
   if(mobile){
     /* Left thumb: stick. Right thumb: Attack / Defend. Center: 44px verbs.
-       Rally and any verb that will not fit go in the More tray. */
+       Any verb that will not fit goes in the More tray. */
     const TAP=HUD_TAP;
     const gap=5;
     const rowGap=PORT?16:12;
@@ -6560,9 +6715,9 @@ function update(dt){
         }
       }
     }
-    const body=nearestCorpse(p,1.72);
+    const body=nearestCorpse(p,corpseWalkReach(null));
     if(body){
-      const reach=(body.crushed&&body.team==='party')?0.98:1.72;
+      const reach=corpseWalkReach(body);
       if(dist(p,body)<reach) lootNearbyCorpses(p,reach);
     }
     if(!PROMPT){
@@ -8812,15 +8967,14 @@ function foeDrop(e){
       const hoard=rollLair('H')||{coins:{},gems:0,jew:0,magN:1,magKind:'anyp'};
       const pile=hoardToPile(hoard);
       if(pile) e.drop=pile;
-    } else if(Math.random()<0.18){
-      const mats=['ironstone','timber','bone','hide','resin','powder'];
-      const r=mats[(Math.random()*mats.length)|0];
-      e.drop={kind:'ore', res:{[r]:1+(Math.random()<0.35?1:0)}};
+    } else {
+      const pocket=chanceOk(25)?rollIndividual('J'):(chanceOk(8)?rollDungeonTreasure((G.lvl&&G.lvl.n)||1):null);
+      const pile=hoardToPile(pocket);
+      if(pile) e.drop=pile;
     }
     return;
   }
-  const letter=raw[0];
-  let hoard=('ABCDEFGHI'.indexOf(letter)>=0)?rollLair(letter):rollIndividual(letter);
+  let hoard=rollTreasureSpec(raw);
   if(!hoard){
     if(e.boss) hoard=rollLair('C')||{coins:{gp:ri(20,80)},gems:0,jew:0,magN:0};
     else return;
@@ -8908,15 +9062,12 @@ function breakRock(L,i,j){
     L.flags.collapseDigs=(L.flags.collapseDigs||0)+1;
     if((L.flags.collapseFinds||0)<3 && (Math.random()<0.42 || L.flags.collapseDigs===2)){
       L.flags.collapseFinds=(L.flags.collapseFinds||0)+1;
-      const rich=Math.random()<0.4;
-      spawnLoot(i+0.5, j+0.5, {
-        kind:rich?'chest':'coins',
-        coins:{gp:ri(10,36), sp:ri(12,50), cp:ri(20,90), pp:rich?1:0},
-        gems:rich?ri(1,2):0,
-        jew:Math.random()<0.35?1:0,
-        label:'Cache in the fall'
-      });
-      say('The collapse hid a cache.','#ffd27a');
+      const pile=hoardToPile(rollDungeonTreasure((L.n||2)))||hoardToPile(rollIndividual('J'));
+      if(pile){
+        pile.label='Cache in the fall';
+        spawnLoot(i+0.5, j+0.5, pile);
+      }
+      say(pile?'The collapse hid a cache.':'Only dust and broken stone.','#ffd27a');
       burst(i+0.5,j+0.5,'#ffd27a',16,3);
     } else {
       say('Only dust and broken stone.','#c9b895');
@@ -9855,7 +10006,7 @@ function drawButtons(g,s){
     carveFrame(g, box.x, box.y, box.w, box.h, 8, .94);
     g.font='700 '+(9.5*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='#ffe08a';
-    g.fillText('Rally: war-horn  ·  heal 30  ·  harder hits 8s', box.x+box.w/2, box.y+16*s);
+    g.fillText('More', box.x+box.w/2, box.y+16*s);
     g.textAlign='left';
   }
   for(const b of UIBTN){
@@ -11291,7 +11442,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
   g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  const keys='D Defend  ·  1 Attack  ·  5 Rally  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F Herbs  ·  T Seams  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
+  const keys='D Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
   const maxW=VW*0.92; let ky=VH*.255;
   const words=keys.split('  ·  '); let line='';
   words.forEach((w,i)=>{
@@ -11300,21 +11451,11 @@ function drawPause(g){
     else line=next;
     if(i===words.length-1 && line){ g.fillText(line,VW/2,ky); ky+=14*s; }
   });
-  g.font='600 '+(PORT?9.5:10.5)*s+'px "Trebuchet MS",sans-serif';
-  g.fillStyle='rgba(255,208,124,0.92)';
-  const rallyNote='Rally (5 / More): war-horn — living kin heal 30 and hit harder for 8s (+2 to hit, 1.5× damage). 26s cooldown. Not a party-gather.';
-  let ry=ky+2*s, rline='';
-  rallyNote.split(' ').forEach((w,i,arr)=>{
-    const next=rline?rline+' '+w:w;
-    if(g.measureText(next).width>maxW && rline){ g.fillText(rline,VW/2,ry); ry+=13*s; rline=w; }
-    else rline=next;
-    if(i===arr.length-1 && rline){ g.fillText(rline,VW/2,ry); ry+=13*s; }
-  });
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(160,140,110,0.7)';
-  g.fillText(musicNowLabel(),VW/2, ry+2*s);
+  g.fillText(musicNowLabel(),VW/2, ky+8*s);
   g.textAlign='left';
-  const top=Math.min(VH*.42, ry+18*s);
+  const top=Math.min(VH*.42, ky+24*s);
   const gap=PORT?0.075:0.078;
   menuBtn(g,'Resume',VW/2,top,Math.min(230*s,VW*.66),36*s,()=>{G.paused=false;});
   menuBtn(g,'Save game',VW/2,top+VH*gap,Math.min(230*s,VW*.66),36*s,()=>writeGameSave(), false, SPR.icon_save);
