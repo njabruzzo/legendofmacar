@@ -49,6 +49,10 @@ const talk=html.match(/function drawTalk\(g\)\{[\s\S]*?\n\}/)[0];
 assert(/y=Math\.max\(10\*s, \(inset\.t\|\|0\)\+10\*s\)/.test(talk),
   'talk plate is pinned to the top of the screen');
 assert(!/y=VH\*0\.18/.test(talk), 'talk plate is not parked in the masonry band');
+assert(/fillStyle='#0a0705'/.test(talk) && /carveFrame\(g,x,y,w,h,8,1\)/.test(talk),
+  'talk plate is an opaque slab so masonry cannot show through');
+assert(/G\.talk=null/.test(html.match(/function startChapter\(n\)\{[\s\S]*?G\.lvl=makeChapter/)[0]),
+  'a new chapter drops any leftover talk plate');
 
 const hint=html.match(/function drawHint\(g,s\)\{[\s\S]*?\n\}/)[0];
 assert(/y=Math\.max\(10\*s, \(UI\.pad&&UI\.pad\.t\|\|0\)\+10\*s\)/.test(hint),

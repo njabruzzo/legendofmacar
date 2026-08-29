@@ -3149,7 +3149,7 @@ function startChapter(n){
   G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
-  ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.hurt=0; G.decals=[];
+  ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
@@ -3630,7 +3630,9 @@ function drawTalk(g){
   g.fillStyle='rgba(4,3,2,0.62)'; g.fillRect(0,0,VW,VH);
   const w=Math.min(520*s, VW*0.86), h=Math.min(280*s, VH*0.50);
   const x=VW/2-w/2, y=Math.max(10*s, (inset.t||0)+10*s);
-  carveFrame(g,x,y,w,h,8,.96);
+  g.fillStyle='#0a0705';
+  roundPath(g,x,y,w,h,8); g.fill();
+  carveFrame(g,x,y,w,h,8,1);
   g.font='800 '+(16*s)+'px '+FONT_TITLE;
   g.fillStyle='#ffe08a'; g.fillText(talk.who, x+18*s, y+28*s);
   g.font='600 '+(12.5*s)+'px '+FONT_UI;
