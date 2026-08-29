@@ -19,7 +19,8 @@ assert(/function dwarfFigureFit\(/.test(html), 'all party dwarves share one figu
 assert(/Do not scale attack 1\.29x/.test(html), 'attack pop scale is forbidden');
 assert(!/macar_atk:1\.29/.test(html) && !/macar_axe_atk:1\.18/.test(html),
   'no 1.29 / 1.18 attack FIT leftovers');
-assert(/macar_atk:1\.11/.test(html), 'leftover Macar strike uses idle_crown/new_crown');
+assert(!/macar_atk:1\.11/.test(html) && !/macar_atk:1\.29/.test(html),
+  'idle-height strike is not FIT-scaled');
 assert(/function figurePersonFrac\(/.test(html), 'fit measures the person, not the weapon box');
 assert(/SPRITE_FILES\[k\+'_atk_recover'\]='assets\/creatures\/dwarf_'\+k\+'_atk_recover\.png'/.test(html),
   'living kin recover sheets are registered');

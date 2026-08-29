@@ -23,7 +23,7 @@ function extractFn(name){
 
 assert(!/macar_atk:1\.29/.test(html), 'maul swing is not scaled 1.29 vs idle');
 assert(!/macar_axe_atk:1\.18/.test(html), 'axe swing is not scaled 1.18 vs idle');
-assert(/macar_atk:1\.11/.test(html), 'leftover strike crown uses idle/new FRAME_FIT 1.11');
+assert(!/macar_atk:1\.11/.test(html), 'idle-height strike does not need a 1.11 FIT bandage');
 assert(/function heroFigureFit\(/.test(html), 'inset recover/back frames match idle height');
 assert(/function figurePersonFrac\(/.test(html), 'fit uses helmet-to-boot, not the weapon box');
 assert(/personY0/.test(html), 'spriteBounds records the foot-column crown');
@@ -101,6 +101,9 @@ assert(Math.abs(ctx.heroFigureFit(mac,atk)-ctx.heroFigureFit(mac,idle))<0.02,
 assert(Math.abs(ctx.heroFigureFit(mac,recover)-1)<0.03, 'redrawn recover matches idle height');
 assert(ctx.heroFigureFit(mac,leftover)>1.08 && ctx.heroFigureFit(mac,leftover)<1.16,
   'a shorter painted crown scales by idle_crown/new_crown');
+const bootMiss={_b:{ok:true,y0:4/512,y1:508/512,personY0:500/512}};
+assert(Math.abs(ctx.heroFigureFit(mac,bootMiss)-1)<0.03,
+  'a foot-column miss does not scale the strike');
 assert(ctx.heroFigureFit(mac,back)>1.05, 'inset back pose is scaled up to idle height');
 assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
