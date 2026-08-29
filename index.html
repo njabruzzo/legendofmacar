@@ -10385,8 +10385,8 @@ function drawSlot(g,b,s){
     const labelPx=b.r>=28?Math.min(14, Math.max(11, b.r*0.34)):(PORT?9.5:8.5)*s;
     g.font='800 '+labelPx+'px '+FONT_UI; g.textAlign='center';
     g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText(b.label, b.x, b.y-R-3*s);
-    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-3*s); g.textAlign='left'; }
+    g.strokeText(b.label, b.x, b.y-R-7*s);
+    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-7*s); g.textAlign='left'; }
 }
 
 function drawButtons(g,s){
