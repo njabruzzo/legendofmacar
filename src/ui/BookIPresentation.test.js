@@ -22,7 +22,14 @@ assert(!/Walk to each of them and Rouse them/.test(block), 'Chapter I card does 
 assert(!/ruby door waits/.test(block), 'Chapter I card is not a ruby-door tutorial');
 assert(!/Raise only Pordum and Fendur/.test(block), 'Chapter I no longer says raise only two');
 assert(!/Take kit from the other two/.test(block), 'Chapter I no longer treats Orbo and Talpor as loot-only');
-assert(/gem-bronze door/.test(block) && /Spider Lord/.test(block), 'Chapter II intro copy is complete');
+assert(/A four-way in living rock/.test(block) && /West, bronze and a bell/.test(block),
+  'Chapter II flavor is the four-way italic, not a door spoiler');
+assert(!/Left, the gem-bronze door/.test(block) && !/Spider Lord/.test(block),
+  'Chapter II plate has no Left/Straight/Right spoiler line');
+assert(!/Purple light\. The stone sweats/.test(block), 'Chapter III has no bold ask line');
+assert(!/Illithids hunt the drowned streets/.test(block), 'Chapter IV has no bold ask line');
+assert(!/brother\\'s blood, still bright/.test(block), 'Chapter V has no bold ask line');
+assert(!/ask:'[^']+'/.test(block.replace(/ask:''/g,'')), 'no chapter plate keeps a bold ask spoiler');
 assert(/dead still walk/.test(block), 'Chapter III flavor is a full sentence');
 assert(/water remembers the city/.test(block), 'Chapter IV flavor is a full sentence');
 assert(/wore the crown out/.test(block), 'Chapter V flavor is a full sentence');
@@ -34,6 +41,8 @@ assert(/descendTop=descendY-descendH\/2/.test(html), 'intro keeps a clear band a
 assert(/centerCopyY\(groupCeil, groupFloor, blockH\)/.test(html), 'intro copy is centered between header and Descend');
 assert(/layoutIntroCopy/.test(html), 'intro copy wraps and shrinks to the band above Descend');
 assert(/CH_INTRO\[L\.n\]/.test(html), 'intro draws CH_INTRO, not a clipped inline stub');
+assert(/flSize=\(PORT\?18:22\)\*s/.test(html), 'intro flavor italic starts larger than the old 14/17 size');
+assert(/flSize=Math\.max\(15, flSize-0\.45\)/.test(html), 'flavor italic does not shrink below the old body size');
 assert(/drawCopyVeil/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
   'intro uses a soft title-card veil, not a gold box');
 assert(!/plate\(g, plateX, plateTop, plateW, plateH/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),

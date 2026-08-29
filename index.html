@@ -1222,45 +1222,35 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
-function facingRef(e){
-  if(!e) return e;
-  if(e.atk>0 || e.defending || e.dead || e.crushed || e.sleeping) return e;
-  if(e.team==='party' && e.ghost){
-    const p=player();
-    if(p && !p.dead) return p;
-  }
-  return e;
-}
 function wantsBackView(e){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
   const p=player();
   if(e.team==='party' && e.ghost && p && p.defending) return true;
-  const src=facingRef(e);
-  return ((src.fdx||0)+(src.fdy||0)) < -0.42;
+  return ((e.fdx||0)+(e.fdy||0)) < -0.42;
 }
-/* Party dwarf sheets are painted facing iso SW (screen-left / A).
+/* Party dwarf sheets are painted facing iso SE (screen-right / D).
    World +x is screen SE, +y is screen SW; headingSX = ix-iy (positive = screen-right).
-   Canvas scale(-1,1) when heading disagrees with the sheet's native face. */
+   Canvas scale(-1,1) when walking screen-left so the SE sheet faces the travel vector.
+   Each dwarf uses its own ix/iy — ghosts do not inherit Macar heading. */
 const DWARF_FACE_SX={
-  macar:-1, macar_axe:-1,
-  pordoom:-1, pordoom_ghost:-1,
-  fendur:-1, fendur_ghost:-1,
-  orbo:-1, orbo_ghost:-1,
-  talpor:-1, talpor_ghost:-1
+  macar:1, macar_axe:1,
+  pordoom:1, pordoom_ghost:1,
+  fendur:1, fendur_ghost:1,
+  orbo:1, orbo_ghost:1,
+  talpor:1, talpor_ghost:1
 };
 function sheetFaceSX(k){
-  if(!k) return -1;
+  if(!k) return 1;
   if(DWARF_FACE_SX[k]!=null) return DWARF_FACE_SX[k];
   const base=String(k).replace(/_(w1|w2|atk|atk_recover|atk_bow|back|back_w1|back_w2|sleep)$/,'');
   if(DWARF_FACE_SX[base]!=null) return DWARF_FACE_SX[base];
-  return -1;
+  return 1;
 }
 function moveHeadingSX(e){
-  const src=facingRef(e)||e;
-  if(!src) return 0;
-  if(src.moving && ((src.ix||0)||(src.iy||0))) return (src.ix||0)-(src.iy||0);
-  return (src.fdx||0)-(src.fdy||0);
+  if(!e) return 0;
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return (e.ix||0)-(e.iy||0);
+  return (e.fdx||0)-(e.fdy||0);
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
@@ -3097,13 +3087,13 @@ const CH_INTRO={
   1:{fl:'Your dwarf brothers were killed in the cave-in. The tunnel behind you collapsed. You are alone.',
      ask:''},
   2:{fl:'A four-way in living rock. West, bronze and a bell. North, goblins. East, webs.',
-     ask:'Left, the gem-bronze door. Straight, goblins carry bound Noz. Right, the Spider Lord.'},
+     ask:''},
   3:{fl:'They kept working. Nobody told them to stop. The dead still walk.',
-     ask:'Purple light. The stone sweats. Go on, into the ruin.'},
+     ask:''},
   4:{fl:'Cut stone. Dwarf work. Very old. The water remembers the city.',
-     ask:'Illithids hunt the drowned streets. Keep your head.'},
+     ask:''},
   5:{fl:'Two brothers went in. One wore the crown out.',
-     ask:'A brother\'s blood, still bright after nine hundred years.'}
+     ask:''}
 };
 const CHAPTERS=[1,2,3,4,5];
 
@@ -10281,7 +10271,7 @@ function drawIntro(g){
   const groupCeil=VH*(PORT?0.08:0.072);
   const groupFloor=descendTop-16*s;
   let labSize=(PORT?12:14)*s, titleSize=(PORT?24:34)*s;
-  let flSize=(PORT?14:17)*s, askSize=(PORT?12:14)*s, musSize=(PORT?8:9)*s;
+  let flSize=(PORT?18:22)*s, askSize=(PORT?12:14)*s, musSize=(PORT?8:9)*s;
   let labGap=12*s, titleGap=14*s, flGap, askGap, musGap=14*s;
   function layoutIntroCopy(ls, ts, fs, as, ms, lg, tg, mg){
     flGap=Math.max(18*s, fs*1.36); askGap=Math.max(16*s, as*1.28);
@@ -10299,7 +10289,7 @@ function drawIntro(g){
   let lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);
   const band=Math.max(64*s, groupFloor-groupCeil);
   while(lay.h+36*s>band && titleSize>14){
-    titleSize-=0.8; flSize=Math.max(11, flSize-0.45); askSize=Math.max(10, askSize-0.4);
+    titleSize-=0.8; flSize=Math.max(15, flSize-0.45); askSize=Math.max(10, askSize-0.4);
     labSize=Math.max(9, labSize-0.25); musSize=Math.max(7, musSize-0.15);
     labGap=Math.max(8*s, labGap-0.3); titleGap=Math.max(10*s, titleGap-0.3);
     lay=layoutIntroCopy(labSize, titleSize, flSize, askSize, musSize, labGap, titleGap, musGap);

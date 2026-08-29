@@ -52,6 +52,9 @@ assert(!/ruby door waits on this room/.test(html), 'no ruby-door tutorial on the
 assert(/The Rubble and the Ruby/.test(html), 'Chapter I still keeps its gold title');
 assert(/pack\.ask\?wrapLines\(g, pack\.ask/.test(html), 'empty Chapter I ask is skipped in the title-card layout');
 assert(!/You are MACAR/.test(html), 'no chapter plate names the player');
+const intro=html.match(/const CH_INTRO=\{[\s\S]*?\n\};/);
+assert(intro && !/Left, the gem-bronze door/.test(intro[0]),
+  'no chapter plate keeps the Left/bronze-door spoiler');
 assert(/drawCopyVeil/.test(html), 'chapter cards use a soft veil instead of a gold box');
 assert(/Rouse ':'Loot /.test(html), 'walking up still offers Rouse on crushed kin');
 
