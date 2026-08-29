@@ -1,7 +1,6 @@
 'use strict';
 /**
- * Living Macar: one world size on every pose, solid pixels, drawn after the
- * light multiply. Kin ghosts stay spectral.
+ * Limner blit: living Macar is a binary-alpha dwarf, never a gold/red outline.
  * Run: node src/combat/MacarSolid.test.js
  */
 const fs=require('fs');
@@ -29,8 +28,42 @@ assert(/function solidMacarSprite\(/.test(html), 'living Macar pixels are flatte
 assert(/Living Macar is drawn solid after the light multiply/.test(html),
   'Macar is skipped in the washed world pass');
 assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
-  && /drawEnt\(g,mac\)/.test(html.match(/if\(DIAG\.grain && inWorld[\s\S]*?drawHUD/)[0]),
-  'living Macar is redrawn after lighting, haze, and grain');
+  && /drawLivingMacar\(g,mac\)/.test(html.match(/if\(DIAG\.grain && inWorld[\s\S]*?drawHUD/)[0]),
+  'living Macar is a single source-over blit after lighting, haze, and grain');
+assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
+assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
+
+const bake=extractFn('solidMacarSprite');
+assert(/if\(a>40\) d\[i\+3\]=255/.test(bake), 'bake: a>40 inside the silhouette is 255');
+assert(/d\[i\+3\]=0/.test(bake), 'bake: outside the silhouette is a=0');
+assert(!/255\/a/.test(bake), 'bake does not un-premultiply fringe RGB');
+
+const liveKey=extractFn('livingMacarAnimKey');
+assert(/SPR\.macar/.test(liveKey) && /macar_w1/.test(liveKey) && /macar_atk/.test(liveKey)
+  && /macar_atk_recover/.test(liveKey),
+  'living Macar uses only idle / walk / atk / recover');
+assert(!/_e_w1/.test(liveKey) && !/macar_back/.test(liveKey) && !/macar_axe/.test(liveKey)
+  && !/_s_w1/.test(liveKey),
+  'living Macar does not bind fringe e / s / back / axe sheets');
+
+const liveBlit=extractFn('drawLivingMacar');
+assert(/globalCompositeOperation='source-over'/.test(liveBlit)
+  && /globalAlpha=1/.test(liveBlit),
+  'living blit is source-over at alpha 1');
+assert(/softShadow\(/.test(liveBlit), 'floor contact is softShadow only');
+assert(!/ellipse\(0,0,18\*/.test(liveBlit) && !/createRadialGradient/.test(liveBlit),
+  'living blit has no gold foot ellipse or radial disc');
+assert(!/emit\(/.test(liveBlit) && !/drawHeroMeleeArc/.test(liveBlit)
+  && !/lighter/.test(liveBlit) && !/multiply/.test(liveBlit) && !/overlay/.test(liveBlit),
+  'living blit never uses emit, melee arc, lighter, multiply, or overlay');
+
+const drawEnt=extractFn('drawEnt');
+assert(/e\.hero && !e\.dead && !e\.ghost\) return/.test(drawEnt),
+  'drawEnt does not paint living Macar (after-grain blit only)');
+assert(!/if\(!e\.dead&&e\.hero\)\{/.test(html)
+  && !/rgba\(255,214,140,0\.55\)/.test(html),
+  'gold foot ellipse under the hero is gone');
+
 assert(/solidMacarSprite\(spr\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
   'title fallback blit flattens Macar, not the kin ghosts');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
@@ -68,4 +101,4 @@ assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
-console.log('\nMacar solid / same-size checks passed');
+console.log('\nMacar solid / Limner blit checks passed');
