@@ -54,14 +54,23 @@ Terminus
   Used when a living boss is in the fight (Ruby Warden, Goblin King,
   Spider Lord, named lords with e.boss). Distinct from Goliath.
 
-Pack victory sting
+Pack victory sting (legacy Terminus excerpt)
   Owner: Scott Buckley
   Source: short excerpt of Terminus (opening hit), adapted under CC BY 4.0
   File: assets/music/PackVictory.mp3
-  Plays when a pack fight ends, then explore BGM resumes.
+  Still registered. Combat victory now uses the war-horn sting instead.
 
-Boss victory sting
+Boss victory sting (legacy Terminus excerpt)
   Owner: Scott Buckley
   Source: longer excerpt of Terminus (closing fanfare), adapted under CC BY 4.0
   File: assets/music/BossVictory.mp3
-  Plays when a boss fight ends, then explore BGM resumes.
+  Still registered. Combat victory now uses the war-horn sting instead.
+
+Victory horn (pack + boss)
+  Owner: Eldritch Grim
+  Track: War Horns
+  Source: OpenGameArt.org — https://opengameart.org/content/war-horns
+  License: CC0
+  Files: assets/sfx/horn_pack.mp3, assets/sfx/horn_boss.mp3
+  Plays as a Bgm sting when a pack or boss fight is won, then dungeon
+  music resumes from the saved seek. Distinct from the Terminus excerpts.

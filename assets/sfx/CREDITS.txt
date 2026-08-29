@@ -1,0 +1,35 @@
+Legend of Macar — combat SFX credits
+====================================
+
+All files are CC0 (public domain). No commercial game rips.
+
+Hits (heavy hammer / light clash)
+  Owner: Jan Schupke
+  Pack: Fantasy Sound Effects (Tinysized SFX)
+  Source: OpenGameArt.org
+  License: CC0
+  https://creativecommons.org/publicdomain/zero/1.0/
+  https://opengameart.org/content/fantasy-sound-effects-tinysized-sfx
+  Files: hit_heavy_1.mp3, hit_heavy_2.mp3, hit_light_1.mp3, hit_light_2.mp3
+  Adapted from metal-hammer-hit-01/02 and sword-clash-01/03 (normalized).
+
+Clash bed
+  Owners: Jan Schupke (CC0) and artisticdude (CC0)
+  Packs: Tinysized SFX + RPG Sound Pack
+  Sources: OpenGameArt.org
+  License: CC0
+  https://opengameart.org/content/fantasy-sound-effects-tinysized-sfx
+  https://opengameart.org/content/rpg-sound-pack
+  File: clash_bed.mp3
+  Short loop mixed from sword-clash-02/04/05 and sword-unsheathe.
+  Plays quietly under Goliath / Terminus while a fight is on.
+
+Victory horns
+  Owner: Eldritch Grim
+  Track: War Horns
+  Source: OpenGameArt.org
+  License: CC0
+  https://opengameart.org/content/war-horns
+  Files: horn_pack.mp3 (short blast), horn_boss.mp3 (longer blast)
+  Excerpts of the CC0 war-horn bed. Distinct from the Terminus music stings.
+  Attribution appreciated, not required.

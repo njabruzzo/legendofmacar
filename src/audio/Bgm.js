@@ -16,7 +16,7 @@
     if (id === 'title') return 'title';
     if (id === 'chapter') return 'menu';
     if (id === 'battle' || id === 'boss') return 'combat';
-    if (id === 'packWin' || id === 'bossWin') return 'sting';
+    if (id === 'packWin' || id === 'bossWin' || id === 'packHorn' || id === 'bossHorn') return 'sting';
     if (EXPLORE_IDS[id]) return 'explore';
     return 'idle';
   }
@@ -582,7 +582,7 @@
         if (rp && rp.then) rp.catch(function () {});
       }, { once: true });
     }
-    var ms = opts.ms || (id === 'bossWin' ? 7800 : 2300);
+    var ms = opts.ms || (id === 'bossWin' || id === 'bossHorn' ? 7800 : (id === 'packHorn' ? 3800 : 2300));
     this._stingTimer = setTimeout(done, ms + 240);
     var p;
     try { p = el.play(); } catch (e) {

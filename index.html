@@ -31,7 +31,8 @@
 <body>
 <canvas id="c"></canvas>
 <script src="SkillSystem.js"></script>
-<script src="src/audio/Bgm.js?v=58"></script>
+<script src="src/audio/Bgm.js?v=67"></script>
+<script src="src/audio/CombatSfx.js?v=67"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
 <script src="src/packs/EquipmentSlots.js"></script>
@@ -330,7 +331,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='66';
+const ASSET_VER='67';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -347,7 +348,16 @@ const MUSIC={
   battle:'assets/music/Goliath.mp3',
   boss:'assets/music/Terminus.mp3',
   packWin:'assets/music/PackVictory.mp3',
-  bossWin:'assets/music/BossVictory.mp3'
+  bossWin:'assets/music/BossVictory.mp3',
+  packHorn:'assets/sfx/horn_pack.mp3',
+  bossHorn:'assets/sfx/horn_boss.mp3'
+};
+const SFX_FILES={
+  hitHeavy1:'assets/sfx/hit_heavy_1.mp3',
+  hitHeavy2:'assets/sfx/hit_heavy_2.mp3',
+  hitLight1:'assets/sfx/hit_light_1.mp3',
+  hitLight2:'assets/sfx/hit_light_2.mp3',
+  clashBed:'assets/sfx/clash_bed.mp3'
 };
 const MUSIC_CREDITS=[
   {use:'Title screen', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
@@ -357,7 +367,10 @@ const MUSIC_CREDITS=[
   {use:'Combat', title:'Goliath', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
   {use:'Boss fights', title:'Terminus', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
   {use:'Pack victory', title:'Terminus (sting)', owner:'Scott Buckley', extra:'short excerpt  \u00b7  CC BY 4.0', license:'CC BY 4.0'},
-  {use:'Boss victory', title:'Terminus (fanfare)', owner:'Scott Buckley', extra:'longer excerpt  \u00b7  CC BY 4.0', license:'CC BY 4.0'}
+  {use:'Boss victory', title:'Terminus (fanfare)', owner:'Scott Buckley', extra:'longer excerpt  \u00b7  CC BY 4.0', license:'CC BY 4.0'},
+  {use:'Pack victory horn', title:'War Horns', owner:'Eldritch Grim', extra:'CC0  \u00b7  OpenGameArt', license:'CC0'},
+  {use:'Boss victory horn', title:'War Horns', owner:'Eldritch Grim', extra:'CC0  \u00b7  longer blast', license:'CC0'},
+  {use:'Combat strikes', title:'Fantasy Sound Effects (Tinysized SFX)', owner:'Jan Schupke', extra:'CC0  \u00b7  OpenGameArt', license:'CC0'}
 ];
 const MUSIC_LABEL={
   title:'Music: Song of the Forge \u2014 Scott Buckley',
@@ -367,7 +380,9 @@ const MUSIC_LABEL={
   battle:'Music: Goliath \u2014 Scott Buckley',
   boss:'Music: Terminus \u2014 Scott Buckley',
   packWin:'Music: Terminus \u2014 Scott Buckley',
-  bossWin:'Music: Terminus \u2014 Scott Buckley'
+  bossWin:'Music: Terminus \u2014 Scott Buckley',
+  packHorn:'Horn: War Horns \u2014 Eldritch Grim',
+  bossHorn:'Horn: War Horns \u2014 Eldritch Grim'
 };
 function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
 function leaveCredits(){
@@ -377,6 +392,7 @@ function leaveCredits(){
   else G.scene=from;
 }
 const bgm=Bgm.create({ tracks:MUSIC, assetUrl, volume:0.55, fadeSec:0.55 });
+const sfx=CombatSfx.create({ files:SFX_FILES, assetUrl });
 bgm.installUnlock();
 function musicIsPlaying(){ return bgm.isPlaying(); }
 function unlockMusic(){ bgm.unlock(); }
@@ -3500,6 +3516,7 @@ function startChapter(n){
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
+  if(sfx&&sfx.stopBed) sfx.stopBed();
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
   if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
@@ -4883,6 +4900,7 @@ function beginFight(foe){
   G.fightGotKill=0;
   G.fightWasBoss=!!(foe&&foe.boss)||(typeof Bgm!=='undefined'&&Bgm.livingBoss&&Bgm.livingBoss(G));
   if(bgm&&bgm.cancelSting) bgm.cancelSting();
+  if(sfx&&sfx.startBed) sfx.startBed();
   syncMusic();
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
@@ -4944,8 +4962,9 @@ function endFightIfClear(){
   G.fightOn=0;
   G.fightWasBoss=0;
   G.fightGotKill=0;
+  if(sfx&&sfx.stopBed) sfx.stopBed();
   if(won){
-    const sting=bossWin?'bossWin':'packWin';
+    const sting=bossWin?'bossHorn':'packHorn';
     if(!(bgm&&bgm.playSting&&bgm.playSting(sting))) syncMusic();
   } else syncMusic();
 }
@@ -5925,6 +5944,7 @@ function damage(e,amt,col,src){
   if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
+  if(amt>0 && sfx && sfx.hit) sfx.hit(src);
   if(e.hp>0) e.flash=.18;
   ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),true,'dmg');
   if(e.hp>0) burst(e.x,e.y, e.glow||(e.kind==='statue'?'#b8b0a0':e.kind==='undead'?'#7cff9c':e.kind==='spider'?'#9a6bff':'#a3241f'),7,2.2);
@@ -5941,7 +5961,7 @@ function damage(e,amt,col,src){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
       say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else G.scene='dead'; } } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); } } } }
 }
 function onHitFx(atk,o,dmg){
   if(!atk||!o) return dmg;
