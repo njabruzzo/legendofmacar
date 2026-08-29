@@ -18,8 +18,13 @@ function assert(cond, msg){
 assert(/const DWARF_FACE_SX=\{/.test(html), 'native sheet-facing table exists');
 assert(/function wantsSpriteFlip\(e\)\{/.test(html), 'wantsSpriteFlip uses the facing table');
 assert(/function moveHeadingSX\(e\)\{/.test(html), 'iso screen-x heading is ix-iy');
-assert(/wantsSpriteFlip\(e\)/.test(html.match(/function drawEnt\(g,e\)\{[\s\S]*?g\.scale\(flip/)[0]),
-  'drawEnt flips from the facing table, not a hardcoded heading>0');
+assert(/blitFacing\(g,img,dx,dy,W,H,flip\)/.test(html),
+  'billboard mirrors with negative-width drawImage, not a context scale the hero path can drop');
+assert(/function blitFacing\(g,img,dx,dy,W,H,flip\)\{/.test(html) &&
+  /drawImage\(img, dx\+W, dy, -W, H\)/.test(html),
+  'left-heading flip is a negative destination width');
+assert(/away < -0\.55 && side < 0\.72/.test(html),
+  'back view is iso north only — west walk keeps the front sheet');
 assert(!/function facingRef\(e\)\{/.test(html),
   'ghosts do not inherit Macar heading via facingRef');
 assert(/Each dwarf uses its own ix\/iy/.test(html),
@@ -40,9 +45,10 @@ vm.createContext(ctx);
 vm.runInContext(table, ctx);
 vm.runInContext(extract('sheetFaceSX'), ctx);
 vm.runInContext(extract('moveHeadingSX'), ctx);
-vm.runInContext('function entSpriteKey(e){ return e.k; }\n'+extract('wantsSpriteFlip'), ctx);
+vm.runInContext('function entSpriteKey(e){ return e.k; }\nfunction player(){ return null; }\n'+extract('wantsSpriteFlip'), ctx);
+vm.runInContext(extract('wantsBackView'), ctx);
 
-const {sheetFaceSX, moveHeadingSX, wantsSpriteFlip}=ctx;
+const {sheetFaceSX, moveHeadingSX, wantsSpriteFlip, wantsBackView}=ctx;
 assert(sheetFaceSX('macar')===1 && sheetFaceSX('orbo_ghost_w1')===1, 'walk frames inherit the kin facing');
 assert(sheetFaceSX('talpor_ghost_back')===1, 'back frames inherit the kin facing');
 
@@ -65,6 +71,10 @@ const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fd
 assert(!wantsSpriteFlip(ghostGoingRight),
   'a ghost still walking right faces right even if Macar already turned left');
 assert(wantsSpriteFlip(macarGoingLeft), 'Macar left and a lagging ghost right stay independent');
+assert(!wantsBackView({fdx:-0.7, fdy:0.7}), 'iso west / arrow-left keeps the front sheet');
+assert(!wantsBackView({fdx:0, fdy:1}), 'iso SW / screen bottom-left keeps the front sheet');
+assert(wantsBackView({fdx:-0.7, fdy:-0.7}), 'iso north uses the back sheet');
+assert(!wantsBackView({fdx:-1, fdy:0}), 'world -x (NW-west) does not swap in a top-right back pose');
 
 const root=path.join(__dirname,'../../assets/creatures');
 ['dwarf_macar_w2.png','dwarf_fendur_ghost.png','dwarf_orbo_ghost_w1.png','dwarf_talpor_ghost.png','dwarf_pordoom_w1.png']
