@@ -25,7 +25,10 @@ assert(/HUD_OVERFLOW=\{rally:1\}/.test(html), 'Rally is overflow on mobile, not 
 assert(/HUD_TAP=44/.test(html), 'mobile tap target floor is 44px');
 assert(/key:'more'/.test(html) && /label:'More'/.test(html), 'mobile overflow More control exists');
 
-assert(/drawLog\(g,s\)/.test(html.match(/function drawHUD\(g\)\{[\s\S]*?\n\}/)[0]), 'drawHUD actually paints the combat log');
+assert(/drawLog\(g,s\)/.test(html.match(/function drawPlayPlates\(g\)\{[\s\S]*?\n\}/)[0]),
+  'combat log paints on the post-terrain UI layer');
+assert(!/drawLog/.test(html.match(/function drawHUD\(g\)\{[\s\S]*?\n\}/)[0]),
+  'HUD chrome does not park the combat log in the play field');
 assert(/say\(line, hit\?'#ff6a5a':'#9a8a78', 'combat'\)/.test(html), 'to-hit lines go to the combat log');
 assert(/ftext\(def\.x,def\.y,'MISS'/.test(html), 'miss numbers are a distinct MISS floater');
 assert(/ftext\(e\.x,e\.y,'-'\+amt[\s\S]*?'dmg'\)/.test(html), 'damage numbers are tagged dmg');
