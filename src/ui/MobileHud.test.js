@@ -26,7 +26,8 @@ assert(/HUD_MOBILE_ORDER=\['pack','ale','search','secret','shovel','camp','craft
 assert((html.match(/label:'SEARCH'/g)||[]).length>=2, 'both search verbs read SEARCH');
 assert(!/label:'Herbs'/.test(html) && !/label:'Seams'/.test(html) && !/label:'Rally'/.test(html),
   'Herbs, Seams, and Rally labels are gone');
-assert(/fillText\('ANVIL'/.test(html), 'Craft still dims to ANVIL away from the station');
+assert(!/fillText\('ANVIL'/.test(html) && /b\.key==='craft' && !atForge/.test(html),
+  'Craft dims away from the station without writing ANVIL on the icon');
 assert(/G\.craftGuide/.test(html), 'Craft still points a guide arrow at the anvil');
 assert(/e\.buff=8; e\.hp=Math\.min\(e\.maxhp,e\.hp\+30\)/.test(html), 'Rally mechanic is kept: heal 30 + 8s buff');
 assert(/bo=e\.buff>0\?1\.5:1/.test(html) && /if\(e\.buff>0\) b\+=2/.test(html),
