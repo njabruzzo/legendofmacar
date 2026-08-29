@@ -22,18 +22,29 @@ assert(!/Walk to each of them and Rouse them/.test(block), 'Chapter I card does 
 assert(!/ruby door waits/.test(block), 'Chapter I card is not a ruby-door tutorial');
 assert(!/Raise only Pordum and Fendur/.test(block), 'Chapter I no longer says raise only two');
 assert(!/Take kit from the other two/.test(block), 'Chapter I no longer treats Orbo and Talpor as loot-only');
-assert(/A four-way in living rock/.test(block) && /West, bronze and a bell/.test(block),
-  'Chapter II flavor is the four-way italic, not a door spoiler');
+assert(/The rock splits, and the dark does not choose for you/.test(block),
+  'Chapter II flavor is mood, not a four-way map');
+assert(!/West, bronze/.test(block) && !/North, goblins/.test(block) && !/East, webs/.test(block),
+  'Chapter II plate names no compass loot');
 assert(!/Left, the gem-bronze door/.test(block) && !/Spider Lord/.test(block),
   'Chapter II plate has no Left/Straight/Right spoiler line');
 assert(!/Purple light\. The stone sweats/.test(block), 'Chapter III has no bold ask line');
 assert(!/Illithids hunt the drowned streets/.test(block), 'Chapter IV has no bold ask line');
 assert(!/brother\\'s blood, still bright/.test(block), 'Chapter V has no bold ask line');
 assert(!/ask:'[^']+'/.test(block.replace(/ask:''/g,'')), 'no chapter plate keeps a bold ask spoiler');
-assert(/dead still walk/.test(block), 'Chapter III flavor is a full sentence');
-assert(/water remembers the city/.test(block), 'Chapter IV flavor is a full sentence');
-assert(/wore the crown out/.test(block), 'Chapter V flavor is a full sentence');
+assert(/Picks still ring below/.test(block), 'Chapter III flavor is mood, not a roster of the dead');
+assert(/Old dwarf-cut halls/.test(block), 'Chapter IV flavor is mood, not a city map');
+assert(/Two went in\. One came back/.test(block), 'Chapter V flavor does not name the crown');
+assert(!/bronze and a bell/.test(block) && !/goblins/.test(block) && !/webs/.test(block),
+  'no chapter flavor lists what waits in a direction');
 assert(!/You are MACAR/.test(block), 'chapter plates do not name the player');
+
+const meta=html.match(/const CH_META=\{[\s\S]*?\nconst CH_INTRO/);
+assert(!!meta, 'CH_META copy table exists');
+assert(!/Left the gnome door/.test(meta[0]) && !/Spider Lord/.test(meta[0]),
+  'chapter-select fallback blurbs are not a map legend');
+assert(!/Illithids in the drowned streets/.test(meta[0]) && !/Temple Guardians/.test(meta[0]),
+  'chapter-select fallbacks do not name the foes behind the plate');
 
 assert(/function centerCopyY\(ceil, floor, blockH\)/.test(html), 'centerCopyY helper exists');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro exists');
