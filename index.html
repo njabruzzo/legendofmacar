@@ -3897,6 +3897,44 @@ function askDropInMouth(r){
     ]
   });
 }
+function packRowToPile(r, taken){
+  const it=taken||r.it||r.p||r.gm;
+  if(r.kind==='magic' && it){
+    if(it.k==='potion'||it.cat==='Potion') return {kind:'potion', potions:[it], items:[], glow:'#e0d2ff', label:it.n};
+    return {kind: /sword|axe|cleaver|maul/i.test(it.n||it.cat||'')?'axe':'chest', items:[it], potions:[], glow:'#ffd27a', label:it.n};
+  }
+  if(r.kind==='potion' && it) return {kind:'potion', potions:[it], items:[], glow:'#e0d2ff', label:it.n||r.t};
+  if(r.kind==='gem' && it) return {kind:'gems', items:[it], gems:1, glow:'#c8fff0', label:it.n||r.t};
+  if(r.kind==='herb') return {kind:'herb', herbs:{[r.n]:1}, glow:'#6aff8a', label:r.n};
+  if(r.kind==='ale' && it) return {kind:'potion', potions:[it], items:[], glow:'#e0d2ff', label:it.n||'Draught'};
+  if(r.kind==='kit' && it) return {kind:'pile', items:[{k:'pack', field:'bombKit', count:1, n:'Bomb-making kit'}], glow:'#cfd6de'};
+  const field=r.field||(r.kind==='burp'?'burps':null);
+  if(field) return {kind:'pile', items:[{k:'pack', field, count:1, n:r.tag||field}], glow:'#cfd6de'};
+  return {kind:'pile', items:it?[it]:[], glow:'#ffd27a', label:r.t};
+}
+function dropPackRow(r){
+  if(!r) return;
+  if(G.packWho && G.packWho!=='macar' && !isGhostPack()){
+    say('Drop kit from MACAR\'s pack.','#c9b895');
+    return;
+  }
+  const bag=packOf(G.packWho||'macar');
+  const field=r.field||(r.kind==='burp'?'burps':(r.kind==='supply'?r.field:null));
+  let taken=null;
+  if((r.kind==='supply'||r.kind==='burp') && field && (bag[field]||0)>0){
+    bag[field]--;
+    taken={n:r.tag||field, k:'pack', field, count:1};
+  } else {
+    taken=removePackRow(r);
+  }
+  if(!taken){ say('Nothing to drop.','#9a8a78'); return; }
+  const p=player();
+  const x=(p?p.x:0)+0.6, y=(p?p.y:0)+0.35;
+  spawnLoot(x, y, packRowToPile(r, taken));
+  say('MACAR drops '+(r.t||taken.n||'kit')+'.','#ffe08a');
+  G.packSel=null;
+  syncPackTotals();
+}
 function removePackRow(r){
   const bag=packOf(G.packWho||'macar');
   if(r.kind==='gem') return (bag.gems||[]).splice(r.i,1)[0]||null;
@@ -11454,11 +11492,11 @@ function drawPack(g){
   drawMenuWash(g);
 
   const packImg=SPR.icon_pack;
-  const headY=VH*0.018, headH=PORT?36*s:40*s;
+  const headY=VH*0.014, headH=PORT?44*s:52*s;
   if(packImg) drawThumb(g, packImg, 10*s, headY, headH, '#2a1c12');
-  g.font='800 '+(PORT?13*s:16*s)+'px '+FONT_TITLE;
+  g.font='800 '+(PORT?20*s:26*s)+'px '+FONT_TITLE;
   g.fillStyle='#ffe9c0';
-  g.fillText('BACKPACK', 10*s+headH+10*s, headY+16*s);
+  g.fillText('BACKPACK', 10*s+headH+10*s, headY+22*s);
   g.font='600 '+(9*s)+'px '+FONT_UI;
   g.fillStyle='rgba(200,180,140,0.78)';
   const ghostPack=isGhostPack();
@@ -11466,7 +11504,7 @@ function drawPack(g){
   g.fillText(G.faceOffer?'Choose something for the stone mouth.'
     :(ghostPack?'Ghost kit. Macar can use or take anything here.'
     :(npcPack?'Tap to share with MACAR. Borrowed kit returns after camp.'
-    :(G.packFrom==='play'?'Body slots on the left. Gear below can be donned.':'Set potions and herbs aside for the next descent.'))), 10*s+headH+10*s, headY+30*s);
+    :(G.packFrom==='play'?'Body slots on the left. Gear below can be donned.':'Set potions and herbs aside for the next descent.'))), 10*s+headH+10*s, headY+40*s);
 
   const coin=G.coin||{};
   const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
@@ -11565,7 +11603,7 @@ function drawPack(g){
     });
   }
   const listTop=catY+catH+8*s, listBot=VH-52*s, listH=listBot-listTop;
-  const rowH=Math.min(PORT?56*s:58*s, Math.max(44*s, listH/Math.max(1,Math.min(rows.length||1, PORT?5:6))));
+  const rowH=Math.min(PORT?76*s:82*s, Math.max(66*s, listH/Math.max(1,Math.min(rows.length||1, PORT?4:5))));
   const vis=Math.max(1, Math.floor(listH/rowH));
   const maxScroll=Math.max(0, rows.length-vis);
   G.packScroll=clamp(G.packScroll||0, 0, maxScroll);
@@ -11586,19 +11624,25 @@ function drawPack(g){
     const sel=G.packSel && ((r.it&&r.it===G.packSel)||(r.gm&&r.gm===G.packSel)||r===G.packSel);
     plate(g,x,y,w,h,6,sel?0.95:0.84);
     if(sel){ g.strokeStyle='rgba(255,208,124,0.85)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke(); }
+    const dropW=Math.min(88*s, w*0.22), dropH=Math.min(34*s, h-12*s);
+    const dropX=x+w-dropW-8*s, dropY=y+(h-dropH)/2;
     const th=h-10*s;
     drawThumb(g, packThumbFor(r), x+6*s, y+5*s, th);
-    const tx=x+th+16*s, tw=w-th-24*s;
-    g.font='800 '+(8*s)+'px '+FONT_UI;
+    const tx=x+th+16*s, tw=w-th-dropW-36*s;
+    g.font='800 '+(PORT?11*s:12*s)+'px '+FONT_UI;
     g.fillStyle=packKindColor(r.kind);
-    g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':'')+(ghostPack?'  \u00b7  USE':(npcPack?'  \u00b7  SHARE':'')), tx, y+14*s);
-    g.font='700 '+(PORT?12*s:13*s)+'px '+FONT_UI;
-    g.fillStyle='#f4e2b8';
-    g.fillText(ellipsize(g, r.t, tw), tx, y+h*0.52);
-    g.font='600 '+(8.5*s)+'px '+FONT_UI;
-    g.fillStyle='rgba(190,170,130,0.72)';
-    g.fillText(ellipsize(g, r.info||'', tw), tx, y+h-8*s);
-    menuHits.push({x,y,w,h,fn:()=>usePackRow(r)});
+    g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':'')+(ghostPack?'  \u00b7  USE':(npcPack?'  \u00b7  SHARE':'')), tx, y+16*s);
+    g.font='800 '+(PORT?17*s:22*s)+'px '+FONT_UI;
+    g.fillStyle='#fff4d4';
+    g.fillText(ellipsize(g, r.t, tw), tx, y+h*0.58);
+    g.font='600 '+(PORT?10*s:11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(190,170,130,0.78)';
+    g.fillText(ellipsize(g, r.info||'', tw), tx, y+h-10*s);
+    if(!npcPack){
+      drawChip(g,dropX,dropY,dropW,dropH,'Drop',false,'#ffe9c0');
+      menuHits.push({x:dropX,y:dropY,w:dropW,h:dropH,fn:()=>dropPackRow(r)});
+    }
+    menuHits.push({x,y,w:w-(npcPack?0:dropW+12*s),h,fn:()=>usePackRow(r)});
   });
   if(maxScroll){
     drawScrollArrows(g, listX+listWidth-28*s, listTop, listH, G.packScroll>0, G.packScroll<maxScroll,
