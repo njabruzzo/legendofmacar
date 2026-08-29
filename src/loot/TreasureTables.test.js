@@ -25,17 +25,24 @@ assert(/letter==='O'/.test(html) && /letter==='P'/.test(html) && /letter==='U'/.
   && /letter==='V'/.test(html) && /letter==='Z'/.test(html),
   'individual types O, P, U, V, Z are on the MM/DMG list');
 
-assert(/let hoard=rollTreasureSpec\(raw\)/.test(html), 'monster loot rolls every letter in the type');
+assert(/if\(raw && !\/\^nil\$\/i\.test\(raw\)\) hoard=rollTreasureSpec\(raw\)/.test(html)
+  || /hoard=rollTreasureSpec\(raw\)/.test(html),
+  'monster loot rolls every letter in the type');
 assert(!/const letter=raw\[0\]/.test(html), 'foeDrop no longer keeps only the first treasure letter');
 assert(!/\['ironstone','timber','bone','hide','resin','powder'\]/.test(html),
   'Nil corpses do not drop a fixed ore list');
-assert(/chanceOk\(25\)\?rollIndividual\('J'\)/.test(html),
-  'Nil pocket loot rolls individual type J');
+assert(/mergeHoards\(hoard, rollIndividual\('J'\)\)/.test(html),
+  'every kill falls back to individual type J so the corpse always has a roll');
+assert(/spawnLoot\(e\.x\+ox, e\.y\+oy, pile\)/.test(html),
+  'the rolled pile appears on the corpse tile at death');
 assert(/rollDungeonTreasure\(\(L\.n\|\|2\)\)/.test(html),
   'collapse caches roll the dungeon table');
-assert(/placeDungeonCache\(pt\[0\], pt\[1\], 2\)/.test(html)
-  && /placeDungeonCache\(pt\[0\], pt\[1\], 3\)/.test(html),
-  'chapter II and III rooms get rolled dungeon caches');
+assert(/placeDungeonCache\(pt\[0\], pt\[1\], 1\)/.test(html)
+  && /placeDungeonCache\(pt\[0\], pt\[1\], 2\)/.test(html)
+  && /placeDungeonCache\(pt\[0\], pt\[1\], 3\)/.test(html)
+  && /placeDungeonCache\(pt\[0\], pt\[1\], 4\)/.test(html)
+  && /placeDungeonCache\(pt\[0\], pt\[1\], 5\)/.test(html),
+  'every Book I chapter rooms get rolled dungeon caches');
 assert(/Hidden hoard \(type /.test(html) && /rollLair\(letter\)/.test(html),
   'secret vaults still roll lair types');
 

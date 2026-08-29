@@ -27,6 +27,8 @@ assert(/interact\(\(more\.crushed&&more\.team==='party'\?'Rouse ':'Loot '/.test(
 assert(!/\?0\.98:1\.72/.test(html), 'old tight 0.98 fallen-kin walk radius is gone');
 assert(/function lootCorpse\(/.test(html) && /makeGhostAlly\(e\)/.test(html),
   'walking a crushed kin still raises the ghost and takes kit');
+assert(/spawnLoot\(e\.x\+ox, e\.y\+oy, pile\)/.test(html) && /floor\._corpse=e\.id/.test(html),
+  'a kill pile sits on the corpse and walk-over takes it once');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nautoloot checks passed');

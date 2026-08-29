@@ -1277,6 +1277,14 @@ function faceVec(e){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
+  // Party kin share Macar heading while they follow so trail-lag scramble
+  // does not mix left/right in the line — including when they stand still.
+  // Attack still snaps to the aim.
+  const lead=e.hero?null:player();
+  if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
+    const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
+    if(hx||hy) return {dx:hx, dy:hy};
+  }
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
@@ -1296,14 +1304,14 @@ function wantsBackView(e){
    -1 = painted iso SW (screen-left / A). macar_w2 and the axe sheets are
    left-painted — flipping the kin default on those frames moonwalks.
    headingSX = travelX-travelY (positive = screen-right). Billboard mirrors
-   when heading * native < 0. Each dwarf uses its own ix/iy. */
+   when heading * native < 0. Party kin share Macar heading while they follow. */
 const DWARF_FACE_SX={
   macar:1, macar_w1:1, macar_w2:-1, macar_atk:1, macar_atk_recover:1,
   macar_axe:-1, macar_axe_w1:-1, macar_axe_w2:-1, macar_axe_atk:-1, macar_axe_atk_recover:-1,
   pordoom:1, pordoom_w1:1, pordoom_w2:1, pordoom_atk:1,
-  pordoom_ghost:1, pordoom_ghost_w1:1, pordoom_ghost_w2:-1,
+  pordoom_ghost:1, pordoom_ghost_w1:1, pordoom_ghost_w2:-1, pordoom_ghost_atk:1,
   fendur:1, fendur_w1:1, fendur_w2:1, fendur_atk:1,
-  fendur_ghost:-1, fendur_ghost_w1:1, fendur_ghost_w2:1,
+  fendur_ghost:-1, fendur_ghost_w1:1, fendur_ghost_w2:-1, fendur_ghost_atk:1,
   orbo:-1, orbo_w1:-1, orbo_w2:1, orbo_atk:-1,
   orbo_ghost:1, orbo_ghost_w1:1, orbo_ghost_w2:1, orbo_ghost_atk:-1,
   talpor:1, talpor_w1:1, talpor_w2:1, talpor_atk:1,
@@ -1312,8 +1320,14 @@ const DWARF_FACE_SX={
 function sheetFaceSX(k){
   if(!k) return 1;
   if(DWARF_FACE_SX[k]!=null) return DWARF_FACE_SX[k];
-  const base=String(k).replace(/_(w1|w2|atk|atk_recover|atk_bow|back|back_w1|back_w2|sleep)$/,'');
-  if(DWARF_FACE_SX[base]!=null) return DWARF_FACE_SX[base];
+  const s=String(k);
+  const suf=['_atk_recover','_atk_bow','_back_w1','_back_w2','_back','_atk','_w1','_w2','_sleep'];
+  for(let i=0;i<suf.length;i++){
+    if(s.endsWith(suf[i])){
+      const base=s.slice(0,-suf[i].length);
+      if(DWARF_FACE_SX[base]!=null) return DWARF_FACE_SX[base];
+    }
+  }
   return 1;
 }
 function moveHeadingSX(e){
@@ -2305,9 +2319,15 @@ function makeChapter(n){
 
   if(n===1){
     L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
-    L.w=60; L.h=48; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=96; L.h=76; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,14,14,18,16,0); rect(g,24,7,28,28,0);
     rect(g,48,16,5,12,3); rect(g,34,17,9,9,3);
+    // Wider first mine: extra halls east and south. Ruby door, lift, and
+    // crush spots stay on the old tiles so they stay findable.
+    corridor(g,30,35,30,54,5,0); rect(g,22,52,18,14,0);
+    corridor(g,52,21,74,21,5,0); rect(g,72,16,16,12,0);
+    corridor(g,40,35,58,48,5,0); rect(g,54,44,16,12,0);
+    corridor(g,72,22,80,34,4,0); rect(g,76,32,14,12,0);
     L.spawn={x:20.5,y:22.0}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
     L.secrets=[];
@@ -2325,7 +2345,9 @@ function makeChapter(n){
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:27,y:12,c:'#a06cff',r:4.2,f:0.9},{x:42,y:13,c:'#a06cff',r:4.4,f:0.9},
-              {x:26,y:30,c:'#a06cff',r:4.0,f:0.85},{x:45,y:29,c:'#a06cff',r:4.6,f:0.95}];
+              {x:26,y:30,c:'#a06cff',r:4.0,f:0.85},{x:45,y:29,c:'#a06cff',r:4.6,f:0.95},
+              {x:30,y:54,c:'#c9a070',r:5.0,f:0.75},{x:80,y:21,c:'#ffb45c',r:5.2,f:0.8},
+              {x:62,y:50,c:'#9a8163',r:4.6,f:0.65},{x:82,y:38,c:'#c9a070',r:4.4,f:0.6}];
     G.props=[{x:15.4,y:16.35,k:'lantern'},{x:18.2,y:27.15,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
       {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
       {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
@@ -2336,7 +2358,10 @@ function makeChapter(n){
       {x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
       {x:24.15,y:15.25,k:'timber'},{x:24.35,y:28.85,k:'timber'},
       {x:23.35,y:15.55,k:'lantern'},{x:25.55,y:14.85,k:'orepile'},
-      {x:25.45,y:29.15,k:'pickpile'},{x:23.55,y:28.45,k:'crate'}];
+      {x:25.45,y:29.15,k:'pickpile'},{x:23.55,y:28.45,k:'crate'},
+      {x:28.4,y:54.2,k:'lantern'},{x:32.2,y:58.1,k:'orepile'},{x:24.6,y:56.4,k:'timber'},
+      {x:78.2,y:18.4,k:'lantern'},{x:82.6,y:21.2,k:'crate'},{x:74.4,y:20.1,k:'pickpile'},
+      {x:58.6,y:46.2,k:'lantern'},{x:62.4,y:50.1,k:'bones'},{x:80.2,y:36.2,k:'rubble',spr:'rubble2'}];
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     Object.keys(CRUSH_SPOTS).forEach(k=>{
@@ -2356,6 +2381,9 @@ function makeChapter(n){
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
     });
+    [[30,56],[80,21],[62,50],[82,38]].forEach(pt=>{
+      placeDungeonCache(pt[0], pt[1], 1);
+    });
     L.guide=()=>{
       const p=player();
       const bodies=(G.ents||[]).filter(e=>e.crushed&&e.corpse&&!e.ghost);
@@ -2368,6 +2396,21 @@ function makeChapter(n){
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
+      if(!L.flags.southStore && p.y>48){
+        L.flags.southStore=1;
+        spawnLairGroup(30,56,{pack:[['rat',4]],spread:1.4,aggro:2.8});
+        say('Rats took the south store. They nest together in the grain.','#c9b895');
+      }
+      if(!L.flags.eastShop && p.x>64 && p.y<30){
+        L.flags.eastShop=1;
+        spawnLairGroup(80,21,{pack:[['beetle',3]],spread:1.3,aggro:2.6});
+        say('Cave beetles hold the east shop. One brood, one room.','#c9b895');
+      }
+      if(!L.flags.seDen && p.x>70 && p.y>30){
+        L.flags.seDen=1;
+        spawnLairGroup(82,38,{pack:[['spider',3]],spread:1.4,aggro:3.0});
+        say('A silk den. Spiders only — they keep their own dark.','#c07bff');
+      }
       if(!L.flags.sawHall && p.x>=24.8){
         L.flags.sawHall=1;
         say('The collapse opened a wider chamber ahead. The elevator waits in the dark.','#c9b895');
@@ -2505,19 +2548,19 @@ function makeChapter(n){
       const p=player(); if(!p) return;
       if(!L.flags.placed){
         L.flags.placed=1;
-        spawnLairGroup(40.1, 32.1, {leader:'goblinBoss', pack:[['goblin',4],['kobold',1]], spread:1.7, aggro:4.2});
+        spawnLairGroup(40.1, 32.1, {leader:'goblinBoss', pack:[['goblin',5]], spread:1.7, aggro:4.2});
         const noz=ALLY.noz(); noz.x=40.45; noz.y=31.35; G.ents.push(noz);
         spawnLairGroup(26.2, 15.2, {pack:[['spider',3]], spread:1.4, aggro:3.1});
-        spawnLairGroup(16.4, 16.4, {pack:[['rat',2],['beetle',2]], spread:1.2, aggro:2.6});
-        spawnLairGroup(10.1, 31.0, {leader:'spiderLord', pack:[['spider',2],['centipede',1]], spread:1.6, aggro:3.4});
-        spawnLairGroup(82.2, 28.1, {pack:[['goblin',3],['kobold',2]], spread:1.6, aggro:3.4});
+        spawnLairGroup(16.4, 16.4, {pack:[['rat',3]], spread:1.2, aggro:2.6});
+        spawnLairGroup(10.1, 31.0, {leader:'spiderLord', pack:[['spider',3]], spread:1.6, aggro:3.4});
+        spawnLairGroup(82.2, 28.1, {pack:[['goblin',4]], spread:1.6, aggro:3.4});
         spawnLairGroup(96.1, 32.2, {leader:'koboldChief', pack:[['kobold',3]], spread:1.5, aggro:3.2});
-        spawnLairGroup(90.2, 50.1, {pack:[['spider',2],['beetle',2]], spread:1.4, aggro:3.0});
-        spawnLairGroup(12.2, 44.1, {pack:[['rat',3],['centipede',2]], spread:1.3, aggro:2.8});
+        spawnLairGroup(90.2, 50.1, {pack:[['spider',3]], spread:1.4, aggro:3.0});
+        spawnLairGroup(12.2, 44.1, {pack:[['rat',4]], spread:1.3, aggro:2.8});
         spawnLairGroup(18.2, 64.1, {leader:'goblinBoss', pack:[['goblin',3]], spread:1.5, aggro:3.6});
-        spawnLairGroup(40.1, 70.2, {pack:[['warg',2],['goblin',2]], spread:1.6, aggro:3.8});
+        spawnLairGroup(40.1, 70.2, {pack:[['warg',3]], spread:1.6, aggro:3.8});
         spawnLairGroup(66.2, 76.1, {pack:[['spiderHuge',1],['spider',2]], spread:1.4, aggro:3.2});
-        spawnLairGroup(64.1, 46.2, {pack:[['orc',2],['kobold',2]], spread:1.5, aggro:3.4});
+        spawnLairGroup(64.1, 46.2, {pack:[['orc',3]], spread:1.5, aggro:3.4});
         say('The ruby cage opens on a four-way in living rock. Left, bronze and gems. Right, silk. Straight, goblin-talk.','#c9b895');
       }
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
@@ -2600,6 +2643,8 @@ function makeChapter(n){
     corridor(g,46,50,50,80,5,0); rect(g,40,72,26,16,0);
     corridor(g,12,48,14,74,4,0); rect(g,6,68,16,16,0);
     corridor(g,96,42,106,48,4,0); rect(g,100,40,14,16,0);
+    corridor(g,26,20,26,10,4,0); rect(g,20,4,14,10,0);
+    corridor(g,32,38,32,48,4,0); rect(g,26,46,14,10,0);
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
@@ -2632,9 +2677,7 @@ function makeChapter(n){
     L.tick=(dt)=>{
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
-        spawnLairGroup(26,28,{leader:'duergarX',pack:[['duergar',4]],spread:1.7,aggro:4.0});
-        spawnLairGroup(22,23,{pack:[['pech',2],['construct',1]],spread:1.3,aggro:3.2});
-        spawnLairGroup(29,32,{leader:'bugbear',pack:[['orc',2]],spread:1.4,aggro:3.6});}
+        spawnLairGroup(26,28,{leader:'duergarX',pack:[['duergar',4]],spread:1.7,aggro:4.0});}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
         say('An eye opens in the Hall of Names.','#ff7ad9');
         const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
@@ -2647,6 +2690,12 @@ function makeChapter(n){
         spawnLairGroup(54,46,{pack:[['umberhulk',1],['roper',1]],spread:1.4,aggro:3.5});
         say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
         hint('Keep moving. Defend when he winds up.',5);}
+      if(!L.flags.ruinPech&&p.y<16&&p.x>18&&p.x<36){L.flags.ruinPech=1;
+        spawnLairGroup(26,8,{pack:[['pech',2],['construct',1]],spread:1.3,aggro:3.2});
+        say('Pech and their stone-work keep the north workshop.','#c9b895');}
+      if(!L.flags.ruinOrc&&p.y>44&&p.x>24&&p.x<42){L.flags.ruinOrc=1;
+        spawnLairGroup(32,50,{leader:'bugbear',pack:[['orc',2]],spread:1.4,aggro:3.6});
+        say('Bugbear and orcs hold the south annex, not the barracks.','#c9b895');}
       if(!L.flags.ruinNW&&p.x<16&&p.y<18){L.flags.ruinNW=1;
         spawnLairGroup(11,12,{leader:'grimlockChief',pack:[['grimlock',3]],spread:1.5,aggro:3.8});
         say('Grimlocks nest in the fallen house.','#c9b895');}
@@ -2686,17 +2735,26 @@ function makeChapter(n){
 
   if(n===4){
     L.title='Chapter IV'; L.sub='The Dead City'; L.pal=PAL.ruin;
-    L.w=68; L.h=56; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=110; L.h=88; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,24,12,8,3); corridor(g,14,28,26,28,6,0); rect(g,20,18,18,20,0);
     corridor(g,37,28,48,16,6,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,6,0);
     rect(g,38,34,24,16,0); rect(g,50,40,8,6,3);
+    // Wider drowned city: extra streets and quays. Outpost and brain stay put.
+    corridor(g,60,16,88,16,5,0); rect(g,82,8,20,14,0);
+    corridor(g,50,50,50,72,5,0); rect(g,38,68,24,14,0);
+    corridor(g,12,32,10,52,5,0); rect(g,4,48,16,16,0);
+    corridor(g,62,42,92,48,5,0); rect(g,92,40,14,16,0);
+    corridor(g,28,38,28,58,5,0); rect(g,18,56,20,14,0);
     L.spawn={x:8,y:28};
     L.secrets=[];
     addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'s',
       hint:'The outpost\'s north wall is a false course. SEARCH the grey brick.'});
     L.objs=[{t:'Clear the drowned streets',d:0},{t:'Break the illithid outpost',d:0},{t:'Destroy the Elder Brain',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:28,y:28,c:'#7ad0ff',r:9,f:1.25},
-      {x:50,y:16,c:'#c07bff',r:10,f:1.35},{x:52,y:42,c:'#ff7ad9',r:12,f:1.7}];
+      {x:50,y:16,c:'#c07bff',r:10,f:1.35},{x:52,y:42,c:'#ff7ad9',r:12,f:1.7},
+      {x:90,y:14,c:'#7ad0ff',r:6.0,f:0.85},{x:50,y:74,c:'#7ad0ff',r:5.6,f:0.8},
+      {x:10,y:56,c:'#9a8163',r:4.8,f:0.65},{x:98,y:48,c:'#c07bff',r:5.2,f:0.75},
+      {x:28,y:62,c:'#7ad0ff',r:5.0,f:0.7}];
     G.props=[{x:8,y:25,k:'lantern'},{x:22,y:20,k:'pillar'},{x:34,y:20,k:'pillar'},{x:22,y:36,k:'pillar'},
       {x:34,y:36,k:'pillar'},{x:44,y:10,k:'pillar'},{x:56,y:10,k:'pillar'},{x:44,y:22,k:'names'},
       {x:40,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:40,y:48,k:'altar'},{x:52,y:42,k:'throne'},
@@ -2704,15 +2762,18 @@ function makeChapter(n){
       {x:16.2,y:26.15,k:'lantern'},{x:15.8,y:29.85,k:'timber'},{x:17.2,y:29.65,k:'slime'},
       {x:37.2,y:19.2,k:'urn'},{x:39.1,y:23.6,k:'banner'},{x:36.6,y:23.4,k:'bones'},
       {x:28,y:28,k:'trap',trap:'trap_spikes'},{x:46,y:16,k:'trap',trap:'trap_runes'},
-      {x:44,y:40,k:'trap',trap:'trap_pit'},{x:54,y:44,k:'trap',trap:'trap_spikes'}];
+      {x:44,y:40,k:'trap',trap:'trap_pit'},{x:54,y:44,k:'trap',trap:'trap_spikes'},
+      {x:88,y:12,k:'lantern'},{x:94,y:16,k:'slime'},{x:48,y:72,k:'lantern'},{x:54,y:76,k:'bones'},
+      {x:8,y:54,k:'timber'},{x:96,y:46,k:'urn'},{x:26,y:60,k:'slime'}];
+    [[90,14],[50,74],[10,56],[98,48],[28,62]].forEach(pt=>{
+      placeDungeonCache(pt[0], pt[1], 4);
+    });
     L.guide=()=>!L.flags.w1?{x:28,y:28}:!L.flags.w2?{x:50,y:16}:!L.flags.boss?{x:52,y:42}:null;
     L.tick=()=>{
       const p=player(); if(!p) return;
       if(!L.flags.w1&&p.x>18){L.flags.w1=1;
         say('The streets still hold water. Something older than dwarves kept the tide.','#7ad0ff');
-        spawnLairGroup(28,26,{leader:'aboleth',pack:[['kuotoa',3],['ixzan',1]],spread:1.9,aggro:4.0});
-        spawnLairGroup(26,32,{pack:[['grayooze',1],['ochrejelly',1],['slithertracker',1]],spread:1.4,aggro:3.0});
-        spawnLairGroup(22,24,{pack:[['xorn',1],['crysmal',2]],spread:1.3,aggro:3.2});}
+        spawnLairGroup(28,26,{leader:'aboleth',pack:[['kuotoa',3],['ixzan',1]],spread:1.9,aggro:4.0});}
       if(L.flags.w1&&!L.flags.w2&&p.x>40&&p.y<26){L.flags.w2=1;L.objs[0].d=1;
         say('Illithids. They have been farming this city for minds.','#c07bff');
         spawnLairGroup(50,14,{leader:'neothelid',pack:[['mindflayer',2],['gauth',1]],spread:1.9,aggro:4.4});
@@ -2725,6 +2786,21 @@ function makeChapter(n){
         spawnLairGroup(50,38,{pack:[['earthelem',1],['xornElder',1]],spread:1.5,aggro:3.4});
         say('ELDER BRAIN - the pool that rules the dead city.','#ff7ad9'); shake(22);
         hint('Kill the Death Tyrant first if the rays pin you.',5);}
+      if(!L.flags.cityE&&p.x>78&&p.y<24){L.flags.cityE=1;
+        spawnLairGroup(90,14,{leader:'kuotoa',pack:[['kuotoa',3]],spread:1.5,aggro:3.4});
+        say('Kuo-toa hold the east quay. One school in the water.','#7ad0ff');}
+      if(!L.flags.cityS&&p.y>64){L.flags.cityS=1;
+        spawnLairGroup(50,74,{pack:[['grayooze',1],['ochrejelly',1],['blackpudding',1]],spread:1.6,aggro:3.2});
+        say('The south cistern is a slime pit. Nothing else lives here.','#6a8a4a');}
+      if(!L.flags.cityW&&p.x<20&&p.y>46){L.flags.cityW=1;
+        spawnLairGroup(10,56,{pack:[['undead',3]],spread:1.5,aggro:3.4});
+        say('Drowned dead keep the west house.','#7cff9c');}
+      if(!L.flags.cityFarE&&p.x>88){L.flags.cityFarE=1;
+        spawnLairGroup(98,48,{leader:'mindflayer',pack:[['urophion',1],['gauth',1]],spread:1.5,aggro:3.6});
+        say('Illithids farm the far east storehouse.','#c07bff');}
+      if(!L.flags.citySW&&p.y>52&&p.x>16&&p.x<42){L.flags.citySW=1;
+        spawnLairGroup(28,62,{pack:[['crysmal',3]],spread:1.4,aggro:3.0});
+        say('Crysmals nest in the south-west street.','#c08040');}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The pool goes still. The temple road is the last way down.','#ffd27a');
         setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
@@ -2733,9 +2809,14 @@ function makeChapter(n){
 
   if(n===5){
     L.title='Chapter V'; L.sub='The Holy Sacrifice'; L.pal=PAL.hall;
-    L.w=52; L.h=54; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=88; L.h=80; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,6,40,12,8,3); corridor(g,16,44,28,44,6,0); rect(g,18,36,24,8,0);
     rect(g,14,8,30,28,0); rect(g,26,12,6,6,3);
+    // Wider temple: side chapels and courts. Altar, throne, and west secret stay.
+    corridor(g,44,22,66,22,5,0); rect(g,64,14,18,16,0);
+    corridor(g,29,36,29,58,5,0); rect(g,18,56,22,14,0);
+    corridor(g,10,44,10,62,4,0); rect(g,4,60,14,12,0);
+    corridor(g,44,16,56,10,4,0); rect(g,52,6,16,12,0);
     L.spawn={x:10,y:44};
     L.secrets=[];
     addSecretDoor(L,{x:13.15,y:20.1,i:13,j:19,w:1,h:3,kind:'treasure',face:'e',
@@ -2743,14 +2824,21 @@ function makeChapter(n){
     L.objs=[{t:'Enter the chamber of the oath',d:0},{t:'End the Undying King',d:0}];
     L.lights=[{x:10,y:44,c:'#ffb45c',r:5,f:1},{x:29,y:15,c:'#ffd24a',r:12,f:1.6},
       {x:18,y:12,c:'#ff7a3a',r:7,f:1.2},{x:40,y:12,c:'#ff7a3a',r:7,f:1.2},
-      {x:18,y:31,c:'#ff7a3a',r:7,f:1.2},{x:40,y:31,c:'#ff7a3a',r:7,f:1.2}];
+      {x:18,y:31,c:'#ff7a3a',r:7,f:1.2},{x:40,y:31,c:'#ff7a3a',r:7,f:1.2},
+      {x:72,y:22,c:'#ffd24a',r:6.0,f:0.9},{x:29,y:62,c:'#ff7a3a',r:5.6,f:0.8},
+      {x:10,y:66,c:'#c9a070',r:4.8,f:0.65},{x:60,y:10,c:'#ffd24a',r:5.2,f:0.75}];
     G.props=[{x:10,y:41,k:'lantern'},{x:18,y:12,k:'brazier'},{x:40,y:12,k:'brazier'},
       {x:18,y:31,k:'brazier'},{x:40,y:31,k:'brazier'},{x:20,y:16,k:'pillar'},{x:38,y:16,k:'pillar'},
       {x:20,y:28,k:'pillar'},{x:38,y:28,k:'pillar'},{x:29,y:14.5,k:'altar'},{x:29,y:10,k:'throne'},
       {x:24,y:33,k:'bones'},{x:34,y:33,k:'bones'},
       {x:20.2,y:37.15,k:'urn'},{x:23.8,y:42.85,k:'banner'},{x:21.4,y:42.6,k:'bones'},
       {x:29,y:36,k:'trap',trap:'trap_runes'},
-      {x:24,y:22,k:'trap',trap:'trap_spikes'},{x:34,y:22,k:'trap',trap:'trap_pit'}];
+      {x:24,y:22,k:'trap',trap:'trap_spikes'},{x:34,y:22,k:'trap',trap:'trap_pit'},
+      {x:70,y:18,k:'brazier'},{x:74,y:24,k:'urn'},{x:26,y:60,k:'lantern'},{x:32,y:64,k:'banner'},
+      {x:8,y:64,k:'bones'},{x:58,y:10,k:'idol'}];
+    [[72,22],[29,62],[10,66],[60,10]].forEach(pt=>{
+      placeDungeonCache(pt[0], pt[1], 5);
+    });
     L.guide=()=>!L.flags.start?{x:29,y:20}:null;
     L.tick=()=>{
       const p=player(); if(!p) return;
@@ -2761,15 +2849,25 @@ function makeChapter(n){
         spawnLairGroup(22,20,{pack:[['golemBrass',1],['golemSilver',1]],spread:2.2,aggro:4.0});
         spawnLairGroup(29,24,{pack:[['drow',2]],spread:1.2,aggro:3.6});
         spawnLairGroup(32,18,{pack:[['dao',1],['earthelem',1]],spread:1.5,aggro:3.4});}
+      if(!L.flags.eastChapel&&p.x>58&&p.y<32){L.flags.eastChapel=1;
+        spawnLairGroup(72,22,{pack:[['golemGold',1],['golemBrass',1]],spread:1.8,aggro:3.8});
+        say('Temple metal stands in the east chapel. Golems only.','#ffd24a');}
+      if(!L.flags.southCourt&&p.y>52){L.flags.southCourt=1;
+        spawnLairGroup(29,62,{leader:'duergarX',pack:[['duergar',3]],spread:1.6,aggro:3.6});
+        say('Grey kin hold the south court. One shift.','#9de8a8');}
       const k=G.ents.find(e=>e.kind==='king'&&!e.dead);
       if(k){ const f=k.hp/k.maxhp;
         if(f<.66&&!L.flags.p2){L.flags.p2=1; say('Gold steps down from the colonnade.','#ffd24a');
-          wave([['golemGold',20,14],['drowMage',38,14],['hookedhorror',20,32],['gnomeBomber',38,32],
-            ['firegiant',18,18],['magmaelem',40,18],['basilisk',22,28]]); shake(12);}
+          spawnLairGroup(20,14,{pack:[['golemGold',1],['golemSilver',1]],spread:1.8,aggro:4.0});
+          spawnLairGroup(38,14,{leader:'drowMage',pack:[['drow',2]],spread:1.5,aggro:3.8});
+          spawnLairGroup(18,18,{leader:'firegiant',pack:[['magmaelem',1]],spread:1.6,aggro:3.6});
+          shake(12);}
         if(f<.33&&!L.flags.p3){L.flags.p3=1; say('Platinum holds the dais. The last metal of the temple.','#e8f0ff');
-          wave([['golemPlatinum',24,12],['duergarX',34,12],['umberhulk',29,34],['golemBrass',24,32],['drowMage',34,32],
-            ['deepdragon',18,16],['shadowdragon',40,16],['fomorian',20,30],['stonegiant',38,30],['purpleworm',29,28],
-            ['duergarThane',22,14],['orcOverlord',36,14],['deepdragonWyrm',29,10]]); shake(16);}
+          spawnLairGroup(24,12,{pack:[['golemPlatinum',1],['golemBrass',1]],spread:1.8,aggro:4.0});
+          spawnLairGroup(34,12,{leader:'duergarX',pack:[['duergarThane',1]],spread:1.4,aggro:3.8});
+          spawnLairGroup(18,16,{pack:[['deepdragon',1],['shadowdragon',1]],spread:2.2,aggro:4.2});
+          spawnLairGroup(38,30,{leader:'stonegiant',pack:[['fomorian',1]],spread:1.6,aggro:3.6});
+          shake(16);}
       }
       if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
         L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
@@ -2825,7 +2923,7 @@ function dressDungeon(L){
     if(!wall && h3(x,y,seed)<0.78) continue;
     floors.push({x:x+0.5,y:y+0.5,wall});
   }
-  const want=L.n===1?10:L.n===2?16:L.n===3?22:L.n===5?12:14;
+  const want=L.n===1?16:L.n===2?16:L.n===3?22:L.n===5?16:20;
   let placed=0, tries=0;
   while(placed<want && tries<floors.length*4){
     tries++;
@@ -3178,6 +3276,8 @@ function lootCorpse(e){
     bits.push(kit.gp+' gp');
   }
   const drop=e.drop;
+  (G.loot||[]).forEach(z=>{ if(z._corpse===e.id) z.gone=1; });
+  G.loot=(G.loot||[]).filter(z=>!z.gone);
   if(drop){
     convertHoard(drop.coins||{}, drop.gems||0, drop.jew||0, 0, 'none', e, true);
     if(drop.coins) Object.keys(drop.coins).forEach(k=>{ if(drop.coins[k]) bits.push(drop.coins[k]+' '+k); });
@@ -6896,6 +6996,7 @@ function update(dt){
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
           if(dd<(e.r+o.r)*1.15&&dd>.001){ vx+=(e.x-o.x)/dd*.35; vy+=(e.y-o.y)/dd*.35; } }
         steerWalk(e, vx, vy, go, dt);
+        if(form&&p&&(p.fdx||p.fdy)){ e.fdx=p.fdx; e.fdy=p.fdy; }
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
@@ -8955,6 +9056,10 @@ function takeLoot(pile, quiet){
   }
   packGainNote(bits);
   if(extra) awardPartyXp(Math.round(extra), 'Treasure ('+Math.round(extra)+' gp)', pile);
+  if(pile._corpse){
+    const body=(G.ents||[]).find(z=>z.id===pile._corpse);
+    if(body){ body.looted=1; body.drop=null; }
+  }
 }
 function hoardToPile(hoard){
   if(!hoard) return null;
@@ -8991,26 +9096,25 @@ function foeDrop(e){
     return;
   }
   const raw=(e.treasure||'Nil').toString().trim();
-  if(!raw || /^nil$/i.test(raw)){
-    if(e.boss){
-      const hoard=rollLair('H')||{coins:{},gems:0,jew:0,magN:1,magKind:'anyp'};
-      const pile=hoardToPile(hoard);
-      if(pile) e.drop=pile;
-    } else {
-      const pocket=chanceOk(25)?rollIndividual('J'):(chanceOk(8)?rollDungeonTreasure((G.lvl&&G.lvl.n)||1):null);
-      const pile=hoardToPile(pocket);
-      if(pile) e.drop=pile;
-    }
-    return;
+  let hoard=null;
+  if(raw && !/^nil$/i.test(raw)) hoard=rollTreasureSpec(raw);
+  if(e.boss && !hoard) hoard=rollLair('H')||rollLair('C');
+  // Every kill rolls. Empty lair chances still leave a DMG pocket (type J = 3d8 cp).
+  if(!hoard || !hoardToPile(hoard)){
+    hoard=mergeHoards(hoard, rollIndividual('J'));
+    if(chanceOk(18)) hoard=mergeHoards(hoard, rollDungeonTreasure((G.lvl&&G.lvl.n)||1));
   }
-  let hoard=rollTreasureSpec(raw);
-  if(!hoard){
-    if(e.boss) hoard=rollLair('C')||{coins:{gp:ri(20,80)},gems:0,jew:0,magN:0};
-    else return;
+  if(e.boss && hoard && !hoard.magN && chanceOk(40)){ hoard.magN=1; hoard.magKind='anyp'; }
+  let pile=hoardToPile(hoard);
+  if(!pile){
+    pile=hoardToPile({coins:{cp:rollDice(3,8,0)},gems:0,jew:0,magN:0})||
+      {kind:'coins', coins:{cp:ri(3,24)}, gems:0, jew:0, potions:[], items:[], glow:'#ffd27a'};
   }
-  if(e.boss && !hoard.magN && chanceOk(40)){ hoard.magN=1; hoard.magKind='anyp'; }
-  const pile=hoardToPile(hoard);
-  if(pile) e.drop=pile;
+  pile.label=pile.label||((e.name||'Foe')+' (DMG roll)');
+  e.drop=pile;
+  const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
+  const floor=spawnLoot(e.x+ox, e.y+oy, pile);
+  if(floor) floor._corpse=e.id;
 }
 function newGear(){ return {wt:0,wd:100,wmax:100,rune:0, at:0,ad:100,amax:100, cd:100}; }
 function initEconomy(){

@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Party dwarves face the way they walk: sheets are iso SE, canvas-flipped for SW.
- * Each dwarf uses its own travel vector. Ghosts do not inherit Macar heading.
+ * Followers share Macar heading so trail-lag scramble does not mix the line.
  * Run: node src/combat/DwarfFacing.test.js
  */
 const fs=require('fs');
@@ -28,10 +28,10 @@ assert(/function blitFacing\(g,img,dx,dy,W,H,flip\)\{/.test(html) &&
   'left-heading flip is a negative destination width');
 assert(/away < -0\.55 && side < 0\.72/.test(html),
   'back view is iso north only — west walk keeps the front sheet');
-assert(!/function facingRef\(e\)\{/.test(html),
-  'ghosts do not inherit Macar heading via facingRef');
-assert(/Each dwarf uses its own ix\/iy/.test(html),
-  'comment records that ghosts follow their own travel vector');
+assert(/Party kin share Macar heading/.test(html),
+  'followers face Macar while they trail, not their scramble vector');
+assert(!/Each dwarf uses its own ix\/iy/.test(html),
+  'old per-dwarf scramble facing comment is gone');
 
 assert(/macar:1/.test(html) && /macar_w1:1/.test(html), 'Macar idle and w1 are painted iso SE');
 assert(/macar_w2:-1/.test(html), 'Macar w2 is painted iso SW — flip it when walking right');
@@ -54,24 +54,28 @@ vm.createContext(ctx);
 vm.runInContext(table, ctx);
 vm.runInContext(extract('sheetFaceSX'), ctx);
 const sheetFaceSX=ctx.sheetFaceSX;
-function faceVec(e){
+function faceVec(e, lead){
   if(!e) return {dx:0,dy:0};
   if(e.atk>0 && e.aim && !e.aim.dead && e.aim.x!=null){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
+  if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
+    const hx=lead.fdx||lead.ix||0, hy=lead.fdy||lead.iy||0;
+    if(hx||hy) return {dx:hx, dy:hy};
+  }
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
-function moveHeadingSX(e){ const v=faceVec(e); return (v.dx||0)-(v.dy||0); }
-function wantsSpriteFlip(e){
+function moveHeadingSX(e, lead){ const v=faceVec(e, lead); return (v.dx||0)-(v.dy||0); }
+function wantsSpriteFlip(e, lead){
   if(!e||e.crushed||e.dead) return false;
-  return moveHeadingSX(e)*sheetFaceSX(e.animKey||e.k) < -0.02;
+  return moveHeadingSX(e, lead)*sheetFaceSX(e.animKey||e.k) < -0.02;
 }
-function wantsBackView(e){
+function wantsBackView(e, lead){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
   if(e.defending) return true;
-  const v=faceVec(e);
+  const v=faceVec(e, lead);
   const away=(v.dx||0)+(v.dy||0);
   const side=Math.abs((v.dx||0)-(v.dy||0));
   return away < -0.55 && side < 0.72;
@@ -95,9 +99,13 @@ assert(!wantsSpriteFlip({k:'fendur_ghost', dead:1, moving:1, ix:-0.7, iy:0.7}), 
 
 const ghostGoingRight={k:'pordoom_ghost', team:'party', ghost:1, moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
 const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
-assert(!wantsSpriteFlip(ghostGoingRight),
-  'a ghost still walking right faces right even if Macar already turned left');
-assert(wantsSpriteFlip(macarGoingLeft), 'Macar left and a lagging ghost right stay independent');
+assert(wantsSpriteFlip(ghostGoingRight, macarGoingLeft),
+  'a lagging ghost still faces Macar left, not its scramble right');
+const ghostIdleScramble={k:'orbo_ghost', team:'party', ghost:1, moving:0, ix:0, iy:0, fdx:0.7, fdy:-0.7};
+assert(wantsSpriteFlip(ghostIdleScramble, macarGoingLeft),
+  'a stopped ghost still faces Macar, not the last scramble heading');
+assert(wantsSpriteFlip(macarGoingLeft), 'Macar walking left faces left');
+assert(/fendur_ghost_w2:-1/.test(html), 'Fendur ghost w2 is painted iso SW — flip it on right-walk');
 assert(!wantsBackView({fdx:-0.7, fdy:0.7}), 'iso west / arrow-left keeps the front sheet');
 assert(!wantsBackView({fdx:0, fdy:1}), 'iso SW / screen bottom-left keeps the front sheet');
 assert(wantsBackView({fdx:-0.7, fdy:-0.7}), 'iso north uses the back sheet');

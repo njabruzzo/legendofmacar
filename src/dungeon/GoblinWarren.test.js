@@ -31,6 +31,8 @@ assert(/L\.w=120; L\.h=100/.test(html), 'first floor is a wide warren with side 
 assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
   'chapter II adds south and east caverns beyond the four-way');
 assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'south stair stays on the old descent tile');
+assert(/L\.w=96; L\.h=76/.test(html) && /L\.w=110; L\.h=88/.test(html) && /L\.w=88; L\.h=80/.test(html),
+  'chapters I, IV, and V are also larger halls');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ngoblin warren checks passed');
