@@ -63,18 +63,29 @@ function keysFor(stem, gaits){
 }
 
 assert(ctx.walkCycleKey({gait:0.12}, 'macar')==='macar_w1', 'first half gait is plant A (w1)');
-assert(ctx.walkCycleKey({gait:0.50}, 'macar')==='macar_w3', 'mid-gait optional pass is w3');
-assert(ctx.walkCycleKey({gait:0.82}, 'macar')==='macar_w2', 'second half gait is opposite plant (w2)');
+assert(ctx.walkCycleKey({gait:0.50}, 'macar')==='macar_w2', 'second half gait is opposite plant (w2)');
+assert(ctx.walkCycleKey({gait:0.82}, 'macar')==='macar_w2', 'late gait stays on plant B');
 assert(ctx.walkCycleKey({gait:0.12}, 'macar')!==ctx.walkCycleKey({gait:0.82}, 'macar'),
   'planted boot key swaps every half gait');
+assert(!/_w3$/.test(ctx.walkCycleKey({gait:0.5}, 'macar')||''),
+  'walk cycle never inserts a turned-around w3 pass');
+['0.1','0.3','0.5','0.7','0.9'].forEach(g=>{
+  const k=ctx.walkCycleKey({gait:+g}, 'macar_e');
+  assert(k==='macar_e_w1'||k==='macar_e_w2', 'east walk stays on the east stem at gait '+g);
+});
 
 const rat2=keysFor('rat', [0.1, 0.6]);
 assert(rat2[0]==='rat_w1' && rat2[1]==='rat_w2', '2-beat monster walk is w1 / w2');
 assert(ctx.walkCycleKey({gait:0}, 'missing')==null, 'missing stem returns null');
 assert(ctx.walkCycleKey({gait:0.2}, 'warg')==='warg_w1'
-  && ctx.walkCycleKey({gait:0.5}, 'warg')==='warg_w3'
+  && ctx.walkCycleKey({gait:0.5}, 'warg')==='warg_w2'
   && ctx.walkCycleKey({gait:0.9}, 'warg')==='warg_w2',
-  'warg plants swap each half gait with a mid pass');
+  'warg plants swap each half gait (no turned w3)');
+assert(!/stem\+'_w3'/.test(extractFn('walkCycleKey')),
+  'walkCycleKey source does not pick _w3');
+const flipSrc=extractFn('wantsSpriteFlip');
+assert(/moveHeadingSX\(e\) < -0\.02/.test(flipSrc) && !/gait/.test(flipSrc) && !/phase/.test(flipSrc),
+  'flip is heading-only — never per gait frame');
 
 const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
 party.forEach(stem=>{

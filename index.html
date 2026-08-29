@@ -238,17 +238,17 @@ function turnToward(e,dx,dy,dt,rate){
   return Math.abs(d)-max;
 }
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
-/* Limner walk: planted boot swaps every half gait. w1 = plant A, w2 = the
-   opposite plant. Optional w3 is a short passing beat at mid-stride only.
-   Never QUALITY-gated. Idle callers must not use this. */
+/* Limner walk: planted boot swaps every half gait. w1 and w2 must be the
+   SAME painted facing — opposite FOOT, never opposite heading. Do not
+   insert a _w3 pass; several of those sheets were painted turned around
+   and ping-ponged Macar left/right on a straight D walk. Flip is heading
+   only (west = east sheet flipped once), never per frame. */
 function walkCycleKey(e, stem){
   if(!stem) return null;
   const w1=sprReady(stem+'_w1')?stem+'_w1':null;
   const w2=sprReady(stem+'_w2')?stem+'_w2':null;
-  const w3=sprReady(stem+'_w3')?stem+'_w3':null;
   if(!w1 && !w2) return sprReady(stem)?stem:null;
   const phase=(((e&&e.gait)||0)%1+1)%1;
-  if(w3 && phase>=0.42 && phase<0.58) return w3;
   if(phase<0.5) return w1||w2;
   return w2||w1;
 }
