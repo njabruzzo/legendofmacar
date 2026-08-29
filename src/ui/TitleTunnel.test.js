@@ -18,6 +18,7 @@ function assert(cond, msg){
 const titlePath=path.join(root,'assets/ui/title_splash.jpg');
 const ch1Path=path.join(root,'assets/ui/intro_ch1.jpg');
 assert(fs.existsSync(titlePath) && fs.statSync(titlePath).size>200000, 'title splash painting is in-repo');
+assert(fs.statSync(titlePath).size>300000, 'title splash is a full party plate, not a stub');
 assert(fs.existsSync(ch1Path) && fs.statSync(ch1Path).size>150000, 'Chapter I plate painting is in-repo');
 
 assert(/FONT_DISPLAY='"Cinzel Decorative"/.test(html), 'display face is Cinzel Decorative');
