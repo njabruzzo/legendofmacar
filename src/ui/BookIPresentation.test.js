@@ -38,7 +38,13 @@ assert(!/You are MACAR/.test(block), 'chapter plates do not name the player');
 assert(/function centerCopyY\(ceil, floor, blockH\)/.test(html), 'centerCopyY helper exists');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro exists');
 assert(/descendTop=descendY-descendH\/2/.test(html), 'intro keeps a clear band above Descend');
-assert(/centerCopyY\(groupCeil, groupFloor, blockH\)/.test(html), 'intro copy is centered between header and Descend');
+assert(/groupCeil=VH\*\(PORT\?0\.048:0\.038\)/.test(html), 'intro title block starts near the top of the plate');
+assert(/titleGap=36\*s/.test(html), 'intro keeps a generous gap between gold title and flavor');
+assert(/titleGap=Math\.max\(26\*s, titleGap-0\.35\)/.test(html), 'intro never shrinks the title-to-flavor gap below a wide floor');
+assert(/let t0=groupCeil/.test(html.match(/function drawIntro\(g\)\{[\s\S]*?menuBtn\(g,'Descend'/)[0]),
+  'intro titles pin high instead of centering the story plate');
+assert(!/centerCopyY\(groupCeil, groupFloor, blockH\)/.test(html),
+  'intro copy is not vertically centered in the title-card band');
 assert(/layoutIntroCopy/.test(html), 'intro copy wraps and shrinks to the band above Descend');
 assert(/CH_INTRO\[L\.n\]/.test(html), 'intro draws CH_INTRO, not a clipped inline stub');
 assert(/flSize=\(PORT\?18:22\)\*s/.test(html), 'intro flavor italic starts larger than the old 14/17 size');
@@ -82,18 +88,26 @@ function centerCopyY(ceil, floor, blockH){
 function checkIntroBand(name, vw, vh, port){
   const s=Math.min(1.30, Math.max(0.66, Math.min(vw,vh)/(port?430:700)));
   const descendY=vh-(port?52:48)*s;
-  const descendTop=descendY-50*s/2;
-  const groupCeil=vh*(port?0.08:0.072);
+  const descendH=50*s;
+  const descendTop=descendY-descendH/2;
+  const groupCeil=vh*(port?0.048:0.038);
   const groupFloor=descendTop-16*s;
-  const plateH=160*s;
-  const y=centerCopyY(groupCeil, groupFloor, plateH);
-  const mid=y+plateH/2;
-  const bandMid=(groupCeil+groupFloor)/2;
-  assert(groupCeil>vh*0.04, name+': story plate starts below the top frame');
+  const titleSize=(port?24:34)*s;
+  const titleGap=36*s;
+  const flSize=(port?18:22)*s;
+  const labSize=(port?12:14)*s;
+  const blockH=labSize+10*s+titleSize*1.18+titleGap+flSize*1.36*3+14*s+9*s*1.35;
+  let t0=groupCeil;
+  if(t0+blockH>groupFloor) t0=Math.max(8*s, groupFloor-blockH);
+  const titleY=t0+labSize+10*s+titleSize;
+  const flavorY=titleY+titleSize*0.18+titleGap;
+  assert(groupCeil<vh*0.055, name+': title block starts near the top (ceil='+groupCeil.toFixed(1)+')');
+  assert(titleY<vh*0.22, name+': gold chapter title sits in the upper fifth (y='+titleY.toFixed(1)+')');
+  assert(flavorY-titleY>=26*s, name+': generous air between title and flavor ('+(flavorY-titleY).toFixed(1)+'px)');
   assert(groupFloor<descendTop, name+': story plate ends above Descend');
-  assert(Math.abs(mid-bandMid)<0.5, name+': story plate is centered in the title-card band');
-  assert(mid>vh*0.32 && mid<vh*0.68, name+': plate sits in the middle of the screen (mid='+mid.toFixed(1)+')');
-  assert(y+plateH<=groupFloor+0.01, name+': plate is not clipped by Descend');
+  assert(t0+blockH<=groupFloor+0.01 || t0<=groupCeil+0.01,
+    name+': titles stay high without running into Descend');
+  assert(flavorY<descendTop-8*s, name+': flavor does not crowd Descend');
 }
 checkIntroBand('desktop 1440x900', 1440, 900, false);
 checkIntroBand('phone 390x844', 390, 844, true);

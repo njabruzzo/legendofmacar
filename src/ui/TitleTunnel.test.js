@@ -25,7 +25,15 @@ assert(/FONT_QUOTE='"Cormorant Garamond"/.test(html), 'subtitle face is Cormoran
 assert(/family=Cinzel\+Decorative/.test(html) && /family=Cormorant\+Garamond/.test(html),
   'title fonts are loaded from Google Fonts');
 assert(/function displayTitle\(g,txt,y,size,col\)/.test(html), 'title uses a display-title helper');
-assert(/displayTitle\(g,'THE LEGEND OF MACAR'/.test(html), 'Book One splash draws the display title');
+assert(/displayTitle\(g,'THE LEGEND OF MACAR', VH\*\(PORT\?0\.112:0\.102\)/.test(html),
+  'Book One display title sits near the top');
+assert(/let qy=VH\*\(PORT\?0\.198:0\.188\)/.test(html),
+  'subtitle quote sits well below the display title');
+const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0];
+assert(/VH\*\(PORT\?0\.048:0\.040\)/.test(titleFn), 'BOOK ONE label is close to the top edge');
+assert(!/VH\*\(PORT\?0\.155:0\.162\)/.test(titleFn), 'old mid-high title Y is gone');
+assert(/titleGap=36\*s/.test(html), 'chapter intro keeps a wide title-to-flavor gap');
+assert(/midGap=16\*s/.test(html), 'chapter-select cards keep air between gold title and flavor');
 assert(/B O O K   O N E/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
   'Book One label stays on the splash');
 assert(/He went down a miner\. Something else came back up\./.test(html), 'subtitle quote remains');
