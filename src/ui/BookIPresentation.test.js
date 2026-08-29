@@ -38,6 +38,14 @@ assert(/Two went in\. One came back/.test(block), 'Chapter V flavor does not nam
 assert(!/bronze and a bell/.test(block) && !/goblins/.test(block) && !/webs/.test(block),
   'no chapter flavor lists what waits in a direction');
 assert(!/You are MACAR/.test(block), 'chapter plates do not name the player');
+assert(/say\(\(CH_INTRO\[n\]&&CH_INTRO\[n\]\.fl\)/.test(html),
+  'chapter start log uses the same mystery plate line, not a map legend');
+assert(!/The cage opens on a four-way cavern/.test(html) && !/Left, a gem-bronze door/.test(html),
+  'no leftover Chapter II compass say');
+assert(!/hint\('Four ways\. Left bronze/.test(html),
+  'Descend no longer lectures the Chapter II map');
+assert(!/Left, bronze and gems/.test(html) && !/Straight, goblin-talk/.test(html),
+  'Chapter II first-tick say is not a compass list');
 
 const meta=html.match(/const CH_META=\{[\s\S]*?\nconst CH_INTRO/);
 assert(!!meta, 'CH_META copy table exists');
