@@ -62,10 +62,11 @@ function keysFor(stem, gaits){
   return gaits.map(g=>ctx.walkCycleKey({gait:g}, stem));
 }
 
-const macar3=keysFor('macar', [0.05, 0.40, 0.80]);
-assert(macar3[0]==='macar_w1' && macar3[1]==='macar_w3' && macar3[2]==='macar_w2',
-  '3-beat Macar walk is w1 / w3 / w2');
-assert(new Set(macar3).size===3, 'Macar walk uses three distinct keys');
+assert(ctx.walkCycleKey({gait:0.12}, 'macar')==='macar_w1', 'first half gait is plant A (w1)');
+assert(ctx.walkCycleKey({gait:0.50}, 'macar')==='macar_w3', 'mid-gait optional pass is w3');
+assert(ctx.walkCycleKey({gait:0.82}, 'macar')==='macar_w2', 'second half gait is opposite plant (w2)');
+assert(ctx.walkCycleKey({gait:0.12}, 'macar')!==ctx.walkCycleKey({gait:0.82}, 'macar'),
+  'planted boot key swaps every half gait');
 
 const rat2=keysFor('rat', [0.1, 0.6]);
 assert(rat2[0]==='rat_w1' && rat2[1]==='rat_w2', '2-beat monster walk is w1 / w2');
@@ -73,7 +74,7 @@ assert(ctx.walkCycleKey({gait:0}, 'missing')==null, 'missing stem returns null')
 assert(ctx.walkCycleKey({gait:0.2}, 'warg')==='warg_w1'
   && ctx.walkCycleKey({gait:0.5}, 'warg')==='warg_w3'
   && ctx.walkCycleKey({gait:0.9}, 'warg')==='warg_w2',
-  'warg uses a 3-beat step');
+  'warg plants swap each half gait with a mid pass');
 
 const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
 party.forEach(stem=>{

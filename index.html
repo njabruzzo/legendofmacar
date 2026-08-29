@@ -238,17 +238,19 @@ function turnToward(e,dx,dy,dt,rate){
   return Math.abs(d)-max;
 }
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
-/* Walk beats from gait, never from QUALITY. Order is plant / pass / opposite
-   plant when a _w3 sheet exists; otherwise w1↔w2. Idle callers must not use this. */
+/* Limner walk: planted boot swaps every half gait. w1 = plant A, w2 = the
+   opposite plant. Optional w3 is a short passing beat at mid-stride only.
+   Never QUALITY-gated. Idle callers must not use this. */
 function walkCycleKey(e, stem){
   if(!stem) return null;
-  const frames=[];
-  if(sprReady(stem+'_w1')) frames.push(stem+'_w1');
-  if(sprReady(stem+'_w3')) frames.push(stem+'_w3');
-  if(sprReady(stem+'_w2')) frames.push(stem+'_w2');
-  if(!frames.length) return sprReady(stem)?stem:null;
+  const w1=sprReady(stem+'_w1')?stem+'_w1':null;
+  const w2=sprReady(stem+'_w2')?stem+'_w2':null;
+  const w3=sprReady(stem+'_w3')?stem+'_w3':null;
+  if(!w1 && !w2) return sprReady(stem)?stem:null;
   const phase=(((e&&e.gait)||0)%1+1)%1;
-  return frames[Math.min(frames.length-1, (phase*frames.length)|0)];
+  if(w3 && phase>=0.42 && phase<0.58) return w3;
+  if(phase<0.5) return w1||w2;
+  return w2||w1;
 }
 function partyForm(i,p){
   const slots=[[-1.15,0.95],[-1.15,-0.95],[-2.15,0.55],[-2.15,-0.55]];
