@@ -1221,7 +1221,10 @@ function timberOnDwarfMouthLane(p, face){
   const f=face||dwarfFaceProp()||{x:43.2,y:7.28};
   if(!p||p.gone) return false;
   if(!(p.k==='lantern'||p.k==='timber'||p.k==='pillar'||p.k==='chain')) return false;
-  return Math.abs(p.x-f.x)<2.2 && p.y>=7 && p.y<=16;
+  const dx=Math.abs(p.x-f.x);
+  // Dress scatter can plant a post on the wall-line just east of the carving.
+  if(p.y>=6.6 && p.y<=9.2 && dx<4.4) return true;
+  return dx<2.2 && p.y>=7 && p.y<=16;
 }
 function billboardCoversDwarfMouth(p){
   const mouth=dwarfMouthWorld();
@@ -3170,6 +3173,9 @@ function makeChapter(n){
   L.vis=newGrid(L.w,L.h,0);
   markSecretProps(L);
   dressDungeon(L);
+  if(L.n===1){
+    G.props=(G.props||[]).filter(p=>!timberOnDwarfMouthLane(p, {x:43.2,y:7.28}));
+  }
   return L;
 }
 
@@ -3199,6 +3205,11 @@ function dressDungeon(L){
   L.dressSeed=seed;
   const keep=[{x:L.spawn.x,y:L.spawn.y,r:2.4}];
   if(L.rubyDoor) keep.push({x:L.rubyDoor.x,y:L.rubyDoor.y,r:2.2});
+  const face=(G.props||[]).find(p=>p&&p.k==='dwarfface');
+  if(face){
+    keep.push({x:face.x,y:face.y,r:3.8});
+    keep.push({x:face.x,y:face.y+1.15,r:3.4});
+  }
   if(L.door) keep.push({x:L.door.x,y:L.door.y,r:2.0});
   if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:2.0});
   if(L.camp) keep.push({x:L.camp.x,y:L.camp.y,r:1.8});

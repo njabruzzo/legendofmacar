@@ -18,8 +18,10 @@ assert(/function timberOnDwarfMouthLane\(/.test(html), 'mouth-lane helper exists
 assert(/function billboardCoversDwarfMouth\(/.test(html), 'billboard AABB skips the mouth');
 assert(/function dwarfMouthWorld\(/.test(html) && /y:f\.y\+1\.15/.test(html),
   'mouth point is face.y+1.15');
-assert(/Math\.abs\(p\.x-f\.x\)<2\.2 && p\.y>=7 && p\.y<=16/.test(html),
-  'T-post lane is |x-face|<2.2 and y 7..16');
+assert(/p\.y>=6\.6 && p\.y<=9\.2 && dx<4\.4/.test(html),
+  'wall-line posts next to the carving are also cleared');
+assert(/keep\.push\(\{x:face\.x,y:face\.y,r:3\.8\}/.test(html),
+  'dressDungeon will not plant a T-post on the mouth');
 assert(/timberOnDwarfMouthLane\(p\) \|\| billboardCoversDwarfMouth\(p\)/.test(html),
   'drawProp skips timber that covers the mouth');
 assert(/timberOnDwarfMouthLane\(p, \{x:43\.2,y:7\.28\}\)/.test(html),
