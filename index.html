@@ -237,7 +237,19 @@ function turnToward(e,dx,dy,dt,rate){
   ca+=Math.sign(d)*max; e.fdx=Math.cos(ca); e.fdy=Math.sin(ca);
   return Math.abs(d)-max;
 }
-function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*2.55; }
+function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
+/* Walk beats from gait, never from QUALITY. Order is plant / pass / opposite
+   plant when a _w3 sheet exists; otherwise w1↔w2. Idle callers must not use this. */
+function walkCycleKey(e, stem){
+  if(!stem) return null;
+  const frames=[];
+  if(sprReady(stem+'_w1')) frames.push(stem+'_w1');
+  if(sprReady(stem+'_w3')) frames.push(stem+'_w3');
+  if(sprReady(stem+'_w2')) frames.push(stem+'_w2');
+  if(!frames.length) return sprReady(stem)?stem:null;
+  const phase=(((e&&e.gait)||0)%1+1)%1;
+  return frames[Math.min(frames.length-1, (phase*frames.length)|0)];
+}
 function partyForm(i,p){
   const slots=[[-1.15,0.95],[-1.15,-0.95],[-2.15,0.55],[-2.15,-0.55]];
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
@@ -612,6 +624,15 @@ SPRITE_FILES.macar_axe_e_atk='assets/creatures/dwarf_macar_axe_e_atk.png';
     SPRITE_FILES[k+'_ghost_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w2.png';
   });
 });
+/* Optional passing beat. After every _w1 registration so we never spawn
+   _w1_w3 or prop walks. Missing files simply never land in SPR. */
+Object.keys(SPRITE_FILES).forEach(k=>{
+  if(!/_w1$/.test(k)) return;
+  const src=SPRITE_FILES[k];
+  if(!src || /\/prop_/.test(src)) return;
+  const w3=k.replace(/_w1$/,'_w3');
+  if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -645,14 +666,14 @@ function loadSprites(done){
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
-    'skill_icons','macar_axe','pordoom','fendur','orbo','talpor',
+    'skill_icons','macar_axe','pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'pordoom_atk_recover','fendur_atk_recover','orbo_atk_recover','talpor_atk_recover',
-    'pordoom_ghost_w1','pordoom_ghost_w2','pordoom_ghost_atk','pordoom_ghost_atk_recover','pordoom_ghost_back_w1','pordoom_ghost_back_w2',
-    'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
-    'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
-    'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
+    'pordoom_ghost_w1','pordoom_ghost_w2','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover','pordoom_ghost_back_w1','pordoom_ghost_back_w2',
+    'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
+    'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
+    'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_w3','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
     'macar_e_w1','macar_e_w2','macar_s_w1','macar_s_w2','macar_e_atk',
     'macar_nw_w1','macar_nw_w2','macar_ne_w1','macar_ne_w2','macar_se_w1','macar_se_w2',
     'pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2',
@@ -663,7 +684,7 @@ function loadSprites(done){
     'fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
     'orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
     'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
-    'macar_w1','macar_w2','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
+    'macar_w1','macar_w2','macar_w3','macar_e_w3','macar_s_w3','macar_back_w3','macar_ne_w3','macar_se_w3','macar_nw_w3','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'cavein',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
@@ -707,12 +728,12 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_back','macar_back_w1','macar_back_w2','macar_atk','macar_atk_bow','macar_atk_recover',
+  ['macar','macar_w1','macar_w2','macar_w3','macar_back','macar_back_w1','macar_back_w2','macar_back_w3','macar_atk','macar_atk_bow','macar_atk_recover',
     'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2',
-    'pordoom','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_atk','pordoom_ghost_atk_recover',
-    'fendur','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_atk','fendur_ghost_atk_recover',
-    'orbo','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_atk','orbo_ghost_atk_recover',
-    'talpor','talpor_atk','talpor_atk_recover','talpor_ghost','talpor_ghost_atk','talpor_ghost_atk_recover']
+    'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
+    'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
+    'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
+    'talpor','talpor_w1','talpor_w2','talpor_w3','talpor_atk','talpor_atk_recover','talpor_ghost','talpor_ghost_w3','talpor_ghost_atk','talpor_ghost_atk_recover']
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 function ensureDeadSprites(){
@@ -854,7 +875,7 @@ function frameFit(e,img){
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
-  for(const suffix of ['_atk_recover','_atk_bow','_e_atk','_back_w1','_back_w2','_e_w1','_e_w2','_s_w1','_s_w2','_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2','_atk','_back','_w1','_w2','_sleep']){
+  for(const suffix of ['_atk_recover','_atk_bow','_e_atk','_back_w1','_back_w2','_back_w3','_e_w1','_e_w2','_e_w3','_s_w1','_s_w2','_s_w3','_nw_w1','_nw_w2','_nw_w3','_ne_w1','_ne_w2','_ne_w3','_se_w1','_se_w2','_se_w3','_atk','_back','_w1','_w2','_w3','_sleep']){
     if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
   }
   return 1;
@@ -939,20 +960,27 @@ function drawEntBillboard(g,e,img,z,flip){
   blitFacing(g,img,dx,dy,W,H,flip);
   return true;
 }
-/* Living Macar only. East/south/back/axe sheets still carry fringe; standing
-   still used to pick e_w1 (no macar_e idle). Bind the binary idle/walk/atk
-   set and flip for west until those other sheets match dwarf_macar.png. */
+/* Living Macar only. Idle is the binary front plant. Walk binds baked
+   directional sheets (e / s / back / iso) and flips west from east — never
+   axe, never QUALITY-gated, never an idle fallback onto e_w1. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
-  if(wantsMeleeRecover(e) && SPR.macar_atk_recover) return 'macar_atk_recover';
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR.macar_atk) return 'macar_atk';
-  if(QUALITY && e.moving){
-    const phase=((e.gait||0)%1)<0.5?'_w1':'_w2';
-    if(SPR['macar'+phase]) return 'macar'+phase;
-    if(SPR.macar_w1) return 'macar_w1';
-    if(SPR.macar_w2) return 'macar_w2';
+  if(wantsMeleeRecover(e) && sprReady('macar_atk_recover')) return 'macar_atk_recover';
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && sprReady('macar_atk')) return 'macar_atk';
+  if(e.moving && !e.defending){
+    const oct=screenOctant(e);
+    let stem='macar';
+    if(oct==='n' && sprReady('macar_back_w1')) stem='macar_back';
+    else if(oct==='s' && sprReady('macar_s_w1')) stem='macar_s';
+    else if(oct==='ne' && sprReady('macar_ne_w1')) stem='macar_ne';
+    else if(oct==='se' && sprReady('macar_se_w1')) stem='macar_se';
+    else if((oct==='e'||oct==='w'||oct==='sw'||oct==='nw') && sprReady('macar_e_w1')) stem='macar_e';
+    const hit=walkCycleKey(e, stem);
+    if(hit) return hit;
+    const front=walkCycleKey(e, 'macar');
+    if(front) return front;
   }
-  return SPR.macar?'macar':null;
+  return sprReady('macar')?'macar':null;
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1490,18 +1518,18 @@ function moveHeadingSX(e){
 }
 function dwarfAngleKey(e,k){
   const oct=screenOctant(e);
-  const moving=QUALITY && e.moving && !e.defending;
-  const phase=((e.gait||0)%1)<0.5?'w1':'w2';
+  const moving=e.moving && !e.defending;
   function gait(a,b,idle){
     if(moving){
-      if(phase==='w1' && a && SPR[a]) return a;
-      if(phase==='w2' && b && SPR[b]) return b;
-      if(a && SPR[a]) return a;
-      if(b && SPR[b]) return b;
+      const stem=(a&&a.replace(/_w1$/,''))||(b&&b.replace(/_w2$/,''));
+      const hit=walkCycleKey(e, stem);
+      if(hit) return hit;
+      if(sprReady(a)) return a;
+      if(sprReady(b)) return b;
     }
-    if(idle && SPR[idle]) return idle;
-    if(a && SPR[a]) return a;
-    if(b && SPR[b]) return b;
+    if(idle && sprReady(idle)) return idle;
+    if(sprReady(a)) return a;
+    if(sprReady(b)) return b;
     return null;
   }
   if(oct==='n'){
@@ -1582,25 +1610,17 @@ function entAnimKey(e){
     if(angled) return angled;
   }
   if(wantsBackView(e)){
-    if(QUALITY && e.moving && !e.defending){
+    if(e.moving && !e.defending){
       const macarKey=(k==='macar'||k==='macar_axe');
-      const a=k+'_back_w1', b=k+'_back_w2';
-      const aOk=!!(SPR[k+'_back_w1']||(macarKey&&SPR.macar_back_w1));
-      const bOk=!!(SPR[k+'_back_w2']||(macarKey&&SPR.macar_back_w2));
-      if(aOk||bOk){
-        const phase=((e.gait||0)%1)<0.5?0:1;
-        if(phase===0 && aOk) return SPR[a]?a:'macar_back_w1';
-        if(phase===1 && bOk) return SPR[b]?b:'macar_back_w2';
-        return SPR[a]?a:(SPR[b]?b:k);
-      }
+      const backStem=sprReady(k+'_back_w1')?k+'_back':(macarKey&&sprReady('macar_back_w1')?'macar_back':null);
+      const stepped=walkCycleKey(e, backStem);
+      if(stepped) return stepped;
     }
     if(SPR[k+'_back']) return k+'_back';
   }
-  if(QUALITY && e.moving){
-    const phase=((e.gait||0)%1)<0.5?'_w1':'_w2';
-    if(SPR[k+phase]) return k+phase;
-    if(SPR[k+'_w1']) return k+'_w1';
-    if(SPR[k+'_w2']) return k+'_w2';
+  if(e.moving){
+    const stepped=walkCycleKey(e, k);
+    if(stepped) return stepped;
   }
   return k;
 }

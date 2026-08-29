@@ -39,12 +39,16 @@ assert(/d\[i\+3\]=0/.test(bake), 'bake: outside the silhouette is a=0');
 assert(!/255\/a/.test(bake), 'bake does not un-premultiply fringe RGB');
 
 const liveKey=extractFn('livingMacarAnimKey');
-assert(/SPR\.macar/.test(liveKey) && /macar_w1/.test(liveKey) && /macar_atk/.test(liveKey)
+assert(/walkCycleKey\(e,/.test(liveKey) && /macar_atk/.test(liveKey)
   && /macar_atk_recover/.test(liveKey),
-  'living Macar uses only idle / walk / atk / recover');
-assert(!/_e_w1/.test(liveKey) && !/macar_back/.test(liveKey) && !/macar_axe/.test(liveKey)
-  && !/_s_w1/.test(liveKey),
-  'living Macar does not bind fringe e / s / back / axe sheets');
+  'living Macar uses walkCycleKey plus atk / recover');
+assert(!/QUALITY/.test(liveKey), 'living Macar walk is not QUALITY-gated');
+assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while moving');
+assert(/macar_e/.test(liveKey) && /macar_s/.test(liveKey) && /macar_back/.test(liveKey),
+  'living Macar walk binds baked e / s / back stems');
+assert(!/macar_axe/.test(liveKey), 'living Macar still does not bind axe sheets');
+assert(/function livingMacarAnimKey[\s\S]*return sprReady\('macar'\)\?'macar':null;/.test(html),
+  'idle living Macar is the front plant, never e_w1');
 
 const liveBlit=extractFn('drawLivingMacar');
 assert(/globalCompositeOperation='source-over'/.test(liveBlit)
