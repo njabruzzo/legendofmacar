@@ -38,6 +38,10 @@ const no={n:'Ruby', d:'A pretty stone.'};
 const first=M.resolveMouthDrop(ruby, false);
 assert(first.ok && first.yum && first.spit.length===2, 'first guardian ruby pays key and axe');
 assert(first.spit[0].k==='key' && first.spit[1].n==='Shadow Cleaver', 'spit order key then cleaver');
+assert(M.shouldWieldMouthAxe(first.spit[1], {weapon:ham, primary:ham}), 'cleaver is better than the hammer — wield it');
+assert(M.shouldWieldMouthAxe(first.spit[1], {weapon:null}), 'wield the cleaver when the hand is empty');
+assert(!M.shouldWieldMouthAxe(first.spit[1], {weapon:axe, primary:axe}), 'already-wielded cleaver stays');
+assert(!M.shouldWieldMouthAxe(ham, {weapon:null}), 'hammer is not the mouth axe');
 const again=M.resolveMouthDrop(ruby, true);
 assert(again.ok && again.yum && again.spit.length===0, 'later rubies yum but do not pay again');
 assert(!M.resolveMouthDrop(no, false).ok, 'plain ruby rejected');
@@ -66,6 +70,10 @@ assert(/This dwarf face is huge and carved of stone/.test(html), 'touch dialogue
 assert(/Put something in its mouth\?/.test(html), 'offer question');
 assert(/Drop this in the Dwarf\\?'s mouth\?/.test(html), 'drop confirm');
 assert(/YUM!/.test(html), 'yum line');
+assert(/takeLoot\(pile, true\)/.test(html), 'mouth spit is claimed into the pack, not left as a dead floor prop');
+assert(/into MACAR\\?'s pack/.test(html), 'hint says the axe went into the pack');
+assert(/if\(p\)\{ x=p\.x\+dx\*0\.4; y=p\.y\+0\.2; \}/.test(html),
+  'if a pile remains it lands at Macar\'s feet for walk-over');
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('DwarfMouth tests passed');

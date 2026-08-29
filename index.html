@@ -771,21 +771,15 @@ function drawStairWell(g,z,p){
   g.restore();
 }
 /* ---------------------------- sprite fitting ----------------------------
-   The painted frames are all 512 tall, but the figure is not drawn at the same
-   size in each. To make room for the raised hammer, Macar is rendered about a
-   quarter smaller inside dwarf_macar_atk.png than in dwarf_macar.png, so
-   scaling every canvas to one fixed height shrank him the moment he swung.
-   Measuring the body automatically is not reliable here — the weapon is held
-   directly above the torso — so the correction is a calibration table read off
-   the art. FIT multiplies the frame's drawn height; 1.29 came from the helmet
-   crown, 54px tall in the idle frame against 42px in the attack frame. */
+   Living Macar keeps one world height across idle, walk, swing, recover, and
+   east/west/back. Do not scale attack sheets differently — a 1.29 FIT on the
+   swing was the pop. Inset recover/back canvases use heroFigureFit so the
+   painted figure matches the idle footprint. Kin/foes may still use FRAME_FIT. */
 const FRAME_FIT={
-  macar_atk:1.29,
-  macar_axe_atk:1.18
-  // If a new frame is drawn with the figure at a different size inside the
-  // canvas, add it here. Measure the helmet crown against the idle frame and
-  // divide: idle_crown / new_crown.
+  // Living Macar is not listed here. Attack / recover / profile sheets draw
+  // at the same world size as idle.
 };
+const MACAR_IDLE_FRAC=0.986;
 const SPRMETA=(typeof WeakMap==='function')?new WeakMap():null;
 function stampMetrics(img,v){ if(SPRMETA) SPRMETA.set(img,v); else img.__spm=v; return v; }
 /* Opaque bounds as fractions of the frame, so the feet land on the floor and
@@ -823,7 +817,15 @@ function spriteBounds(img){
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h
   });
 }
+function heroFigureFit(e,img){
+  if(!e||!e.hero||e.dead||e.ghost) return 1;
+  const b=spriteBounds(img);
+  if(!b||!b.ok||b.y0==null||b.y1==null) return 1;
+  const frac=clamp(b.y1-b.y0, 0.55, 1);
+  return MACAR_IDLE_FRAC/frac;
+}
 function frameFit(e,img){
+  if(e&&e.hero&&!e.dead&&!e.ghost) return heroFigureFit(e,img);
   const k=entSpriteKey(e);
   if(!k) return 1;
   if(SPR[k]===img) return FRAME_FIT[k]||1;
@@ -831,6 +833,27 @@ function frameFit(e,img){
     if(SPR[k+suffix]===img) return FRAME_FIT[k+suffix]||1;
   }
   return 1;
+}
+const SOLID_MACAR=(typeof WeakMap==='function')?new WeakMap():null;
+function solidMacarSprite(img){
+  if(!img||!img.width) return img;
+  if(SOLID_MACAR&&SOLID_MACAR.has(img)) return SOLID_MACAR.get(img);
+  if(img.__solidMacar) return img.__solidMacar;
+  let out=img;
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    const data=x.getImageData(0,0,c.width,c.height);
+    const d=data.data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]>=20) d[i]=255; }
+    x.putImageData(data,0,0);
+    out=c;
+  }catch(_){ out=img; }
+  if(SOLID_MACAR) SOLID_MACAR.set(img,out);
+  else img.__solidMacar=out;
+  return out;
 }
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
 function flippedSprite(img){
@@ -866,9 +889,9 @@ function drawEntBillboard(g,e,img,z,flip){
     g.drawImage(img, sx, sy, sw, sh, -pw/2, -ph*0.82, pw, ph);
     return true;
   }
-  // Frames differ in how large the figure is drawn inside the canvas, so apply
-  // the per-frame calibration and stand him on his own feet rather than on the
-  // bottom edge of the image.
+  // Living Macar: flatten ghost alpha, then size from the painted figure so
+  // idle / walk / swing / recover / east-west-back share one world footprint.
+  if(e.hero && !e.dead && !e.ghost) img=solidMacarSprite(img);
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
   const b=spriteBounds(img);
@@ -3961,8 +3984,11 @@ function removePackRow(r){
   return null;
 }
 function spitNearFace(face, dx, pile){
-  let x=face.x+dx, y=face.y+1.35;
-  const w=nearestWalk(x,y,player()||face);
+  const p=player();
+  let x, y;
+  if(p){ x=p.x+dx*0.4; y=p.y+0.2; }
+  else { x=face.x+dx; y=face.y+1.35; }
+  const w=nearestWalk(x,y,p||face);
   if(w){ x=w.x; y=w.y; }
   return spawnLoot(x,y,pile);
 }
@@ -3989,9 +4015,15 @@ function dropInDwarfMouth(r){
     if(verdict.spit&&verdict.spit.length){
       L.flags.faceFed=1;
       const key=verdict.spit[0], axe=verdict.spit[1];
-      if(key) spitNearFace(face,-0.55,{kind:'key', glow:'#c8ccd0', items:[key]});
-      if(axe) spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
-      hint('The mouth spat a key and a silver axe. Pick them up.',6);
+      if(key){
+        const pile=spitNearFace(face,-0.55,{kind:'key', glow:'#c8ccd0', items:[key]});
+        takeLoot(pile, true);
+      }
+      if(axe){
+        const pile=spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
+        takeLoot(pile, true);
+      }
+      hint('The mouth spat a key and a silver axe into MACAR\'s pack.',6);
     } else {
       say('The stone mouth smacks and goes still.','#c9b895');
     }
@@ -7288,6 +7320,13 @@ function render(){
   if(inWorld){
     if(DIAG.world) drawWorld(g,L);
     if(DIAG.lighting) applyLighting(g,L);
+    if(DIAG.world){
+      const mac=player();
+      if(mac && !mac.dead && !mac.ghost){
+        g.globalAlpha=1; g.globalCompositeOperation='source-over';
+        drawEnt(g,mac);
+      }
+    }
     if(QUALITY && !PHONE_GFX){ if(DIAG.godrays) drawGodRays(g); if(DIAG.bloom) drawBloom(g); }
     if(DIAG.memshade) drawMemoryShade(g,L);
     if(DIAG.beyond) drawBeyondMask(g,L);
@@ -7372,7 +7411,12 @@ function drawWorld(g,L){
   for(const d of G.decals) if(near(d)&&seenAt(d)) push(actorDrawDepth(d),()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push(actorDrawDepth(p),()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push(actorDrawDepth(q),()=>drawLoot(g,q));
-  for(const e of G.ents) if(!e.crushed&&showEnt(e)) push(actorDrawDepth(e),()=>drawEnt(g,e));
+  for(const e of G.ents){
+    if(e.crushed||!showEnt(e)) continue;
+    // Living Macar is drawn solid after the light multiply — skip the washed pass.
+    if(e.hero && !e.dead && !e.ghost) continue;
+    push(actorDrawDepth(e),()=>drawEnt(g,e));
+  }
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
@@ -10579,7 +10623,8 @@ function drawTitleCavern(g){
     g.fillStyle='rgba(8,6,5,0.55)';
     g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
     const spr=(keys[i]==='macar'&&(SPR.macar_title||SPR.macar_back))?(SPR.macar_title||SPR.macar_back):SPR[keys[i]];
-    if(spr) drawBillboard(g, spr, (keys[i]==='macar'?74:64)*z);
+    const sheet=(keys[i]==='macar'&&spr)?solidMacarSprite(spr):spr;
+    if(sheet) drawBillboard(g, sheet, (keys[i]==='macar'?74:64)*z);
     g.restore();
   }
 }

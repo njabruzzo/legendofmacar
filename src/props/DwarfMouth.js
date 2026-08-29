@@ -61,6 +61,13 @@
     if(!isGuardianRuby(item)) return {ok:false, yum:false, spit:[]};
     return {ok:true, yum:true, spit: alreadyFed ? [] : [dwarfMouthKey(), shadowCleaverItem()]};
   }
+  function shouldWieldMouthAxe(axe, equipped){
+    if(!isShadowCleaver(axe)) return false;
+    const wep=equipped&&(equipped.primary||equipped.weapon);
+    if(!wep) return true;
+    if(isShadowCleaver(wep)) return false;
+    return (axe.plus||0) >= (wep.plus||0);
+  }
   function takeGemByRef(gems, gem){
     if(!gems||!gem) return null;
     const i=gems.indexOf(gem);
@@ -71,6 +78,6 @@
   global.DwarfMouth={
     macarHammerItem, shadowCleaverItem, dwarfMouthKey, isShadowCleaver, findShadowCleaver,
     isGuardianRuby, isSpiderFoe, isUndeadFoe, weaponVsDouble,
-    resolveMouthDrop, takeGemByRef
+    resolveMouthDrop, takeGemByRef, shouldWieldMouthAxe
   };
 })(typeof globalThis!=='undefined'?globalThis:this);
