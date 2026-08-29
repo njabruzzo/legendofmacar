@@ -26,12 +26,13 @@ assert(!/k==='stairs'/.test(metric), 'stairs are not squashed to the short arch 
 assert(/if\(k==='stairs'\) return 124\*z\*\(p\.s\|\|1\)/.test(html),
   'stair billboard is taller than the old 96*z arch-height');
 
-const well=html.match(/function drawStairWell\(g,z,p\)\{[\s\S]*?\n\}/)[0];
-assert(/ellipse\(0, 4\*s, 36\*s, 18\*s/.test(well), 'bronze lip rings the well');
-assert(/rgba\(0,0,0,0\.88\)/.test(well), 'the hole is a dark well, not floor-gray');
-assert(/fillRect\(-27\.4\*s, -26\*s/.test(well) && /fillRect\(28\.4\*s, -22\*s/.test(well),
+assert(/function drawStairWell\(g,z,p\)\{/.test(html) && /const H=propSpriteH\(p,z\)/.test(html) && /rw=H\*0\.50/.test(html),
+  'well lip is sized to the stair billboard, not a tiny arch');
+assert(/rgba\(0,0,0,0\.92\)/.test(html), 'the hole is a dark well, not floor-gray');
+assert(/fillRect\(-rw\*0\.72-post/.test(html) && /fillRect\(rw\*0\.82-post/.test(html),
   'short rails stand on the lip');
-assert(/#ff9a44/.test(well), 'a torch burns in the well');
+assert(/g\.fillStyle='#ff9a44'/.test(html.match(/function drawStairWell[\s\S]*?g\.restore\(\);\n\}/)[0]),
+  'a torch burns in the well');
 
 assert(/emit\(s\.x,s\.y-8\*z,52\*z,'#1a0c08'/.test(html), 'well mouth emits a dark core');
 assert(/emit\(s\.x\+8\*z,s\.y\+6\*z,18\*z,'#ff9a44'/.test(html), 'well torch glow is on the floor opening');

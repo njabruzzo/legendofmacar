@@ -676,37 +676,40 @@ function drawBillboard(g,img,h){
 }
 function drawStairWell(g,z,p){
   const pulse=.55+Math.sin((G.elapsed||0)*3.6+(p&&p.x||0))*.22;
-  const s=z*(p&&p.s||1);
+  const H=propSpriteH(p,z);
+  const rw=H*0.50, rh=H*0.25;
   g.save();
-  g.fillStyle='rgba(6,3,2,0.94)';
-  g.beginPath(); g.ellipse(0, 4*s, 34*s, 17*s, 0, 0, TAU); g.fill();
-  g.fillStyle='rgba(0,0,0,0.88)';
-  g.beginPath(); g.ellipse(3*s, 9*s, 22*s, 11*s, 0, 0, TAU); g.fill();
-  g.strokeStyle='rgba(196,148,64,'+(0.82+pulse*0.18)+')';
-  g.lineWidth=3.6*s;
-  g.beginPath(); g.ellipse(0, 4*s, 36*s, 18*s, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(255,220,150,0.55)';
-  g.lineWidth=1.5*s;
-  g.beginPath(); g.ellipse(0, 4*s, 31*s, 15.5*s, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(92,78,58,0.9)';
-  g.lineWidth=1.7*s;
+  g.fillStyle='rgba(4,2,1,0.96)';
+  g.beginPath(); g.ellipse(0, H*0.06, rw, rh, 0, 0, TAU); g.fill();
+  g.fillStyle='rgba(0,0,0,0.92)';
+  g.beginPath(); g.ellipse(H*0.04, H*0.12, rw*0.62, rh*0.62, 0, 0, TAU); g.fill();
+  g.strokeStyle='rgba(210,158,62,'+(0.88+pulse*0.12)+')';
+  g.lineWidth=Math.max(3, H*0.045);
+  g.beginPath(); g.ellipse(0, H*0.06, rw+H*0.02, rh+H*0.012, 0, 0, TAU); g.stroke();
+  g.strokeStyle='rgba(255,226,160,0.62)';
+  g.lineWidth=Math.max(1.4, H*0.018);
+  g.beginPath(); g.ellipse(0, H*0.06, rw-H*0.03, rh-H*0.02, 0, 0, TAU); g.stroke();
+  g.strokeStyle='rgba(70,58,42,0.92)';
+  g.lineWidth=Math.max(1.4, H*0.016);
   for(let i=0;i<5;i++){
+    const t=(i+1)/6;
     g.beginPath();
-    g.ellipse(3*s+i*1.8*s, 6*s+i*3.1*s, 26*s-i*3.4*s, 13*s-i*1.7*s, 0, 0, TAU);
+    g.ellipse(H*0.03*t, H*0.06+H*0.05*t, rw*(1-t*0.45), rh*(1-t*0.45), 0, 0, TAU);
     g.stroke();
   }
-  g.strokeStyle='#8a7040';
-  g.lineWidth=2.6*s; g.lineCap='round';
-  g.beginPath(); g.moveTo(-26*s, 0); g.lineTo(-22*s, -26*s); g.lineTo(8*s, -32*s); g.stroke();
-  g.beginPath(); g.moveTo(26*s, 2*s); g.lineTo(30*s, -22*s); g.lineTo(48*s, -26*s); g.stroke();
-  g.fillStyle='#c4a05a';
-  g.fillRect(-27.4*s, -26*s, 3.4*s, 24*s);
-  g.fillRect(28.4*s, -22*s, 3.4*s, 22*s);
+  const post=Math.max(3, H*0.028);
+  g.strokeStyle='#9a7a42';
+  g.lineWidth=Math.max(2.2, H*0.022); g.lineCap='round';
+  g.beginPath(); g.moveTo(-rw*0.72, H*0.02); g.lineTo(-rw*0.62, -H*0.22); g.lineTo(rw*0.08, -H*0.28); g.stroke();
+  g.beginPath(); g.moveTo(rw*0.72, H*0.04); g.lineTo(rw*0.82, -H*0.18); g.lineTo(rw*1.12, -H*0.22); g.stroke();
+  g.fillStyle='#d4b056';
+  g.fillRect(-rw*0.72-post*0.4, -H*0.22, post, H*0.22);
+  g.fillRect(rw*0.82-post*0.4, -H*0.18, post, H*0.20);
   const fl=1+Math.sin((G.elapsed||0)*8)*0.16;
   g.fillStyle='#ff9a44';
-  g.beginPath(); g.arc(10*s, 10*s, 3.6*s*fl, 0, TAU); g.fill();
-  g.fillStyle='rgba(255,200,90,0.55)';
-  g.beginPath(); g.arc(10*s, 8*s, 2.1*s*fl, 0, TAU); g.fill();
+  g.beginPath(); g.arc(H*0.08, H*0.10, H*0.032*fl, 0, TAU); g.fill();
+  g.fillStyle='rgba(255,210,100,0.6)';
+  g.beginPath(); g.arc(H*0.08, H*0.08, H*0.018*fl, 0, TAU); g.fill();
   g.restore();
 }
 /* ---------------------------- sprite fitting ----------------------------
