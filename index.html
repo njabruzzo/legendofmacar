@@ -1210,6 +1210,29 @@ function nearDwarfFace(e, r){
   const mouth={x:face.x, y:face.y+1.15};
   return dist(e, mouth)<(r||2.3) ? face : null;
 }
+function dwarfMouthWorld(face){
+  const f=face||dwarfFaceProp()||{x:43.2,y:7.28};
+  return {x:f.x, y:f.y+1.15};
+}
+/* T-post / timber / pillar on the same X as the north-wall face draw in
+   front (depth is x+y) and cover the open mouth. Keep them in the hall,
+   just not on this lane. */
+function timberOnDwarfMouthLane(p, face){
+  const f=face||dwarfFaceProp()||{x:43.2,y:7.28};
+  if(!p||p.gone) return false;
+  if(!(p.k==='lantern'||p.k==='timber'||p.k==='pillar'||p.k==='chain')) return false;
+  return Math.abs(p.x-f.x)<2.2 && p.y>=7 && p.y<=16;
+}
+function billboardCoversDwarfMouth(p){
+  const mouth=dwarfMouthWorld();
+  if(!p||!mouth||typeof w2s!=='function') return false;
+  const ms=w2s(mouth.x, mouth.y), s=w2s(p.x,p.y);
+  const z=typeof ZOOM==='number'?ZOOM:1;
+  const img=typeof propAnimImg==='function'?propAnimImg(p):null;
+  const H=typeof propSpriteH==='function'?propSpriteH(p,z):102*z;
+  const W=(img&&img.width)?H*(img.width/Math.max(1,img.height)):H*0.62;
+  return ms.x>=s.x-W*0.52 && ms.x<=s.x+W*0.52 && ms.y>=s.y-H && ms.y<=s.y+10*z;
+}
 function flattenIsoQuad(img, p0, p1, p3, dw, dh){
   if(!img||!img.width) return null;
   dw=Math.max(8,dw|0); dh=Math.max(8,dh|0);
@@ -2609,21 +2632,16 @@ function makeChapter(n){
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
     L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
-              {x:19.0,y:21.5,c:'#c9a070',r:5.4,f:0.95},
-              {x:17.05,y:21.55,c:'#ffc07a',r:5.6,f:1.12},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
-              {x:43.2,y:7.6,c:'#c9b895',r:4.4,f:0.7},
               {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
-              {x:43,y:14,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
-              {x:27,y:12,c:'#ffb45c',r:4.2,f:0.9},{x:42,y:13,c:'#ffb45c',r:4.4,f:0.9},
-              {x:26,y:30,c:'#ffb45c',r:4.0,f:0.85},{x:45,y:29,c:'#ffb45c',r:4.6,f:0.95},
-              {x:30,y:54,c:'#c9a070',r:5.0,f:0.75},{x:80,y:21,c:'#ffb45c',r:5.2,f:0.8},
-              {x:62,y:50,c:'#9a8163',r:4.6,f:0.65},{x:82,y:38,c:'#c9a070',r:4.4,f:0.6}];
+              {x:39.6,y:17.2,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
+              {x:30,y:54,c:'#ffb45c',r:5.0,f:0.75},{x:80,y:21,c:'#ffb45c',r:5.2,f:0.8},
+              {x:62,y:50,c:'#ffb45c',r:4.6,f:0.65}];
     G.props=[{x:15.4,y:16.35,k:'lantern'},{x:18.2,y:27.15,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
-      {x:43,y:14,k:'lantern'},{x:43,y:28,k:'lantern'},
+      {x:39.6,y:17.2,k:'lantern'},{x:43,y:28,k:'lantern'},
       {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
-      {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:44.5,y:12.5,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
+      {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:47.2,y:17.4,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
       {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},{x:36.5,y:21.5,k:'lift'},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
@@ -2643,6 +2661,7 @@ function makeChapter(n){
     });
     G.props=G.props.filter(p=>{
       if(p.pin||p.cover||p.fallen||p.k==='dust') return true;
+      if(timberOnDwarfMouthLane(p, {x:43.2,y:7.28})) return false;
       if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,1.35)) return false;
       return true;
     });
@@ -7561,7 +7580,7 @@ function drawWorld(g,L){
       if(wallImg===wallBlit) drawTilesetSprite(g, wallImg, s, m);
       else g.drawImage(wallImg, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
     }
-    if(QUALITY && h2(x*3,y*7)>0.86) emit(s.x, s.y-faceH*0.35, TW*0.30, pal.key, 0.5);
+    /* No QUALITY discs on bare masonry — those were the leftover wall globes. */
     if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,faceH,1-rk.hp/rk.max);
     if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,faceH);
     if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,faceH,G.dig.min/digNeedMinutes());
@@ -8136,11 +8155,10 @@ function drawProp(g,p,pal){
     const H=dwarfFaceH();
     const half=dwarfFaceHalf();
     const yPlane=rubyDoorPlaneY(p);
-    const sx=w2s(p.x, yPlane);
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
-    emit(sx.x,sx.y-H*0.38,16*z,'#c9b895',0.35);
     return;
   }
+  if(timberOnDwarfMouthLane(p) || billboardCoversDwarfMouth(p)) return;
   g.save(); g.translate(s.x,s.y);
   if(p.k==='dust'){
     drawFloorDust(g,p,z);
@@ -8220,10 +8238,6 @@ function drawProp(g,p,pal){
       emit(s.x,s.y-14*z,46*z,'#c81824',0.5*b+0.3);
     }else if(k==='throne'){
       emit(s.x,s.y-136*z,40*z,'#ffd24a',0.4);
-    }else if(k==='secret_door'){
-      emit(s.x,s.y-36*z,22*z,'#c9a070',0.28);
-    }else if(k==='ruin_house'){
-      emit(s.x,s.y-40*z,18*z,'#c9a070',0.22);
     }else if(k==='trap'&&p.trap==='trap_runes'){
       emit(s.x,s.y-8*z,28*z,'#c07bff',0.55);
     }
