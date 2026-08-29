@@ -1940,7 +1940,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   cam:{x:0,y:0}, log:[], shake:0, flash:null, hitstop:0, hurt:0,
   cleared:{}, unlocked:1, elapsed:0, kills:0, hint:null, introT:0, taught:{},
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
-  thrown:[], aim:null, campScroll:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
+  thrown:[], aim:null, campScroll:0, campTab:'repair', campSel:null, campSkills:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:null, macarGearReady:0,
   fightOn:0, fightWasBoss:0, fightGotKill:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
@@ -3770,7 +3770,7 @@ function loadSavedGame(){
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
-  G.sang=false; G.campScroll=0; G.songBuff=0;
+  G.sang=false; G.campScroll=0; G.campTab='repair'; G.campSel=null; G.campSkills=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
   G.scene='camp';
@@ -9529,6 +9529,9 @@ function modularCraftCampActions(){
   if(!window.CraftingEngine) return [];
   return CraftingEngine.list('camp').map(recipe=>({
     grp: recipe.group||'CRAFT',
+    tab: recipe.group==='FORGE'?'improve':'craft',
+    name: recipe.name,
+    skill: recipe.skill,
     t: recipe.name,
     cost: recipe.ingredients,
     info: recipe.info||'',
@@ -9588,74 +9591,88 @@ function openCraftBench(station){
 /* ==========================================================================
    CAMP  -  the "night". Forge, bench, brewery, tailor, fire.
    ========================================================================== */
+function campActionTab(a){
+  if(a.tab) return a.tab;
+  if(a.grp==='FORGE' && /Repair/i.test(a.t||'')) return 'repair';
+  if(a.grp==='FORGE') return 'improve';
+  if(a.grp==='FIRE'||a.grp==='VERGE'||a.grp==='PACK') return 'other';
+  return 'craft';
+}
+function campActionName(a){
+  if(a.name) return a.name;
+  return String(a.t||'').replace(/\s*[\u2192].*$/,'').replace(/\s*\(.*\)$/,'');
+}
+function campActionId(a){
+  return a.craftRecipeId || (campActionTab(a)+':'+(a.name||a.t));
+}
 function campActions(){
   const g=G.gear.macar, kin=ROSTER.slice(1).map(r=>G.gear[r.key]);
   const a=[];
-  a.push({grp:'FORGE',t:'Repair every weapon and hauberk',cost:{ironstone:2},
+  a.push({grp:'FORGE',tab:'repair',name:'Repair kit',skill:'weapon',t:'Repair every weapon and hauberk',cost:{ironstone:2},
     info:'Durability back to full',
     fn:()=>{ Object.values(G.gear).forEach(x=>{x.wd=x.wmax;x.ad=x.amax;});
       learn('weapon',4); learn('armour',4); say('Everything sings on the anvil again.','#ffd27a'); }});
-  a.push({grp:'FORGE',t:"Improve Macar's hammer \u2192 Tier "+(g.wt+1),cost:{ironstone:3,deepsilver:1},
+  a.push({grp:'FORGE',tab:'improve',name:"Macar's hammer",skill:'weapon',t:"Improve Macar's hammer \u2192 Tier "+(g.wt+1),cost:{ironstone:3,deepsilver:1},
     info:'+18% damage · Weapon Smithing',
     fn:()=>{ g.wt++; g.wd=g.wmax; learn('weapon',12); say('The hammer is heavier and meaner.','#ffd27a'); }});
-  if(skillLvl('weapon')>=2) a.push({grp:'FORGE',t:'Bone-wrap the hammer haft',cost:{bone:2,timber:1},
+  if(skillLvl('weapon')>=2) a.push({grp:'FORGE',tab:'improve',name:'Bone haft',skill:'weapon',t:'Bone-wrap the hammer haft',cost:{bone:2,timber:1},
     info:'+1 weapon tier from bone and timber',
     fn:()=>{ g.wt++; g.wd=g.wmax; learn('weapon',8); say('Bone and ashwood bite the grip.','#e8dfc8'); }});
-  a.push({grp:'FORGE',t:'Improve the kin\u2019s armour \u2192 Tier '+(kin[0].at+1),cost:{ironstone:4},
+  a.push({grp:'FORGE',tab:'improve',name:'Kin armour',skill:'armour',t:'Improve the kin\u2019s armour \u2192 Tier '+(kin[0].at+1),cost:{ironstone:4},
     info:'Cuts incoming damage · Armour Smithing',
     fn:()=>{ kin.forEach(x=>{x.at++;x.ad=x.amax;}); learn('armour',12);
       say('Four hauberks, four tiers better.','#cfe0ea'); }});
-  if(skillLvl('armour')>=2) a.push({grp:'FORGE',t:'Hide-line the mail',cost:{hide:2,ironstone:1},
+  if(skillLvl('armour')>=2) a.push({grp:'FORGE',tab:'improve',name:'Hide lining',skill:'armour',t:'Hide-line the mail',cost:{hide:2,ironstone:1},
     info:'+1 armour tier for every dwarf',
     fn:()=>{ Object.values(G.gear).forEach(x=>{x.at++;x.ad=x.amax;}); learn('armour',8);
       say('Hide under the rings. Quieter, tougher.','#a67a52'); }});
-  if(!g.rune) a.push({grp:'FORGE',t:'Set a rune in the hammer',cost:{starmetal:1},
+  if(!g.rune) a.push({grp:'FORGE',tab:'improve',name:'Hammer rune',skill:'weapon',t:'Set a rune in the hammer',cost:{starmetal:1},
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
-  if(partyCount('bombKit')>0) a.push({grp:'BENCH',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
+  if(partyCount('bombKit')>0) a.push({grp:'BENCH',tab:'craft',name:'Pack bombs',skill:'bomb',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
     info:'Pordum\'s kit. 10d10 throwables into Macar\'s pack',
     fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
       say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
-  if(skillLvl('bomb')>=2) a.push({grp:'BENCH',t:'Resin-fuse bombs (+2)',cost:{powder:1,resin:2},
+  if(skillLvl('bomb')>=2) a.push({grp:'BENCH',tab:'craft',name:'Resin fuses',skill:'bomb',t:'Resin-fuse bombs (+2)',cost:{powder:1,resin:2},
     info:'Tackier fuse, two more bombs',
     fn:()=>{ addToPack('macar','bombs',2); learn('bomb',8);
       say('Resin keeps the spark honest.','#c9783a'); }});
-  a.push({grp:'BUILD',t:'Brace a timber shield wall',cost:{timber:3,hide:1},
+  a.push({grp:'BUILD',tab:'craft',name:'Shield wall',skill:'armour',t:'Brace a timber shield wall',cost:{timber:3,hide:1},
     info:'Party guard for a long stretch · build',
     fn:()=>{ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.guardT=Math.max(e.guardT||0, 45); }});
       learn('armour',6); learn('weapon',4);
       say('Timber and hide — a walking wall.','#b8895a'); }});
-  a.push({grp:'BUILD',t:'Craft a mining spar',cost:{timber:2,ironstone:2,bone:1},
+  a.push({grp:'BUILD',tab:'craft',name:'Mining spar',skill:'mining',t:'Craft a mining spar',cost:{timber:2,ironstone:2,bone:1},
     info:'Next digs run faster · Mining',
     fn:()=>{ G.digBoost=(G.digBoost||0)+3; learn('mining',10);
       say('A spar for the next vein. Digging feels lighter.','#c2ad91'); }});
-  a.push({grp:'BREWERY',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
+  a.push({grp:'BREWERY',tab:'craft',name:'Brew ale',skill:'ale',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
     info:'Flasks split among the kin',
     fn:()=>{ const n=2+Math.floor(skillLvl('ale')/3);
       addToPack('macar','ales',Math.ceil(n/2));
       addToPack('pordoom','ales',Math.floor(n/2)||1);
       learn('ale',10);
       say('The barrel is stoppered and warm.','#d2bd63'); }});
-  if(skillLvl('ale')>=2) a.push({grp:'BREWERY',t:'Resin-dark stout (+2 ale)',cost:{barley:1,resin:1},
+  if(skillLvl('ale')>=2) a.push({grp:'BREWERY',tab:'craft',name:'Resin stout',skill:'ale',t:'Resin-dark stout (+2 ale)',cost:{barley:1,resin:1},
     info:'Bitter stout for the deep',
     fn:()=>{ addToPack('macar','ales',2); learn('ale',6);
       say('It tastes like a cave fire.','#c9783a'); }});
-  a.push({grp:'TAILOR',t:'Mend the padding under the mail',cost:{silk:2},
+  a.push({grp:'TAILOR',tab:'craft',name:'Mend padding',skill:'cloth',t:'Mend the padding under the mail',cost:{silk:2},
     info:'Restores cloth, small damage cut',
     fn:()=>{ Object.values(G.gear).forEach(x=>x.cd=100); learn('cloth',10);
       say('Silk holds better than wool down here.','#e0d2ff'); }});
-  if(skillLvl('cloth')>=2) a.push({grp:'TAILOR',t:'Sew a hide cloak',cost:{hide:2,silk:1},
+  if(skillLvl('cloth')>=2) a.push({grp:'TAILOR',tab:'craft',name:'Hide cloak',skill:'cloth',t:'Sew a hide cloak',cost:{hide:2,silk:1},
     info:'Cloth padding + light armour for all',
     fn:()=>{ Object.values(G.gear).forEach(x=>{x.cd=100; x.at=Math.min(12,(x.at||0)+1);}); learn('cloth',10);
       say('Cloaks for the living and the dead alike.','#a67a52'); }});
-  if(!G.sang) a.push({grp:'FIRE',t:'Sing the deep songs',cost:{},
+  if(!G.sang) a.push({grp:'FIRE',tab:'other',name:'Deep songs',skill:'song',t:'Sing the deep songs',cost:{},
     info:'Heal all + regen through the next chapter',
     fn:()=>{ G.sang=1; learn('song',10); G.songBuff=skillLvl('song');
       say('Five voices, one drone. The stone listens.','#ffd27a'); }});
-  a.push({grp:'VERGE',t:'Search the cavern verge for herbs',cost:{},
+  a.push({grp:'VERGE',tab:'other',name:'Forage herbs',skill:'forage',t:'Search the cavern verge for herbs',cost:{},
     info:'Herb Lore '+forageChance()+'% notice, then d'+HERBS.length+' table, then recover vs that herb',
     fn:()=>{ forageHerbs(); }});
-  a.push({grp:'PACK',t:'Open a kin\'s pack (supplies, magic, potions, herbs)',cost:{},
+  a.push({grp:'PACK',tab:'other',name:'Open packs',t:'Open a kin\'s pack (supplies, magic, potions, herbs)',cost:{},
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ openPackMenu('camp'); }});
@@ -9724,23 +9741,25 @@ function drawChip(g, x, y, w, h, label, on, col){
   g.fillText(ellipsize(g,label,w-8), x+w/2, y+h*0.64);
   g.textAlign='left';
 }
-function drawStockStrip(g, x, y, w){
-  const s=UIS, per=PORT?5:10, rh=PORT?26*s:22*s;
-  const rows=Math.ceil(RES.length/per), h=rows*rh+10*s;
-  plate(g, x, y, w, h, 5, .74);
-  g.font='800 '+(PORT?9*s:10*s)+'px '+FONT_UI;
-  RES.forEach((r,i)=>{
-    const cx=x+10*s+(i%per)*((w-14*s)/per);
-    const cy=y+12*s+((i/per)|0)*rh;
-    const m=RESMETA[r], have=G.res[r]||0;
-    g.fillStyle=have?m.c:'rgba(120,110,96,0.38)';
-    g.beginPath();
-    g.moveTo(cx-5*s,cy-3*s); g.lineTo(cx,cy-8*s); g.lineTo(cx+5*s,cy-3*s);
-    g.lineTo(cx+2*s,cy+3*s); g.lineTo(cx-2*s,cy+3*s); g.closePath(); g.fill();
-    g.fillStyle=have?'rgba(238,224,192,0.95)':'rgba(130,120,102,0.5)';
-    g.fillText(have+' '+m.s, cx+8*s, cy+3.2*s);
+function drawStockStrip(g, x, y, w, extra){
+  const s=UIS;
+  const keys=RES.filter(r=>(G.res[r]||0)>0 || (extra&&extra[r]));
+  if(!keys.length) return 0;
+  g.font='700 '+(PORT?10*s:11*s)+'px '+FONT_UI;
+  const gap=8*s, pad=10*s, rh=PORT?28*s:26*s;
+  let cx=x+pad, cy=y, rows=1;
+  keys.forEach(r=>{
+    const m=RESMETA[r], have=G.res[r]||0, need=extra&&extra[r];
+    const label=need?(have+' / '+need+' '+m.n):(have+' '+m.n);
+    const tw=g.measureText(label).width+22*s;
+    if(cx+tw>x+w-pad){ cx=x+pad; cy+=rh; rows++; }
+    g.fillStyle=m.c;
+    g.beginPath(); g.arc(cx+5*s, cy+rh*0.52, 4*s, 0, TAU); g.fill();
+    g.fillStyle=have?'rgba(238,224,192,0.95)':'rgba(180,90,70,0.85)';
+    g.fillText(label, cx+14*s, cy+rh*0.68);
+    cx+=tw+gap;
   });
-  return h;
+  return rows*rh;
 }
 function slotSprite(slot){
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
@@ -10918,75 +10937,113 @@ function drawBetween(g){
 function drawCamp(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
+  const titleY=VH*(PORT?0.055:0.048);
+  const titleSize=(PORT?22:28)*s;
   g.textAlign='center';
-  g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(190,220,170,0.9)';
-  g.fillText('CAMP  \u00b7  '+CH_META[G.ch].t.toUpperCase()+' CLEARED', VW/2, VH*.075);
+  goldTitleLine(g,'CAMP', titleY+titleSize*0.72, titleSize);
+  g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(210,190,150,0.78)';
+  const cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 
-  // ---- stock
-  const top=VH*.105, rw=VW-20*s;
-  const stockH=drawStockStrip(g,10*s,top,rw);
-
-  // ---- skills
-  const sy0=top+stockH+10*s;
-  g.font='700 '+(8.5*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle='rgba(190,166,120,0.6)'; g.fillText('CRAFT SKILLS', 12*s, sy0-2*s);
-  const per2=PORT?2:4, cellW=(VW-20*s)/per2;
-  SKILLS.forEach((sk,i)=>{
-    const cx=12*s+(i%per2)*cellW, cy=sy0+10*s+((i/per2)|0)*20*s;
-    const lv=skillLvl(sk.k);
-    g.font='700 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle='rgba(226,206,164,0.9)'; g.fillText(sk.n, cx, cy+4*s);
-    g.font='800 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle='#ffd27a'; g.fillText(String(lv), cx+cellW-34*s, cy+4*s);
-    const bx=cx+cellW-26*s, bw=18*s;
-    g.fillStyle='rgba(0,0,0,0.6)'; g.fillRect(bx,cy-2*s,bw,4*s);
-    g.fillStyle='rgba(255,206,120,0.8)'; g.fillRect(bx,cy-2*s,bw*skillNext(sk.k),4*s);
-  });
-
-  // ---- actions
+  const footH=(PORT?52:50)*s;
+  const footY=VH-footH-10*s;
+  const detailH=PORT?78*s:72*s;
   const acts=campActions();
-  const listTop=sy0+18*s+Math.ceil(SKILLS.length/per2)*20*s;
-  const listBot=VH-70*s;
-  const rowH=Math.min(PORT?40*s:44*s,(listBot-listTop)/Math.max(1,acts.length));
-  acts.forEach((a,i)=>{
-    const y=listTop+i*rowH, h=rowH-4*s, x=10*s, w=VW-20*s;
-    const can=campActionReady(a);
-    plate(g,x,y,w,h,5, can?.82:.5);
-    if(can){ g.strokeStyle='rgba(255,208,124,0.45)'; g.lineWidth=1.6; roundPath(g,x,y,w,h,5); g.stroke();
-      menuHits.push({x,y,w,h,fn:()=>runCampAction(a)}); }
-    g.font='800 '+(8*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(255,196,110,0.85)':'rgba(130,116,94,0.5)';
-    g.fillText(a.grp, x+11*s, y+13*s);
-    g.font='700 '+(PORT?11*s:12.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'#f4e2b8':'rgba(140,126,104,0.55)';
-    g.fillText(a.t, x+11*s, y+h*0.62);
-    g.font='600 '+(9*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(200,182,146,0.7)':'rgba(120,108,88,0.5)';
-    g.fillText(a.info, x+11*s, y+h-5*s);
-    g.textAlign='right';
-    g.font='700 '+(9.5*s)+'px "Trebuchet MS",sans-serif';
-    g.fillStyle= can?'rgba(214,190,140,0.9)':'rgba(180,90,70,0.7)';
-    g.fillText(costText(a.cost), x+w-11*s, y+h*0.62);
-    g.textAlign='left';
-  });
+  const tabs=[{id:'repair',n:'Repair'},{id:'improve',n:'Improve'},{id:'craft',n:'Craft'},{id:'other',n:'Other'}];
+  if(!G.campTab) G.campTab='repair';
+  const tabActs=acts.filter(a=>campActionTab(a)===G.campTab);
+  if(G.campSel && !tabActs.some(a=>campActionId(a)===G.campSel)) G.campSel=null;
+  const sel=tabActs.find(a=>campActionId(a)===G.campSel)||null;
 
-  // ---- kit line
-  const gm=G.gear.macar, k0=G.gear.pordoom;
-  g.font='600 '+(9.5*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-  g.fillStyle='rgba(186,166,130,0.75)';
-  const coin=G.coin||{};
-  g.fillText('Hammer T'+gm.wt+(gm.rune?' + rune':'')+'  \u00b7  Armour T'+k0.at+
-    '  \u00b7  Bombs '+G.bombs+'  \u00b7  Ale '+G.ales+
-    '  \u00b7  Lv '+PARTY_LVL+'  \u00b7  gp '+(coin.gp||0)+
-    (G.songBuff?'  \u00b7  Song +'+G.songBuff:''),
-    VW/2, VH-46*s);
-  g.textAlign='left';
+  const stockY=titleY+titleSize+34*s;
+  const stockH=drawStockStrip(g, 12*s, stockY, VW-24*s, sel&&sel.cost);
+  const tabY=stockY+stockH+8*s, tabH=PORT?40*s:36*s;
+  const skillW=Math.min(86*s, VW*0.18);
+  const tabW=(VW-24*s-12*s-skillW)/tabs.length;
+  tabs.forEach((tb,i)=>{
+    const x=12*s+i*(tabW+3*s), on=G.campTab===tb.id;
+    drawChip(g,x,tabY,tabW,tabH,tb.n,on);
+    menuHits.push({x,y:tabY,w:tabW,h:tabH,fn:()=>{ G.campTab=tb.id; G.campSel=null; G.campScroll=0; }});
+  });
+  drawChip(g, VW-12*s-skillW, tabY, skillW, tabH, 'Skills', !!G.campSkills);
+  menuHits.push({x:VW-12*s-skillW,y:tabY,w:skillW,h:tabH,fn:()=>{ G.campSkills=!G.campSkills; }});
+
+  const listTop=tabY+tabH+10*s;
+  const listBot=footY-detailH-10*s;
+  const rowH=Math.max(PORT?46*s:44*s, 44);
+  const vis=Math.max(1, Math.floor((listBot-listTop)/rowH));
+  const maxScroll=Math.max(0, tabActs.length-vis);
+  G.campScroll=clamp(G.campScroll||0, 0, maxScroll);
+  const shown=tabActs.slice(G.campScroll, G.campScroll+vis);
+  shown.forEach((a,i)=>{
+    const y=listTop+i*rowH, h=rowH-6*s, x=12*s, w=VW-24*s;
+    const can=campActionReady(a);
+    const on=campActionId(a)===G.campSel;
+    plate(g,x,y,w,h,6, on?0.9:(can?0.78:0.48));
+    if(on){ g.strokeStyle='rgba(255,208,124,0.8)'; g.lineWidth=2; roundPath(g,x,y,w,h,6); g.stroke(); }
+    else if(can){ g.strokeStyle='rgba(255,208,124,0.35)'; g.lineWidth=1.4; roundPath(g,x,y,w,h,6); g.stroke(); }
+    g.font='700 '+(PORT?14*s:15*s)+'px '+FONT_UI;
+    g.fillStyle=can?'#f4e2b8':'rgba(140,126,104,0.55)';
+    g.fillText(ellipsize(g, campActionName(a), w*0.58), x+14*s, y+h*0.64);
+    g.textAlign='right';
+    g.font='700 '+(PORT?11*s:12*s)+'px '+FONT_UI;
+    g.fillStyle=can?'rgba(214,190,140,0.95)':'rgba(180,90,70,0.75)';
+    g.fillText(ellipsize(g, costText(a.cost), w*0.36), x+w-14*s, y+h*0.64);
+    g.textAlign='left';
+    menuHits.push({x,y,w,h,fn:()=>{
+      const id=campActionId(a);
+      if(G.campSel===id){ if(can) runCampAction(a); }
+      else G.campSel=id;
+    }});
+  });
+  if(maxScroll){
+    drawScrollArrows(g, VW-36*s, listTop, listBot-listTop, G.campScroll>0, G.campScroll<maxScroll,
+      ()=>{ G.campScroll=Math.max(0,(G.campScroll||0)-1); },
+      ()=>{ G.campScroll=Math.min(maxScroll,(G.campScroll||0)+1); });
+  }
+
+  const dX=12*s, dY=listBot+6*s, dW=VW-24*s;
+  plate(g,dX,dY,dW,detailH-4*s,7,.88);
+  if(sel){
+    const can=campActionReady(sel);
+    const sk=sel.skill&&SKILLS.find(z=>z.k===sel.skill);
+    g.font='700 '+(PORT?12*s:13*s)+'px '+FONT_UI;
+    g.fillStyle='#ffe9c0';
+    g.fillText(ellipsize(g, sel.t, dW-120*s), dX+14*s, dY+22*s);
+    g.font='600 '+(PORT?10*s:11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(210,190,150,0.82)';
+    g.fillText(ellipsize(g, sel.info||'', dW-28*s), dX+14*s, dY+42*s);
+    g.font='700 '+(PORT?10*s:11*s)+'px '+FONT_UI;
+    g.fillStyle=can?'rgba(150,200,130,0.9)':'rgba(200,120,90,0.9)';
+    const skLine=sk?(sk.n+' '+skillLvl(sk.k)+'  ·  '):'';
+    g.fillText(ellipsize(g, skLine+(can?'Ready.':'Need '+costText(sel.cost)), dW-28*s), dX+14*s, dY+62*s);
+    const doW=Math.min(110*s, dW*0.28), doH=PORT?36*s:32*s;
+    menuBtn(g, can?'Do it':'Need', dX+dW-doW/2-10*s, dY+detailH*0.52, doW, doH, ()=>{ if(can) runCampAction(sel); });
+  } else {
+    g.font='600 '+(PORT?11*s:12*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(186,166,130,0.7)';
+    g.fillText('Choose a row. Details stay here.', dX+14*s, dY+detailH*0.48);
+  }
+  if(G.campSkills){
+    const boxH=PORT?96*s:88*s;
+    plate(g, dX, dY-boxH-6*s, dW, boxH, 7, .92);
+    SKILLS.forEach((sk,i)=>{
+      const col=PORT?2:4, cw=(dW-20*s)/col;
+      const cx=dX+10*s+(i%col)*cw, cy=dY-boxH+18*s+((i/col)|0)*20*s;
+      g.font='700 '+(9.5*s)+'px '+FONT_UI;
+      g.fillStyle='rgba(226,206,164,0.9)';
+      g.fillText(sk.n+'  '+skillLvl(sk.k), cx, cy);
+    });
+  }
+
   const nxt=G.ch===3?5:G.ch+1;
-  menuBtn(g,'Save',VW/2-Math.min(80*s,VW*.2)-6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>writeGameSave(), false, SPR.icon_save);
+  const btnW=Math.min(170*s, VW*.36), btnH=PORT?50*s:48*s;
+  menuBtn(g,'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
-    menuBtn(g,'Go deeper',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>startChapter(nxt));
-  else menuBtn(g,'Chapters',VW/2+Math.min(80*s,VW*.2)+6*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>startChapter(nxt));
+  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{G.scene='chapters';});
 }
 
 function drawDead(g){
