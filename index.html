@@ -847,7 +847,17 @@ function solidMacarSprite(img){
     x.drawImage(img,0,0);
     const data=x.getImageData(0,0,c.width,c.height);
     const d=data.data;
-    for(let i=3;i<d.length;i+=4){ if(d[i]>=20) d[i]=255; }
+    for(let i=0;i<d.length;i+=4){
+      const a=d[i+3];
+      if(a<12) continue;
+      if(a<255){
+        const s=255/a;
+        d[i]=Math.min(255,(d[i]*s)|0);
+        d[i+1]=Math.min(255,(d[i+1]*s)|0);
+        d[i+2]=Math.min(255,(d[i+2]*s)|0);
+        d[i+3]=255;
+      }
+    }
     x.putImageData(data,0,0);
     out=c;
   }catch(_){ out=img; }
@@ -7320,13 +7330,6 @@ function render(){
   if(inWorld){
     if(DIAG.world) drawWorld(g,L);
     if(DIAG.lighting) applyLighting(g,L);
-    if(DIAG.world){
-      const mac=player();
-      if(mac && !mac.dead && !mac.ghost){
-        g.globalAlpha=1; g.globalCompositeOperation='source-over';
-        drawEnt(g,mac);
-      }
-    }
     if(QUALITY && !PHONE_GFX){ if(DIAG.godrays) drawGodRays(g); if(DIAG.bloom) drawBloom(g); }
     if(DIAG.memshade) drawMemoryShade(g,L);
     if(DIAG.beyond) drawBeyondMask(g,L);
@@ -7352,6 +7355,14 @@ function render(){
     }
   }
   if(DIAG.grain && inWorld && QUALITY && !PHONE_GFX) drawGrain(g);
+  /* Living Macar after multiply / haze / grain so he stays a solid dwarf. */
+  if(inWorld && DIAG.world){
+    const mac=player();
+    if(mac && !mac.dead && !mac.ghost){
+      g.globalAlpha=1; g.globalCompositeOperation='source-over';
+      drawEnt(g,mac);
+    }
+  }
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
   if(G.sleepShow && G.scene==='play' && worldArtReady(G.ch)) drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);

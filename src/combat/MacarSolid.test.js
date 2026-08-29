@@ -28,9 +28,9 @@ assert(/function heroFigureFit\(/.test(html), 'inset recover/back frames match i
 assert(/function solidMacarSprite\(/.test(html), 'living Macar pixels are flattened opaque');
 assert(/Living Macar is drawn solid after the light multiply/.test(html),
   'Macar is skipped in the washed world pass');
-assert(/if\(mac && !mac\.dead && !mac\.ghost\)/.test(html)
-  && /drawEnt\(g,mac\)/.test(html.match(/if\(DIAG\.lighting\) applyLighting[\s\S]*?drawGodRays/)[0]),
-  'living Macar is redrawn after applyLighting');
+assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
+  && /drawEnt\(g,mac\)/.test(html.match(/if\(DIAG\.grain && inWorld[\s\S]*?drawHUD/)[0]),
+  'living Macar is redrawn after lighting, haze, and grain');
 assert(/solidMacarSprite\(spr\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
   'title fallback blit flattens Macar, not the kin ghosts');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
