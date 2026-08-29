@@ -9267,12 +9267,28 @@ function hoardToPile(hoard){
   const hasCoin=Object.keys(coins).some(k=>coins[k]>0);
   if(!hasCoin && !hoard.gems && !hoard.jew && !potions.length && !items.length) return null;
   let kind='pile';
-  if((hoard.jew||0)>0) kind='jewels';
+  if(items.some(it=>/sword|axe|cleaver|maul/i.test(it.n||it.cat||''))) kind='axe';
+  else if(items.length) kind='chest';
+  else if((hoard.jew||0)>0) kind='jewels';
   else if((hoard.gems||0)>0 || items.some(it=>it.k==='gem')) kind='gems';
+  else if(potions.length) kind='potion';
   else if(((coins.gp||0)+(coins.pp||0))>8) kind='chest';
   else if(hasCoin) kind='coins';
-  else if(potions.length) kind='potion';
   return {kind, coins, gems:hoard.gems||0, jew:hoard.jew||0, potions, items, glow:'#ffd27a'};
+}
+function rollKillIndividual(e){
+  const lv=(G.lvl&&G.lvl.n)||1;
+  const boss=!!(e&&e.boss);
+  let hoard=rollIndividual('J');
+  if(chanceOk(40+lv*4)) hoard=mergeHoards(hoard, rollIndividual('K'));
+  if(chanceOk(22+lv*4)) hoard=mergeHoards(hoard, rollIndividual('M'));
+  if(chanceOk(12+lv*3)) hoard=mergeHoards(hoard, rollIndividual('Q'));
+  /* DMG individual S/T — potions and scrolls — then a sword/armor/misc any-item. */
+  hoard=mergeHoards(hoard, rollIndividual('S'));
+  hoard=mergeHoards(hoard, rollIndividual('T'));
+  if(chanceOk(14+lv*3+(boss?25:0))) hoard=mergeHoards(hoard, {coins:{},gems:0,jew:0,magN:1,magKind:'any'});
+  if(boss) hoard=mergeHoards(hoard, rollIndividual('U'));
+  return hoard;
 }
 function foeDrop(e){
   if(e.rubyDrop || e.kind==='statue' || e.name==='Thin One'){
@@ -9289,18 +9305,13 @@ function foeDrop(e){
   let hoard=null;
   if(raw && !/^nil$/i.test(raw)) hoard=rollTreasureSpec(raw);
   if(e.boss && !hoard) hoard=rollLair('H')||rollLair('C');
-  // Every kill rolls. Empty lair chances still leave a DMG pocket (type J = 3d8 cp).
-  if(!hoard || !hoardToPile(hoard)){
-    hoard=mergeHoards(hoard, rollIndividual('J'));
-    if(chanceOk(18)) hoard=mergeHoards(hoard, rollDungeonTreasure((G.lvl&&G.lvl.n)||1));
-  }
-  if(e.boss && hoard && !hoard.magN && chanceOk(40)){ hoard.magN=1; hoard.magKind='anyp'; }
+  hoard=mergeHoards(hoard, rollKillIndividual(e));
   let pile=hoardToPile(hoard);
   if(!pile){
-    pile=hoardToPile({coins:{cp:rollDice(3,8,0)},gems:0,jew:0,magN:0})||
+    pile=hoardToPile(rollKillIndividual(e))||
       {kind:'coins', coins:{cp:ri(3,24)}, gems:0, jew:0, potions:[], items:[], glow:'#ffd27a'};
   }
-  pile.label=pile.label||((e.name||'Foe')+' (DMG roll)');
+  pile.label=pile.label||((e.name||'Foe')+' (DMG individual)');
   e.drop=pile;
   const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
   const floor=spawnLoot(e.x+ox, e.y+oy, pile);
