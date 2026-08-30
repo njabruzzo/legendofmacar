@@ -59,10 +59,19 @@ assert(!!ensure, 'ensureStationRecipes is in index');
 assert(!/pr\.recipes=\[\]/.test(ensure), 'in-flight or missing engine does not persist an empty recipe list');
 assert(/stationPool/.test(ensure) && /if\(!picked\.length\) return/.test(ensure),
   'station rolls from the engine pool and skips if the book is empty');
+assert(/const rng=stationRng/.test(ensure) && /1\+\(\(rng\(\)\*4\)\|0\)/.test(ensure),
+  'station d4 is seeded from the same stationRng as pickRandom');
 
 const bench=html.match(/function drawCraft\(g\)\{[\s\S]*?\nfunction drawPause/)[0];
 assert(/menuHits\.unshift\.apply\(menuHits, plateHits\)/.test(bench),
   'FORGE and Back are tested before overlapping recipe rows');
+assert(/need\+' '\+\(m\?m\.n:k\)/.test(bench), 'station rows spell the resource name, not letter codes');
+assert(!/need\+' '\+\(m\?m\.s:k\)/.test(bench), 'station rows no longer print 2 P codes');
+assert(/G\.craftSel===a\.craftRecipeId/.test(bench) && /runCampAction\(a\)/.test(bench),
+  'second tap on a selected READY row forges');
+assert(/canCraft\(a\.craftRecipeId/.test(bench), 'LOCKED second tap speaks the canCraft message');
+assert(/const held=\(\(G\.craftRecipeIds\|\|\[\]\)\.length\)/.test(bench),
+  'header count is craftRecipeIds.length so Burp is included');
 
 if (failed) {
   console.error('\n' + failed + ' failed');
