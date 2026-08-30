@@ -2710,7 +2710,7 @@ function makeChapter(n){
     L.crush=CRUSH_SPOTS;
     L.secrets=[];
     addSecretDoor(L,{x:36.5,y:35.05,i:35,j:35,w:3,h:1,kind:'treasure',face:'n',
-      hint:'The south wall of the new hall is too even — a colder, greyer face. SEARCH it.'});
+      hint:'The north wall of the new hall is too even — a colder, greyer face. SEARCH it.'});
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
@@ -2881,7 +2881,7 @@ function makeChapter(n){
     // Keep the north secret as solid stone until SEARCH opens it.
     for(let ii=39;ii<=41;ii++){ if(g[40]) g[40][ii]=1; if(g[39]) g[39][ii]=1; }
     addSecretDoor(L,{x:64.5,y:20.1,i:63,j:20,w:3,h:1,kind:'treasure',face:'n',
-      hint:'South of the bronze door the rock sits too square. SEARCH the grey face.'});
+      hint:'Near the bronze door the rock sits too square. SEARCH the grey face.'});
     L.warrenSeed=(G._forceSeeds&&G._forceSeeds.warrenSeed)||((Math.random()*1e9)|0)+1;
     L.objs=[{t:'Stand in the four-way cavern',d:0},{t:'Break the goblin band',d:0},
             {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
@@ -3046,7 +3046,7 @@ function makeChapter(n){
       placeDungeonCache(pt[0], pt[1], 3);
     });
     L.secrets=[];
-    addSecretDoor(L,{x:46.4,y:11.15,i:45,j:11,w:3,h:1,kind:'treasure',face:'s',
+    addSecretDoor(L,{x:46.4,y:11.15,i:45,j:11,w:3,h:1,kind:'treasure',face:'n',vaultFace:'s',
       hint:'The Hall of Names has a colder north face. SEARCH the grey brick.'});
     L.guide=()=>!L.flags.w1?{x:26,y:28}:!L.flags.w2?{x:46,y:20}:!L.flags.boss?{x:48,y:40}:null;
     L.tick=(dt)=>{
@@ -3122,7 +3122,7 @@ function makeChapter(n){
     corridor(g,28,38,28,58,5,0); rect(g,18,56,20,14,0);
     L.spawn={x:8,y:28};
     L.secrets=[];
-    addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'s',
+    addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'n',vaultFace:'s',
       hint:'The outpost\'s north wall is a false course. SEARCH the grey brick.'});
     L.objs=[{t:'Clear the drowned streets',d:0},{t:'Break the illithid outpost',d:0},{t:'Destroy the Elder Brain',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:28,y:28,c:'#ffb45c',r:9,f:1.25},
@@ -6333,20 +6333,53 @@ function sealSecretCells(g, sec){
     if(g[yy] && g[yy][xx]!==undefined) g[yy][xx]=1;
   }
 }
+function secretFaceOk(f){ return f==='n'||f==='e'||f==='w'; }
+function normalizeSecretFace(sec){
+  if(!sec) return sec;
+  const f=sec.face||'n';
+  if(f==='s'){
+    if(!sec.vaultFace) sec.vaultFace='s';
+    sec.face='n';
+  } else if(!secretFaceOk(f)) sec.face='n';
+  return sec;
+}
+function secretSeamAt(L,x,y){
+  if(!L||!L.secrets) return null;
+  for(const sec of L.secrets){
+    if(sec.open) continue;
+    const si=sec.i||(sec.x|0), sj=sec.j||(sec.y|0);
+    const sw=sec.w||2, sh=Math.max(1,sec.h||1);
+    if(x>=si&&x<si+sw&&y>=sj&&y<sj+sh) return sec;
+  }
+  return null;
+}
+function drawSecretSeamTint(g, L, x, y, H){
+  const sec=secretSeamAt(L,x,y);
+  if(!sec) return;
+  const face=sec.face||'n';
+  /* Same masonry tile, colder grey-blue multiply. Full opacity so the
+     seam reads at phone width. Never a south face — iso south buries it. */
+  g.save();
+  g.globalCompositeOperation='multiply';
+  g.fillStyle='#9bb3c6';
+  const paint=(x0,y0,x1,y1)=>{
+    const a=w2s(x0,y0), b=w2s(x1,y1);
+    g.beginPath();
+    g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(b.x,b.y-H); g.lineTo(a.x,a.y-H);
+    g.closePath(); g.fill();
+  };
+  if(face==='e') paint(x+1, y, x+1, y+1.14);
+  else if(face==='w') paint(x, y, x, y+1.14);
+  else paint(x, y+1, x+1.14, y+1);
+  g.restore();
+}
 function markSecretProps(L){
-  if(!L||!L.secrets) return;
-  G.props=G.props||[];
-  L.secrets.forEach(sec=>{
-    if(sec.open) return;
-    const x=(sec.x!=null?sec.x:sec.i)+((sec.w||3)*0.35);
-    const y=(sec.y!=null?sec.y:sec.j)+0.18;
-    G.props.push({x,y,k:'secret_door',s:1.02,face:sec.face||'n'});
-  });
+  /* Closed secret is a tinted masonry seam, not a door billboard. */
 }
 function addSecretDoor(L, spec){
   if(!L) return null;
   L.secrets=L.secrets||[];
-  const sec=Object.assign({open:0,w:3,h:1,kind:'treasure'}, spec);
+  const sec=normalizeSecretFace(Object.assign({open:0,w:3,h:1,kind:'treasure'}, spec));
   L.secrets.push(sec);
   sealSecretCells(L.grid, sec);
   return sec;
@@ -6354,7 +6387,7 @@ function addSecretDoor(L, spec){
 function secretRoomAnchor(sec){
   const x=(sec.x!=null?sec.x:sec.i), y=(sec.y!=null?sec.y:sec.j);
   const d=sec.room||5.1;
-  const face=sec.face||'n';
+  const face=sec.vaultFace||sec.face||'n';
   if(face==='n') return {x:x+1.1, y:y+d};
   if(face==='s') return {x:x+1.1, y:y-d};
   if(face==='e') return {x:x-d, y:y+0.4};
@@ -7677,25 +7710,7 @@ function drawWorld(g,L){
     if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,faceH,1-rk.hp/rk.max);
     if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,faceH);
     if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,faceH,G.dig.min/digNeedMinutes());
-    if(L.secrets){
-      for(const sec of L.secrets){
-        if(sec.open) continue;
-        const si=sec.i||(sec.x|0), sj=sec.j||(sec.y|0);
-        const sw=sec.w||2, sh=Math.max(1,sec.h||1);
-        if(x<si||x>=si+sw||y<sj||y>=sj+sh) continue;
-        // Cooler grey-blue face so the north secret reads as "wrong stone."
-        g.save();
-        g.globalAlpha=0.34;
-        g.fillStyle='#6f8498';
-        if(useWallFaces(L) && oS){
-          const a=w2s(x,y+1), b=w2s(x+1,y+1);
-          g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(b.x,b.y-H); g.lineTo(a.x,a.y-H); g.closePath(); g.fill();
-        } else {
-          g.fillRect(s.x-TW*0.42, s.y-H*0.92, TW*0.84, H*0.86);
-        }
-        g.restore();
-      }
-    }
+    drawSecretSeamTint(g, L, x, y, faceH);
   }
 
   // Flare background layer: floors always sit under the party and foes.
