@@ -723,7 +723,7 @@ function loadSprites(done){
         if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
         inflight--; finished++;
         try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
-        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){} done(); }
+        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); try{ warmLivingMacarSheets(); }catch(_){} try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){} done(); }
         else next();
       };
       img.onload=()=>fin(true);
@@ -749,6 +749,35 @@ function ensureAttackFrames(){
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
     'talpor','talpor_w1','talpor_w2','talpor_w3','talpor_atk','talpor_atk_recover','talpor_ghost','talpor_ghost_w3','talpor_ghost_atk','talpor_ghost_atk_recover']
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
+}
+/* Bake the repaired Macar sheets ahead of time, one per tick, so the first
+   step in a new heading never pays for the repair mid-stride. */
+function warmLivingMacarSheets(){
+  const fams=['','_back','_e','_se','_ne','_nw','_s'];
+  const frames=['','_w1','_w2','_atk','_atk_recover','_e_atk'];
+  const keys=[];
+  ['macar','macar_axe'].forEach(stem=>{
+    fams.forEach(f=>frames.forEach(fr=>{
+      const k=(f&&fr&&fr[0]==='_'&&fr!=='_w1'&&fr!=='_w2')?null:stem+f+fr;
+      if(k && SPR[k] && keys.indexOf(k)<0) keys.push(k);
+    }));
+    ['_atk','_atk_recover','_e_atk'].forEach(fr=>{
+      const k=stem+fr;
+      if(SPR[k] && keys.indexOf(k)<0) keys.push(k);
+    });
+  });
+  let i=0;
+  const step=()=>{
+    const t0=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+    while(i<keys.length){
+      try{ blitLivingMacar(SPR[keys[i]]); }catch(_){}
+      i++;
+      const t1=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+      if(t1-t0>8) break;
+    }
+    if(i<keys.length) setTimeout(step,0);
+  };
+  setTimeout(step,0);
 }
 function ensureDeadSprites(){
   Object.keys(SPRITE_FILES).forEach(k=>{
@@ -931,6 +960,157 @@ function frameFit(e,img){
   if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img);
   return 1;
 }
+/* ==========================================================================
+   Limner sheet repair.
+   Several painted sheets came back from background removal with the FIGURE
+   punched through: interior pixels sitting at alpha 0 with their RGB zeroed
+   (macar_w2 loses ~22% of the body, macar_w1 ~9%). Blitted over a lit cave
+   that reads as a see-through Macar — worst while walking and striking,
+   because those are the worst-punched frames. Earlier passes worked around
+   it by refusing to use any sheet but the front idle/walk pair, which is
+   also why he never turned to face his heading.
+   Repair is one bake per sheet, cached, so every sheet blits as one opaque
+   dwarf:
+     1. un-premultiply partial alpha so the colour is the painted colour,
+     2. ramp alpha so the wide feather dies and the body goes fully solid,
+     3. close the mask (dilate then erode) to recover the punched interior,
+     4. refill punched pixels from the nearest painted pixel, then smooth.
+   Do not "simplify" this back to a plain alpha punch — that is the bug.
+   ========================================================================== */
+function morphPass(src,dst,W,H,R,wantMax,vertical){
+  const lim=vertical?W:H, run=vertical?H:W;
+  for(let a=0;a<lim;a++){
+    for(let b=0;b<run;b++){
+      let v=wantMax?0:1;
+      /* Erode with empty padding. Clamping the window at the frame edge
+         makes the closing weld a solid slab onto any figure that reaches the
+         edge — Macar's boots sit 4px off the bottom, and that slab was the
+         pale block under his feet. */
+      if(!wantMax && (b-R<0 || b+R>=run)){ if(vertical) dst[b*W+a]=0; else dst[a*W+b]=0; continue; }
+      const lo=b-R<0?0:b-R, hi=b+R>=run?run-1:b+R;
+      for(let k=lo;k<=hi;k++){
+        const s=vertical?src[k*W+a]:src[a*W+k];
+        if(wantMax){ if(s){ v=1; break; } }
+        else if(!s){ v=0; break; }
+      }
+      if(vertical) dst[b*W+a]=v; else dst[a*W+b]=v;
+    }
+  }
+}
+function repairSpriteSheet(img){
+  const W=img.width|0, H=img.height|0, N=W*H;
+  const c=document.createElement('canvas');
+  c.width=W; c.height=H;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.clearRect(0,0,W,H);
+  x.drawImage(img,0,0);
+  const idat=x.getImageData(0,0,W,H), d=idat.data;
+  const LO=64, HI=160;
+  const R=Math.max(3, Math.round(Math.min(W,H)*0.022));
+  const known=new Uint8Array(N);   // anything still painted after the ramp
+  const core=new Uint8Array(N);    // fully opaque body — the only refill source
+  let lumSum=0, lumN=0;
+  for(let i=0,p=0;i<N;i++,p+=4){
+    const a=d[p+3];
+    if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    if(a<255){
+      /* getImageData is already straight alpha, so this only lifts the dark
+         matte the sheets were exported over. Capped — an uncapped 255/a on a
+         faint edge pixel blows it to white, and THAT was the sparkle outline
+         earlier passes kept chasing. */
+      const s=Math.min(1.5, 255/a);
+      d[p]=Math.min(255,(d[p]*s+0.5)|0);
+      d[p+1]=Math.min(255,(d[p+1]*s+0.5)|0);
+      d[p+2]=Math.min(255,(d[p+2]*s+0.5)|0);
+    }
+    const na=a>=HI?255:Math.round((a-LO)*255/(HI-LO));
+    d[p+3]=na;
+    known[i]=1;
+    if(na===255){ core[i]=1; lumSum+=(d[p]+d[p+1]+d[p+2])/3; lumN++; }
+  }
+  const solid=known;
+  /* What was punched out was shadow, not highlight — the pixels bordering
+     every hole measure dark. So seed refills from the body's mid and dark
+     tones only; letting a specular pixel win the nearest-source race is what
+     painted a chalky bar down the maul haft. */
+  const lumCut=Math.max(60, Math.min(170, (lumSum/Math.max(1,lumN))*2.2));
+  /* closing = dilate then erode, separable, so the punched interior comes
+     back without the silhouette growing. */
+  const t1=new Uint8Array(N), t2=new Uint8Array(N), sil=new Uint8Array(N);
+  morphPass(solid,t1,W,H,R,true,false);
+  morphPass(t1,t2,W,H,R,true,true);
+  morphPass(t2,t1,W,H,R,false,false);
+  morphPass(t1,sil,W,H,R,false,true);
+  for(let i=0;i<N;i++) if(known[i]) sil[i]=1;   // never lose real paint at the frame edge
+  let holes=0;
+  for(let i=0;i<N;i++) if(sil[i]&&!solid[i]) holes++;
+  if(holes){
+    /* two-pass chamfer: every punched pixel adopts the nearest painted one */
+    const from=new Int32Array(N), dist=new Int32Array(N);
+    let seeds=0;
+    for(let i=0;i<N;i++){
+      const p=i*4;
+      if(core[i] && (d[p]+d[p+1]+d[p+2])/3<=lumCut){ from[i]=i; dist[i]=0; seeds++; }
+      else { from[i]=-1; dist[i]=0x3fffffff; }
+    }
+    if(seeds<64){ for(let i=0;i<N;i++){ if(core[i]){ from[i]=i; dist[i]=0; } } }
+    const relax=(i,j,w)=>{ const nd=dist[j]+w; if(nd<dist[i]){ dist[i]=nd; from[i]=from[j]; } };
+    for(let y=0;y<H;y++) for(let xx=0;xx<W;xx++){
+      const i=y*W+xx;
+      if(!dist[i]) continue;
+      if(xx>0) relax(i,i-1,3);
+      if(y>0){ relax(i,i-W,3); if(xx>0) relax(i,i-W-1,4); if(xx<W-1) relax(i,i-W+1,4); }
+    }
+    for(let y=H-1;y>=0;y--) for(let xx=W-1;xx>=0;xx--){
+      const i=y*W+xx;
+      if(!dist[i]) continue;
+      if(xx<W-1) relax(i,i+1,3);
+      if(y<H-1){ relax(i,i+W,3); if(xx<W-1) relax(i,i+W+1,4); if(xx>0) relax(i,i+W-1,4); }
+    }
+    for(let i=0;i<N;i++){
+      if(!sil[i]||solid[i]) continue;
+      const s=from[i];
+      if(s<0) continue;
+      const p=i*4, q=s*4;
+      d[p]=d[q]; d[p+1]=d[q+1]; d[p+2]=d[q+2]; d[p+3]=255;
+    }
+    /* soften the refilled patches so nearest-pixel banding does not read as
+       a seam once the sheet is scaled down to dwarf height. */
+    const cp=new Uint8ClampedArray(d);
+    for(let pass=0;pass<2;pass++){
+      for(let y=1;y<H-1;y++) for(let xx=1;xx<W-1;xx++){
+        const i=y*W+xx;
+        if(!sil[i]||solid[i]) continue;
+        let r=0,g2=0,b=0,n=0;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          const j=i+dy*W+dx;
+          if(!(core[j]||(sil[j]&&!solid[j]))) continue;   // never average in the soft edge
+          const q=j*4; r+=cp[q]; g2+=cp[q+1]; b+=cp[q+2]; n++;
+        }
+        if(!n) continue;
+        const p=i*4;
+        d[p]=r/n; d[p+1]=g2/n; d[p+2]=b/n;
+      }
+      cp.set(d);
+    }
+  }
+  /* Force the body opaque. The directional sheets carry a wide feather —
+     roughly a third of macar_e_w1 sits under alpha 224 — and a feather
+     spread across the figure is exactly what reads as a see-through Macar
+     over a lit floor. Everything inside the silhouette goes to 255; only
+     the outermost pixel keeps a ramped alpha, which is all the anti-alias
+     a sheet needs at dwarf height. */
+  const inner=new Uint8Array(N);
+  morphPass(sil,t1,W,H,1,false,false);
+  morphPass(t1,inner,W,H,1,false,true);
+  for(let i=0,p=0;i<N;i++,p+=4){
+    if(!sil[i]){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    if(inner[i]) d[p+3]=255;
+    else if(!d[p+3]) d[p+3]=255;
+  }
+  x.putImageData(idat,0,0);
+  return c;
+}
 const SOLID_MACAR=(typeof WeakMap==='function')?new WeakMap():null;
 /* Limner living-Macar pipe. One bake+return: world, title, pack doll, HUD face.
    a≤40 punched. a>40 un-premultiply RGB then a=255. getImageData fail → idle,
@@ -942,35 +1122,23 @@ function blitLivingMacar(img){
   if(img.__solidMacar) return img.__solidMacar;
   let out=null;
   try{
-    const c=document.createElement('canvas');
-    c.width=img.width; c.height=img.height;
-    const x=c.getContext('2d',{willReadFrequently:true});
-    x.drawImage(img,0,0);
-    const data=x.getImageData(0,0,c.width,c.height);
-    const d=data.data;
-    for(let i=0;i<d.length;i+=4){
-      const a=d[i+3];
-      if(a<=40){ d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0; }
-      else {
-        if(a<255){
-          const s=255/a;
-          d[i]=Math.min(255, (d[i]*s+0.5)|0);
-          d[i+1]=Math.min(255, (d[i+1]*s+0.5)|0);
-          d[i+2]=Math.min(255, (d[i+2]*s+0.5)|0);
-        }
-        d[i+3]=255;
-      }
-    }
-    x.putImageData(data,0,0);
-    out=c;
+    out=repairSpriteSheet(img);
   }catch(_){
-    out=(img!==SPR.macar && SPR.macar && SPR.macar.width)?blitLivingMacar(SPR.macar):SPR.macar;
+    out=img;   // repair failed (tainted canvas, no 2d context) — ship the sheet as painted
   }
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
   else img.__solidMacar=out;
   return out;
 }
 function solidMacarSprite(img){ return blitLivingMacar(img); }
+/* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
+   Macar, so their living frames take the same repair. Ghost frames are left
+   alone — those are supposed to be see-through. */
+function solidDwarfSprite(e,img){
+  if(!img||!img.width) return img;
+  if(!e||e.kind!=='dwarf'||e.ghost||e.dead||e.crushed||e.team!=='party') return img;
+  return blitLivingMacar(img)||img;
+}
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
 function flippedSprite(img){
   if(!img||!img.width) return img;
@@ -1014,7 +1182,8 @@ function drawEntBillboard(g,e,img,z,flip){
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
   const b=spriteBounds(img);
-  const dx=(b&&b.ok)?-W*b.cx:-W/2;
+  // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
+  const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
   const dy=(b&&b.ok)?-H*b.botY:-H;
   if(e.hero && !e.dead){
     g.save();
@@ -1027,15 +1196,37 @@ function drawEntBillboard(g,e,img,z,flip){
   blitFacing(g,img,dx,dy,W,H,flip);
   return true;
 }
-/* Limner living-Macar gate. Every key living Macar actually blits is listed
-   here and goes through blitLivingMacar (a≤40 punch 0, a>40 un-premultiply
-   then a=255). Axe sheets are in the pipe so Shadow Cleaver is not forced
-   back to the maul idle. Directional / title / sleep / w3 stay unused. */
-const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1,
-  macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1, macar_axe_atk_recover:1
+/* ==========================================================================
+   Macar's heading table.
+   MEASURED, do not "correct" this from the file names. Macar's directional
+   sheets are painted MIRRORED against the convention every other dwarf
+   follows. Checked against dwarf_fendur_ghost_*, which is painted to the
+   screen convention:
+       fendur ghost _e_  = profile walking screen-RIGHT
+       macar         _e_  = profile walking screen-LEFT
+       fendur ghost _se_ = three-quarter facing screen-DOWN-RIGHT
+       macar         _se_ = three-quarter facing screen-DOWN-LEFT
+       fendur ghost _ne_ = back three-quarter going screen-UP-RIGHT
+       macar         _ne_ = back three-quarter going screen-UP-LEFT
+   So Macar never goes through dwarfAngleKey(); he gets this table, where
+   `fam` is the sheet family to blit and `flip` mirrors it on the way out.
+   _ne_ and _nw_ are mirrors of one another, so up-screen needs no flip:
+   screen-NE is his _nw_ sheet and screen-NW is his _ne_ sheet.
+   This is why every earlier one-sided flip fix moonwalked one of them —
+   inverting the flip for Macar broke the kin, and matching the kin broke
+   Macar. They need different rules because they are painted differently.
+   ========================================================================== */
+const MACAR_DIR={
+  e:  {fam:'_e',    flip:1},
+  w:  {fam:'_e',    flip:0},
+  se: {fam:'_se',   flip:1},
+  sw: {fam:'_se',   flip:0},
+  ne: {fam:'_nw',   flip:0},
+  nw: {fam:'_ne',   flip:0},
+  n:  {fam:'_back', flip:0},
+  s:  {fam:'',      flip:0}
 };
-function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
+function isLivingMacarKey(k){ return !!(k && /^macar(_axe)?(_|$)/.test(k)); }
 function livingMacarIdleKey(){
   return (typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
     ? 'macar_axe' : 'macar';
@@ -1049,26 +1240,62 @@ function livingMacarImg(key){
   if(!k) return null;
   return blitLivingMacar(SPR[k]);
 }
-/* Living Macar only. Idle / front w1-w2 / strike / recover, maul or axe.
-   Flip west on the blit — never a washed directional stem, never QUALITY-gated. */
-function livingMacarAnimKey(e){
-  if(!e||!e.hero||e.dead||e.ghost) return null;
-  const stem=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
-    ? 'macar_axe' : 'macar';
-  const rec=stem+'_atk_recover', atk=stem+'_atk';
-  if(wantsMeleeRecover(e) && isLivingMacarKey(rec) && sprReady(rec)) return rec;
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && isLivingMacarKey(atk) && sprReady(atk)) return atk;
-  if(e.moving && !e.defending){
-    const hit=walkCycleKey(e, stem);
-    if(isLivingMacarKey(hit)) return hit;
-  }
-  return (isLivingMacarKey(stem) && sprReady(stem)) ? stem : (sprReady('macar')?'macar':null);
+/* First sheet that is actually decoded, walking the fallback chain down to
+   the maul front idle so a missing axe direction never blanks him. */
+function macarFirstReady(list){
+  for(let i=0;i<list.length;i++){ const k=list[i]; if(k && sprReady(k)) return k; }
+  return null;
 }
+/* Living Macar's pose: which sheet, and whether it blits mirrored.
+   One source of truth — drawLivingMacar, entAnimKey and wantsSpriteFlip all
+   read this, so the sheet and the flip can never disagree again. */
+function macarPose(e){
+  const none={key:null,flip:false};
+  if(!e||!e.hero||e.dead||e.ghost) return none;
+  const axe=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'));
+  const stem=axe?'macar_axe':'macar';
+  const alt=axe?'macar':null;                       // axe sheets fall back to the maul set
+  const dir=MACAR_DIR[e.defending?'n':screenOctant(e)]||MACAR_DIR.s;
+  const fam=dir.fam, flip=!!dir.flip;
+
+  if(wantsMeleePose(e)||wantsMeleeRecover(e)){
+    const rec=wantsMeleeRecover(e);
+    /* macar_e_atk is painted swinging screen-RIGHT — the opposite hand to
+       the _e_ walk sheets, so it takes the opposite flip. Maul only: the
+       axe side-strike sheet is a hard upscale that does not sit next to the
+       rest of the set, so the axe swings from the front sheet. */
+    if(!rec && fam==='_e' && stem==='macar' && sprReady('macar_e_atk')){
+      return {key:'macar_e_atk', flip:!flip};
+    }
+    const k=macarFirstReady(rec
+      ? [stem+'_atk_recover', alt&&alt+'_atk_recover', stem+'_atk', alt&&alt+'_atk']
+      : [stem+'_atk', alt&&alt+'_atk']);
+    // front strike sheets face camera; sideways, mirror the follow-through
+    // so the maul lands on the side he actually swung at.
+    if(k) return {key:k, flip:fam==='_e'?!flip:false};
+  }
+
+  if(e.moving && !e.defending){
+    const step=walkCycleKey(e, stem+fam) || walkCycleKey(e, alt?alt+fam:null);
+    if(step) return {key:step, flip:flip};
+    // no walk pair painted for this heading — fall back a family, keep the flip
+    const back=walkCycleKey(e, stem) || walkCycleKey(e, alt);
+    if(back && fam==='') return {key:back, flip:flip};
+  }
+  const idle=macarFirstReady([
+    stem+fam, alt&&alt+fam,                          // macar_back, macar_e, ...
+    stem+fam+'_w1', alt&&alt+fam+'_w1',              // families with no idle sheet
+    stem, alt
+  ]);
+  return idle?{key:idle, flip:flip}:none;
+}
+function livingMacarAnimKey(e){ return macarPose(e).key; }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const img=livingMacarImg(livingMacarAnimKey(e));
+  const pose=macarPose(e);
+  const img=livingMacarImg(pose.key);
   if(!img||!img.width) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
@@ -1080,9 +1307,12 @@ function drawLivingMacar(g,e){
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
   const b=spriteBounds(img);
-  const dx=(b&&b.ok)?-W*b.cx:-W/2;
+  /* The painted figure is off-centre in a profile sheet, so the anchor has
+     to mirror with the blit or he slides sideways when he turns. */
+  const cx=(b&&b.ok)?(pose.flip?1-b.cx:b.cx):0.5;
+  const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
-  blitFacing(g,img,dx,dy,W,H,wantsSpriteFlip(e));
+  blitFacing(g,img,dx,dy,W,H,pose.flip);
   g.restore();
 }
 function drawDeadBillboard(g,e,img,z){
@@ -1681,6 +1911,9 @@ function dwarfAngleKey(e,k){
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
+  /* Living Macar is painted mirrored against the kin, so his flip comes from
+     his own heading table, never from this shared rule. */
+  if(e.hero && !e.ghost) return macarPose(e).flip;
   const key=entAnimKey(e)||'';
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
@@ -9439,7 +9672,7 @@ function drawEnt(g,e){
   }
   /* Living Macar gold foot ellipse / QUALITY radial disc removed — fringe
      let that gold show through as a sparkle outline. Ghosts never got it. */
-  const img=entAnimImg(e);
+  const img=solidDwarfSprite(e, entAnimImg(e));
   const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
   if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
