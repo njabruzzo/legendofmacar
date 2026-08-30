@@ -4212,6 +4212,99 @@ function removePackRow(r){
   if(r.kind==='kit'&&(bag.bombKit||0)>0){ bag.bombKit--; return {n:'Bomb-making kit',k:'kit'}; }
   return null;
 }
+/* Pack salvage. World dress props still use scavengeCraft — this is inventory only. */
+function packRowItem(r){ return r?(r.it||r.p||r.gm||null):null; }
+function isNamedMagicItem(it){
+  if(!it) return false;
+  if(typeof isShadowCleaver==='function' && isShadowCleaver(it)) return true;
+  const n=it.n||'';
+  return /shadow\s*cleaver|dwarfmouth|dwarven mouth-key|mouth-key/i.test(n);
+}
+function isPackMagicItem(it, r){
+  if(r&&r.kind==='potion') return true;
+  if(r&&r.kind==='ale'){
+    const bag=packOf(G.packWho||'macar');
+    if(!(bag.ales||0) && (bag.healPots||[]).some(isHealPotion)) return true;
+  }
+  if(!it) return false;
+  if((it.plus||0)>0) return true;
+  if(it.cursed) return true;
+  if(isNamedMagicItem(it)) return true;
+  if(typeof isHealPotion==='function' && isHealPotion(it)) return true;
+  const cat=it.cat||'', k=it.k||'';
+  if(/Scroll|Ring|Rod\/Staff\/Wand|Potion/i.test(cat)) return true;
+  if(/^(scroll|wand|ring|prot|potion)$/i.test(k)) return true;
+  if(/^(Cure |Potion |Ring |Wand |Scroll |Staff |Rod )/i.test(it.n||'')) return true;
+  return false;
+}
+function packBreakLock(r){
+  if(!r) return 'That is magical.';
+  if(r.kind==='gem') return 'Coins and gems stay as treasure.';
+  const it=packRowItem(r);
+  if(isPackMagicItem(it, r)) return 'That is magical.';
+  if(it && wornSlotOf(it) && isPackMagicItem(it, r)) return 'That is magical.';
+  return null;
+}
+function packBreakPlan(r){
+  const lock=packBreakLock(r);
+  if(lock) return {lock};
+  const it=packRowItem(r);
+  const name=(((it&&it.n)||r.t||'')+' '+(r.tag||'')+' '+(it&&it.cat||'')+' '+(it&&it.k||'')).toLowerCase();
+  let res='ironstone', n=1, skill='mining';
+  if(r.kind==='supply' && r.field==='bombs' || r.kind==='burp'){ res='powder'; n=2; skill='ale'; }
+  else if(r.kind==='kit'){ res='powder'; n=2; skill='weapon'; }
+  else if(r.kind==='supply' && r.field==='ammo'){ res='ironstone'; n=1; skill='weapon'; }
+  else if(r.kind==='supply' && r.field==='rations' || r.kind==='ale'){ res='barley'; n=1; skill='ale'; }
+  else if(r.kind==='supply' && r.field==='torches'){ res='timber'; n=2; skill='forage'; }
+  else if(r.kind==='herb'){ res='barley'; n=1; skill='forage'; }
+  else if(/silk|web/.test(name)){ res='silk'; n=1; skill='cloth'; }
+  else if(/bone/.test(name)){ res='bone'; n=2; skill='armour'; }
+  else if(/cloak|hide|leather|wool|cloth|boot|trouser|pant|glove|bracer/.test(name)){ res='hide'; n=2; skill='cloth'; }
+  else if(/crossbow|bow|staff|wood|timber/.test(name)){ res='timber'; n=2; skill='weapon'; }
+  else if(/mail|plate|helm|shield|iron|steel|hammer|sword|axe|mace|dagger|pick/.test(name)){ res='ironstone'; n=2; skill='weapon'; }
+  else if(it && typeof isEquipArmor==='function' && isEquipArmor(it)){ res='hide'; n=1; skill='cloth'; }
+  else if(it && typeof isEquipWeapon==='function' && isEquipWeapon(it)){ res='ironstone'; n=1; skill='weapon'; }
+  else { res='ironstone'; n=1; skill='mining'; }
+  const bonus=Math.max(0, (typeof skillLvl==='function'?skillLvl(skill):1)-1);
+  if(bonus && Math.random()<0.28) n+=1;
+  n=clamp(n,1,3);
+  return {res, n, skill, lock:null};
+}
+function packBreakHint(r){
+  const plan=packBreakPlan(r);
+  if(plan.lock) return plan.lock;
+  const meta=RESMETA[plan.res];
+  return 'Breaks down to '+plan.n+' '+(meta?meta.n:plan.res)+'.';
+}
+function takeOnePackRow(r){
+  if(!r) return null;
+  const bag=packOf(G.packWho||'macar');
+  const field=r.field||(r.kind==='burp'?'burps':(r.kind==='supply'?r.field:null));
+  if((r.kind==='supply'||r.kind==='burp') && field && (bag[field]||0)>0){
+    bag[field]--;
+    return {n:r.tag||field, k:'pack', field, count:1};
+  }
+  return removePackRow(r);
+}
+function breakDownPackRow(r){
+  if(!r) return;
+  if(G.packWho && G.packWho!=='macar' && !isGhostPack()){
+    say('Break kit down from MACAR\'s pack.','#c9b895');
+    return;
+  }
+  const lock=packBreakLock(r);
+  if(lock){ say(lock,'#c9b895'); return; }
+  const plan=packBreakPlan(r);
+  const taken=takeOnePackRow(r);
+  if(!taken){ say('Nothing to break down.','#9a8a78'); return; }
+  gain(plan.res, plan.n);
+  if(plan.skill) learn(plan.skill, 2);
+  const meta=RESMETA[plan.res];
+  const label=plan.n+' '+(meta?meta.n:plan.res);
+  say('Broke down '+(taken.n||r.t||'kit')+' — '+label+'.', meta?meta.c:'#ffe08a');
+  G.packSel=null;
+  syncPackTotals();
+}
 function spitNearFace(face, dx, pile){
   const p=player();
   let x, y;
@@ -12252,11 +12345,13 @@ function drawPack(g){
     const sel=G.packSel && ((r.it&&r.it===G.packSel)||(r.gm&&r.gm===G.packSel)||r===G.packSel);
     plate(g,x,y,w,h,6,sel?0.95:0.84);
     if(sel){ g.strokeStyle='rgba(255,208,124,0.85)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke(); }
-    const dropW=Math.min(88*s, w*0.22), dropH=Math.min(34*s, h-12*s);
-    const dropX=x+w-dropW-8*s, dropY=y+(h-dropH)/2;
+    const dropW=Math.min(70*s, w*0.16), dropH=Math.min(28*s, h-16*s);
+    const dropX=x+w-dropW-6*s, dropY=y+(h-dropH)/2;
+    const brkW=dropW, brkX=dropX-brkW-4*s, brkY=dropY;
+    const actSpan=npcPack?0:(dropW+brkW+16*s);
     const th=h-10*s;
     drawThumb(g, packThumbFor(r), x+6*s, y+5*s, th);
-    const tx=x+th+16*s, tw=w-th-dropW-36*s;
+    const tx=x+th+16*s, tw=w-th-actSpan-20*s;
     g.font='800 '+(PORT?11*s:12*s)+'px '+FONT_UI;
     g.fillStyle=packKindColor(r.kind);
     g.fillText((r.tag||r.kind).toUpperCase()+(r.worn?'  \u00b7  EQUIPPED':'')+(ghostPack?'  \u00b7  USE':(npcPack?'  \u00b7  SHARE':'')), tx, y+16*s);
@@ -12265,12 +12360,21 @@ function drawPack(g){
     g.fillText(ellipsize(g, r.t, tw), tx, y+h*0.58);
     g.font='600 '+(PORT?10*s:11*s)+'px '+FONT_UI;
     g.fillStyle='rgba(190,170,130,0.78)';
-    g.fillText(ellipsize(g, r.info||'', tw), tx, y+h-10*s);
+    const hint=sel?packBreakHint(r):'';
+    g.fillText(ellipsize(g, (hint&&hint!==(r.info||'')?(hint+'  ·  '):'')+(r.info||''), tw), tx, y+h-10*s);
     if(!npcPack){
+      const locked=!!packBreakLock(r);
+      drawChip(g,brkX,brkY,brkW,dropH,'Break',sel&&!locked,'#ffe9c0');
+      if(locked){
+        g.save(); g.globalAlpha=0.42;
+        g.fillStyle='rgba(20,12,8,0.35)'; g.fillRect(brkX,brkY,brkW,dropH);
+        g.restore();
+      }
+      menuHits.push({x:brkX,y:brkY,w:brkW,h:dropH,fn:()=>breakDownPackRow(r)});
       drawChip(g,dropX,dropY,dropW,dropH,'Drop',false,'#ffe9c0');
       menuHits.push({x:dropX,y:dropY,w:dropW,h:dropH,fn:()=>dropPackRow(r)});
     }
-    menuHits.push({x,y,w:w-(npcPack?0:dropW+12*s),h,fn:()=>usePackRow(r)});
+    menuHits.push({x,y,w:w-(npcPack?0:actSpan),h,fn:()=>usePackRow(r)});
   });
   if(maxScroll){
     drawScrollArrows(g, listX+listWidth-28*s, listTop, listH, G.packScroll>0, G.packScroll<maxScroll,
