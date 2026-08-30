@@ -41,5 +41,15 @@ assert(/have\+' '\+m\.n/.test(html) || /have\+' \/ '\+need\+' '\+m\.n/.test(html
   'stores spell the resource name, no two-letter codes');
 assert(!/have\+' '\+m\.s/.test(html), 'stock strip no longer prints letter codes');
 
+const modular=html.match(/function modularCraftCampActions\(\)\{[\s\S]*?\n\}/)[0];
+assert(!!modular, 'modular camp recipes are wired');
+assert(/CraftingEngine\.list\('camp'\)/.test(modular), 'camp lists the untagged book recipes');
+assert(/tab:\s*'craft'/.test(modular), 'Healing Potion and Long Sword stay on the Craft tab');
+assert(!/group==='FORGE'\?'improve'/.test(modular), 'Long Sword is not parked on Improve just because it is FORGE');
+
+const campDetail=html.match(/function drawCamp\(g\)\{[\s\S]*?\nfunction drawDead/)[0];
+assert(/canCraft\(sel\.craftRecipeId/.test(campDetail), 'camp Craft details use the engine lock reason');
+assert(/check&&check\.message/.test(campDetail), 'skill-locked Long Sword says why, not only the ore cost');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ncamp layout checks passed');
