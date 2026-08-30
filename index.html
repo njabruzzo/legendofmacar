@@ -2926,7 +2926,9 @@ function makeChapter(n){
       const p=player(); if(!p) return;
       if(!L.flags.placed){
         L.flags.placed=1;
+        const campN=G.ents.length;
         spawnLairGroup(40.1, 32.1, {leader:'goblinBoss', pack:[['goblin',5]], spread:1.7, aggro:4.2});
+        G.ents.slice(campN).forEach(e=>{ if(e.team==='foe') e.nozCamp=1; });
         const noz=ALLY.noz(); noz.x=40.45; noz.y=31.35; G.ents.push(noz);
         spawnLairGroup(26.2, 15.2, {pack:[['spider',3]], spread:1.4, aggro:3.1});
         spawnLairGroup(16.4, 16.4, {pack:[['rat',3]], spread:1.2, aggro:2.6});
@@ -2946,13 +2948,13 @@ function makeChapter(n){
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
       if(dist(p,L.camp)<7.2) G.ents.forEach(e=>{ if(e.kind==='goblin'&&e.team==='foe'&&!e.dead) e.aggro=99; });
       if(p.x<28 || dist(p,{x:10,y:31})<10) G.ents.forEach(e=>{ if(e.kind==='spider'&&e.team==='foe'&&!e.dead) e.aggro=99; });
-      if(L.flags.placed&&!L.flags.fought&&!G.ents.some(e=>e.kind==='goblin'&&e.team==='foe'&&!e.dead)){
+      if(L.flags.placed&&!L.flags.fought&&!G.ents.some(e=>e.nozCamp&&e.team==='foe'&&!e.dead)){
         L.flags.fought=1; L.objs[1].d=1;
         say('The band is broken. Noz still lies bound.','#ffe08a');
         hint('Untie Noz, or go ring the bell at the bronze door.',5);
       }
       const noz=G.ents.find(e=>e.name==='Noz'&&!e.dead);
-      if(noz && noz.tied && L.flags.fought && dist(p,noz)<1.7){
+      if(noz && noz.tied && L.flags.fought && !G.paused && dist(p,noz)<2.2){
         interact('Untie Noz',()=>{
           noz.tied=0; noz.sleeping=0; noz.team='neutral'; noz.npc=1; noz.ally=0;
           L.flags.freed=1; L.objs[2].d=1;
@@ -3513,6 +3515,7 @@ function campRest(){
 function isLootableBody(o){
   if(!o||o.hero) return false;
   if(o.ghost) return false;
+  if(o.tied || o.name==='Noz') return false;
   return !!(o.corpse||o.crushed||(o.dead&&o.team==='foe'));
 }
 function nearestCorpse(e, r){
@@ -6905,6 +6908,9 @@ function onDown(id,x,y,ptr){
     const hit=(UI.talkHits||[]).find(z=>x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h);
     if(hit) pickTalk(hit.i);
     return;
+  }
+  if(promptBtn&&x>=promptBtn.x&&x<=promptBtn.x+promptBtn.w&&y>=promptBtn.y&&y<=promptBtn.y+promptBtn.h){
+    fire('use'); return;
   }
   const b=btnAt(x,y);
   if(b){ pressed[id]={btn:b}; b.hold=1; fire(b.key); return; }
@@ -10790,7 +10796,11 @@ function drawThrowBtn(g,s){
 let promptBtn=null;
 function drawPromptBtn(g,s){
   promptBtn=null; if(!PROMPT) return;
-  const w=200*s,h=48*s,x=VW/2-w/2,y=Math.max(72*s,(UI.hudTop||VH-(PORT?230:132)*s)-h-8*s);
+  const h=Math.max(PORT?44:40, (PORT?48:44)*s);
+  const w=Math.max(220*s, 200);
+  const lift=PORT?Math.max(56,56*s):Math.max(16,16*s);
+  const x=VW/2-w/2;
+  const y=Math.max(72*s, (UI.hudTop||VH-(PORT?230:132)*s)-h-lift);
   promptBtn={x,y,w,h};
   const pulse=.5+Math.sin(G.elapsed*4)*.25;
   plate(g,x,y,w,h,7,.9);
@@ -12323,7 +12333,7 @@ function resolveTaps(){
     const t=IN.taps.shift();
     if(G.sleepShow) continue;
     if(G.scene==='play'&&!G.paused){
-      if(promptBtn&&t.x>promptBtn.x&&t.x<promptBtn.x+promptBtn.w&&t.y>promptBtn.y&&t.y<promptBtn.y+promptBtn.h){
+      if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
         fire('use'); continue; }
       const p=player(); if(!p) continue;
       if(throwBtn&&t.x>throwBtn.x&&t.x<throwBtn.x+throwBtn.w&&t.y>throwBtn.y&&t.y<throwBtn.y+throwBtn.h){
@@ -12333,6 +12343,8 @@ function resolveTaps(){
       if(G.aim){ const d=dist(p,w), R=8;
         G.aim = d>R ? {x:p.x+(w.x-p.x)/d*R, y:p.y+(w.y-p.y)/d*R} : {x:w.x,y:w.y};
         continue; }
+      const bound=G.ents.find(e=>e.name==='Noz'&&e.tied&&!e.dead);
+      if(bound && dist(p,bound)<2.2 && dist(bound,w)<1.6){ fire('use'); continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
       const pile=(G.loot||[]).find(q=>!q.gone&&dist(q,w)<0.95);
       const body=G.ents.find(e=>isLootableBody(e)&&!e.looted&&dist(e,w)<1.85);

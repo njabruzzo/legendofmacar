@@ -30,6 +30,7 @@ assert(/spawnLairGroup\(32,50,\{leader:'bugbear'/.test(ch3), 'orcs hold the sout
 const ch2=html.slice(html.indexOf('if(n===2){'), html.indexOf('if(n===3){'));
 assert(/spawnLairGroup\(40\.1, 32\.1, \{leader:'goblinBoss'/.test(ch2), 'camp goblins stand as one warband');
 assert(/pack:\[\['goblin',5\]\]/.test(ch2), 'goblin camp is goblins only');
+assert(/e\.nozCamp=1/.test(ch2), 'camp four-way is tagged so east goblins do not block Untie');
 assert(/spawnLairGroup\(10\.1, 31\.0, \{leader:'spiderLord'/.test(ch2), 'west cave is a spider nest');
 assert(/pack:\[\['spider',3\]\]/.test(ch2), 'spider lord nest is spiders only');
 assert(/placeSpiderWebCorpses\(\)/.test(ch2), 'silk room scatters lootable web corpses');
