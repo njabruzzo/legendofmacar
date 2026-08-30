@@ -6079,11 +6079,17 @@ function rollIndividual(letter){
   else if(letter==='S') return {coins:{},gems:0,jew:0,magN:chanceOk(40)?ri(1,8):0,magKind:'potion'};
   else if(letter==='T') return {coins:{},gems:0,jew:0,magN:chanceOk(50)?ri(1,4):0,magKind:'scroll'};
   else if(letter==='U'){
+    let u=null;
     if(typeof SpiderLair!=='undefined'&&SpiderLair.rollTypeU)
-      return SpiderLair.rollTypeU({chanceOk:chanceOk, rngAmt:rngAmt});
-    return {coins:{cp:rngAmt(10,80),sp:rngAmt(10,60),gp:rngAmt(5,30)},
-      gems:chanceOk(90)?rngAmt(2,16):0, jew:chanceOk(80)?rngAmt(1,6):0,
+      u=SpiderLair.rollTypeU({chanceOk:chanceOk, rngAmt:rngAmt});
+    if(!u) u={coins:{}, gems:chanceOk(90)?rngAmt(2,16):0, jew:chanceOk(80)?rngAmt(1,6):0,
       magN:chanceOk(55)?1:0, magKind:'any'};
+    u.coins=Object.assign({}, u.coins||{});
+    /* DMG U coins — never an empty purse, even if a helper omitted them. */
+    if(!(u.coins.cp>0)) u.coins.cp=rngAmt(10,80);
+    if(!(u.coins.sp>0)) u.coins.sp=rngAmt(10,60);
+    if(!(u.coins.gp>0)) u.coins.gp=rngAmt(5,30);
+    return u;
   }
   else if(letter==='V'){
     return {coins:{}, gems:chanceOk(90)?rngAmt(10,80):0, jew:chanceOk(90)?rngAmt(5,40):0,
@@ -6102,6 +6108,14 @@ function rollIndividual(letter){
   }
   else return null;
   return {coins,gems:0,jew:0,magN:0,magKind:'any'};
+}
+function hoardHasCoins(h){
+  const c=(h&&h.coins)||{};
+  return ['cp','sp','ep','gp','pp'].some(k=>(c[k]||0)>0);
+}
+function ensureKillCoins(h){
+  if(hoardHasCoins(h)) return h;
+  return mergeHoards(h, rollIndividual('J'));
 }
 function mergeHoards(a,b){
   if(!a) return b; if(!b) return a;
@@ -9668,7 +9682,7 @@ function rollKillIndividual(e){
   hoard=mergeHoards(hoard, rollIndividual('T'));
   if(chanceOk(14+lv*3+(boss?25:0))) hoard=mergeHoards(hoard, {coins:{},gems:0,jew:0,magN:1,magKind:'any'});
   if(boss) hoard=mergeHoards(hoard, rollIndividual('U'));
-  return hoard;
+  return ensureKillCoins(hoard);
 }
 function foeDrop(e){
   if(isSpiderLord(e)){
@@ -9699,11 +9713,16 @@ function foeDrop(e){
   let hoard=null;
   if(raw && !/^nil$/i.test(raw)) hoard=rollTreasureSpec(raw);
   if(e.boss && !hoard) hoard=rollLair('H')||rollLair('C');
-  hoard=mergeHoards(hoard, rollKillIndividual(e));
+  hoard=ensureKillCoins(mergeHoards(hoard, rollKillIndividual(e)));
   let pile=hoardToPile(hoard);
   if(!pile){
-    pile=hoardToPile(rollKillIndividual(e))||
+    pile=hoardToPile(ensureKillCoins(rollKillIndividual(e)))||
       {kind:'coins', coins:{cp:ri(3,24)}, gems:0, jew:0, potions:[], items:[], glow:'#ffd27a'};
+  }
+  if(!Object.keys(pile.coins||{}).some(k=>pile.coins[k]>0)){
+    const j=rollIndividual('J');
+    pile.coins=Object.assign({}, pile.coins||{}, j&&j.coins||{cp:ri(3,24)});
+    if(pile.kind==='pile') pile.kind='coins';
   }
   pile.label=pile.label||((e.name||'Foe')+' (DMG individual)');
   e.drop=pile;
