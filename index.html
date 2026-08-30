@@ -1042,6 +1042,26 @@ function repairSpriteSheet(img){
   morphPass(t2,t1,W,H,R,false,false);
   morphPass(t1,sil,W,H,R,false,true);
   for(let i=0;i<N;i++) if(known[i]) sil[i]=1;   // never lose real paint at the frame edge
+  /* Fill every pocket the silhouette encloses. Two things land here: holes
+     wider than the closing radius, and the square pockets the closing itself
+     carves when a punched patch is wider than 2R. Flooding from the frame
+     edge means only fully-enclosed pockets fill, so this can never bloat the
+     outline. */
+  {
+    const seen=new Uint8Array(N), stack=new Int32Array(N);
+    let sp=0;
+    const push=i=>{ if(!seen[i]&&!sil[i]){ seen[i]=1; stack[sp++]=i; } };
+    for(let xx=0;xx<W;xx++){ push(xx); push((H-1)*W+xx); }
+    for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
+    while(sp>0){
+      const i=stack[--sp], y=(i/W)|0, xx=i-y*W;
+      if(xx>0) push(i-1);
+      if(xx<W-1) push(i+1);
+      if(y>0) push(i-W);
+      if(y<H-1) push(i+W);
+    }
+    for(let i=0;i<N;i++) if(!sil[i]&&!seen[i]) sil[i]=1;
+  }
   let holes=0;
   for(let i=0;i<N;i++) if(sil[i]&&!solid[i]) holes++;
   if(holes){
@@ -1198,31 +1218,27 @@ function drawEntBillboard(g,e,img,z,flip){
 }
 /* ==========================================================================
    Macar's heading table.
-   MEASURED, do not "correct" this from the file names. Macar's directional
-   sheets are painted MIRRORED against the convention every other dwarf
-   follows. Checked against dwarf_fendur_ghost_*, which is painted to the
-   screen convention:
-       fendur ghost _e_  = profile walking screen-RIGHT
-       macar         _e_  = profile walking screen-LEFT
-       fendur ghost _se_ = three-quarter facing screen-DOWN-RIGHT
-       macar         _se_ = three-quarter facing screen-DOWN-LEFT
-       fendur ghost _ne_ = back three-quarter going screen-UP-RIGHT
-       macar         _ne_ = back three-quarter going screen-UP-LEFT
-   So Macar never goes through dwarfAngleKey(); he gets this table, where
-   `fam` is the sheet family to blit and `flip` mirrors it on the way out.
-   _ne_ and _nw_ are mirrors of one another, so up-screen needs no flip:
-   screen-NE is his _nw_ sheet and screen-NW is his _ne_ sheet.
-   This is why every earlier one-sided flip fix moonwalked one of them —
-   inverting the flip for Macar broke the kin, and matching the kin broke
-   Macar. They need different rules because they are painted differently.
+   VERIFIED at head level against dwarf_fendur_ghost_*, by where the nose
+   and beard point — not by silhouette, which is how the maul head once got
+   mistaken for his front and sent him walking backwards:
+       _e_   profile facing screen-RIGHT   (nose right, maul trailing left)
+       _se_  three-quarter facing screen-DOWN-RIGHT
+       _ne_  back three-quarter going screen-UP-RIGHT
+       _nw_  back three-quarter going screen-UP-LEFT
+       _s_   facing the camera
+       _back_ facing away
+   So Macar is painted to the same convention as every other dwarf, and the
+   only reason he used to face one way while walking the other was that the
+   old whitelist locked him to the front sheets. Screen-left headings mirror
+   the screen-right sheet; up-screen has its own painted pair, so no flip.
    ========================================================================== */
 const MACAR_DIR={
-  e:  {fam:'_e',    flip:1},
-  w:  {fam:'_e',    flip:0},
-  se: {fam:'_se',   flip:1},
-  sw: {fam:'_se',   flip:0},
-  ne: {fam:'_nw',   flip:0},
-  nw: {fam:'_ne',   flip:0},
+  e:  {fam:'_e',    flip:0},
+  w:  {fam:'_e',    flip:1},
+  se: {fam:'_se',   flip:0},
+  sw: {fam:'_se',   flip:1},
+  ne: {fam:'_ne',   flip:0},
+  nw: {fam:'_nw',   flip:0},
   n:  {fam:'_back', flip:0},
   s:  {fam:'',      flip:0}
 };
@@ -1260,19 +1276,19 @@ function macarPose(e){
 
   if(wantsMeleePose(e)||wantsMeleeRecover(e)){
     const rec=wantsMeleeRecover(e);
-    /* macar_e_atk is painted swinging screen-RIGHT — the opposite hand to
-       the _e_ walk sheets, so it takes the opposite flip. Maul only: the
-       axe side-strike sheet is a hard upscale that does not sit next to the
-       rest of the set, so the axe swings from the front sheet. */
+    /* macar_e_atk swings screen-RIGHT, same hand as the _e_ walk sheets, so
+       it takes the same flip. Maul only: the axe side-strike sheet is a hard
+       upscale that does not sit next to the rest of the set, so the axe
+       swings from the front sheet. */
     if(!rec && fam==='_e' && stem==='macar' && sprReady('macar_e_atk')){
-      return {key:'macar_e_atk', flip:!flip};
+      return {key:'macar_e_atk', flip:flip};
     }
     const k=macarFirstReady(rec
       ? [stem+'_atk_recover', alt&&alt+'_atk_recover', stem+'_atk', alt&&alt+'_atk']
       : [stem+'_atk', alt&&alt+'_atk']);
     // front strike sheets face camera; sideways, mirror the follow-through
     // so the maul lands on the side he actually swung at.
-    if(k) return {key:k, flip:fam==='_e'?!flip:false};
+    if(k) return {key:k, flip:fam==='_e'?flip:false};
   }
 
   if(e.moving && !e.defending){
