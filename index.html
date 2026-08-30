@@ -6928,7 +6928,7 @@ function walk(x,y,e){ const L=G.lvl; if(!L) return false;
 /* South / SE / SW masonry: tan coping hangs ~0.10 onto the floor and the
    face billboard covers more. Living party boots stay this far off that
    edge. Not applied to N/W-only faces — halls stay full width on those sides. */
-const WALL_FACE_CLEAR=0.62;
+const WALL_FACE_CLEAR=0.72;
 function needsWallFaceClear(e){
   return !!(e && (e.hero || e.team==='party') && !e.dead && !e.crushed && !e.hidden);
 }
@@ -7917,12 +7917,20 @@ function render(){
     }
   }
   if(DIAG.grain && inWorld && QUALITY && !PHONE_GFX) drawGrain(g);
-  /* Living Macar after multiply / haze / grain so he stays a solid dwarf. */
+  /* Living Macar after multiply / haze / grain so he stays a solid dwarf.
+     Living party kin use the same after-grain slot so a south/SE/SW face
+     cannot cover them. Foes / dead / crushed stay in actorDrawDepth. */
   if(inWorld && DIAG.world){
     const mac=player();
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
+    }
+    for(const e of G.ents){
+      if(!e || e.hero || e.dead || e.crushed || e.hidden) continue;
+      if(e.kind!=='dwarf' || e.team!=='party') continue;
+      g.globalAlpha=1; g.globalCompositeOperation='source-over';
+      drawEnt(g,e);
     }
   }
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
@@ -7986,8 +7994,10 @@ function drawWorld(g,L){
   for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push(actorDrawDepth(q),()=>drawLoot(g,q));
   for(const e of G.ents){
     if(e.crushed||!showEnt(e)) continue;
-    // Living Macar is drawn solid after the light multiply — skip the washed pass.
+    // Living Macar and living party paint after grain so a south/SE/SW face
+    // cannot eat them. Dead / crushed / foes stay in the wall sort.
     if(e.hero && !e.dead && !e.ghost) continue;
+    if(e.kind==='dwarf' && e.team==='party' && !e.dead && !e.crushed) continue;
     push(actorDrawDepth(e),()=>drawEnt(g,e));
   }
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
