@@ -1551,15 +1551,16 @@ function faceToward(e,x,y){
 }
 function faceVec(e){
   if(!e) return {dx:0,dy:0};
-  if(e.atk>0 && e.aim && !e.aim.dead && e.aim.x!=null){
+  if(e.aim && !e.aim.dead && e.aim.x!=null && (e.atk>0 || (e.team==='party' && !e.hero && e.aim.team==='foe' && kinCanAutoFight(e)))){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
   // Party kin share Macar heading while they follow so trail-lag scramble
   // does not mix left/right in the line — including when they stand still.
-  // Attack still snaps to the aim. fdx===0 is a real south/north heading.
+  // In a fight they face the foe they are closing on, not Macar's walk.
   const lead=e.hero?null:player();
-  if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
+  if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)
+    && !(e.aim && !e.aim.dead && e.aim.team==='foe' && kinCanAutoFight(e))){
     const hx=lead.fdx!=null?lead.fdx:(lead.ix||0);
     const hy=lead.fdy!=null?lead.fdy:(lead.iy||0);
     if(hx||hy) return {dx:hx, dy:hy};
@@ -6767,6 +6768,30 @@ function buildGoblinKingLevel(L){
 function foesVisible(){
   return G.ents.some(e=>e.team==='foe'&&!e.dead&&!e.npc&&tileVisible(e.x,e.y));
 }
+function kinCanAutoFight(e){
+  /* Up party kin — including Book I ghosts — close on their own.
+     Ghosts stay ghosts (sprite / rules). Crushed, sleeping, tied, dead do not fight. */
+  return !!(e && e.team==='party' && !e.hero && !e.dead
+    && !e.crushed && !e.sleeping && !e.tied && !e.hidden);
+}
+/* A foe is in the fight: visible in radius, fight already on, or adjacent to the party. */
+function foeInTheFight(){
+  const ents=G.ents||[];
+  const party=ents.filter(z=>z.team==='party'&&!z.dead&&!z.crushed&&!z.sleeping);
+  if(!party.length) return false;
+  for(const o of ents){
+    if(o.team!=='foe'||o.dead||o.npc) continue;
+    let adj=false, near=false;
+    for(const k of party){
+      const d=dist(k,o);
+      if(d<1.45) adj=true;
+      if(d<7.2) near=true;
+    }
+    if(adj) return true;
+    if(near && (G.fightOn || tileVisible(o.x,o.y))) return true;
+  }
+  return false;
+}
 function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   const party=e&&e.team==='party';
   for(const o of G.ents){
@@ -7577,7 +7602,7 @@ function update(dt){
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
     if(e.hero) continue;
     if(e.hidden){ e.moving=0; e.ix=0; e.iy=0; continue; }
-    if(e.sleeping){ e.moving=0; e.ix=0; e.iy=0; continue; }
+    if(e.sleeping||e.crushed||e.tied){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.fleeTo){
       const t=e.fleeTo, d=dist(e,t);
       e.fleeStuck=(e.fleeStuck||0)+dt;
@@ -7605,10 +7630,11 @@ function update(dt){
           burst(hu.x,hu.y,'#ffe9a8',10,2); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } }
       const kin=G.ents.filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
-      const macarFighting=p&&!p.moving&&(p.aim||p.atk>0)&&!p.dest;
-      const foe=nearestFoe(e, e.ranged?8:4.6);
-      if(macarFighting&&foe&&p&&dist(e,p)<6.5){ tgt=foe; want=e.ranged?e.range*.7:e.range; }
+      const fight=kinCanAutoFight(e)&&foeInTheFight();
+      const foe=fight?nearestFoe(e, e.ranged?9:6.2):null;
+      if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
+        e.aim=null;
         if(p.moving) tgt=trailSlot(idx<0?0:idx)||partyForm(idx<0?1:idx+1, p);
         else tgt=partyForm(idx<0?1:idx+1, p);
         want=.38; form=1;
@@ -7644,9 +7670,11 @@ function update(dt){
     ghostSapperBomb(e, dt);
   }
   if(p){
+    const threat=foeInTheFight();
     for(const e of G.ents){
-      if(e.team!=='party'||e.hero||e.dead||e.crushed||e.sleeping) continue;
+      if(e.team!=='party'||e.hero||e.dead||e.crushed||e.sleeping||e.tied) continue;
       if(e.defending||(e.atk>0)) continue;
+      if(threat && kinCanAutoFight(e)) continue;
       if(!p.moving && (p.aim||p.atk>0)) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
     }
