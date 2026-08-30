@@ -2571,32 +2571,36 @@ function startCaveInBlocks(x,y){
 }
 function drawStartCaveInCell(g, L, x, y){
   const H=startCaveInH(L);
-  const face=SPR.wall_cave_face||SPR.wall_face||SPR.wall_worked;
+  const faceImg=SPR.wall_cave_face||SPR.wall_face||SPR.wall_worked;
   const cave=SPR.cavein||SPR.rubble||SPR.boulder;
   const rock=SPR.rubble||SPR.rubble2||SPR.boulder;
   const beam=SPR.timber;
   const seed=x*31+y*17;
   const x1=x+1;
-  /* Opaque fallen-earth backing first. Cave-in / rubble sheets are isolated
-     piles — stretching them alone leaves holes, and the beyond-mask reads
-     those holes as a black void over a waist-high hedge. */
-  drawIsoPlaneImg(g, null, x1, y, x1, y+1.16, H, {fill:'#3c2a1c', shade:0.58, stroke:0});
-  drawIsoPlaneImg(g, null, x1+0.07, y+0.02, x1+0.07, y+1.10, H*0.90, {fill:'#2a1c12', shade:0.42, stroke:0});
-  if(face&&face.width)
-    drawIsoPlaneImg(g, face, x1, y, x1, y+1.14, H, {u:h2(seed,1), shade:0.72, stroke:0});
+  /* Bright enough that the light multiply still reads as fallen earth,
+     not a black void. Isolated pile sheets cannot fill this plane alone. */
+  drawIsoPlaneImg(g, null, x1, y, x1, y+1.16, H, {fill:'#7a5840', shade:0.38, stroke:0});
+  drawIsoPlaneImg(g, null, x1+0.08, y+0.02, x1+0.08, y+1.10, H*0.92, {fill:'#5a3c28', shade:0.30, stroke:0});
+  if(useWallFaces(L)){
+    const faceR=TILEBLIT.faceR||TILEBLIT.face;
+    if(faceR) drawMasonryFace(g, faceR, x1, y, x1, y+1.14, H, -1, 0, seed+3);
+    drawMasonryCoping(g, x, y, H, 0, 1, 0, 0);
+  } else if(faceImg&&faceImg.width){
+    drawIsoPlaneImg(g, faceImg, x1, y, x1, y+1.14, H, {u:h2(seed,1), shade:0.55, stroke:0});
+  }
   if(rock&&rock.width){
-    drawIsoPlaneImg(g, rock, x1+0.04, y-0.04, x1+0.04, y+1.16, H*0.44, {u:h2(seed,3), shade:0.52, stroke:0});
-    drawIsoPlaneImg(g, rock, x1+0.02, y+0.08, x1+0.02, y+1.08, H*0.70, {u:h2(seed,4)+0.22, shade:0.46, stroke:0});
+    drawIsoPlaneImg(g, rock, x1+0.04, y-0.04, x1+0.04, y+1.16, H*0.48, {u:h2(seed,3), shade:0.40, stroke:0});
+    drawIsoPlaneImg(g, rock, x1+0.02, y+0.08, x1+0.02, y+1.08, H*0.74, {u:h2(seed,4)+0.22, shade:0.36, stroke:0});
   }
   if(cave&&cave.width){
-    drawIsoPlaneImg(g, cave, x1+0.03, y-0.02, x1+0.03, y+1.16, H*0.96, {u:h2(seed,5)+0.14, shade:0.58, stroke:0});
-    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.40, stroke:0});
+    drawIsoPlaneImg(g, cave, x1+0.03, y-0.02, x1+0.03, y+1.16, H*0.98, {u:h2(seed,5)+0.14, shade:0.44, stroke:0});
+    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.32, stroke:0});
   }
   if(beam&&beam.width){
     if((y+x)&1)
-      drawIsoPlaneImg(g, beam, x1+0.07, y+0.16, x1+0.07, y+1.00, H*0.82, {u:h2(seed,2), shade:0.28, stroke:0});
+      drawIsoPlaneImg(g, beam, x1+0.07, y+0.16, x1+0.07, y+1.00, H*0.84, {u:h2(seed,2), shade:0.22, stroke:0});
     if(y&1)
-      drawIsoPlaneImg(g, beam, x1+0.10, y+0.28, x1+0.10, y+0.94, H*0.60, {u:h2(seed,6)+0.41, shade:0.22, stroke:0});
+      drawIsoPlaneImg(g, beam, x1+0.10, y+0.28, x1+0.10, y+0.94, H*0.62, {u:h2(seed,6)+0.41, shade:0.18, stroke:0});
   }
 }
 function startRubbleSpr(seed, n){
@@ -2627,8 +2631,6 @@ function startBackWallRubble(){
     if(nearCrush(x,y,1.05)) continue;
     const s=1.12+h01(i,7,83)*0.33;
     out.push({x,y,k:'cavein',s,seed:960+i,backwall:1});
-    if((i&1)===0)
-      out.push({x:x+0.06,y:y+0.18,k:'timber',s:0.88+h01(i,8,83)*0.18,seed:980+i,backwall:1});
   }
   return out;
 }
@@ -2712,7 +2714,8 @@ function makeChapter(n){
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
-    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
+    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:14.4,y:22.0,c:'#e0a060',r:6.2,f:0.88},
+              {x:14.5,y:26.2,c:'#d09050',r:5.4,f:0.78},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
               {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
