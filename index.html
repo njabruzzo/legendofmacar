@@ -1222,13 +1222,21 @@ function rubyNorthWallH(L){ return wallFaceH(L)*WALL_RUBY_NORTH_SCALE; }
 function wallHidesFloor(L,x,y){
   if(!L||!L.grid) return false;
   const ix=x|0, iy=y|0;
-  const south=L.grid[iy+1]&&L.grid[iy+1][ix]===1;
-  const east=L.grid[iy]&&L.grid[iy][ix+1]===1;
-  return !!(south||east);
+  const g=L.grid;
+  const south=g[iy+1]&&g[iy+1][ix]===1;
+  const east=g[iy]&&g[iy][ix+1]===1;
+  const se=g[iy+1]&&g[iy+1][ix+1]===1;
+  const sw=g[iy+1]&&g[iy+1][ix-1]===1;
+  return !!(south||east||se||sw);
 }
 function actorDrawDepth(o){
   const d=(o.x+o.y);
-  return wallHidesFloor(G.lvl,o.x,o.y)?(d+1)|0:d|0;
+  if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
+  /* +1 is the same bucket as a south/east face, but a SE wall tile is
+     (ix+1)+(iy+1) — it still paints after the dwarf and eats the legs.
+     Living dwarves sort past that tile. Dead / crushed / rats stay at +1. */
+  if(o.kind==='dwarf'&&!o.dead&&!o.crushed) return (d+2)|0;
+  return (d+1)|0;
 }
 function rubyDoorH(L){
   return wallFaceH(L)*1.28;
@@ -6917,9 +6925,34 @@ function walk(x,y,e){ const L=G.lvl; if(!L) return false;
   if(t===0||t===3) return true;
   if(t===4) return !!(e && e.kind==='gnome');
   return false; }
+/* South / SE / SW masonry: tan coping hangs ~0.10 onto the floor and the
+   face billboard covers more. Living party boots stay this far off that
+   edge. Not applied to N/W-only faces — halls stay full width on those sides. */
+const WALL_FACE_CLEAR=0.55;
+function needsWallFaceClear(e){
+  return !!(e && (e.hero || e.team==='party') && !e.dead && !e.crushed && !e.hidden);
+}
+function wallFaceClear(x,y,e){
+  if(!needsWallFaceClear(e)) return true;
+  const L=G.lvl; if(!L||!L.grid) return true;
+  const m=WALL_FACE_CLEAR;
+  const ix=Math.floor(x), iy=Math.floor(y);
+  const solid=(i,j)=>!!(L.grid[j]&&L.grid[j][i]===1);
+  const south=solid(ix,iy+1), east=solid(ix+1,iy), west=solid(ix-1,iy);
+  const se=solid(ix+1,iy+1), sw=solid(ix-1,iy+1);
+  if(south && y>iy+1-m) return false;
+  if(east && x>ix+1-m) return false;
+  if(se && y>iy+1-m && x>ix+1-m) return false;
+  if(sw && y>iy+1-m && x<ix+m) return false;
+  if(west && south && x<ix+m) return false;
+  return true;
+}
 function canBe(x,y,r,e){
+  if(!walk(x,y,e)) return false;
   return walk(x+r,y,e)&&walk(x-r,y,e)&&walk(x,y+r,e)&&walk(x,y-r,e)&&
-         walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e); }
+         walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e)&&
+         wallFaceClear(x,y,e);
+}
 function move(e,dx,dy,dt){
   const nx=e.x+dx*dt, ny=e.y+dy*dt; let moved=0;
   if(canBe(nx,e.y,e.r,e)){ e.x=nx; moved=1; }

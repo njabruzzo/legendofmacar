@@ -16,7 +16,9 @@ function assert(cond, msg){
 assert(/WALL_HALL_SCALE=0\.70/.test(html), 'masonry wall faces are scaled down so near-wall floor shows');
 assert(/function hallWallH\(L\)/.test(html), 'hallWallH exists');
 assert(/function actorDrawDepth\(o\)/.test(html), 'actorDrawDepth exists');
-assert(/function wallHidesFloor\(L,x,y\)/.test(html), 'south/east walls are the occluders');
+assert(/function wallHidesFloor\(L,x,y\)/.test(html), 'south/east/SE/SW walls are the occluders');
+assert(/ix\+1\]===1/.test(html) && /ix-1\]===1/.test(html),
+  'wallHidesFloor includes the SE and SW neighbor tiles');
 assert(/const H=hallWallH\(L\)/.test(html), 'drawWallCell uses the shorter hall face height');
 assert(/function rubyDoorH\(L\)\{/.test(html) && /return wallFaceH\(L\)\*1\.28/.test(html),
   'ruby doors still use full wallFaceH (do not fight descent visibility)');
