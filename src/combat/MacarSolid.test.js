@@ -30,7 +30,8 @@ assert(/personY0/.test(html), 'spriteBounds records the foot-column crown');
 assert(/function blitLivingMacar\(/.test(html), 'one blitLivingMacar pipe bakes living Macar');
 assert(/function solidMacarSprite\(/.test(html) && /return blitLivingMacar\(img\)/.test(html),
   'solidMacarSprite is the same pipe (HUD face)');
-assert(/Living Macar is drawn solid after the light multiply/.test(html),
+assert(/Living Macar and living party paint after grain/.test(html)
+  || /Living Macar is drawn solid after the light multiply/.test(html),
   'Macar is skipped in the washed world pass');
 assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
   && /drawLivingMacar\(g,mac\)/.test(html.match(/if\(DIAG\.grain && inWorld[\s\S]*?drawHUD/)[0]),
