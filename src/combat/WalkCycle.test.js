@@ -30,7 +30,7 @@ assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
-assert(/walkCycleKey\(e, 'macar'\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair');
+assert(/walkCycleKey\(e, stem\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair of the stem');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey),
   'living Macar walk does not bind washed directional stems');
 
@@ -102,14 +102,18 @@ function extractThrough(name, until){
 }
 Object.assign(ctx, {
   TAU:Math.PI*2,
+  clamp:(v,a,b)=>v<a?a:v>b?b:v,
   player(){ return null; },
+  wieldsShadowCleaver(){ return false; },
   wantsMeleePose(){ return false; },
   wantsMeleeRecover(){ return false; },
   entAnimKey(e){ return ctx.livingMacarAnimKey?ctx.livingMacarAnimKey(e):'macar_e_w1'; }
 });
 vm.runInContext(
-  'const LIVING_MACAR_KEYS={macar:1,macar_w1:1,macar_w2:1,macar_atk:1,macar_atk_recover:1};'
+  html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/)[0]
   +extractFn('isLivingMacarKey')
+  +extractFn('livingMacarIdleKey')
+  +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 
 function holdWalk(ix, iy){

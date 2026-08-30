@@ -17,9 +17,10 @@ const doll=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfuncti
 assert(!!doll, 'drawEquipDoll exists');
 const block=doll?doll[0]:'';
 
-assert(/blitLivingMacar\(SPR\.macar\)/.test(block), 'doll binds the blitLivingMacar idle pipe');
-assert(!/macar_axe/.test(block) && !/wieldsShadowCleaver\(/.test(block),
-  'doll does not swap to the axe sheet until that sheet is binary-alpha');
+assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(block),
+  'doll binds the blitLivingMacar idle key (axe when the cleaver is on)');
+assert(/livingMacarIdleKey\(\)/.test(block),
+  'doll follows livingMacarIdleKey so Shadow Cleaver matches the dungeon blit');
 assert(/globalAlpha=1/.test(block) && /globalCompositeOperation='source-over'/.test(block),
   'doll blit is source-over at alpha 1');
 assert(!/SPR\.icon_doll/.test(block), 'kettle-hat icon_doll is not the pack doll');

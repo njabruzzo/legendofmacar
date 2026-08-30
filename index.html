@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=71">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=72">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -348,7 +348,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='71';
+const ASSET_VER='72';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1005,8 +1005,8 @@ function drawEntBillboard(g,e,img,z,flip){
     g.drawImage(img, sx, sy, sw, sh, -pw/2, -ph*0.82, pw, ph);
     return true;
   }
-  // Living Macar: only the binary-alpha whitelist. Directional / title / axe
-  // sheets stay unused until they are punched the same way.
+  // Living Macar: only punched whitelist keys (maul + axe). Directional /
+  // title / w3 sheets stay unused — they are not face-safe binary-alpha.
   if(e.hero && !e.dead && !e.ghost){
     img=livingMacarImg(livingMacarAnimKey(e));
     if(!img||!img.width) return false;
@@ -1027,27 +1027,42 @@ function drawEntBillboard(g,e,img,z,flip){
   blitFacing(g,img,dx,dy,W,H,flip);
   return true;
 }
-/* Limner living-Macar gate. Only these sheets are binary-alpha.
-   Directional / title / axe / sleep / w3 stay unused until they are too.
-   Title stills, pack doll, strike, recover, and walk all pick through here. */
-const LIVING_MACAR_KEYS={macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1};
+/* Limner living-Macar gate. Every key living Macar actually blits is listed
+   here and goes through blitLivingMacar (a≤40 punch 0, a>40 un-premultiply
+   then a=255). Axe sheets are in the pipe so Shadow Cleaver is not forced
+   back to the maul idle. Directional / title / sleep / w3 stay unused. */
+const LIVING_MACAR_KEYS={
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1,
+  macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1, macar_axe_atk_recover:1
+};
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
+function livingMacarIdleKey(){
+  return (typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+    ? 'macar_axe' : 'macar';
+}
 function livingMacarImg(key){
-  const k=isLivingMacarKey(key)&&sprReady(key)?key:(sprReady('macar')?'macar':null);
+  let k=isLivingMacarKey(key)&&sprReady(key)?key:null;
+  if(!k){
+    const idle=livingMacarIdleKey();
+    k=(isLivingMacarKey(idle)&&sprReady(idle))?idle:(sprReady('macar')?'macar':null);
+  }
   if(!k) return null;
   return blitLivingMacar(SPR[k]);
 }
-/* Living Macar only. Idle / front w1-w2 / strike / recover. Flip west on the
-   blit — never axe, never a washed directional stem, never QUALITY-gated. */
+/* Living Macar only. Idle / front w1-w2 / strike / recover, maul or axe.
+   Flip west on the blit — never a washed directional stem, never QUALITY-gated. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
-  if(wantsMeleeRecover(e) && sprReady('macar_atk_recover')) return 'macar_atk_recover';
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && sprReady('macar_atk')) return 'macar_atk';
+  const stem=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+    ? 'macar_axe' : 'macar';
+  const rec=stem+'_atk_recover', atk=stem+'_atk';
+  if(wantsMeleeRecover(e) && isLivingMacarKey(rec) && sprReady(rec)) return rec;
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && isLivingMacarKey(atk) && sprReady(atk)) return atk;
   if(e.moving && !e.defending){
-    const hit=walkCycleKey(e, 'macar');
+    const hit=walkCycleKey(e, stem);
     if(isLivingMacarKey(hit)) return hit;
   }
-  return sprReady('macar')?'macar':null;
+  return (isLivingMacarKey(stem) && sprReady(stem)) ? stem : (sprReady('macar')?'macar':null);
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1572,7 +1587,9 @@ function faceToward(e,x,y){
 }
 function faceVec(e){
   if(!e) return {dx:0,dy:0};
-  if(e.aim && !e.aim.dead && e.aim.x!=null && (e.atk>0 || (e.team==='party' && !e.hero && e.aim.team==='foe' && kinCanAutoFight(e)))){
+  /* If a foe is the current aim, facing follows the foe — swinging or
+     closing — not leftover walk heading. */
+  if(e.aim && !e.aim.dead && e.aim.x!=null && (e.aim.team==='foe' || e.atk>0)){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
@@ -10919,7 +10936,7 @@ function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
 function face(g,cx,cy,rr,c,dead,ghost){
   const img=(ghost&&c&&SPR[c.key+'_ghost'])
-    ||(c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR.macar):null)
+    ||(c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR[livingMacarIdleKey()]||SPR.macar):null)
     ||(c&&c.key!=='macar'?SPR[c.key]:null);
   g.save();
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.clip();
@@ -11641,7 +11658,7 @@ function drawTitleCavern(g){
     g.fillStyle='rgba(8,6,5,0.55)';
     g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
     if(keys[i]==='macar'){
-      const sheet=blitLivingMacar(SPR.macar);
+      const sheet=blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
       if(sheet){
         g.save();
         g.globalAlpha=1;
@@ -11840,9 +11857,19 @@ function drawArtRect(g, img, x, y, w, h, r){
 
 function drawTitle(g){
   menuHits=[]; const s=UIS;
-  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+  g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
   if(SPLASH_STATE==='ready'){
-    if(!drawSplashCover(g, SPR.title_splash, {zoom:1, ay:0.56, nudgeY:0})) drawTitleCavern(g);
+    const splash=SPR.title_splash;
+    if(splash&&splash.width){
+      /* Shift the party plate down so BOOK ONE / THE LEGEND OF MACAR sit on
+         dark cave, not hats. Scale in to enlarge the tunnel; crop overflow.
+         Gold type stays on the high-stack (do not move the text down). */
+      const caveH=Math.max(12,(splash.height*0.14)|0);
+      g.drawImage(splash, 0, 0, splash.width, caveH, 0, 0, VW, VH*0.26);
+      g.fillStyle='rgba(8,6,5,0.28)';
+      g.fillRect(0,0,VW,VH*0.26);
+      if(!drawSplashCover(g, splash, {zoom:1.11, ay:0.48, nudgeY:VH*0.16})) drawTitleCavern(g);
+    } else drawTitleCavern(g);
   } else if(SPLASH_STATE==='fail'){
     drawTitleCavern(g);
   }
@@ -12584,9 +12611,8 @@ function drawEquipDoll(g, x, y, w, h){
   const lay=dollSlotLayout(x, y+22*s, w, h-28*s);
   const body=lay.body;
   /* Pack doll is the living Macar painting — same blitLivingMacar pipe
-     as the dungeon blit. Axe / title / back sheets stay unused until they
-     are binary-alpha too. No gold foot disc, no lighter, no kettle-hat. */
-  const img=blitLivingMacar(SPR.macar);
+     as the dungeon blit. Shadow Cleaver swaps the idle to the punched axe. */
+  const img=blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
   if(img&&img.width){
     const b=spriteBounds(img);
     const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;

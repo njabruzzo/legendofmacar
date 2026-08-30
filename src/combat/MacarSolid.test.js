@@ -38,8 +38,9 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
   'living Macar is a single source-over blit after lighting, haze, and grain');
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
-assert(/const LIVING_MACAR_KEYS=\{macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1\}/.test(html),
-  'living Macar whitelist is idle / w1 / w2 / atk / recover only');
+assert(/macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html)
+  && /macar_axe_w1:1/.test(html) && /macar_axe_atk_recover:1/.test(html),
+  'living Macar whitelist includes punched axe idle / walk / atk / recover');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
 
@@ -51,17 +52,18 @@ assert(/catch\(_\)\{[\s\S]*SPR\.macar/.test(bake) && !/out=img/.test(bake),
   'getImageData fail blits idle Macar, never the raw fringe sheet');
 
 const liveKey=extractFn('livingMacarAnimKey');
-assert(/walkCycleKey\(e, 'macar'\)/.test(liveKey) && /macar_atk/.test(liveKey)
-  && /macar_atk_recover/.test(liveKey),
+assert(/walkCycleKey\(e, stem\)/.test(liveKey) && /stem\+'_atk'/.test(liveKey)
+  && /stem\+'_atk_recover'/.test(liveKey),
   'living Macar uses front walkCycleKey plus atk / recover');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk is not QUALITY-gated');
 assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while moving');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
   && !/macar_ne/.test(liveKey) && !/macar_se/.test(liveKey) && !/macar_title/.test(liveKey),
   'living Macar does not bind washed directional / title stems');
-assert(!/macar_axe/.test(liveKey), 'living Macar still does not bind axe sheets');
-assert(/function livingMacarAnimKey[\s\S]*return sprReady\('macar'\)\?'macar':null;/.test(html),
-  'idle living Macar is the front plant, never e_w1');
+assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(liveKey),
+  'living Macar binds punched axe sheets when the cleaver is wielded');
+assert(/stem\+'_atk_recover'/.test(liveKey) || /macar_axe_atk_recover/.test(liveKey),
+  'axe recover is on the living-Macar key path');
 assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
@@ -86,17 +88,17 @@ assert(!/if\(!e\.dead&&e\.hero\)\{/.test(html)
   'gold foot ellipse under the hero is gone');
 
 const cavern=html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0];
-assert(/blitLivingMacar\(SPR\.macar\)/.test(cavern) && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
+assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(cavern)
+  && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
   'title fallback blits idle through blitLivingMacar, never title/back stills');
 assert(/globalAlpha=1/.test(cavern) && /globalCompositeOperation='source-over'/.test(cavern),
   'title Macar blit is source-over at alpha 1');
 const doll=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/)[0];
-assert(/blitLivingMacar\(SPR\.macar\)/.test(doll) && !/macar_axe/.test(doll) && !/wieldsShadowCleaver/.test(doll),
-  'pack doll uses the same blitLivingMacar idle pipe, not the axe sheet');
+assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(doll),
+  'pack doll uses the blitLivingMacar idle key (axe when the cleaver is on)');
 const faceFn=extractFn('face');
-assert(/c\.key==='macar'&&!ghost\?solidMacarSprite\(SPR\.macar\)/.test(faceFn)
-  || /c\.key==='macar' && !ghost[\s\S]*solidMacarSprite\(SPR\.macar\)/.test(faceFn),
-  'HUD face bakes living Macar through solidMacarSprite(SPR.macar)');
+assert(/solidMacarSprite\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(faceFn),
+  'HUD face bakes living Macar through solidMacarSprite of the idle key');
 assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
   'HUD face never blits raw SPR.macar for living Macar');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html), 'kin ghosts stay translucent');

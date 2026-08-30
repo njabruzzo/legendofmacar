@@ -47,12 +47,12 @@ assert(/The _nw_ sheets are painted walking upper-right/.test(html),
   'NW moonwalk is called out: those sheets are not selected for west');
 assert(/macar_title/.test(html) && /dwarf_macar_title\.png/.test(html),
   'title still sheet stays registered for later binary-alpha');
-assert(/blitLivingMacar\(SPR\.macar\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
+assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
   'title fallback blits the blitLivingMacar idle pipe');
 
 function faceVec(e, lead){
   if(!e) return {dx:0,dy:0};
-  if(e.atk>0 && e.aim && !e.aim.dead && e.aim.x!=null){
+  if(e.aim && !e.aim.dead && e.aim.x!=null && (e.aim.team==='foe' || e.atk>0)){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
@@ -146,6 +146,8 @@ const atkLeft={k:'macar', hero:1, x:10, y:10, atk:0.5, aim:{x:9,y:11,dead:0}, fd
 const atkRight={k:'macar', hero:1, x:10, y:10, atk:0.5, aim:{x:11,y:9,dead:0}, fdx:-0.7, fdy:0.7, moving:0, ix:0, iy:0, animKey:'macar_atk'};
 assert(wantsSpriteFlip(atkLeft), 'melee toward screen-left faces left even if last walk was right');
 assert(!wantsSpriteFlip(atkRight), 'melee toward screen-right faces right even if last walk was left');
+const closeLeft={k:'macar', hero:1, x:10, y:10, atk:0, aim:{x:9,y:11,dead:0,team:'foe'}, fdx:0.7, fdy:-0.7, moving:1, ix:0.7, iy:-0.7, animKey:'macar_w1'};
+assert(wantsSpriteFlip(closeLeft), 'closing on a screen-left foe faces the foe, not leftover walk-right');
 assert(wantsBackView({atk:0.4, aim:{x:9,y:9,dead:0}, x:10, y:10, fdx:0, fdy:1}),
   'attack toward iso north uses the back sheet');
 
