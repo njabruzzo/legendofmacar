@@ -1608,8 +1608,13 @@ function faceVec(e){
 }
 function screenOctant(e){
   const v=faceVec(e);
-  const sx=(v.dx||0)-(v.dy||0);
-  const sy=(v.dx||0)+(v.dy||0);
+  /* World heading -> SCREEN heading must use the same 2:1 iso weights as
+     w2s(). Unweighted (dx-dy, dx+dy) doubles the vertical component, which
+     widens the n/s wedges to ~45deg of world heading when they should be
+     ~23deg -- that is why Macar showed his back sheet on shallow up-screen
+     diagonals that are really ne/nw/e/w. */
+  const sx=((v.dx||0)-(v.dy||0))*(TW/2);
+  const sy=((v.dx||0)+(v.dy||0))*(TH/2);
   if(!(sx||sy)) return 's';
   const deg=((Math.atan2(sy,sx)*180/Math.PI)+360)%360;
   const bin=Math.round(deg/45)%8;
