@@ -137,6 +137,14 @@ assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') &&
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 
+const macRight={hero:1, moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, crushed:0, dead:0, ghost:0, atk:0};
+const kinRight={k:'orbo_ghost', moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, crushed:0, dead:0};
+const macLeft={hero:1, moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0, ghost:0, atk:0};
+const kinLeft={k:'orbo_ghost', moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0};
+assert(ctx.wantsSpriteFlip(macRight)===ctx.wantsSpriteFlip(kinRight)
+  && ctx.wantsSpriteFlip(macLeft)===ctx.wantsSpriteFlip(kinLeft),
+  'living Macar and kin share one heading flip sign — invert is a moonwalk');
+
 const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
 party.forEach(stem=>{
   ['_w1.png','_w2.png','_w3.png'].forEach(suf=>{

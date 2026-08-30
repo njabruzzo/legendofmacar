@@ -243,7 +243,7 @@ function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
    SAME painted facing — opposite FOOT, never opposite heading. Do not
    insert a _w3 pass; several of those sheets were painted turned around
    and ping-ponged Macar left/right on a straight D walk. Flip is heading
-   only (west = east sheet flipped once), never per frame. */
+   only (west = east / front sheet flipped once), never per frame. */
 function walkCycleKey(e, stem){
   /* w1 / w2 are the same painted facing. Only the planted boot swaps.
      Flip is heading-only on the blit (wantsSpriteFlip) — never by swapping sheets. */
@@ -1663,8 +1663,10 @@ function wantsSpriteFlip(e){
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   if(key.indexOf('_ne_')>=0) return false;
-  // East profiles and default stills: mirror whenever heading is screen-left.
-  // Do not require oct==='w' — SW/NW also travel left.
+  // Limner: front idle/w1/w2 are one 3/4 traveling screen-right. Same FACE,
+  // opposite FOOT. Unflipped when D / gold-right. Flip only for screen-left.
+  // Heading-only — never per frame, never a mirrored w2 sheet.
+  // Invert (sx > +0.02 on living Macar only) was a moonwalk against the kin.
   return moveHeadingSX(e) < -0.02;
 }
 function attackProgress(e){
