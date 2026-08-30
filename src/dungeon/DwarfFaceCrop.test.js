@@ -40,8 +40,8 @@ assert(stats.binary==='1', 'crop is binary-alpha (no fringe masonry haze)');
 
 assert(/function dwarfFaceH\(L\)\{\s*return wallFaceH\(L\)\*0\.72;/.test(html),
   'dwarfFaceH stays *0.72 — no renderer rewrite');
-assert(/drawIsoPlaneImg\(g, img, p\.x-half, yPlane, p\.x\+half, yPlane, H\)/.test(html),
-  'face stays a wall-plane bas-relief');
+assert(/if\(p\.k==='dwarfface'\)\{[\s\S]*?drawIsoPlaneImg\(g, img, p\.x-half, yPlane, p\.x\+half, yPlane, H, \{stroke:0\}\)[\s\S]*?return;/.test(html),
+  'face stays a wall-plane bas-relief with no leftover tile stroke');
 assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html),
   'back wall stays tall enough for door + face');
 assert(/return wallFaceH\(L\)\*1\.28/.test(html),
