@@ -12037,12 +12037,23 @@ function drawEquipDoll(g, x, y, w, h){
 
   const lay=dollSlotLayout(x, y+22*s, w, h-28*s);
   const body=lay.body;
-  const img=SPR.icon_doll||SPR.macar;
+  /* Pack doll is the living Macar painting — SPR.macar, or the axe sheet
+     when Shadow Cleaver is on. Same binary bake as the dungeon blit.
+     No gold foot disc, no lighter, no kettle-hat icon_doll. */
+  const raw=(wieldsShadowCleaver()&&SPR.macar_axe&&SPR.macar_axe.width)?SPR.macar_axe:SPR.macar;
+  const img=raw?solidMacarSprite(raw):null;
   if(img&&img.width){
-    const sc=Math.min(body.w/img.width, body.h/img.height);
+    const b=spriteBounds(img);
+    const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;
+    const sy=(b&&b.ok&&b.y0!=null)?b.y0*img.height:0;
+    const sw=(b&&b.ok&&b.x1!=null)?Math.max(8,(b.x1-b.x0)*img.width):img.width;
+    const sh=(b&&b.ok&&b.y1!=null)?Math.max(8,(b.y1-b.y0)*img.height):img.height;
+    const sc=Math.min(body.w/sw, body.h/sh);
+    const dw=sw*sc, dh=sh*sc;
     g.save();
-    g.globalAlpha=0.92;
-    g.drawImage(img, body.x+body.w/2-img.width*sc/2, body.y+body.h/2-img.height*sc/2, img.width*sc, img.height*sc);
+    g.globalAlpha=1;
+    g.globalCompositeOperation='source-over';
+    g.drawImage(img, sx, sy, sw, sh, body.x+body.w/2-dw/2, body.y+body.h/2-dh/2, dw, dh);
     g.restore();
   } else {
     g.fillStyle='rgba(80,58,36,0.55)';
