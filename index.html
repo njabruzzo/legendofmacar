@@ -5170,12 +5170,15 @@ function addAttack(atk, def, opts){
     else if(d>rng*0.55) bonus-=2;
   }
   const specBonus=spec?specialtyHitBonus(atk):bonus;
-  const tot=roll+(spec?specBonus:bonus);
+  const specTot=roll+specBonus;
+  const matrixTot=roll+bonus;
+  const tot=spec?specTot:matrixTot;
   const extra=need<0?-need:0;
-  const matrixHit=roll===20 || tot>=need;
-  const bandOk=spec?specialtyInBand(specKind, tot):true;
+  /* Band uses STR+magic only. Matrix still uses addAttack mods (rear/dex/buff). */
+  const matrixHit=roll===20 || matrixTot>=need;
+  const bandOk=spec?specialtyInBand(specKind, specTot):true;
   const hit=spec?(bandOk&&matrixHit):matrixHit;
-  const pct=hitChancePct(need, spec?specBonus:bonus);
+  const pct=hitChancePct(need, bonus);
   let tag='';
   if(spec){
     tag=' Specialty '+spec.n;

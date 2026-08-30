@@ -33,6 +33,8 @@ assert(/const SPECIALTY=\{/.test(html), 'SPECIALTY bands exist');
 assert(/function specialtyInBand\(/.test(html) && /function specialtyHitBonus\(/.test(html),
   'band and STR+magic tot helpers exist');
 assert(/bandOk&&matrixHit/.test(html), 'success requires BOTH band and matrix');
+assert(/matrixTot>=need/.test(html) && /specialtyInBand\(specKind, specTot\)/.test(html),
+  'band tot is STR+magic; matrix still uses addAttack mods');
 assert(!/band REPLACES/.test(html) && !/replaces the AC/.test(html),
   'band does not replace the matrix');
 assert(/if\(spec\) raw=Math\.round\(raw\*spec\.mult\)/.test(html),
@@ -130,6 +132,7 @@ assert(spent===2 && ctx.hero.specialty===0 && ctx.hero._specialty===2 && ctx.her
 ctx.endSpecialtySwing(ctx.hero);
 assert(ctx.hero._specialty===0, 'swing clears the spent pick');
 
+ctx.hitBonus=()=>0;
 ctx.thacNeed=()=>10;
 const atk={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{}, dice:'1d8'};
 const def={team:'foe', ac:10, x:1, y:1, stun:0, prone:0};
@@ -150,6 +153,20 @@ assert(missMat===0 && /miss/.test(ctx.lastLine),
   'tot 18 that misses the matrix is a MISS ('+ctx.lastLine+')');
 
 ctx.thacNeed=()=>10;
+ctx.isRearAttack=()=>true;
+ctx.hitBonus=()=>0;
+const rearNoBand=ctx.addAttack(atk, def, {specialty:2, roll:16});
+assert(rearNoBand===0, 'rear/dex/buff cannot push the band tot (16+rear is still a II miss)');
+ctx.isRearAttack=()=>false;
+
+ctx.thacNeed=()=>20;
+ctx.hitBonus=()=>2;
+const matrixMods=ctx.addAttack(atk, def, {specialty:2, roll:18});
+assert(matrixMods>0 && /×3/.test(ctx.lastLine),
+  'rear/dex/buff may still apply to the matrix check (18 band, 20 matrix)');
+ctx.hitBonus=()=>0;
+ctx.thacNeed=()=>10;
+
 const ivMiss=ctx.addAttack(atk, def, {specialty:4, roll:20});
 assert(ivMiss===0, 'IV needs 21+; tot 20 is a miss');
 const ivHit=ctx.addAttack(atk, def, {specialty:4, roll:21});
