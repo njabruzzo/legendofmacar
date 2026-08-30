@@ -4152,46 +4152,47 @@ const NPC_TALK={
   },
   toy_find:{
     who:'A TOY',
-    line:'.',
+    line:'A small brass walker in the dust. Cold. A key in its back.',
     choices:[
-      {t:'Wind it.', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
-      {t:'Talk.'},
+      {t:'Wind it.', say:'MACAR: "Walk."', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
+      {t:'Who made you?', reply:'A dry click. Nothing else.'},
       {t:'Put it down.'}
     ]
   },
   toy_wind:{
     who:'THE TOY',
-    line:'.',
+    line:'Tick. Froren… last wound. The rock took him. I kept the tick.',
     choices:[
-      {t:'What do you remember?'},
-      {t:'Who was Froren?'},
+      {t:'What do you remember?', reply:'THE TOY: "The fall still holds your kin. The red door is warm to a dwarf\'s hand. North wall wears a false grey face. His anvil still stands in this hall."'},
+      {t:'Who was Froren?', reply:'THE TOY: "A tinker. Kind hands. He laughed when I walked. Then the hall fell, and the laughing stopped."'},
       {t:'Put it down.'}
     ]
   },
   goblin_mercy:{
     who:'GOBLIN',
-    line:'.',
+    line:'Wait—wait! Nice goblin. Friend. No more knife. Mercy, dwarf.',
     choices:[
-      {t:'Mercy.', then:()=>{ G.talkAfter=null; goblinBetrayalSwing(); }},
-      {t:'No.', then:()=>{ G.talkAfter=null; endGoblinMercy(false); }}
+      {t:'On your belly.', say:'MACAR: "On your belly."', then:()=>{ G.talkAfter=null; goblinBetrayalSwing(); }},
+      {t:'Speak.', say:'MACAR: "Talk."', reply:'GOBLIN: "I keep watch. I like dwarves. Pretty beards."', then:()=>{ G.talkAfter=null; goblinBetrayalSwing(); }},
+      {t:'No.', say:'MACAR: "No."', then:()=>{ G.talkAfter=null; endGoblinMercy(false); }}
     ]
   },
   web_skeleton:{
     who:'THE BONES',
-    line:'.',
+    line:'Don\'t cut. Listen. The big one killed me. I had a ring—',
     choices:[
-      {t:'Go on.', then:()=>startTalk('web_skeleton_more')},
-      {t:'Enough.'},
+      {t:'Go on.', say:'MACAR: "Speak."', then:()=>startTalk('web_skeleton_more')},
+      {t:'Enough.', say:'MACAR: "Enough."'},
       {t:'Leave it.'}
     ]
   },
   web_skeleton_more:{
     who:'THE BONES',
-    line:'.',
+    line:'A small one pulled it off my finger after. Corner rock, in the silk. A ring that made me quicker than I was. Still there if you have the stomach.',
     choices:[
-      {t:"I'll look.", then:()=>{ revealWebSkeletonRock(); takeWebSkeletonRing(); }},
-      {t:"That's enough.", then:()=>revealWebSkeletonRock()},
-      {t:'Cut the web.', then:()=>revealWebSkeletonRock()}
+      {t:"I'll look.", say:'MACAR: "I\'ll look."', then:()=>takeWebSkeletonRing()},
+      {t:"That's enough.", then:()=>takeWebSkeletonRing()},
+      {t:'Cut the web.', then:()=>takeWebSkeletonRing()}
     ]
   }
 };
@@ -4211,14 +4212,14 @@ function dismissTalkWalkOff(){
   const key=G.talk&&G.talk.key;
   if(!G.talk) return;
   closeTalk();
-  if(key==='web_skeleton_more') revealWebSkeletonRock();
+  if(key==='web_skeleton_more') takeWebSkeletonRing();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
 }
 function packMercyGoblin(){
   return (G.ents||[]).find(e=>e&&e.id===G.mercyGoblinId);
 }
 function isPackGoblin(e){
-  if(!e||e.team!=='foe'||e.dead||e.npc||e.boss) return false;
+  if(!e||e.team!=='foe'||e.dead||e.npc||e.boss||e.nozCamp) return false;
   if(e.kind!=='goblin'||e.name!=='Goblin') return false;
   return true;
 }

@@ -1,7 +1,6 @@
 'use strict';
 /**
- * Later-slice stubs: wind-up toy, goblin mercy, web-skeleton rock.
- * Talk keys are wired; Quill prose is filled in a follow-up.
+ * Quill lines on toy / goblin_mercy / web_skeleton. Keys verbatim.
  * Run: node src/ui/NpcThreeBeats.test.js
  */
 const fs=require('fs');
@@ -31,16 +30,35 @@ const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
 ['toy_find','toy_wind','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
-assert(/who:'A TOY'/.test(talk) && /t:'Wind it\.'/.test(talk), 'toy_find Wind choice');
+assert(/who:'A TOY'/.test(talk) && /A small brass walker in the dust\. Cold\. A key in its back\./.test(talk),
+  'toy_find Quill line');
+assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
+assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click\. Nothing else\.'/.test(talk),
+  'who-made-you stays mute until wound');
 assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talk),
   'Wind it opens toy_wind and marks wound');
-assert(/who:'GOBLIN'/.test(talk) && /goblinBetrayalSwing\(\)/.test(talk),
-  'mercy choice then() is a surprise swing');
+assert(/who:'THE TOY'/.test(talk) && /Tick\. Froren… last wound\. The rock took him\. I kept the tick\./.test(talk),
+  'toy_wind lament is the wound line');
+assert(/The fall still holds your kin/.test(talk) && /red door is warm to a dwarf/.test(talk) &&
+  /false grey face/.test(talk) && /anvil still stands in this hall/.test(talk),
+  'toy_wind clues are cave-in, ruby door, north seam, hall anvil');
+assert(/A tinker\. Kind hands/.test(talk), 'Who was Froren lament');
+assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
+  'toy_wind has no later-chapter compass');
+assert(/who:'GOBLIN'/.test(talk) && /Wait—wait! Nice goblin\. Friend\. No more knife\. Mercy, dwarf\./.test(talk),
+  'goblin_mercy Quill line');
+assert(/t:'On your belly\.'/.test(talk) && /t:'Speak\.'/.test(talk) && /goblinBetrayalSwing\(\)/.test(talk),
+  'On your belly and Speak then() surprise swing');
+assert(/I keep watch\. I like dwarves\. Pretty beards/.test(talk), 'Speak reply');
 assert(/t:'No\.'/.test(talk) && /endGoblinMercy\(false\)/.test(talk),
   'No. stays in a normal fight');
-assert(/who:'THE BONES'/.test(talk) && /startTalk\('web_skeleton_more'\)/.test(talk),
-  'Go on continues to web_skeleton_more');
-assert(/revealWebSkeletonRock\(\)/.test(talk), 'finish choices reveal the corner rock');
+assert(/who:'THE BONES'/.test(talk) && /The big one killed me\. I had a ring—/.test(talk),
+  'web_skeleton Quill line');
+assert(/startTalk\('web_skeleton_more'\)/.test(talk), 'Go on continues to web_skeleton_more');
+assert(/t:'Enough\.'/.test(talk) && /say:'MACAR: "Enough\."'/.test(talk), 'Enough is a cut-off');
+assert(/made me quicker than I was/.test(talk), 'mouth only says quicker, not +1 Dex');
+assert(!/\+1 Dex/.test(talk), 'talk plate does not print +1 Dex');
+assert(/takeWebSkeletonRing\(\)/.test(talk), 'any close on _more grants the rock and ring');
 
 assert(/const WINDUP_TOY=\{x:28\.85,y:26\.55\}/.test(html), 'toy sits in the start hall');
 assert(/k:'winduptoy'/.test(html), 'tiny brass walker prop is spawned');
@@ -61,8 +79,8 @@ assert(!(toyX===20.5 && toyY===22.0), 'toy is not the spawn tile');
 assert(/function maybeGoblinMercy\(/.test(html), 'morale hook exists');
 assert(/pack\.length!==1/.test(html) && /g\.hp>\(g\.maxhp\|\|1\)\*0\.5/.test(html),
   'begs when last standing and at most half hp');
-assert(/e\.name!=='Goblin'/.test(html) && /e\.boss/.test(html),
-  'boss / named leaders are not pack beggars');
+assert(/e\.name!=='Goblin'/.test(html) && /e\.boss/.test(html) && /e\.nozCamp/.test(html),
+  'boss, camp band, and named leaders are not pack beggars');
 assert(/function goblinBetrayalSwing\(/.test(html) && /isRearAttack|mac\.fdx=dx\/m/.test(html),
   'betrayal faces Macar away for a rear swing');
 assert(/dexAttackAdj\(effectiveDex\(mac\)\)/.test(html),
@@ -82,9 +100,9 @@ assert(/k:'boulder'[\s\S]*webRock:1/.test(html) && /WEB_CORNER_ROCK/.test(html),
   'finish reveals a corner rock');
 assert(/function takeWebSkeletonRing\(/.test(html) && /makeDexRing\(\)/.test(html),
   'moving the rock grants the dex ring');
-assert(/if\(key==='web_skeleton_more'\) revealWebSkeletonRock\(\)/.test(html),
+assert(/if\(key==='web_skeleton_more'\) takeWebSkeletonRing\(\)/.test(html),
   'any close on web_skeleton_more finishes');
-assert(!/revealWebSkeletonRock\(\)/.test(talk.match(/web_skeleton:\{[\s\S]*?\n  \},/)[0]),
+assert(!/takeWebSkeletonRing\(\)|revealWebSkeletonRock\(\)/.test(talk.match(/web_skeleton:\{[\s\S]*?\n  \},/)[0]),
   'cut-off on web_skeleton does not reveal the rock');
 
 assert(/function wornDexPlus\(/.test(html) && /function effectiveDex\(/.test(html),
