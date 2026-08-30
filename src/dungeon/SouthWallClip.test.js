@@ -21,7 +21,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/WALL_FACE_CLEAR=0\.55/.test(html), 'living party keep a south/SE/SW face margin');
+assert(/WALL_FACE_CLEAR=0\.62/.test(html), 'living party keep a south/SE/SW face margin');
 assert(/function wallFaceClear\(/.test(html) && /function needsWallFaceClear\(/.test(html),
   'wall-face clearance is a named gate on canBe');
 assert(/if\(!walk\(x,y,e\)\) return false;/.test(extractFn('canBe')),
@@ -37,8 +37,8 @@ assert(/const se=g\[iy\+1\]&&g\[iy\+1\]\[ix\+1\]===1/.test(extractFn('wallHidesF
   'wallHidesFloor sees the SE wall tile');
 assert(/const sw=g\[iy\+1\]&&g\[iy\+1\]\[ix-1\]===1/.test(extractFn('wallHidesFloor')),
   'wallHidesFloor sees the SW wall tile');
-assert(/o\.kind==='dwarf'&&!o\.dead&&!o\.crushed\) return \(d\+2\)\|0/.test(extractFn('actorDrawDepth')),
-  'living dwarves sort past the SE wall tile (+2)');
+assert(/o\.kind==='dwarf'&&!o\.dead&&!o\.crushed\) return \(d\+4\)\|0/.test(extractFn('actorDrawDepth')),
+  'living dwarves sort past the tall SE face span (+4)');
 assert(/return \(d\+1\)\|0/.test(extractFn('actorDrawDepth')),
   'dead / crushed / rats keep the +1 south/east bump');
 
@@ -82,13 +82,13 @@ const corpse={hero:0, team:'party', kind:'dwarf', dead:1, crushed:0, r:0.38};
 assert(ctx.walk(3.5, 4.5, mac)===true, 'walk still allows the floor tile center');
 assert(ctx.walk(3.5, 5.2, mac)===false, 'walk still refuses a south wall tile');
 assert(ctx.canBe(3.5, 4.20, 0.38, mac)===true, 'Macar can stand mid-tile north of a south wall');
-assert(ctx.canBe(3.5, 4.52, 0.38, mac)===false, 'Macar cannot put boots on the south face / coping');
-assert(ctx.canBe(3.5, 4.52, 0.38, kin)===false, 'living kin cannot slide into that south face');
-assert(ctx.canBe(3.5, 4.52, 0.38, foe)===true, 'foes keep the old ±r tile test (no party margin)');
-assert(ctx.canBe(5.52, 3.4, 0.38, mac)===false, 'Macar cannot occupy an east face (SE travel)');
+assert(ctx.canBe(3.5, 4.55, 0.38, mac)===false, 'Macar cannot put boots on the south face / coping');
+assert(ctx.canBe(3.5, 4.55, 0.38, kin)===false, 'living kin cannot slide into that south face');
+assert(ctx.canBe(3.5, 4.55, 0.38, foe)===true, 'foes keep the old ±r tile test (no party margin)');
+assert(ctx.canBe(5.55, 3.4, 0.38, mac)===false, 'Macar cannot occupy an east face (SE travel)');
 assert(ctx.canBe(5.20, 3.4, 0.38, mac)===true, 'east clearance leaves the rest of the tile walkable');
-assert(ctx.canBe(3.5, 4.52, 0.38, mac)===false, 'SW/south face still blocked for the party');
-assert(ctx.wallFaceClear(2.20, 4.52, mac)===false,
+assert(ctx.canBe(3.5, 4.55, 0.38, mac)===false, 'SW/south face still blocked for the party');
+assert(ctx.wallFaceClear(2.20, 4.55, mac)===false,
   'SW corner keeps party off the west+south mass');
 assert(ctx.canBe(3.5, 4.20, 0.38, kin)===true, 'kin still form on open floor');
 assert(ctx.needsWallFaceClear(corpse)===false, 'a fallen kin is not held off the ledge');

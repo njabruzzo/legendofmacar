@@ -1232,10 +1232,10 @@ function wallHidesFloor(L,x,y){
 function actorDrawDepth(o){
   const d=(o.x+o.y);
   if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
-  /* +1 is the same bucket as a south/east face, but a SE wall tile is
-     (ix+1)+(iy+1) — it still paints after the dwarf and eats the legs.
-     Living dwarves sort past that tile. Dead / crushed / rats stay at +1. */
-  if(o.kind==='dwarf'&&!o.dead&&!o.crushed) return (d+2)|0;
+  /* Hall faces are ~4 iso-depth tall. +1 left the dwarf in the south
+     bucket; +2 still lost to the next SE row's face + tan coping.
+     Living dwarves sort past that span. Dead / crushed / rats stay at +1. */
+  if(o.kind==='dwarf'&&!o.dead&&!o.crushed) return (d+4)|0;
   return (d+1)|0;
 }
 function rubyDoorH(L){
@@ -6928,7 +6928,7 @@ function walk(x,y,e){ const L=G.lvl; if(!L) return false;
 /* South / SE / SW masonry: tan coping hangs ~0.10 onto the floor and the
    face billboard covers more. Living party boots stay this far off that
    edge. Not applied to N/W-only faces — halls stay full width on those sides. */
-const WALL_FACE_CLEAR=0.55;
+const WALL_FACE_CLEAR=0.62;
 function needsWallFaceClear(e){
   return !!(e && (e.hero || e.team==='party') && !e.dead && !e.crushed && !e.hidden);
 }
