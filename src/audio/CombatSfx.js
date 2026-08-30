@@ -1,7 +1,8 @@
 /**
  * Combat one-shots + a quiet clash bed. HTMLAudio, not a second BGM voice.
  * Hits are voice-limited so a pile-on does not become noise.
- * Victory horn is a Bgm sting (packHorn / bossHorn), then explore resumes.
+ * Victory horn is a one-shot overlay (does not duck BGM). PackVictory /
+ * BossVictory remain Bgm stings so explore resumes after the wipe.
  */
 (function (root) {
   'use strict';
@@ -127,6 +128,17 @@
     this._bed.loop = true;
     this._bedOn = true;
     return this._startEl(this._bed, this.bedVol);
+  };
+
+  CombatSfx.prototype.horn = function (which) {
+    var files = this.files || {};
+    var src = which === 'boss' ? files.bossHorn : files.packHorn;
+    if (!src || !this._Audio) return false;
+    var el = this._makeEl(false);
+    if (!el) return false;
+    el.src = this.assetUrl(src);
+    this.plays.push(which === 'boss' ? 'bossHorn' : 'packHorn');
+    return this._startEl(el, 0.72);
   };
 
   CombatSfx.prototype.stopBed = function () {

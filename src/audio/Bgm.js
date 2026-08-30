@@ -24,10 +24,17 @@
   function livingBoss(G) {
     var ents = G && G.ents;
     if (!ents || !ents.length) return false;
-    var i, e;
+    var p = null, i, e, dx, dy;
     for (i = 0; i < ents.length; i++) {
       e = ents[i];
-      if (e && e.team === 'foe' && e.boss && !e.dead && !e.npc) return true;
+      if (e && e.hero && !e.dead) { p = e; break; }
+    }
+    for (i = 0; i < ents.length; i++) {
+      e = ents[i];
+      if (!e || e.team !== 'foe' || !e.boss || e.dead || e.npc) continue;
+      if (!p || p.x == null || e.x == null) return true;
+      dx = e.x - p.x; dy = e.y - p.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 14) return true;
     }
     return false;
   }

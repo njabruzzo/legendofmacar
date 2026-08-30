@@ -27,6 +27,17 @@ assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 1, ents: [{ team: 'foe', boss
   'a living boss wants Terminus, not Goliath');
 assert(Bgm.wanted({ scene: 'play', ch: 1, fightOn: 1, ents: [{ team: 'foe', boss: 1, dead: 1 }] }) === 'battle',
   'a dead boss does not keep the boss theme');
+assert(Bgm.wanted({ scene: 'play', ch: 2, fightOn: 1, ents: [
+  { hero: 1, dead: 0, x: 40, y: 32 },
+  { team: 'foe', kind: 'rat', dead: 0, x: 40.4, y: 32.2 },
+  { team: 'foe', boss: 1, name: 'Spider Lord', dead: 0, x: 10.1, y: 31.0 }
+] }) === 'battle',
+  'a rat pack across the hall stays on Goliath while the lord is still alive');
+assert(Bgm.wanted({ scene: 'play', ch: 2, fightOn: 1, ents: [
+  { hero: 1, dead: 0, x: 11.2, y: 31.4 },
+  { team: 'foe', boss: 1, name: 'Spider Lord', dead: 0, x: 10.1, y: 31.0 }
+] }) === 'boss',
+  'a living boss in the current fight wants Terminus');
 assert(Bgm.wanted({ scene: 'pack', ch: 1, fightOn: 1 }) === 'battle', 'pack overlay during a fight stays on combat');
 assert(Bgm.wanted({ scene: 'craft', ch: 2, fightOn: 0 }) === 'ch2', 'craft overlay keeps dungeon music');
 assert(Bgm.wanted({ scene: 'camp', ch: 2 }) === 'chapter', 'camp uses the chapter theme');
@@ -41,8 +52,10 @@ assert(/battle:'assets\/music\/Goliath\.mp3'/.test(html), 'battle BGM is Goliath
 assert(/boss:'assets\/music\/Terminus\.mp3'/.test(html), 'boss BGM is Terminus, not Goliath or the title');
 assert(/packWin:'assets\/music\/PackVictory\.mp3'/.test(html), 'pack victory sting is registered');
 assert(/bossWin:'assets\/music\/BossVictory\.mp3'/.test(html), 'boss victory sting is registered');
-assert(/playSting\(sting\)/.test(html) && /bossHorn/.test(html) && /packHorn/.test(html),
-  'combat-end plays a victory horn sting before explore resume');
+assert(/playSting\(sting\)/.test(html) && /bossWin/.test(html) && /packWin/.test(html),
+  'combat-end plays PackVictory / BossVictory before explore resume');
+assert(/sfx\.horn/.test(html.match(/function endFightIfClear[\s\S]*?\n\}/)[0]),
+  'wipe overlays a war horn without replacing the victory sting');
 assert(/chapter:'assets\/music\/TheDistantSun\.mp3'/.test(html), 'chapter screens use The Distant Sun');
 assert(/title:'assets\/music\/SongOfTheForge\.mp3'/.test(html), 'title stays Song of the Forge');
 assert(html.indexOf("battle:'assets/music/SongOfTheForge.mp3'") < 0, 'battle is no longer the title file');
