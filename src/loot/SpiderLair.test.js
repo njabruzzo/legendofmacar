@@ -32,7 +32,7 @@ assert(u.magN===0 && u.gems===0 && u.jew===0, 'Type U gems/jewelry/magic keep th
 
 const forced=SL.forceLordHoard({coins:{}, gems:0, jew:0, magN:0});
 assert(forced.coins.cp>=10 && forced.coins.sp>=10 && forced.coins.gp>=5, 'lord purse is never empty');
-assert(forced.magN===1 && forced.magKind==='any', 'lord house rule forces 1 any-item');
+assert(forced.magN===0, 'lord magic stays Type U 55%, not a guaranteed item');
 
 assert(SL.isSpiderLord({name:'Spider Lord'}) && SL.isSpiderLord({boss:1,kind:'spider'}),
   'lord matcher hits the named boss');

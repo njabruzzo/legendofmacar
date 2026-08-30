@@ -1,6 +1,7 @@
 /**
  * Chapter II spider-lord room: Type U hoard + silk-bound corpses.
- * House: lord never empty (coins + 1 magic). Pack spiders stay Nil.
+ * House: lord purse never empty (U coins always). Magic stays Type U 55%.
+ * Pack spiders stay Nil. Web corpses are a separate roll.
  */
 (function (root) {
   'use strict';
@@ -34,7 +35,7 @@
       coins: coins,
       gems: h.gems || 0,
       jew: h.jew || 0,
-      magN: Math.max(1, h.magN || 0),
+      magN: h.magN || 0,
       magKind: h.magKind || 'any'
     };
   }
