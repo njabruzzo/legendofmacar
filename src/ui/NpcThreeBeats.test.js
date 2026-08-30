@@ -1,0 +1,187 @@
+'use strict';
+/**
+ * Quill lines on toy / goblin_mercy / web_skeleton. Keys verbatim.
+ * Run: node src/ui/NpcThreeBeats.test.js
+ */
+const fs=require('fs');
+const path=require('path');
+const vm=require('vm');
+const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
+
+let failed=0;
+function assert(cond, msg){
+  if(!cond){ failed++; console.error('FAIL  '+msg); }
+  else console.log('ok    '+msg);
+}
+
+function extractFn(name){
+  const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
+  const m=html.match(re);
+  if(!m) throw new Error('missing '+name);
+  return m[0];
+}
+
+assert(/const CH_INTRO=\{/.test(html), 'CH_INTRO plates stay');
+assert(/function blitLivingMacar\(img\)\{/.test(html), 'blitLivingMacar stays');
+assert(/function startTalk\(key\)\{/.test(html) && /function pickTalk\(i\)\{/.test(html),
+  'talk engine is not rewritten');
+
+const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
+['toy_find','toy_wind','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
+  assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
+});
+assert(/who:'A TOY'/.test(talk) && /A small brass walker in the dust\. Cold\. A key in its back\./.test(talk),
+  'toy_find Quill line');
+assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
+assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click\. Nothing else\.'/.test(talk),
+  'who-made-you stays mute until wound');
+assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talk),
+  'Wind it opens toy_wind and marks wound');
+assert(/who:'THE TOY'/.test(talk) && /Tick\. Froren… last wound\. The rock took him\. I kept the tick\./.test(talk),
+  'toy_wind lament is the wound line');
+assert(/The fall still holds your kin/.test(talk) && /red door is warm to a dwarf/.test(talk) &&
+  /false grey face/.test(talk) && /anvil still stands in this hall/.test(talk),
+  'toy_wind clues are cave-in, ruby door, north seam, hall anvil');
+assert(/A tinker\. Kind hands/.test(talk), 'Who was Froren lament');
+assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
+  'toy_wind has no later-chapter compass');
+assert(/who:'GOBLIN'/.test(talk) && /Wait—wait! Nice goblin\. Friend\. No more knife\. Mercy, dwarf\./.test(talk),
+  'goblin_mercy Quill line');
+assert(/t:'On your belly\.'/.test(talk) && /t:'Speak\.'/.test(talk) && /goblinBetrayalSwing\(\)/.test(talk),
+  'On your belly and Speak then() surprise swing');
+assert(/I keep watch\. I like dwarves\. Pretty beards/.test(talk), 'Speak reply');
+assert(/t:'No\.'/.test(talk) && /endGoblinMercy\(false\)/.test(talk),
+  'No. stays in a normal fight');
+assert(/who:'THE BONES'/.test(talk) && /The big one killed me\. I had a ring—/.test(talk),
+  'web_skeleton Quill line');
+assert(/startTalk\('web_skeleton_more'\)/.test(talk), 'Go on continues to web_skeleton_more');
+assert(/t:'Enough\.'/.test(talk) && /say:'MACAR: "Enough\."'/.test(talk), 'Enough is a cut-off');
+assert(/made me quicker than I was/.test(talk), 'mouth only says quicker, not +1 Dex');
+assert(!/\+1 Dex/.test(talk), 'talk plate does not print +1 Dex');
+assert(/takeWebSkeletonRing\(\)/.test(talk), 'any close on _more grants the rock and ring');
+
+assert(/const WINDUP_TOY=\{x:28\.85,y:26\.55\}/.test(html), 'toy sits in the start hall');
+assert(/k:'winduptoy'/.test(html), 'tiny brass walker prop is spawned');
+assert(/interact\(L\.flags\.toyWound\?'Talk to the brass walker':'Wind the brass walker'/.test(html),
+  'Ch I interact is Wind / Talk');
+assert(!/giveMagic\(/.test(html.match(/toy_find:\{[\s\S]*?toy_wind:\{[\s\S]*?\n  \},/)[0]),
+  'toy talk does not giveMagic');
+assert(/startCaveInBlocks/.test(html) && /x<15\.12/.test(html), 'cave-in lip is still x<15.12');
+
+const toyX=28.85, toyY=26.55;
+assert(toyX>15.12 && toyY>=16 && toyY<=30, 'toy is not in the cave-in block');
+assert(Math.hypot(toyX-20.5, toyY-22.0)>2.4, 'toy is not on spawn');
+[[19.15,20.35],[17.55,21.20],[19.35,23.45],[17.65,23.90]].forEach(([x,y])=>{
+  assert(Math.hypot(toyX-x, toyY-y)>1.25, 'toy is not on crush '+x+','+y);
+});
+assert(!(toyX===20.5 && toyY===22.0), 'toy is not the spawn tile');
+
+assert(/function maybeGoblinMercy\(/.test(html), 'morale hook exists');
+assert(/function goblinPackCluster\(/.test(html) && /mercyPackUsed/.test(html),
+  'one goblin per eligible pack');
+assert(/last=living\.length===1/.test(html) && /morale=cluster\.length>=2/.test(html),
+  'begs on morale break or last standing ≤ half hp');
+assert(/e\.name!=='Goblin'/.test(html) && /e\.boss/.test(html) && /e\.nozCamp/.test(html),
+  'boss, camp band, and named leaders are not pack beggars');
+assert(/function goblinBetrayalSwing\(/.test(html) && /betrayalSwing/.test(html),
+  'betrayal forces a rear swing');
+assert(/dexAttackAdj\(effectiveDex\(mac\)\)/.test(html),
+  'betrayal stun uses beginFight DEX trim');
+assert(/addAttack\(g, mac\)/.test(extractFn('goblinBetrayalSwing')) && !/thief/.test(extractFn('goblinBetrayalSwing')),
+  'betrayal is addAttack, not thief ×');
+assert(/if\(atk\.betrayalSwing\) return true/.test(html),
+  'betrayal is rear (+2, no dex/shield)');
+assert(/tryStrikeMercyGoblin/.test(html) && /G\.mercyTalk && \(key==='attack'/.test(html),
+  'killing mid-beg is allowed');
+assert(/talkWalkOffKey/.test(html) && /dismissTalkWalkOff/.test(html),
+  'walk-off / Escape while begging still betrays');
+
+assert(/function markWebTalkSkeleton\(/.test(html) && /markWebTalkSkeleton\(\)/.test(html),
+  'one web corpse is marked talkable');
+assert(/lootBlocked/.test(html) && /if\(o\.lootBlocked\) return false/.test(html),
+  'talk skeleton is not lootable until the story finishes');
+assert(/k:'boulder'[\s\S]*webRock:1/.test(html) && /WEB_CORNER_ROCK/.test(html),
+  'finish reveals a corner rock');
+assert(/function takeWebSkeletonRing\(/.test(html) && /makeDexRing\(\)/.test(html),
+  'moving the rock grants the dex ring');
+assert(/if\(key==='web_skeleton_more'\) takeWebSkeletonRing\(\)/.test(html),
+  'any close on web_skeleton_more finishes');
+assert(!/takeWebSkeletonRing\(\)|revealWebSkeletonRock\(\)/.test(talk.match(/web_skeleton:\{[\s\S]*?\n  \},/)[0]),
+  'cut-off on web_skeleton does not reveal the rock');
+
+assert(/function wornDexPlus\(/.test(html) && /function effectiveDex\(/.test(html),
+  'worn dex helper exists');
+assert(/dexDefAdj\(effectiveDex\(e\)\)/.test(html), 'partyAC uses worn dex');
+assert(/dexMissile\(effectiveDex\(e\)\)/.test(html), 'missile to-hit uses worn dex');
+assert(/dexAttackAdj\(effectiveDex\(e\)\)/.test(html), 'surprise trim uses worn dex');
+assert(!/effectiveDex/.test(extractFn('specialtyHitBonus')),
+  'Specialty tot does not read the dex ring');
+assert(/k:'dex', dexPlus:1/.test(html) && /n:'Ring of Dexterity \+1'/.test(html),
+  'ring shape is dex / dexPlus, named Ring of Dexterity +1');
+assert(/if\(o\.dexPlus\) raw\.dexPlus=o\.dexPlus/.test(html),
+  'magItem keeps dexPlus and skips plus on that path');
+assert(/delete it\.plus/.test(extractFn('makeDexRing')),
+  'dex ring does not keep a Protection plus');
+assert(!/giveMagic|plus:|charges:/.test(html.match(/toy_find:\{[\s\S]*?goblin_mercy:\{/)[0]),
+  'toy is flavor only: no giveMagic, plus, or charges');
+
+const slots=fs.readFileSync(path.join(__dirname,'../../src/packs/EquipmentSlots.js'),'utf8');
+assert(/it\.k === 'dex'/.test(slots), 'EquipmentSlots slots a dex ring as necklace');
+
+const ctx={
+  G:{equipped:{necklace:{k:'dex', dexPlus:1, n:'Ring of Dexterity +1'}}, ents:[], talk:null, fightOn:1, fightMercy:0, mercyTalk:0, mercyGoblinId:null, lvl:{n:2, flags:{}}, props:[], loot:[]},
+  entityAbil:(e)=>e&&e.abil||{dex:11,str:18,exc:76},
+  player:()=>({x:10,y:10,hero:1,abil:{dex:11}, range:1.4, dead:0}),
+  dist:(a,b)=>Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)),
+  ri:(a)=>a,
+  say:()=>{},
+  hint:()=>{},
+  giveMagic:()=>{},
+  magItem:(o)=>o,
+  mapPackItemToEquipment:(it)=>it,
+  meleeSwing:()=>{},
+  faceToward:()=>{},
+  startTalk:()=>{},
+  closeTalk:()=>{},
+  ent:(o)=>Object.assign({id:1},o),
+  WEB_TALK_SPOT:{x:11.5,y:29.7},
+  WEB_CORNER_ROCK:{x:8.15,y:28.55},
+  dexAttackAdj:(d)=>d>=16?1:0
+};
+vm.createContext(ctx);
+vm.runInContext(extractFn('wornDexPlus')+extractFn('effectiveDex'), ctx);
+assert(ctx.effectiveDex({hero:1,abil:{dex:11}})==12, 'worn dexPlus adds +1 to sheet DEX');
+assert(ctx.effectiveDex({hero:0,col:{key:'orbo'},abil:{dex:14}})==14, 'companions do not wear Macar\'s ring');
+
+ctx.G.equipped={necklace:{k:'ring', plus:1, n:'Ring of Protection +1'}};
+assert(ctx.wornDexPlus({hero:1})===0, 'protection plus is not dexPlus');
+
+const mercySrc=['isPackGoblinKind','isPackGoblin','livingPackGoblins','goblinPackCluster','maybeGoblinMercy']
+  .map(extractFn).join('\n');
+vm.runInContext(mercySrc, ctx);
+function gob(id, o){
+  return Object.assign({id, team:'foe', kind:'goblin', name:'Goblin', boss:0, npc:0, dead:0,
+    hp:20, maxhp:28, x:10+id*0.4, y:31}, o||{});
+}
+ctx.G.ents=[gob(1,{hp:10}), gob(2,{dead:1,hp:0}), gob(3,{dead:1,hp:0}), gob(4,{hp:28})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightOn=1;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(ctx.G.ents[0].begging===1 && ctx.G.talkAfter, 'morale break: wounded goblin begs when half the pack is down');
+assert(ctx.G.ents.every(e=>e.mercyPackUsed), 'the rest of that pack will not beg');
+
+ctx.G.ents=[gob(10,{hp:12,x:80,y:28}), gob(11,{hp:28,x:80.5,y:28.2})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightMercy=0; ctx.G.mercyGoblinId=null; ctx.G.talkAfter=null;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(!ctx.G.ents[0].begging, 'full pack at strength does not beg');
+
+ctx.G.ents=[gob(20,{hp:10,x:96,y:32})];
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(ctx.G.ents[0].begging===1, 'last standing ≤ half hp begs');
+
+ctx.G.ents=[gob(30,{hp:10, nozCamp:1})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.talkAfter=null;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(!ctx.G.ents[0].begging, 'camp goblins do not beg');
+
+if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
+console.log('\nNPC three-beats checks passed');

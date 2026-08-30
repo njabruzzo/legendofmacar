@@ -110,7 +110,7 @@
     if (it.k === 'weapon' || it.cat === 'Sword' || it.cat === 'Weapon') return 'primary';
     if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
     if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';
-    if (it.k === 'ring' || it.cat === 'Ring') return 'necklace';
+    if (it.k === 'ring' || it.k === 'dex' || it.cat === 'Ring') return 'necklace';
     if (/cloak of protection/i.test(n)) return 'necklace';
     return null;
   }
