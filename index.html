@@ -2559,34 +2559,55 @@ registerSystem(skillSystem);
 function isStartBackWall(L,x,y){
   return !!(L && L.n===1 && x===13 && y>=15 && y<=30);
 }
+/* West entry collapse. Hall faces stay WALL_HALL_SCALE; this stack is
+   1.45× that so the black void above the old rubble hedge is rock.
+   Do not reuse ruby-north or #81 descent scales. */
+const START_CAVEIN_SCALE=1.45;
+function startCaveInH(L){ return hallWallH(L)*START_CAVEIN_SCALE; }
+function startCaveInBlocks(x,y){
+  const L=G.lvl;
+  if(!L||L.n!==1) return false;
+  return x<15.12 && y>=16 && y<=30;
+}
+function drawStartCaveInCell(g, L, x, y){
+  const H=startCaveInH(L);
+  const cave=SPR.cavein||SPR.rubble||SPR.boulder;
+  const rock=SPR.rubble||SPR.rubble2||SPR.boulder;
+  const beam=SPR.timber;
+  const seed=x*31+y*17;
+  const x1=x+1;
+  if(rock&&rock.width)
+    drawIsoPlaneImg(g, rock, x1, y, x1, y+1.14, H*0.40, {u:h2(seed,3), shade:0.58, stroke:0});
+  if(cave&&cave.width){
+    drawIsoPlaneImg(g, cave, x1+0.02, y-0.02, x1+0.02, y+1.16, H*0.92, {u:h2(seed,5)+0.14, shade:0.64, stroke:0});
+    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.46, stroke:0});
+  }
+  if(beam&&beam.width && ((y+x)&1))
+    drawIsoPlaneImg(g, beam, x1+0.05, y+0.18, x1+0.05, y+1.02, H*0.78, {u:h2(seed,2), shade:0.32, stroke:0});
+}
 function startRubbleSpr(seed, n){
   const sprs=['rubble','rubble2','boulder','boulder2','rubble','rubble2'];
   return sprs[(h01(n,17,seed)*sprs.length)|0];
 }
 function startBackWallRubble(){
   const out=[];
-  for(let i=0;i<22;i++){
-    const y=16.2+i*0.58+(h01(i,2,81)-0.5)*0.22;
-    const x=14.12+(h01(i,3,81)-0.5)*0.20;
+  /* Foot of the west collapse only. The tall stack is the wall-plane
+     cave-in (drawStartCaveInCell). Do not plant a waist-high chip hedge
+     or floor beams — those read as a rubble line under a black void. */
+  for(let i=0;i<10;i++){
+    const y=16.4+i*1.25+(h01(i,2,81)-0.5)*0.18;
+    const x=14.22+(h01(i,3,81)-0.5)*0.10;
     if(nearCrush(x,y,1.15)) continue;
-    const s=0.55+h01(i,5,81)*0.85;
+    const s=0.40+h01(i,5,81)*0.36;
     const spr=startRubbleSpr(81,i);
-    out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+    out.push({x,y,k:/boulder/.test(spr)?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
   }
-  for(let i=0;i<16;i++){
-    const y=16.5+i*0.72+(h01(i,6,81)-0.5)*0.28;
-    const x=14.55+(h01(i,8,81)-0.5)*0.24;
+  for(let i=0;i<6;i++){
+    const y=16.8+i*2.05+(h01(i,6,81)-0.5)*0.16;
+    const x=14.38+(h01(i,8,81)-0.5)*0.08;
     if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.22+h01(i,9,81)*0.40,seed:940+i,backwall:1});
+    out.push({x,y,k:'dust',s:0.55+h01(i,9,81)*0.35,seed:940+i,backwall:1});
   }
-  for(let i=0;i<7;i++){
-    const y=16.9+i*1.55+(h01(i,11,81)-0.5)*0.30;
-    const x=14.38+(h01(i,12,81)-0.5)*0.18;
-    if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'timber',fallen:1,s:0.62+h01(i,14,81)*0.38,seed:980+i,backwall:1});
-  }
-  out.push({x:14.35,y:18.15,k:'cavein',s:0.78,seed:988,backwall:1});
-  out.push({x:14.42,y:25.55,k:'cavein',s:0.72,seed:989,backwall:1});
   return out;
 }
 function scatterStartRubble(L){
@@ -6585,6 +6606,7 @@ function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
 
 /* ---------------------------- movement ---------------------------- */
 function walk(x,y,e){ const L=G.lvl; if(!L) return false;
+  if(startCaveInBlocks(x,y)) return false;
   const i=x|0,j=y|0; if(j<0||j>=L.h||i<0||i>=L.w) return false;
   const t=L.grid[j][i];
   if(t===0||t===3) return true;
@@ -7603,7 +7625,7 @@ function drawWorld(g,L){
   }
 
   function drawWallCell(x,y){
-    if(isStartBackWall(L,x,y)) return;
+    if(isStartBackWall(L,x,y)){ drawStartCaveInCell(g,L,x,y); return; }
     const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
     const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
@@ -7966,8 +7988,10 @@ function drawBeyondMask(g,L){
       if(isStartBackWall(L,x,y)){
         const oE=L.grid[y]&&open(L.grid[y][x+1])&&L.seen[y][x+1];
         if(!oE) continue;
+        const tall=startCaveInH(L);
+        punchMasonryCoping(mg, x, y, tall, 0, 1, 0, 0);
         mg.beginPath();
-        mg.ellipse(Math.round(s.x+TW*0.18), Math.round(s.y), TW*0.62*pad, TH*0.78*pad, 0, 0, TAU);
+        mg.ellipse(Math.round(s.x+TW*0.18), Math.round(s.y-tall*0.48), TW*1.12*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
         mg.fill();
         continue;
       }
