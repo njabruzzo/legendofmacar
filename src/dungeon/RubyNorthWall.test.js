@@ -22,9 +22,11 @@ assert(/function isRubyNorthWall\(L,x,y\)/.test(html)
   && /y===6 && x>=24 && x<=51/.test(html),
   'ruby raise is the y=6 chamber face, not the west entry skip wall');
 assert(/function isStartBackWall\(L,x,y\)\{\s*return !!\(L && L\.n===1 && x===13/.test(html),
-  'west cave-in wall helper is still the x=13 skip, not a raised north face');
-assert(/if\(isStartBackWall\(L,x,y\)\) return;/.test(html),
-  'west start-back-wall skip stays — do not take #81 visible-descent wall draw');
+  'west cave-in wall helper is still the x=13 face, not a raised north face');
+assert(/if\(isStartBackWall\(L,x,y\)\)\{ drawStartCaveInCell\(g,L,x,y\); return; \}/.test(html),
+  'west start wall paints a stacked cave-in, not hall masonry or a black skip');
+assert(!/if\(isStartBackWall\(L,x,y\)\) return;/.test(html),
+  'west face is no longer an empty skip under a black void');
 assert(/isRubyNorthWall\(L,x,y\)\?rubyNorthWallH\(L\):\(useWallFaces\(L\)\?wallFaceH\(L\):TH\)/.test(html),
   'fog punch only grows for the raised ruby north face');
 assert(/k:'dwarfface'/.test(html) && /dwarfFaceH\(L\)/.test(html),

@@ -1732,7 +1732,7 @@ function propAnimImg(p){
 }
 function propSpriteH(p,z){
   const k=p.k;
-  if(k==='cavein') return 118*z;
+  if(k==='cavein') return 118*z*(p.s||1);
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='dust') return 10*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
@@ -2559,42 +2559,85 @@ registerSystem(skillSystem);
 function isStartBackWall(L,x,y){
   return !!(L && L.n===1 && x===13 && y>=15 && y<=30);
 }
+/* West entry collapse. Hall faces stay WALL_HALL_SCALE; this stack is
+   1.45× that so the black void above the old rubble hedge is rock.
+   Do not reuse ruby-north or #81 descent scales. */
+const START_CAVEIN_SCALE=1.45;
+function startCaveInH(L){ return hallWallH(L)*START_CAVEIN_SCALE; }
+function startCaveInBlocks(x,y){
+  const L=G.lvl;
+  if(!L||L.n!==1) return false;
+  return x<15.12 && y>=16 && y<=30;
+}
+function drawStartCaveInCell(g, L, x, y){
+  const H=startCaveInH(L);
+  const faceImg=SPR.wall_cave_face||SPR.wall_face||SPR.wall_worked;
+  const cave=SPR.cavein||SPR.rubble||SPR.boulder;
+  const rock=SPR.rubble||SPR.rubble2||SPR.boulder;
+  const beam=SPR.timber;
+  const seed=x*31+y*17;
+  const x1=x+1;
+  /* Bright enough that the light multiply still reads as fallen earth,
+     not a black void. Isolated pile sheets cannot fill this plane alone. */
+  drawIsoPlaneImg(g, null, x1, y, x1, y+1.16, H, {fill:'#7a5840', shade:0.38, stroke:0});
+  drawIsoPlaneImg(g, null, x1+0.08, y+0.02, x1+0.08, y+1.10, H*0.92, {fill:'#5a3c28', shade:0.30, stroke:0});
+  if(useWallFaces(L)){
+    const faceR=TILEBLIT.faceR||TILEBLIT.face;
+    if(faceR) drawMasonryFace(g, faceR, x1, y, x1, y+1.14, H, -1, 0, seed+3);
+    drawMasonryCoping(g, x, y, H, 0, 1, 0, 0);
+  } else if(faceImg&&faceImg.width){
+    drawIsoPlaneImg(g, faceImg, x1, y, x1, y+1.14, H, {u:h2(seed,1), shade:0.55, stroke:0});
+  }
+  if(rock&&rock.width){
+    drawIsoPlaneImg(g, rock, x1+0.04, y-0.04, x1+0.04, y+1.16, H*0.48, {u:h2(seed,3), shade:0.40, stroke:0});
+    drawIsoPlaneImg(g, rock, x1+0.02, y+0.08, x1+0.02, y+1.08, H*0.74, {u:h2(seed,4)+0.22, shade:0.36, stroke:0});
+  }
+  if(cave&&cave.width){
+    drawIsoPlaneImg(g, cave, x1+0.03, y-0.02, x1+0.03, y+1.16, H*0.98, {u:h2(seed,5)+0.14, shade:0.44, stroke:0});
+    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.32, stroke:0});
+  }
+  if(beam&&beam.width){
+    if((y+x)&1)
+      drawIsoPlaneImg(g, beam, x1+0.07, y+0.16, x1+0.07, y+1.00, H*0.84, {u:h2(seed,2), shade:0.22, stroke:0});
+    if(y&1)
+      drawIsoPlaneImg(g, beam, x1+0.10, y+0.28, x1+0.10, y+0.94, H*0.62, {u:h2(seed,6)+0.41, shade:0.18, stroke:0});
+  }
+}
 function startRubbleSpr(seed, n){
   const sprs=['rubble','rubble2','boulder','boulder2','rubble','rubble2'];
   return sprs[(h01(n,17,seed)*sprs.length)|0];
 }
 function startBackWallRubble(){
   const out=[];
-  for(let i=0;i<22;i++){
-    const y=16.2+i*0.58+(h01(i,2,81)-0.5)*0.22;
-    const x=14.12+(h01(i,3,81)-0.5)*0.20;
+  /* Foot chips stay small. The read is the wall-plane stack plus tall
+     cavein stamps (s≥1.0). No floor-beam hedge, no T-post. */
+  for(let i=0;i<10;i++){
+    const y=16.4+i*1.25+(h01(i,2,81)-0.5)*0.18;
+    const x=14.22+(h01(i,3,81)-0.5)*0.10;
     if(nearCrush(x,y,1.15)) continue;
-    const s=0.55+h01(i,5,81)*0.85;
+    const s=0.40+h01(i,5,81)*0.36;
     const spr=startRubbleSpr(81,i);
-    out.push({x,y,k:/boulder/.test(spr)&&s>0.95?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
+    out.push({x,y,k:/boulder/.test(spr)?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
   }
-  for(let i=0;i<16;i++){
-    const y=16.5+i*0.72+(h01(i,6,81)-0.5)*0.28;
-    const x=14.55+(h01(i,8,81)-0.5)*0.24;
+  for(let i=0;i<6;i++){
+    const y=16.8+i*2.05+(h01(i,6,81)-0.5)*0.16;
+    const x=14.38+(h01(i,8,81)-0.5)*0.08;
     if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'rubble',spr:startRubbleSpr(83,i+2),s:0.22+h01(i,9,81)*0.40,seed:940+i,backwall:1});
+    out.push({x,y,k:'dust',s:0.55+h01(i,9,81)*0.35,seed:940+i,backwall:1});
   }
-  for(let i=0;i<7;i++){
-    const y=16.9+i*1.55+(h01(i,11,81)-0.5)*0.30;
-    const x=14.38+(h01(i,12,81)-0.5)*0.18;
-    if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'timber',fallen:1,s:0.62+h01(i,14,81)*0.38,seed:980+i,backwall:1});
+  for(let i=0;i<8;i++){
+    const y=16.55+i*1.62+(h01(i,4,83)-0.5)*0.12;
+    const x=14.16+(h01(i,5,83)-0.5)*0.08;
+    if(nearCrush(x,y,1.05)) continue;
+    const s=1.12+h01(i,7,83)*0.33;
+    out.push({x,y,k:'cavein',s,seed:960+i,backwall:1});
   }
-  out.push({x:14.35,y:18.15,k:'cavein',s:0.78,seed:988,backwall:1});
-  out.push({x:14.42,y:25.55,k:'cavein',s:0.72,seed:989,backwall:1});
   return out;
 }
 function scatterStartRubble(L){
   const seed=2041;
   const out=[];
   const clusters=[
-    [14.55,17.15,8,0.96,1.08],[14.70,19.35,9,1.02,1.14],[14.50,21.55,8,0.92,1.00],
-    [14.75,23.85,9,1.00,1.10],[14.55,26.15,8,0.90,0.98],
     [15.85,17.80,5,0.72,0.70],[16.10,20.05,5,0.68,0.64],[15.70,24.55,5,0.70,0.66],
     [16.05,18.40,4,0.58,0.54],[16.20,22.20,4,0.55,0.50],[16.00,25.20,4,0.56,0.50]
   ];
@@ -2671,7 +2714,8 @@ function makeChapter(n){
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
-    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
+    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:14.4,y:22.0,c:'#e0a060',r:6.2,f:0.88},
+              {x:14.5,y:26.2,c:'#d09050',r:5.4,f:0.78},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
               {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
@@ -6585,6 +6629,7 @@ function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
 
 /* ---------------------------- movement ---------------------------- */
 function walk(x,y,e){ const L=G.lvl; if(!L) return false;
+  if(startCaveInBlocks(x,y)) return false;
   const i=x|0,j=y|0; if(j<0||j>=L.h||i<0||i>=L.w) return false;
   const t=L.grid[j][i];
   if(t===0||t===3) return true;
@@ -7603,7 +7648,7 @@ function drawWorld(g,L){
   }
 
   function drawWallCell(x,y){
-    if(isStartBackWall(L,x,y)) return;
+    if(isStartBackWall(L,x,y)){ drawStartCaveInCell(g,L,x,y); return; }
     const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
     const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
@@ -7966,8 +8011,11 @@ function drawBeyondMask(g,L){
       if(isStartBackWall(L,x,y)){
         const oE=L.grid[y]&&open(L.grid[y][x+1])&&L.seen[y][x+1];
         if(!oE) continue;
+        const tall=startCaveInH(L);
+        punchMasonryCoping(mg, x, y, tall, 0, 1, 0, 0);
+        const face=w2s(x+1, y+0.5);
         mg.beginPath();
-        mg.ellipse(Math.round(s.x+TW*0.18), Math.round(s.y), TW*0.62*pad, TH*0.78*pad, 0, 0, TAU);
+        mg.ellipse(Math.round(face.x), Math.round(face.y-tall*0.52), TW*1.35*pad, TH*0.95*pad+tall*0.72, 0, 0, TAU);
         mg.fill();
         continue;
       }
