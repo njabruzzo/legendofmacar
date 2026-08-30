@@ -1663,9 +1663,10 @@ function wantsSpriteFlip(e){
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   if(key.indexOf('_ne_')>=0) return false;
-  // Front idle/w1/w2 and east profiles are painted screen-right.
-  // Mirror whenever heading is screen-left. D / gold-right stays unflipped.
-  // Do not require oct==='w' — SW/NW also travel left.
+  // Limner: front idle/w1/w2 are one 3/4 traveling screen-right. Same FACE,
+  // opposite FOOT. Unflipped when D / gold-right. Flip only for screen-left.
+  // Heading-only — never per frame, never a mirrored w2 sheet.
+  // Invert (sx > +0.02 on living Macar only) was a moonwalk against the kin.
   return moveHeadingSX(e) < -0.02;
 }
 function attackProgress(e){
