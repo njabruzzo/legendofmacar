@@ -17,7 +17,7 @@ assert(/function secretFaceOk\(/.test(html) && /function normalizeSecretFace\(/.
   'south faces are normalized off the secret');
 assert(/function drawSecretSeamTint\(/.test(html), 'closed secret is a masonry tint, not a door');
 assert(/g\.globalCompositeOperation='multiply'/.test(html)
-  && /fillStyle='#5a7086'/.test(html),
+  && /fillStyle='#9bb3c6'/.test(html),
   'seam is one colder grey-blue multiply at full opacity');
 assert(!/g\.globalAlpha=0\.34/.test(html) || !/fillStyle='#6f8498'/.test(html),
   'old 0.34 wash is gone');
