@@ -25,9 +25,12 @@ assert(/function damage\(/.test(html) && /sfx\.hit\(src\)/.test(html),
 assert(/function endFightIfClear\(/.test(html) && /sfx\.stopBed\(\)/.test(html),
   'combat end stops the clash bed');
 assert(/bossHorn/.test(html) && /packHorn/.test(html),
-  'victory uses war-horn stings, not only Terminus excerpts');
-assert(/playSting\(sting\)/.test(html.match(/function endFightIfClear[\s\S]*?\n\}/)[0]),
-  'horn still goes through Bgm.playSting so explore resumes after');
+  'victory still has war-horn files');
+assert(/packWin/.test(html.match(/function endFightIfClear[\s\S]*?\n\}/)[0]) &&
+  /bossWin/.test(html.match(/function endFightIfClear[\s\S]*?\n\}/)[0]),
+  'wipe sting is PackVictory / BossVictory so explore resumes after');
+assert(/sfx\.horn/.test(html.match(/function endFightIfClear[\s\S]*?\n\}/)[0]),
+  'horn overlays as CombatSfx and does not duck BGM');
 assert(/wantedMusic\(\)\{ return Bgm\.wanted\(G\); \}/.test(html),
   'wantedMusic is still the Bgm policy');
 assert(/packWin:'assets\/music\/PackVictory\.mp3'/.test(html) &&
@@ -75,6 +78,13 @@ assert(sfx.hit({ ranged: 1, role: 'bolt' }) === true, 'a later lighter hit still
 assert(sfx.startBed() === true && sfx.bedPlaying(), 'clash bed starts');
 sfx.stopBed();
 assert(!sfx.bedPlaying(), 'clash bed stops');
+
+const hornSfx = CombatSfx.create({
+  files: Object.assign({}, files, { packHorn: 'assets/sfx/horn_pack.mp3', bossHorn: 'assets/sfx/horn_boss.mp3' }),
+  Audio: FakeAudio, now: () => t, assetUrl: s => s
+});
+assert(hornSfx.horn('pack') === true && hornSfx.plays.includes('packHorn'), 'pack wipe overlays the short horn');
+assert(hornSfx.horn('boss') === true && hornSfx.plays.includes('bossHorn'), 'boss wipe overlays the long horn');
 
 const sfxDir = path.join(__dirname, '../../assets/sfx');
 ['hit_heavy_1.mp3', 'hit_heavy_2.mp3', 'hit_light_1.mp3', 'hit_light_2.mp3',

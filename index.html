@@ -372,7 +372,9 @@ const SFX_FILES={
   hitHeavy2:'assets/sfx/hit_heavy_2.mp3',
   hitLight1:'assets/sfx/hit_light_1.mp3',
   hitLight2:'assets/sfx/hit_light_2.mp3',
-  clashBed:'assets/sfx/clash_bed.mp3'
+  clashBed:'assets/sfx/clash_bed.mp3',
+  packHorn:'assets/sfx/horn_pack.mp3',
+  bossHorn:'assets/sfx/horn_boss.mp3'
 };
 const MUSIC_CREDITS=[
   {use:'Title screen', title:'Song of the Forge', owner:'Scott Buckley', extra:'www.scottbuckley.com.au', license:'CC BY 4.0'},
@@ -5250,7 +5252,8 @@ function endFightIfClear(){
   G.fightGotKill=0;
   if(sfx&&sfx.stopBed) sfx.stopBed();
   if(won){
-    const sting=bossWin?'bossHorn':'packHorn';
+    const sting=bossWin?'bossWin':'packWin';
+    if(sfx&&sfx.horn) sfx.horn(bossWin?'boss':'pack');
     if(!(bgm&&bgm.playSting&&bgm.playSting(sting))) syncMusic();
   } else syncMusic();
 }
