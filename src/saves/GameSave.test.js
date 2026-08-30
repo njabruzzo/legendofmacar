@@ -58,6 +58,15 @@ assert(GS.label(null)==='No save', 'empty label');
 
 assert(/src\/saves\/GameSave\.js/.test(html), 'index.html loads GameSave');
 assert(/Save game/.test(html) && /function writeGameSave\(/.test(html), 'pause can write a save');
+{
+  const write=(html.match(/function writeGameSave\([\s\S]*?\nfunction applyPlaySave/)||[])[0]||'';
+  assert(/if\(G\.lvl\) extra\.play=capturePlaySave/.test(write), 'camp save snapshots play when a level is in memory');
+  assert(!/G\.scene==='play'\|\|G\.scene==='intro'\|\|G\.paused/.test(write), 'camp is not excluded from the play snapshot');
+  assert(/The book is marked/.test(write) && /Saved\. /.test(write), 'manual save keeps the old confirmation');
+  assert(/campSaveFlash/.test(write), 'manual save lights the camp Save plate');
+  assert(/GameSave\.write\(localStorage/.test(write), 'camp Save writes the Continue localStorage slot');
+}
+assert(/G\.scene==='camp'/.test(html) && /drawHint\(g,UIS\)/.test(html), 'camp draws the Saved toast');
 assert(/Continue/.test(html) && /function loadSavedGame\(/.test(html), 'title can continue a save');
 assert(/G\._keepProgress/.test(html) && /G\._forceSeeds/.test(html), 'load keeps campaign and dungeon seeds');
 assert(/icon_save/.test(html) && /ruin_house/.test(html) && /secret_door/.test(html), 'save and ruin art are registered');

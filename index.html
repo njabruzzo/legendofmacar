@@ -3971,13 +3971,14 @@ function capturePlaySave(){
 function writeGameSave(quiet){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
   const extra={scene:(G.scene==='camp')?'camp':'play'};
-  if(G.scene==='play'||G.scene==='intro'||G.paused) extra.play=capturePlaySave();
+  if(G.lvl) extra.play=capturePlaySave();
   const snap=GameSave.snapshot(G, extra);
   try{ GameSave.write(localStorage, snap); }
   catch(err){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
   if(!quiet){
     say('The book is marked. Progress is kept.','#ffe08a');
     hint('Saved. '+GameSave.label(snap), 3.8);
+    G.campSaveFlash=(G.t||0)+2.4;
   }
   return true;
 }
@@ -4251,6 +4252,12 @@ function beginUiLayer(g){
   g.globalAlpha=1;
 }
 function drawPlayPlates(g){
+  if(G.scene==='camp'){
+    if(!G.hint) return;
+    beginUiLayer(g);
+    drawHint(g,UIS);
+    return;
+  }
   if(G.scene!=='play' && G.scene!=='pack') return;
   if(!(G.talk || G.hint || G.inspect || PROMPT || G.scene==='play')) return;
   beginUiLayer(g);
@@ -7185,6 +7192,10 @@ function update(dt){
     if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
     if(G.flash){ G.flash.a-=dt*1.8; if(G.flash.a<=0) G.flash=null; }
     if(G.sleepShow.t>=G.sleepShow.dur) endSleepShow();
+    return;
+  }
+  if(G.scene==='camp'){
+    if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
     return;
   }
   if(G.scene!=='play'||G.paused||G.talk) return;
@@ -11313,7 +11324,9 @@ function drawCamp(g){
   g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 
-  const footH=(PORT?52:50)*s;
+  const btnW=Math.min(170*s, VW*.36);
+  const btnH=Math.max(PORT?50:48, (PORT?50:48)*s);
+  const footH=btnH+4*s;
   const footY=VH-footH-10*s;
   const detailH=PORT?78*s:72*s;
   const acts=campActions();
@@ -11358,6 +11371,7 @@ function drawCamp(g){
     g.fillStyle=can?'rgba(214,190,140,0.95)':'rgba(180,90,70,0.75)';
     g.fillText(ellipsize(g, costText(a.cost), w*0.36), x+w-14*s, y+h*0.64);
     g.textAlign='left';
+    if(y+h>footY-6*s) return;
     menuHits.push({x,y,w,h,fn:()=>{
       const id=campActionId(a);
       if(G.campSel===id){ if(can) runCampAction(a); }
@@ -11386,7 +11400,8 @@ function drawCamp(g){
     const skLine=sk?(sk.n+' '+skillLvl(sk.k)+'  ·  '):'';
     g.fillText(ellipsize(g, skLine+(can?'Ready.':'Need '+costText(sel.cost)), dW-28*s), dX+14*s, dY+62*s);
     const doW=Math.min(110*s, dW*0.28), doH=PORT?36*s:32*s;
-    menuBtn(g, can?'Do it':'Need', dX+dW-doW/2-10*s, dY+detailH*0.52, doW, doH, ()=>{ if(can) runCampAction(sel); });
+    const doCy=Math.min(dY+detailH*0.52, footY-doH/2-6*s);
+    menuBtn(g, can?'Do it':'Need', dX+dW-doW/2-10*s, doCy, doW, doH, ()=>{ if(can) runCampAction(sel); });
   } else {
     g.font='600 '+(PORT?11*s:12*s)+'px '+FONT_UI;
     g.fillStyle='rgba(186,166,130,0.7)';
@@ -11405,11 +11420,21 @@ function drawCamp(g){
   }
 
   const nxt=G.ch===3?5:G.ch+1;
-  const btnW=Math.min(170*s, VW*.36), btnH=PORT?50*s:48*s;
-  menuBtn(g,'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
+  const saved=G.campSaveFlash && (G.t||0)<G.campSaveFlash;
+  if(saved){
+    g.textAlign='center';
+    g.font='700 '+(PORT?12:13)*s+'px '+FONT_UI;
+    g.fillStyle='#ffe08a';
+    g.fillText('The book is marked.', VW/2, footY-6*s);
+    g.textAlign='left';
+  }
+  const beforeFoot=menuHits.length;
+  menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
     menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>startChapter(nxt));
   else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{G.scene='chapters';});
+  const footHits=menuHits.splice(beforeFoot);
+  menuHits.unshift.apply(menuHits, footHits);
 }
 
 function drawDead(g){

@@ -26,7 +26,10 @@ assert(!/fillText\(a\.info/.test(camp), 'info is not stacked on the row');
 assert(!/CRAFT SKILLS/.test(camp), 'full skill grid is not the default camp chrome');
 assert(/G\.campSkills/.test(camp), 'skills sit behind a Skills affordance');
 assert(/'Go deeper'/.test(camp) && /'Save'/.test(camp), 'Save and Go deeper stay');
-assert(/btnH=PORT\?50\*s:48\*s/.test(camp), 'Save / Go deeper are large tap targets');
+assert(/Math\.max\(PORT\?50:48/.test(camp), 'Save / Go deeper stay at least 50px on phone');
+assert(/menuHits\.unshift\.apply\(menuHits, footHits\)/.test(camp), 'Save hit is tested before camp rows');
+assert(/y\+h>footY-6\*s/.test(camp), 'action rows stay above the footer');
+assert(/campSaveFlash/.test(camp) && /The book is marked/.test(camp), 'Save shows a visible camp confirmation');
 assert(!/Hammer T/.test(camp) && !/Bombs /.test(camp), 'footer does not repeat kit status');
 
 assert(/function campActionTab\(/.test(html) && /tab:'repair'/.test(html) && /tab:'improve'/.test(html),
