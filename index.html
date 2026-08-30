@@ -6072,7 +6072,7 @@ function rollIndividual(letter){
   else if(letter==='L') coins.ep=rollDice(2,6,0);
   else if(letter==='M') coins.gp=rollDice(2,4,0);
   else if(letter==='N') coins.pp=rollDice(1,6,0);
-  else if(letter==='O') coins.gp=rngAmt(10,40);
+  else if(letter==='O'){ coins.cp=rngAmt(10,40); coins.sp=rngAmt(10,30); }
   else if(letter==='P') coins.pp=rngAmt(1,20);
   else if(letter==='Q') return {coins:{},gems:chanceOk(50)?ri(1,4):0,jew:0,magN:0};
   else if(letter==='R') return {coins:{},gems:0,jew:chanceOk(50)?ri(2,8):0,magN:0};
@@ -9631,7 +9631,7 @@ function rollSpiderLordHoard(){
   if(!coins.cp) coins.cp=rngAmt(10,80);
   if(!coins.sp) coins.sp=rngAmt(10,60);
   if(!coins.gp) coins.gp=rngAmt(5,30);
-  return {coins, gems:base.gems||0, jew:base.jew||0, magN:Math.max(1,base.magN||0), magKind:base.magKind||'any'};
+  return {coins, gems:base.gems||0, jew:base.jew||0, magN:base.magN||0, magKind:base.magKind||'any'};
 }
 function rollWebCorpseHoard(){
   if(typeof SpiderLair!=='undefined'&&SpiderLair.rollWebCorpse){
@@ -9670,18 +9670,56 @@ function placeSpiderWebCorpses(){
     G.ents.push(e);
   });
 }
+function killLootBand(e){
+  if(e&&e.boss) return 'boss';
+  const kind=String((e&&(e.kind||e.k))||'').toLowerCase();
+  if(/^(rat|beetle|centipede)$/.test(kind)) return 'vermin';
+  const hd=typeof monsterHD==='function'?monsterHD(e||{}):((e&&e.hd)||0.5);
+  const listed=/goblin|orc|kobold|drow|duergar|bugbear|grimlock|troglodyte|kuotoa|quaggoth|gnome|gibberling/.test(kind);
+  if(hd<1 && !listed) return 'vermin';
+  if(hd<4) return 'mid';
+  return 'high';
+}
+function killCoinLetters(raw){
+  return treasureLetters(raw).filter(c=>/[JKLMNOPYZ]/.test(c));
+}
+function rollHouseQ(){
+  return {coins:{},gems:ri(1,4),jew:0,magN:0};
+}
+function rollKillBookMagic(e){
+  const band=killLootBand(e);
+  if(!e||band==='vermin'||band==='boss') return null;
+  let hoard=null;
+  treasureLetters((e.treasure||e.tt||'')).forEach(c=>{
+    if(/[STUVXZ]/.test(c)) hoard=mergeHoards(hoard, rollIndividual(c));
+  });
+  return hoard;
+}
 function rollKillIndividual(e){
-  const lv=(G.lvl&&G.lvl.n)||1;
-  const boss=!!(e&&e.boss);
-  let hoard=rollIndividual('J');
-  if(chanceOk(40+lv*4)) hoard=mergeHoards(hoard, rollIndividual('K'));
-  if(chanceOk(22+lv*4)) hoard=mergeHoards(hoard, rollIndividual('M'));
-  if(chanceOk(12+lv*3)) hoard=mergeHoards(hoard, rollIndividual('Q'));
-  /* DMG individual S/T — potions and scrolls — then a sword/armor/misc any-item. */
-  hoard=mergeHoards(hoard, rollIndividual('S'));
-  hoard=mergeHoards(hoard, rollIndividual('T'));
-  if(chanceOk(14+lv*3+(boss?25:0))) hoard=mergeHoards(hoard, {coins:{},gems:0,jew:0,magN:1,magKind:'any'});
-  if(boss) hoard=mergeHoards(hoard, rollIndividual('U'));
+  const band=killLootBand(e);
+  let hoard=null;
+  if(band==='boss') return ensureKillCoins(rollIndividual('U'));
+  if(band==='vermin'){
+    hoard=rollIndividual('J');
+    if(chanceOk(40)) hoard=mergeHoards(hoard, rollIndividual('K'));
+    if(chanceOk(10)) hoard=mergeHoards(hoard, rollHouseQ());
+    return ensureKillCoins(hoard);
+  }
+  if(band==='mid'){
+    hoard=mergeHoards(rollIndividual('J'), rollIndividual('K'));
+    if(chanceOk(35)) hoard=mergeHoards(hoard, rollIndividual('M'));
+    if(chanceOk(20)) hoard=mergeHoards(hoard, rollHouseQ());
+    hoard=mergeHoards(hoard, rollKillBookMagic(e));
+    return ensureKillCoins(hoard);
+  }
+  const letters=killCoinLetters((e&&(e.treasure||e.tt))||'');
+  if(letters.length){
+    letters.forEach(L=>{ hoard=mergeHoards(hoard, rollIndividual(L)); });
+  }else{
+    hoard=mergeHoards(rollIndividual('O'), rollIndividual('M'));
+  }
+  if(chanceOk(40)) hoard=mergeHoards(hoard, rollHouseQ());
+  hoard=mergeHoards(hoard, rollKillBookMagic(e));
   return ensureKillCoins(hoard);
 }
 function foeDrop(e){
@@ -9709,11 +9747,8 @@ function foeDrop(e){
     e.drop=null;
     return;
   }
-  const raw=(e.treasure||'Nil').toString().trim();
-  let hoard=null;
-  if(raw && !/^nil$/i.test(raw)) hoard=rollTreasureSpec(raw);
-  if(e.boss && !hoard) hoard=rollLair('H')||rollLair('C');
-  hoard=ensureKillCoins(mergeHoards(hoard, rollKillIndividual(e)));
+  /* Individual kill only — never lair A–I on a corpse. */
+  let hoard=ensureKillCoins(rollKillIndividual(e));
   let pile=hoardToPile(hoard);
   if(!pile){
     pile=hoardToPile(ensureKillCoins(rollKillIndividual(e)))||
@@ -9724,7 +9759,7 @@ function foeDrop(e){
     pile.coins=Object.assign({}, pile.coins||{}, j&&j.coins||{cp:ri(3,24)});
     if(pile.kind==='pile') pile.kind='coins';
   }
-  pile.label=pile.label||((e.name||'Foe')+' (DMG individual)');
+  pile.label=pile.label||((e.name||'Foe')+' (house individual)');
   e.drop=pile;
   const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
   const floor=spawnLoot(e.x+ox, e.y+oy, pile);

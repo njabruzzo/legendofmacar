@@ -31,20 +31,24 @@ assert(/if\(!\(u\.coins\.cp>0\)\) u\.coins\.cp=rngAmt\(10,80\)/.test(html),
 assert(!/letter==='U'\)\{\s*return \{coins:\{\}/.test(html),
   'Type U no longer returns an empty purse');
 
-assert(/if\(raw && !\/\^nil\$\/i\.test\(raw\)\) hoard=rollTreasureSpec\(raw\)/.test(html)
-  || /hoard=rollTreasureSpec\(raw\)/.test(html),
-  'monster loot rolls every letter in the type');
+assert(/function rollTreasureSpec\(/.test(html),
+  'multi-letter specs still exist for caches and vaults');
+assert(!/rollTreasureSpec\(raw\)/.test(html.match(/function foeDrop\([\s\S]*?\nfunction newGear/)[0]),
+  'foeDrop does not roll lair A–I per corpse');
+assert(!/rollLair\('H'\)/.test(html.match(/function foeDrop\([\s\S]*?\nfunction newGear/)[0]),
+  'boss corpses do not fall back to lair H/C');
 assert(!/const letter=raw\[0\]/.test(html), 'foeDrop no longer keeps only the first treasure letter');
 assert(!/\['ironstone','timber','bone','hide','resin','powder'\]/.test(html),
   'Nil corpses do not drop a fixed ore list');
-assert(/function rollKillIndividual\(/.test(html),
-  'every kill rolls a full DMG individual pocket, not copper only');
-assert(/rollIndividual\('S'\)/.test(html) && /rollIndividual\('T'\)/.test(html),
-  'kill pocket rolls potion (S) and scroll (T) tables');
-assert(/magKind:'any'/.test(html.match(/function rollKillIndividual[\s\S]*?\nfunction foeDrop/)[0]),
-  'kill pocket can roll any-item (swords, armor, misc)');
-assert(/mergeHoards\(hoard, rollKillIndividual\(e\)\)/.test(html),
-  'foeDrop always merges the individual pocket onto the corpse');
+assert(/function rollKillIndividual\(/.test(html) && /function killLootBand\(/.test(html),
+  'every kill rolls the house individual pocket by HD band');
+assert(!/rollIndividual\('S'\)/.test(html.match(/function rollKillIndividual[\s\S]*?\nfunction foeDrop/)[0])
+  && !/rollIndividual\('T'\)/.test(html.match(/function rollKillIndividual[\s\S]*?\nfunction foeDrop/)[0]),
+  'kill pocket does not stack S+T on every corpse');
+assert(/letter==='O'\)\{ coins\.cp=rngAmt\(10,40\); coins\.sp=rngAmt\(10,30\); \}/.test(html),
+  'Type O is copper and silver, not gold');
+assert(/rollKillIndividual\(e\)/.test(html.match(/function foeDrop\([\s\S]*?\nfunction newGear/)[0]),
+  'foeDrop always rolls the house individual pocket onto the corpse');
 assert(!/Empty lair chances still leave a DMG pocket \(type J = 3d8 cp\)/.test(html),
   'Nil kills are no longer copper-only type J');
 assert(/spawnLoot\(e\.x\+ox, e\.y\+oy, pile\)/.test(html),
