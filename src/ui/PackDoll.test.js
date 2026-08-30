@@ -17,7 +17,7 @@ const doll=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfuncti
 assert(!!doll, 'drawEquipDoll exists');
 const block=doll?doll[0]:'';
 
-assert(/livingMacarImg\('macar'\)/.test(block), 'doll binds the living-Macar idle gate');
+assert(/blitLivingMacar\(SPR\.macar\)/.test(block), 'doll binds the blitLivingMacar idle pipe');
 assert(!/macar_axe/.test(block) && !/wieldsShadowCleaver\(/.test(block),
   'doll does not swap to the axe sheet until that sheet is binary-alpha');
 assert(/globalAlpha=1/.test(block) && /globalCompositeOperation='source-over'/.test(block),

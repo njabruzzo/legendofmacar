@@ -47,8 +47,8 @@ assert(/The _nw_ sheets are painted walking upper-right/.test(html),
   'NW moonwalk is called out: those sheets are not selected for west');
 assert(/macar_title/.test(html) && /dwarf_macar_title\.png/.test(html),
   'title still sheet stays registered for later binary-alpha');
-assert(/livingMacarImg\('macar'\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
-  'title fallback blits the living-Macar idle gate');
+assert(/blitLivingMacar\(SPR\.macar\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
+  'title fallback blits the blitLivingMacar idle pipe');
 
 function faceVec(e, lead){
   if(!e) return {dx:0,dy:0};

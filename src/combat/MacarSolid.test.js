@@ -27,7 +27,9 @@ assert(!/macar_atk:1\.11/.test(html), 'idle-height strike does not need a 1.11 F
 assert(/function heroFigureFit\(/.test(html), 'inset recover/back frames match idle height');
 assert(/function figurePersonFrac\(/.test(html), 'fit uses helmet-to-boot, not the weapon box');
 assert(/personY0/.test(html), 'spriteBounds records the foot-column crown');
-assert(/function solidMacarSprite\(/.test(html), 'living Macar pixels are flattened opaque');
+assert(/function blitLivingMacar\(/.test(html), 'one blitLivingMacar pipe bakes living Macar');
+assert(/function solidMacarSprite\(/.test(html) && /return blitLivingMacar\(img\)/.test(html),
+  'solidMacarSprite is the same pipe (HUD face)');
 assert(/Living Macar is drawn solid after the light multiply/.test(html),
   'Macar is skipped in the washed world pass');
 assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
@@ -38,12 +40,14 @@ assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-sa
 assert(/const LIVING_MACAR_KEYS=\{macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1\}/.test(html),
   'living Macar whitelist is idle / w1 / w2 / atk / recover only');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
-  'one img gate feeds dungeon, title, pack doll, and billboard');
+  'whitelist key gate feeds the blit pipe');
 
-const bake=extractFn('solidMacarSprite');
-assert(/if\(a>40\) d\[i\+3\]=255/.test(bake), 'bake: a>40 inside the silhouette is 255');
-assert(/d\[i\+3\]=0/.test(bake), 'bake: outside the silhouette is a=0');
-assert(!/255\/a/.test(bake), 'bake does not un-premultiply fringe RGB');
+const bake=extractFn('blitLivingMacar');
+assert(/if\(a<=40\)/.test(bake) && /d\[i\+3\]=0/.test(bake), 'bake: a≤40 fringe is punched to 0');
+assert(/d\[i\+3\]=255/.test(bake), 'bake: a>40 silhouette is 255');
+assert(/255\/a/.test(bake), 'bake un-premultiplies RGB before forcing a=255');
+assert(/catch\(_\)\{[\s\S]*SPR\.macar/.test(bake) && !/out=img/.test(bake),
+  'getImageData fail blits idle Macar, never the raw fringe sheet');
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(/walkCycleKey\(e, 'macar'\)/.test(liveKey) && /macar_atk/.test(liveKey)
@@ -81,13 +85,19 @@ assert(!/if\(!e\.dead&&e\.hero\)\{/.test(html)
   'gold foot ellipse under the hero is gone');
 
 const cavern=html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0];
-assert(/livingMacarImg\('macar'\)/.test(cavern) && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
-  'title fallback blits the idle whitelist sheet, not title/back stills');
+assert(/blitLivingMacar\(SPR\.macar\)/.test(cavern) && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
+  'title fallback blits idle through blitLivingMacar, never title/back stills');
 assert(/globalAlpha=1/.test(cavern) && /globalCompositeOperation='source-over'/.test(cavern),
   'title Macar blit is source-over at alpha 1');
 const doll=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/)[0];
-assert(/livingMacarImg\('macar'\)/.test(doll) && !/macar_axe/.test(doll) && !/wieldsShadowCleaver/.test(doll),
-  'pack doll uses the same idle gate, not the axe sheet');
+assert(/blitLivingMacar\(SPR\.macar\)/.test(doll) && !/macar_axe/.test(doll) && !/wieldsShadowCleaver/.test(doll),
+  'pack doll uses the same blitLivingMacar idle pipe, not the axe sheet');
+const faceFn=extractFn('face');
+assert(/c\.key==='macar'&&!ghost\?solidMacarSprite\(SPR\.macar\)/.test(faceFn)
+  || /c\.key==='macar' && !ghost[\s\S]*solidMacarSprite\(SPR\.macar\)/.test(faceFn),
+  'HUD face bakes living Macar through solidMacarSprite(SPR.macar)');
+assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
+  'HUD face never blits raw SPR.macar for living Macar');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html), 'kin ghosts stay translucent');
 assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
   'no living-Macar blit bakes a raw un-gated sheet');
