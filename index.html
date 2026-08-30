@@ -932,11 +932,15 @@ function frameFit(e,img){
   return 1;
 }
 const SOLID_MACAR=(typeof WeakMap==='function')?new WeakMap():null;
-function solidMacarSprite(img){
-  if(!img||!img.width) return img;
+/* Limner living-Macar pipe. One bake+return: world, title, pack doll, HUD face.
+   a≤40 punched. a>40 un-premultiply RGB then a=255. getImageData fail → idle,
+   never the raw fringe sheet. */
+function blitLivingMacar(img){
+  const idle=(typeof SPR!=='undefined' && SPR.macar && SPR.macar.width)?SPR.macar:null;
+  if(!img||!img.width) return idle?blitLivingMacar(idle):null;
   if(SOLID_MACAR&&SOLID_MACAR.has(img)) return SOLID_MACAR.get(img);
   if(img.__solidMacar) return img.__solidMacar;
-  let out=img;
+  let out=null;
   try{
     const c=document.createElement('canvas');
     c.width=img.width; c.height=img.height;
@@ -944,20 +948,29 @@ function solidMacarSprite(img){
     x.drawImage(img,0,0);
     const data=x.getImageData(0,0,c.width,c.height);
     const d=data.data;
-    /* Limner bake: binary alpha. a>40 stays in the silhouette at 255;
-       1–40 fringe/grain is punched out. No un-premultiply. */
     for(let i=0;i<d.length;i+=4){
       const a=d[i+3];
-      if(a>40) d[i+3]=255;
-      else { d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0; }
+      if(a<=40){ d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0; }
+      else {
+        if(a<255){
+          const s=255/a;
+          d[i]=Math.min(255, (d[i]*s+0.5)|0);
+          d[i+1]=Math.min(255, (d[i+1]*s+0.5)|0);
+          d[i+2]=Math.min(255, (d[i+2]*s+0.5)|0);
+        }
+        d[i+3]=255;
+      }
     }
     x.putImageData(data,0,0);
     out=c;
-  }catch(_){ out=img; }
+  }catch(_){
+    out=(img!==SPR.macar && SPR.macar && SPR.macar.width)?blitLivingMacar(SPR.macar):SPR.macar;
+  }
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
   else img.__solidMacar=out;
   return out;
 }
+function solidMacarSprite(img){ return blitLivingMacar(img); }
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
 function flippedSprite(img){
   if(!img||!img.width) return img;
@@ -1022,7 +1035,7 @@ function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarImg(key){
   const k=isLivingMacarKey(key)&&sprReady(key)?key:(sprReady('macar')?'macar':null);
   if(!k) return null;
-  return solidMacarSprite(SPR[k]);
+  return blitLivingMacar(SPR[k]);
 }
 /* Living Macar only. Idle / front w1-w2 / strike / recover. Flip west on the
    blit — never axe, never a washed directional stem, never QUALITY-gated. */
@@ -10496,12 +10509,18 @@ function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
 function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
 function face(g,cx,cy,rr,c,dead,ghost){
-  const img=(ghost&&c&&SPR[c.key+'_ghost'])||(c&&SPR[c.key]);
+  const img=(ghost&&c&&SPR[c.key+'_ghost'])
+    ||(c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR.macar):null)
+    ||(c&&c.key!=='macar'?SPR[c.key]:null);
   g.save();
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.clip();
   g.fillStyle=dead?'#1a120c':'#2a1c14'; g.fillRect(cx-rr,cy-rr,rr*2,rr*2);
   if(img){
     const h=rr*3.15, w=h*(img.width/Math.max(1,img.height));
+    if(c&&c.key==='macar'&&!ghost){
+      g.globalAlpha=1;
+      g.globalCompositeOperation='source-over';
+    }
     g.drawImage(img, cx-w/2, cy-rr*0.55, w, h);
   } else {
   const u=rr/20;
@@ -11213,7 +11232,7 @@ function drawTitleCavern(g){
     g.fillStyle='rgba(8,6,5,0.55)';
     g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
     if(keys[i]==='macar'){
-      const sheet=livingMacarImg('macar');
+      const sheet=blitLivingMacar(SPR.macar);
       if(sheet){
         g.save();
         g.globalAlpha=1;
@@ -12139,10 +12158,10 @@ function drawEquipDoll(g, x, y, w, h){
 
   const lay=dollSlotLayout(x, y+22*s, w, h-28*s);
   const body=lay.body;
-  /* Pack doll is the living Macar painting — same whitelist + binary bake
-     as the dungeon blit. Axe / title sheets stay unused until they are
-     binary-alpha too. No gold foot disc, no lighter, no kettle-hat icon_doll. */
-  const img=livingMacarImg('macar');
+  /* Pack doll is the living Macar painting — same blitLivingMacar pipe
+     as the dungeon blit. Axe / title / back sheets stay unused until they
+     are binary-alpha too. No gold foot disc, no lighter, no kettle-hat. */
+  const img=blitLivingMacar(SPR.macar);
   if(img&&img.width){
     const b=spriteBounds(img);
     const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;

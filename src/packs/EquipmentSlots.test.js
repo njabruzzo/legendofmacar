@@ -121,8 +121,8 @@ assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit'
 assert(/computeWornAC/.test(html), 'party AC uses worn 1e values');
 assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && /icon_doll/.test(html), 'inventory slot graphics are registered');
 const dollFn=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/);
-assert(!!dollFn && /livingMacarImg\('macar'\)/.test(dollFn[0]),
-  'paper doll blits the living-Macar idle gate, not a separate kettle-hat');
+assert(!!dollFn && /blitLivingMacar\(SPR\.macar\)/.test(dollFn[0]),
+  'paper doll blits the blitLivingMacar idle pipe, not a separate kettle-hat');
 assert(!!dollFn && !/macar_axe/.test(dollFn[0]) && !/wieldsShadowCleaver\(/.test(dollFn[0]),
   'paper doll does not swap to the axe sheet until that sheet is binary-alpha');
 assert(/ph\.key==='macar'/.test(html) && /openPackMenu\('play'\)/.test(html), 'Macar portrait opens the pack doll');
