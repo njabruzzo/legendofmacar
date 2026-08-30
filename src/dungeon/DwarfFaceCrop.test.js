@@ -35,8 +35,8 @@ assert(Number(stats.opaque)>0.32 && Number(stats.opaque)<0.85,
 assert(Number(stats.clear)>0.15, 'extra masonry around the face is transparent');
 assert(Number(stats.content_aspect)>0.32 && Number(stats.content_aspect)<0.55,
   'opaque content is the tall face, not a leftover wall plaque');
-assert(Number(stats.mouth_opaque)>0.98, 'open mouth stays in the carving');
-assert(Number(stats.mouth_dark)>0.08, 'mouth cavity is still a dark hole');
+assert(Number(stats.mouth_clear)>0.18, 'mouth hole is empty alpha so the wall reads as the shelf');
+assert(Number(stats.mouth_opaque)<0.82, 'mouth is not a painted stone niche');
 assert(stats.binary==='1', 'crop is binary-alpha (no fringe masonry haze)');
 
 assert(/function dwarfFaceH\(L\)\{\s*return wallFaceH\(L\)\*0\.72;/.test(html),
