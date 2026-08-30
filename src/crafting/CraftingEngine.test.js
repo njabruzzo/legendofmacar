@@ -80,6 +80,41 @@ assert(Engine.stationPool().some(r => r.id === 'healing_potion'), 'Healing Potio
 assert(Engine.stationPool().some(r => r.id === 'longsword'), 'Long Sword is in the station pool');
 assert(Engine.get('longsword').skillLevel === 2, 'Long Sword still needs Weapon Smithing 2');
 
+const NEW_FIELD=['bone_scale','deepsilver_pick','star_hammer','silk_jack','iron_case_bombs','marrow_draught'];
+const REJECTED=['bone_haft','iron_helm','hide_bracers','silk_padding','deepsilver_mail','star_rune'];
+NEW_FIELD.forEach(id=>{
+  const r=Engine.get(id);
+  assert(!!r && r.station==='field', id+' is a field recipe');
+  assert(Engine.stationPool().some(x=>x.id===id), id+' is in the station pool');
+});
+REJECTED.forEach(id=>assert(!Engine.get(id), id+' was not shipped'));
+assert(Engine.get('bone_scale').skill==='armour' && Engine.get('bone_scale').skillLevel===2,
+  'Bone-Scale Shirt is FORGE armour 2');
+assert(Engine.get('star_hammer').output.item.plus===1, 'Star-Peen Hammer is +1');
+assert(Engine.get('iron_case_bombs').output.field==='bombs' && Engine.get('iron_case_bombs').output.count===3,
+  'Iron-Case Bombs grant three pack bombs');
+assert(Engine.get('marrow_draught').output.item.k==='heal20', 'Marrow Draught is heal20');
+assert(Engine.get('hide_cloak') && Engine.get('longsword') && Engine.get('healing_potion'),
+  'old seven stay in the book');
+
+const js=fs.readFileSync(path.join(__dirname,'CraftingEngine.js'),'utf8');
+NEW_FIELD.forEach(id=>assert(js.indexOf("id: '"+id+"'")>=0, id+' is in DEFAULT_RECIPES'));
+REJECTED.forEach(id=>assert(js.indexOf("id: '"+id+"'")<0, id+' is not in DEFAULT_RECIPES'));
+
+function stubRank(res, lvl){
+  const b=stubBridge(res);
+  b.skillLevel=()=>lvl;
+  return b;
+}
+const shirt=stubRank({bone:3, hide:1, ironstone:1}, 2);
+assert(Engine.canCraft('bone_scale', shirt).ok, 'Bone-Scale Shirt crafts at armour 2 with stock');
+assert(Engine.craftItem('bone_scale', shirt).ok && shirt.granted[0]==='bone_scale',
+  'Bone-Scale Shirt applyOutput fires');
+assert(!Engine.canCraft('bone_scale', stubRank({bone:3, hide:1, ironstone:1}, 1)).ok,
+  'Bone-Scale Shirt fails under armour 1');
+assert(!Engine.canCraft('star_hammer', stubRank({starmetal:0, ironstone:2, timber:1}, 3)).ok,
+  'Star-Peen Hammer fails without starmetal stock');
+
 if (failed) {
   console.error('\n' + failed + ' failed');
   process.exit(1);

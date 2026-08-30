@@ -132,6 +132,148 @@
       "info": "A hide cloak into MACAR's pack."
     },
     {
+      "id": "bone_scale",
+      "name": "Bone-Scale Shirt",
+      "group": "FORGE",
+      "station": "field",
+      "skill": "armour",
+      "skillLevel": 2,
+      "skillXp": 8,
+      "ingredients": {
+        "bone": 3,
+        "hide": 1,
+        "ironstone": 1
+      },
+      "output": {
+        "kind": "armor",
+        "item": {
+          "n": "Bone-Scale Shirt",
+          "cat": "Armor/Shield",
+          "k": "armor",
+          "d": "Overlapped bone on hide. Forged at the anvil.",
+          "plus": 0
+        }
+      },
+      "info": "Bone-scale shirt into MACAR's pack. Armour rank 2."
+    },
+    {
+      "id": "deepsilver_pick",
+      "name": "Deepsilver Pick",
+      "group": "FORGE",
+      "station": "field",
+      "skill": "mining",
+      "skillLevel": 2,
+      "skillXp": 8,
+      "ingredients": {
+        "deepsilver": 2,
+        "timber": 1,
+        "ironstone": 1
+      },
+      "output": {
+        "kind": "weapon",
+        "item": {
+          "n": "Deepsilver Pick",
+          "cat": "Sword",
+          "k": "weapon",
+          "d": "A pale pick from the anvil. Honest and ugly.",
+          "plus": 0
+        }
+      },
+      "info": "Deepsilver pick into MACAR's pack. Mining rank 2."
+    },
+    {
+      "id": "star_hammer",
+      "name": "Star-Peen Hammer",
+      "group": "FORGE",
+      "station": "field",
+      "skill": "weapon",
+      "skillLevel": 3,
+      "skillXp": 10,
+      "ingredients": {
+        "starmetal": 1,
+        "ironstone": 2,
+        "timber": 1
+      },
+      "output": {
+        "kind": "weapon",
+        "item": {
+          "n": "Star-Peen Hammer",
+          "cat": "Sword",
+          "k": "weapon",
+          "d": "Starmetal peen on an iron head. The seam remembers.",
+          "plus": 1
+        }
+      },
+      "info": "Star-peen hammer into MACAR's pack. Weapon Smithing rank 3."
+    },
+    {
+      "id": "silk_jack",
+      "name": "Silk-Lined Jack",
+      "group": "TAILOR",
+      "station": "field",
+      "skill": "cloth",
+      "skillLevel": 2,
+      "skillXp": 8,
+      "ingredients": {
+        "silk": 2,
+        "hide": 1
+      },
+      "output": {
+        "kind": "armor",
+        "item": {
+          "n": "Silk-Lined Jack",
+          "cat": "Armor/Shield",
+          "k": "armor",
+          "d": "Spider silk under hide. Quiet in the dark.",
+          "plus": 0
+        }
+      },
+      "info": "Silk-lined jack into MACAR's pack. Cloth rank 2."
+    },
+    {
+      "id": "iron_case_bombs",
+      "name": "Iron-Case Bombs",
+      "group": "BENCH",
+      "station": "field",
+      "skill": "bomb",
+      "skillLevel": 3,
+      "skillXp": 10,
+      "ingredients": {
+        "ironstone": 3,
+        "timber": 1,
+        "powder": 1
+      },
+      "output": {
+        "kind": "pack",
+        "field": "bombs",
+        "count": 3,
+        "packKey": "macar"
+      },
+      "info": "Three iron-cased 10d10 throwables into MACAR's pack. Bomb rank 3."
+    },
+    {
+      "id": "marrow_draught",
+      "name": "Marrow Draught",
+      "group": "BREWERY",
+      "station": "field",
+      "skill": "forage",
+      "skillLevel": 2,
+      "skillXp": 8,
+      "ingredients": {
+        "bone": 2,
+        "resin": 1
+      },
+      "output": {
+        "kind": "potion",
+        "item": {
+          "n": "Marrow Draught",
+          "d": "Cures 20 hp.",
+          "k": "heal20"
+        }
+      },
+      "info": "Marrow draught into the ale flask. Forage rank 2."
+    },
+    {
       "id": "borgas_burp",
       "name": "Borga's Burp",
       "group": "BENCH",
