@@ -19,6 +19,9 @@ assert(/function dwarfFigureFit\(/.test(html), 'all party dwarves share one figu
 assert(/Do not scale attack 1\.29x/.test(html), 'attack pop scale is forbidden');
 assert(!/macar_atk:1\.29/.test(html) && !/macar_axe_atk:1\.18/.test(html),
   'no 1.29 / 1.18 attack FIT leftovers');
+assert(!/macar_atk:1\.11/.test(html) && !/macar_atk:1\.29/.test(html),
+  'idle-height strike is not FIT-scaled');
+assert(/function figurePersonFrac\(/.test(html), 'fit measures the person, not the weapon box');
 assert(/SPRITE_FILES\[k\+'_atk_recover'\]='assets\/creatures\/dwarf_'\+k\+'_atk_recover\.png'/.test(html),
   'living kin recover sheets are registered');
 assert(/wantsMeleeRecover\(e\) && SPR\[k\+'_atk_recover'\]/.test(html),
@@ -34,8 +37,30 @@ assert(/wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\) && SPR\[k\+'_atk'\]/.tes
     assert(fs.existsSync(path.join(root,rec)), rec+' on disk');
   });
 });
+function pngSize(p){
+  const b=fs.readFileSync(p);
+  if(b[1]!==0x50 || b[2]!==0x4e || b[3]!==0x47) return null;
+  return {w:b.readUInt32BE(16), h:b.readUInt32BE(20)};
+}
+
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'macar strike on disk');
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'macar recover on disk');
+
+const macAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
+const macRec=pngSize(path.join(root,'dwarf_macar_atk_recover.png'));
+const macE=pngSize(path.join(root,'dwarf_macar_e_atk.png'));
+assert(macAtk && macAtk.h===512, 'macar strike is 512 tall');
+assert(macRec && macRec.h===512 && macRec.w>400, 'macar recover is a full-height sheet, not the 374px crouch');
+assert(macE && macE.h===512 && macE.w<800, 'east strike is not the 885px fringe sheet');
+
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
+  ['','_ghost'].forEach(g=>{
+    const rec=pngSize(path.join(root,'dwarf_'+k+g+'_atk_recover.png'));
+    const atk=pngSize(path.join(root,'dwarf_'+k+g+'_atk.png'));
+    assert(atk && atk.h===512, k+g+' strike is 512 tall');
+    assert(rec && rec.h===512 && rec.w>360, k+g+' recover is a painted sheet, not a filled box');
+  });
+});
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ndwarf attack cycle checks passed');
