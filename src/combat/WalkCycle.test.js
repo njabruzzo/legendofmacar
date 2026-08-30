@@ -30,7 +30,9 @@ assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
-assert(/walkCycleKey\(e, stem\)/.test(liveKey), 'living Macar walk uses walkCycleKey');
+assert(/walkCycleKey\(e, 'macar'\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair');
+assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey),
+  'living Macar walk does not bind washed directional stems');
 
 const angled=html.match(/function dwarfAngleKey\(e,k\)\{[\s\S]*?\nfunction wantsSpriteFlip/)[0];
 assert(/const moving=e\.moving && !e\.defending/.test(angled),
@@ -105,7 +107,10 @@ Object.assign(ctx, {
   wantsMeleeRecover(){ return false; },
   entAnimKey(e){ return ctx.livingMacarAnimKey?ctx.livingMacarAnimKey(e):'macar_e_w1'; }
 });
-vm.runInContext(extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
+vm.runInContext(
+  'const LIVING_MACAR_KEYS={macar:1,macar_w1:1,macar_w2:1,macar_atk:1,macar_atk_recover:1};'
+  +extractFn('isLivingMacarKey')
+  +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 
 function holdWalk(ix, iy){
   const samples=[];
@@ -125,10 +130,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===false && !/_w3$/.test(s.key)),
-  'hold D: every gait frame is east-painted, unflipped, never w3');
-assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===true && !/_w3$/.test(s.key)),
-  'hold A: every gait frame is the same east sheet flipped once, never w3');
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
+  'hold D: every gait frame is the front whitelist pair, unflipped, never w3');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
+  'hold A: every gait frame is the same front pair flipped once, never w3');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 

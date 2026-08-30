@@ -992,9 +992,12 @@ function drawEntBillboard(g,e,img,z,flip){
     g.drawImage(img, sx, sy, sw, sh, -pw/2, -ph*0.82, pw, ph);
     return true;
   }
-  // Living Macar: flatten ghost alpha, then size from the painted figure so
-  // idle / walk / swing / recover / east-west-back share one world footprint.
-  if(e.hero && !e.dead && !e.ghost) img=solidMacarSprite(img);
+  // Living Macar: only the binary-alpha whitelist. Directional / title / axe
+  // sheets stay unused until they are punched the same way.
+  if(e.hero && !e.dead && !e.ghost){
+    img=livingMacarImg(livingMacarAnimKey(e));
+    if(!img||!img.width) return false;
+  }
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
   const b=spriteBounds(img);
@@ -1011,25 +1014,25 @@ function drawEntBillboard(g,e,img,z,flip){
   blitFacing(g,img,dx,dy,W,H,flip);
   return true;
 }
-/* Living Macar only. Idle is the binary front plant. Walk binds baked
-   directional sheets (e / s / back / iso) and flips west from east — never
-   axe, never QUALITY-gated, never an idle fallback onto e_w1. */
+/* Limner living-Macar gate. Only these sheets are binary-alpha.
+   Directional / title / axe / sleep / w3 stay unused until they are too.
+   Title stills, pack doll, strike, recover, and walk all pick through here. */
+const LIVING_MACAR_KEYS={macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1};
+function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
+function livingMacarImg(key){
+  const k=isLivingMacarKey(key)&&sprReady(key)?key:(sprReady('macar')?'macar':null);
+  if(!k) return null;
+  return solidMacarSprite(SPR[k]);
+}
+/* Living Macar only. Idle / front w1-w2 / strike / recover. Flip west on the
+   blit — never axe, never a washed directional stem, never QUALITY-gated. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(wantsMeleeRecover(e) && sprReady('macar_atk_recover')) return 'macar_atk_recover';
   if((wantsMeleePose(e)||wantsMeleeRecover(e)) && sprReady('macar_atk')) return 'macar_atk';
   if(e.moving && !e.defending){
-    const oct=screenOctant(e);
-    let stem='macar';
-    if(oct==='n' && sprReady('macar_back_w1')) stem='macar_back';
-    else if(oct==='s' && sprReady('macar_s_w1')) stem='macar_s';
-    else if(oct==='ne' && sprReady('macar_ne_w1')) stem='macar_ne';
-    else if(oct==='se' && sprReady('macar_se_w1')) stem='macar_se';
-    else if((oct==='e'||oct==='w'||oct==='sw'||oct==='nw') && sprReady('macar_e_w1')) stem='macar_e';
-    const hit=walkCycleKey(e, stem);
-    if(hit) return hit;
-    const front=walkCycleKey(e, 'macar');
-    if(front) return front;
+    const hit=walkCycleKey(e, 'macar');
+    if(isLivingMacarKey(hit)) return hit;
   }
   return sprReady('macar')?'macar':null;
 }
@@ -1037,11 +1040,8 @@ function livingMacarAnimKey(e){
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const key=livingMacarAnimKey(e);
-  let img=key?SPR[key]:null;
-  if(!img||!img.width) img=SPR.macar;
+  const img=livingMacarImg(livingMacarAnimKey(e));
   if(!img||!img.width) return;
-  img=solidMacarSprite(img);
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
   g.save();
@@ -11091,9 +11091,16 @@ function drawTitleCavern(g){
     g.save(); g.translate(cx+dx, dy);
     g.fillStyle='rgba(8,6,5,0.55)';
     g.beginPath(); g.ellipse(0, 4*z, 14*z, 7*z, 0,0,TAU); g.fill();
-    const spr=(keys[i]==='macar'&&(SPR.macar_title||SPR.macar_back))?(SPR.macar_title||SPR.macar_back):SPR[keys[i]];
-    const sheet=(keys[i]==='macar'&&spr)?solidMacarSprite(spr):spr;
-    if(sheet) drawBillboard(g, sheet, (keys[i]==='macar'?74:64)*z);
+    if(keys[i]==='macar'){
+      const sheet=livingMacarImg('macar');
+      if(sheet){
+        g.save();
+        g.globalAlpha=1;
+        g.globalCompositeOperation='source-over';
+        drawBillboard(g, sheet, 74*z);
+        g.restore();
+      }
+    } else if(SPR[keys[i]]) drawBillboard(g, SPR[keys[i]], 64*z);
     g.restore();
   }
 }
@@ -12011,11 +12018,10 @@ function drawEquipDoll(g, x, y, w, h){
 
   const lay=dollSlotLayout(x, y+22*s, w, h-28*s);
   const body=lay.body;
-  /* Pack doll is the living Macar painting — SPR.macar, or the axe sheet
-     when Shadow Cleaver is on. Same binary bake as the dungeon blit.
-     No gold foot disc, no lighter, no kettle-hat icon_doll. */
-  const raw=(wieldsShadowCleaver()&&SPR.macar_axe&&SPR.macar_axe.width)?SPR.macar_axe:SPR.macar;
-  const img=raw?solidMacarSprite(raw):null;
+  /* Pack doll is the living Macar painting — same whitelist + binary bake
+     as the dungeon blit. Axe / title sheets stay unused until they are
+     binary-alpha too. No gold foot disc, no lighter, no kettle-hat icon_doll. */
+  const img=livingMacarImg('macar');
   if(img&&img.width){
     const b=spriteBounds(img);
     const sx=(b&&b.ok&&b.x0!=null)?b.x0*img.width:0;

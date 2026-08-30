@@ -35,6 +35,10 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
   'living Macar is a single source-over blit after lighting, haze, and grain');
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
+assert(/const LIVING_MACAR_KEYS=\{macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1\}/.test(html),
+  'living Macar whitelist is idle / w1 / w2 / atk / recover only');
+assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
+  'one img gate feeds dungeon, title, pack doll, and billboard');
 
 const bake=extractFn('solidMacarSprite');
 assert(/if\(a>40\) d\[i\+3\]=255/.test(bake), 'bake: a>40 inside the silhouette is 255');
@@ -42,16 +46,21 @@ assert(/d\[i\+3\]=0/.test(bake), 'bake: outside the silhouette is a=0');
 assert(!/255\/a/.test(bake), 'bake does not un-premultiply fringe RGB');
 
 const liveKey=extractFn('livingMacarAnimKey');
-assert(/walkCycleKey\(e,/.test(liveKey) && /macar_atk/.test(liveKey)
+assert(/walkCycleKey\(e, 'macar'\)/.test(liveKey) && /macar_atk/.test(liveKey)
   && /macar_atk_recover/.test(liveKey),
-  'living Macar uses walkCycleKey plus atk / recover');
+  'living Macar uses front walkCycleKey plus atk / recover');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk is not QUALITY-gated');
 assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while moving');
-assert(/macar_e/.test(liveKey) && /macar_s/.test(liveKey) && /macar_back/.test(liveKey),
-  'living Macar walk binds baked e / s / back stems');
+assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
+  && !/macar_ne/.test(liveKey) && !/macar_se/.test(liveKey) && !/macar_title/.test(liveKey),
+  'living Macar does not bind washed directional / title stems');
 assert(!/macar_axe/.test(liveKey), 'living Macar still does not bind axe sheets');
 assert(/function livingMacarAnimKey[\s\S]*return sprReady\('macar'\)\?'macar':null;/.test(html),
   'idle living Macar is the front plant, never e_w1');
+assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
+  'dungeon blit goes through the whitelist img gate');
+assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
+  'billboard safety net uses the same whitelist, not a raw sheet bake');
 
 const liveBlit=extractFn('drawLivingMacar');
 assert(/globalCompositeOperation='source-over'/.test(liveBlit)
@@ -71,11 +80,17 @@ assert(!/if\(!e\.dead&&e\.hero\)\{/.test(html)
   && !/rgba\(255,214,140,0\.55\)/.test(html),
   'gold foot ellipse under the hero is gone');
 
-assert(/solidMacarSprite\(spr\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
-  'title fallback blit flattens Macar, not the kin ghosts');
-assert(/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
-  'idle / walk / attack / recover billboards flatten Macar');
+const cavern=html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0];
+assert(/livingMacarImg\('macar'\)/.test(cavern) && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
+  'title fallback blits the idle whitelist sheet, not title/back stills');
+assert(/globalAlpha=1/.test(cavern) && /globalCompositeOperation='source-over'/.test(cavern),
+  'title Macar blit is source-over at alpha 1');
+const doll=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/)[0];
+assert(/livingMacarImg\('macar'\)/.test(doll) && !/macar_axe/.test(doll) && !/wieldsShadowCleaver/.test(doll),
+  'pack doll uses the same idle gate, not the axe sheet');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html), 'kin ghosts stay translucent');
+assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
+  'no living-Macar blit bakes a raw un-gated sheet');
 
 const ctx={
   clamp:(v,a,b)=>v<a?a:v>b?b:v,

@@ -82,9 +82,9 @@ assert(wantsMeleeRecover({hero:1, atk:0, atkMax:0.78})===false, 'no recover pose
 
 const recoverIdx=html.indexOf("if(wantsMeleeRecover(e) && SPR[k+'_atk_recover'])");
 const atkIdx=html.indexOf("if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk'])");
-const backWalkIdx=html.indexOf("SPR[k+'_back_w1']");
+const backWalkIdx=html.indexOf("sprReady(k+'_back_w1')");
 assert(recoverIdx>0 && atkIdx>recoverIdx, 'follow-through sprite is chosen before the raised swing');
-assert(atkIdx>0 && backWalkIdx>atkIdx, 'attack sprite is chosen before the back walk');
+assert(atkIdx>0 && backWalkIdx>atkIdx, 'kin attack sprite is chosen before the back walk');
 assert(/p\.moving=0; p\.ix=0; p\.iy=0;/.test(html), 'Attack click stops walk so the swing can play');
 assert(/dwarf_macar_atk_recover\.png/.test(html) && /dwarf_macar_axe_atk_recover\.png/.test(html), 'hammer and axe recover frames registered');
 assert(/dwarf_macar_back_w1\.png/.test(html) && /dwarf_macar_back_w2\.png/.test(html), 'angled walk-away frames registered');

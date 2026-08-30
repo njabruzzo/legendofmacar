@@ -60,8 +60,8 @@ const cavern=html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0];
 assert(!/SPR\.rubydoor/.test(cavern), 'title fallback does not billboard the ruby door');
 assert(/orbo','pordoom','macar','fendur','talpor/.test(cavern),
   'title fallback still represents all five dwarves');
-assert(/macar_title/.test(cavern) && /macar_back/.test(cavern),
-  'fallback Macar prefers the two-hand shoulder-maul still');
+assert(/livingMacarImg\('macar'\)/.test(cavern) && !/macar_title/.test(cavern) && !/macar_back/.test(cavern),
+  'fallback Macar uses the living-Macar idle gate, not title/back stills');
 
 assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(html),
   'Chapter I copy is the exact cave-in message');
