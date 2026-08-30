@@ -11868,7 +11868,7 @@ function drawTitle(g){
       g.drawImage(splash, 0, 0, splash.width, caveH, 0, 0, VW, VH*0.26);
       g.fillStyle='rgba(8,6,5,0.28)';
       g.fillRect(0,0,VW,VH*0.26);
-      if(!drawSplashCover(g, splash, {zoom:1.11, ay:0.50, nudgeY:VH*0.16})) drawTitleCavern(g);
+      if(!drawSplashCover(g, splash, {zoom:1.11, ay:0.48, nudgeY:VH*0.16})) drawTitleCavern(g);
     } else drawTitleCavern(g);
   } else if(SPLASH_STATE==='fail'){
     drawTitleCavern(g);
