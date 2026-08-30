@@ -58,6 +58,8 @@ assert(/name:'Kin armour'/.test(acts) && /name:'Hammer rune'/.test(acts),
   'Kin armour and hammer rune stay');
 assert(/name:'Deep songs'/.test(acts) && /name:'Forage herbs'/.test(acts),
   'songs and forage stay');
+assert(/name:'Speak with '\+r\.name/.test(acts),
+  'Other tab can Speak with raised kin without replacing Save');
 assert(!/Healing Potion/.test(acts) && !/Long Sword/.test(acts),
   'camp no longer lists Healing Potion or Long Sword');
 
