@@ -1,7 +1,8 @@
 'use strict';
 /**
- * Party dwarves face the way they walk: painted-east sheets for screen-right,
- * baked-mirror of those sheets for screen-left (A / left-stick / SW / NW).
+ * Party dwarves face the way they walk. Living Macar front idle/w1/w2 invert
+ * the blit so D / gold-right is not a moonwalk. Ghost kin keep painted-east
+ * sheets, baked-mirror for screen-left (A / left-stick / SW / NW).
  * NW painted sheets face upper-right and must not be used for west.
  * Run: node src/combat/DwarfFacing.test.js
  */
@@ -25,8 +26,10 @@ assert(/function dwarfAngleKey\(/.test(html) && /oct==='w'\|\|oct==='sw'\|\|oct=
 assert(/function moveHeadingSX\(e\)\{/.test(html), 'iso screen-x heading is ix-iy');
 assert(/function flippedSprite\(img\)\{/.test(html) && /function blitFacing\(/.test(html),
   'west facing bakes a mirrored canvas instead of relying on negative dest width');
-assert(/return moveHeadingSX\(e\) < -0\.02/.test(html),
-  'any screen-left heading flips the east profile, not only oct===w');
+assert(/if\(e\.hero && !e\.ghost\) return sx > 0\.02/.test(html),
+  'living Macar inverts the front-sheet flip so east walk is not a moonwalk');
+assert(/return sx < -0\.02/.test(html),
+  'kin / ghosts still flip any screen-left heading, not only oct===w');
 assert(/return screenOctant\(e\)==='n'/.test(html),
   'full back view is screen-up only');
 assert(/Party kin share Macar heading/.test(html),
@@ -83,7 +86,9 @@ function wantsSpriteFlip(e, lead){
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   if(key.indexOf('_ne_')>=0) return false;
-  return moveHeadingSX(e, lead) < -0.02;
+  const sx=moveHeadingSX(e, lead);
+  if(e.hero && !e.ghost) return sx > 0.02;
+  return sx < -0.02;
 }
 function wantsBackView(e, lead){
   if(!e||e.dead||e.crushed||e.sleeping) return false;
@@ -108,20 +113,20 @@ assert(screenOctant({moving:1, ix:0, iy:1, fdx:0, fdy:1})==='sw',
 assert(screenOctant({moving:1, ix:1, iy:0, fdx:1, fdy:0})==='se',
   'S+D / world +x is southeast');
 
-const leftMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
-const rightMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
+const leftMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
+const rightMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
 const leftGhost={k:'orbo_ghost', animKey:'orbo_ghost_e_w1', moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
 const rightGhost={k:'talpor_ghost', animKey:'talpor_ghost_e_w1', moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7};
-assert(wantsSpriteFlip(leftMacar), 'Macar walking left mirrors the painted-right sheet');
-assert(!wantsSpriteFlip(rightMacar), 'Macar walking right keeps the painted-right sheet');
+assert(!wantsSpriteFlip(leftMacar), 'Macar walking left keeps the front 3/4 (reads west)');
+assert(wantsSpriteFlip(rightMacar), 'Macar walking right flips the front 3/4 so beard leads east');
 assert(wantsSpriteFlip(leftGhost), 'ghost kin walking left face left');
 assert(!wantsSpriteFlip(rightGhost), 'ghost kin walking right face right');
 assert(!wantsSpriteFlip({k:'fendur_ghost', dead:1, moving:1, ix:-0.7, iy:0.7}), 'corpses are not flipped');
 
-const nwMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0};
-assert(wantsSpriteFlip(nwMacar), 'NW / W+A also mirrors the east sheet (nw art faces the wrong way)');
-const swMacar={k:'macar', animKey:'macar_e_w1', moving:1, ix:0, iy:1, fdx:0, fdy:1};
-assert(wantsSpriteFlip(swMacar), 'SW / S+A mirrors the east sheet');
+const nwMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0};
+assert(!wantsSpriteFlip(nwMacar), 'NW / W+A keeps the living-Macar front sheet unflipped');
+const swMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:0, iy:1, fdx:0, fdy:1};
+assert(!wantsSpriteFlip(swMacar), 'SW / S+A keeps the living-Macar front sheet unflipped');
 
 const ghostGoingRight={k:'pordoom_ghost', team:'party', ghost:1, moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, animKey:'pordoom_ghost_e_w1'};
 const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
@@ -130,7 +135,7 @@ assert(wantsSpriteFlip(ghostGoingRight, macarGoingLeft),
 const ghostIdleScramble={k:'orbo_ghost', team:'party', ghost:1, moving:0, ix:0, iy:0, fdx:0.7, fdy:-0.7, animKey:'orbo_ghost_e_w1'};
 assert(wantsSpriteFlip(ghostIdleScramble, macarGoingLeft),
   'a stopped ghost still faces Macar, not the last scramble heading');
-assert(wantsSpriteFlip(macarGoingLeft), 'Macar walking left faces left');
+assert(!wantsSpriteFlip(macarGoingLeft), 'Macar walking left faces left without a second flip');
 
 assert(!wantsBackView({fdx:-0.7, fdy:0.7}), 'iso west / arrow-left keeps the side sheet');
 assert(!wantsBackView({fdx:0, fdy:1}), 'iso SW / screen bottom-left keeps the side sheet');
@@ -142,10 +147,10 @@ assert(!wantsSpriteFlip({k:'macar', animKey:'macar_s_w1', moving:1, ix:0.7, iy:0
 assert(!wantsSpriteFlip({k:'macar', animKey:'macar_back_w1', moving:1, ix:-0.7, iy:-0.7, fdx:-0.7, fdy:-0.7}),
   'back walk is not canvas-flipped');
 
-const atkLeft={k:'macar', x:10, y:10, atk:0.5, aim:{x:9,y:11,dead:0}, fdx:0.7, fdy:-0.7, moving:0, ix:0, iy:0, animKey:'macar_e_atk'};
-const atkRight={k:'macar', x:10, y:10, atk:0.5, aim:{x:11,y:9,dead:0}, fdx:-0.7, fdy:0.7, moving:0, ix:0, iy:0, animKey:'macar_e_atk'};
-assert(wantsSpriteFlip(atkLeft), 'melee toward screen-left faces left even if last walk was right');
-assert(!wantsSpriteFlip(atkRight), 'melee toward screen-right faces right even if last walk was left');
+const atkLeft={k:'macar', hero:1, x:10, y:10, atk:0.5, aim:{x:9,y:11,dead:0}, fdx:0.7, fdy:-0.7, moving:0, ix:0, iy:0, animKey:'macar_atk'};
+const atkRight={k:'macar', hero:1, x:10, y:10, atk:0.5, aim:{x:11,y:9,dead:0}, fdx:-0.7, fdy:0.7, moving:0, ix:0, iy:0, animKey:'macar_atk'};
+assert(!wantsSpriteFlip(atkLeft), 'melee toward screen-left keeps the front sheet (reads left)');
+assert(wantsSpriteFlip(atkRight), 'melee toward screen-right flips the front sheet so the hammer leads');
 assert(wantsBackView({atk:0.4, aim:{x:9,y:9,dead:0}, x:10, y:10, fdx:0, fdy:1}),
   'attack toward iso north uses the back sheet');
 

@@ -86,8 +86,9 @@ assert(ctx.walkCycleKey({gait:0.2}, 'warg')==='warg_w1'
 assert(!/stem\+'_w3'/.test(extractFn('walkCycleKey')),
   'walkCycleKey source does not pick _w3');
 const flipSrc=extractFn('wantsSpriteFlip');
-assert(/moveHeadingSX\(e\) < -0\.02/.test(flipSrc) && !/gait/.test(flipSrc) && !/phase/.test(flipSrc),
-  'flip is heading-only — never per gait frame');
+assert(/e\.hero && !e\.ghost/.test(flipSrc) && /sx > 0\.02/.test(flipSrc)
+  && /sx < -0\.02/.test(flipSrc) && !/gait/.test(flipSrc) && !/phase/.test(flipSrc),
+  'living Macar flips screen-right; kin keep heading-only east-sheet polarity');
 
 /* Live D / A path: east stem only, same facing, heading flip never changes mid-gait. */
 ['macar_s_w1','macar_s_w2','macar_back_w1','macar_back_w2','macar_ne_w1','macar_se_w1'].forEach(k=>{
@@ -130,10 +131,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
-  'hold D: every gait frame is the front whitelist pair, unflipped, never w3');
-assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
-  'hold A: every gait frame is the same front pair flipped once, never w3');
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
+  'hold D: every gait frame is the front whitelist pair, flipped once so beard leads east');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
+  'hold A: every gait frame is the same front pair unflipped (painted 3/4 reads west)');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 

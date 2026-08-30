@@ -19,8 +19,11 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
 assert(/w1 \/ w2 are the same painted facing/.test(html),
   'walkCycleKey documents same-face opposite-foot');
-assert(/function wantsSpriteFlip\(e\)\{/.test(html) && /moveHeadingSX\(e\) < -0\.02/.test(html),
-  'flip stays heading-only on the blit');
+assert(/function wantsSpriteFlip\(e\)\{/.test(html)
+  && /e\.hero && !e\.ghost/.test(html.match(/function wantsSpriteFlip\(e\)\{[\s\S]*?\n\}/)[0])
+  && /sx > 0\.02/.test(html.match(/function wantsSpriteFlip\(e\)\{[\s\S]*?\n\}/)[0])
+  && /sx < -0\.02/.test(html.match(/function wantsSpriteFlip\(e\)\{[\s\S]*?\n\}/)[0]),
+  'living Macar flip is inverted to match the front 3/4; kin stay heading-only');
 assert(/blitFacing\(g,img,dx,dy,W,H,wantsSpriteFlip\(e\)\)/.test(html),
   'heading flip is applied once per pose on the blit');
 
