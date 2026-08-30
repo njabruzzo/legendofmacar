@@ -70,6 +70,13 @@ assert(ready.stock.powder === 1 && ready.stock.barley === 1 && ready.stock.resin
 const poor = stubBridge({ powder: 0, barley: 0, resin: 0 });
 assert(!Engine.canCraft('borgas_burp', poor).ok, 'cannot craft Borga\'s Burp without ingredients');
 
+Engine.setRecipes([]);
+assert(Engine.stationPool().length === 0, 'empty book has no station pool');
+Engine.setRecipes(book.recipes);
+assert(Engine.list('camp').some(r => r.id === 'healing_potion'), 'camp list includes Healing Potion');
+assert(Engine.list('camp').some(r => r.id === 'longsword'), 'camp list includes Long Sword');
+assert(Engine.get('longsword').skillLevel === 2, 'Long Sword still needs Weapon Smithing 2');
+
 if (failed) {
   console.error('\n' + failed + ' failed');
   process.exit(1);

@@ -54,6 +54,16 @@ assert(/CS\.planPlacement/.test(html), 'index uses CraftStation.planPlacement');
 assert(!/43\.15\s*,\s*30\.55/.test(html), 'chapter 2 no longer has a second station');
 assert(/some\(p=>p&&p\.k==='craftstation'\)/.test(html), 'addCraftStation refuses a second forge');
 
+const ensure=html.match(/function ensureStationRecipes\(pr\)\{[\s\S]*?\n\}/)[0];
+assert(!!ensure, 'ensureStationRecipes is in index');
+assert(!/pr\.recipes=\[\]/.test(ensure), 'in-flight or missing engine does not persist an empty recipe list');
+assert(/stationPool/.test(ensure) && /if\(!picked\.length\) return/.test(ensure),
+  'station rolls from the engine pool and skips if the book is empty');
+
+const bench=html.match(/function drawCraft\(g\)\{[\s\S]*?\nfunction drawPause/)[0];
+assert(/menuHits\.unshift\.apply\(menuHits, plateHits\)/.test(bench),
+  'FORGE and Back are tested before overlapping recipe rows');
+
 if (failed) {
   console.error('\n' + failed + ' failed');
   process.exit(1);

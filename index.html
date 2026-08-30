@@ -9554,8 +9554,11 @@ function ensureStationRecipes(pr){
   if(pr.recipes&&pr.recipes.length) return;
   const n=pr.recipeCount||d4();
   pr.recipeCount=n;
-  if(!window.CraftingEngine){ pr.recipes=[]; return; }
+  if(!window.CraftingEngine) return;
+  const pool=CraftingEngine.stationPool?CraftingEngine.stationPool():[];
+  if(!pool.length) return;
   const picked=CraftingEngine.pickRandom(n, stationRng(pr.seed||(((pr.x*100+pr.y)|0))));
+  if(!picked.length) return;
   pr.recipes=picked.map(r=>r.id);
 }
 function stationRecipeIds(pr){
@@ -10114,7 +10117,7 @@ function modularCraftCampActions(){
   if(!window.CraftingEngine) return [];
   return CraftingEngine.list('camp').map(recipe=>({
     grp: recipe.group||'CRAFT',
-    tab: recipe.group==='FORGE'?'improve':'craft',
+    tab: 'craft',
     name: recipe.name,
     skill: recipe.skill,
     t: recipe.name,
@@ -11661,7 +11664,9 @@ function drawCamp(g){
   const dX=12*s, dY=listBot+6*s, dW=VW-24*s;
   plate(g,dX,dY,dW,detailH-4*s,7,.88);
   if(sel){
-    const can=campActionReady(sel);
+    const rec=sel.craftRecipeId&&window.CraftingEngine&&CraftingEngine.get(sel.craftRecipeId);
+    const check=rec?CraftingEngine.canCraft(sel.craftRecipeId, makeCraftingBridge()):null;
+    const can=check?!!check.ok:campActionReady(sel);
     const sk=sel.skill&&SKILLS.find(z=>z.k===sel.skill);
     g.font='700 '+(PORT?12*s:13*s)+'px '+FONT_UI;
     g.fillStyle='#ffe9c0';
@@ -11672,7 +11677,8 @@ function drawCamp(g){
     g.font='700 '+(PORT?10*s:11*s)+'px '+FONT_UI;
     g.fillStyle=can?'rgba(150,200,130,0.9)':'rgba(200,120,90,0.9)';
     const skLine=sk?(sk.n+' '+skillLvl(sk.k)+'  ·  '):'';
-    g.fillText(ellipsize(g, skLine+(can?'Ready.':'Need '+costText(sel.cost)), dW-28*s), dX+14*s, dY+62*s);
+    const why=can?'Ready.':((check&&check.message)||('Need '+costText(sel.cost)));
+    g.fillText(ellipsize(g, skLine+why, dW-28*s), dX+14*s, dY+62*s);
     const doW=Math.min(110*s, dW*0.28), doH=PORT?36*s:32*s;
     const doCy=Math.min(dY+detailH*0.52, footY-doH/2-6*s);
     menuBtn(g, can?'Do it':'Need', dX+dW-doW/2-10*s, doCy, doW, doH, ()=>{ if(can) runCampAction(sel); });
@@ -12451,6 +12457,7 @@ function drawCraft(g){
   plate(g,dX,dY,dW,detailH-6*s,7,.88);
   const sel=filtered.find(a=>a.craftRecipeId===G.craftSel)||filtered[0];
   if(sel && !G.craftSel) G.craftSel=sel.craftRecipeId;
+  const beforePlate=menuHits.length;
   if(sel){
     const rec=window.CraftingEngine&&CraftingEngine.get(sel.craftRecipeId);
     const check=rec&&window.CraftingEngine?CraftingEngine.canCraft(sel.craftRecipeId, makeCraftingBridge()):{ok:campActionReady(sel),message:''};
@@ -12492,6 +12499,8 @@ function drawCraft(g){
     g.fillText('Choose a recipe above.', dX+16*s, dY+detailH*0.5);
   }
   menuBtn(g,'Back',VW/2,VH-22*s,Math.min(220*s,VW*.56),34*s,()=>leaveCraft());
+  const plateHits=menuHits.splice(beforePlate);
+  menuHits.unshift.apply(menuHits, plateHits);
 }
 
 function drawPause(g){
