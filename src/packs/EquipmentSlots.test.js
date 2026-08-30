@@ -37,6 +37,8 @@ assert(Eq.itemSlot({n:'Crossbow of Accuracy +3', k:'weapon'}) === 'secondary', '
 assert(Eq.itemSlot({n:'Shield +1', k:'armor'}) === 'secondary', 'shield → off hand');
 assert(Eq.itemSlot({n:'Bolt Quiver', k:'ammo'}) === 'quiver', 'quiver');
 assert(Eq.itemSlot({n:'Ring of Protection +1', k:'ring', cat:'Ring'}) === 'necklace', 'ring → jewelry slot');
+assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
+  'dex ring → jewelry slot');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
 
 assert(Eq.inferArmorType('Leather Armor +1') === 'leather', 'infer leather');
