@@ -41,15 +41,25 @@ assert(/have\+' '\+m\.n/.test(html) || /have\+' \/ '\+need\+' '\+m\.n/.test(html
   'stores spell the resource name, no two-letter codes');
 assert(!/have\+' '\+m\.s/.test(html), 'stock strip no longer prints letter codes');
 
-const modular=html.match(/function modularCraftCampActions\(\)\{[\s\S]*?\n\}/)[0];
-assert(!!modular, 'modular camp recipes are wired');
-assert(/CraftingEngine\.list\('camp'\)/.test(modular), 'camp lists the untagged book recipes');
-assert(/tab:\s*'craft'/.test(modular), 'Healing Potion and Long Sword stay on the Craft tab');
-assert(!/group==='FORGE'\?'improve'/.test(modular), 'Long Sword is not parked on Improve just because it is FORGE');
-
-const campDetail=html.match(/function drawCamp\(g\)\{[\s\S]*?\nfunction drawDead/)[0];
-assert(/canCraft\(sel\.craftRecipeId/.test(campDetail), 'camp Craft details use the engine lock reason');
-assert(/check&&check\.message/.test(campDetail), 'skill-locked Long Sword says why, not only the ore cost');
+const acts=html.match(/function campActions\(\)\{[\s\S]*?\nfunction roundPath/)[0];
+assert(!!acts, 'campActions is in index');
+assert(!/modularCraftCampActions/.test(html), 'camp does not append the station book');
+assert(!/name:'Pack bombs'/.test(acts) && !/name:'Resin fuses'/.test(acts),
+  'Pack bombs and Resin fuses are anvil-only');
+assert(!/name:'Brew ale'/.test(acts) && !/name:'Hide cloak'/.test(acts),
+  'Brew ale and Hide cloak are anvil-only');
+assert(/name:'Shield wall'/.test(acts) && /name:'Mining spar'/.test(acts),
+  'night builds Shield wall and Mining spar stay');
+assert(/name:'Mend padding'/.test(acts) && /name:'Resin stout'/.test(acts),
+  'Mend padding and Resin stout stay');
+assert(/name:'Repair kit'/.test(acts) && /name:"Macar's hammer"/.test(acts),
+  'Repair and hammer improve stay');
+assert(/name:'Kin armour'/.test(acts) && /name:'Hammer rune'/.test(acts),
+  'Kin armour and hammer rune stay');
+assert(/name:'Deep songs'/.test(acts) && /name:'Forage herbs'/.test(acts),
+  'songs and forage stay');
+assert(!/Healing Potion/.test(acts) && !/Long Sword/.test(acts),
+  'camp no longer lists Healing Potion or Long Sword');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ncamp layout checks passed');

@@ -82,7 +82,7 @@
     if (/ring\s*mail/.test(n)) return 'ring';
     if (/studded/.test(n)) return 'studded';
     if (/padded/.test(n)) return 'padded';
-    if (/leather/.test(n)) return 'leather';
+    if (/leather/.test(n) || /hide/.test(n)) return 'leather';
     if (/shield/.test(n)) return null;
     if (/armor|mail/.test(n)) return 'chain';
     return null;

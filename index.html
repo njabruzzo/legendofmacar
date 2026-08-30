@@ -9552,12 +9552,13 @@ function sapperKnowsBurp(){
 function ensureStationRecipes(pr){
   if(!pr) return;
   if(pr.recipes&&pr.recipes.length) return;
-  const n=pr.recipeCount||d4();
-  pr.recipeCount=n;
   if(!window.CraftingEngine) return;
   const pool=CraftingEngine.stationPool?CraftingEngine.stationPool():[];
   if(!pool.length) return;
-  const picked=CraftingEngine.pickRandom(n, stationRng(pr.seed||(((pr.x*100+pr.y)|0))));
+  const rng=stationRng(pr.seed||(((pr.x*100+pr.y)|0)));
+  const n=pr.recipeCount||(1+((rng()*4)|0));
+  pr.recipeCount=n;
+  const picked=CraftingEngine.pickRandom(n, rng);
   if(!picked.length) return;
   pr.recipes=picked.map(r=>r.id);
 }
@@ -10113,20 +10114,6 @@ function runCampAction(a){
   }
   if(afford(a.cost)){ spend(a.cost); a.fn(); }
 }
-function modularCraftCampActions(){
-  if(!window.CraftingEngine) return [];
-  return CraftingEngine.list('camp').map(recipe=>({
-    grp: recipe.group||'CRAFT',
-    tab: 'craft',
-    name: recipe.name,
-    skill: recipe.skill,
-    t: recipe.name,
-    cost: recipe.ingredients,
-    info: recipe.info||'',
-    craftRecipeId: recipe.id,
-    fn: function(){}
-  }));
-}
 function recipeToAction(recipe){
   return {
     grp: recipe.group||'CRAFT',
@@ -10172,7 +10159,7 @@ function openCraftBench(station){
   G.craftScroll=0;
   G.scene='craft';
   station.sprung=2;
-  const n=(station.recipeCount||G.craftRecipeIds.length);
+  const n=(G.craftRecipeIds||[]).length;
   hint('This station holds '+n+' recipe'+(n===1?'':'s')+' (d4). Pick one, then forge it.',4);
 }
 
@@ -10217,14 +10204,6 @@ function campActions(){
   if(!g.rune) a.push({grp:'FORGE',tab:'improve',name:'Hammer rune',skill:'weapon',t:'Set a rune in the hammer',cost:{starmetal:1},
     info:'Permanent +12% damage',
     fn:()=>{ g.rune=1; learn('weapon',20); say('The rune takes. It hums against the dark.','#a6dcff'); }});
-  if(partyCount('bombKit')>0) a.push({grp:'BENCH',tab:'craft',name:'Pack bombs',skill:'bomb',t:'Pack '+(2+Math.floor(skillLvl('bomb')/3))+' bombs',cost:{powder:2,ironstone:1},
-    info:'Pordum\'s kit. 10d10 throwables into Macar\'s pack',
-    fn:()=>{ addToPack('macar','bombs',2+Math.floor(skillLvl('bomb')/3)); learn('bomb',10);
-      say('Powder, casing, fuse — into MACAR\'s pack.','#ffb45c'); }});
-  if(skillLvl('bomb')>=2) a.push({grp:'BENCH',tab:'craft',name:'Resin fuses',skill:'bomb',t:'Resin-fuse bombs (+2)',cost:{powder:1,resin:2},
-    info:'Tackier fuse, two more bombs',
-    fn:()=>{ addToPack('macar','bombs',2); learn('bomb',8);
-      say('Resin keeps the spark honest.','#c9783a'); }});
   a.push({grp:'BUILD',tab:'craft',name:'Shield wall',skill:'armour',t:'Brace a timber shield wall',cost:{timber:3,hide:1},
     info:'Party guard for a long stretch · build',
     fn:()=>{ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.guardT=Math.max(e.guardT||0, 45); }});
@@ -10234,13 +10213,6 @@ function campActions(){
     info:'Next digs run faster · Mining',
     fn:()=>{ G.digBoost=(G.digBoost||0)+3; learn('mining',10);
       say('A spar for the next vein. Digging feels lighter.','#c2ad91'); }});
-  a.push({grp:'BREWERY',tab:'craft',name:'Brew ale',skill:'ale',t:'Brew '+(2+Math.floor(skillLvl('ale')/3))+' ale',cost:{barley:2},
-    info:'Flasks split among the kin',
-    fn:()=>{ const n=2+Math.floor(skillLvl('ale')/3);
-      addToPack('macar','ales',Math.ceil(n/2));
-      addToPack('pordoom','ales',Math.floor(n/2)||1);
-      learn('ale',10);
-      say('The barrel is stoppered and warm.','#d2bd63'); }});
   if(skillLvl('ale')>=2) a.push({grp:'BREWERY',tab:'craft',name:'Resin stout',skill:'ale',t:'Resin-dark stout (+2 ale)',cost:{barley:1,resin:1},
     info:'Bitter stout for the deep',
     fn:()=>{ addToPack('macar','ales',2); learn('ale',6);
@@ -10249,10 +10221,6 @@ function campActions(){
     info:'Restores cloth, small damage cut',
     fn:()=>{ Object.values(G.gear).forEach(x=>x.cd=100); learn('cloth',10);
       say('Silk holds better than wool down here.','#e0d2ff'); }});
-  if(skillLvl('cloth')>=2) a.push({grp:'TAILOR',tab:'craft',name:'Hide cloak',skill:'cloth',t:'Sew a hide cloak',cost:{hide:2,silk:1},
-    info:'Cloth padding + light armour for all',
-    fn:()=>{ Object.values(G.gear).forEach(x=>{x.cd=100; x.at=Math.min(12,(x.at||0)+1);}); learn('cloth',10);
-      say('Cloaks for the living and the dead alike.','#a67a52'); }});
   if(!G.sang) a.push({grp:'FIRE',tab:'other',name:'Deep songs',skill:'song',t:'Sing the deep songs',cost:{},
     info:'Heal all + regen through the next chapter',
     fn:()=>{ G.sang=1; learn('song',10); G.songBuff=skillLvl('song');
@@ -10264,7 +10232,6 @@ function campActions(){
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ openPackMenu('camp'); }});
-  a.push.apply(a, modularCraftCampActions());
   return a;
 }
 
@@ -12381,7 +12348,7 @@ function drawCraft(g){
   else { plate(g,10*s,headY,headH,headH,6,.9); icon(g,'craft',10*s+headH/2,headY+headH/2,1.15*s,'#ffd27a'); }
   g.font='800 '+(PORT?13*s:16*s)+'px '+FONT_TITLE;
   g.fillStyle='#ffe9c0';
-  const held=(G.craftStation&&G.craftStation.recipeCount)||((G.craftRecipeIds||[]).length);
+  const held=((G.craftRecipeIds||[]).length);
   g.fillText('CRAFTING STATION', 10*s+headH+10*s, headY+16*s);
   g.font='600 '+(9*s)+'px '+FONT_UI;
   g.fillStyle='rgba(200,180,140,0.78)';
@@ -12438,14 +12405,24 @@ function drawCraft(g){
     g.font='700 '+(8*s)+'px '+FONT_UI;
     Object.keys(cost).forEach(k=>{
       const m=RESMETA[k], need=cost[k], have=G.res[k]||0, ok=have>=need;
-      const label=need+' '+(m?m.s:k);
+      const label=need+' '+(m?m.n:k);
       const ww=g.measureText(label).width+14*s;
       g.fillStyle=ok?(m?m.c:'#d2bd63'):'rgba(180,90,70,0.85)';
       g.beginPath(); g.arc(cx+4*s, y+h-11*s, 3.2*s, 0, TAU); g.fill();
       g.fillText(label, cx+10*s, y+h-8*s);
       cx+=ww;
     });
-    menuHits.push({x,y,w,h,fn:()=>{ G.craftSel=a.craftRecipeId; }});
+    menuHits.push({x,y,w,h,fn:()=>{
+      if(G.craftSel===a.craftRecipeId){
+        if(can) runCampAction(a);
+        else {
+          const rec=window.CraftingEngine&&CraftingEngine.get(a.craftRecipeId);
+          const check=rec?CraftingEngine.canCraft(a.craftRecipeId, makeCraftingBridge()):{message:'Missing materials or skill.'};
+          say(check.message||'Missing materials or skill.','#ff6a6a');
+          hint(check.message||'Missing materials or skill.',2.8);
+        }
+      } else G.craftSel=a.craftRecipeId;
+    }});
   });
   if(maxScroll){
     drawScrollArrows(g, VW-36*s, listTop, listH, G.craftScroll>0, G.craftScroll<maxScroll,

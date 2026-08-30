@@ -40,6 +40,10 @@ assert(Eq.itemSlot({n:'Ring of Protection +1', k:'ring', cat:'Ring'}) === 'neckl
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
 
 assert(Eq.inferArmorType('Leather Armor +1') === 'leather', 'infer leather');
+assert(Eq.inferArmorType('Hide Cloak') === 'leather', 'hide cloak is leather AC 8');
+assert(Eq.ARMOR_AC.leather === 8, 'leather / hide AC is 8');
+const hide=Eq.annotate({n:'Hide Cloak', k:'armor', cat:'Armor/Shield'});
+assert(hide.armorType==='leather' && hide.ac===8, 'station Hide Cloak annotates as leather AC 8');
 assert(Eq.inferArmorType('Studded Leather +1') === 'studded', 'infer studded');
 assert(Eq.inferArmorType('Plate Mail +3') === 'plate', 'infer plate');
 assert(Eq.inferArmorType('Ring Mail +1') === 'ring', 'infer ring mail');
