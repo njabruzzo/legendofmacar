@@ -1732,7 +1732,7 @@ function propAnimImg(p){
 }
 function propSpriteH(p,z){
   const k=p.k;
-  if(k==='cavein') return 118*z;
+  if(k==='cavein') return 118*z*(p.s||1);
   if(k==='rubble') return 52*z*(p.s||1);
   if(k==='dust') return 10*z*(p.s||1);
   if(k==='boulder') return (p.pin?48:56)*z*(p.s||1);
@@ -2571,19 +2571,33 @@ function startCaveInBlocks(x,y){
 }
 function drawStartCaveInCell(g, L, x, y){
   const H=startCaveInH(L);
+  const face=SPR.wall_cave_face||SPR.wall_face||SPR.wall_worked;
   const cave=SPR.cavein||SPR.rubble||SPR.boulder;
   const rock=SPR.rubble||SPR.rubble2||SPR.boulder;
   const beam=SPR.timber;
   const seed=x*31+y*17;
   const x1=x+1;
-  if(rock&&rock.width)
-    drawIsoPlaneImg(g, rock, x1, y, x1, y+1.14, H*0.40, {u:h2(seed,3), shade:0.58, stroke:0});
-  if(cave&&cave.width){
-    drawIsoPlaneImg(g, cave, x1+0.02, y-0.02, x1+0.02, y+1.16, H*0.92, {u:h2(seed,5)+0.14, shade:0.64, stroke:0});
-    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.46, stroke:0});
+  /* Opaque fallen-earth backing first. Cave-in / rubble sheets are isolated
+     piles — stretching them alone leaves holes, and the beyond-mask reads
+     those holes as a black void over a waist-high hedge. */
+  drawIsoPlaneImg(g, null, x1, y, x1, y+1.16, H, {fill:'#3c2a1c', shade:0.58, stroke:0});
+  drawIsoPlaneImg(g, null, x1+0.07, y+0.02, x1+0.07, y+1.10, H*0.90, {fill:'#2a1c12', shade:0.42, stroke:0});
+  if(face&&face.width)
+    drawIsoPlaneImg(g, face, x1, y, x1, y+1.14, H, {u:h2(seed,1), shade:0.72, stroke:0});
+  if(rock&&rock.width){
+    drawIsoPlaneImg(g, rock, x1+0.04, y-0.04, x1+0.04, y+1.16, H*0.44, {u:h2(seed,3), shade:0.52, stroke:0});
+    drawIsoPlaneImg(g, rock, x1+0.02, y+0.08, x1+0.02, y+1.08, H*0.70, {u:h2(seed,4)+0.22, shade:0.46, stroke:0});
   }
-  if(beam&&beam.width && ((y+x)&1))
-    drawIsoPlaneImg(g, beam, x1+0.05, y+0.18, x1+0.05, y+1.02, H*0.78, {u:h2(seed,2), shade:0.32, stroke:0});
+  if(cave&&cave.width){
+    drawIsoPlaneImg(g, cave, x1+0.03, y-0.02, x1+0.03, y+1.16, H*0.96, {u:h2(seed,5)+0.14, shade:0.58, stroke:0});
+    drawIsoPlaneImg(g, cave, x1-0.02, y+0.04, x1-0.02, y+1.10, H, {u:h2(seed,8)+0.33, shade:0.40, stroke:0});
+  }
+  if(beam&&beam.width){
+    if((y+x)&1)
+      drawIsoPlaneImg(g, beam, x1+0.07, y+0.16, x1+0.07, y+1.00, H*0.82, {u:h2(seed,2), shade:0.28, stroke:0});
+    if(y&1)
+      drawIsoPlaneImg(g, beam, x1+0.10, y+0.28, x1+0.10, y+0.94, H*0.60, {u:h2(seed,6)+0.41, shade:0.22, stroke:0});
+  }
 }
 function startRubbleSpr(seed, n){
   const sprs=['rubble','rubble2','boulder','boulder2','rubble','rubble2'];
@@ -2591,9 +2605,8 @@ function startRubbleSpr(seed, n){
 }
 function startBackWallRubble(){
   const out=[];
-  /* Foot of the west collapse only. The tall stack is the wall-plane
-     cave-in (drawStartCaveInCell). Do not plant a waist-high chip hedge
-     or floor beams — those read as a rubble line under a black void. */
+  /* Foot chips stay small. The read is the wall-plane stack plus tall
+     cavein stamps (s≥1.0). No floor-beam hedge, no T-post. */
   for(let i=0;i<10;i++){
     const y=16.4+i*1.25+(h01(i,2,81)-0.5)*0.18;
     const x=14.22+(h01(i,3,81)-0.5)*0.10;
@@ -2608,14 +2621,21 @@ function startBackWallRubble(){
     if(nearCrush(x,y,1.15)) continue;
     out.push({x,y,k:'dust',s:0.55+h01(i,9,81)*0.35,seed:940+i,backwall:1});
   }
+  for(let i=0;i<8;i++){
+    const y=16.55+i*1.62+(h01(i,4,83)-0.5)*0.12;
+    const x=14.16+(h01(i,5,83)-0.5)*0.08;
+    if(nearCrush(x,y,1.05)) continue;
+    const s=1.12+h01(i,7,83)*0.33;
+    out.push({x,y,k:'cavein',s,seed:960+i,backwall:1});
+    if((i&1)===0)
+      out.push({x:x+0.06,y:y+0.18,k:'timber',s:0.88+h01(i,8,83)*0.18,seed:980+i,backwall:1});
+  }
   return out;
 }
 function scatterStartRubble(L){
   const seed=2041;
   const out=[];
   const clusters=[
-    [14.55,17.15,8,0.96,1.08],[14.70,19.35,9,1.02,1.14],[14.50,21.55,8,0.92,1.00],
-    [14.75,23.85,9,1.00,1.10],[14.55,26.15,8,0.90,0.98],
     [15.85,17.80,5,0.72,0.70],[16.10,20.05,5,0.68,0.64],[15.70,24.55,5,0.70,0.66],
     [16.05,18.40,4,0.58,0.54],[16.20,22.20,4,0.55,0.50],[16.00,25.20,4,0.56,0.50]
   ];
@@ -7990,8 +8010,9 @@ function drawBeyondMask(g,L){
         if(!oE) continue;
         const tall=startCaveInH(L);
         punchMasonryCoping(mg, x, y, tall, 0, 1, 0, 0);
+        const face=w2s(x+1, y+0.5);
         mg.beginPath();
-        mg.ellipse(Math.round(s.x+TW*0.18), Math.round(s.y-tall*0.48), TW*1.12*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
+        mg.ellipse(Math.round(face.x), Math.round(face.y-tall*0.52), TW*1.35*pad, TH*0.95*pad+tall*0.72, 0, 0, TAU);
         mg.fill();
         continue;
       }

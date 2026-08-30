@@ -25,16 +25,22 @@ assert(/if\(startCaveInBlocks\(x,y\)\) return false;/.test(html),
 assert(/if\(isStartBackWall\(L,x,y\)\)\{ drawStartCaveInCell\(g,L,x,y\); return; \}/.test(html),
   'wall pass paints the cave-in instead of skipping to black');
 assert(/const tall=startCaveInH\(L\);/.test(html)
-  && /s\.y-tall\*0\.48/.test(html),
-  'fog punch matches the tall stack, not a floor ellipse');
+  && /face\.y-tall\*0\.52/.test(html),
+  'fog punch is on the east face of the tall stack, not a floor ellipse');
+assert(/drawIsoPlaneImg\(g, null,/.test(html),
+  'opaque fallen-earth backing fills the void behind the pile texture');
 
 const rubble=html.match(/function startBackWallRubble\(\)\{[\s\S]*?\n\}/)[0];
 assert(!/k:'cavein',s:0\.7/.test(rubble) && !/i<22/.test(rubble) && !/i<16/.test(rubble),
   'back-wall helper is no longer 22+16 waist-high chips plus short cavein');
+assert(/k:'cavein'/.test(rubble) && /1\.12/.test(rubble),
+  'lip cave-in stamps are s≥1.0 so they read as ceiling collapse');
 assert(!/k:'timber',fallen:1/.test(rubble),
   'broken beams are on the wall stack, not extra floor hedges');
 assert(/k:'dust'/.test(rubble), 'foot of the pile still has dust');
 assert(!/k:'lantern'/.test(rubble), 'no T-post on the cave-in stack');
+assert(!/\[14\.55,17\.15/.test(html) && !/\[14\.70,19\.35/.test(html),
+  'west-lip chip clusters no longer fake a rubble hedge');
 
 assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function isRubyNorthWall/.test(html),
   'did not take #81 / #44 or rewrite the ruby north wall');
