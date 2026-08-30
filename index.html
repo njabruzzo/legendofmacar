@@ -6836,8 +6836,10 @@ function layoutSpecialtyCluster(ax, belowY, belowR, specSlot, specGap){
   const gap=Math.max(specGap||8, 8);
   const bottomY=belowY - belowR - gap - slot/2;
   const topY=bottomY - slot - gap;
-  const leftX=ax - (slot+gap)/2;
-  const rightX=ax + (slot+gap)/2;
+  let leftX=ax - (slot+gap)/2;
+  let rightX=ax + (slot+gap)/2;
+  const overflowR=(rightX+slot/2)-(VW-6);
+  if(overflowR>0){ leftX-=overflowR; rightX-=overflowR; ax-=overflowR; }
   const plates=[
     {kind:1, key:'spec1', ico:'specialtyI', x:leftX, y:topY},
     {kind:2, key:'spec2', ico:'specialtyII', x:rightX, y:topY},
