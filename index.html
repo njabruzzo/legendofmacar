@@ -40,6 +40,7 @@
 <script src="src/props/CraftStation.js"></script>
 <script src="src/packs/GhostKit.js"></script>
 <script src="src/saves/GameSave.js"></script>
+<script src="src/loot/SpiderLair.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -2928,6 +2929,8 @@ function makeChapter(n){
         spawnLairGroup(26.2, 15.2, {pack:[['spider',3]], spread:1.4, aggro:3.1});
         spawnLairGroup(16.4, 16.4, {pack:[['rat',3]], spread:1.2, aggro:2.6});
         spawnLairGroup(10.1, 31.0, {leader:'spiderLord', pack:[['spider',3]], spread:1.6, aggro:3.4});
+        placeSpiderWebCorpses();
+        L.flags.spiderLoot=1;
         spawnLairGroup(82.2, 28.1, {pack:[['goblin',4]], spread:1.6, aggro:3.4});
         spawnLairGroup(96.1, 32.2, {leader:'koboldChief', pack:[['kobold',3]], spread:1.5, aggro:3.2});
         spawnLairGroup(90.2, 50.1, {pack:[['spider',3]], spread:1.4, aggro:3.0});
@@ -2975,7 +2978,8 @@ function makeChapter(n){
           G.talkAfter=sendHome;
         });
       }
-      if(!L.flags.spiderLoot && L.flags.placed && G.ents.some(e=>e.dead && (e.name||'')==='Spider Lord')){
+      if(!L.flags.spiderLoot && L.flags.placed){
+        placeSpiderWebCorpses();
         L.flags.spiderLoot=1;
       }
       if(dist(p,L.bell)<1.85 || dist(p,L.door)<2.15){
@@ -3675,6 +3679,11 @@ function lootCorpse(e){
     });
     if(drop.res) Object.keys(drop.res).forEach(k=>gain(k, drop.res[k]));
     e.drop=null;
+  }
+  if(e.webCorpse && !bits.length){
+    say('Stripped bones. Silk and dust, nothing left.','#c9b895');
+    markChapterGhosts();
+    return;
   }
   packGainNote(bits, e.name);
   markChapterGhosts();
@@ -6062,8 +6071,11 @@ function rollIndividual(letter){
   else if(letter==='S') return {coins:{},gems:0,jew:0,magN:chanceOk(40)?ri(1,8):0,magKind:'potion'};
   else if(letter==='T') return {coins:{},gems:0,jew:0,magN:chanceOk(50)?ri(1,4):0,magKind:'scroll'};
   else if(letter==='U'){
-    return {coins:{}, gems:chanceOk(90)?rngAmt(10,40):0, jew:chanceOk(80)?rngAmt(5,30):0,
-      magN:(chanceOk(70)?1:0)+(chanceOk(60)?ri(1,4):0)+(chanceOk(50)?1:0), magKind:'any'};
+    if(typeof SpiderLair!=='undefined'&&SpiderLair.rollTypeU)
+      return SpiderLair.rollTypeU({chanceOk:chanceOk, rngAmt:rngAmt});
+    return {coins:{cp:rngAmt(10,80),sp:rngAmt(10,60),gp:rngAmt(5,30)},
+      gems:chanceOk(90)?rngAmt(2,16):0, jew:chanceOk(80)?rngAmt(1,6):0,
+      magN:chanceOk(55)?1:0, magKind:'any'};
   }
   else if(letter==='V'){
     return {coins:{}, gems:chanceOk(90)?rngAmt(10,80):0, jew:chanceOk(90)?rngAmt(5,40):0,
@@ -9583,6 +9595,56 @@ function hoardToPile(hoard){
   else if(hasCoin) kind='coins';
   return {kind, coins, gems:hoard.gems||0, jew:hoard.jew||0, potions, items, glow:'#ffd27a'};
 }
+function isSpiderLord(e){
+  if(typeof SpiderLair!=='undefined'&&SpiderLair.isSpiderLord) return SpiderLair.isSpiderLord(e);
+  return !!(e&&((e.name||'')==='Spider Lord'||(e.boss&&e.kind==='spider')));
+}
+function rollSpiderLordHoard(){
+  const base=rollIndividual('U')||{coins:{},gems:0,jew:0,magN:0,magKind:'any'};
+  if(typeof SpiderLair!=='undefined'&&SpiderLair.forceLordHoard) return SpiderLair.forceLordHoard(base);
+  const coins=Object.assign({}, base.coins||{});
+  if(!coins.cp) coins.cp=rngAmt(10,80);
+  if(!coins.sp) coins.sp=rngAmt(10,60);
+  if(!coins.gp) coins.gp=rngAmt(5,30);
+  return {coins, gems:base.gems||0, jew:base.jew||0, magN:Math.max(1,base.magN||0), magKind:base.magKind||'any'};
+}
+function rollWebCorpseHoard(){
+  if(typeof SpiderLair!=='undefined'&&SpiderLair.rollWebCorpse){
+    const got=SpiderLair.rollWebCorpse({chanceOk:chanceOk, ri:ri, rollIndividual:rollIndividual});
+    return got&&got.hoard?got.hoard:null;
+  }
+  if(!chanceOk(50)) return null;
+  if(chanceOk(10)) return rollIndividual('S');
+  const letter=['J','K','M','Q'][ri(0,3)];
+  if(letter==='Q') return {coins:{},gems:ri(1,4),jew:0,magN:0};
+  return rollIndividual(letter);
+}
+function placeSpiderWebCorpses(){
+  const n=ri(4,6);
+  const spots=(typeof SpiderLair!=='undefined'&&SpiderLair.pickSpots)
+    ? SpiderLair.pickSpots(n, ri)
+    : [[11.5,29.7],[8.7,30.2],[12.6,32.0],[9.1,32.8],[11.9,33.5],[8.3,28.9]].slice(0,n);
+  spots.forEach(([x,y])=>{
+    G.props=G.props||[];
+    G.props.push({x:x+0.12,y:y-0.08,k:'web',s:0.92});
+    const e=ent({
+      kind:'webCorpse', sprite:'bones', name:'Web-bound bones',
+      team:'prop', npc:1, dead:1, corpse:1, looted:0, webCorpse:1,
+      hp:1, sp:0, mv:0, aggro:0, boss:0, scale:0.94, x:x, y:y
+    });
+    const hoard=rollWebCorpseHoard();
+    if(hoard){
+      const pile=hoardToPile(hoard);
+      if(pile){
+        pile.label='Web-bound bones';
+        e.drop=pile;
+        const floor=spawnLoot(x, y, pile);
+        if(floor) floor._corpse=e.id;
+      }
+    }
+    G.ents.push(e);
+  });
+}
 function rollKillIndividual(e){
   const lv=(G.lvl&&G.lvl.n)||1;
   const boss=!!(e&&e.boss);
@@ -9598,6 +9660,20 @@ function rollKillIndividual(e){
   return hoard;
 }
 function foeDrop(e){
+  if(isSpiderLord(e)){
+    const hoard=rollSpiderLordHoard();
+    let pile=hoardToPile(hoard);
+    if(!pile){
+      pile={kind:'chest', coins:hoard.coins||{cp:10,sp:10,gp:5}, gems:hoard.gems||0, jew:hoard.jew||0,
+        potions:[], items:[], glow:'#ffd27a'};
+    }
+    pile.label=pile.label||'Spider Lord (Type U)';
+    e.drop=pile;
+    const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
+    const floor=spawnLoot(e.x+ox, e.y+oy, pile);
+    if(floor) floor._corpse=e.id;
+    return;
+  }
   if(e.rubyDrop || e.kind==='statue' || e.name==='Thin One'){
     const gp=200+((d1000()%800)|0);
     const ox=(Math.random()-0.5)*0.55, oy=(Math.random()-0.5)*0.55;

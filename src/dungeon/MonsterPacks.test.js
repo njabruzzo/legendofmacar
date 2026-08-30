@@ -32,6 +32,7 @@ assert(/spawnLairGroup\(40\.1, 32\.1, \{leader:'goblinBoss'/.test(ch2), 'camp go
 assert(/pack:\[\['goblin',5\]\]/.test(ch2), 'goblin camp is goblins only');
 assert(/spawnLairGroup\(10\.1, 31\.0, \{leader:'spiderLord'/.test(ch2), 'west cave is a spider nest');
 assert(/pack:\[\['spider',3\]\]/.test(ch2), 'spider lord nest is spiders only');
+assert(/placeSpiderWebCorpses\(\)/.test(ch2), 'silk room scatters lootable web corpses');
 assert(!/\['spider',2\],\['beetle',2\]/.test(ch2) && !/\['orc',2\],\['kobold',2\]/.test(ch2),
   'chapter II side caves are not mixed kitchens');
 
