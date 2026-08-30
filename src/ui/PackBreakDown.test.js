@@ -39,6 +39,9 @@ const pack=html.match(/function drawPack\(g\)\{[\s\S]*?\nfunction wareCostGp/)[0
 assert(/brkW/.test(pack) && /dropW/.test(pack), 'Break and Drop share the action column');
 assert(/Math\.min\(70\*s, w\*0\.16\)/.test(pack), 'action chips stay compact so titles do not overflow');
 assert(/sel\?packBreakHint\(r\)/.test(pack), 'selected row spells what you get');
+assert(/if\(!locked\) menuHits\.push\(\{x:brkX/.test(pack),
+  'Break hit is omitted when the row is locked or worn');
+assert(/Take it off first\./.test(html), 'worn kit is locked until unequipped');
 
 assert(/isNamedMagicItem\(/.test(html) && /shadow\\s\*cleaver/.test(html),
   'Shadow Cleaver is named magic');
@@ -74,7 +77,7 @@ const ctx={
   },
   isEquipWeapon(it){ return !!(it&&(it.k==='weapon'||it.cat==='Weapon'||it.cat==='Sword')); },
   isEquipArmor(it){ return !!(it&&(it.k==='armor'||it.cat==='Armor/Shield'||/armor|cloak|helm/i.test(it.n||''))); },
-  wornSlotOf(){ return null; },
+  wornSlotOf(it){ return it && it._worn ? it._worn : null; },
   skillLvl(){ return 1; }
 };
 vm.createContext(ctx);
@@ -109,6 +112,10 @@ const bomb=plan({kind:'supply', field:'bombs', t:'Bombs'});
 assert(bomb.res==='powder' && !bomb.lock, 'bombs yield Blackpowder');
 assert(plan({kind:'magic', it:{n:'Bone Charm',plus:0}, t:'Bone Charm'}).res==='bone',
   'bone junk yields Bone Shard');
+const wornHelm=plan({kind:'magic', it:{n:'Iron Helm',k:'armor',plus:0,_worn:'helmet'}, t:'Iron Helm'});
+assert(wornHelm.lock==='Take it off first.', 'worn mundane helm cannot break');
+const wornPlus=plan({kind:'magic', it:{n:'Iron Helm +1',k:'armor',plus:1,_worn:'helmet'}, t:'Iron Helm +1'});
+assert(wornPlus.lock==='Take it off first.', 'worn magic is locked as worn, not scavenged');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\npack break-down checks passed');

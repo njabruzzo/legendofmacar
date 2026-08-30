@@ -4264,8 +4264,8 @@ function packBreakLock(r){
   if(!r) return 'That is magical.';
   if(r.kind==='gem') return 'Coins and gems stay as treasure.';
   const it=packRowItem(r);
+  if(it && wornSlotOf(it)) return 'Take it off first.';
   if(isPackMagicItem(it, r)) return 'That is magical.';
-  if(it && wornSlotOf(it) && isPackMagicItem(it, r)) return 'That is magical.';
   return null;
 }
 function packBreakPlan(r){
@@ -4301,6 +4301,8 @@ function packBreakHint(r){
 }
 function takeOnePackRow(r){
   if(!r) return null;
+  const it=packRowItem(r);
+  if(it && wornSlotOf(it)) return null;
   const bag=packOf(G.packWho||'macar');
   const field=r.field||(r.kind==='burp'?'burps':(r.kind==='supply'?r.field:null));
   if((r.kind==='supply'||r.kind==='burp') && field && (bag[field]||0)>0){
@@ -4317,6 +4319,7 @@ function breakDownPackRow(r){
   }
   const lock=packBreakLock(r);
   if(lock){ say(lock,'#c9b895'); return; }
+  if(packRowItem(r) && wornSlotOf(packRowItem(r))){ say('Take it off first.','#c9b895'); return; }
   const plan=packBreakPlan(r);
   const taken=takeOnePackRow(r);
   if(!taken){ say('Nothing to break down.','#9a8a78'); return; }
@@ -12068,14 +12071,20 @@ function usePackRow(r){
   const inField=G.packFrom==='play';
   if(isPackEquipable(r)){
     const it=r.it||r;
-    G.packSel=it;
     if(G.packWho==='macar' || isGhostPack()){
       if(wornSlotOf(it)){
-        const slot=wornSlotOf(it);
-        if(G.packSel===it && slot) unequipPackSlot(slot);
+        if(G.packSel===it){
+          unequipPackSlot(wornSlotOf(it));
+          G.packSel=it;
+        } else {
+          G.packSel=it;
+        }
         return;
       }
+      G.packSel=it;
       equipPackItem(it);
+    } else {
+      G.packSel=it;
     }
     return;
   }
@@ -12169,14 +12178,24 @@ function togglePackSlot(slot){
   const sel=G.packSel;
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(sel && ES && ES.itemSlot && ES.itemSlot(sel)===slot){
-    if(worn===sel) unequipPackSlot(slot);
-    else equipPackItem(sel);
+    if(worn===sel){
+      unequipPackSlot(slot);
+      G.packSel=sel;
+    } else {
+      equipPackItem(sel);
+    }
     G.packSlotFilter=null;
     return;
   }
   if(worn){
-    unequipPackSlot(slot);
+    if(G.packSel===worn){
+      unequipPackSlot(slot);
+      G.packSel=worn;
+    } else {
+      G.packSel=worn;
+    }
     G.packSlotFilter=null;
+    G.packTab='gear';
     return;
   }
   G.packSlotFilter=G.packSlotFilter===slot?null:slot;
@@ -12434,7 +12453,7 @@ function drawPack(g){
         g.fillStyle='rgba(20,12,8,0.35)'; g.fillRect(brkX,brkY,brkW,dropH);
         g.restore();
       }
-      menuHits.push({x:brkX,y:brkY,w:brkW,h:dropH,fn:()=>breakDownPackRow(r)});
+      if(!locked) menuHits.push({x:brkX,y:brkY,w:brkW,h:dropH,fn:()=>breakDownPackRow(r)});
       drawChip(g,dropX,dropY,dropW,dropH,'Drop',false,'#ffe9c0');
       menuHits.push({x:dropX,y:dropY,w:dropW,h:dropH,fn:()=>dropPackRow(r)});
     }
