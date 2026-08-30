@@ -512,6 +512,10 @@ const SPRITE_FILES={
   icon_attack:'assets/ui/icon_attack.png',
   icon_defend:'assets/ui/icon_defend.png',
   icon_craft:'assets/ui/icon_craft.png',
+  icon_specialty_i:'assets/ui/icon_specialty_i.png',
+  icon_specialty_ii:'assets/ui/icon_specialty_ii.png',
+  icon_specialty_iii:'assets/ui/icon_specialty_iii.png',
+  icon_specialty_iv:'assets/ui/icon_specialty_iv.png',
   icon_save:'assets/ui/icon_save.png',
   ruin_house:'assets/props/prop_ruin_house.png',
   secret_door:'assets/props/prop_secret_door.png',
@@ -645,7 +649,9 @@ const ICON_SPR={
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
   plant:'icon_plant', shovel:'icon_shovel', campfire:'icon_campfire',
   crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
-  attack:'icon_attack', defend:'icon_defend', craft:'icon_craft'
+  attack:'icon_attack', defend:'icon_defend', craft:'icon_craft',
+  specialtyI:'icon_specialty_i', specialtyII:'icon_specialty_ii',
+  specialtyIII:'icon_specialty_iii', specialtyIV:'icon_specialty_iv'
 };
 /* First in-world Chapter I frame needs these decoded, or the canvas paints
    generated TEX diamonds / unscaled kin, then pops to the painted sheets. */
@@ -672,6 +678,7 @@ function loadSprites(done){
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
+    'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
     'skill_icons','macar_axe','pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
@@ -5092,12 +5099,68 @@ function effectiveAC(e, atk){
   if(e.stoneskin>0) ac-=2;
   return clamp(ac,-8,10);
 }
-function addAttack(atk, def){
+const SPECIALTY={
+  1:{n:'I', roman:'I', mult:2, lo:15, hi:20},
+  2:{n:'II', roman:'II', mult:3, lo:17, hi:20},
+  3:{n:'III', roman:'III', mult:4, lo:19, hi:20},
+  4:{n:'IV', roman:'IV', mult:5, lo:21, hi:99}
+};
+function specialtyBand(kind){ return SPECIALTY[kind]||null; }
+function specialtyInBand(kind, tot){
+  const B=specialtyBand(kind);
+  if(!B) return false;
+  if(kind===4) return tot>=21;
+  return tot>=B.lo && tot<=B.hi;
+}
+function specialtyHitBonus(e){
+  /* Band tot = d20 + STR hit + magic-weapon to-hit. No rear / dex / buff. */
+  let b=0;
+  if(e&&e.team==='party'){
+    const g=e.gear||{};
+    const ab=typeof entityAbil==='function'?entityAbil(e):null;
+    b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit||0;
+    b+=(g.magicAtk||0);
+  } else if(e&&e.sa&&/\+\d/.test(e.sa)){
+    const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1];
+  }
+  return b;
+}
+function armSpecialty(kind){
+  const p=typeof player==='function'?player():null;
+  if(!p) return 0;
+  kind=kind|0;
+  if(!specialtyBand(kind)) return 0;
+  if(p.specialty===kind){ p.specialty=0; hint('Specialty cancelled.',1.4); return 0; }
+  p.specialty=kind;
+  const B=specialtyBand(kind);
+  hint('Specialty '+B.n+' armed (×'+B.mult+').',1.8);
+  return kind;
+}
+function beginSpecialtySwing(e){
+  const kind=(e&&(e._specialty||e.specialty))||0;
+  if(kind&&e){
+    e._specialty=kind;
+    e.specialty=0;
+    e.ct=Math.max(e.ct||0, 1.15);
+  }
+  return kind||0;
+}
+function endSpecialtySwing(e){ if(e) e._specialty=0; }
+function pickMonsterSpecialty(){
+  const r=typeof d100==='function'?d100():ri(1,100);
+  if(r<=40) return 1;
+  if(r<=70) return 2;
+  if(r<=90) return 3;
+  return 4;
+}
+function addAttack(atk, def, opts){
   if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
   const rear=isRearAttack(atk, def);
   const ac=effectiveAC(def, atk);
   const need=thacNeed(atk, ac);
-  const roll=d20();
+  const specKind=(opts&&opts.specialty)||atk._specialty||atk.specialty||0;
+  const spec=specialtyBand(specKind);
+  const roll=(opts&&opts.roll!=null)?(opts.roll|0):d20();
   let bonus=hitBonus(atk);
   if(rear) bonus+=2;
   if(def.stun>0||def.prone) bonus+=4;
@@ -5106,11 +5169,20 @@ function addAttack(atk, def){
     if(d>rng*0.85) bonus-=5;
     else if(d>rng*0.55) bonus-=2;
   }
-  const tot=roll+bonus;
+  const specBonus=spec?specialtyHitBonus(atk):bonus;
+  const tot=roll+(spec?specBonus:bonus);
   const extra=need<0?-need:0;
-  const hit=roll===20 || tot>=need;
-  const pct=hitChancePct(need, bonus);
-  const line=(atk.name||'atk')+' d20 '+roll+(bonus?((bonus>=0?'+':'')+bonus):'')+'='+tot+' vs '+need+' (AC '+ac+') '+pct+'%'+(hit?' hit':' miss')+(rear?' rear':'');
+  const matrixHit=roll===20 || tot>=need;
+  const bandOk=spec?specialtyInBand(specKind, tot):true;
+  const hit=spec?(bandOk&&matrixHit):matrixHit;
+  const pct=hitChancePct(need, spec?specBonus:bonus);
+  let tag='';
+  if(spec){
+    tag=' Specialty '+spec.n;
+    if(hit) tag+=' ×'+spec.mult;
+  }
+  const shownBonus=spec?specBonus:bonus;
+  const line=(atk.name||'atk')+tag+' d20 '+roll+(shownBonus?((shownBonus>=0?'+':'')+shownBonus):'')+'='+tot+' vs '+need+' (AC '+ac+') '+pct+'%'+(hit?' hit':' miss')+(rear&&!spec?' rear':'');
   say(line, hit?'#ff6a5a':'#9a8a78', 'combat');
   if(!hit){ ftext(def.x,def.y,'MISS','#c9b8a0',1,'miss'); return 0; }
   let raw;
@@ -5126,8 +5198,10 @@ function addAttack(atk, def){
   }
   raw+=extra;
   if(atk.strMul) raw=Math.round(raw*atk.strMul);
+  if(spec) raw=Math.round(raw*spec.mult);
   raw=Math.round(raw*ADD_SCALE*wepMult(atk));
   if(atk.buff>0) raw=Math.round(raw*1.25);
+  if(spec) ftext(def.x,def.y,'×'+spec.mult,'#ffe08a',1,'hit');
   return Math.max(1, raw);
 }
 const SAVE_F=[
@@ -6756,6 +6830,29 @@ function safeInsets(){
   return {t:px('--sat'), r:px('--sar'), b:px('--sab'), l:px('--sal')};
 }
 
+function layoutSpecialtyCluster(ax, belowY, belowR, specSlot, specGap){
+  /* 2×2 I II / III IV parked above the combat button. Not in HUDSKILLS. */
+  const slot=Math.max(specSlot||44, 44);
+  const gap=Math.max(specGap||8, 8);
+  const bottomY=belowY - belowR - gap - slot/2;
+  const topY=bottomY - slot - gap;
+  const leftX=ax - (slot+gap)/2;
+  const rightX=ax + (slot+gap)/2;
+  const plates=[
+    {kind:1, key:'spec1', ico:'specialtyI', x:leftX, y:topY},
+    {kind:2, key:'spec2', ico:'specialtyII', x:rightX, y:topY},
+    {kind:3, key:'spec3', ico:'specialtyIII', x:leftX, y:bottomY},
+    {kind:4, key:'spec4', ico:'specialtyIV', x:rightX, y:bottomY}
+  ];
+  plates.forEach(p=>{
+    UIBTN.push({x:p.x, y:p.y, r:slot/2, key:p.key, ico:p.ico, spec:p.kind, slot:1});
+  });
+  UI.specialty={
+    titleX:ax, titleY:topY - slot/2 - 11,
+    top:topY - slot/2 - 22, slot, gap,
+    plates:plates.map(p=>({x:p.x,y:p.y,r:slot/2,kind:p.kind,key:p.key}))
+  };
+}
 function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
@@ -6791,6 +6888,7 @@ function layoutUI(){
       if(b.key==='attack') UI.attack=btn;
       UIBTN.push(btn);
     });
+    layoutSpecialtyCluster(cx, defendY, cSlot/2, Math.max(44, Math.min(cSlot, 52)), 8);
 
     const stickR=Math.max(TAP/2, PORT?26*s:28*s);
     const stickX=padL + 6 + stickR;
@@ -6858,7 +6956,7 @@ function layoutUI(){
       h:Math.max.apply(null, UI.overflow.map(b=>b.y+b.r))-Math.min.apply(null, UI.overflow.map(b=>b.y-b.r))+40
     }:null;
 
-    UI.hudTop=Math.min(topY, defendY) - Math.max(slot,cSlot)/2 - 14;
+    UI.hudTop=Math.min(topY, (UI.specialty&&UI.specialty.top)||defendY) - Math.max(slot,cSlot)/2 - 18;
     UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: Math.max(18, 16*s), key:'pause'});
     UI.stickHome={ x: stickX, y: stickY, r: stickR };
     return;
@@ -6900,7 +6998,8 @@ function layoutUI(){
       UIBTN.push(btn);
     });
   });
-  UI.hudTop = topY - slot/2 - 10*s;
+  layoutSpecialtyCluster(UI.attack.x, UI.attack.y, UI.attack.r, Math.max(48, Math.min(slot, 56)), 8);
+  UI.hudTop = Math.min(topY - slot/2, (UI.specialty&&UI.specialty.top)||topY) - 18*s;
   UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: 16*s, key:'pause'});
   UI.stickHome={ x: stickX, y: midY, r: stickR };
 }
@@ -7013,7 +7112,11 @@ window.addEventListener('keydown',e=>{
   if(k==='t') fire('secret');
   if(k==='g') fire('shovel');
   if(k==='k') fire('craft');
-  if(e.key==='9') debugKillOnScreen();
+  if(e.key==='6') fire('spec1');
+  if(e.key==='7') fire('spec2');
+  if(e.key==='8') fire('spec3');
+  if(e.key==='9') fire('spec4');
+  if(e.key==='9' && e.shiftKey) debugKillOnScreen();
   if(e.key==='Escape'){
     if(G.talk){ closeTalk(); if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); } return; }
     if(G.inspect){ G.inspect=null; return; }
@@ -7061,6 +7164,10 @@ function fire(key){
   if(G.sleepShow) return;
   if(G.paused) return;
   const p=player(); if(!p) return;
+  if(key==='spec1'||key==='spec2'||key==='spec3'||key==='spec4'){
+    armSpecialty(+key.slice(4));
+    return;
+  }
   if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
     ensureShadowCleaverWielded();
@@ -7444,7 +7551,11 @@ function update(dt){
       else {
         e.atk-=dt;
         if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
-          if(e.web && e.team==='foe'){
+          const spec=beginSpecialtySwing(e);
+          if(spec){
+            meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo);
+            endSpecialtySwing(e);
+          } else if(e.web && e.team==='foe'){
             const t=player();
             if(t&&!t.dead){
               e._webFlip=!e._webFlip;
@@ -7519,7 +7630,10 @@ function update(dt){
         e.ix=0; e.iy=0; e.moving=0;
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
-        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){ e.atk=e.atkMax; e.ct=e.cd; e.swung=0; e.aim=tgt; }
+        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
+          e.atk=e.atkMax; e.ct=e.cd; e.swung=0; e.aim=tgt;
+          if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+        }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
@@ -10743,7 +10857,8 @@ function drawSlot(g,b,s){
   const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
-  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')){
+  const specLit=b.spec && player() && player().specialty===b.spec;
+  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')||specLit){
     g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
@@ -10818,6 +10933,14 @@ function drawButtons(g,s){
       roundPath(g,b.x-b.r-2.5*s,b.y-b.r-2.5*s,b.r*2+5*s,b.r*2+5*s,6); g.stroke();
     }
     drawSlot(g,b,s);
+  }
+  if(UI.specialty && UI.specialty.titleX!=null){
+    g.font='800 '+(PORT?11:12)*s+'px '+FONT_UI; g.textAlign='center';
+    g.lineWidth=3.2*s; g.strokeStyle='rgba(0,0,0,0.75)';
+    g.strokeText('Specialty', UI.specialty.titleX, UI.specialty.titleY);
+    g.fillStyle='#f2dfb6';
+    g.fillText('Specialty', UI.specialty.titleX, UI.specialty.titleY);
+    g.textAlign='left';
   }
 }
 
@@ -12359,7 +12482,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
   g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  const keys='V Defend  ·  1 Attack  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  9 slay screen';
+  const keys='V Defend  ·  1 Attack  ·  6–9 Specialty  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft';
   const maxW=VW*0.92; let ky=VH*.255;
   const words=keys.split('  ·  '); let line='';
   words.forEach((w,i)=>{
