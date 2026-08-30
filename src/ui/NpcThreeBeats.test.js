@@ -77,16 +77,20 @@ assert(Math.hypot(toyX-20.5, toyY-22.0)>2.4, 'toy is not on spawn');
 assert(!(toyX===20.5 && toyY===22.0), 'toy is not the spawn tile');
 
 assert(/function maybeGoblinMercy\(/.test(html), 'morale hook exists');
-assert(/pack\.length!==1/.test(html) && /g\.hp>\(g\.maxhp\|\|1\)\*0\.5/.test(html),
-  'begs when last standing and at most half hp');
+assert(/function goblinPackCluster\(/.test(html) && /mercyPackUsed/.test(html),
+  'one goblin per eligible pack');
+assert(/last=living\.length===1/.test(html) && /morale=cluster\.length>=2/.test(html),
+  'begs on morale break or last standing ≤ half hp');
 assert(/e\.name!=='Goblin'/.test(html) && /e\.boss/.test(html) && /e\.nozCamp/.test(html),
   'boss, camp band, and named leaders are not pack beggars');
-assert(/function goblinBetrayalSwing\(/.test(html) && /isRearAttack|mac\.fdx=dx\/m/.test(html),
-  'betrayal faces Macar away for a rear swing');
+assert(/function goblinBetrayalSwing\(/.test(html) && /betrayalSwing/.test(html),
+  'betrayal forces a rear swing');
 assert(/dexAttackAdj\(effectiveDex\(mac\)\)/.test(html),
   'betrayal stun uses beginFight DEX trim');
-assert(/meleeSwing\(g,/.test(html) && !/thief/.test(extractFn('goblinBetrayalSwing')),
-  'betrayal is a melee swing, not thief ×');
+assert(/addAttack\(g, mac\)/.test(extractFn('goblinBetrayalSwing')) && !/thief/.test(extractFn('goblinBetrayalSwing')),
+  'betrayal is addAttack, not thief ×');
+assert(/if\(atk\.betrayalSwing\) return true/.test(html),
+  'betrayal is rear (+2, no dex/shield)');
 assert(/tryStrikeMercyGoblin/.test(html) && /G\.mercyTalk && \(key==='attack'/.test(html),
   'killing mid-beg is allowed');
 assert(/talkWalkOffKey/.test(html) && /dismissTalkWalkOff/.test(html),
@@ -116,6 +120,10 @@ assert(/k:'dex', dexPlus:1/.test(html) && /n:'Ring of Dexterity \+1'/.test(html)
   'ring shape is dex / dexPlus, named Ring of Dexterity +1');
 assert(/if\(o\.dexPlus\) raw\.dexPlus=o\.dexPlus/.test(html),
   'magItem keeps dexPlus and skips plus on that path');
+assert(/delete it\.plus/.test(extractFn('makeDexRing')),
+  'dex ring does not keep a Protection plus');
+assert(!/giveMagic|plus:|charges:/.test(html.match(/toy_find:\{[\s\S]*?goblin_mercy:\{/)[0]),
+  'toy is flavor only: no giveMagic, plus, or charges');
 
 const slots=fs.readFileSync(path.join(__dirname,'../../src/packs/EquipmentSlots.js'),'utf8');
 assert(/it\.k === 'dex'/.test(slots), 'EquipmentSlots slots a dex ring as necklace');
@@ -147,6 +155,33 @@ assert(ctx.effectiveDex({hero:0,col:{key:'orbo'},abil:{dex:14}})==14, 'companion
 
 ctx.G.equipped={necklace:{k:'ring', plus:1, n:'Ring of Protection +1'}};
 assert(ctx.wornDexPlus({hero:1})===0, 'protection plus is not dexPlus');
+
+const mercySrc=['isPackGoblinKind','isPackGoblin','livingPackGoblins','goblinPackCluster','maybeGoblinMercy']
+  .map(extractFn).join('\n');
+vm.runInContext(mercySrc, ctx);
+function gob(id, o){
+  return Object.assign({id, team:'foe', kind:'goblin', name:'Goblin', boss:0, npc:0, dead:0,
+    hp:20, maxhp:28, x:10+id*0.4, y:31}, o||{});
+}
+ctx.G.ents=[gob(1,{hp:10}), gob(2,{dead:1,hp:0}), gob(3,{dead:1,hp:0}), gob(4,{hp:28})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightOn=1;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(ctx.G.ents[0].begging===1 && ctx.G.talkAfter, 'morale break: wounded goblin begs when half the pack is down');
+assert(ctx.G.ents.every(e=>e.mercyPackUsed), 'the rest of that pack will not beg');
+
+ctx.G.ents=[gob(10,{hp:12,x:80,y:28}), gob(11,{hp:28,x:80.5,y:28.2})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightMercy=0; ctx.G.mercyGoblinId=null; ctx.G.talkAfter=null;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(!ctx.G.ents[0].begging, 'full pack at strength does not beg');
+
+ctx.G.ents=[gob(20,{hp:10,x:96,y:32})];
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(ctx.G.ents[0].begging===1, 'last standing ≤ half hp begs');
+
+ctx.G.ents=[gob(30,{hp:10, nozCamp:1})];
+ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.talkAfter=null;
+ctx.maybeGoblinMercy(ctx.G.ents[0]);
+assert(!ctx.G.ents[0].begging, 'camp goblins do not beg');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nNPC three-beats checks passed');

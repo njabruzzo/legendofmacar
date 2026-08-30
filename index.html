@@ -4218,24 +4218,48 @@ function dismissTalkWalkOff(){
 function packMercyGoblin(){
   return (G.ents||[]).find(e=>e&&e.id===G.mercyGoblinId);
 }
-function isPackGoblin(e){
-  if(!e||e.team!=='foe'||e.dead||e.npc||e.boss||e.nozCamp) return false;
+function isPackGoblinKind(e){
+  if(!e||e.team!=='foe'||e.npc||e.boss||e.nozCamp) return false;
   if(e.kind!=='goblin'||e.name!=='Goblin') return false;
   return true;
+}
+function isPackGoblin(e){
+  return isPackGoblinKind(e)&&!e.dead;
 }
 function livingPackGoblins(p){
   p=p||player();
   return (G.ents||[]).filter(e=>isPackGoblin(e)&&p&&dist(e,p)<8.5);
 }
-function maybeGoblinMercy(){
-  if(G.talk||G.fightMercy||G.mercyTalk) return;
+function goblinPackCluster(seed){
+  const all=(G.ents||[]).filter(isPackGoblinKind);
+  if(!seed||!all.length) return [];
+  const out=[], q=[seed], seen={}; seen[seed.id]=1; out.push(seed);
+  while(q.length){
+    const cur=q.pop();
+    for(let i=0;i<all.length;i++){
+      const z=all[i]; if(seen[z.id]) continue;
+      if(dist(cur,z)<8.2){ seen[z.id]=1; out.push(z); q.push(z); }
+    }
+  }
+  return out;
+}
+function maybeGoblinMercy(hit){
+  if(G.talk||G.mercyTalk) return;
   if(!G.fightOn) return;
-  const pack=livingPackGoblins();
-  if(pack.length!==1) return;
-  const g=pack[0];
-  if(g.begging||g.mercyDone) return;
-  if(g.hp>(g.maxhp||1)*0.5) return;
-  g.begging=1; g.mercyDone=1; g.stun=Math.max(g.stun||0, 0.2);
+  const seed=(hit&&isPackGoblinKind(hit))?hit:livingPackGoblins()[0];
+  if(!seed) return;
+  const cluster=goblinPackCluster(seed);
+  if(!cluster.length||cluster.some(e=>e.mercyPackUsed||e.begging||e.mercyDone)) return;
+  const living=cluster.filter(e=>!e.dead);
+  if(!living.length) return;
+  const last=living.length===1;
+  const morale=cluster.length>=2 && living.length<=Math.ceil(cluster.length/2);
+  if(!last && !morale) return;
+  const g=living.filter(e=>e.hp<=(e.maxhp||1)*0.5).sort((a,b)=>a.hp-b.hp)[0];
+  if(!g) return;
+  cluster.forEach(e=>{ e.mercyPackUsed=1; });
+  g.begging=1; g.mercyDone=1; g.atk=0; g.swung=0; g.aim=null;
+  g.stun=Math.max(g.stun||0, 0.2);
   G.fightMercy=1; G.mercyTalk=1; G.mercyGoblinId=g.id;
   G.talkAfter=()=>goblinBetrayalSwing();
   startTalk('goblin_mercy');
@@ -4260,7 +4284,10 @@ function goblinBetrayalSwing(){
   mac.fdx=dx/m; mac.fdy=dy/m;
   if(typeof faceToward==='function') faceToward(g, mac.x, mac.y);
   say('Surprise — they have '+pSeg+' segments. DEX trims yours.','#ff6a5a');
-  meleeSwing(g, 1.9, (g.range||1.2)+0.35, g.dmg, g.glow||'#6a8a4a');
+  g.betrayalSwing=1;
+  const rolled=typeof addAttack==='function'?addAttack(g, mac):0;
+  g.betrayalSwing=0;
+  if(rolled) damage(mac, onHitFx(g,mac,rolled), g.glow||'#6a8a4a', g);
   G.mercyGoblinId=null;
 }
 function tryStrikeMercyGoblin(){
@@ -4299,8 +4326,10 @@ function revealWebSkeletonRock(){
   hint('A small stone sits in the silk in the corner.',5);
 }
 function makeDexRing(){
-  return magItem({n:'Ring of Dexterity +1', cat:'Ring', k:'dex', dexPlus:1,
+  const it=magItem({n:'Ring of Dexterity +1', cat:'Ring', k:'dex', dexPlus:1,
     d:'A ring that made a dead man quicker.'});
+  if(it){ delete it.plus; it.dexPlus=1; }
+  return it;
 }
 function takeWebSkeletonRing(){
   const L=G.lvl; if(!L) return;
@@ -4912,6 +4941,7 @@ function partyAC(e, opts){
 }
 function isRearAttack(atk, def){
   if(!atk||!def) return false;
+  if(atk.betrayalSwing) return true;
   const fx=def.fdx||0, fy=def.fdy||0;
   if(!(fx||fy)) return false;
   const incoming=ang(atk.x-def.x, atk.y-def.y);
@@ -6644,7 +6674,7 @@ function damage(e,amt,col,src){
     G.talkAfter=null; G.mercyTalk=0; G.mercyGoblinId=null;
     if(G.talk) closeTalk();
   }
-  if(e.hp>0 && e.team==='foe') maybeGoblinMercy();
+  if(e.hp>0 && e.team==='foe') maybeGoblinMercy(e);
   if(e.hp<=0){ e.dead=1; e.deadT=0;
     if(e.team==='foe'){ G.kills++;
       if(G.fightOn) G.fightGotKill=1;
