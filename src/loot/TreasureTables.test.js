@@ -24,6 +24,10 @@ assert(/function mergeHoards\(/.test(html), 'multi-type hoards merge coin, gems,
 assert(/letter==='O'/.test(html) && /letter==='P'/.test(html) && /letter==='U'/.test(html)
   && /letter==='V'/.test(html) && /letter==='Z'/.test(html),
   'individual types O, P, U, V, Z are on the MM/DMG list');
+assert(/rngAmt\(10,80\)/.test(html) && /rngAmt\(10,60\)/.test(html) && /rngAmt\(5,30\)/.test(html),
+  'Type U pays DMG coins (10–80 cp, 10–60 sp, 5–30 gp), not coins:{}');
+assert(!/letter==='U'\)\{\s*return \{coins:\{\}/.test(html),
+  'Type U no longer returns an empty purse');
 
 assert(/if\(raw && !\/\^nil\$\/i\.test\(raw\)\) hoard=rollTreasureSpec\(raw\)/.test(html)
   || /hoard=rollTreasureSpec\(raw\)/.test(html),
