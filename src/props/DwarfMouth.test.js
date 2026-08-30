@@ -69,9 +69,9 @@ assert(/dwarf_macar_axe_atk_recover\.png/.test(html), 'Macar axe recover sprite 
 assert(/wieldsShadowCleaver/.test(html), 'sprite key swaps when the cleaver is wielded');
 assert(/ensureShadowCleaverWielded/.test(html), 'attack wields the cleaver if Macar has it');
 assert(/loot_dwarfkey\.png/.test(html), 'key sprite registered');
-assert(/This dwarf face is huge and carved of stone/.test(html), 'touch dialogue');
-assert(/Put something in its mouth\?/.test(html), 'offer question');
-assert(/Drop this in the Dwarf\\?'s mouth\?/.test(html), 'drop confirm');
+assert(/The mouth is open\. Old work\. Hungry work\./.test(html), 'touch dialogue');
+assert(/Offer it something\./.test(html), 'offer question');
+assert(/The jaws wait\. Drop it in\?/.test(html), 'drop confirm');
 assert(/YUM!/.test(html), 'yum line');
 assert(/takeLoot\(pile, true\)/.test(html), 'mouth spit is claimed into the pack, not left as a dead floor prop');
 assert(/into MACAR\\?'s pack/.test(html), 'hint says the axe went into the pack');

@@ -2198,7 +2198,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   fightOn:0, fightWasBoss:0, fightGotKill:0, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
-  day:1, dayClock:0, ghostAllies:{}, pordoomGiftDay:0, borrowed:[],
+  day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
   hudMore:0 };
 
 function say(t,c,k){
@@ -2829,14 +2829,7 @@ function makeChapter(n){
       }
       const door=L.rubyDoor||{x:36.5,y:7.28};
       if(!L.flags.touched && dist(p,{x:door.x,y:door.y+1.15})<2.6){
-        interact('Touch the ruby door',()=>{
-          L.flags.touched=1; L.objs[1].d=1; shake(24); G.flash={c:'#ff2030',a:.7};
-          say('The ruby door is warm. It knows your name.','#ff6a6a');
-          [[33.6,12.4],[39.2,12.2],[32.4,14.6],[40.1,14.8],[36.4,13.6],[34.8,15.8]].forEach((s,i)=>{
-            const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);});
-          say('The guardians wake from the stone around the door.','#d8cbb0');
-          hint('Six guardians. Slay them, then seek the ruby pillar.',6);
-        });
+        interact('Touch the ruby door',()=>startTalk('ruby_door'));
       }
       if(L.flags.touched && !L.flags.cleared && !foesLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
@@ -3588,6 +3581,7 @@ const GHOST_RETURN_LINE={
   talpor:'TALPOR: "The stone would not keep me. Macar, try to look surprised."'
 };
 function ghostKey(e){ return e&&e.col&&e.col.key; }
+function talkKinKey(k){ return k==='pordoom'?'pordum':k; }
 function markChapterGhosts(){
   const L=G.lvl; if(!L||L.n!==1||L.flags.looted) return;
   const left=(G.ents||[]).filter(z=>z.crushed&&z.corpse&&!z.ghost).length;
@@ -3644,7 +3638,9 @@ function makeGhostAlly(e){
   restoreGhostKit(e);
   burst(e.x,e.y,'#7ad8ff',22,3.4);
   ftext(e.x,e.y,'rises','#7ad8ff');
-  say(GHOST_RISE[k]||(e.name+': "Get your grubby hands off me, Macar."'),'#80d0ff');
+  const riseKey='rise_'+talkKinKey(k);
+  if(NPC_TALK[riseKey]) startTalk(riseKey);
+  else say(GHOST_RISE[k]||(e.name+': "Get your grubby hands off me, Macar."'),'#80d0ff');
   if(k==='pordoom') tryPordoomGifts();
   markChapterGhosts();
 }
@@ -4091,14 +4087,25 @@ let PROMPT=null;
 function interact(label,fn){ PROMPT={label,fn}; }
 
 /* ---------------------------- NPC dialogue (Macar choices) ---------------------------- */
+function wakeRubyDoor(){
+  const L=G.lvl; if(!L||L.n!==1||!L.flags||L.flags.touched) return;
+  L.flags.touched=1; if(L.objs&&L.objs[1]) L.objs[1].d=1;
+  shake(24); G.flash={c:'#ff2030',a:.7};
+  say('The ruby door is warm. It knows your name.','#ff6a6a');
+  [[33.6,12.4],[39.2,12.2],[32.4,14.6],[40.1,14.8],[36.4,13.6],[34.8,15.8]].forEach((s,i)=>{
+    const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);
+  });
+  say('The guardians wake from the stone around the door.','#d8cbb0');
+  hint('Six guardians. Slay them, then seek the ruby pillar.',6);
+}
 const NPC_TALK={
   noz_untie:{
     who:'NOZ',
-    line:'"Goblins! Home. The bronze door. You cannot pass it, friend — but I can. Untie me and I run north. Trade later, if the bronze still answers."',
+    line:'"Air. They meant to eat me, dwarf. I can still run. Let me."',
     choices:[
-      {t:'Go. We will ring the bell.', say:'MACAR: "Run home, Noz. We will find the bronze."'},
-      {t:'Trade first — what do you sell?', say:'MACAR: "Speak of trade before you vanish."', then:()=>{ G.scene='trade'; }},
-      {t:'Stay with us a while.', say:'MACAR: "Walk with the kin a stretch."', then:()=>{
+      {t:'Run. We hold.', say:'MACAR: "Run, Noz. We hold."'},
+      {t:'Why keep a gnome?', say:'MACAR: "Why keep a gnome?"', reply:'NOZ: "To work a door their hands cannot. I will not die for their bronze."'},
+      {t:'Stay with us.', say:'MACAR: "Walk with the kin a stretch."', then:()=>{
         const noz=G.ents.find(e=>e.name==='Noz'&&!e.dead); if(!noz) return;
         noz.team='party'; noz.ally=1; noz.npc=0; noz.fleeTo=null; noz.fleePath=null; noz.onArrive=null;
         hint('Noz falls in with the party — for now.',3.6);
@@ -4107,29 +4114,110 @@ const NPC_TALK={
   },
   noz_bell:{
     who:'NOZ',
-    line:'"Sorry friend I can\'t let you in. Do you want to buy or trade? Torch, rations, bolts — fair gnome prices."',
+    line:'"This side is mine. Torch, bread, quarrels. Coin on the sill. You stay on yours."',
     choices:[
-      {t:'Open the trade board.', say:'MACAR: "Show your wares."', then:()=>{ G.scene='trade'; }},
-      {t:'Only asking the road south.', say:'MACAR: "Which way to the ruins?"', reply:'NOZ: "South stair under the cold light. Mind the goblin wall — it looks too even."'},
-      {t:'Keep your door. Farewell.', say:'MACAR: "Hold the bronze. We go."'}
+      {t:'Show your wares.', say:'MACAR: "Show your wares."', then:()=>{ G.scene='trade'; }},
+      {t:'That door.', say:'MACAR: "That door."', reply:'NOZ: "Gnome-work. Dwarf-hands break it. I keep it shut."'},
+      {t:'Farewell.', say:'MACAR: "Hold it, then."'}
     ]
   },
   noz_trade_again:{
     who:'NOZ',
-    line:'"Trade, then. I stay on my side. Coin for light, bread, and quarrels."',
+    line:'"Trade, then. I stay on my side."',
     choices:[
-      {t:'Trade.', say:'MACAR: "Done."', then:()=>{ G.scene='trade'; }},
+      {t:'Trade.', then:()=>{ G.scene='trade'; }},
       {t:'Not today.', say:'MACAR: "Another time."'}
     ]
   },
   dwarf_face:{
     who:'STONE FACE',
-    line:'This dwarf face is huge and carved of stone. Its mouth is open.',
+    line:'The mouth is open. Old work. Hungry work.',
     choices:[
-      {t:'Put something in its mouth?', then:()=>{
+      {t:'Offer it something.', then:()=>{
         G.faceOffer=1; G.packWho='macar'; G.packSel=null; openPackMenu('play');
       }},
+      {t:'Ask what it wants.', say:'MACAR: "What do you want of me?"', reply:'STONE FACE: "Feed. Then gift."'},
       {t:'Leave it.'}
+    ]
+  },
+  ruby_door:{
+    who:'THE DOOR',
+    line:'The ruby is warm. It knows this name. It wants a hand.',
+    choices:[
+      {t:'Lay a hand on it.', say:'MACAR: "I am here."', then:()=>wakeRubyDoor()},
+      {t:'Not yet.'}
+    ]
+  },
+  rise_pordum:{
+    who:'PORDUM',
+    line:'"Get your grubby hands off me, Macar! I was having a perfectly decent nap under that rock."',
+    choices:[
+      {t:"Glad you're up.", reply:'PORDUM: "I am dead, you lump. Up is a strong word."'},
+      {t:'We need your bombs.', reply:'PORDUM: "Then stop looting me and start watching the fuse."'},
+      {t:'Sorry about the rock.', reply:'PORDUM: "Sorry does not lift stone. You did. That will do."'}
+    ]
+  },
+  rise_fendur:{
+    who:'FENDUR',
+    line:'"Paws off the bolts, captain. I am not a loot pile. I am Fendur, slightly less solid."',
+    choices:[
+      {t:'Need you on the string.', reply:'FENDUR: "I never left it. The rock did."'},
+      {t:'Keep your bolts.', reply:'FENDUR: "I mean to."'},
+      {t:'On your feet.', reply:'FENDUR: "Bones first. Bolts second. Orders third."'}
+    ]
+  },
+  rise_orbo:{
+    who:'ORBO',
+    line:'"That is my coin-purse, you scavenger. I am using it. Also I am dead. Details."',
+    choices:[
+      {t:'We still need the shield.', reply:'ORBO: "You have it. I am the rest of the arrangement."'},
+      {t:"Wasn't stealing.", reply:'ORBO: "Then your hands are honest and poorly aimed."'},
+      {t:'Get up, Orbo.', reply:'ORBO: "I am up. The living will have to take my word."'}
+    ]
+  },
+  rise_talpor:{
+    who:'TALPOR',
+    line:'"I am a cleric, Macar, not a sack of torch-ends. Kindly unhand the faithful."',
+    choices:[
+      {t:'The Stone sent you back.', reply:'TALPOR: "Or could not keep me. I will not split that hair while we bleed."'},
+      {t:'We need a blessing.', reply:'TALPOR: "You have my feet. The rest is earned."'},
+      {t:'Forgive the hands.', reply:'TALPOR: "I already have. Now use them."'}
+    ]
+  },
+  camp_pordum:{
+    who:'PORDUM',
+    line:'"Two bombs a day. One for the rock. One for whatever is hunting us. Sleep if you can."',
+    choices:[
+      {t:"We'll need both."},
+      {t:'Keep yours.'},
+      {t:'Good night.'}
+    ]
+  },
+  camp_fendur:{
+    who:'FENDUR',
+    line:'"I can still nock a quarrel. Being dead is a lighting problem. First watch is mine if you snore."',
+    choices:[
+      {t:'Take the watch.'},
+      {t:'Save the quarrels.'},
+      {t:'Sleep.'}
+    ]
+  },
+  camp_orbo:{
+    who:'ORBO',
+    line:'"I will take first watch. I have no eyelids left to argue with. Count the coin in the morning."',
+    choices:[
+      {t:'Watch, then.'},
+      {t:"I've got the watch."},
+      {t:'Rest.'}
+    ]
+  },
+  camp_talpor:{
+    who:'TALPOR',
+    line:'"The Stone let us up. It can put us down. Eat, Macar. Then we go deeper."',
+    choices:[
+      {t:'We eat.'},
+      {t:'A prayer first.', reply:'TALPOR: "I already said it. You were busy with the fire."'},
+      {t:'Just a little longer.'}
     ]
   }
 };
@@ -4165,7 +4253,7 @@ function askDropInMouth(r){
   startTalkObj({
     key:'face_drop',
     who:'STONE FACE',
-    line:'Drop this in the Dwarf\'s mouth?',
+    line:'The jaws wait. Drop it in?',
     choices:[
       {t:'Drop '+name, then:()=>dropInDwarfMouth(r)},
       {t:'Keep it.'}
@@ -4396,9 +4484,10 @@ function beginUiLayer(g){
 }
 function drawPlayPlates(g){
   if(G.scene==='camp'){
-    if(!G.hint) return;
+    if(!G.hint && !G.talk) return;
     beginUiLayer(g);
-    drawHint(g,UIS);
+    if(G.hint) drawHint(g,UIS);
+    drawTalk(g);
     return;
   }
   if(G.scene!=='play' && G.scene!=='pack') return;
@@ -10414,6 +10503,21 @@ function campActions(){
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ openPackMenu('camp'); }});
+  ROSTER.slice(1).forEach(r=>{
+    if(!(G.ghostAllies&&G.ghostAllies[r.key])) return;
+    const talkKey='camp_'+talkKinKey(r.key);
+    if(!NPC_TALK[talkKey]) return;
+    const day=G.day||1;
+    const spoken=!!(G.campTalkDay&&G.campTalkDay[r.key]===day);
+    a.push({grp:'FIRE',tab:'other',name:'Speak with '+r.name, t:'Speak with '+r.name, cost:{},
+      info:spoken?'Already spoke this rest.':'Once per rest. Does not use Save.',
+      fn:()=>{
+        if(spoken){ hint('Speak again after the next rest.',2.4); return; }
+        G.campTalkDay=G.campTalkDay||{};
+        G.campTalkDay[r.key]=day;
+        startTalk(talkKey);
+      }});
+  });
   return a;
 }
 
