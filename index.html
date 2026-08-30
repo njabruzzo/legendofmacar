@@ -8433,7 +8433,8 @@ function drawProp(g,p,pal){
     const H=dwarfFaceH();
     const half=dwarfFaceHalf();
     const yPlane=rubyDoorPlaneY(p);
-    drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H);
+    /* Wall-plane carving. stroke:0 so the iso quad does not box a leftover masonry tile. */
+    drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
     return;
   }
   if(timberOnDwarfMouthLane(p) || billboardCoversDwarfMouth(p)) return;
