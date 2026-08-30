@@ -26,6 +26,8 @@ assert(/letter==='O'/.test(html) && /letter==='P'/.test(html) && /letter==='U'/.
   'individual types O, P, U, V, Z are on the MM/DMG list');
 assert(/rngAmt\(10,80\)/.test(html) && /rngAmt\(10,60\)/.test(html) && /rngAmt\(5,30\)/.test(html),
   'Type U pays DMG coins (10–80 cp, 10–60 sp, 5–30 gp), not coins:{}');
+assert(/if\(!\(u\.coins\.cp>0\)\) u\.coins\.cp=rngAmt\(10,80\)/.test(html),
+  'Type U fills an empty helper purse');
 assert(!/letter==='U'\)\{\s*return \{coins:\{\}/.test(html),
   'Type U no longer returns an empty purse');
 
