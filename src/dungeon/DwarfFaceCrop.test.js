@@ -27,13 +27,14 @@ const hdr=pngHdr(sheet);
 assert(hdr && hdr.color===6, 'face sheet is RGBA (masonry dropped to alpha)');
 assert(hdr.w<900 && hdr.h<1400, 'sheet is cropped off the 1024x1536 masonry tile');
 assert(hdr.w>360 && hdr.h>700, 'crop still holds a full head / beard / mouth');
-assert(hdr.w/hdr.h<0.62, 'crop is the tall face, not a leftover wall plaque');
 
 const py=execFileSync('python3',[path.join(__dirname,'DwarfFaceCrop_sheet.py'), sheet],{encoding:'utf8'});
 const stats=Object.fromEntries(py.trim().split('\n').map(l=>l.split(' ')));
-assert(Number(stats.opaque)>0.45 && Number(stats.opaque)<0.92,
+assert(Number(stats.opaque)>0.32 && Number(stats.opaque)<0.85,
   'silhouette is the carving, not a full masonry rectangle');
-assert(Number(stats.clear)>0.08, 'extra masonry around the face is transparent');
+assert(Number(stats.clear)>0.15, 'extra masonry around the face is transparent');
+assert(Number(stats.content_aspect)>0.32 && Number(stats.content_aspect)<0.55,
+  'opaque content is the tall face, not a leftover wall plaque');
 assert(Number(stats.mouth_opaque)>0.98, 'open mouth stays in the carving');
 assert(Number(stats.mouth_dark)>0.08, 'mouth cavity is still a dark hole');
 assert(stats.binary==='1', 'crop is binary-alpha (no fringe masonry haze)');
