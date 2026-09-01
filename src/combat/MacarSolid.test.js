@@ -45,11 +45,13 @@ assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.t
   'whitelist key gate feeds the blit pipe');
 
 const bake=extractFn('blitLivingMacar');
-assert(/if\(a<=40\)/.test(bake) && /d\[i\+3\]=0/.test(bake), 'bake: a≤40 fringe is punched to 0');
-assert(/d\[i\+3\]=255/.test(bake), 'bake: a>40 silhouette is 255');
-assert(/255\/a/.test(bake), 'bake un-premultiplies RGB before forcing a=255');
-assert(/catch\(_\)\{[\s\S]*SPR\.macar/.test(bake) && !/out=img/.test(bake),
-  'getImageData fail blits idle Macar, never the raw fringe sheet');
+assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');
+assert(/const LO=64/.test(html) && /if\(a<=LO\)/.test(html) && /d\[p\+3\]=0/.test(html),
+  'bake: low-alpha fringe is punched to 0');
+assert(/a>=HI\?255/.test(html), 'bake: high-alpha silhouette is forced to 255');
+assert(/255\/a/.test(html), 'bake un-premultiplies RGB before lifting alpha');
+assert(/const idle=/.test(bake) && /SPR\.macar/.test(bake),
+  'empty sheet falls back to idle Macar');
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(/walkCycleKey\(e, stem\)/.test(liveKey) && /stem\+'_atk'/.test(liveKey)

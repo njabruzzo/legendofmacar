@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Book I secret doors are a colder masonry seam on n/e/w faces, never south.
+ * Book I secret doors are a faded masonry wall on n/e/w faces, never south.
  * Run: node src/dungeon/SecretSeam.test.js
  */
 const fs=require('fs');
@@ -15,14 +15,17 @@ function assert(cond, msg){
 
 assert(/function secretFaceOk\(/.test(html) && /function normalizeSecretFace\(/.test(html),
   'south faces are normalized off the secret');
-assert(/function drawSecretSeamTint\(/.test(html), 'closed secret is a masonry tint, not a door');
-assert(/g\.globalCompositeOperation='multiply'/.test(html)
-  && /fillStyle='#9bb3c6'/.test(html),
-  'seam is one colder grey-blue multiply at full opacity');
+assert(/function fadeMasonryCanvas\(/.test(html) && /function drawSecretFadedFace\(/.test(html),
+  'closed secret is a faded masonry face, not a door');
+assert(/saturate\(0\.22\) brightness\(1\.38\)/.test(html),
+  'secret wall is desaturated and lightened in code');
+assert(!/function drawSecretSeamTint\(/.test(html) && !/fillStyle='#9bb3c6'/.test(html),
+  'old grey-blue multiply seam is gone');
 assert(!/g\.globalAlpha=0\.34/.test(html) || !/fillStyle='#6f8498'/.test(html),
   'old 0.34 wash is gone');
 assert(/function markSecretProps\(L\)\{\s*\/\* Closed secret is a tinted masonry seam/.test(html)
-  || /Closed secret is a tinted masonry seam/.test(html),
+  || /Closed secret is a tinted masonry seam/.test(html)
+  || /Closed secret is a tinted masonry seam, not a door billboard/.test(html),
   'markSecretProps does not plant a secret_door billboard');
 assert(!/G\.props\.push\(\{x,y,k:'secret_door'/.test(html),
   'no extra door prop on a closed secret');

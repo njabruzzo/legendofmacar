@@ -102,6 +102,7 @@ function extractThrough(name, until){
 }
 Object.assign(ctx, {
   TAU:Math.PI*2,
+  TW:64, TH:32,
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   player(){ return null; },
   wieldsShadowCleaver(){ return false; },
@@ -134,10 +135,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
-  'hold D: every gait frame is the front whitelist pair, unflipped, never w3');
-assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
-  'hold A: every gait frame is the same front pair flipped once, never w3');
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
+  'hold D: every gait frame is the front whitelist pair, flip-inverted, never w3');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
+  'hold A: every gait frame is the same front pair unflipped, never w3');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 
@@ -145,9 +146,10 @@ const macRight={hero:1, moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, cr
 const kinRight={k:'orbo_ghost', moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, crushed:0, dead:0};
 const macLeft={hero:1, moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0, ghost:0, atk:0};
 const kinLeft={k:'orbo_ghost', moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0};
-assert(ctx.wantsSpriteFlip(macRight)===ctx.wantsSpriteFlip(kinRight)
-  && ctx.wantsSpriteFlip(macLeft)===ctx.wantsSpriteFlip(kinLeft),
-  'living Macar and kin share one heading flip sign — invert is a moonwalk');
+assert(ctx.wantsSpriteFlip(macRight)===true && ctx.wantsSpriteFlip(kinRight)===false,
+  'living Macar invert: D flips Macar, kin stay unflipped');
+assert(ctx.wantsSpriteFlip(macLeft)===false && ctx.wantsSpriteFlip(kinLeft)===true,
+  'living Macar invert: A leaves Macar unflipped, kin still flip');
 
 const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
 party.forEach(stem=>{

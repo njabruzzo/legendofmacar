@@ -66,6 +66,12 @@ assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html),
   'Chapter II stair stay put — no #81 landing rewrite');
 assert(/function applyLighting\(g,L\)\{/.test(html) && /createRadialGradient/.test(html),
   'lightmap engine is unchanged — only the sources');
+assert(!/G\.parts\.push\(\{x:p\.x\+Math\.cos\(a\)\*r,y:p\.y\+Math\.sin\(a\)\*r/.test(html),
+  'no free-floating dust / light motes spawn around the party');
+assert(!/e\.glow&&\(e\.ghost\|\|e\.team==='foe'/.test(html),
+  'foes and ghosts do not bloom a floating glow globe');
+assert(/pr\.k==='lantern'/.test(html.match(/function gatherLights\(L\)\{[\s\S]*?\nfunction gatherLightsCapped/)[0]),
+  'held / hung lanterns still punch the baked lightmap');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\npractical lamp checks passed');

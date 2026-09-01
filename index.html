@@ -75,7 +75,7 @@ const DIAG = { world:1, lighting:1, godrays:1, bloom:1, memshade:1, beyond:1,
                atmos:1, floaters:1, grain:1, hurt:1, flash:1, shake:1, hud:1,
                smooth: 1, dpr2:0 };
 let BX_KEY = '';
-const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null};
+const TILEBLIT={key:'',floor:null,wall:null,face:null,faceL:null,faceR:null,faceFadeL:null,faceFadeR:null};
 let CAMSX=0, CAMSY=0;
 let LAST_LAYOUT={w:0,h:0,dpr:0};
 
@@ -751,22 +751,12 @@ function ensureAttackFrames(){
     .forEach(k=>{ if(SPR[k]) spriteBounds(SPR[k]); });
 }
 /* Bake the repaired Macar sheets ahead of time, a few per tick, so the first
-   step in a new heading never pays for the repair mid-stride. Walks
-   MACAR_PLAN so the warm list can never drift from the sheets actually used. */
+   step never pays for the repair mid-stride. Walks LIVING_MACAR_KEYS only. */
 function warmLivingMacarSheets(){
   const keys=[];
   const add=k=>{ if(k && SPR[k] && keys.indexOf(k)<0) keys.push(k); };
   try{
-    Object.keys(MACAR_PLAN).forEach(stem=>{
-      const plan=MACAR_PLAN[stem];
-      Object.keys(plan).forEach(k=>{
-        const v=plan[k];
-        if(!v) return;
-        if(typeof v==='string') add(v);
-        else if(v.frames) v.frames.forEach(add);
-        else Object.keys(v).forEach(o=>add(v[o]));
-      });
-    });
+    Object.keys(LIVING_MACAR_KEYS).forEach(add);
   }catch(_){ ['macar','macar_w1','macar_axe'].forEach(add); }
   let i=0;
   const step=()=>{
@@ -1300,7 +1290,14 @@ const MACAR_PLAN={
     atk:'macar_axe_atk', rec:'macar_axe_atk_recover', sideAtk:null
   }
 };
-function isLivingMacarKey(k){ return !!(k && /^macar(_axe)?(_|$)/.test(k)); }
+/* Limner living-Macar gate. Every key living Macar actually blits is listed
+   here and goes through blitLivingMacar. Directional / title / sleep / w3 stay
+   unused — walk art is parked; facing is a blit flip only. */
+const LIVING_MACAR_KEYS={
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1,
+  macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1, macar_axe_atk_recover:1
+};
+function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   return (typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
     ? 'macar_axe' : 'macar';
@@ -1362,16 +1359,28 @@ function macarPose(e){
   ]);
   return idle?{key:idle, flip:flip}:none;
 }
-function livingMacarAnimKey(e){ return macarPose(e).key; }
+/* Living Macar only. Idle / front w1-w2 / strike / recover, maul or axe.
+   Same FACE, opposite FOOT. Never a washed directional stem. */
+function livingMacarAnimKey(e){
+  if(!e||!e.hero||e.dead||e.ghost) return null;
+  const stem=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+    ? 'macar_axe' : 'macar';
+  const rec=stem+'_atk_recover', atk=stem+'_atk';
+  if(wantsMeleeRecover(e) && isLivingMacarKey(rec) && sprReady(rec)) return rec;
+  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && isLivingMacarKey(atk) && sprReady(atk)) return atk;
+  const hit=(e.moving && !e.defending)?walkCycleKey(e, stem):null;
+  if(isLivingMacarKey(hit)) return hit;
+  return (isLivingMacarKey(stem) && sprReady(stem)) ? stem : (sprReady('macar')?'macar':null);
+}
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const pose=macarPose(e);
-  const img=livingMacarImg(pose.key);
+  const img=livingMacarImg(livingMacarAnimKey(e));
   if(!img||!img.width) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
+  const flip=wantsSpriteFlip(e);
   g.save();
   g.globalAlpha=1;
   g.globalCompositeOperation='source-over';
@@ -1380,12 +1389,10 @@ function drawLivingMacar(g,e){
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height));
   const b=spriteBounds(img);
-  /* The painted figure is off-centre in a profile sheet, so the anchor has
-     to mirror with the blit or he slides sideways when he turns. */
-  const cx=(b&&b.ok)?(pose.flip?1-b.cx:b.cx):0.5;
+  const cx=(b&&b.ok)?(flip?1-b.cx:b.cx):0.5;
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
-  blitFacing(g,img,dx,dy,W,H,pose.flip);
+  blitFacing(g,img,dx,dy,W,H,flip);
   g.restore();
 }
 function drawDeadBillboard(g,e,img,z){
@@ -1868,8 +1875,36 @@ function ensureTileBlit(L){
   const faceL=makeWorkedFace(L, 1, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const faceR=makeWorkedFace(L, 0, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const cap=makeWorkedCap(Math.max(96,(TW*3)|0), Math.max(96,(TH*6)|0));
-  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
-  else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.cap=cap; }
+  const fadeL=fadeMasonryCanvas(faceL), fadeR=fadeMasonryCanvas(faceR);
+  if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
+  else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; }
+}
+/* Secret-door wall: same masonry tile, desaturated and lightened so it reads
+   as faded stone — never camouflaged, never a hairline seam. */
+function fadeMasonryCanvas(img){
+  if(!img||!img.width) return img;
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  if(x.filter!==undefined){
+    x.filter='saturate(0.22) brightness(1.38)';
+    x.drawImage(img,0,0);
+    x.filter='none';
+  } else {
+    x.drawImage(img,0,0);
+    try{
+      const id=x.getImageData(0,0,c.width,c.height), d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+        const r=y*0.22+d[i]*0.78, g=y*0.22+d[i+1]*0.78, b=y*0.22+d[i+2]*0.78;
+        d[i]=Math.min(255,(r*1.38+28)|0);
+        d[i+1]=Math.min(255,(g*1.38+28)|0);
+        d[i+2]=Math.min(255,(b*1.38+28)|0);
+      }
+      x.putImageData(id,0,0);
+    }catch(_){}
+  }
+  return c;
 }
 function entSpriteKey(e){
   if(e.kind==='dwarf'){
@@ -1984,17 +2019,16 @@ function dwarfAngleKey(e,k){
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
-  /* Living Macar is painted mirrored against the kin, so his flip comes from
-     his own heading table, never from this shared rule. */
-  if(e.hero && !e.ghost) return macarPose(e).flip;
   const key=entAnimKey(e)||'';
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   if(key.indexOf('_ne_')>=0) return false;
-  // Limner: front idle/w1/w2 are one 3/4 traveling screen-right. Same FACE,
-  // opposite FOOT. Unflipped when D / gold-right. Flip only for screen-left.
-  // Heading-only — never per frame, never a mirrored w2 sheet.
-  // Invert (sx > +0.02 on living Macar only) was a moonwalk against the kin.
+  // Living Macar idle/w1/w2 are painted traveling screen-right. #150 left
+  // east unflipped / west flipped and Nick still saw him walk backwards.
+  // Invert HIS blit sign only. Same FACE, opposite FOOT. Kin stay put.
+  // After invert: D / gold-right flips the painted-right sheet so he faces
+  // screen-RIGHT; A / gold-left stays unflipped and faces screen-LEFT.
+  if(e.hero && !e.ghost) return moveHeadingSX(e) > 0.02;
   return moveHeadingSX(e) < -0.02;
 }
 function attackProgress(e){
@@ -7231,25 +7265,22 @@ function secretSeamAt(L,x,y){
   }
   return null;
 }
-function drawSecretSeamTint(g, L, x, y, H){
+function secretFaceImg(face, faceL, faceR){
+  const fadeL=TILEBLIT.faceFadeL||faceL, fadeR=TILEBLIT.faceFadeR||faceR;
+  if(face==='e'||face==='w') return fadeR||faceR;
+  return fadeL||faceL;
+}
+function drawSecretFadedFace(g, L, x, y, H, faceL, faceR){
   const sec=secretSeamAt(L,x,y);
   if(!sec) return;
   const face=sec.face||'n';
-  /* Same masonry tile, colder grey-blue multiply. Full opacity so the
-     seam reads at phone width. Never a south face — iso south buries it. */
-  g.save();
-  g.globalCompositeOperation='multiply';
-  g.fillStyle='#9bb3c6';
-  const paint=(x0,y0,x1,y1)=>{
-    const a=w2s(x0,y0), b=w2s(x1,y1);
-    g.beginPath();
-    g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(b.x,b.y-H); g.lineTo(a.x,a.y-H);
-    g.closePath(); g.fill();
-  };
-  if(face==='e') paint(x+1, y, x+1, y+1.14);
-  else if(face==='w') paint(x, y, x, y+1.14);
-  else paint(x, y+1, x+1.14, y+1);
-  g.restore();
+  if(!secretFaceOk(face)) return;
+  /* Faded masonry face — same tile, desaturated/lightened. Never south. */
+  const img=secretFaceImg(face, faceL, faceR);
+  const sid=x*31+y*17+29;
+  if(face==='e') drawMasonryFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid);
+  else if(face==='w') drawMasonryFace(g, img, x, y, x, y+1.14, H, 1, 0, sid);
+  else drawMasonryFace(g, img, x, y+1, x+1.14, y+1, H, 0, -1, sid);
 }
 function markSecretProps(L){
   /* Closed secret is a tinted masonry seam, not a door billboard. */
@@ -8506,9 +8537,8 @@ function update(dt){
   for(const l of G.log) l.a=Math.max(.35,l.a-dt*.03);
   if(G.shake>0) G.shake=Math.max(0,G.shake-dt*46);
   if(G.flash){ G.flash.a-=dt*1.8; if(G.flash.a<=0) G.flash=null; }
-  if(QUALITY && Math.random()<dt*6&&p){ const a=rnd(TAU),r=rnd(12,3);
-    G.parts.push({x:p.x+Math.cos(a)*r,y:p.y+Math.sin(a)*r,z:rnd(2.8,.3),vx:rnd(.16,-.16),vy:rnd(.16,-.16),
-      vz:rnd(.3,-.05),life:rnd(3.6,1.8),max:3.6,c:L.pal.dust,s:rnd(2.3,.9),amb:1}); }
+  /* No free-floating light motes around the party. Held lanterns / Orbo's
+     lantern and baked cave lighting stay; DIAG.floaters is damage text only. */
   updateBombs(dt);
   if(G.songBuff>0 && p){ const rg=G.songBuff*0.5*dt;
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.hp=Math.min(e.maxhp,e.hp+rg); }); }
@@ -8695,11 +8725,15 @@ function drawWorld(g,L){
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
+      const fadeL=TILEBLIT.faceFadeL||faceL;
+      const fadeR=TILEBLIT.faceFadeR||faceR;
+      const sec=secretSeamAt(L,x,y);
+      const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
-      if(oS) drawMasonryFace(g, faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oS) drawMasonryFace(g, sf==='n'?fadeL:faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, sf==='e'?fadeR:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      if(oW) drawMasonryFace(g, sf==='w'?fadeR:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
@@ -8710,7 +8744,7 @@ function drawWorld(g,L){
     if(rk && rk.hp<rk.max) drawCracks(g,s.x,s.y,faceH,1-rk.hp/rk.max);
     if(DIGT && DIGT.i===x && DIGT.j===y) drawDigMark(g,s.x,s.y,faceH);
     if(G.dig && G.dig.i===x && G.dig.j===y) drawDigProgress(g,s.x,s.y,faceH,G.dig.min/digNeedMinutes());
-    drawSecretSeamTint(g, L, x, y, faceH);
+    drawSecretFadedFace(g, L, x, y, faceH, TILEBLIT.faceL||TILEBLIT.face, TILEBLIT.faceR||TILEBLIT.face);
   }
 
   // Flare background layer: floors always sit under the party and foes.
@@ -9777,12 +9811,6 @@ function drawEnt(g,e){
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
-  if(e.ghost && e.atk>0 && !e.dead){
-    const t=attackProgress(e);
-    const ang=-1.25+t*2.55, rad=26*z;
-    emit(s.x+Math.cos(ang)*rad*(flip?-1:1), s.y-30*z+Math.sin(ang)*10*z, 22*z, '#7ad8ff', 0.55);
-  }
-
   if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
     g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
     g.globalCompositeOperation='source-over'; g.globalAlpha=1; }
@@ -9802,14 +9830,12 @@ function drawEnt(g,e){
   }
   if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
-    g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke();
-    emit(s.x,s.y-27*z,48*z,'#9fd0ff',0.5); }
+    g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke(); }
   if(e.buff>0){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
-  if(!e.dead&&e.glow&&(e.ghost||e.team==='foe'||e.boss||e.npc||e.kind==='undead'||e.kind==='statue'||e.kind==='wraith'||e.kind==='fungi'||e.kind==='horror'||e.kind==='drake'||e.kind==='spider'||e.kind==='golem'||e.kind==='drow'||e.kind==='duergar'||e.kind==='gnome'||e.kind==='umberhulk'||e.kind==='hookedhorror'||e.kind==='beholder'))
-    emit(s.x,s.y-(e.boss||e.kind==='golem'||e.kind==='beholder'?76:56)*z, (e.ghost?22:e.boss?34:14)*z, e.glow, e.ghost?0.62:e.boss?0.75:0.35);
+  /* No free-floating glow globes above foes / ghosts. Baked lantern light stays. */
 
   if(!e.dead&&(e.ally||e.ghost)&&e.hp<e.maxhp){
     const w=32*ZOOM,h=3.6*ZOOM, yy=s.y-48*ZOOM*e.scale;
