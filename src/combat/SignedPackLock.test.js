@@ -32,13 +32,14 @@ assert(!/entSpriteH\(\{kind:'dwarf'\},z\)/.test(dead),
   'rat dead is not stretched to dwarf size');
 
 assert(/SPRITE_FILES\.bolt='assets\/fx\/fx_bolt\.png'/.test(html)
-  && /SPRITE_FILES\.flame='assets\/fx\/fx_flame\.png'/.test(html),
-  'bolt and flame register as existing missile FX, not new orbs');
-assert(!/SPRITE_FILES\.fx_hex/.test(html) && !/SPRITE_FILES\.hex=/.test(html)
-  && !/assets\/fx\/fx_hex\.png/.test(html),
-  'KILL: hardware hex is not registered as a projectile sheet');
-assert(/function shotSprite\(s\)\{/.test(html) && /s\.kind==='hex'\) return null/.test(html),
-  'hex shots do not blit a hex-nut sprite');
+  && /SPRITE_FILES\.flame='assets\/fx\/fx_flame\.png'/.test(html)
+  && /SPRITE_FILES\.hex='assets\/fx\/fx_hex\.png'/.test(html),
+  'bolt, flame, and iron-shard hex register as existing missile FX, not orbs');
+assert(!/SPRITE_FILES\.fx_hex/.test(html),
+  'KILL: hardware-nut fx_hex key is not used');
+assert(/function shotSprite\(s\)\{/.test(html)
+  && /s\.kind==='hex' && sprReady\('hex'\)/.test(html),
+  'hex shots blit the iron shard when that sheet decodes');
 assert(/s\.kind==='flame' && sprReady\('flame'\)/.test(html)
   && /sprReady\('bolt'\)/.test(html),
   'flame pairs with signed bolt when those sheets decode');
