@@ -61,6 +61,16 @@ assert(/function markSecretProps\(L\)\{\s*\/\* Closed secret/.test(html)
   || /not a door billboard/.test(html),
   'do not introduce a secret-door prop');
 
+assert(/drow_mage:'assets\/creatures\/mon_drow_mage\.png'/.test(html),
+  'mage idle SIGN binds as mon_drow_mage, not a new mage key');
+assert(!/:'assets\/creatures\/mon_mage\.png'/.test(html)
+  && !/SPRITE_FILES\.mage=/.test(html),
+  'filename lock: no mon_mage.png dest');
+assert(/sprite:'drow_mage'/.test(html) && /spr:'drow_mage'/.test(html),
+  'FOE/BESTIARY mage keep the drow_mage sprite');
+assert(/'drow_matron'/.test(html) && /spr:'drow_matron'/.test(html),
+  'matron SPR key stays; HOLD — do not bind a male matron sheet');
+
 assert(/LIVING_MACAR_KEYS=\{/.test(html) && /macar_w1:1/.test(html),
   'walk sheets stay parked — living Macar still uses the front pair only');
 
