@@ -451,7 +451,11 @@ const SPRITE_FILES={
   warden:'assets/creatures/mon_warden.png', horror:'assets/creatures/mon_horror.png', drake:'assets/creatures/mon_drake.png', king:'assets/creatures/mon_king.png',
   golem_brass:'assets/creatures/mon_golem_brass.png', golem_silver:'assets/creatures/mon_golem_silver.png',
   golem_gold:'assets/creatures/mon_golem_gold.png', golem_platinum:'assets/creatures/mon_golem_platinum.png',
-  drow:'assets/creatures/mon_drow.png', drow_mage:'assets/creatures/mon_drow_mage.png',
+  drow:'assets/creatures/mon_drow.png',
+  /* Mage idle/dead SIGN bind as mon_drow_mage / mon_drow_mage_dead (loop-staff).
+     Matron female SIGN binds as mon_drow_matron / mon_drow_matron_dead.
+     KILL male matron sheets. No in-game plinth/base. */
+  drow_mage:'assets/creatures/mon_drow_mage.png',
   duergar:'assets/creatures/mon_duergar.png', duergar_overseer:'assets/creatures/mon_duergar_overseer.png',
   gnome:'assets/creatures/mon_gnome.png', gnome_sapper:'assets/creatures/mon_gnome_sapper.png',
   gnome_good:'assets/creatures/mon_gnome_good.png', gnome_tinker:'assets/creatures/mon_gnome_tinker.png',
@@ -530,6 +534,7 @@ const SPRITE_FILES={
   icon_doll:'assets/ui/icon_doll.png',
   title_splash:'assets/ui/title_splash.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
+  /* Signed pack replaces ONLY intro_ch1 and intro_cavein. Do not touch ch2–ch5. */
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
   intro_ch2:'assets/ui/intro_ch2.jpg',
@@ -588,6 +593,18 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 /* Ranged attack frame. Registered after the _w1/_w2/_atk derivation loops so
    they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
    file is missing, buildHeroAttackFrames() draws one at load. */
+/* Signed wall faces + missile FX. Missing files skip on load — never invent.
+   hex is the iron-shard SIGN, not a hardware nut. Walk sheets parked. */
+SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
+SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
+SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
+SPRITE_FILES.bolt='assets/fx/fx_bolt.png';
+SPRITE_FILES.flame='assets/fx/fx_flame.png';
+SPRITE_FILES.hex='assets/fx/fx_hex.png';
+SPRITE_FILES.spit='assets/fx/fx_spit.png';
+SPRITE_FILES.wisp='assets/fx/fx_wisp.png';
+SPRITE_FILES.heal='assets/fx/fx_heal.png';
+SPRITE_FILES.bomb='assets/fx/fx_bomb.png';
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
@@ -1402,8 +1419,9 @@ function drawDeadBillboard(g,e,img,z){
   const sy=(b&&b.ok&&b.y0!=null)?b.y0*img.height:0;
   const sw=(b&&b.ok&&b.x1!=null)?Math.max(8,(b.x1-b.x0)*img.width):img.width;
   const sh=(b&&b.ok&&b.y1!=null)?Math.max(8,(b.y1-b.y0)*img.height):img.height;
-  const maxW=entSpriteH({kind:'dwarf'},z)*(e.crushed?1.12:1.08);
-  const maxH=entSpriteH({kind:'dwarf'},z)*(e.crushed?0.82:0.62);
+  const liveH=entSpriteH(e,z);
+  const maxW=liveH*(e.crushed?1.12:1.08);
+  const maxH=liveH*(e.crushed?0.82:0.62);
   const aspect=sw/Math.max(1,sh);
   let W=maxW, H=W/aspect;
   if(H>maxH){ H=maxH; W=H*aspect; }
@@ -1879,27 +1897,30 @@ function ensureTileBlit(L){
   if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
   else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; }
 }
-/* Secret-door wall: same masonry tile, desaturated and lightened so it reads
-   as faded stone — never camouflaged, never a hairline seam. */
+/* Secret-door wall: cooler multiply of the live masonry face. Clearly
+   visible, not camouflaged, not a door billboard. Signed secret_wall_n/e/w
+   replace this bake when those sheets decode. Never south. */
 function fadeMasonryCanvas(img){
   if(!img||!img.width) return img;
   const c=document.createElement('canvas');
   c.width=img.width; c.height=img.height;
   const x=c.getContext('2d');
+  x.drawImage(img,0,0);
+  x.globalCompositeOperation='multiply';
+  x.fillStyle='#8aa4bc';
+  x.fillRect(0,0,c.width,c.height);
+  x.globalCompositeOperation='source-over';
   if(x.filter!==undefined){
-    x.filter='saturate(0.22) brightness(1.38)';
-    x.drawImage(img,0,0);
+    x.filter='brightness(1.16)';
+    x.drawImage(c,0,0);
     x.filter='none';
   } else {
-    x.drawImage(img,0,0);
     try{
       const id=x.getImageData(0,0,c.width,c.height), d=id.data;
       for(let i=0;i<d.length;i+=4){
-        const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-        const r=y*0.22+d[i]*0.78, g=y*0.22+d[i+1]*0.78, b=y*0.22+d[i+2]*0.78;
-        d[i]=Math.min(255,(r*1.38+28)|0);
-        d[i+1]=Math.min(255,(g*1.38+28)|0);
-        d[i+2]=Math.min(255,(b*1.38+28)|0);
+        d[i]=Math.min(255,(d[i]*1.16)|0);
+        d[i+1]=Math.min(255,(d[i+1]*1.16)|0);
+        d[i+2]=Math.min(255,(d[i+2]*1.16)|0);
       }
       x.putImageData(id,0,0);
     }catch(_){}
@@ -2103,8 +2124,8 @@ function entSpriteH(e,z){
      e.kind==='xorn'||e.kind==='lurker'||e.kind==='tenebrous'||e.kind==='blackpudding') return 112*z;
   if(e.kind==='golem'||e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 108*z;
   if(e.kind==='drow'||e.kind==='medusa'||e.kind==='orc'||e.kind==='grimlock'||e.kind==='troglodyte'||e.kind==='kuotoa'||e.kind==='quaggoth') return 86*z;
-  if(e.kind==='gnome'||e.kind==='kobold'||e.kind==='goblin'||e.kind==='pech') return 68*z;
-  if(e.kind==='rat'||e.kind==='bat'||e.kind==='beetle'||e.kind==='centipede'||e.kind==='piercer'||
+  if(e.kind==='gnome'||e.kind==='kobold'||e.kind==='goblin'||e.kind==='pech'||e.kind==='rat') return 68*z;
+  if(e.kind==='bat'||e.kind==='beetle'||e.kind==='centipede'||e.kind==='piercer'||
      e.kind==='crysmal'||e.kind==='greenslime') return 48*z;
   return 70*z;
 }
@@ -2552,7 +2573,7 @@ function bakeTextures(pal){
 }
 /* ---------------------------- game state ---------------------------- */
 const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
-  ents:[], props:[], shots:[], parts:[], texts:[], decals:[],
+  ents:[], props:[], shots:[], parts:[], heals:[], booms:[], texts:[], decals:[],
   cam:{x:0,y:0}, log:[], shake:0, flash:null, hitstop:0, hurt:0,
   cleared:{}, unlocked:1, elapsed:0, kills:0, hint:null, introT:0, taught:{},
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
@@ -2620,7 +2641,7 @@ function ent(o){
   e.maxhp=e.hp; return e;
 }
 const FOE={
-  rat:()=>ent({kind:'rat',sprite:'rat',hp:14,sp:3.8,dmg:4,range:.7,cd:.7,scale:.72,r:.28,name:'Cave Rat',glow:'#8a6a4a'}),
+  rat:()=>ent({kind:'rat',sprite:'rat',hp:14,sp:3.8,dmg:4,range:.7,cd:.7,scale:.82,r:.28,name:'Cave Rat',glow:'#8a6a4a'}),
   bat:()=>ent({kind:'bat',sprite:'bat',hp:16,sp:4.2,dmg:5,range:4.6,cd:1.6,scale:.78,r:.3,ranged:1,name:'Cave Bat',glow:'#7a5cff'}),
   spider:()=>ent({kind:'spider',sprite:'spider',hp:26,sp:3.4,dmg:6,range:.85,cd:.9,scale:.9,name:'Cave Spider',glow:'#8f5bff'}),
   spitter:()=>ent({kind:'spider',sprite:'spitter',hp:34,sp:2.4,dmg:9,range:5.5,cd:2,scale:1.05,ranged:1,name:'Spitter',glow:'#c07bff'}),
@@ -2876,7 +2897,7 @@ const BESTIARY={
   spiderGiant:{n:'Giant Spider',spr:'spider_giant',hp:36,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.25,sa:'Poison',poison:1,k:'spider'},
   spiderLord:{n:'Spider Lord',spr:'spider_giant',hp:44,ac:4,mv:12,at:2,dmg:5,tt:'C',dc:80,g:'#c07bff',sc:1.55,sa:'Deadly Poison, Web',poison:1,web:1,killPoison:1,k:'spider',boss:1,r:.52,hd:4},
   spiderHuge:{n:'Huge Spider',spr:'spider_huge',hp:18,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.05,sa:'Poison',poison:1,k:'spider'},
-  rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
+  rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.82,r:.28,sa:'Poison',poison:1},
   centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
   beetle:{n:'Fire Beetle',spr:'beetle',hp:10,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.0,sa:'Poison',poison:1},
   spider:{n:'Cave Spider',spr:'spider',hp:9,ac:8,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1,slowPoison:1}
@@ -4163,7 +4184,7 @@ function startChapter(n){
   const keep=!!G._keepProgress;
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
-  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
+  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.heals=[];G.booms=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
@@ -5101,6 +5122,37 @@ function burst(x,y,c,n,spd){ spd=spd||3;
   for(let i=0;i<n;i++){ const a=rnd(TAU);
     G.parts.push({x,y,z:rnd(.5,.1),vx:Math.cos(a)*rnd(spd,.3),vy:Math.sin(a)*rnd(spd,.3),vz:rnd(3.6,.6),
       life:rnd(.85,.35),max:.85,c,s:rnd(4,1.6)}); } }
+/* Heal / Talpor pulse / Rally — gold NMM shard burst, not an orb, not a HUD icon. */
+function pulseHealFx(x,y){
+  G.heals=G.heals||[];
+  G.heals.push({x,y,life:.55,max:.55});
+  if(!sprReady('heal')) burst(x,y,'#c9a24a',10,2);
+}
+function drawHealPulse(g,h){
+  const img=SPR.heal;
+  if(!img||!img.width) return;
+  const p=w2s(h.x,h.y), z=ZOOM, a=clamp(h.life/(h.max||.55),0,1);
+  const H=56*z*(0.82+0.28*(1-a));
+  const W=img.width*(H/Math.max(1,img.height));
+  g.save(); g.globalAlpha=0.28+0.72*a;
+  g.drawImage(img, p.x-W/2, p.y-H*0.92, W, H);
+  g.restore();
+}
+/* Throw / sapper boom — soot and shrapnel burst, not an orb. */
+function boomFx(x,y){
+  G.booms=G.booms||[];
+  G.booms.push({x,y,life:.5,max:.5});
+}
+function drawBoom(g,h){
+  const img=SPR.bomb;
+  if(!img||!img.width) return;
+  const p=w2s(h.x,h.y), z=ZOOM, a=clamp(h.life/(h.max||.5),0,1);
+  const H=72*z*(0.78+0.36*(1-a));
+  const W=img.width*(H/Math.max(1,img.height));
+  g.save(); g.globalAlpha=0.3+0.7*a;
+  g.drawImage(img, p.x-W/2, p.y-H*0.55, W, H);
+  g.restore();
+}
 function ftext(x,y,txt,c,big,kind){
   kind=kind||'';
   const n=G.texts.filter(t=>Math.hypot(t.ox-x,t.oy-y)<0.45).length;
@@ -7043,7 +7095,7 @@ function applyHeal(e, n){
   const amt=Math.round(n*ADD_SCALE);
   e.hp=Math.min(e.maxhp, e.hp+amt);
   ftext(e.x,e.y,'+'+amt,'#e0c169',e.hero);
-  burst(e.x,e.y,'#c9a24a',10,2);
+  pulseHealFx(e.x,e.y);
   return amt;
 }
 function clearPoison(e){ e.poisonT=0; e._pt=0; e.slowT=0; }
@@ -7265,6 +7317,10 @@ function secretSeamAt(L,x,y){
   return null;
 }
 function secretFaceImg(face, faceL, faceR){
+  /* Signed 512×768 cooler faces when bound. Fallback is the live-tile multiply. */
+  if(face==='e' && sprReady('secret_wall_e')) return SPR.secret_wall_e;
+  if(face==='w' && sprReady('secret_wall_w')) return SPR.secret_wall_w;
+  if(face==='n' && sprReady('secret_wall_n')) return SPR.secret_wall_n;
   const fadeL=TILEBLIT.faceFadeL||faceL, fadeR=TILEBLIT.faceFadeR||faceR;
   if(face==='e'||face==='w') return fadeR||faceR;
   return fadeL||faceL;
@@ -8170,7 +8226,7 @@ function fire(key){
     shoot(thrower, tx, ty, 0, 'pick', '#cfd6de', 12);
     say((thrower.name||'PICK')+' hurls a pick. d20 vs AC.','#ffb45c'); }
   if(key==='rally'){ G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead){ e.buff=8; e.hp=Math.min(e.maxhp,e.hp+30);
-      burst(e.x,e.y,'#ffd27a',10,2);} }); ftext(p.x,p.y-.8,'RALLY','#ffd27a',1);
+      pulseHealFx(e.x,e.y);} }); ftext(p.x,p.y-.8,'RALLY','#ffd27a',1);
     say('MACAR sounds Rally. Living kin heal 30 and hit harder for 8s.','#ffd27a');
     hint('Rally: heal 30, +2 to hit, 1.5× damage for 8s.',3.4); }
 }
@@ -8452,7 +8508,7 @@ function update(dt){
     if(e.team==='party'){
       if(e.heals){ const hu=nearestAlly(e,12,1);
         if(hu&&hu.hp<hu.maxhp*.6&&e.ct<=0){ hu.hp=Math.min(hu.maxhp,hu.hp+24);
-          burst(hu.x,hu.y,'#ffe9a8',10,2); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } }
+          pulseHealFx(hu.x,hu.y); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } } }
       const kin=G.ents.filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
       const fight=kinCanAutoFight(e)&&foeInTheFight();
@@ -8529,6 +8585,12 @@ function update(dt){
   for(const q of G.parts){ q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.vz-=11*dt;
     if(q.z<0){q.z=0;q.vz*=-.35;q.vx*=.6;q.vy*=.6;} q.life-=dt; }
   G.parts=G.parts.filter(q=>q.life>0);
+  G.heals=G.heals||[];
+  for(const h of G.heals) h.life-=dt;
+  G.heals=G.heals.filter(h=>h.life>0);
+  G.booms=G.booms||[];
+  for(const b of G.booms) b.life-=dt;
+  G.booms=G.booms.filter(b=>b.life>0);
   const pcap=QUALITY?48:12;
   if(G.parts.length>pcap) G.parts.splice(0, G.parts.length-pcap);
   for(const t of G.texts){ t.y-=dt*.9; t.life-=dt; }
@@ -8686,6 +8748,8 @@ function drawWorld(g,L){
     push(actorDrawDepth(e),()=>drawEnt(g,e));
   }
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
+  for(const h of (G.heals||[])) if(near(h)&&seenAt(h)) push((h.x+h.y)|0,()=>drawHealPulse(g,h));
+  for(const b of (G.booms||[])) if(near(b)&&seenAt(b)) push((b.x+b.y)|0,()=>drawBoom(g,b));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
   if(G.aim) push(((G.aim.x+G.aim.y)|0)-1,()=>drawAim(g));
@@ -10232,6 +10296,17 @@ function drawKing(g,e,z,sw){
   g.restore();
 }
 
+function shotSprite(s){
+  if(!s) return null;
+  /* Iron-shard hex SIGN — not an orb, not a hardware nut. */
+  if(s.kind==='hex' && sprReady('hex')) return SPR.hex;
+  if(s.kind==='flame' && sprReady('flame')) return SPR.flame;
+  if(s.kind==='spit' && sprReady('spit')) return SPR.spit;
+  if(s.kind==='wisp' && sprReady('wisp')) return SPR.wisp;
+  if(s.kind==='bomb' && sprReady('bomb')) return SPR.bomb;
+  if((s.kind==='bolt'||!s.kind) && sprReady('bolt')) return SPR.bolt;
+  return null;
+}
 function drawShot(g,s){
   const p=w2s(s.x,s.y), z=ZOOM;
   g.save(); g.translate(p.x,p.y-28*z);
@@ -10249,12 +10324,20 @@ function drawShot(g,s){
     g.beginPath(); g.moveTo(4*z,-11*z); g.quadraticCurveTo(15*z,-4*z,13*z,7*z);
     g.quadraticCurveTo(7*z,0,2*z,0); g.closePath(); sc(g,'#d4dbe4',-11*z,7*z,1.5);
   } else {
-    const gr=g.createRadialGradient(0,0,1,0,0,14*z);
-    gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
-    g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1; }
+    const img=shotSprite(s);
+    if(img){
+      g.rotate(Math.atan2(s.vy||0, s.vx||0));
+      const H=18*z, W=img.width*(H/Math.max(1,img.height));
+      g.drawImage(img, -W*0.18, -H/2, W, H);
+    } else {
+      const gr=g.createRadialGradient(0,0,1,0,0,14*z);
+      gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
+      g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1;
+    }
+  }
   g.restore();
-  emit(p.x,p.y-28*z,26*z,s.col||'#e8e0d0',0.8);
+  if(!shotSprite(s)) emit(p.x,p.y-28*z,26*z,s.col||'#e8e0d0',0.8);
 }
 function drawPart(g,q){
   const p=w2s(q.x,q.y), z=ZOOM, a=clamp(q.life/(q.max||.85),0,1);
@@ -10919,8 +11002,11 @@ function explode(x,y,kind){
   const dmg=burp?burpDamage():bombDamage(), R=burp?burpRadius():bombRadius();
   const dice=burp?'3d10':'10d10';
   shake(burp?18:30); G.flash={c:burp?'#ffe08a':'#ffd9a0',a:burp?0.38:0.55};
-  burst(x,y,burp?'#d2bd63':'#ffd27a',burp?36:60,burp?4.4:7);
-  burst(x,y,burp?'#c9783a':'#ff7a3a',burp?22:44,burp?3.2:5);
+  boomFx(x,y);
+  if(!sprReady('bomb')){
+    burst(x,y,burp?'#d2bd63':'#ffd27a',burp?36:60,burp?4.4:7);
+    burst(x,y,burp?'#c9783a':'#ff7a3a',burp?22:44,burp?3.2:5);
+  }
   for(let i=0;i<(burp?5:8);i++) addDecal(x+rnd(1.8,-1.8),y+rnd(1.8,-1.8),rnd(burp?1.2:1.8,0.8));
   ftext(x,y-0.6,dice+' = '+dmg, burp?'#d2bd63':'#ffd27a',1);
   for(const e of G.ents){
