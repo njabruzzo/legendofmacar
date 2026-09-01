@@ -33,8 +33,13 @@ assert(!/entSpriteH\(\{kind:'dwarf'\},z\)/.test(dead),
 
 assert(/SPRITE_FILES\.bolt='assets\/fx\/fx_bolt\.png'/.test(html)
   && /SPRITE_FILES\.flame='assets\/fx\/fx_flame\.png'/.test(html)
-  && /SPRITE_FILES\.hex='assets\/fx\/fx_hex\.png'/.test(html),
-  'bolt, flame, and iron-shard hex register as existing missile FX, not orbs');
+  && /SPRITE_FILES\.hex='assets\/fx\/fx_hex\.png'/.test(html)
+  && /SPRITE_FILES\.spit='assets\/fx\/fx_spit\.png'/.test(html),
+  'bolt, flame, hex, and bile spit register as existing missile FX, not orbs');
+assert(!/SPRITE_FILES\.spore=/.test(html) && !/assets\/fx\/fx_spore\.png/.test(html),
+  'KILL: fx_spore flying mushroom rock is not bound');
+assert(/s\.kind==='spit' && sprReady\('spit'\)/.test(html),
+  'spit shots blit the bile glob when that sheet decodes');
 assert(!/SPRITE_FILES\.fx_hex/.test(html),
   'KILL: hardware-nut fx_hex key is not used');
 assert(/function shotSprite\(s\)\{/.test(html)

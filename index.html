@@ -601,6 +601,7 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
 SPRITE_FILES.bolt='assets/fx/fx_bolt.png';
 SPRITE_FILES.flame='assets/fx/fx_flame.png';
 SPRITE_FILES.hex='assets/fx/fx_hex.png';
+SPRITE_FILES.spit='assets/fx/fx_spit.png';
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
@@ -10258,6 +10259,7 @@ function shotSprite(s){
   /* Iron-shard hex SIGN — not an orb, not a hardware nut. */
   if(s.kind==='hex' && sprReady('hex')) return SPR.hex;
   if(s.kind==='flame' && sprReady('flame')) return SPR.flame;
+  if(s.kind==='spit' && sprReady('spit')) return SPR.spit;
   if((s.kind==='bolt'||!s.kind) && sprReady('bolt')) return SPR.bolt;
   return null;
 }
