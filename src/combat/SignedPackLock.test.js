@@ -45,6 +45,16 @@ assert(/SPRITE_FILES\.wisp='assets\/fx\/fx_wisp\.png'/.test(html)
   'wisp is the wraith/bat/ghost shot, not an orb');
 assert(/e\.kind==='wraith'\|\|e\.kind==='bat'\|\|e\.kind==='ghost'/.test(html),
   'wraith, bat, and ghost already fire the wisp kind');
+assert(/SPRITE_FILES\.heal='assets\/fx\/fx_heal\.png'/.test(html)
+  && /function pulseHealFx\(/.test(html) && /function drawHealPulse\(/.test(html),
+  'heal SIGN is Heal / Talpor pulse / Rally VFX, not a HUD icon');
+assert(/pulseHealFx\(e\.x,e\.y\)/.test(html) && /pulseHealFx\(hu\.x,hu\.y\)/.test(html)
+  && /key==='rally'[\s\S]{0,220}pulseHealFx/.test(html),
+  'applyHeal, Talpor pulse, and Rally use the shard burst');
+assert(!/icon_specialty/.test(html.match(/function pulseHealFx\([\s\S]*?\n\}/)[0]||''),
+  'heal burst is not a Specialty HUD icon');
+assert(!/tile_floor_heal/.test(html) && !/SPRITE_FILES\.heal_floor/.test(html),
+  'floor tiles HOLD — no heal floor-tile bind');
 const under=html.match(/const UNDERDARK=\[[\s\S]*?\];/)[0];
 assert(/'goblin'/.test(under) && /SPRITE_FILES\[k\+'_dead'\]=src\.replace/.test(html),
   'Goblin A dead SIGN dest is mon_goblin_dead from the idle stem');
