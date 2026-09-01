@@ -69,7 +69,11 @@ assert(!/:'assets\/creatures\/mon_mage\.png'/.test(html)
 assert(/sprite:'drow_mage'/.test(html) && /spr:'drow_mage'/.test(html),
   'FOE/BESTIARY mage keep the drow_mage sprite');
 assert(/'drow_matron'/.test(html) && /spr:'drow_matron'/.test(html),
-  'matron SPR key stays; HOLD — do not bind a male matron sheet');
+  'female matron SIGN binds as existing drow_matron SPR');
+assert(!/24ca7b46/.test(html),
+  'KILL: male matron sheet is not wired');
+assert(!/function drawMatronPlinth/.test(html) && !/k:'matron_base'/.test(html),
+  'no in-game matron plinth/base prop');
 
 assert(/LIVING_MACAR_KEYS=\{/.test(html) && /macar_w1:1/.test(html),
   'walk sheets stay parked — living Macar still uses the front pair only');
