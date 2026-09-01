@@ -76,6 +76,23 @@ assert(!/24ca7b46/.test(html),
 assert(!/function drawMatronPlinth/.test(html) && !/k:'matron_base'/.test(html),
   'no in-game matron plinth/base prop');
 
+assert(/intro_ch1:'assets\/ui\/intro_ch1\.jpg'/.test(html)
+  && /intro_cavein:'assets\/ui\/intro_cavein\.jpg'/.test(html),
+  'signed intros dest to intro_ch1 and intro_cavein only');
+assert(/Do not touch ch2/.test(html),
+  'ch2–ch5 chapter stills stay out of this signed pack');
+const ui=path.join(__dirname,'../../assets/ui');
+const stills={
+  'intro_ch2.jpg':242510,
+  'intro_ch3.jpg':366936,
+  'intro_ch4.jpg':406627,
+  'intro_ch5.jpg':305718
+};
+Object.keys(stills).forEach(n=>{
+  const sz=fs.statSync(path.join(ui,n)).size;
+  assert(sz===stills[n], n+' left untouched (size '+sz+')');
+});
+
 assert(/LIVING_MACAR_KEYS=\{/.test(html) && /macar_w1:1/.test(html),
   'walk sheets stay parked — living Macar still uses the front pair only');
 
