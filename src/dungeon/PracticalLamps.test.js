@@ -32,6 +32,10 @@ assert(!/#a06cff|#6fd0ff|#c07bff|#7ad0ff|#8aa0b8|#a35bff|#ff7ad9|#7dff9a|#4ce0ff
   'chapter light tables are lamp amber, not magic globes');
 assert(!/L\.lights\.push\(\{x:40\.0,y:41\.2,c:'#8aa0b8'/.test(html),
   'Chapter II no longer plants a spare blue globe by the camp lantern');
+assert(!/\{x:14\.4,y:22\.0,c:'#e0a060'/.test(html) && !/\{x:14\.5,y:26\.2,c:'#d09050'/.test(html),
+  'Chapter I spawn no longer plants unattached floor globes');
+assert(!/e\.crushed&&e\.corpse/.test(html.match(/function gatherLights\(L\)\{[\s\S]*?\nfunction gatherLightsCapped/)[0]),
+  'crushed kin do not punch a floor globe');
 
 assert(/\{x:10\.4,y:30\.2,k:'lantern'\}/.test(html) && /\{x:18\.2,y:63\.4,k:'lantern'\}/.test(html),
   'Chapter II hangs lamps where the old purple globes sat');

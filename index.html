@@ -3116,8 +3116,7 @@ function makeChapter(n){
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
-    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:14.4,y:22.0,c:'#e0a060',r:6.2,f:0.88},
-              {x:14.5,y:26.2,c:'#d09050',r:5.4,f:0.78},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
+    L.lights=[{x:15.2,y:16.45,c:'#ffb45c',r:5.0,f:1},{x:17.8,y:27.15,c:'#ffb45c',r:4.8,f:1},
               {x:36.5,y:7.5,c:'#ff2f3a',r:7.4,f:1.55},
               {x:24.2,y:15.35,c:'#ffb45c',r:4.6,f:0.95},
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
@@ -8908,14 +8907,12 @@ function gatherLights(L){
   const p=player();
   if(p) out.push({x:p.x,y:p.y,c:'#ffd6a0',r:6.6,f:1.05,fl:0});
   for(const e of G.ents) if(!e.dead&&e.boss&&e.glow) out.push({x:e.x,y:e.y,c:e.glow,r:7,f:1.3,fl:1});
-  for(const e of G.ents) if(e.crushed&&e.corpse&&!e.ghost&&seen(e.x,e.y)) out.push({x:e.x,y:e.y,c:'#ffc07a',r:2.8,f:0.72,fl:1});
   for(const s of G.shots) out.push({x:s.x,y:s.y,c:s.col,r:2.6,f:1.1,fl:0});
   for(const pr of G.props){
     if(!seen(pr.x,pr.y)) continue;
     if(pr.k==='lantern') out.push({x:pr.x,y:pr.y,c:'#ffb45c',r:5.2,f:1.0,fl:1});
     if(pr.k==='rubywall'||pr.k==='rubydoor') out.push({x:pr.x,y:pr.y,c:'#ff2a3c',r:5.2,f:1.15,fl:1});
     if(pr.k==='brazier') out.push({x:pr.x,y:pr.y,c:'#ff8a3a',r:5.5,f:1.1,fl:1});
-    if(pr.k==='trap'&&pr.trap==='trap_runes') out.push({x:pr.x,y:pr.y,c:'#c07bff',r:2.6,f:0.7,fl:1});
     if(pr.k==='bronzedoor') out.push({x:pr.x,y:pr.y,c:'#d4a04a',r:5.8,f:1.05,fl:1});
     if(pr.k==='bell') out.push({x:pr.x,y:pr.y,c:'#d4a04a',r:2.2,f:0.55,fl:1});
   }
@@ -9856,8 +9853,6 @@ function drawEnt(g,e){
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
   }
   if(e.crushed){
-    emit(s.x, s.y-10*ZOOM, 26*ZOOM, '#ffe2b0', 0.72);
-    ray(s.x, s.y-8*ZOOM, 20*ZOOM, '#ffd48a', 0.28);
     ctx.strokeStyle='rgba(255,214,140,0.9)'; ctx.lineWidth=2.2*ZOOM;
     ctx.beginPath(); ctx.ellipse(s.x, s.y+2*ZOOM, 22*ZOOM, 11*ZOOM, 0, 0, TAU); ctx.stroke();
     ctx.font='800 '+(12*ZOOM)+'px '+FONT_TITLE; ctx.textAlign='center';
