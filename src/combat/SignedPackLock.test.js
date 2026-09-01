@@ -50,6 +50,9 @@ assert(/'goblin'/.test(under) && /SPRITE_FILES\[k\+'_dead'\]=src\.replace/.test(
   'Goblin A dead SIGN dest is mon_goblin_dead from the idle stem');
 assert(!/24c41b43/.test(html),
   'HOLD: dagger-dead is not wired');
+assert(/'goblin_king'/.test(under) && /spr:'goblin_king'/.test(html)
+  && !/mon_goblin_b\.png/.test(html),
+  'Goblin B dead SIGN dest is mon_goblin_king_dead, not mon_goblin_b');
 assert(!/SPRITE_FILES\.fx_hex/.test(html),
   'KILL: hardware-nut fx_hex key is not used');
 assert(/function shotSprite\(s\)\{/.test(html)
