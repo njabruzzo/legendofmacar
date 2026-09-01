@@ -40,6 +40,16 @@ assert(!/SPRITE_FILES\.spore=/.test(html) && !/assets\/fx\/fx_spore\.png/.test(h
   'KILL: fx_spore flying mushroom rock is not bound');
 assert(/s\.kind==='spit' && sprReady\('spit'\)/.test(html),
   'spit shots blit the bile glob when that sheet decodes');
+assert(/SPRITE_FILES\.wisp='assets\/fx\/fx_wisp\.png'/.test(html)
+  && /s\.kind==='wisp' && sprReady\('wisp'\)/.test(html),
+  'wisp is the wraith/bat/ghost shot, not an orb');
+assert(/e\.kind==='wraith'\|\|e\.kind==='bat'\|\|e\.kind==='ghost'/.test(html),
+  'wraith, bat, and ghost already fire the wisp kind');
+const under=html.match(/const UNDERDARK=\[[\s\S]*?\];/)[0];
+assert(/'goblin'/.test(under) && /SPRITE_FILES\[k\+'_dead'\]=src\.replace/.test(html),
+  'Goblin A dead SIGN dest is mon_goblin_dead from the idle stem');
+assert(!/24c41b43/.test(html),
+  'HOLD: dagger-dead is not wired');
 assert(!/SPRITE_FILES\.fx_hex/.test(html),
   'KILL: hardware-nut fx_hex key is not used');
 assert(/function shotSprite\(s\)\{/.test(html)
