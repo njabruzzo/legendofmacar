@@ -55,6 +55,14 @@ assert(!/icon_specialty/.test(html.match(/function pulseHealFx\([\s\S]*?\n\}/)[0
   'heal burst is not a Specialty HUD icon');
 assert(!/tile_floor_heal/.test(html) && !/SPRITE_FILES\.heal_floor/.test(html),
   'floor tiles HOLD — no heal floor-tile bind');
+assert(/SPRITE_FILES\.bomb='assets\/fx\/fx_bomb\.png'/.test(html)
+  && /function boomFx\(/.test(html) && /function drawBoom\(/.test(html),
+  'bomb SIGN is Throw / sapper boom VFX, not an orb');
+assert(/function explode\([\s\S]*?boomFx\(x,y\)/.test(html)
+  && /s\.kind==='bomb' && sprReady\('bomb'\)/.test(html),
+  'explode and sapper bomb shots blit the soot burst');
+assert(!/icon_bomb/.test(html.match(/function boomFx\([\s\S]*?\n\}/)[0]||''),
+  'boom VFX is not the HUD bomb icon');
 const under=html.match(/const UNDERDARK=\[[\s\S]*?\];/)[0];
 assert(/'goblin'/.test(under) && /SPRITE_FILES\[k\+'_dead'\]=src\.replace/.test(html),
   'Goblin A dead SIGN dest is mon_goblin_dead from the idle stem');

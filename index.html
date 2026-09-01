@@ -604,6 +604,7 @@ SPRITE_FILES.hex='assets/fx/fx_hex.png';
 SPRITE_FILES.spit='assets/fx/fx_spit.png';
 SPRITE_FILES.wisp='assets/fx/fx_wisp.png';
 SPRITE_FILES.heal='assets/fx/fx_heal.png';
+SPRITE_FILES.bomb='assets/fx/fx_bomb.png';
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
@@ -2572,7 +2573,7 @@ function bakeTextures(pal){
 }
 /* ---------------------------- game state ---------------------------- */
 const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
-  ents:[], props:[], shots:[], parts:[], heals:[], texts:[], decals:[],
+  ents:[], props:[], shots:[], parts:[], heals:[], booms:[], texts:[], decals:[],
   cam:{x:0,y:0}, log:[], shake:0, flash:null, hitstop:0, hurt:0,
   cleared:{}, unlocked:1, elapsed:0, kills:0, hint:null, introT:0, taught:{},
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
@@ -4183,7 +4184,7 @@ function startChapter(n){
   const keep=!!G._keepProgress;
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
-  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.heals=[];G.texts=[];G.log=[];
+  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.heals=[];G.booms=[];G.texts=[];G.log=[];
   G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
@@ -5135,6 +5136,21 @@ function drawHealPulse(g,h){
   const W=img.width*(H/Math.max(1,img.height));
   g.save(); g.globalAlpha=0.28+0.72*a;
   g.drawImage(img, p.x-W/2, p.y-H*0.92, W, H);
+  g.restore();
+}
+/* Throw / sapper boom — soot and shrapnel burst, not an orb. */
+function boomFx(x,y){
+  G.booms=G.booms||[];
+  G.booms.push({x,y,life:.5,max:.5});
+}
+function drawBoom(g,h){
+  const img=SPR.bomb;
+  if(!img||!img.width) return;
+  const p=w2s(h.x,h.y), z=ZOOM, a=clamp(h.life/(h.max||.5),0,1);
+  const H=72*z*(0.78+0.36*(1-a));
+  const W=img.width*(H/Math.max(1,img.height));
+  g.save(); g.globalAlpha=0.3+0.7*a;
+  g.drawImage(img, p.x-W/2, p.y-H*0.55, W, H);
   g.restore();
 }
 function ftext(x,y,txt,c,big,kind){
@@ -8572,6 +8588,9 @@ function update(dt){
   G.heals=G.heals||[];
   for(const h of G.heals) h.life-=dt;
   G.heals=G.heals.filter(h=>h.life>0);
+  G.booms=G.booms||[];
+  for(const b of G.booms) b.life-=dt;
+  G.booms=G.booms.filter(b=>b.life>0);
   const pcap=QUALITY?48:12;
   if(G.parts.length>pcap) G.parts.splice(0, G.parts.length-pcap);
   for(const t of G.texts){ t.y-=dt*.9; t.life-=dt; }
@@ -8730,6 +8749,7 @@ function drawWorld(g,L){
   }
   for(const s of G.shots) if(near(s)&&seenAt(s)) push((s.x+s.y)|0,()=>drawShot(g,s));
   for(const h of (G.heals||[])) if(near(h)&&seenAt(h)) push((h.x+h.y)|0,()=>drawHealPulse(g,h));
+  for(const b of (G.booms||[])) if(near(b)&&seenAt(b)) push((b.x+b.y)|0,()=>drawBoom(g,b));
   if(QUALITY) for(const q of G.parts) if(near(q)) push((q.x+q.y)|0,()=>drawPart(g,q));
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
   if(G.aim) push(((G.aim.x+G.aim.y)|0)-1,()=>drawAim(g));
@@ -10283,6 +10303,7 @@ function shotSprite(s){
   if(s.kind==='flame' && sprReady('flame')) return SPR.flame;
   if(s.kind==='spit' && sprReady('spit')) return SPR.spit;
   if(s.kind==='wisp' && sprReady('wisp')) return SPR.wisp;
+  if(s.kind==='bomb' && sprReady('bomb')) return SPR.bomb;
   if((s.kind==='bolt'||!s.kind) && sprReady('bolt')) return SPR.bolt;
   return null;
 }
@@ -10981,8 +11002,11 @@ function explode(x,y,kind){
   const dmg=burp?burpDamage():bombDamage(), R=burp?burpRadius():bombRadius();
   const dice=burp?'3d10':'10d10';
   shake(burp?18:30); G.flash={c:burp?'#ffe08a':'#ffd9a0',a:burp?0.38:0.55};
-  burst(x,y,burp?'#d2bd63':'#ffd27a',burp?36:60,burp?4.4:7);
-  burst(x,y,burp?'#c9783a':'#ff7a3a',burp?22:44,burp?3.2:5);
+  boomFx(x,y);
+  if(!sprReady('bomb')){
+    burst(x,y,burp?'#d2bd63':'#ffd27a',burp?36:60,burp?4.4:7);
+    burst(x,y,burp?'#c9783a':'#ff7a3a',burp?22:44,burp?3.2:5);
+  }
   for(let i=0;i<(burp?5:8);i++) addDecal(x+rnd(1.8,-1.8),y+rnd(1.8,-1.8),rnd(burp?1.2:1.8,0.8));
   ftext(x,y-0.6,dice+' = '+dmg, burp?'#d2bd63':'#ffd27a',1);
   for(const e of G.ents){
