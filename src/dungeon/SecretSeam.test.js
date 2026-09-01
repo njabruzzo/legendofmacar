@@ -17,8 +17,15 @@ assert(/function secretFaceOk\(/.test(html) && /function normalizeSecretFace\(/.
   'south faces are normalized off the secret');
 assert(/function fadeMasonryCanvas\(/.test(html) && /function drawSecretFadedFace\(/.test(html),
   'closed secret is a faded masonry face, not a door');
-assert(/saturate\(0\.22\) brightness\(1\.38\)/.test(html),
-  'secret wall is desaturated and lightened in code');
+assert(/function fadeMasonryCanvas\(/.test(html)
+  && /fillStyle='#8aa4bc'/.test(html)
+  && /globalCompositeOperation='multiply'/.test(html),
+  'secret wall is a cooler multiply of the live masonry tile');
+assert(/sprReady\('secret_wall_n'\)/.test(html) && /sprReady\('secret_wall_e'\)/.test(html)
+  && /sprReady\('secret_wall_w'\)/.test(html),
+  'signed secret_wall n/e/w faces bind when those sheets decode');
+assert(!/sprReady\('secret_wall_s'\)/.test(html) && !/secret_wall_s/.test(html),
+  'no south secret-wall sheet');
 assert(!/function drawSecretSeamTint\(/.test(html) && !/fillStyle='#9bb3c6'/.test(html),
   'old grey-blue multiply seam is gone');
 assert(!/g\.globalAlpha=0\.34/.test(html) || !/fillStyle='#6f8498'/.test(html),

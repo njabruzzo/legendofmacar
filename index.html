@@ -588,6 +588,13 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 /* Ranged attack frame. Registered after the _w1/_w2/_atk derivation loops so
    they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
    file is missing, buildHeroAttackFrames() draws one at load. */
+/* Signed wall faces + missile FX. Missing files skip on load — never invent.
+   KILL: do not register fx_hex (43213b2a hardware nut). Walk sheets parked. */
+SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
+SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
+SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
+SPRITE_FILES.bolt='assets/fx/fx_bolt.png';
+SPRITE_FILES.flame='assets/fx/fx_flame.png';
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
@@ -1402,8 +1409,9 @@ function drawDeadBillboard(g,e,img,z){
   const sy=(b&&b.ok&&b.y0!=null)?b.y0*img.height:0;
   const sw=(b&&b.ok&&b.x1!=null)?Math.max(8,(b.x1-b.x0)*img.width):img.width;
   const sh=(b&&b.ok&&b.y1!=null)?Math.max(8,(b.y1-b.y0)*img.height):img.height;
-  const maxW=entSpriteH({kind:'dwarf'},z)*(e.crushed?1.12:1.08);
-  const maxH=entSpriteH({kind:'dwarf'},z)*(e.crushed?0.82:0.62);
+  const liveH=entSpriteH(e,z);
+  const maxW=liveH*(e.crushed?1.12:1.08);
+  const maxH=liveH*(e.crushed?0.82:0.62);
   const aspect=sw/Math.max(1,sh);
   let W=maxW, H=W/aspect;
   if(H>maxH){ H=maxH; W=H*aspect; }
@@ -1879,27 +1887,30 @@ function ensureTileBlit(L){
   if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
   else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; }
 }
-/* Secret-door wall: same masonry tile, desaturated and lightened so it reads
-   as faded stone — never camouflaged, never a hairline seam. */
+/* Secret-door wall: cooler multiply of the live masonry face. Clearly
+   visible, not camouflaged, not a door billboard. Signed secret_wall_n/e/w
+   replace this bake when those sheets decode. Never south. */
 function fadeMasonryCanvas(img){
   if(!img||!img.width) return img;
   const c=document.createElement('canvas');
   c.width=img.width; c.height=img.height;
   const x=c.getContext('2d');
+  x.drawImage(img,0,0);
+  x.globalCompositeOperation='multiply';
+  x.fillStyle='#8aa4bc';
+  x.fillRect(0,0,c.width,c.height);
+  x.globalCompositeOperation='source-over';
   if(x.filter!==undefined){
-    x.filter='saturate(0.22) brightness(1.38)';
-    x.drawImage(img,0,0);
+    x.filter='brightness(1.16)';
+    x.drawImage(c,0,0);
     x.filter='none';
   } else {
-    x.drawImage(img,0,0);
     try{
       const id=x.getImageData(0,0,c.width,c.height), d=id.data;
       for(let i=0;i<d.length;i+=4){
-        const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-        const r=y*0.22+d[i]*0.78, g=y*0.22+d[i+1]*0.78, b=y*0.22+d[i+2]*0.78;
-        d[i]=Math.min(255,(r*1.38+28)|0);
-        d[i+1]=Math.min(255,(g*1.38+28)|0);
-        d[i+2]=Math.min(255,(b*1.38+28)|0);
+        d[i]=Math.min(255,(d[i]*1.16)|0);
+        d[i+1]=Math.min(255,(d[i+1]*1.16)|0);
+        d[i+2]=Math.min(255,(d[i+2]*1.16)|0);
       }
       x.putImageData(id,0,0);
     }catch(_){}
@@ -2103,8 +2114,8 @@ function entSpriteH(e,z){
      e.kind==='xorn'||e.kind==='lurker'||e.kind==='tenebrous'||e.kind==='blackpudding') return 112*z;
   if(e.kind==='golem'||e.kind==='troll'||e.kind==='construct'||e.kind==='champion'||e.kind==='burrower') return 108*z;
   if(e.kind==='drow'||e.kind==='medusa'||e.kind==='orc'||e.kind==='grimlock'||e.kind==='troglodyte'||e.kind==='kuotoa'||e.kind==='quaggoth') return 86*z;
-  if(e.kind==='gnome'||e.kind==='kobold'||e.kind==='goblin'||e.kind==='pech') return 68*z;
-  if(e.kind==='rat'||e.kind==='bat'||e.kind==='beetle'||e.kind==='centipede'||e.kind==='piercer'||
+  if(e.kind==='gnome'||e.kind==='kobold'||e.kind==='goblin'||e.kind==='pech'||e.kind==='rat') return 68*z;
+  if(e.kind==='bat'||e.kind==='beetle'||e.kind==='centipede'||e.kind==='piercer'||
      e.kind==='crysmal'||e.kind==='greenslime') return 48*z;
   return 70*z;
 }
@@ -2620,7 +2631,7 @@ function ent(o){
   e.maxhp=e.hp; return e;
 }
 const FOE={
-  rat:()=>ent({kind:'rat',sprite:'rat',hp:14,sp:3.8,dmg:4,range:.7,cd:.7,scale:.72,r:.28,name:'Cave Rat',glow:'#8a6a4a'}),
+  rat:()=>ent({kind:'rat',sprite:'rat',hp:14,sp:3.8,dmg:4,range:.7,cd:.7,scale:.82,r:.28,name:'Cave Rat',glow:'#8a6a4a'}),
   bat:()=>ent({kind:'bat',sprite:'bat',hp:16,sp:4.2,dmg:5,range:4.6,cd:1.6,scale:.78,r:.3,ranged:1,name:'Cave Bat',glow:'#7a5cff'}),
   spider:()=>ent({kind:'spider',sprite:'spider',hp:26,sp:3.4,dmg:6,range:.85,cd:.9,scale:.9,name:'Cave Spider',glow:'#8f5bff'}),
   spitter:()=>ent({kind:'spider',sprite:'spitter',hp:34,sp:2.4,dmg:9,range:5.5,cd:2,scale:1.05,ranged:1,name:'Spitter',glow:'#c07bff'}),
@@ -2876,7 +2887,7 @@ const BESTIARY={
   spiderGiant:{n:'Giant Spider',spr:'spider_giant',hp:36,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.25,sa:'Poison',poison:1,k:'spider'},
   spiderLord:{n:'Spider Lord',spr:'spider_giant',hp:44,ac:4,mv:12,at:2,dmg:5,tt:'C',dc:80,g:'#c07bff',sc:1.55,sa:'Deadly Poison, Web',poison:1,web:1,killPoison:1,k:'spider',boss:1,r:.52,hd:4},
   spiderHuge:{n:'Huge Spider',spr:'spider_huge',hp:18,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:1.05,sa:'Poison',poison:1,k:'spider'},
-  rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
+  rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.82,r:.28,sa:'Poison',poison:1},
   centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
   beetle:{n:'Fire Beetle',spr:'beetle',hp:10,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.0,sa:'Poison',poison:1},
   spider:{n:'Cave Spider',spr:'spider',hp:9,ac:8,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1,slowPoison:1}
@@ -7265,6 +7276,10 @@ function secretSeamAt(L,x,y){
   return null;
 }
 function secretFaceImg(face, faceL, faceR){
+  /* Signed 512×768 cooler faces when bound. Fallback is the live-tile multiply. */
+  if(face==='e' && sprReady('secret_wall_e')) return SPR.secret_wall_e;
+  if(face==='w' && sprReady('secret_wall_w')) return SPR.secret_wall_w;
+  if(face==='n' && sprReady('secret_wall_n')) return SPR.secret_wall_n;
   const fadeL=TILEBLIT.faceFadeL||faceL, fadeR=TILEBLIT.faceFadeR||faceR;
   if(face==='e'||face==='w') return fadeR||faceR;
   return fadeL||faceL;
@@ -10232,6 +10247,14 @@ function drawKing(g,e,z,sw){
   g.restore();
 }
 
+function shotSprite(s){
+  if(!s) return null;
+  /* KILL hardware hex-nut sheet: never bind or blit fx_hex. */
+  if(s.kind==='hex') return null;
+  if(s.kind==='flame' && sprReady('flame')) return SPR.flame;
+  if((s.kind==='bolt'||!s.kind) && sprReady('bolt')) return SPR.bolt;
+  return null;
+}
 function drawShot(g,s){
   const p=w2s(s.x,s.y), z=ZOOM;
   g.save(); g.translate(p.x,p.y-28*z);
@@ -10249,12 +10272,20 @@ function drawShot(g,s){
     g.beginPath(); g.moveTo(4*z,-11*z); g.quadraticCurveTo(15*z,-4*z,13*z,7*z);
     g.quadraticCurveTo(7*z,0,2*z,0); g.closePath(); sc(g,'#d4dbe4',-11*z,7*z,1.5);
   } else {
-    const gr=g.createRadialGradient(0,0,1,0,0,14*z);
-    gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
-    g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1; }
+    const img=shotSprite(s);
+    if(img){
+      g.rotate(Math.atan2(s.vy||0, s.vx||0));
+      const H=18*z, W=img.width*(H/Math.max(1,img.height));
+      g.drawImage(img, -W*0.18, -H/2, W, H);
+    } else {
+      const gr=g.createRadialGradient(0,0,1,0,0,14*z);
+      gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
+      g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1;
+    }
+  }
   g.restore();
-  emit(p.x,p.y-28*z,26*z,s.col||'#e8e0d0',0.8);
+  if(!shotSprite(s)) emit(p.x,p.y-28*z,26*z,s.col||'#e8e0d0',0.8);
 }
 function drawPart(g,q){
   const p=w2s(q.x,q.y), z=ZOOM, a=clamp(q.life/(q.max||.85),0,1);
