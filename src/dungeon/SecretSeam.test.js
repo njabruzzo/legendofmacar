@@ -58,5 +58,15 @@ assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function isRubyNorthWall/.te
 assert(/function isStartBackWall/.test(html) && /START_CAVEIN_SCALE=1\.45/.test(html),
   'did not reopen the west cave-in');
 
+
+assert(/SPRITE_FILES.secret_wall_n='assets\/tiles\/secret_wall_n.png'/.test(html)
+  && /SPRITE_FILES.secret_wall_e='assets\/tiles\/secret_wall_e.png'/.test(html)
+  && /SPRITE_FILES.secret_wall_w='assets\/tiles\/secret_wall_w.png'/.test(html),
+  'n/e/w secret masonry tiles are registered');
+assert(!/secret_wall_s/.test(html), 'no south secret-wall tile');
+['secret_wall_n.png','secret_wall_e.png','secret_wall_w.png'].forEach(n=>{
+  assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
+});
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nsecret seam checks passed');
