@@ -2830,6 +2830,7 @@ const BESTIARY={
   bugbearChief:{n:'Bugbear Chief',spr:'bugbear_tyrant',hp:80,ac:3,mv:12,at:2,dmg:7.5,tt:'E',dc:60,g:'#8a6a4a',sc:1.32,k:'bugbear'},
   koboldChief:{n:'Kobold Chief',spr:'kobold',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c07040',sc:.86,k:'kobold'},
   goblinBoss:{n:'Goblin Boss',spr:'goblin',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#6a8a4a',sc:.9,k:'goblin'},
+  goblinShaman:{n:'Goblin Shaman',spr:'goblin',hp:32,ac:6,mv:6,at:1,dmg:4.5,tt:'J',dc:40,g:'#6a8a4a',sc:.9,r:.32,k:'goblin',hd:7,cls:'c',lvl:7,wis:14,shaman:1,npc:1,sa:'Spells'},
   orcSergeant:{n:'Orc Sergeant',spr:'orc',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#6a8a3a',sc:1.12,k:'orc'},
   gibberlingAlpha:{n:'Gibberling Alpha',spr:'gibberling',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#c9b895',sc:.98,k:'gibberling'},
   duergarCaptain:{n:'Duergar Captain',spr:'duergar',hp:40,ac:5,mv:12,at:1.5,dmg:5.5,tt:'C',dc:50,g:'#ff5a48',sc:1.12,k:'duergar'},
@@ -2905,7 +2906,8 @@ function applyBestiary(){
       ac:b.ac, sa:b.sa||'', sd:b.sd||'', treasure:b.tt||'Nil', drop:b.dc||0,
       glow:b.g||'#c9b895', boss:b.boss||0, regen:b.regen||0, rust:b.rust||0, poison:b.poison||0,
       web:b.web||0, slowPoison:b.slowPoison||0, killPoison:b.killPoison||0,
-      hd:b.hd||Math.max(0.5, b.hp/8), dice:b.dice||null
+      hd:b.hd||Math.max(0.5, b.hp/8), dice:b.dice||null,
+      cls:b.cls||'', lvl:b.lvl||0, wis:b.wis||0, shaman:b.shaman||0, npc:b.npc||0
     });
   });
 }
@@ -3424,6 +3426,7 @@ function makeChapter(n){
       const sk=(G.ents||[]).find(e=>e&&e.webTalk&&!e.webTalkDone);
       if(sk && dist(p,sk)<2.05){
         interact('Talk to the bones',()=>startTalk('web_skeleton'));
+      maybeShamanTalks(p, dt);
       }
       const rock=(G.props||[]).find(pr=>pr&&pr.webRock&&!pr.gone);
       if(rock && dist(p,rock)<1.55){
@@ -3523,7 +3526,7 @@ function makeChapter(n){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
           L.wanderT=0;
-          if(ri(1,6)<=2){
+          if(ri(1,6)===1){
             const names=spawnWanderers(p);
             if(names.length) say('Ruin-walkers: '+names.join(', ')+'.','#ff6a5a');
           }
@@ -3848,11 +3851,13 @@ function openPassagesAt(x,y){
 }
 function wanderKinds(){
   const ch=G.ch||1;
-  if(ch<=1) return ['rat','centipede','spider','beetle','kobold'];
-  if(ch===2) return ['goblin','kobold','rat','orc','gibberling'];
-  if(ch===3) return ['crawler','spider','grimlock','troglodyte','myconid'];
-  if(ch===4) return ['drow','duergar','grimlock','quaggoth','wraith'];
-  return ['undead','orc','drow','gargoyle','wraith'];
+  let kinds;
+  if(ch<=1) kinds=['rat','centipede','spider','beetle','kobold','goblin','orc','spiderHuge','beetleBoring'];
+  else if(ch===2) kinds=['goblin','kobold','orc','gibberling','warg','spiderHuge'];
+  else if(ch===3) kinds=['hookedhorror','wraith','drowElite','minotaur','troll','ochrejelly','myconidKing','kuotoaMonitor'];
+  else if(ch===4) kinds=['drow','duergar','wraith','drowElite','quaggothJarl','hookedhorror','minotaur'];
+  else kinds=['undead','drowElite','gargoyle','wraith','hookedhorror','minotaur'];
+  return kinds.filter(k=>typeof FOE[k]==='function' && wanderKindAllowed(k));
 }
 function wanderSpawnSpots(p){
   const spots=[];
@@ -3897,7 +3902,7 @@ function campRest(){
   if(open){
     const roll=ri(1,6);
     say('Open passages. Wandering check: d6 = '+roll+'.','#c9b895');
-    if(roll<=2){
+    if(roll===1){
       const names=spawnWanderers(p);
       if(names.length){
         say('Steel in the dark: '+names.join(', ')+'. Sleep breaks.','#ff6a5a');
@@ -4658,7 +4663,52 @@ const NPC_TALK={
       {t:"That's enough.", then:()=>takeWebSkeletonRing()},
       {t:'Cut the web.', then:()=>takeWebSkeletonRing()}
     ]
-  }
+  },
+  shaman_hail:{
+    who:'GOBLIN SHAMAN',
+    line:'Steel first, dwarf, or walk the dark Maglubiyet keeps.',
+    choices:[
+      {t:'Steel first.', say:'MACAR: "Steel first."', then:()=>{ shamanSteelFirst(); }},
+      {t:'Walk away.', say:'MACAR: "We go."', then:()=>{ shamanDarknessOnTile(); }},
+      {t:'Linger.', say:'MACAR: "We stay."', then:()=>{ shamanDarknessOnTile(); }}
+    ]
+  },
+  shaman_bargain:{
+    who:'GOBLIN SHAMAN',
+    line:'Pay the tribute Maglubiyet is owed. Kneel. Or take no bargain.',
+    choices:[
+      {t:'Pay.', say:'MACAR: "Take it."', then:()=>{ shamanPayTribute(); }},
+      {t:'Kneel.', say:'MACAR: "We kneel."', then:()=>{ shamanKneelFearBless(); }},
+      {t:'No bargain.', say:'MACAR: "No bargain."', then:()=>{ shamanHoldMacar(); }}
+    ]
+  },
+  shaman_chant:{
+    who:'GOBLIN SHAMAN',
+    line:'Maglubiyet, still their tongues—',
+    choices:[
+      {t:'Interrupt.', say:'MACAR: "Enough."', then:()=>{ shamanInterruptChant(); }},
+      {t:'Let him finish.', then:()=>{ shamanFinishSilence(); }},
+      {t:'Strike now.', say:'MACAR: "Now."', then:()=>{ shamanStrikeNow(); }}
+    ]
+  },
+  shaman_blood:{
+    who:'GOBLIN SHAMAN',
+    line:'Blood on the stone. Send the pack, silence the sun-staff, or take the dark.',
+    choices:[
+      {t:'Send them.', say:'MACAR: "Send them."', then:()=>{ shamanSendPack(); }},
+      {t:'Silence the sun-staff.', say:'MACAR: "Silence the sun-staff."', then:()=>{ shamanSilenceTalpor(); }},
+      {t:'No.', say:'MACAR: "No."', then:()=>{ shamanDarknessOnMelee(); }}
+    ]
+  },
+  goblin_yield:{
+    who:'GOBLIN',
+    line:'We break. No knife. We run.',
+    choices:[
+      {t:'Go.', say:'MACAR: "Go."', then:()=>{ goblinHonestYield(); }},
+      {t:'Drop steel.', say:'MACAR: "Drop it."', then:()=>{ goblinHonestYield(); }},
+      {t:'Run.', say:'MACAR: "Run."', then:()=>{ goblinHonestYield(); }}
+    ]
+  },
 };
 function startTalkObj(pack){
   if(!pack||!pack.line) return;
@@ -4670,13 +4720,18 @@ function startTalk(key){
   startTalkObj(Object.assign({key}, pack));
 }
 function talkWalkOffKey(key){
-  return key==='goblin_mercy'||key==='web_skeleton'||key==='web_skeleton_more';
+  return key==='goblin_mercy'||key==='goblin_yield'||key==='web_skeleton'||key==='web_skeleton_more'||key==='shaman_hail'||key==='shaman_bargain'||key==='shaman_chant'||key==='shaman_blood';
 }
 function dismissTalkWalkOff(){
   const key=G.talk&&G.talk.key;
   if(!G.talk) return;
   closeTalk();
   if(key==='web_skeleton_more') takeWebSkeletonRing();
+  if(key==='shaman_hail') shamanDarknessOnTile();
+  if(key==='shaman_bargain') shamanHoldMacar();
+  if(key==='shaman_chant') shamanInterruptChant();
+  if(key==='shaman_blood') shamanDarknessOnMelee();
+  if(key==='goblin_yield') goblinHonestYield();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
 }
 function packMercyGoblin(){
@@ -4725,6 +4780,12 @@ function maybeGoblinMercy(hit){
   g.begging=1; g.mercyDone=1; g.atk=0; g.swung=0; g.aim=null;
   g.stun=Math.max(g.stun||0, 0.2);
   G.fightMercy=1; G.mercyTalk=1; G.mercyGoblinId=g.id;
+  const shamanNear=typeof isGoblinShaman==='function'&&(G.ents||[]).some(e=>isGoblinShaman(e)&&cluster.some(z=>dist(z,e)<9.2));
+  if(shamanNear){
+    G.talkAfter=null;
+    startTalk('goblin_yield');
+    return;
+  }
   G.talkAfter=()=>goblinBetrayalSwing();
   startTalk('goblin_mercy');
 }
@@ -4763,6 +4824,298 @@ function tryStrikeMercyGoblin(){
   meleeSwing(mac, 1.9, (mac.range||1.4)+0.35, mac.dmg, mac.glow||'#ffe08a');
   return true;
 }
+const COMBAT_RD=1;
+function isGoblinShaman(e){
+  return !!(e && !e.dead && (e.shaman || e.name==='Goblin Shaman'));
+}
+function livingShaman(){
+  return (G.ents||[]).find(isGoblinShaman);
+}
+function shamanInitSlots(e){
+  if(!e) return;
+  e.cls=e.cls||'c'; e.lvl=e.lvl||7; e.wis=e.wis||14; e.hd=e.hd||7;
+  e.spellSlots=e.spellSlots||{1:5,2:3,3:2,4:1};
+  e.prepared=e.prepared||{
+    bless:1, causeFear:1, darkness:1, causeLightWounds:1,
+    holdPerson:2, silence:1
+  };
+}
+function shamanSpend(e, name, lvl){
+  shamanInitSlots(e);
+  if(!e.prepared || (e.prepared[name]||0)<=0) return false;
+  if((e.spellSlots[lvl]||0)<=0) return false;
+  e.prepared[name]--; e.spellSlots[lvl]--;
+  return true;
+}
+function shamanWarband(seed){
+  const s=seed||livingShaman();
+  if(!s) return (G.ents||[]).filter(e=>e&&e.team==='foe'&&e.kind==='goblin'&&!e.dead);
+  const all=(G.ents||[]).filter(e=>e&&e.team==='foe'&&!e.dead&&(e.kind==='goblin'||e.shaman));
+  const out=[], q=[s], seen={}; seen[s.id]=1; out.push(s);
+  while(q.length){
+    const cur=q.pop();
+    for(let i=0;i<all.length;i++){
+      const z=all[i]; if(seen[z.id]) continue;
+      if(dist(cur,z)<9.2){ seen[z.id]=1; out.push(z); q.push(z); }
+    }
+  }
+  return out;
+}
+function roundSec(n){ return (n||1)*COMBAT_RD; }
+function shamanBlessWarband(){
+  const s=livingShaman();
+  if(s && !shamanSpend(s,'bless',1)) return;
+  shamanWarband(s).forEach(e=>{
+    e.blessHit=1; e.blessT=Math.max(e.blessT||0, roundSec(6));
+  });
+  say('Bless — the warband strikes true for six rounds. No save.','#ffe08a');
+}
+function shamanSteelFirst(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanHailed=1;
+  shamanBlessWarband();
+  const s=livingShaman();
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; }
+  shamanWarband(s).forEach(e=>{ if(!e.dead){ e.npc=0; e.aggro=99; e.engaged=1; } });
+  if(s) beginFight(s);
+}
+function shamanDarknessOnTile(at){
+  const s=livingShaman()||at;
+  const p=at||s||player();
+  if(!p) return;
+  if(s) shamanSpend(s,'darkness',1);
+  G.darkZones=G.darkZones||[];
+  G.darkZones.push({x:p.x,y:p.y,r:1.05,t:roundSec(7)});
+  say('Darkness takes the tile.','#5a3a8a');
+}
+function shamanDarknessOnMelee(){
+  const p=player();
+  shamanDarknessOnTile(p);
+  const s=livingShaman();
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function takeTributeMagic(){
+  ensurePacks();
+  const pk=packOf('macar');
+  const mag=pk.magic||[];
+  if(mag.length){
+    const it=mag.pop();
+    return it.n||'a magic thing';
+  }
+  const eq=G.equipped||{};
+  for(const slot of Object.keys(eq)){
+    const it=eq[slot];
+    if(it && (it.plus||it.dexPlus||it.k==='dex'||it.charges||it.cat)){
+      eq[slot]=null;
+      return it.n||slot;
+    }
+  }
+  return null;
+}
+function shamanPayTribute(){
+  const L=G.lvl; if(L&&L.flags){ L.flags.shamanHailed=1; L.flags.shamanSkipKing=1; L.flags.shamanBargained=1; }
+  let paid='';
+  const gp=gpTotal();
+  if(gp>=10){
+    const n=Math.min(gp, 10+((typeof ri==='function'?ri(5,40):20)|0));
+    spendGp(n);
+    paid=n+' gp';
+    const p=player();
+    if(p) spawnLoot(p.x+0.4, p.y+0.2, {kind:'coins', coins:{gp:n}, glow:'#ffd27a', label:'Tribute'});
+  } else {
+    paid=takeTributeMagic()||'empty hands';
+  }
+  say('Tribute taken: '+paid+'. The pack breaks. The shaman will not stand with the king.','#ffe08a');
+  const s=livingShaman();
+  moraleFleePack(s, s);
+  if(s){ s.npc=1; s.aggro=0; s.engaged=0; s.skipKing=1; }
+}
+function shamanKneelFearBless(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanHailed=1;
+  const s=livingShaman();
+  shamanBlessWarband();
+  if(s) shamanSpend(s,'causeFear',1);
+  G.ents.forEach(e=>{
+    if(e.team!=='party'||e.dead) return;
+    if(savingThrow(e,'spell')){
+      say((e.name||'Kin')+' holds against Cause Fear.','#cfe3ff');
+      return;
+    }
+    e.fearT=Math.max(e.fearT||0, roundSec(4));
+    const dx=(s?e.x-s.x:1), dy=(s?e.y-s.y:0), m=Math.hypot(dx,dy)||1;
+    e.fleeTo={x:e.x+(dx/m)*8, y:e.y+(dy/m)*8};
+    say((e.name||'Kin')+' flees Cause Fear.','#ff6a5a');
+  });
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function shamanHoldMacar(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanBargained=1;
+  const s=livingShaman(); const mac=player();
+  if(s) shamanSpend(s,'holdPerson',2);
+  if(mac){
+    if(savingThrow(mac,'spell')){
+      say('Hold Person fails. Macar saves vs spell.','#cfe3ff');
+    } else {
+      mac.held=Math.max(mac.held||0, roundSec(11));
+      mac.stun=Math.max(mac.stun||0, roundSec(11));
+      mac.prone=1;
+      say('Hold Person — Macar is held eleven rounds.','#c07bff');
+    }
+  }
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function shamanInterruptChant(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanChant=1;
+  say('The chant breaks. Silence does not land.','#ffe08a');
+  const s=livingShaman();
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function shamanFinishSilence(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanChant=1;
+  const s=livingShaman();
+  if(s) shamanSpend(s,'silence',2);
+  const p=player();
+  G.silenceZones=G.silenceZones||[];
+  const at=p||s;
+  if(at) G.silenceZones.push({x:at.x,y:at.y,r:2.5,t:roundSec(14)});
+  (G.ents||[]).forEach(e=>{
+    if(e.dead||e.team!=='party') return;
+    if(at && dist(e,at)<2.6){ e.silenced=Math.max(e.silenced||0, roundSec(14)); e.heals=0; }
+  });
+  say('Silence, 15-foot radius. Then steel.','#5a3a8a');
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function shamanStrikeNow(){
+  shamanInterruptChant();
+  const s=livingShaman(); const mac=player();
+  if(!s||!mac) return;
+  const fSeg=typeof ri==='function'?ri(1,6):2;
+  if(fSeg<=2){
+    s.stun=Math.max(s.stun||0, 0.65*fSeg);
+    say('Surprise — the shaman is caught.','#ffe08a');
+  }
+  if(typeof faceToward==='function') faceToward(mac, s.x, s.y);
+  if(typeof meleeSwing==='function') meleeSwing(mac, 1.9, (mac.range||1.4)+0.35, mac.dmg, mac.glow||'#ffe08a');
+}
+function shamanSendPack(){
+  const L=G.lvl; if(L&&L.flags){ L.flags.shamanBlood=1; }
+  const s=livingShaman();
+  moraleFleePack(s, s);
+  say('The pack flees. The shaman stays. The king is not in this deal.','#ffe08a');
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function shamanSilenceTalpor(){
+  const L=G.lvl; if(L&&L.flags) L.flags.shamanBlood=1;
+  const s=livingShaman();
+  if(s) shamanSpend(s,'silence',2);
+  const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
+  if(tal){
+    if(savingThrow(tal,'spell')){
+      say('Talpor saves vs spell. The sun-staff still speaks.','#cfe3ff');
+    } else {
+      tal.silenced=Math.max(tal.silenced||0, roundSec(14));
+      tal.heals=0;
+      say('Silence on Talpor.','#5a3a8a');
+    }
+  } else say('No sun-staff stands to silence.','#9a8a78');
+  if(s){ s.npc=0; s.aggro=99; s.engaged=1; beginFight(s); }
+}
+function moraleFleePack(seed, keep){
+  const pack=shamanWarband(seed);
+  pack.forEach(e=>{
+    if(!e||e.dead) return;
+    if(keep && e.id===keep.id) return;
+    if(isGoblinShaman(e)) return;
+    e.aggro=0; e.engaged=0; e.npc=1;
+    e.fleePath=[{x:e.x+7.5,y:e.y-1.2},{x:e.x+14,y:e.y-3.5}];
+    e.fleeTo=e.fleePath.shift();
+    e.onArrive=()=>{ e.hidden=1; e.team='prop'; };
+  });
+}
+function goblinHonestYield(){
+  G.talkAfter=null; G.mercyTalk=0;
+  const g=packMercyGoblin()||livingPackGoblins()[0];
+  say('They break. No spell. They run.','#c9b895');
+  moraleFleePack(g, null);
+  endGoblinMercy(false);
+}
+function inDarkZone(e){
+  const zs=G.darkZones||[];
+  for(let i=0;i<zs.length;i++){
+    const z=zs[i]; if((z.t||0)<=0) continue;
+    if(e && Math.hypot((e.x||0)-z.x,(e.y||0)-z.y)<=(z.r||1)) return true;
+  }
+  return false;
+}
+function inSilenceZone(e){
+  const zs=G.silenceZones||[];
+  for(let i=0;i<zs.length;i++){
+    const z=zs[i]; if((z.t||0)<=0) continue;
+    if(e && Math.hypot((e.x||0)-z.x,(e.y||0)-z.y)<=(z.r||2.5)) return true;
+  }
+  return false;
+}
+function tickSpellZones(dt){
+  (G.darkZones||[]).forEach(z=>{ z.t=(z.t||0)-dt; });
+  (G.silenceZones||[]).forEach(z=>{ z.t=(z.t||0)-dt; });
+  G.darkZones=(G.darkZones||[]).filter(z=>z.t>0);
+  G.silenceZones=(G.silenceZones||[]).filter(z=>z.t>0);
+  (G.ents||[]).forEach(e=>{
+    if(e.blessT>0){ e.blessT-=dt; if(e.blessT<=0) e.blessHit=0; }
+    if(e.held>0){ e.held-=dt; if(e.held<=0) e.prone=0; else { e.stun=Math.max(e.stun||0, 0.05); e.moving=0; } }
+    if(e.silenced>0) e.silenced-=dt;
+    if(e.fearT>0) e.fearT-=dt;
+    if(inSilenceZone(e) && e.col && e.col.key==='talpor') e.heals=0;
+  });
+}
+function maybeShamanTalks(p, dt){
+  const s=livingShaman();
+  if(!s||!p||G.talk) return;
+  const L=G.lvl;
+  if(dist(p,s)<2.15 && !G.fightOn){
+    interact('Speak with the shaman',()=>{
+      if(L&&L.flags&&L.flags.shamanHailed && !L.flags.shamanBargained) startTalk('shaman_bargain');
+      else { if(L&&L.flags) L.flags.shamanHailed=1; startTalk('shaman_hail'); }
+    });
+  }
+  if(G.fightOn && s.engaged && L&&L.flags && !L.flags.shamanChant && !G.talk){
+    L.flags.shamanChantWait=(L.flags.shamanChantWait||0)+(dt||0.016);
+    if(L.flags.shamanChantWait>1.2){
+      L.flags.shamanChantWait=99;
+      startTalk('shaman_chant');
+    }
+  }
+  if(G.fightOn && s.hp<=(s.maxhp||1)*0.5 && L&&L.flags && !L.flags.shamanBlood && !G.talk){
+    L.flags.shamanBlood=1;
+    startTalk('shaman_blood');
+  }
+}
+function dungeonEntryLevel(){ return 5; }
+function bestiaryHd(k){
+  const b=typeof BESTIARY!=='undefined' && BESTIARY[k];
+  if(!b) return 1;
+  if(b.hd) return b.hd;
+  return Math.max(0.5, (b.hp||8)/8);
+}
+function encounterHdBand(){
+  const ch=(G&&G.ch)||1;
+  if(ch<=1) return [1,7];
+  if(ch===2) return [1,7];
+  return [5,9];
+}
+function wanderKindAllowed(k){
+  let hd=bestiaryHd(k);
+  if(hd>=0.5 && hd<1) hd=1;
+  const [lo,hi]=encounterHdBand();
+  const ch=(G&&G.ch)||1;
+  const gob=/goblin/i.test(k)||(BESTIARY[k]&&BESTIARY[k].k==='goblin');
+  if(ch===2 && gob && hd>7) return false;
+  return hd>=lo && hd<=hi;
+}
+function wanderCheckHits(){
+  const roll=typeof ri==='function'?ri(1,6):1;
+  return {roll, hit:roll===1};
+}
+
 function markWebTalkSkeleton(){
   const spot=WEB_TALK_SPOT;
   let e=(G.ents||[]).find(z=>z&&z.webCorpse&&dist(z,spot)<0.85);
@@ -5877,18 +6230,21 @@ function hitBonus(e){
     b+=(g.wt||0)+(g.magicAtk||0);
     if(g.rune) b+=1;
     if(e.buff>0) b+=2;
+    if(e.blessHit && (e.blessT||0)>0) b+=1;
     if((g.wd||1)<=0) b-=2;
     if(e.ranged) b+=dexMissile(effectiveDex(e));
     else b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
   } else {
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
+    if(e.blessHit && (e.blessT||0)>0) b+=1;
   }
   if(e.strMul>1) b+=2;
+  if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) b-=4;
   return b;
 }
 function effectiveAC(e, atk){
   const rear=atk?isRearAttack(atk,e):false;
-  const helpless=e.stun>0||e.prone;
+  const helpless=e.stun>0||e.prone||(e.held||0)>0;
   let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
   if(e.team==='party') ac=partyAC(e,{rear, helpless});
   if(e.stoneskin>0) ac-=2;
@@ -7149,6 +7505,7 @@ function damage(e,amt,col,src){
       awardPartyXp(monsterXpValue(e), e.name||'Foe', e);
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
+      if(e.shaman && G.lvl && G.lvl.flags) G.lvl.flags.shamanDead=1;
       if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; G.fightWasBoss=1; }
       endFightIfClear();
     } else if(e.ghost){
@@ -7499,7 +7856,7 @@ function buildGoblinWarrens(L, sec){
   L.dungeon=rooms[rooms.length-1]||mouth;
   L.flags.dungeon=1;
   const packs=[
-    {leader:'goblinBoss', pack:[['goblin',3]]},
+    {leader:'goblinShaman', pack:[['goblin',3]]},
     {pack:[['goblin',3],['kobold',1]]},
     {pack:[['orc',3]]},
     {pack:[['gibberling',3]]},
@@ -7567,6 +7924,10 @@ function buildGoblinKingLevel(L){
     spawnLairGroup(kx+3.4, ky+1.2, {leader:'goblinChieftain', pack:[['goblinBoss',1],['goblin',2]], spread:1.5, aggro:4.4});
     spawnLairGroup(kx-1.2, ky+3.2, {pack:[['warg',3]], spread:1.8, aggro:4.8});
     spawnLairGroup(kx+5.2, ky-0.6, {pack:[['warg',2],['goblin',1]], spread:1.4, aggro:4.5});
+    if(!L.flags.shamanSkipKing && !L.flags.shamanDead){
+      spawnLairGroup(kx+0.2, ky+2.4, {leader:'goblinShaman', pack:[['goblin',2]], spread:1.3, aggro:4.2});
+      (G.ents||[]).forEach(e=>{ if(e.shaman){ e.npc=0; e.aggro=6; e.engaged=1; } });
+    }
     placeSecretHoard(kx+0.4, ky+1.1, 'H');
     L.flags.kingSpawned=1;
     say('GOBLIN KING — the warg-lord of the deep lair.','#ff6a4a');
@@ -8028,6 +8389,9 @@ function fire(key){
   if(G.paused) return;
   if(G.talk){
     if(G.mercyTalk && (key==='attack'||key==='swing')) tryStrikeMercyGoblin();
+    if(G.talk && G.talk.key==='shaman_chant' && (key==='attack'||key==='swing')){
+      closeTalk(); shamanStrikeNow();
+    }
     return;
   }
   const p=player(); if(!p) return;
@@ -8387,6 +8751,7 @@ function update(dt){
     }
   }
 
+  if(typeof tickSpellZones==='function') tickSpellZones(dt);
   for(const e of G.ents){
     if(e.dead){
       if(e.ghost){
@@ -8469,7 +8834,7 @@ function update(dt){
 
     let tgt=null, want=e.range, form=0;
     if(e.team==='party'){
-      if(e.heals){ const hu=nearestAlly(e,12,1);
+      if(e.heals && !((e.silenced||0)>0) && !(typeof inSilenceZone==='function' && inSilenceZone(e))){ const hu=nearestAlly(e,12,1);
         if(hu&&hu.hp<hu.maxhp*.6&&e.ct<=0){ hu.hp=Math.min(hu.maxhp,hu.hp+24);
           burst(hu.x,hu.y,'#ffe9a8',10,2); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } }
       const kin=G.ents.filter(x=>x.team==='party'&&!x.dead&&!x.hero);

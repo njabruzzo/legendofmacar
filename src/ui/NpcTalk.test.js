@@ -78,5 +78,24 @@ assert(/UI\.talkHits\.push/.test(html.match(/function drawTalk\(g\)\{[\s\S]*?\n\
 assert(!/const CH_INTRO=[\s\S]{0,80}ruby_door/.test(html),
   'ruby_door is not jammed into CH_INTRO');
 
+['shaman_hail','shaman_bargain','shaman_chant','shaman_blood','goblin_yield'].forEach(k=>{
+  assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
+});
+assert(/Maglubiyet, still their tongues/.test(talk), 'shaman_chant Maglubiyet line');
+assert(/shamanSteelFirst\(\)/.test(talk) && /Bless/.test(html), 'hail Steel first then() Bless');
+assert(/shamanDarknessOnTile\(\)/.test(talk) && !/shamanCauseFear\(\)/.test(talk.match(/shaman_hail:[\s\S]*?shaman_bargain/)[0]),
+  'hail walk/linger is Darkness, not Cause Fear');
+assert(/shamanPayTribute\(\)/.test(talk) && /shamanSkipKing/.test(html), 'pay tribute skips shaman at king');
+assert(/shamanKneelFearBless\(\)/.test(talk), 'kneel is Cause Fear + Bless');
+assert(/shamanHoldMacar\(\)/.test(talk) && /roundSec\(11\)/.test(html), 'no bargain Hold Person 11 rds');
+assert(/shamanInterruptChant\(\)/.test(talk) && /Silence does not land/.test(html), 'interrupt: Silence does not land');
+assert(/shamanFinishSilence\(\)/.test(talk), 'let him finish lands Silence');
+assert(/shamanStrikeNow\(\)/.test(talk), 'Strike now interrupts with surprise');
+assert(/shamanSendPack\(\)/.test(talk) && /king is not in this deal/.test(html), 'send them: pack flees, king not in deal');
+assert(/shamanSilenceTalpor\(\)/.test(talk), 'Silence the sun-staff');
+assert(/shamanDarknessOnMelee\(\)/.test(talk), 'blood No is Darkness on melee');
+assert(/goblinHonestYield\(\)/.test(talk) && !/goblinBetrayalSwing\(\)/.test(talk.match(/goblin_yield:[\s\S]*?\n  \}/)[0]),
+  'goblin_yield has no betrayal swing');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nNPC talk checks passed');
