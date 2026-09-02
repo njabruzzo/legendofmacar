@@ -348,7 +348,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='73';
+const ASSET_VER='74';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -589,6 +589,19 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
    file is missing, buildHeroAttackFrames() draws one at load. */
 SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
+/* Limner pack 74: painted FX + n/e/w secret masonry (never south). After
+   walk/dead derivation so we do not invent missing _w1/_dead fetches. */
+SPRITE_FILES.fx_bolt='assets/fx/fx_bolt.png';
+SPRITE_FILES.fx_flame='assets/fx/fx_flame.png';
+SPRITE_FILES.fx_hex='assets/fx/fx_hex.png';
+SPRITE_FILES.fx_spit='assets/fx/fx_spit.png';
+SPRITE_FILES.fx_wisp='assets/fx/fx_wisp.png';
+SPRITE_FILES.fx_heal='assets/fx/fx_heal.png';
+SPRITE_FILES.fx_bomb='assets/fx/fx_bomb.png';
+SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
+SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
+SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
+
 SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
 SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
@@ -7264,7 +7277,13 @@ function secretSeamAt(L,x,y){
   }
   return null;
 }
+function secretWallSprite(face){
+  const im=SPR['secret_wall_'+face];
+  return (im&&im.width)?im:null;
+}
 function secretFaceImg(face, faceL, faceR){
+  const painted=secretWallSprite(face);
+  if(painted) return painted;
   const fadeL=TILEBLIT.faceFadeL||faceL, fadeR=TILEBLIT.faceFadeR||faceR;
   if(face==='e'||face==='w') return fadeR||faceR;
   return fadeL||faceL;
@@ -8729,10 +8748,11 @@ function drawWorld(g,L){
       const sec=secretSeamAt(L,x,y);
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
-      if(oS) drawMasonryFace(g, sf==='n'?fadeL:faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, sf==='e'?fadeR:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
+      if(oS) drawMasonryFace(g, sf==='n'?secN:faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, sf==='e'?secE:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, sf==='w'?fadeR:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      if(oW) drawMasonryFace(g, sf==='w'?secW:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
@@ -8868,6 +8888,11 @@ function drawThrown(g,b){
     g.beginPath(); g.arc(0,-12*z,(2+sp*1.6)*z,0,TAU); g.fill();
     g.restore();
     emit(s.x,yy-12*z,(20+(b.state?10*Math.sin(G.elapsed*26):0))*z,'#d2bd63',0.85);
+  } else if(SPR.fx_bomb&&SPR.fx_bomb.width){
+    const img=SPR.fx_bomb, hh=28*z, ww=hh*(img.width/img.height);
+    g.drawImage(img,-ww/2,-hh/2,ww,hh);
+    g.restore();
+    emit(s.x,yy-16*z,(26+(b.state?14*Math.sin(G.elapsed*30):0))*z,'#ffab52',1);
   } else {
     g.beginPath(); g.arc(0,0,9*z,0,TAU); sc(g,'#2f3138',-9*z,9*z,1.8);
     g.fillStyle='rgba(255,255,255,0.18)'; g.beginPath(); g.arc(-3*z,-3.4*z,3*z,0,TAU); g.fill();
@@ -10249,10 +10274,19 @@ function drawShot(g,s){
     g.beginPath(); g.moveTo(4*z,-11*z); g.quadraticCurveTo(15*z,-4*z,13*z,7*z);
     g.quadraticCurveTo(7*z,0,2*z,0); g.closePath(); sc(g,'#d4dbe4',-11*z,7*z,1.5);
   } else {
-    const gr=g.createRadialGradient(0,0,1,0,0,14*z);
-    gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
-    g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1; }
+    const fxKey=({bolt:'fx_bolt',flame:'fx_flame',hex:'fx_hex',spit:'fx_spit',spore:'fx_spit',wisp:'fx_wisp',bomb:'fx_bomb',heal:'fx_heal',charm:'fx_hex',fear:'fx_wisp',death:'fx_hex',fire:'fx_flame'})[s.kind]||'fx_bolt';
+    const img=SPR[fxKey];
+    if(img&&img.width){
+      const hh=28*z, ww=hh*(img.width/img.height);
+      g.rotate(s.spin||0);
+      g.drawImage(img,-ww/2,-hh/2,ww,hh);
+    } else {
+      const gr=g.createRadialGradient(0,0,1,0,0,14*z);
+      gr.addColorStop(0,s.col); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(0,0,14*z,0,TAU); g.fill();
+      g.globalAlpha=.85; g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3*z,0,TAU); g.fill(); g.globalAlpha=1;
+    }
+  }
   g.restore();
   emit(p.x,p.y-28*z,26*z,s.col||'#e8e0d0',0.8);
 }
