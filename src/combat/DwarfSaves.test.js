@@ -44,5 +44,14 @@ assert(/killPoison:1/.test(lord[0]), 'spider lord poison is lethal');
 assert(!/slowPoison/.test(lord[0]), 'spider lord no longer uses slow poison');
 assert(/killPoison:b\.killPoison/.test(html), 'killPoison is copied onto spawned foes');
 
+assert(/savingThrow\(mac,'spell'\)/.test(html) && /savingThrow\(tal,'spell'\)/.test(html),
+  'Hold Person and Silence use save vs spell');
+assert(/dwarfSaveBonus\(e, kind\)/.test(html.match(/function saveNeed[\s\S]*?\n\}/)[0]),
+  'spell saves still subtract dwarfSaveBonus');
+const sham=html.match(/goblinShaman:\{[^}]+\}/);
+assert(sham && /cls:'c'/.test(sham[0]) && /wis:14/.test(sham[0]) && /lvl:7/.test(sham[0]),
+  'shaman is a 7th-level evil cleric, WIS 14');
+assert(/spellSlots=e\.spellSlots\|\|\{1:5,2:3,3:2,4:1\}/.test(html), 'slots 5/3/2/1');
+
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('DwarfSaves + spider lord tests passed');

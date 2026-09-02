@@ -52,6 +52,15 @@ assert(/leader:'firegiant',pack:\[\['magmaelem',1\]\]/.test(ch5), 'fire pair sta
 const wander=html.slice(html.indexOf('function spawnWanderers'), html.indexOf('function endSleepShow'));
 assert(/const k=kinds\[ri\(0,kinds\.length-1\)\]\|\|'rat'/.test(wander), 'wanderers pick one kind');
 assert(/const n=Math\.min\(ri\(2,4\)/.test(wander), 'wanderers arrive as a small pack');
+assert(/function dungeonEntryLevel\(\)\{ return 5; \}/.test(html), 'dungeon entry is level 5');
+assert(/if\(ch<=1\) return \[1,7\]/.test(html), 'Ch I/cave HD band 1-7');
+assert(/return \[5,9\]/.test(html), 'ruins HD band 5-9');
+assert(/if\(ch===2 && gob && hd>7\) return false/.test(html), 'goblin level goblins <=7 HD');
+assert(/hd:7/.test(html.match(/goblinShaman:\{[^}]+\}/)[0]), 'shaman is 7 HD');
+assert(/if\(roll===1\)\{/.test(html.match(/function campRest[\s\S]*?function /)[0]) || /if\(roll===1\)\{/.test(html),
+  'camp rest wandering odds are 1 in 6');
+assert(/if\(ri\(1,6\)===1\)/.test(html), 'ruin wandering odds are 1 in 6');
+assert(/wanderKindAllowed\(k\)/.test(html), 'wanderers filter by HD band');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nmonster pack checks passed');

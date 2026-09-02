@@ -156,7 +156,7 @@ assert(ctx.effectiveDex({hero:0,col:{key:'orbo'},abil:{dex:14}})==14, 'companion
 ctx.G.equipped={necklace:{k:'ring', plus:1, n:'Ring of Protection +1'}};
 assert(ctx.wornDexPlus({hero:1})===0, 'protection plus is not dexPlus');
 
-const mercySrc=['isPackGoblinKind','isPackGoblin','livingPackGoblins','goblinPackCluster','maybeGoblinMercy']
+const mercySrc=['isGoblinShaman','isPackGoblinKind','isPackGoblin','livingPackGoblins','goblinPackCluster','maybeGoblinMercy']
   .map(extractFn).join('\n');
 vm.runInContext(mercySrc, ctx);
 function gob(id, o){
@@ -182,6 +182,14 @@ ctx.G.ents=[gob(30,{hp:10, nozCamp:1})];
 ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.talkAfter=null;
 ctx.maybeGoblinMercy(ctx.G.ents[0]);
 assert(!ctx.G.ents[0].begging, 'camp goblins do not beg');
+
+assert(/goblin_yield:\{/.test(talk), 'goblin_yield is in NPC_TALK');
+assert(/goblinBetrayalSwing\(\)/.test(talk.match(/goblin_mercy:[\s\S]*?\n  \},/)[0]),
+  'goblin_mercy liar still surprise-swings');
+assert(!/goblinBetrayalSwing\(\)/.test(talk.match(/goblin_yield:[\s\S]*?\n  \},/)[0]),
+  'goblin_yield is an honest morale break');
+assert(/startTalk\('goblin_yield'\)/.test(html), 'shaman-near pack uses goblin_yield');
+assert(/G\.talkAfter=\(\)=>goblinBetrayalSwing\(\)/.test(html), 'liar path still sets talkAfter swing');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nNPC three-beats checks passed');

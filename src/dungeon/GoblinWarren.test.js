@@ -27,6 +27,10 @@ assert(/Descend to the Goblin King/.test(html), 'player can descend from the lai
 assert(/L\.climbs/.test(html) && /enterGoblinKingLevel\(L\)/.test(html), 'climb hook opens the king hall');
 assert(/placeSecretHoard\([^,]+,[^,]+,\s*'H'\)/.test(html), 'king hoard uses DMG type H');
 assert(/goblinWarlord/.test(html) && /goblinChieftain/.test(html), 'powerful goblin officers stand with the king');
+assert(/goblinShaman/.test(html) && /leader:'goblinShaman'/.test(html), 'warren pack is led by the shaman');
+assert(/shamanSkipKing/.test(html), 'paid tribute skips shaman in the king fight');
+assert(/FOE\.goblinKing\(\)/.test(html.match(/function buildGoblinKingLevel[\s\S]*?function foesVisible/)[0]),
+  'king is still spawned when shaman skips');
 assert(/L\.w=120; L\.h=100/.test(html), 'first floor is a wide warren with side caverns');
 assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
   'chapter II adds south and east caverns beyond the four-way');
