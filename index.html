@@ -7501,6 +7501,8 @@ function giveMagic(it, silent){
   return it.n+(slot?' [E]':'');
 }
 
+/* Table III.B Scrolls and III.D Rods/Staves/Wands — identities stay RAW 1e.
+   Pack use is useScrollByName / useWandByName (RAW vs house named there). */
 const DMG_SCROLL=[
   {a:1,b:10,n:'Scroll of 1 Spell',k:'scroll',d:'One spell, cast at 6th level or the minimum needed +1.'},
   {a:11,b:16,n:'Scroll of 2 Spells',k:'scroll',d:'Two spells. Reading takes the usual casting time.'},
@@ -7942,15 +7944,52 @@ function cancelOneMagicItem(e){
   say('The rod finds no magic to drink.','#c9b895');
 }
 function useWandByName(it, e){
+  /* DMG Table III.D (and k:wand misc/rings). RAW named below; house maps each
+     to a wired pipe: bolt / flame / hex / heal, charm, detect, or resist.
+     No glow-ball orbs. Unknown names still 6d6-zap in useMagicItem. */
   const n=String((it&&it.n)||'');
   if(/Staff of Curing/i.test(n)){
+    /* RAW: cure disease, blindness, insanity, or serious wounds. 1 charge each.
+       House: existing k:heal band (18) + clearPoison. */
     applyHeal(e, 18);
     clearPoison(e);
     return 'cure';
   }
   if(/Rod of Cancellation/i.test(n)){
+    /* RAW: one touch drains a magic item forever. */
     cancelOneMagicItem(e);
     return 'cancel';
+  }
+  if(/Rod of Absorption/i.test(n)){
+    /* RAW: drinks incoming spells and later casts them (50 charge max).
+       House: e.mr=1 — the existing full-resist flag. Does not 6d6-zap. */
+    if(e) e.mr=1;
+    say(it.n+' drinks the next spell.','#7ad0ff');
+    return 'absorb';
+  }
+  if(/Rod of Resurrection/i.test(n)){
+    /* RAW: raise dead / resurrection, charge cost by race and class.
+       House: same pipe as a life draught — raise dead kin, else heal 18. */
+    let raised=0;
+    (G.ents||[]).forEach(function(x){
+      if(x&&x.team==='party'&&x.dead){
+        x.dead=0; x.crushed=0; x.prone=0; x.hp=Math.round((x.maxhp||20)*.5);
+        raised=1;
+      }
+    });
+    if(!raised && e) applyHeal(e, 18);
+    say(raised?'The dead kin draw breath.':(it.n+' finds no corpse to raise.'), '#ffe08a');
+    return 'raise';
+  }
+  if(/Beguiling|Rulership|Staff of Command/i.test(n)){
+    /* RAW: charm / command in a radius. House: existing charmFoeKind / hex-stun. */
+    if(typeof charmFoeKind==='function') charmFoeKind(e, null, 8);
+    else {
+      const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+      if(t){ t.stun=Math.max(t.stun||0, 3.2); t.charmed=1; t.aggro=0; say((t.name||'A foe')+' is held in thrall.','#e0d2ff'); }
+      else say(it.n+' finds no mind to command.','#c9b895');
+    }
+    return 'charm';
   }
   if(/Enemy Detection/i.test(n)){
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
@@ -7960,6 +7999,12 @@ function useWandByName(it, e){
   if(/Magic Detection/i.test(n)){
     const pile=(G.loot||[]).find(p=>p&&!p.gone&&((p.items||[]).some(x=>x&&(x.plus||x.k==='misc'||x.k==='ring'||x.cat==='Ring'))));
     say(pile?'The wand glows near magic.':'The wand is dark. No magic nearby.','#7ad0ff');
+    return 'detect';
+  }
+  if(/Metal and Mineral/i.test(n)){
+    /* RAW: points to a named metal or mineral in 30 feet. House: detect say. */
+    const pile=(G.loot||[]).find(p=>p&&!p.gone&&(p.coins||p.gems||((p.items||[]).some(x=>x&&x.plus))));
+    say(pile?'The wand points to metal or mineral.':'The wand is still. No metal nearby.','#7ad0ff');
     return 'detect';
   }
   if(/Secret Door|Trap Detection/i.test(n)){
@@ -7972,17 +8017,118 @@ function useWandByName(it, e){
     return 'detect';
   }
   if(/Paralyzation|Wand of Fear/i.test(n)){
+    /* RAW Fear: cone, save vs wands or flee. RAW Paralyzation: ray, 3d4 rounds.
+       House: hex-stun the nearest foe. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
     if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' stuns '+(t.name||'a foe')+'.','#7ad0ff'); }
     else say(it.n+' finds no foe in reach.','#7ad0ff');
     return 'stun';
   }
-  if(/Illumination/i.test(n)){
+  if(/Illumination|Brightness/i.test(n)){
+    /* RAW Illumination / Gem of Brightness: light or a blinding stroke.
+       House: trueSee + glow. No table row invented for Illumination. */
     if(e){ e.trueSee=Math.max(e.trueSee||0, 20); e.glow=e.glow||'#fff4c8'; }
     say(it.n+' sheds light.','#7ad0ff');
     return 'light';
   }
+  if(/Wand of Negation/i.test(n)){
+    /* RAW: cancels another wand or staff for 1 round. House: strip foe gear plus. */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,2):null;
+    if(t && t.gear){ t.gear.magicAtk=0; t.gear.magicAc=0; say('The wand stills the foe\'s charges.','#7ad0ff'); }
+    else say('The wand finds no staff to still.','#c9b895');
+    return 'negate';
+  }
+  if(/Wand of Illusion/i.test(n)){
+    /* RAW: glamer, mirror image, phantasmal force. House: guardT as mirror image. */
+    if(e) e.guardT=Math.max(e.guardT||0, 8);
+    say(it.n+' throws false images.','#e0d2ff');
+    return 'illusion';
+  }
+  if(/Polymorph/i.test(n)){
+    /* RAW: polymorph other or self. House: hex the foe if one stands, else self-buff. */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' twists '+(t.name||'a foe')+'.','#c07bff'); }
+    else if(e){ e.polymorph=1; e.buff=Math.max(e.buff||0, 12); say('The shape will take.','#e0d2ff'); }
+    return 'hex';
+  }
+  if(/Wand of Conjuration/i.test(n)){
+    /* RAW: unseen servant, elementals, monster summoning. House: hex-stun (help harries). */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say('Conjured help harries '+(t.name||'a foe')+'.','#c07bff'); }
+    else say('The servant comes, but finds no foe.','#c9b895');
+    return 'hex';
+  }
+  if(/Wand of Wonder/i.test(n)){
+    /* RAW: a random wondrous effect. House: bolt / flame / hex / heal. */
+    const pick=typeof rollDice==='function'?rollDice(1,4,0):1;
+    if(pick<=1){
+      const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+      const dmg=rollDice(6,6,0)*ADD_SCALE;
+      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      return 'bolt';
+    }
+    if(pick<=2){
+      const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+      const dmg=rollDice(6,6,0)*ADD_SCALE;
+      if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+      return 'flame';
+    }
+    if(pick<=3){
+      const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+      if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' hexes '+(t.name||'a foe')+'.','#c07bff'); }
+      return 'hex';
+    }
+    applyHeal(e, 8);
+    return 'heal';
+  }
+  if(/Magic Missiles/i.test(n)){
+    /* RAW: 1 missile (1 charge) or 2 (2 charges), 1d4+1 each.
+       House: both missiles, 1 charge. bolt FX. */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    const dmg=rollDice(2,4,2)*ADD_SCALE;
+    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+    return 'bolt';
+  }
+  if(/Wand of Fire|Necklace of Missiles|Staff of Power/i.test(n)){
+    /* RAW Fire: burning hands / pyrotechnics / fireball / wall of fire (2 ch for fireball).
+       RAW Power: cone of cold, lightning, fireballs. RAW Necklace: 3d6–9d6 beads.
+       House: one charge, 6d6 flame. */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    const dmg=rollDice(6,6,0)*ADD_SCALE;
+    if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+    return 'flame';
+  }
+  if(/Wand of Lightning|Staff of the Magi|Shooting Stars/i.test(n)){
+    /* RAW Lightning: shocking grasp or 6-die bolt (2 ch). RAW Magi: many spells.
+       RAW Shooting Stars: ball lightning outdoors. House: one charge, 6d6 bolt. */
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    const dmg=rollDice(6,6,0)*ADD_SCALE;
+    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+    return 'bolt';
+  }
   return 'zap';
+}
+function useScrollByName(it, e){
+  /* DMG Table III.B. Protection scrolls: any class (RAW). Spell scrolls: RAW
+     class-locked and may fail; house lets the pack-reader cast once, then the
+     ink is gone. Closest wired FX: flame (offensive) or heal. No MU list. */
+  const hay=String((it&&it.n)||'')+' '+String((it&&it.d)||'');
+  if(/heal|cure/i.test(hay)){
+    if(e){ applyHeal(e, 18); clearPoison(e); }
+    return 'cure';
+  }
+  if((it&&it.k)==='prot' || /Protection from/i.test(hay)){
+    /* RAW: a 5-foot circle vs the named threat. House: existing guard+MR+heal 8. */
+    if(e){ e.guardT=Math.max(e.guardT||0, 8); e.mr=1; applyHeal(e, 8); }
+    return 'prot';
+  }
+  /* House: unnamed N-spell scroll is one 6th-level flame, then gone.
+     RAW would roll the scribed spells. */
+  const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+  const dmg=rollDice(6,6,0)*ADD_SCALE;
+  if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it&&it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+  else say('The script flares and finds no foe.','#c9b895');
+  return 'cast';
 }
 function useMagicItem(it, e){
   e=e||player();
@@ -8015,7 +8161,12 @@ function useMagicItem(it, e){
   }
   if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
     G.equipped.wand=it;
-    if(e&&it.charges){
+    if(!(it.charges>0)){
+      /* House: 0 charges is dead wood. RAW: a drained wand/staff/rod is useless. */
+      say(it.n+' is dead wood.','#c9b895');
+      return;
+    }
+    if(e){
       const mode=typeof useWandByName==='function'?useWandByName(it, e):'zap';
       if(mode==='zap'){
         const t=nearestFoe(e,8);
@@ -8036,7 +8187,8 @@ function useMagicItem(it, e){
     return;
   }
   if(it.k==='scroll'||it.k==='prot'){
-    if(e){
+    if(typeof useScrollByName==='function') useScrollByName(it, e);
+    else if(e){
       if(/heal|cure/i.test(String(it.n||'')+' '+String(it.d||''))){
         applyHeal(e, 18); clearPoison(e);
       } else {

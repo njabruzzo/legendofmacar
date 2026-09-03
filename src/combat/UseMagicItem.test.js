@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Staff of Curing heals; Cloak of Displacement dons. Other wands stay 6d6 zaps.
+ * Staff of Curing heals; table wands/scrolls use 1e (or wired bolt/flame/hex/heal).
  * Run: node src/combat/UseMagicItem.test.js
  */
 const fs=require('fs');
@@ -35,9 +35,21 @@ assert(!/id:'/.test(cloakRow[0]), 'Cloak of Displacement does not invent an id')
 
 const useFn=extractFn('useMagicItem');
 const wandFn=extractFn('useWandByName');
+const scrollFn=extractFn('useScrollByName');
 assert(/Staff of Curing/i.test(wandFn) && /applyHeal\(e, 18\)/.test(wandFn) && /clearPoison\(e\)/.test(wandFn),
   'Staff of Curing uses the existing heal-18 + clearPoison pipe');
-assert(/rollDice\(6,6,0\)/.test(useFn), 'other wands still roll 6d6');
+assert(/Rod of Absorption/i.test(wandFn) && /e\.mr=1/.test(wandFn),
+  'Rod of Absorption is resist, not a 6d6 stub');
+assert(/Magic Missiles/i.test(wandFn) && /rollDice\(2,4,2\)/.test(wandFn),
+  'Wand of Magic Missiles is 2×(1d4+1), not 6d6');
+assert(/kind:'flame'/.test(wandFn) && /kind:'bolt'/.test(wandFn),
+  'offensive wands use wired flame/bolt kinds');
+assert(/dead wood/.test(useFn), 'empty wand/staff/rod is dead wood');
+assert(/rollDice\(6,6,0\)/.test(useFn), 'unknown wands and the lightning javelin still roll 6d6');
+assert(/function useScrollByName/.test(scrollFn) && /kind:'flame'/.test(scrollFn),
+  'named-count spell scrolls fire a 6th-level flame');
+assert(/k\)==='prot'/.test(scrollFn) && /guardT/.test(scrollFn),
+  'protection scrolls stay guard+MR+heal 8');
 assert(/javelin of lightning/i.test(useFn) && /becomes a lightning bolt/.test(useFn),
   'Javelin of Lightning is the ammo that may 6d6-zap');
 assert(/slaying/i.test(useFn) && /flies as \+6/.test(useFn),
@@ -78,7 +90,7 @@ const ctx={
 };
 ctx.pack={magic:[]};
 vm.createContext(ctx);
-vm.runInContext(extractFn('isPlusShotAmmo')+extractFn('cancelOneMagicItem')+wandFn+useFn, ctx);
+vm.runInContext(extractFn('isPlusShotAmmo')+extractFn('cancelOneMagicItem')+wandFn+scrollFn+useFn, ctx);
 
 const who={name:'Macar', hero:1, team:'party', hp:10, maxhp:80, poisonT:4};
 ctx.who=who;
@@ -96,14 +108,39 @@ const last=ctx.useMagicItem(staff, who);
 assert(staff.charges===0, 'last charge decrements to 0');
 assert(last!=='spent', 'zero-charge staff is spent like other wands (not spliced as k:heal)');
 
-ctx.healed=0; ctx.cleared=0; ctx.dmg=0;
-['Rod of Absorption','Staff of the Magi','Staff of Power','Wand of Fire','Wand of Lightning','Wand of Magic Missiles'].forEach(n=>{
+ctx.healed=0; ctx.cleared=0; ctx.dmg=0; who.mr=0;
+['Wand of Fire','Staff of Power'].forEach(n=>{
   ctx.healed=0; ctx.dmg=0;
   const wand={n, k:'wand', charges:20};
   ctx.useMagicItem(wand, who);
-  assert(ctx.healed===0 && ctx.dmg===36*4, n+' still 6d6 charge-zaps (got heal='+ctx.healed+' dmg='+ctx.dmg+')');
-  assert(wand.charges===19, n+' still spends 1 charge');
+  assert(ctx.healed===0 && ctx.dmg===36*4, n+' is 6d6 flame (got heal='+ctx.healed+' dmg='+ctx.dmg+')');
+  assert(wand.charges===19, n+' spends 1 charge');
 });
+['Wand of Lightning','Staff of the Magi'].forEach(n=>{
+  ctx.healed=0; ctx.dmg=0;
+  const wand={n, k:'wand', charges:20};
+  ctx.useMagicItem(wand, who);
+  assert(ctx.healed===0 && ctx.dmg===36*4, n+' is 6d6 bolt (got heal='+ctx.healed+' dmg='+ctx.dmg+')');
+  assert(wand.charges===19, n+' spends 1 charge');
+});
+ctx.healed=0; ctx.dmg=0;
+const missiles={n:'Wand of Magic Missiles', k:'wand', charges:20};
+ctx.useMagicItem(missiles, who);
+assert(ctx.healed===0 && ctx.dmg===10*4, 'Wand of Magic Missiles is 2d4+2 bolt (got dmg='+ctx.dmg+')');
+assert(missiles.charges===19, 'Magic Missiles spends 1 charge');
+
+ctx.healed=0; ctx.dmg=0; who.mr=0;
+const absorb={n:'Rod of Absorption', k:'wand', charges:20};
+ctx.useMagicItem(absorb, who);
+assert(ctx.dmg===0 && ctx.healed===0 && who.mr===1, 'Rod of Absorption sets MR; never 6d6');
+assert(absorb.charges===19, 'Absorption spends 1 charge');
+
+ctx.healed=0; ctx.dmg=0;
+const emptyWood={n:'Wand of Fire', k:'wand', charges:0};
+ctx.useMagicItem(emptyWood, who);
+assert(ctx.dmg===0 && ctx.healed===0, 'dead wood never zaps');
+assert(emptyWood.charges===0, 'dead wood does not decrement below 0');
+assert(/dead wood/i.test(ctx.lastSay), 'empty wand says dead wood');
 
 ctx.healed=0; ctx.dmg=0; ctx.donned=null;
 const cloak={n:'Cloak of Displacement', k:'misc', plus:2, d:'First attack misses.'};
@@ -207,7 +244,7 @@ assert(cancel.charges===0, 'Rod of Cancellation spends its 1 charge');
 assert(cursedRing.plus===0 && cursedRing.charges===0, 'cancellation strips plus/charges from the worst cursed item');
 
 ctx.dmg=0; ctx.healed=0;
-['Wand of Enemy Detection','Wand of Magic Detection','Wand of Secret Door and Trap Detection'].forEach(n=>{
+['Wand of Enemy Detection','Wand of Magic Detection','Wand of Secret Door and Trap Detection','Wand of Metal and Mineral Detection'].forEach(n=>{
   ctx.dmg=0; ctx.healed=0; ctx.says=[];
   const wand={n, k:'wand', charges:20};
   ctx.useMagicItem(wand, who);
@@ -226,6 +263,19 @@ ctx.dmg=0; ctx.foe.stun=0;
   assert(wand.charges===19, n+' spends 1 charge');
 });
 
+ctx.dmg=0; ctx.healed=0; ctx.foe.stun=0; ctx.foe.charmed=0;
+const beguile={n:'Rod of Beguiling', k:'wand', charges:10};
+ctx.useMagicItem(beguile, who);
+assert(ctx.dmg===0 && ctx.healed===0, 'Rod of Beguiling never 6d6');
+assert(ctx.foe.stun>=3 && ctx.foe.charmed===1, 'Beguiling hex-charms the nearest foe');
+assert(beguile.charges===9, 'Beguiling spends 1 charge');
+
+ctx.dmg=0; ctx.healed=0; who.guardT=0;
+const illusion={n:'Wand of Illusion', k:'wand', charges:20};
+ctx.useMagicItem(illusion, who);
+assert(ctx.dmg===0 && who.guardT>=8, 'Wand of Illusion is mirror-image guard, not 6d6');
+assert(illusion.charges===19, 'Illusion spends 1 charge');
+
 ctx.dmg=0; who.trueSee=0; who.glow=null;
 const lamp={n:'Wand of Illumination', k:'wand', charges:20};
 ctx.useMagicItem(lamp, who);
@@ -240,11 +290,14 @@ assert(protRet==='spent' && who.guardT>=8 && who.mr===1 && ctx.healed===8,
   'Protection from * scroll still guard+MR+heal 8');
 assert(ctx.dmg===0, 'Protection scroll never 6d6');
 
-ctx.healed=0; who.guardT=0; who.mr=0;
+ctx.healed=0; ctx.dmg=0; who.guardT=0; who.mr=0;
 const spellScroll={n:'Scroll of 1 Spell', k:'scroll', d:'One spell, cast at 6th level.'};
-ctx.useMagicItem(spellScroll, who);
-assert(who.guardT>=8 && ctx.healed===8, 'named-count spell scroll keeps the guard+heal stub');
+const spellRet=ctx.useMagicItem(spellScroll, who);
+assert(spellRet==='spent' && ctx.dmg===36*4 && ctx.healed===0,
+  'named-count spell scroll is one 6th-level flame (got dmg='+ctx.dmg+' heal='+ctx.healed+')');
+assert(who.guardT===0 && who.mr===0, 'offensive scroll is not the old guard+heal stub');
 assert(!/magic missile|fireball|wish/i.test(useFn), 'useMagicItem does not parse a full MU spell list');
+assert(!/magic missile|fireball|wish/i.test(scrollFn), 'useScrollByName does not parse a full MU spell list');
 
 ctx.healed=0; ctx.cleared=0; who.poisonT=3; who.guardT=0; who.mr=0;
 const cureScroll={n:'Scroll of Cure Serious Wounds', k:'scroll', d:'Cure serious wounds.'};
