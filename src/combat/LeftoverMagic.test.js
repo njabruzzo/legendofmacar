@@ -26,7 +26,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='82'/.test(html), 'ASSET_VER is unchanged');
+assert(/ASSET_VER='83'/.test(html), 'ASSET_VER is unchanged');
 assert(!/id:'vorpal'|id:'bag_of_holding'|id:'arrow_of_slaying'|id:'javelin_of_lightning'/.test(html),
   'no invented leftover-magic item ids');
 
