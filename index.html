@@ -351,7 +351,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='88';
+const ASSET_VER='89';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -637,7 +637,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    maul-corrected set. Drop axe / compass / helmeted combat / sleep / title
    / w3 so they cannot fetch or blit. Kin sheets stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
-  if(k==='macar' || k==='macar_w1' || k==='macar_w2') return;
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 const ICON_SPR={
@@ -1338,13 +1338,12 @@ const MACAR_PLAN={
     s:  {flip:0, frames:['macar_w1','macar_w2']},
     idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
           n:'macar', ne:'macar', nw:'macar'},
-    atk:null, rec:null, sideAtk:null
+    atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Title-law Macar only: live idle + front w1/w2. No axe / compass / atk
-   whitelist — those sheets are gone until Limner delivers the maul set. */
+/* Title-law Macar: live idle + front w1/w2 + maul atk. No axe / compass leftovers. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1484,8 +1483,8 @@ function macarPose(e){
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle='macar';
-  /* No live title-law atk sheet. Plant idle — never a helmeted substitute. */
-  if(wantsMeleePose(e)||wantsMeleeRecover(e)) return idle;
+  /* Title-law maul atk when the sheet matches idle; else plant idle. */
+  if(wantsMeleePose(e)||wantsMeleeRecover(e)) return pickReadyPartyKey('macar_atk', idle) || idle;
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }

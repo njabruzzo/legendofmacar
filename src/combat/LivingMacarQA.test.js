@@ -80,11 +80,12 @@ function pngAlphaHist(filePath){
   return {ok:true, w, h, mid, a0, a255, unique:midVals.size+(a0?1:0)+(a255?1:0)};
 }
 
-const BLIT_KEYS=['macar','macar_w1','macar_w2'];
+const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk'];
 const KEY_FILE={
   macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
-  macar_w2:'dwarf_macar_w2.png'
+  macar_w2:'dwarf_macar_w2.png',
+  macar_atk:'dwarf_macar_atk.png'
 };
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
@@ -112,8 +113,8 @@ assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.tes
   && !/macar_w3/.test(liveKey) && !/macar_title/.test(liveKey),
   'livingMacarAnimKey never binds directional / w3 / title sheets');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'walk uses the front w1/w2 pair of the live idle');
-assert(/wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\) return idle/.test(liveKey),
-  'attack plants the live idle until a title-law atk sheet exists');
+assert(/pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
+  'attack uses title-law atk when the sheet matches idle');
 
 assert(/function livingMacarIdleKey\(/.test(html), 'idle key helper exists for doll / HUD / title');
 assert(/SPR\[livingMacarIdleKey\(\)\]/.test(html), 'doll / HUD / title idle go through livingMacarIdleKey');
