@@ -142,10 +142,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
-  'hold D: every gait frame is the front whitelist pair, flip-inverted, never w3');
-assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
-  'hold A: every gait frame is the same front pair unflipped, never w3');
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
+  'hold D: every gait frame is the front whitelist pair, unflipped, never w3');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
+  'hold A: every gait frame is the same front pair flipped for screen-left, never w3');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 
@@ -153,10 +153,10 @@ const macRight={hero:1, moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, cr
 const kinRight={k:'orbo_ghost', moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, crushed:0, dead:0};
 const macLeft={hero:1, moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0, ghost:0, atk:0};
 const kinLeft={k:'orbo_ghost', moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, crushed:0, dead:0};
-assert(ctx.wantsSpriteFlip(macRight)===true && ctx.wantsSpriteFlip(kinRight)===false,
-  'living Macar invert: D flips Macar, kin stay unflipped');
-assert(ctx.wantsSpriteFlip(macLeft)===false && ctx.wantsSpriteFlip(kinLeft)===true,
-  'living Macar invert: A leaves Macar unflipped, kin still flip');
+assert(ctx.wantsSpriteFlip(macRight)===false && ctx.wantsSpriteFlip(kinRight)===false,
+  'title-law: D leaves Macar and right-facing kin unflipped');
+assert(ctx.wantsSpriteFlip(macLeft)===true && ctx.wantsSpriteFlip(kinLeft)===true,
+  'title-law: A flips Macar and kin (sheets travel screen-right)');
 
 assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w1.png'))
   && fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w2.png')),

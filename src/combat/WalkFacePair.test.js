@@ -19,10 +19,10 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
 assert(/w1 \/ w2 are the same painted facing/.test(html),
   'walkCycleKey documents same-face opposite-foot');
-assert(/function wantsSpriteFlip\(e\)\{/.test(html) && /moveHeadingSX\(e\) > 0\.02/.test(html)
-  && /moveHeadingSX\(e\) < -0\.02/.test(html),
-  'flip stays heading-only; living Macar invert, kin keep the old sign');
-assert(/const flip=wantsSpriteFlip\(e\)/.test(html) && /blitFacing\(g,img,dx,dy,W,H,flip\)/.test(html),
+assert(/function wantsSpriteFlip\(e\)\{/.test(html) && /moveHeadingSX\(e\) < -0\.02/.test(html)
+  && !/moveHeadingSX\(e\) > 0\.02/.test(html),
+  'flip stays heading-only; title-law sheets flip only for screen-left');
+assert(/const flip=wantsSpriteFlip\(e\)/.test(html) && /blitFacing\(g,img,dx,dy,W,H,flip/.test(html),
   'heading flip is applied once per pose on the blit');
 
 const py=spawnSync('python3',[path.join(__dirname,'WalkFacePair_sheets.py')],{

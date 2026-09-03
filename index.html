@@ -1040,6 +1040,9 @@ function repairSpriteSheet(img){
   const c=document.createElement('canvas');
   c.width=W; c.height=H;
   const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=false;
+  x.globalAlpha=1;
+  x.globalCompositeOperation='source-over';
   x.clearRect(0,0,W,H);
   x.drawImage(img,0,0);
   const idat=x.getImageData(0,0,W,H), d=idat.data;
@@ -1179,7 +1182,7 @@ function repairSpriteSheet(img){
   }
   /* 3. Force the body opaque. The directional sheets carry a wide feather,
      and a feather spread across the figure is what reads as see-through.
-     Only the outermost pixel keeps a ramped alpha. */
+     Every silhouette pixel is a=255 — a ramped edge is the sparkle flash. */
   const inner=new Uint8Array(N);
   morphPass(sil,inner,W,H,1,false,false);
   const t1=new Uint8Array(N);
@@ -1187,7 +1190,9 @@ function repairSpriteSheet(img){
   morphPass(t1,inner,W,H,1,false,true);
   for(let i=0,p=0;i<N;i++,p+=4){
     if(!sil[i]){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
-    if(inner[i]||!d[p+3]) d[p+3]=255;
+    /* LAW: living Macar is fully opaque. A ramped edge is the sparkle
+       outline / see-through flash once bilinear or a flip copies it. */
+    d[p+3]=255;
   }
   x.putImageData(idat,0,0);
   return c;
@@ -1199,7 +1204,7 @@ const SOLID_MACAR=(typeof WeakMap==='function')?new WeakMap():null;
    never the raw fringe sheet. */
 function blitLivingMacar(img){
   const idle=(typeof SPR!=='undefined' && SPR.macar && SPR.macar.width)?SPR.macar:null;
-  if(!img||!img.width) return idle?blitLivingMacar(idle):null;
+  if(!img||!img.width) return (idle&&idle!==img)?blitLivingMacar(idle):null;
   if(SOLID_MACAR&&SOLID_MACAR.has(img)) return SOLID_MACAR.get(img);
   if(img.__solidMacar) return img.__solidMacar;
   let out=null;
@@ -1207,7 +1212,25 @@ function blitLivingMacar(img){
     out=repairSpriteSheet(img);
     out=punchLivingMacarCanvas(out);
   }catch(_){
-    out=img;   // repair failed (tainted canvas, no 2d context) — ship the sheet as painted
+    out=null;
+  }
+  /* 0-size / failed bake would blit a see-through sliver. Fall back to
+     punching the source, then idle — never cache an empty canvas. */
+  if(!out||!out.width||!out.height){
+    try{
+      const c=document.createElement('canvas');
+      c.width=img.width; c.height=img.height;
+      const x=c.getContext('2d',{willReadFrequently:true});
+      x.imageSmoothingEnabled=false;
+      x.globalAlpha=1;
+      x.globalCompositeOperation='source-over';
+      x.drawImage(img,0,0);
+      out=punchLivingMacarCanvas(c);
+    }catch(_){ out=null; }
+  }
+  if(!out||!out.width||!out.height){
+    if(idle&&idle!==img) return blitLivingMacar(idle);
+    return null;
   }
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
   else img.__solidMacar=out;
@@ -1228,9 +1251,13 @@ function flippedSprite(img){
   if(FLIP_CACHE&&FLIP_CACHE.has(img)) return FLIP_CACHE.get(img);
   const c=document.createElement('canvas');
   c.width=img.width; c.height=img.height;
-  const fg=c.getContext('2d');
+  const fg=c.getContext('2d',{willReadFrequently:true});
+  fg.imageSmoothingEnabled=false;
+  fg.globalAlpha=1;
+  fg.globalCompositeOperation='source-over';
   fg.translate(c.width,0); fg.scale(-1,1);
   fg.drawImage(img,0,0);
+  punchLivingMacarCanvas(c);
   if(FLIP_CACHE) FLIP_CACHE.set(img,c);
   return c;
 }
@@ -1302,11 +1329,11 @@ function drawEntBillboard(g,e,img,z,flip){
 const MACAR_PLAN={
   macar:{
     e:  {flip:0, frames:['macar_w1','macar_w2']},
-    w:  {flip:0, frames:['macar_w1','macar_w2']},
+    w:  {flip:1, frames:['macar_w1','macar_w2']},
     se: {flip:0, frames:['macar_w1','macar_w2']},
-    sw: {flip:0, frames:['macar_w1','macar_w2']},
+    sw: {flip:1, frames:['macar_w1','macar_w2']},
     ne: {flip:0, frames:['macar_w1','macar_w2']},
-    nw: {flip:0, frames:['macar_w1','macar_w2']},
+    nw: {flip:1, frames:['macar_w1','macar_w2']},
     n:  {flip:0, frames:['macar_w1','macar_w2']},
     s:  {flip:0, frames:['macar_w1','macar_w2']},
     idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
@@ -1419,7 +1446,10 @@ function macarPose(e){
   const plan=MACAR_PLAN[stem]||MACAR_PLAN.macar;
   const oct=e.defending?'n':screenOctant(e);
   const dir=plan[oct]||plan.s;
-  const flip=!!dir.flip;
+  /* Title-law sheets travel screen-right. Flip is heading-only and must
+     match wantsSpriteFlip — D unflipped, A flipped. Do not read dir.flip
+     alone or west stays unflipped while the blit mirrors. */
+  const flip=wantsSpriteFlip(e);
 
   if(wantsMeleePose(e)||wantsMeleeRecover(e)){
     const rec=wantsMeleeRecover(e);
@@ -2101,12 +2131,10 @@ function wantsSpriteFlip(e){
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   if(key.indexOf('_ne_')>=0) return false;
-  // Living Macar idle/w1/w2 are painted traveling screen-right. #150 left
-  // east unflipped / west flipped and Nick still saw him walk backwards.
-  // Invert HIS blit sign only. Same FACE, opposite FOOT. Kin stay put.
-  // After invert: D / gold-right flips the painted-right sheet so he faces
-  // screen-RIGHT; A / gold-left stays unflipped and faces screen-LEFT.
-  if(e.hero && !e.ghost) return moveHeadingSX(e) > 0.02;
+  // Title-law idle/w1/w2 travel SCREEN-RIGHT. Unflipped on D / gold-right.
+  // Flip ONLY for screen-left. Same FACE, opposite FOOT. Kin sheets also
+  // face right, so they share this sign — no invert leftover.
+  if(e.hero && !e.ghost) return moveHeadingSX(e) < -0.02;
   return moveHeadingSX(e) < -0.02;
 }
 function attackProgress(e){
@@ -14467,7 +14495,10 @@ function drawEquipDoll(g, x, y, w, h){
     g.save();
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
+    const prevS=g.imageSmoothingEnabled;
+    g.imageSmoothingEnabled=false;
     g.drawImage(img, sx, sy, sw, sh, body.x+body.w/2-dw/2, body.y+body.h/2-dh/2, dw, dh);
+    g.imageSmoothingEnabled=prevS;
     g.restore();
   } else {
     g.fillStyle='rgba(80,58,36,0.55)';

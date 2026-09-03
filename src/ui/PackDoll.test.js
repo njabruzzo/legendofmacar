@@ -23,6 +23,8 @@ assert(/livingMacarIdleKey\(\)/.test(block),
   'doll follows livingMacarIdleKey so Shadow Cleaver matches the dungeon blit');
 assert(/globalAlpha=1/.test(block) && /globalCompositeOperation='source-over'/.test(block),
   'doll blit is source-over at alpha 1');
+assert(/imageSmoothingEnabled=false/.test(block),
+  'doll blit is crisp — bilinear would fringe the punched idle');
 assert(!/SPR\.icon_doll/.test(block), 'kettle-hat icon_doll is not the pack doll');
 assert(!/globalAlpha=0\.92/.test(block), 'old translucent doll alpha is gone');
 assert(!/globalCompositeOperation='lighter'/.test(block) && !/createRadialGradient/.test(block),

@@ -55,8 +55,12 @@ assert(/function punchLivingAlpha\(/.test(html) && /function isMagentaMatte\(/.t
   'living pipe punches magenta matte and binary-alpha a<=40');
 assert(/MACAR_FOOT_WIDEN=1\.24/.test(html) && /imageSmoothingEnabled=false/.test(extractFn('blitFacing')),
   'dungeon Macar blit is crisp and wider, not taller');
+assert(/imageSmoothingEnabled=false/.test(extractFn('flippedSprite')),
+  'flipped living Macar is nearest-neighbor, not bilinear fringe');
 assert(/const idle=/.test(bake) && /SPR\.macar/.test(bake),
   'empty sheet falls back to idle Macar');
+assert(/!out\|\|!out\.width\|\|!out\.height/.test(bake),
+  'failed or 0-size bake is not cached as a see-through canvas');
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey),
