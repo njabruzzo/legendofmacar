@@ -97,14 +97,46 @@ let magic = Eq.equip(Eq.emptyEquipped(), mail).equipped;
 assert(Eq.computeWornAC(magic) === 4, 'chain 5 +1 => AC 4');
 
 const helmLoot = Eq.annotate({n:'Helm of Telepathy', k:'misc'});
-assert(helmLoot.slot === 'helmet' && helmLoot.acBonus === 1, 'loot helm maps and gets +1 AC');
+assert(helmLoot.slot === 'helmet', 'loot helm maps to helmet');
+assert(helmLoot.acBonus == null && !helmLoot.plus, 'Helm of * does not get a free acBonus');
 magic = Eq.equip(magic, helmLoot).equipped;
-assert(Eq.computeWornAC(magic) === 3, 'chain +1 and helm +1 => AC 3');
+assert(Eq.computeWornAC(magic) === 4, 'Helm of Telepathy does not add AC to chain +1');
+
+const ironHelm = Eq.annotate({n:'Iron Helm', k:'armor', acBonus:1});
+assert(ironHelm.acBonus === 1 && Eq.helmAcBonus(ironHelm) === 1, 'Iron Helm keeps house acBonus:1');
+let ironEq = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+ironEq = Eq.equip(ironEq, ironHelm).equipped;
+assert(Eq.computeWornAC(ironEq) === 7, 'Iron Helm still +1 AC on leather 8');
+
+const helmPlus = Eq.annotate({n:'Helm of Brilliance', k:'misc', plus:1});
+assert(helmPlus.acBonus === 1, 'Helm of * with an explicit plus still gets that AC');
 
 const sh = Eq.annotate({n:'Shield +1', k:'armor', plus:1});
 assert(sh.slot === 'secondary', 'loot shield maps to off hand');
 magic = Eq.equip(magic, sh).equipped;
-assert(Eq.computeWornAC(magic) === 1, 'mail+helm+shield +1 => AC 1');
+assert(Eq.computeWornAC(magic) === 2, 'mail+Telepathy helm+shield +1 => AC 2 (no free helm AC)');
+
+const gateRing = Eq.annotate({n:'Ring of Protection +4 on AC 5 or better', k:'ring', cat:'Ring', plus:4});
+assert(Eq.isAc5GateRing(gateRing) && gateRing.plus === 4, 'gated ring keeps plus:4');
+let leatherGate = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+assert(Eq.computeWornAC(leatherGate) === 8, 'leather alone is AC 8 (worse than 5)');
+leatherGate = Eq.equip(leatherGate, gateRing).equipped;
+assert(Eq.computeWornAC(leatherGate) === 8, 'gated +4 does not apply when worn AC is worse than 5');
+
+let chainGate = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Chain Mail', k:'armor'})).equipped;
+assert(Eq.computeWornAC(chainGate) === 5, 'chain alone is AC 5');
+chainGate = Eq.equip(chainGate, gateRing).equipped;
+assert(Eq.computeWornAC(chainGate) === 1, 'gated +4 applies when worn AC is already 5');
+
+const prot1 = Eq.annotate({n:'Ring of Protection +1', k:'ring', cat:'Ring', plus:1});
+let leatherProt = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+leatherProt = Eq.equip(leatherProt, prot1).equipped;
+assert(Eq.computeWornAC(leatherProt) === 7, 'ordinary Protection +1 still stacks on leather');
+
+const dexRing = {n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1};
+Eq.annotate(dexRing);
+assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
+  'dex ring does not stack as Protection AC');
 
 const cursed = {n:'Cursed Armor -1', k:'cursed', cat:'Armor/Shield', plus:-1, cursed:1};
 Eq.annotate(cursed);
@@ -117,6 +149,10 @@ const boots = Eq.annotate({n:'Boots of Elvenkind', k:'misc'});
 assert(Eq.itemSlot(boots) === 'boots', 'pack boots map to feet');
 
 const html = require('fs').readFileSync(require('path').join(__dirname, '../../index.html'), 'utf8');
+const gateRow = html.match(/n:'Ring of Protection \+4 on AC 5 or better',k:'ring',plus:(\d+)/);
+assert(gateRow && gateRow[1] === '4', 'table stores Ring of Protection +4 as plus:4');
+assert(/function rollDmgRing\(/.test(html) && /plus:r\.plus/.test(html.match(/function rollDmgRing\([\s\S]*?\n\}/)[0]),
+  'ring loot path copies table plus');
 assert(/src\/packs\/EquipmentSlots\.js/.test(html), 'index.html loads EquipmentSlots');
 assert(/drawEquipDoll|drawPaperDoll/.test(html), 'pack screen draws the paper doll');
 assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit');

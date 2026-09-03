@@ -127,8 +127,35 @@
       it.armorType = it.armorType || inferArmorType(it.n);
       if (it.ac == null && it.armorType && ARMOR_AC[it.armorType] != null) it.ac = ARMOR_AC[it.armorType];
     }
-    if (slot === 'helmet' && it.acBonus == null) it.acBonus = (it.plus || 1);
+    /* Loot "Helm of *" rows have no plus — do not invent a free +1 AC. */
+    if (slot === 'helmet' && it.acBonus == null && it.plus) it.acBonus = it.plus;
     return it;
+  }
+
+  function isDexRing(it) {
+    if (!it) return false;
+    if (it.dexPlus) return true;
+    if (it.k === 'dex') return true;
+    return /dexterity/i.test(String(it.n || ''));
+  }
+
+  function isAc5GateRing(it) {
+    return !!(it && /protection/i.test(String(it.n || '')) && /AC 5 or better/i.test(String(it.n || '')));
+  }
+
+  function helmAcBonus(it) {
+    if (!it) return 0;
+    if (it.acBonus != null) return it.acBonus;
+    return it.plus || 0;
+  }
+
+  /** AC plus from jewelry. Dex rings never stack as Protection. +4-on-AC-5 is gated. */
+  function jewelryAcPlus(it, acBefore) {
+    if (!it || isDexRing(it)) return 0;
+    var p = it.acBonus ? it.acBonus : (it.plus || 0);
+    if (!p) return 0;
+    if (isAc5GateRing(it) && !(acBefore <= 5)) return 0;
+    return p;
   }
 
   function startingItems(hammerFactory) {
@@ -252,17 +279,17 @@
       if (chest.plus) base -= chest.plus;
     }
     var helm = eq.helmet;
-    if (helm) {
-      var hb = helm.acBonus != null ? helm.acBonus : (helm.plus || 1);
-      base -= hb;
-    }
-    ['bracers', 'gloves', 'pants', 'boots', 'necklace'].forEach(function (s) {
+    if (helm) base -= helmAcBonus(helm);
+    ['bracers', 'gloves', 'pants', 'boots'].forEach(function (s) {
       var it = eq[s];
       if (!it) return;
       if (it.acBonus) base -= it.acBonus;
       else if (it.plus) base -= it.plus;
     });
-    if (eq.ring && eq.ring !== eq.necklace && eq.ring.plus) base -= eq.ring.plus;
+    if (!opts.noJewelry) {
+      if (eq.necklace) base -= jewelryAcPlus(eq.necklace, base);
+      if (eq.ring && eq.ring !== eq.necklace) base -= jewelryAcPlus(eq.ring, base);
+    }
     if (!opts.noShield) {
       var sh = isShield(eq.secondary) ? eq.secondary : (isShield(eq.primary) ? eq.primary : null);
       if (sh) base -= 1 + (sh.plus || 0);
@@ -275,8 +302,9 @@
     var n = 0;
     var chest = eq.chest || eq.armor;
     if (chest && chest.plus) n += chest.plus;
-    if (eq.ring && eq.ring.plus) n += eq.ring.plus;
-    else if (eq.necklace && eq.necklace.plus && eq.necklace.k === 'ring') n += eq.necklace.plus;
+    var acBefore = computeWornAC(eq, {noJewelry: true});
+    var ring = eq.ring || eq.necklace;
+    if (ring && ring.plus) n += jewelryAcPlus(ring, acBefore);
     return n;
   }
 
@@ -292,7 +320,10 @@
     } else {
       parts.push('unarmored AC 10');
     }
-    if (eq.helmet) parts.push('helm +' + (eq.helmet.acBonus != null ? eq.helmet.acBonus : (eq.helmet.plus || 1)));
+    if (eq.helmet) {
+      var hb = helmAcBonus(eq.helmet);
+      if (hb) parts.push('helm +' + hb);
+    }
     if (isShield(eq.secondary) || isShield(eq.primary)) parts.push('shield');
     if (eq.necklace && eq.necklace.plus) parts.push((eq.necklace.n || 'ward') + ' +' + eq.necklace.plus);
     else if (eq.ring && eq.ring.plus) parts.push((eq.ring.n || 'ring') + ' +' + eq.ring.plus);
@@ -336,6 +367,10 @@
     itemSlot: itemSlot,
     isEquippable: isEquippable,
     annotate: annotate,
+    isDexRing: isDexRing,
+    isAc5GateRing: isAc5GateRing,
+    helmAcBonus: helmAcBonus,
+    jewelryAcPlus: jewelryAcPlus,
     startingItems: startingItems,
     slotHas: slotHas,
     clearItem: clearItem,
