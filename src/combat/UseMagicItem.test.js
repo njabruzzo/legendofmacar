@@ -57,7 +57,7 @@ const ctx={
   player(){ return ctx.who; },
   isEquipWeapon(){ return false; },
   isEquipArmor(){ return false; },
-  equipPackItem(it){ ctx.donned=it; ctx.donSlot='necklace'; return 'necklace'; },
+  equipPackItem(it){ ctx.donned=it; ctx.donSlot=Eq.itemSlot(it)||'necklace'; return ctx.donSlot; },
   applyEquipped(){},
   nearestFoe(){ return ctx.foe; },
   rollDice(n,s,b){ return n*s+(b||0); },
@@ -106,6 +106,28 @@ const bag={n:'Bag of Holding', k:'misc'};
 who.buff=0;
 ctx.useMagicItem(bag, who);
 assert(ctx.donned==null && ctx.healed===6 && who.buff>=10, 'other unequippable misc still buff+heal 6');
+
+ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.buff=0;
+const ogre={n:'Gauntlets of Ogre Power', k:'misc', d:'Strength 18/00.'};
+assert(Eq.isEquippable(ogre), 'ogre gauntlets are equippable so useMagicItem dons them');
+ctx.useMagicItem(ogre, who);
+assert(ctx.donned===ogre && ctx.donSlot==='gloves', 'using ogre gauntlets from pack dons gloves');
+assert(ctx.healed===0 && who.buff===0, 'using ogre gauntlets does not buff+heal');
+
+ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.buff=0;
+const dexG={n:'Gauntlets of Dexterity', k:'misc', d:'Dexterity 18.'};
+assert(Eq.isEquippable(dexG), 'dex gauntlets are equippable so useMagicItem dons them');
+ctx.useMagicItem(dexG, who);
+assert(ctx.donned===dexG && ctx.donSlot==='gloves', 'using dex gauntlets from pack dons gloves');
+assert(ctx.healed===0 && who.buff===0, 'using dex gauntlets does not buff+heal');
+
+ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.stun=0;
+const fumble={n:'Gauntlets of Fumbling', k:'cursed', cursed:1, d:'Seem helpful.'};
+assert(Eq.isEquippable(fumble), 'fumbling gauntlets are equippable');
+ctx.useMagicItem(fumble, who);
+assert(ctx.donned===fumble && ctx.donSlot==='gloves', 'using fumbling gauntlets dons and binds');
+assert(ctx.healed===0 && ctx.dmg===0, 'cursed equippable gauntlets don instead of the stun+damage fallback');
+assert(/The curse binds/.test(ctx.lastSay), 'fumbling use speaks the curse bind line');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nuseMagicItem checks passed');

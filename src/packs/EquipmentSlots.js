@@ -141,8 +141,24 @@
     return it;
   }
 
+  function isFumblingGauntlets(it) {
+    return !!(it && /gauntlet/i.test(String(it.n || '')) && (/fumbling/i.test(String(it.n || '')) || it.cursed));
+  }
+
+  function isOgreGauntlets(it) {
+    if (!it || isFumblingGauntlets(it)) return false;
+    return /ogre power/i.test(String(it.n || ''));
+  }
+
+  function isDexGauntlets(it) {
+    if (!it || isFumblingGauntlets(it)) return false;
+    return /gauntlets of dexterity/i.test(String(it.n || '')) ||
+      (/gauntlet/i.test(String(it.n || '')) && /dexterity/i.test(String(it.n || '')));
+  }
+
   function isDexRing(it) {
     if (!it) return false;
+    if (/gauntlet|glove/i.test(String(it.n || ''))) return false;
     if (it.dexPlus) return true;
     if (it.k === 'dex') return true;
     return /dexterity/i.test(String(it.n || ''));
@@ -380,6 +396,9 @@
     itemSlot: itemSlot,
     isEquippable: isEquippable,
     annotate: annotate,
+    isFumblingGauntlets: isFumblingGauntlets,
+    isOgreGauntlets: isOgreGauntlets,
+    isDexGauntlets: isDexGauntlets,
     isDexRing: isDexRing,
     isAc5GateRing: isAc5GateRing,
     helmAcBonus: helmAcBonus,

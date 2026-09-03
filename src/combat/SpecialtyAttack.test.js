@@ -107,7 +107,8 @@ const ctx={
   player:()=>ctx.hero,
   attackClass:(e)=>e.team==='foe'?'m':'f',
   strMods:(ab)=> {
-    const s=(ab&&ab.str)|0;
+    const s=(ab&&ab.str)|0, exc=(ab&&ab.exc)|0;
+    if(s>=18 && exc>=100) return {hit:3,dmg:6};
     if(s>=17) return {hit:1,dmg:1};
     return {hit:0,dmg:0};
   }
@@ -115,7 +116,7 @@ const ctx={
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 vm.runInContext(extractConst('SPECIALTY'), ctx);
-['wornWeaponPlus','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','wornDisplacementPlus','wearingDisplacement','consumeDisplacementMiss','addAttack'].forEach(n=>{
+['wornWeaponPlus','wornOgrePower','meleeStrAbil','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','wornDisplacementPlus','wearingDisplacement','consumeDisplacementMiss','addAttack'].forEach(n=>{
   vm.runInContext(extractFn(n), ctx);
 });
 
@@ -303,6 +304,39 @@ ctx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
 ctx.G.displaceMiss=1;
 const protHit=ctx.addAttack(gobAtk, wearer, {roll:20});
 assert(protHit>0, 'Protection ring does not force a first miss');
+
+const ogre={n:'Gauntlets of Ogre Power', k:'misc'};
+const dexGant={n:'Gauntlets of Dexterity', k:'misc'};
+const fumble={n:'Gauntlets of Fumbling', k:'cursed', cursed:1};
+const ogreWielder={name:'Macar', team:'party', hero:1, cls:'f', race:'dwarf', abil:{str:10,dex:11}, gear:{magicAtk:0}, dice:'1d8', ranged:0};
+ctx.G.equipped={primary:hammer, weapon:hammer, gloves:ogre};
+assert(ctx.wornOgrePower(ogreWielder)===true, 'ogre gauntlets count while worn');
+assert(ctx.specialtyHitBonus(ogreWielder)===3, 'ogre STR 18/00 hit (+3) enters Specialty tot (no weapon plus)');
+assert(ctx.wornWeaponPlus(ogreWielder)===0, 'ogre gauntlets are not a magic-weapon plus');
+ctx.G.equipped={primary:cleaver, weapon:cleaver, gloves:ogre};
+assert(ctx.specialtyHitBonus(ogreWielder)===5, 'ogre STR +3 plus Shadow Cleaver +2 = +5 tot');
+ctx.G.equipped={primary:hammer, weapon:hammer};
+assert(ctx.specialtyHitBonus(ogreWielder)===0, 'doffing ogre restores sheet STR 10 tot');
+ctx.G.equipped={primary:hammer, weapon:hammer, gloves:dexGant, necklace:{k:'dex', dexPlus:1, n:'Ring of Dexterity +1'}};
+assert(ctx.specialtyHitBonus(ogreWielder)===0, 'dex gauntlets do not enter the specialty tot');
+ctx.G.equipped={primary:hammer, weapon:hammer, gloves:fumble};
+assert(ctx.specialtyHitBonus(ogreWielder)===0 && ctx.wornOgrePower(ogreWielder)===false,
+  'fumbling gauntlets grant no ogre STR in tot');
+assert(!/effectiveDex/.test(extractFn('specialtyHitBonus')),
+  'Specialty tot still does not read effectiveDex / dex gauntlets');
+assert(/meleeStrAbil/.test(extractFn('specialtyHitBonus')),
+  'Specialty tot reads meleeStrAbil (ogre STR, not a weapon plus)');
+
+ctx.thacNeed=()=>10;
+ctx.hitBonus=()=>0;
+ctx.rollExpr=()=>4;
+ctx.G.equipped={primary:hammer, weapon:hammer, gloves:ogre};
+const ogreAtk={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{magicAtk:0}, dice:'1d8', ranged:0};
+const ogreDmg=ctx.addAttack(ogreAtk, def, {roll:18});
+assert(ogreDmg>=(4+6)*4, 'ogre 18/00 damage (+6) applies on melee (got '+ogreDmg+')');
+ctx.G.equipped={primary:hammer, weapon:hammer, gloves:dexGant};
+const dexAtkDmg=ctx.addAttack(ogreAtk, def, {roll:18});
+assert(dexAtkDmg>=4*4 && dexAtkDmg<(4+6)*4, 'dex gauntlets do not add ogre melee damage (got '+dexAtkDmg+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nspecialty attack checks passed');

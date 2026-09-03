@@ -28,6 +28,19 @@ assert(!Eq.isShield({n:'Leather Armor', cat:'Armor/Shield'}), 'Armor/Shield cate
 assert(Eq.itemSlot({n:'Chain Mail +1', k:'armor'}) === 'chest', 'chain → chest');
 assert(Eq.itemSlot({n:'Bracers of Defense', k:'misc'}) === 'bracers', 'bracers');
 assert(Eq.itemSlot({n:'Gauntlets of Ogre Power', k:'misc'}) === 'gloves', 'gauntlets → gloves');
+assert(Eq.itemSlot({n:'Gauntlets of Dexterity', k:'misc'}) === 'gloves', 'dex gauntlets → gloves');
+assert(Eq.itemSlot({n:'Gauntlets of Fumbling', k:'cursed', cursed:1}) === 'gloves', 'fumbling gauntlets → gloves');
+assert(Eq.isEquippable({n:'Gauntlets of Ogre Power', k:'misc'}), 'ogre gauntlets are equippable');
+assert(Eq.isEquippable({n:'Gauntlets of Dexterity', k:'misc'}), 'dex gauntlets are equippable');
+assert(Eq.isOgreGauntlets({n:'Gauntlets of Ogre Power', k:'misc'}), 'ogre name is ogre');
+assert(Eq.isDexGauntlets({n:'Gauntlets of Dexterity', k:'misc'}), 'dex name is dex');
+assert(Eq.isFumblingGauntlets({n:'Gauntlets of Fumbling', k:'cursed', cursed:1}), 'fumbling name is cursed gloves');
+assert(!Eq.isOgreGauntlets({n:'Gauntlets of Fumbling', k:'cursed', cursed:1}),
+  'fumbling gauntlets are not ogre power');
+assert(!Eq.isDexGauntlets({n:'Gauntlets of Fumbling', k:'cursed', cursed:1}),
+  'fumbling gauntlets are not dexterity');
+assert(!Eq.isDexRing({n:'Gauntlets of Dexterity', k:'misc'}),
+  'dex gauntlets are not the Dexterity ring');
 assert(Eq.itemSlot({n:'Wool Trousers', slot:'pants'}) === 'pants', 'pants');
 assert(Eq.itemSlot({n:'Boots of Speed', k:'misc'}) === 'boots', 'boots');
 assert(Eq.itemSlot({n:"Macar's War Hammer", k:'weapon'}) === 'primary', 'hammer → primary');
@@ -158,6 +171,32 @@ Eq.annotate(dexRing);
 assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
   'dex ring does not stack as Protection AC');
 
+const ogreG = Eq.annotate({n:'Gauntlets of Ogre Power', k:'misc'});
+assert(ogreG.slot === 'gloves' && !ogreG.plus, 'ogre gauntlets annotate as gloves with no plus');
+assert(Eq.jewelryAcPlus(ogreG, 8) === 0, 'ogre gauntlets are not jewelry AC');
+let leatherOgre = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+assert(Eq.computeWornAC(leatherOgre) === 8, 'leather alone is AC 8');
+leatherOgre = Eq.equip(leatherOgre, ogreG).equipped;
+assert(leatherOgre.gloves && leatherOgre.gloves.n === 'Gauntlets of Ogre Power', 'ogre dons gloves');
+assert(Eq.computeWornAC(leatherOgre) === 8, 'ogre gauntlets do not change worn AC');
+assert(Eq.unequip(leatherOgre, 'gloves').ok, 'ogre gauntlets doff');
+
+const dexG = Eq.annotate({n:'Gauntlets of Dexterity', k:'misc'});
+assert(dexG.slot === 'gloves', 'dex gauntlets annotate as gloves');
+assert(Eq.jewelryAcPlus(dexG, 8) === 0, 'dex gauntlets are not jewelry AC');
+let leatherDexG = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+leatherDexG = Eq.equip(leatherDexG, dexG).equipped;
+assert(Eq.computeWornAC(leatherDexG) === 8, 'dex gauntlets do not change worn AC (dex is via effectiveDex)');
+assert(Eq.unequip(leatherDexG, 'gloves').ok, 'dex gauntlets doff');
+
+const fumbleG = Eq.annotate({n:'Gauntlets of Fumbling', k:'cursed', cursed:1});
+assert(fumbleG.slot === 'gloves' && fumbleG.cursed, 'fumbling gauntlets stay cursed gloves');
+let dwarfHands = Eq.equip(Eq.emptyEquipped(), fumbleG).equipped;
+assert(dwarfHands.gloves === fumbleG, 'dwarf (or anyone) can don fumbling gauntlets');
+const stayFumble = Eq.unequip(dwarfHands, 'gloves');
+assert(!stayFumble.ok && stayFumble.reason === 'cursed', 'cursed fumbling gauntlets will not doff');
+assert(Eq.jewelryAcPlus(fumbleG, 8) === 0, 'fumbling gauntlets are not jewelry AC');
+
 const cursed = {n:'Cursed Armor -1', k:'cursed', cat:'Armor/Shield', plus:-1, cursed:1};
 Eq.annotate(cursed);
 eq = Eq.equip(Eq.emptyEquipped(), cursed).equipped;
@@ -198,6 +237,15 @@ const gateRow = html.match(/n:'Ring of Protection \+4 on AC 5 or better',k:'ring
 assert(gateRow && gateRow[1] === '4', 'table stores Ring of Protection +4 as plus:4');
 assert(/function rollDmgRing\(/.test(html) && /plus:r\.plus/.test(html.match(/function rollDmgRing\([\s\S]*?\n\}/)[0]),
   'ring loot path copies table plus');
+const ogreRow = html.match(/\{a:37,b:41,n:'Gauntlets of Ogre Power'[^}]+\}/);
+assert(!!ogreRow && /k:'misc'/.test(ogreRow[0]) && !/id:'/.test(ogreRow[0]),
+  'ogre gauntlets table row stays nameless k:misc');
+const dexGRow = html.match(/\{a:32,b:36,n:'Gauntlets of Dexterity'[^}]+\}/);
+assert(!!dexGRow && /k:'misc'/.test(dexGRow[0]) && !/id:'/.test(dexGRow[0]),
+  'dex gauntlets table row stays nameless k:misc');
+const fumbleRow = html.match(/\{a:42,b:44,n:'Gauntlets of Fumbling'[^}]+\}/);
+assert(!!fumbleRow && /k:'cursed'/.test(fumbleRow[0]) && /cursed:1/.test(fumbleRow[0]) && !/id:'/.test(fumbleRow[0]),
+  'fumbling gauntlets table row stays cursed with no invented id');
 assert(/src\/packs\/EquipmentSlots\.js/.test(html), 'index.html loads EquipmentSlots');
 assert(/drawEquipDoll|drawPaperDoll/.test(html), 'pack screen draws the paper doll');
 assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit');
@@ -241,6 +289,41 @@ assert(/GEAR/.test(html), 'Macar portrait marks the gear screen');
 assert(/if\(!slot\) return null/.test(html.match(/function maybeAutoEquip[\s\S]*?\n\}/)[0])
   && /if\(G\.equipped\[slot\]\) return null/.test(html.match(/function maybeAutoEquip[\s\S]*?\n\}/)[0]),
   'maybeAutoEquip still dons empty slots only (does not steal an occupied necklace)');
+
+const dexCtx={
+  G:{equipped:{necklace:{k:'dex', dexPlus:1, n:'Ring of Dexterity +1'}}},
+  entityAbil:(e)=>e&&e.abil||{dex:11,str:16}
+};
+vm.createContext(dexCtx);
+vm.runInContext(extractFn('wornDexPlus')+extractFn('wornOgrePower')+extractFn('meleeStrAbil')+extractFn('effectiveDex'), dexCtx);
+const macHero={hero:1, team:'party', race:'dwarf', kind:'dwarf', abil:{dex:11,str:16}};
+assert(dexCtx.wornDexPlus(macHero)===1 && dexCtx.effectiveDex(macHero)===12,
+  'dex ring still +1 through wornDexPlus / effectiveDex');
+dexCtx.G.equipped={gloves:{n:'Gauntlets of Dexterity', k:'misc'}};
+assert(dexCtx.wornDexPlus(macHero)===7 && dexCtx.effectiveDex(macHero)===18,
+  'dex gauntlets raise sheet DEX 11 to 18');
+macHero.abil={dex:18,str:16};
+assert(dexCtx.wornDexPlus(macHero)===4 && dexCtx.effectiveDex(macHero)===22,
+  'dex gauntlets are +4 when sheet DEX is already 18');
+macHero.abil={dex:11,str:16};
+dexCtx.G.equipped={gloves:{n:'Gauntlets of Dexterity', k:'misc'}, necklace:{k:'dex', dexPlus:1, n:'Ring of Dexterity +1'}};
+assert(dexCtx.effectiveDex(macHero)===19, 'dex ring plus still stacks on gauntlet-set 18');
+dexCtx.G.equipped={gloves:{n:'Gauntlets of Fumbling', k:'cursed', cursed:1}};
+assert(dexCtx.wornDexPlus(macHero)===0 && dexCtx.effectiveDex(macHero)===11,
+  'fumbling gauntlets grant no dex');
+dexCtx.G.equipped={gloves:{n:'Gauntlets of Ogre Power', k:'misc'}};
+assert(dexCtx.wornDexPlus(macHero)===0, 'ogre gauntlets grant no dex');
+assert(dexCtx.wornOgrePower(macHero)===true, 'dwarf can wear ogre gauntlets');
+assert(dexCtx.meleeStrAbil(macHero).str===18 && dexCtx.meleeStrAbil(macHero).exc===100,
+  'ogre worn melee STR is 18/00');
+dexCtx.G.equipped={};
+assert(dexCtx.wornOgrePower(macHero)===false && dexCtx.meleeStrAbil(macHero).str===16,
+  'doffing ogre restores sheet STR');
+dexCtx.G.equipped={gloves:{n:'Gauntlets of Fumbling', k:'cursed', cursed:1}};
+assert(dexCtx.wornOgrePower(macHero)===false && dexCtx.meleeStrAbil(macHero).str===16,
+  'fumbling gauntlets grant no ogre STR');
+assert(/function strengthCheck\(/.test(html) && /meleeStrAbil/.test(extractFn('strengthCheck')),
+  'opening-door / web str-check uses meleeStrAbil');
 
 if (failed) {
   console.error('\n' + failed + ' failed');

@@ -4936,7 +4936,7 @@ function shamanKneelFearBless(){
   if(s) shamanSpend(s,'causeFear',1);
   G.ents.forEach(e=>{
     if(e.team!=='party'||e.dead) return;
-    if(savingThrow(e,'spell')){
+    if((typeof magicResist==='function'&&magicResist(e))||savingThrow(e,'spell')){
       say((e.name||'Kin')+' holds against Cause Fear.','#cfe3ff');
       return;
     }
@@ -4952,7 +4952,7 @@ function shamanHoldMacar(){
   const s=livingShaman(); const mac=player();
   if(s) shamanSpend(s,'holdPerson',2);
   if(mac){
-    if(savingThrow(mac,'spell')){
+    if((typeof magicResist==='function'&&magicResist(mac))||savingThrow(mac,'spell')){
       say('Hold Person fails. Macar saves vs spell.','#cfe3ff');
     } else {
       mac.held=Math.max(mac.held||0, roundSec(11));
@@ -5009,7 +5009,7 @@ function shamanSilenceTalpor(){
   if(s) shamanSpend(s,'silence',2);
   const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
   if(tal){
-    if(savingThrow(tal,'spell')){
+    if((typeof magicResist==='function'&&magicResist(tal))||savingThrow(tal,'spell')){
       say('Talpor saves vs spell. The sun-staff still speaks.','#cfe3ff');
     } else {
       tal.silenced=Math.max(tal.silenced||0, roundSec(14));
@@ -5718,8 +5718,48 @@ function wornDexPlus(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   const ring=eq.necklace||eq.ring;
-  if(ring&&ring.dexPlus) return ring.dexPlus|0;
+  let plus=0;
+  if(ring&&ring.dexPlus) plus+=ring.dexPlus|0;
+  const g=eq.gloves;
+  if(g && !g.cursed && !/fumbling/i.test(g.n||'') && /gauntlets of dexterity/i.test(g.n||'')){
+    const ab=typeof entityAbil==='function'?entityAbil(e):(e.abil||{});
+    const base=(ab&&ab.dex)||10;
+    if(base>=18) plus+=4;
+    else plus+=Math.max(0, 18-base);
+  }
+  return plus;
+}
+function wornOgrePower(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
+  const g=(G.equipped||{}).gloves;
+  if(!g || g.cursed || /fumbling/i.test(g.n||'')) return false;
+  return /ogre power/i.test(g.n||'');
+}
+function meleeStrAbil(e){
+  const ab=(typeof entityAbil==='function'?entityAbil(e):null)||{};
+  if(wornOgrePower(e)) return {str:18, exc:100};
+  return ab;
+}
+/* +2 / +3 Ring of Protection only. Potion/scroll e.mr stays full resist. */
+function wornMagicResistPct(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
+  const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
+  if(!it) return 0;
+  if(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
+  if(/displacement/i.test(it.n||'')) return 0;
+  if(!/protection/i.test(it.n||'')) return 0;
+  if(/AC 5 or better/i.test(it.n||'')) return 0;
+  const p=it.plus|0;
+  if(p===2) return 10;
+  if(p===3) return 15;
   return 0;
+}
+function magicResist(e){
+  if(e&&e.mr) return true;
+  const pct=wornMagicResistPct(e);
+  if(!pct) return false;
+  const roll=typeof d100==='function'?d100():(typeof ri==='function'?ri(1,100):100);
+  return roll<=pct;
 }
 /* 1e Ring/Cloak of Protection: plus to saves. Dex ring is never a ward. */
 function wornProtectionPlus(e){
@@ -6290,7 +6330,7 @@ function hitBonus(e, def){
     if(e.blessHit && (e.blessT||0)>0) b+=1;
     if((g.wd||1)<=0) b-=2;
     if(e.ranged) b+=dexMissile(effectiveDex(e));
-    else b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
+    else b+=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(e):ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
   } else {
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
     if(e.blessHit && (e.blessT||0)>0) b+=1;
@@ -6326,7 +6366,7 @@ function specialtyHitBonus(e, def){
   let b=0;
   if(e&&e.team==='party'){
     const g=e.gear||{};
-    const ab=typeof entityAbil==='function'?entityAbil(e):null;
+    const ab=typeof meleeStrAbil==='function'?meleeStrAbil(e):(typeof entityAbil==='function'?entityAbil(e):null);
     b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit||0;
     b+=wornWeaponPlus(e, def);
   } else if(e&&e.sa&&/\+\d/.test(e.sa)){
@@ -6408,7 +6448,7 @@ function addAttack(atk, def, opts){
   if(atk.dice) raw=rollExpr(atk.dice);
   else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8':atk.ranged?'1d6':'1d6+1');
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
-  if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
+  if(atk.team==='party' && !atk.ranged) raw+=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(atk):entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.ranged && atk.role==='pick') raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.hero && G.equipped){
     const wep=atk.ranged?(G.equipped.secondary):(G.equipped.primary||G.equipped.weapon);
@@ -7182,7 +7222,8 @@ function useMagicItem(it, e){
   if(!it) return;
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
-    if(it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')){
+    const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+    if((it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')) || (ES&&ES.isEquippable&&ES.isEquippable(it))){
       equipPackItem(it, {silent:true});
       say('The curse binds. It will not be set aside.','#ff6a5a');
       return;
@@ -7623,7 +7664,7 @@ function onHitFx(atk,o,dmg){
     if(!savingThrow(o,'poison')) o.stun=Math.max(o.stun||0,2.4);
   }
   if(/Confusion|Mind Blast|Spore/i.test(sa)){
-    if(o.mr||savingThrow(o,'spell')) {}
+    if((typeof magicResist==='function'?magicResist(o):o.mr)||savingThrow(o,'spell')) {}
     else o.stun=Math.max(o.stun||0,1.6);
   }
   return dmg;
@@ -7654,7 +7695,7 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
     rust:from.rust,poison:from.poison,killPoison:from.killPoison,slowPoison:from.slowPoison,sa:from.sa,from});
 }
 function strengthCheck(e){
-  const ab=entityAbil(e)||{};
+  const ab=(typeof meleeStrAbil==='function'?meleeStrAbil(e):entityAbil(e))||{};
   const str=ab.str||10, exc=ab.exc||0;
   const roll=d20();
   let ok=roll<=str;

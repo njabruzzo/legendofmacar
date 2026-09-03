@@ -96,6 +96,57 @@ assert(saveCtx.savingThrow(mac,'spell')===true, 'need 14; roll 14 saves (Displac
 
 saveCtx.G.equipped={necklace:{n:'Ring of Dexterity +1', k:'dex', dexPlus:1, plus:1}};
 assert(saveCtx.wornDisplacementPlus(mac)===0, 'Dexterity ring is not Displacement');
+
+saveCtx.G.equipped={gloves:{n:'Gauntlets of Dexterity', k:'misc'}, necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
+assert(saveCtx.wornProtectionPlus(mac)===1, 'dex gauntlets do not replace Protection save plus');
+saveCtx.G.equipped={gloves:{n:'Gauntlets of Ogre Power', k:'misc'}};
+assert(saveCtx.wornProtectionPlus(mac)===0 && saveCtx.wornDisplacementPlus(mac)===0,
+  'ogre gauntlets are not a Protection or Displacement ward');
+
+const mrCtx={
+  G:{equipped:{}},
+  d100:()=>100,
+  ri:()=>100
+};
+vm.createContext(mrCtx);
+vm.runInContext(extract('wornMagicResistPct')+extract('magicResist'), mrCtx);
+assert(mrCtx.wornMagicResistPct(mac)===0, 'no jewelry is 0% MR');
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
+assert(mrCtx.wornMagicResistPct(mac)===0, '+1 Protection ring grants no MR');
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +2', k:'ring', plus:2}};
+assert(mrCtx.wornMagicResistPct(mac)===10, '+2 Protection ring is 10% MR');
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +3', k:'ring', plus:3}};
+assert(mrCtx.wornMagicResistPct(mac)===15, '+3 Protection ring is 15% MR');
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +4 on AC 5 or better', k:'ring', plus:4}};
+assert(mrCtx.wornMagicResistPct(mac)===0, 'gated +4 Protection ring grants no MR');
+mrCtx.G.equipped={necklace:{n:'Ring of Dexterity +1', k:'dex', dexPlus:1}};
+assert(mrCtx.wornMagicResistPct(mac)===0, 'Dexterity ring never grants MR');
+mrCtx.G.equipped={necklace:{n:'Cloak of Displacement', k:'misc', plus:2}};
+assert(mrCtx.wornMagicResistPct(mac)===0, 'Displacement cloak never grants MR');
+mrCtx.G.equipped={gloves:{n:'Gauntlets of Dexterity', k:'misc'}};
+assert(mrCtx.wornMagicResistPct(mac)===0, 'dex gauntlets never grant MR');
+
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +2', k:'ring', plus:2}};
+mrCtx.d100=()=>10;
+assert(mrCtx.magicResist(mac)===true, 'targeted-spell helper: +2 ring resists on d100 10');
+mrCtx.d100=()=>11;
+assert(mrCtx.magicResist(mac)===false, 'targeted-spell helper: +2 ring fails on d100 11');
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +3', k:'ring', plus:3}};
+mrCtx.d100=()=>15;
+assert(mrCtx.magicResist(mac)===true, 'targeted-spell helper: +3 ring resists on d100 15');
+mrCtx.d100=()=>16;
+assert(mrCtx.magicResist(mac)===false, 'targeted-spell helper: +3 ring fails on d100 16');
+mac.mr=1;
+mrCtx.d100=()=>100;
+assert(mrCtx.magicResist(mac)===true, 'potion/scroll e.mr=1 is full resist while the flag is on');
+mac.mr=0;
+mrCtx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
+assert(mrCtx.magicResist(mac)===false, '+1 ring still has no MR after the e.mr flag drops');
+
+assert(/magicResist\(o\)/.test(html.match(/if\(\(typeof magicResist[\s\S]*?savingThrow\(o,'spell'\)/)[0]),
+  'onHitFx targeted spells honor magicResist the same way they honored e.mr');
+assert(/magicResist\(mac\)/.test(html) && /magicResist\(tal\)/.test(html),
+  'Hold Person and Silence Talpor use the targeted-spell MR helper');
 const sham=html.match(/goblinShaman:\{[^}]+\}/);
 assert(sham && /cls:'c'/.test(sham[0]) && /wis:14/.test(sham[0]) && /lvl:7/.test(sham[0]),
   'shaman is a 7th-level evil cleric, WIS 14');
