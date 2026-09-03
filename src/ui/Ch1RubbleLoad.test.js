@@ -45,7 +45,7 @@ assert(!/else if\(okTex\)\{/.test(html),
   'generated TEX diamonds are not a first-frame floor/wall fallback');
 assert(/tile_floor_mine\.png\?v=60/.test(html) && /tile_wall_worked\.png\?v=60/.test(html),
   'mine floor and worked wall are preloaded before first present');
-assert(/ASSET_VER='87'/.test(html), 'asset cache-bust matches punched living-Macar sheets');
+assert(/ASSET_VER='88'/.test(html), 'asset cache-bust matches punched living-Macar sheets');
 assert(/function scatterBurialRubble\(/.test(html) && /fallen:1/.test(html) && /k:'dust'/.test(html),
   'cave-in entry scatters extra timber, stone, and dust around the burial');
 assert(/function drawFallenBeam\(/.test(html) && /function drawFloorDust\(/.test(html),
