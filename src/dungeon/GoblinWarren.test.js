@@ -14,7 +14,7 @@ function assert(cond, msg){
 }
 
 assert(/function buildGoblinWarrens\(/.test(html), 'warrens builder');
-assert(/const n=8\+\(rnd\(\)\*4\)\|0/.test(html), 'lair carves at least eight dens');
+assert(/const n=10\+\(rnd\(\)\*5\)\|0/.test(html), 'lair carves at least ten dens');
 assert(/function buildGoblinKingLevel\(/.test(html), 'king level builder');
 assert(/function enterGoblinKingLevel\(/.test(html), 'stairs enter the king hall');
 assert(/FOE\.goblinKing\(\)/.test(html), 'Goblin King is spawned');
@@ -31,11 +31,13 @@ assert(/goblinShaman/.test(html) && /leader:'goblinShaman'/.test(html), 'warren 
 assert(/shamanSkipKing/.test(html), 'paid tribute skips shaman in the king fight');
 assert(/FOE\.goblinKing\(\)/.test(html.match(/function buildGoblinKingLevel[\s\S]*?function foesVisible/)[0]),
   'king is still spawned when shaman skips');
-assert(/L\.w=120; L\.h=100/.test(html), 'first floor is a wide warren with side caverns');
+assert(/L\.w=144; L\.h=118/.test(html), 'first floor is a wide warren with side caverns');
 assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
   'chapter II adds south and east caverns beyond the four-way');
+assert(/caveDisk\(g,122,30/.test(html) && /caveDisk\(g,40,98/.test(html),
+  'chapter II grows farther east and south dens');
 assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'south stair stays on the old descent tile');
-assert(/L\.w=96; L\.h=76/.test(html) && /L\.w=110; L\.h=88/.test(html) && /L\.w=88; L\.h=80/.test(html),
+assert(/L\.w=114; L\.h=90/.test(html) && /L\.w=132; L\.h=106/.test(html) && /L\.w=108; L\.h=98/.test(html),
   'chapters I, IV, and V are also larger halls');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
