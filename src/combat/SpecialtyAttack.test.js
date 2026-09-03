@@ -102,7 +102,7 @@ const ctx={
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 vm.runInContext(extractConst('SPECIALTY'), ctx);
-['specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','addAttack'].forEach(n=>{
+['wornWeaponPlus','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','addAttack'].forEach(n=>{
   vm.runInContext(extractFn(n), ctx);
 });
 
@@ -171,6 +171,54 @@ const ivMiss=ctx.addAttack(atk, def, {specialty:4, roll:20});
 assert(ivMiss===0, 'IV needs 21+; tot 20 is a miss');
 const ivHit=ctx.addAttack(atk, def, {specialty:4, roll:21});
 assert(ivHit>0 && /×5/.test(ctx.lastLine), 'IV tot 21 hits and logs ×5');
+
+assert(/wornWeaponPlus\(e\)/.test(extractFn('specialtyHitBonus')),
+  'specialty tot reads wornWeaponPlus, not a frozen primary magicAtk');
+assert(/wornWeaponPlus\(e\)/.test(html.match(/function hitBonus\([\s\S]*?\nfunction effectiveAC/)[0]),
+  'matrix hitBonus also uses wornWeaponPlus');
+
+const bow={n:'Crossbow of Accuracy +3', k:'weapon', plus:3, slot:'secondary'};
+const xbow={n:'Light Crossbow', k:'weapon', slot:'secondary'};
+const hammer={n:"Macar's War Hammer", k:'weapon', plus:0, slot:'primary'};
+const cleaver={n:'Shadow Cleaver', k:'weapon', plus:2, vs:'spider,undead', vsDouble:1, slot:'primary'};
+const protRing={n:'Ring of Protection +1', k:'ring', plus:1};
+
+ctx.G.equipped={primary:hammer, weapon:hammer, secondary:bow, necklace:protRing};
+const missile={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:17}, gear:{magicAtk:0}, dice:'1d4', ranged:1};
+assert(ctx.wornWeaponPlus(missile)===3, 'secondary +3 bow feeds missile plus');
+assert(ctx.specialtyHitBonus(missile)===4, 'STR 17 + secondary +3 = +4 specialty tot on a missile spend');
+
+const melee={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:17}, gear:{magicAtk:2}, dice:'1d8', ranged:0};
+ctx.G.equipped={primary:cleaver, weapon:cleaver, secondary:bow};
+assert(ctx.wornWeaponPlus(melee)===2, 'melee uses primary plus, not the worn bow');
+assert(ctx.specialtyHitBonus(melee)===3, 'STR 17 + Shadow Cleaver +2 = +3; bow stays out of melee tot');
+
+ctx.G.equipped={primary:hammer, weapon:hammer, secondary:xbow};
+const mundane={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{magicAtk:0}, dice:'1d4', ranged:1};
+assert(ctx.wornWeaponPlus(mundane)===0, 'mundane Light Crossbow stays 0');
+assert(ctx.specialtyHitBonus(mundane)===0, 'mundane xbow does not invent a specialty plus');
+
+ctx.G.equipped={primary:hammer, weapon:hammer, secondary:bow, necklace:{k:'dex', dexPlus:1, n:'Ring of Dexterity +1'}};
+assert(ctx.specialtyHitBonus(missile)===4, 'dex ring still does not enter the specialty tot');
+ctx.G.equipped.necklace=protRing;
+assert(ctx.specialtyHitBonus(missile)===4, 'Protection plus does not enter the specialty tot');
+
+ctx.thacNeed=()=>10;
+ctx.hitBonus=()=>0;
+ctx.rollExpr=()=>4;
+ctx.G.equipped={primary:hammer, weapon:hammer, secondary:bow};
+const boltAtk={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{magicAtk:0}, dice:'1d4', ranged:1};
+const boltHit=ctx.addAttack(boltAtk, def, {roll:18});
+assert(boltHit>=(4+3)*4, 'secondary +3 feeds missile damage (got '+boltHit+')');
+
+ctx.G.equipped={primary:cleaver, weapon:cleaver, secondary:xbow};
+ctx.weaponVsDouble=()=>false;
+const meleeAtk={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{magicAtk:2}, dice:'1d8', ranged:0};
+const meleeHit=ctx.addAttack(meleeAtk, def, {roll:18});
+assert(meleeHit>=(4+2)*4, 'primary melee plus still adds to damage (got '+meleeHit+')');
+ctx.weaponVsDouble=(wep, foe)=>!!(wep&&wep.vsDouble);
+const vsHit=ctx.addAttack(meleeAtk, {team:'foe', ac:10, x:1, y:1, stun:0, prone:0, kind:'spider'}, {roll:18});
+assert(vsHit>=(4+2)*2*4, 'Shadow Cleaver vs spider still doubles (got '+vsHit+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nspecialty attack checks passed');

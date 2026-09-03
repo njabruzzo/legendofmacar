@@ -5721,6 +5721,18 @@ function wornDexPlus(e){
   if(ring&&ring.dexPlus) return ring.dexPlus|0;
   return 0;
 }
+/* 1e Ring/Cloak of Protection: plus to saves. Dex ring is never a ward. */
+function wornProtectionPlus(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
+  const eq=G.equipped||{};
+  const it=eq.necklace||eq.ring;
+  if(!it) return 0;
+  if(it.dexPlus) return 0;
+  if(it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
+  if(!(it.plus)) return 0;
+  if(/protection/i.test(it.n||'') || it.k==='ring') return it.plus|0;
+  return 0;
+}
 function effectiveDex(e){
   const ab=entityAbil(e)||{};
   return (ab.dex||10)+wornDexPlus(e);
@@ -6222,12 +6234,32 @@ function thacNeed(atk, ac){
   if(kind==='f') return THAC_F[fighterMatrixRow(lv)][col];
   return THAC_M[monsterMatrixRow(monsterHD(atk))][col];
 }
+function wornWeaponPlus(e){
+  if(!e) return 0;
+  if(e.hero && G && G.equipped){
+    const eq=G.equipped;
+    if(e.ranged){
+      const bow=eq.secondary;
+      if(!bow) return 0;
+      const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+      if(ES&&ES.isShield&&ES.isShield(bow)) return 0;
+      if(bow.cursed) return bow.plus|| -1;
+      return bow.plus||0;
+    }
+    const wep=eq.primary||eq.weapon;
+    if(wep){
+      if(wep.cursed) return wep.plus|| -1;
+      return wep.plus||0;
+    }
+  }
+  return (e.gear&&e.gear.magicAtk)||0;
+}
 function hitBonus(e){
   let b=0;
   if(e.team==='party'){
     const g=e.gear||{};
     const ab=entityAbil(e);
-    b+=(g.wt||0)+(g.magicAtk||0);
+    b+=(g.wt||0)+wornWeaponPlus(e);
     if(g.rune) b+=1;
     if(e.buff>0) b+=2;
     if(e.blessHit && (e.blessT||0)>0) b+=1;
@@ -6270,7 +6302,7 @@ function specialtyHitBonus(e){
     const g=e.gear||{};
     const ab=typeof entityAbil==='function'?entityAbil(e):null;
     b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit||0;
-    b+=(g.magicAtk||0);
+    b+=wornWeaponPlus(e);
   } else if(e&&e.sa&&/\+\d/.test(e.sa)){
     const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1];
   }
@@ -6345,10 +6377,15 @@ function addAttack(atk, def, opts){
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
   if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.ranged && atk.role==='pick') raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
-  if(atk.team==='party' && atk.hero && G.equipped && G.equipped.weapon){
-    const wep=G.equipped.weapon;
-    raw+=(wep.plus||0);
-    if(weaponVsDouble(wep, def)) raw*=2;
+  if(atk.team==='party' && atk.hero && G.equipped){
+    const wep=atk.ranged?(G.equipped.secondary):(G.equipped.primary||G.equipped.weapon);
+    if(wep){
+      const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+      if(!(ES&&ES.isShield&&ES.isShield(wep))){
+        raw+=(wep.plus||0);
+        if(weaponVsDouble(wep, def)) raw*=2;
+      }
+    }
   }
   raw+=extra;
   if(atk.strMul) raw=Math.round(raw*atk.strMul);
@@ -6410,7 +6447,7 @@ function saveNeed(e, kind){
   return need-dwarfSaveBonus(e, kind);
 }
 function savingThrow(e, kind){
-  const need=saveNeed(e,kind)-(e.juice||0);
+  const need=saveNeed(e,kind)-(e.juice||0)-wornProtectionPlus(e);
   const roll=d20();
   const ok=roll===20||roll>=need;
   ftext(e.x,e.y+(ok?0.15:0),(ok?'save':'fail')+' '+roll,'#cfe3ff');
@@ -6741,7 +6778,7 @@ const DMG_RING=[
   {a:91,b:93,n:'Ring of Weakness',k:'cursed',cursed:1,d:'Drains 1 strength per turn to a minimum of 3. Remove curse to doff.'},
   {a:94,b:96,n:'Ring of Wizardry (doubles 1st-level spells)',k:'buff',d:'A magic-user may memorize twice the usual 1st-level spells.'},
   {a:97,b:98,n:'Ring of X-Ray Vision',k:'sense',d:'See through stone or metal in a 20-foot line, 1 turn per 6 hours.'},
-  {a:99,b:100,n:'Ring of Protection +4 on AC 5 or better',k:'ring',plus:2,d:'Strong ward, but only if the wearer already has good armor.'}
+  {a:99,b:100,n:'Ring of Protection +4 on AC 5 or better',k:'ring',plus:4,d:'Strong ward, but only if the wearer already has good armor.'}
 ];
 const DMG_WAND=[
   {a:1,b:3,n:'Rod of Absorption',k:'wand',charges:20,d:'Drinks incoming spells and later casts them. 50 charge maximum.'},
