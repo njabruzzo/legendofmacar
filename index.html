@@ -499,8 +499,7 @@ const SPRITE_FILES={
   wall_face_shade:'assets/tiles/tile_wall_face_shade.png',
   wall_cave_face:'assets/tiles/tile_wall_cave_face.png',
   wall_cave_face_shade:'assets/tiles/tile_wall_cave_face_shade.png',
-  skill_icons:'assets/ui/ui_skill_icons.png',
-  icon_sword:'assets/ui/icon_sword.png', icon_dwarf:'assets/ui/icon_dwarf.png',
+  icon_sword:'assets/ui/icon_sword.png',
   icon_flask:'assets/ui/icon_flask.png', icon_shield:'assets/ui/icon_shield.png',
   icon_pack:'assets/ui/icon_pack.png', icon_cross:'assets/ui/icon_cross.png',
   icon_plant:'assets/ui/icon_plant.png', icon_shovel:'assets/ui/icon_shovel.png',
@@ -527,7 +526,6 @@ const SPRITE_FILES={
   icon_pants:'assets/ui/icon_pants.png',
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
-  icon_doll:'assets/ui/icon_doll.png',
   title_splash:'assets/ui/title_splash.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
@@ -573,7 +571,9 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
   if(/_face\.png$/.test(src)) return;
-  if(!/(dwarf_|mon_|prop_|tile_|ui_|icon_)/.test(src)) return;
+  /* HUD plates are static. Do not invent _w1/_w2/_atk fetches for icon_* / ui_*. */
+  if(/\/(icon_|ui_)/.test(src)) return;
+  if(!/(dwarf_|mon_|prop_|tile_)/.test(src)) return;
   const stem=src.replace(/\.png$/,'');
   // Static props keep a sprung/attack frame, but never a walk cycle — those
   // frames made lanterns, pillars, and the ruby door flicker in place.
@@ -692,8 +692,8 @@ function loadSprites(done){
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
-    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_doll','icon_save',
-    'skill_icons','macar_axe','pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
+    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_save',
+    'macar_axe','pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
     'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'pordoom_atk_recover','fendur_atk_recover','orbo_atk_recover','talpor_atk_recover',
@@ -12636,14 +12636,6 @@ function slotAnimImg(b){
   const ico=b.ico||(b.key==='attack'?'sword':((ABIL.find(a=>a.key===b.key)||{}).ico));
   const k=ICON_SPR[ico];
   if(!k) return null;
-  const ab=ABIL.find(a=>a.key===b.key);
-  if(b.hold && SPR[k+'_atk']) return SPR[k+'_atk'];
-  if((b.key==='search'&&G.searching)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')) return SPR[k+'_atk']||SPR[k]||null;
-  if(ab && cds[ab.key]>0 && cds[ab.key]>ab.cd-0.22 && SPR[k+'_atk']) return SPR[k+'_atk'];
-  if(QUALITY && !(ab && cds[ab.key]>0)){
-    const a=SPR[k+'_w1'], c=SPR[k+'_w2']||SPR[k];
-    if(a) return ((G.elapsed*5)|0)%2 ? (c||a) : a;
-  }
   return SPR[k]||null;
 }
 function drawSlot(g,b,s){
