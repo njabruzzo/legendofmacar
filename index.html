@@ -3173,7 +3173,7 @@ function makeChapter(n){
 
   if(n===1){
     L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
-    L.w=96; L.h=76; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=114; L.h=90; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,14,14,18,16,0); rect(g,24,7,28,28,0);
     rect(g,48,16,5,12,3); rect(g,34,17,9,9,3);
     // Wider first mine: extra halls east and south. Ruby door, lift, and
@@ -3182,6 +3182,12 @@ function makeChapter(n){
     corridor(g,52,21,74,21,5,0); rect(g,72,16,16,12,0);
     corridor(g,40,35,58,48,5,0); rect(g,54,44,16,12,0);
     corridor(g,72,22,80,34,4,0); rect(g,76,32,14,12,0);
+    // Fuller first mine: more walkable rooms, same carved style.
+    corridor(g,30,64,30,80,5,0); rect(g,20,76,22,12,0);
+    corridor(g,88,21,106,21,5,0); rect(g,102,15,10,14,0);
+    corridor(g,22,58,10,64,4,0); rect(g,4,58,14,12,0);
+    corridor(g,82,44,82,64,4,0); rect(g,74,62,18,12,0);
+    corridor(g,90,38,102,48,4,0); rect(g,98,44,12,12,0);
     L.spawn={x:20.5,y:22.0}; L.flags.broke=1;
     L.crush=CRUSH_SPOTS;
     L.secrets=[];
@@ -3196,7 +3202,10 @@ function makeChapter(n){
               {x:29,y:14,c:'#ffb45c',r:5.6,f:1},{x:29,y:28,c:'#ffb45c',r:5.6,f:1},
               {x:39.6,y:17.2,c:'#ffb45c',r:5,f:1},{x:43,y:28,c:'#ffb45c',r:5,f:1},
               {x:30,y:54,c:'#ffb45c',r:5.0,f:0.75},{x:80,y:21,c:'#ffb45c',r:5.2,f:0.8},
-              {x:62,y:50,c:'#ffb45c',r:4.6,f:0.65}];
+              {x:62,y:50,c:'#ffb45c',r:4.6,f:0.65},
+              {x:30,y:80,c:'#ffb45c',r:4.8,f:0.7},{x:106,y:21,c:'#c9a070',r:4.6,f:0.65},
+              {x:10,y:64,c:'#9a8163',r:4.2,f:0.55},{x:82,y:66,c:'#ffb45c',r:4.6,f:0.65},
+              {x:104,y:48,c:'#ffb45c',r:4.4,f:0.6}];
     G.props=[{x:15.4,y:16.35,k:'lantern'},{x:18.2,y:27.15,k:'lantern'},{x:29,y:14,k:'lantern'},{x:29,y:28,k:'lantern'},
       {x:39.6,y:17.2,k:'lantern'},{x:43,y:28,k:'lantern'},
       {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
@@ -3211,7 +3220,12 @@ function makeChapter(n){
       {x:25.45,y:29.15,k:'pickpile'},{x:23.55,y:28.45,k:'crate'},
       {x:28.4,y:54.2,k:'lantern'},{x:32.2,y:58.1,k:'orepile'},{x:24.6,y:56.4,k:'timber'},
       {x:78.2,y:18.4,k:'lantern'},{x:82.6,y:21.2,k:'crate'},{x:74.4,y:20.1,k:'pickpile'},
-      {x:58.6,y:46.2,k:'lantern'},{x:62.4,y:50.1,k:'bones'},{x:80.2,y:36.2,k:'rubble',spr:'rubble2'}];
+      {x:58.6,y:46.2,k:'lantern'},{x:62.4,y:50.1,k:'bones'},{x:80.2,y:36.2,k:'rubble',spr:'rubble2'},
+      {x:28.4,y:78.2,k:'lantern'},{x:32.2,y:82.1,k:'crate'},{x:22.6,y:80.4,k:'sack'},
+      {x:104.2,y:18.4,k:'lantern'},{x:108.6,y:22.2,k:'crate'},{x:103.4,y:24.1,k:'bones'},
+      {x:8.2,y:60.4,k:'lantern'},{x:12.4,y:64.2,k:'bones'},{x:6.6,y:66.1,k:'sack'},
+      {x:78.2,y:64.4,k:'lantern'},{x:84.6,y:68.2,k:'orepile'},{x:76.4,y:70.1,k:'crate'},
+      {x:100.2,y:46.4,k:'web'},{x:104.4,y:50.1,k:'eggs'},{x:99.6,y:49.2,k:'bones'}];
     G.props.push.apply(G.props, startBackWallRubble());
     G.props.push.apply(G.props, scatterStartRubble(L));
     G.props.push.apply(G.props, scatterBurialRubble());
@@ -3233,7 +3247,7 @@ function makeChapter(n){
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
     });
-    [[30,56],[80,21],[62,50],[82,38]].forEach(pt=>{
+    [[30,56],[80,21],[62,50],[82,38],[30,80],[106,21],[10,64],[82,66],[104,48]].forEach(pt=>{
       placeDungeonCache(pt[0], pt[1], 1);
     });
     L.guide=()=>{
@@ -3258,10 +3272,35 @@ function makeChapter(n){
         spawnLairGroup(80,21,{pack:[['beetle',3]],spread:1.3,aggro:2.6});
         say('Cave beetles hold the east shop. One brood, one room.','#c9b895');
       }
-      if(!L.flags.seDen && p.x>70 && p.y>30){
+      if(!L.flags.seDen && p.x>70 && p.y>30 && p.y<52){
         L.flags.seDen=1;
         spawnLairGroup(82,38,{pack:[['spider',3]],spread:1.4,aggro:3.0});
         say('A silk den. Spiders only — they keep their own dark.','#c07bff');
+      }
+      if(!L.flags.farSouth && p.y>70){
+        L.flags.farSouth=1;
+        spawnLairGroup(30,80,{leader:'koboldChief',pack:[['kobold',4]],spread:1.5,aggro:3.0});
+        say('Kobolds nested in the far south pantry. One warren, one count.','#c9b895');
+      }
+      if(!L.flags.farEast && p.x>94 && p.y<32){
+        L.flags.farEast=1;
+        spawnLairGroup(106,21,{pack:[['goblin',4]],spread:1.5,aggro:3.2});
+        say('A goblin watch took the far east drift. They sleep on the ore.','#c9b895');
+      }
+      if(!L.flags.swPocket && p.x<18 && p.y>52){
+        L.flags.swPocket=1;
+        spawnLairGroup(10,64,{pack:[['rat',5]],spread:1.3,aggro:2.8});
+        say('Rats packed the southwest pocket. Grain and bones.','#c9b895');
+      }
+      if(!L.flags.seYard && p.x>70 && p.y>56){
+        L.flags.seYard=1;
+        spawnLairGroup(82,66,{pack:[['beetleBoring',1],['beetle',3]],spread:1.4,aggro:3.0});
+        say('Boring beetles chew the southeast yard. One brood in the timber.','#c9b895');
+      }
+      if(!L.flags.eastSpur && p.x>94 && p.y>36){
+        L.flags.eastSpur=1;
+        spawnLairGroup(104,48,{pack:[['spiderHuge',1],['spider',2]],spread:1.4,aggro:3.1});
+        say('A second silk den on the east spur. Spiders only.','#c07bff');
       }
       if(!L.flags.sawHall && p.x>=24.8){
         L.flags.sawHall=1;
@@ -3302,7 +3341,7 @@ function makeChapter(n){
 
   if(n===2){
     L.title='Chapter II'; L.sub='The First Floor'; L.pal=PAL.mine;
-    L.w=120; L.h=100; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=144; L.h=118; const g=newGrid(L.w,L.h,1); L.grid=g;
     caveDisk(g,40,8,5.0,4.0,3);
     caveDisk(g,40,16,7.8,6.3,0);
     carvePath(g,[[40,10],[40,16]],3.5,0);
@@ -3342,6 +3381,23 @@ function makeChapter(n){
     caveDisk(g,64,46,5.2,4.4,0);
     carvePath(g,[[50,16],[54,10],[60,6]],2.8,0);
     caveDisk(g,60,6,3.8,3.2,0);
+    // Fuller first floor: more dens, same cave-disk style. Stair and bronze stay.
+    carvePath(g,[[96,32],[110,28],[122,30]],3.0,0);
+    caveDisk(g,122,30,5.2,4.4,0);
+    carvePath(g,[[40,80],[40,96]],3.0,0);
+    caveDisk(g,40,98,5.5,4.6,0);
+    carvePath(g,[[66,76],[84,82],[100,88]],3.0,0);
+    caveDisk(g,100,88,5.0,4.2,0);
+    carvePath(g,[[18,64],[10,76],[8,92]],2.9,0);
+    caveDisk(g,8,92,4.8,4.0,0);
+    carvePath(g,[[96,32],[108,18],[118,10]],2.8,0);
+    caveDisk(g,118,10,4.5,3.8,0);
+    carvePath(g,[[90,50],[108,56],[120,62]],3.0,0);
+    caveDisk(g,120,62,5.0,4.2,0);
+    carvePath(g,[[22,84],[32,96],[48,106]],2.9,0);
+    caveDisk(g,48,106,5.0,4.2,0);
+    carvePath(g,[[82,28],[82,12],[90,6]],2.8,0);
+    caveDisk(g,90,6,4.0,3.4,0);
     for(let j=12;j<=20;j++) if(g[j]) g[j][67]=1;
     if(g[16]){ g[16][66]=0; g[16][67]=4; }
     if(g[17]) g[17][66]=0;
@@ -3370,7 +3426,11 @@ function makeChapter(n){
       {x:90,y:50,c:'#ffb45c',r:5.0,f:0.75},{x:12,y:44,c:'#9a8163',r:4.2,f:0.6},
       {x:18,y:64,c:'#ffb45c',r:5.2,f:0.8},{x:40,y:70,c:'#ff8a3a',r:5.8,f:0.9},
       {x:66,y:76,c:'#ffb45c',r:4.8,f:0.7},{x:64,y:46,c:'#d4a04a',r:5.0,f:0.75},
-      {x:60,y:6,c:'#ffb45c',r:3.8,f:0.55},{x:22,y:84,c:'#9a8163',r:4.0,f:0.6}];
+      {x:60,y:6,c:'#ffb45c',r:3.8,f:0.55},{x:22,y:84,c:'#9a8163',r:4.0,f:0.6},
+      {x:122,y:30,c:'#ffb45c',r:5.0,f:0.75},{x:40,y:98,c:'#c9a070',r:5.0,f:0.75},
+      {x:100,y:88,c:'#ffb45c',r:4.8,f:0.7},{x:8,y:92,c:'#9a8163',r:4.2,f:0.6},
+      {x:118,y:10,c:'#ff8a3a',r:4.4,f:0.65},{x:120,y:62,c:'#d4a04a',r:4.8,f:0.7},
+      {x:48,y:106,c:'#ffb45c',r:4.6,f:0.65},{x:90,y:6,c:'#9a8163',r:3.8,f:0.55}];
     G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
       {x:66.48,y:16.05,k:'bronzedoor'},{x:66.48,y:17.42,k:'bell'},
       {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
@@ -3389,8 +3449,17 @@ function makeChapter(n){
       {x:16.8,y:63.2,k:'shroom'},{x:19.4,y:65.1,k:'crate'},{x:10.4,y:30.2,k:'lantern'},{x:18.2,y:63.4,k:'lantern'},{x:38.6,y:69.2,k:'lantern'},
       {x:41.8,y:71.4,k:'sack'},{x:39.2,y:72.1,k:'bones'},{x:64.4,y:75.2,k:'lantern'},
       {x:67.6,y:77.1,k:'crate'},{x:62.4,y:45.2,k:'banner'},{x:65.6,y:47.1,k:'urn'},
-      {x:58.8,y:5.4,k:'shroom'},{x:21.2,y:83.2,k:'rubble',spr:'rubble2'},{x:23.4,y:85.1,k:'bones'}];
-    [[82,28],[96,32],[90,50],[12,44],[18,64],[40,70],[66,76],[64,46]].forEach(pt=>{
+      {x:58.8,y:5.4,k:'shroom'},{x:21.2,y:83.2,k:'rubble',spr:'rubble2'},{x:23.4,y:85.1,k:'bones'},
+      {x:120.6,y:28.8,k:'lantern'},{x:123.4,y:31.2,k:'crate'},{x:121.2,y:32.1,k:'bones'},
+      {x:38.6,y:96.8,k:'lantern'},{x:41.8,y:99.4,k:'sack'},{x:39.2,y:100.1,k:'bones'},
+      {x:98.4,y:86.8,k:'web'},{x:101.6,y:89.2,k:'eggs'},{x:99.2,y:90.1,k:'bones'},
+      {x:7.2,y:90.8,k:'web'},{x:9.4,y:93.2,k:'bones'},{x:6.6,y:94.1,k:'sack'},
+      {x:116.8,y:8.8,k:'lantern'},{x:119.4,y:11.2,k:'crate'},{x:118.2,y:12.1,k:'banner'},
+      {x:118.6,y:60.8,k:'bones'},{x:121.4,y:63.2,k:'hidepile'},{x:119.2,y:64.1,k:'lantern'},
+      {x:46.8,y:104.8,k:'web'},{x:49.4,y:107.2,k:'eggs'},{x:47.2,y:108.1,k:'bones'},
+      {x:88.6,y:5.2,k:'shroom'},{x:91.4,y:7.1,k:'crate'}];
+    [[82,28],[96,32],[90,50],[12,44],[18,64],[40,70],[66,76],[64,46],
+     [122,30],[40,98],[100,88],[8,92],[118,10],[120,62],[48,106],[90,6]].forEach(pt=>{
       placeDungeonCache(pt[0], pt[1], 2);
     });
     L.guide=()=>!L.flags.fought?L.camp:!L.flags.home&&!L.flags.traded?L.door:L.stair;
@@ -3415,6 +3484,14 @@ function makeChapter(n){
         spawnLairGroup(40.1, 70.2, {pack:[['warg',3]], spread:1.6, aggro:3.8});
         spawnLairGroup(66.2, 76.1, {pack:[['spiderHuge',1],['spider',2]], spread:1.4, aggro:3.2});
         spawnLairGroup(64.1, 46.2, {pack:[['orc',3]], spread:1.5, aggro:3.4});
+        spawnLairGroup(122.1, 30.1, {leader:'goblinBoss', pack:[['warg',2],['goblin',2]], spread:1.6, aggro:3.8});
+        spawnLairGroup(40.1, 98.1, {pack:[['kobold',4]], spread:1.5, aggro:3.2});
+        spawnLairGroup(100.1, 88.1, {pack:[['spider',3]], spread:1.4, aggro:3.0});
+        spawnLairGroup(8.1, 92.1, {pack:[['rat',5]], spread:1.3, aggro:2.8});
+        spawnLairGroup(118.1, 10.1, {pack:[['goblin',4]], spread:1.5, aggro:3.4});
+        spawnLairGroup(120.1, 62.1, {pack:[['warg',3]], spread:1.6, aggro:3.8});
+        spawnLairGroup(48.1, 106.1, {pack:[['spiderHuge',1],['spider',2]], spread:1.4, aggro:3.2});
+        spawnLairGroup(90.1, 6.1, {pack:[['kobold',4]], spread:1.3, aggro:2.8});
         say((CH_INTRO[2]&&CH_INTRO[2].fl)||'The rock splits, and the dark does not choose for you.','#c9b895');
       }
       if(!L.flags.scouted&&Math.hypot(p.x-40,p.y-16)<4.4){ L.flags.scouted=1; L.objs[0].d=1; }
@@ -3496,7 +3573,7 @@ function makeChapter(n){
 
   if(n===3){
     L.title='Chapter III'; L.sub='The Ruin'; L.pal=PAL.ruin;
-    L.w=118; L.h=96; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=140; L.h=114; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,24,10,8,3); corridor(g,12,28,24,28,6,0); rect(g,18,20,16,18,0);
     corridor(g,33,28,44,20,6,0); rect(g,38,12,16,16,0); corridor(g,46,27,46,36,6,0);
     rect(g,36,34,24,16,0); rect(g,46,40,6,6,3);
@@ -3509,6 +3586,13 @@ function makeChapter(n){
     corridor(g,96,42,106,48,4,0); rect(g,100,40,14,16,0);
     corridor(g,26,20,26,10,4,0); rect(g,20,4,14,10,0);
     corridor(g,32,38,32,48,4,0); rect(g,26,46,14,10,0);
+    // Fuller ruin: more streets and courts. Barracks, Names, and warden stay.
+    corridor(g,106,48,124,48,5,0); rect(g,120,40,16,16,0);
+    corridor(g,50,86,50,104,5,0); rect(g,38,98,26,14,0);
+    corridor(g,88,14,120,8,5,0); rect(g,118,4,18,12,0);
+    corridor(g,88,66,118,80,5,0); rect(g,110,74,22,14,0);
+    corridor(g,12,80,12,100,4,0); rect(g,4,96,16,14,0);
+    corridor(g,70,80,86,100,5,0); rect(g,78,96,20,14,0);
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
@@ -3517,7 +3601,10 @@ function makeChapter(n){
       {x:90,y:14,c:'#c9a070',r:6,f:0.85},{x:96,y:34,c:'#ffb45c',r:6.2,f:0.9},
       {x:88,y:58,c:'#ff5a48',r:6.4,f:0.95},{x:30,y:76,c:'#c9a070',r:5.6,f:0.75},
       {x:50,y:80,c:'#ffb45c',r:6.0,f:0.85},{x:12,y:74,c:'#9a8163',r:4.8,f:0.65},
-      {x:106,y:48,c:'#ffb45c',r:5.4,f:0.8}];
+      {x:106,y:48,c:'#ffb45c',r:5.4,f:0.8},
+      {x:128,y:48,c:'#c9a070',r:5.2,f:0.75},{x:50,y:104,c:'#ffb45c',r:5.6,f:0.8},
+      {x:126,y:10,c:'#ff5a48',r:5.0,f:0.7},{x:120,y:80,c:'#9a8163',r:5.2,f:0.75},
+      {x:12,y:102,c:'#c9a070',r:4.6,f:0.6},{x:88,y:102,c:'#ffb45c',r:5.0,f:0.7}];
     G.props=[{x:8,y:25,k:'lantern'},{x:20,y:22,k:'pillar'},{x:32,y:22,k:'pillar'},{x:20,y:36,k:'pillar'},
       {x:32,y:36,k:'pillar'},{x:40,y:14,k:'pillar'},{x:52,y:14,k:'pillar'},{x:40,y:26,k:'pillar'},{x:52,y:26,k:'pillar'},
       {x:46,y:14,k:'names'},{x:38,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:38,y:48,k:'brazier'},{x:58,y:48,k:'brazier'},
@@ -3529,9 +3616,15 @@ function makeChapter(n){
       {x:88,y:12,k:'lantern'},{x:94,y:16,k:'pillar'},{x:92,y:32,k:'bones'},
       {x:98,y:36,k:'banner'},{x:84,y:56,k:'brazier'},{x:92,y:60,k:'urn'},
       {x:26,y:74,k:'lantern'},{x:48,y:78,k:'pillar'},{x:10,y:72,k:'timber'},
-      {x:104,y:46,k:'bones'},{x:105.2,y:47.2,k:'lantern'}];
+      {x:104,y:46,k:'bones'},{x:105.2,y:47.2,k:'lantern'},
+      {x:124,y:44,k:'lantern'},{x:128,y:50,k:'urn'},{x:122,y:48,k:'bones'},
+      {x:48,y:100,k:'lantern'},{x:54,y:106,k:'pillar'},{x:42,y:104,k:'banner'},
+      {x:122,y:8,k:'lantern'},{x:128,y:12,k:'urn'},{x:120,y:10,k:'bones'},
+      {x:114,y:78,k:'brazier'},{x:122,y:82,k:'urn'},{x:116,y:84,k:'bones'},
+      {x:8,y:100,k:'timber'},{x:12,y:104,k:'lantern'},{x:82,y:100,k:'lantern'},{x:90,y:106,k:'idol'}];
     dressRuinBuildings(L);
-    [[90,14],[96,34],[88,58],[30,76],[50,80],[12,74],[106,48]].forEach(pt=>{
+    [[90,14],[96,34],[88,58],[30,76],[50,80],[12,74],[106,48],
+     [128,48],[50,104],[126,10],[120,80],[12,102],[88,102]].forEach(pt=>{
       placeDungeonCache(pt[0], pt[1], 3);
     });
     L.secrets=[];
@@ -3578,9 +3671,27 @@ function makeChapter(n){
       if(!L.flags.ruinFarS&&p.y>70){L.flags.ruinFarS=1;
         spawnLairGroup(50,80,{leader:'troglodyteChief',pack:[['troglodyte',3]],spread:1.6,aggro:3.6});
         say('The far south courts are troglodyte-held.','#6aff8a');}
-      if(!L.flags.ruinFarE&&p.x>96){L.flags.ruinFarE=1;
+      if(!L.flags.ruinFarE&&p.x>96&&p.x<116){L.flags.ruinFarE=1;
         spawnLairGroup(106,48,{pack:[['myconid',2],['violetfungus',1]],spread:1.4,aggro:3.2});
         say('Spores take the eastern storehouse.','#a35bff');}
+      if(!L.flags.ruinDeepE&&p.x>116){L.flags.ruinDeepE=1;
+        spawnLairGroup(128,48,{pack:[['umberhulk',1],['otyugh',1]],spread:1.5,aggro:3.6});
+        say('An umber hulk broke the deep-east store and kept the pit.','#c08040');}
+      if(!L.flags.ruinDeepS&&p.y>92){L.flags.ruinDeepS=1;
+        spawnLairGroup(50,104,{pack:[['hookedhorror',2],['minotaur',1]],spread:1.5,aggro:3.6});
+        say('Hooked horrors and a minotaur hold the deep-south court.','#c07bff');}
+      if(!L.flags.ruinDeepNE&&p.x>112&&p.y<20){L.flags.ruinDeepNE=1;
+        spawnLairGroup(126,10,{leader:'drowElite',pack:[['drider',1]],spread:1.5,aggro:3.6});
+        say('A drow patrol kept the far northeast manor.','#c07bff');}
+      if(!L.flags.ruinDeepSE&&p.x>104&&p.y>70){L.flags.ruinDeepSE=1;
+        spawnLairGroup(120,80,{pack:[['troll',1],['ochrejelly',1]],spread:1.5,aggro:3.5});
+        say('A cave troll and its jelly share the southeast wreck.','#6aff8a');}
+      if(!L.flags.ruinDeepSW&&p.x<22&&p.y>90){L.flags.ruinDeepSW=1;
+        spawnLairGroup(12,102,{pack:[['cloaker',1],['wraith',1]],spread:1.4,aggro:3.4});
+        say('A cloaker hangs in the southwest ruin with the dead.','#5a3a8a');}
+      if(!L.flags.ruinDeepSS&&p.x>70&&p.y>92){L.flags.ruinDeepSS=1;
+        spawnLairGroup(88,102,{pack:[['basilisk',1],['cockatrice',1]],spread:1.4,aggro:3.4});
+        say('Petrifiers nest in the south-south court. Gaze and spur.','#8a9a6a');}
       if(L.flags.w1 && !G.fightOn){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
@@ -3599,7 +3710,7 @@ function makeChapter(n){
 
   if(n===4){
     L.title='Chapter IV'; L.sub='The Dead City'; L.pal=PAL.ruin;
-    L.w=110; L.h=88; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=132; L.h=106; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,4,24,12,8,3); corridor(g,14,28,26,28,6,0); rect(g,20,18,18,20,0);
     corridor(g,37,28,48,16,6,0); rect(g,42,8,18,16,0); corridor(g,51,23,51,36,6,0);
     rect(g,38,34,24,16,0); rect(g,50,40,8,6,3);
@@ -3609,6 +3720,13 @@ function makeChapter(n){
     corridor(g,12,32,10,52,5,0); rect(g,4,48,16,16,0);
     corridor(g,62,42,92,48,5,0); rect(g,92,40,14,16,0);
     corridor(g,28,38,28,58,5,0); rect(g,18,56,20,14,0);
+    // Fuller drowned city: extra quays and cisterns. Outpost and brain stay.
+    corridor(g,98,48,120,48,5,0); rect(g,116,40,14,16,0);
+    corridor(g,50,80,50,96,5,0); rect(g,38,90,24,14,0);
+    corridor(g,90,16,118,16,5,0); rect(g,114,8,16,14,0);
+    corridor(g,10,62,10,84,5,0); rect(g,4,78,16,14,0);
+    corridor(g,28,70,28,90,5,0); rect(g,18,86,20,14,0);
+    corridor(g,62,48,80,72,5,0); rect(g,72,66,18,14,0);
     L.spawn={x:8,y:28};
     L.secrets=[];
     addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'n',vaultFace:'s',
@@ -3618,7 +3736,10 @@ function makeChapter(n){
       {x:50,y:16,c:'#ffb45c',r:10,f:1.35},{x:52,y:42,c:'#ff8a3a',r:12,f:1.7},
       {x:90,y:14,c:'#ffb45c',r:6.0,f:0.85},{x:50,y:74,c:'#ffb45c',r:5.6,f:0.8},
       {x:10,y:56,c:'#9a8163',r:4.8,f:0.65},{x:98,y:48,c:'#ffb45c',r:5.2,f:0.75},
-      {x:28,y:62,c:'#ffb45c',r:5.0,f:0.7}];
+      {x:28,y:62,c:'#ffb45c',r:5.0,f:0.7},
+      {x:122,y:48,c:'#7ad0ff',r:5.2,f:0.75},{x:50,y:96,c:'#ffb45c',r:5.4,f:0.75},
+      {x:122,y:14,c:'#7ad0ff',r:5.0,f:0.7},{x:10,y:84,c:'#9a8163',r:4.6,f:0.6},
+      {x:28,y:92,c:'#c08040',r:4.8,f:0.65},{x:80,y:72,c:'#ffb45c',r:5.0,f:0.7}];
     G.props=[{x:8,y:25,k:'lantern'},{x:22,y:20,k:'pillar'},{x:34,y:20,k:'pillar'},{x:22,y:36,k:'pillar'},
       {x:34,y:36,k:'pillar'},{x:44,y:10,k:'pillar'},{x:56,y:10,k:'pillar'},{x:44,y:22,k:'names'},
       {x:40,y:36,k:'brazier'},{x:58,y:36,k:'brazier'},{x:40,y:48,k:'altar'},{x:52,y:42,k:'throne'},
@@ -3629,8 +3750,13 @@ function makeChapter(n){
       {x:44,y:40,k:'trap',trap:'trap_pit'},{x:54,y:44,k:'trap',trap:'trap_spikes'},
       {x:88,y:12,k:'lantern'},{x:94,y:16,k:'slime'},{x:48,y:72,k:'lantern'},{x:54,y:76,k:'bones'},
       {x:8,y:54,k:'timber'},{x:96,y:46,k:'urn'},{x:26,y:60,k:'slime'},
-      {x:27.2,y:26.4,k:'lantern'},{x:49.2,y:14.8,k:'lantern'},{x:50.2,y:40.4,k:'lantern'}];
-    [[90,14],[50,74],[10,56],[98,48],[28,62]].forEach(pt=>{
+      {x:27.2,y:26.4,k:'lantern'},{x:49.2,y:14.8,k:'lantern'},{x:50.2,y:40.4,k:'lantern'},
+      {x:118,y:44,k:'lantern'},{x:124,y:50,k:'slime'},{x:120,y:48,k:'urn'},
+      {x:46,y:92,k:'lantern'},{x:54,y:98,k:'bones'},{x:42,y:96,k:'slime'},
+      {x:118,y:12,k:'lantern'},{x:124,y:16,k:'slime'},{x:8,y:82,k:'timber'},{x:12,y:88,k:'bones'},
+      {x:24,y:90,k:'lantern'},{x:32,y:94,k:'urn'},{x:76,y:70,k:'lantern'},{x:82,y:74,k:'bones'}];
+    [[90,14],[50,74],[10,56],[98,48],[28,62],
+     [122,48],[50,96],[122,14],[10,84],[28,92],[80,72]].forEach(pt=>{
       placeDungeonCache(pt[0], pt[1], 4);
     });
     L.guide=()=>!L.flags.w1?{x:28,y:28}:!L.flags.w2?{x:50,y:16}:!L.flags.boss?{x:52,y:42}:null;
@@ -3663,9 +3789,27 @@ function makeChapter(n){
       if(!L.flags.cityFarE&&p.x>88){L.flags.cityFarE=1;
         spawnLairGroup(98,48,{leader:'mindflayer',pack:[['urophion',1],['gauth',1]],spread:1.5,aggro:3.6});
         say('Illithids farm the far east storehouse.','#c07bff');}
-      if(!L.flags.citySW&&p.y>52&&p.x>16&&p.x<42){L.flags.citySW=1;
+      if(!L.flags.citySW&&p.y>52&&p.x>16&&p.x<42&&p.y<80){L.flags.citySW=1;
         spawnLairGroup(28,62,{pack:[['crysmal',3]],spread:1.4,aggro:3.0});
         say('Crysmals nest in the south-west street.','#c08040');}
+      if(!L.flags.cityDeepE&&p.x>110&&p.y>32&&p.y<64){L.flags.cityDeepE=1;
+        spawnLairGroup(122,48,{leader:'mindflayer',pack:[['gauth',1],['urophion',1]],spread:1.6,aggro:3.8});
+        say('Illithids farm the deep-east quay. One mind, one school.','#c07bff');}
+      if(!L.flags.cityDeepS&&p.y>88){L.flags.cityDeepS=1;
+        spawnLairGroup(50,96,{pack:[['blackpudding',1],['ochrejelly',1]],spread:1.6,aggro:3.4});
+        say('The deep cistern is pudding and jelly. Nothing else lives.','#6a8a4a');}
+      if(!L.flags.cityDeepNE&&p.x>108&&p.y<24){L.flags.cityDeepNE=1;
+        spawnLairGroup(122,14,{pack:[['aboleth',1],['morkoth',1]],spread:1.6,aggro:3.6});
+        say('An aboleth kept the far northeast water-hall.','#7ad0ff');}
+      if(!L.flags.cityDeepW&&p.x<20&&p.y>74){L.flags.cityDeepW=1;
+        spawnLairGroup(10,84,{pack:[['lurker',1],['trapper',1]],spread:1.5,aggro:3.4});
+        say('Lurker and trapper share the deep-west house.','#8a7a6a');}
+      if(!L.flags.cityDeepSW&&p.y>84&&p.x>16&&p.x<42){L.flags.cityDeepSW=1;
+        spawnLairGroup(28,92,{pack:[['xorn',1],['umberhulk',1]],spread:1.5,aggro:3.4});
+        say('Xorn and hulk chew the deep south-west street.','#c08040');}
+      if(!L.flags.cityMidSE&&p.x>68&&p.y>62&&p.x<96){L.flags.cityMidSE=1;
+        spawnLairGroup(80,72,{pack:[['cloaker',1],['troll',1]],spread:1.5,aggro:3.4});
+        say('A cloaker and a troll hold the mid-south quay.','#5a3a8a');}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The pool goes still. The temple road is the last way down.','#ffd27a');
         setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
@@ -3674,7 +3818,7 @@ function makeChapter(n){
 
   if(n===5){
     L.title='Chapter V'; L.sub='The Holy Sacrifice'; L.pal=PAL.hall;
-    L.w=88; L.h=80; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=108; L.h=98; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,6,40,12,8,3); corridor(g,16,44,28,44,6,0); rect(g,18,36,24,8,0);
     rect(g,14,8,30,28,0); rect(g,26,12,6,6,3);
     // Wider temple: side chapels and courts. Altar, throne, and west secret stay.
@@ -3682,6 +3826,13 @@ function makeChapter(n){
     corridor(g,29,36,29,58,5,0); rect(g,18,56,22,14,0);
     corridor(g,10,44,10,62,4,0); rect(g,4,60,14,12,0);
     corridor(g,44,16,56,10,4,0); rect(g,52,6,16,12,0);
+    // Fuller temple: side chapels and courts. Altar, throne, and west secret stay.
+    corridor(g,72,22,92,22,5,0); rect(g,88,14,16,16,0);
+    corridor(g,29,68,29,86,5,0); rect(g,16,80,26,14,0);
+    corridor(g,10,70,10,86,4,0); rect(g,4,82,14,12,0);
+    corridor(g,60,10,80,8,4,0); rect(g,76,4,18,12,0);
+    corridor(g,44,30,62,40,4,0); rect(g,56,36,18,14,0);
+    corridor(g,18,70,8,74,4,0); rect(g,4,70,12,10,0);
     L.spawn={x:10,y:44};
     L.secrets=[];
     addSecretDoor(L,{x:13.15,y:20.1,i:13,j:19,w:1,h:3,kind:'treasure',face:'e',
@@ -3691,7 +3842,10 @@ function makeChapter(n){
       {x:18,y:12,c:'#ff7a3a',r:7,f:1.2},{x:40,y:12,c:'#ff7a3a',r:7,f:1.2},
       {x:18,y:31,c:'#ff7a3a',r:7,f:1.2},{x:40,y:31,c:'#ff7a3a',r:7,f:1.2},
       {x:72,y:22,c:'#ffd24a',r:6.0,f:0.9},{x:29,y:62,c:'#ff7a3a',r:5.6,f:0.8},
-      {x:10,y:66,c:'#c9a070',r:4.8,f:0.65},{x:60,y:10,c:'#ffd24a',r:5.2,f:0.75}];
+      {x:10,y:66,c:'#c9a070',r:4.8,f:0.65},{x:60,y:10,c:'#ffd24a',r:5.2,f:0.75},
+      {x:96,y:22,c:'#ffd24a',r:5.6,f:0.8},{x:29,y:86,c:'#ff7a3a',r:5.4,f:0.75},
+      {x:10,y:88,c:'#c9a070',r:4.6,f:0.6},{x:84,y:10,c:'#ffd24a',r:5.0,f:0.7},
+      {x:64,y:42,c:'#ff7a3a',r:5.2,f:0.75},{x:8,y:74,c:'#c9a070',r:4.4,f:0.6}];
     G.props=[{x:10,y:41,k:'lantern'},{x:18,y:12,k:'brazier'},{x:40,y:12,k:'brazier'},
       {x:18,y:31,k:'brazier'},{x:40,y:31,k:'brazier'},{x:20,y:16,k:'pillar'},{x:38,y:16,k:'pillar'},
       {x:20,y:28,k:'pillar'},{x:38,y:28,k:'pillar'},{x:29,y:14.5,k:'altar'},{x:29,y:10,k:'throne'},
@@ -3700,8 +3854,12 @@ function makeChapter(n){
       {x:29,y:36,k:'trap',trap:'trap_runes'},
       {x:24,y:22,k:'trap',trap:'trap_spikes'},{x:34,y:22,k:'trap',trap:'trap_pit'},
       {x:70,y:18,k:'brazier'},{x:74,y:24,k:'urn'},{x:26,y:60,k:'lantern'},{x:32,y:64,k:'banner'},
-      {x:8,y:64,k:'bones'},{x:58,y:10,k:'idol'}];
-    [[72,22],[29,62],[10,66],[60,10]].forEach(pt=>{
+      {x:8,y:64,k:'bones'},{x:58,y:10,k:'idol'},
+      {x:92,y:18,k:'brazier'},{x:98,y:24,k:'urn'},{x:94,y:22,k:'idol'},
+      {x:26,y:84,k:'lantern'},{x:32,y:88,k:'banner'},{x:20,y:86,k:'bones'},
+      {x:8,y:86,k:'bones'},{x:12,y:90,k:'urn'},{x:80,y:8,k:'idol'},{x:86,y:12,k:'brazier'},
+      {x:60,y:40,k:'lantern'},{x:66,y:44,k:'urn'},{x:6,y:74,k:'bones'},{x:10,y:76,k:'idol'}];
+    [[72,22],[29,62],[10,66],[60,10],[96,22],[29,86],[10,88],[84,10],[64,42],[8,74]].forEach(pt=>{
       placeDungeonCache(pt[0], pt[1], 5);
     });
     L.guide=()=>!L.flags.start?{x:29,y:20}:null;
@@ -3717,9 +3875,27 @@ function makeChapter(n){
       if(!L.flags.eastChapel&&p.x>58&&p.y<32){L.flags.eastChapel=1;
         spawnLairGroup(72,22,{pack:[['golemGold',1],['golemBrass',1]],spread:1.8,aggro:3.8});
         say('Temple metal stands in the east chapel. Golems only.','#ffd24a');}
-      if(!L.flags.southCourt&&p.y>52){L.flags.southCourt=1;
+      if(!L.flags.southCourt&&p.y>52&&p.y<76){L.flags.southCourt=1;
         spawnLairGroup(29,62,{leader:'duergarX',pack:[['duergar',3]],spread:1.6,aggro:3.6});
         say('Grey kin hold the south court. One shift.','#9de8a8');}
+      if(!L.flags.farEastChapel&&p.x>84&&p.y<34){L.flags.farEastChapel=1;
+        spawnLairGroup(96,22,{pack:[['dao',1],['earthelem',1]],spread:1.6,aggro:3.6});
+        say('Dao and earth stand in the far east chapel.','#c4a060');}
+      if(!L.flags.farSouthCourt&&p.y>76&&p.x>14&&p.x<48){L.flags.farSouthCourt=1;
+        spawnLairGroup(29,86,{leader:'duergarX',pack:[['galebduhr',1]],spread:1.5,aggro:3.6});
+        say('Grey kin and living stone hold the far south court.','#9de8a8');}
+      if(!L.flags.farSW&&p.x<20&&p.y>78){L.flags.farSW=1;
+        spawnLairGroup(10,88,{pack:[['xorn',1],['magmaelem',1]],spread:1.5,aggro:3.4});
+        say('Xorn and magma keep the far southwest vestry.','#c08040');}
+      if(!L.flags.farNEChapel&&p.x>70&&p.y<16){L.flags.farNEChapel=1;
+        spawnLairGroup(84,10,{leader:'drowMage',pack:[['drowCaptain',1]],spread:1.5,aggro:3.8});
+        say('A drow house still watches the northeast chapel.','#d07bff');}
+      if(!L.flags.eastCourt&&p.x>52&&p.y>32&&p.y<54){L.flags.eastCourt=1;
+        spawnLairGroup(64,42,{pack:[['stonegiant',1],['fomorian',1]],spread:1.6,aggro:3.6});
+        say('Giant-kin hold the east court off the colonnade.','#9a9084');}
+      if(!L.flags.westVestry&&p.x<18&&p.y>66&&p.y<80){L.flags.westVestry=1;
+        spawnLairGroup(8,74,{leader:'firegiant',pack:[['magmaelem',1]],spread:1.5,aggro:3.6});
+        say('Fire and magma keep the west vestry.','#ff6a3a');}
       const k=G.ents.find(e=>e.kind==='king'&&!e.dead);
       if(k){ const f=k.hp/k.maxhp;
         if(f<.66&&!L.flags.p2){L.flags.p2=1; say('Gold steps down from the colonnade.','#ffd24a');
@@ -3914,8 +4090,8 @@ function wanderKinds(){
   if(ch<=1) kinds=['rat','centipede','spider','beetle','kobold','goblin','orc','spiderHuge','beetleBoring'];
   else if(ch===2) kinds=['goblin','kobold','orc','gibberling','warg','spiderHuge'];
   else if(ch===3) kinds=['hookedhorror','wraith','drowElite','minotaur','troll','ochrejelly','myconidKing','kuotoaMonitor'];
-  else if(ch===4) kinds=['drow','duergar','wraith','drowElite','quaggothJarl','hookedhorror','minotaur'];
-  else kinds=['undead','drowElite','gargoyle','wraith','hookedhorror','minotaur'];
+  else if(ch===4) kinds=['mindflayer','gauth','ochrejelly','umberhulk','cloaker','minotaur','troll','xorn','otyugh'];
+  else kinds=['dao','earthelem','galebduhr','xorn','drowMage','duergarX','magmaelem','stonegiant'];
   return kinds.filter(k=>typeof FOE[k]==='function' && wanderKindAllowed(k));
 }
 function wanderSpawnSpots(p){
@@ -4195,6 +4371,54 @@ function wavePack(cx, cy, kinds, spread){
   });
   wave(list);
 }
+function lairDenKind(spec){
+  spec=spec||{};
+  const k=spec.leader||(spec.pack&&spec.pack[0]&&spec.pack[0][0])||'';
+  if(/spider/i.test(k)) return 'spider';
+  if(/rat|centipede/i.test(k)) return 'vermin';
+  if(/beetle/i.test(k)) return 'beetle';
+  if(/warg/i.test(k)) return 'warg';
+  if(/kobold/i.test(k)) return 'kobold';
+  if(/goblin/i.test(k)) return 'goblin';
+  if(/orc|bugbear|gibberling/i.test(k)) return 'orc';
+  if(/duergar|pech/i.test(k)) return 'duergar';
+  if(/drow|drider/i.test(k)) return 'drow';
+  if(/undead|wraith|lich|ghost|vampire/i.test(k)) return 'undead';
+  if(/ooze|jelly|pudding|gel|slime|otyugh/i.test(k)) return 'slime';
+  if(/myconid|shrieker|fungus|violet/i.test(k)) return 'fungus';
+  if(/kuotoa|aboleth|ixzan|morkoth/i.test(k)) return 'water';
+  if(/golem|construct|elem|dao|galeb/i.test(k)) return 'golem';
+  if(/mind|illith|gauth|neoth|uroph|elder/i.test(k)) return 'illithid';
+  if(/troglodyte|grimlock|crawler/i.test(k)) return 'camp';
+  return 'camp';
+}
+function placeLairDen(cx, cy, spec){
+  /* House: a MM lair is a den the party can walk, not hallway wanderers.
+     RAW Number Appearing / treasure type stay on the monsters. */
+  G.props=G.props||[];
+  const piles={
+    spider:[['eggs',-0.75,-0.35],['web',0.65,0.55],['bones',0.15,-0.85]],
+    vermin:[['bones',-0.55,0.4],['sack',0.6,-0.3],['crate',-0.15,-0.7]],
+    beetle:[['orepile',0.55,0.3],['bones',-0.65,-0.4],['crate',0.15,-0.65]],
+    warg:[['bones',-0.7,0.25],['hidepile',0.6,-0.35],['bones',0.1,0.7]],
+    kobold:[['crate',-0.6,0.3],['sack',0.55,-0.4],['orepile',0.1,0.6]],
+    goblin:[['sack',-0.6,-0.3],['crate',0.55,0.4],['bones',0.15,-0.7],['banner',-0.25,0.65]],
+    orc:[['banner',-0.5,0.4],['crate',0.6,-0.2],['bones',-0.1,-0.7]],
+    duergar:[['crate',-0.5,0.3],['barrel',0.6,-0.3],['lantern',0.1,0.6]],
+    drow:[['urn',-0.55,-0.3],['banner',0.6,0.4],['bones',0.1,-0.7]],
+    undead:[['bones',-0.6,0.3],['urn',0.55,-0.4],['bones',0.1,0.65]],
+    slime:[['slime',-0.45,0.2],['bones',0.55,-0.4],['slime',0.1,0.6]],
+    fungus:[['shroom',-0.5,0.3],['bones',0.5,-0.3],['shroom',0.1,0.6]],
+    water:[['slime',-0.5,0.2],['bones',0.55,-0.4],['urn',0.1,0.6]],
+    golem:[['idol',-0.4,0.2],['urn',0.55,-0.4],['brazier',0.1,0.6]],
+    illithid:[['altar',0.05,0.25],['urn',-0.7,-0.3],['bones',0.65,0.5]],
+    camp:[['crate',-0.5,0.3],['sack',0.5,-0.3],['bones',0.1,0.6]]
+  };
+  const kind=lairDenKind(spec);
+  (piles[kind]||piles.camp).forEach((row,i)=>{
+    G.props.push({x:cx+row[1], y:cy+row[2], k:row[0], s:0.86+i*0.05, lairDen:1, seed:710+i});
+  });
+}
 function spawnLairGroup(cx, cy, spec){
   spec=spec||{};
   const kinds=[];
@@ -4210,6 +4434,7 @@ function spawnLairGroup(cx, cy, spec){
       if(e.team==='foe' && Math.hypot(e.x-cx,e.y-cy)<reach && !e.aggro) e.aggro=spec.aggro;
     });
   }
+  if(!spec.noDen) placeLairDen(cx, cy, spec);
 }
 function joinAllies(list){
   list.forEach(([k,x,y])=>{
@@ -5268,7 +5493,12 @@ function encounterHdBand(){
   const ch=(G&&G.ch)||1;
   if(ch<=1) return [1,7];
   if(ch===2) return [1,7];
-  return [5,9];
+  if(ch===3) return [5,9];
+  /* HOUSE: later Book I halls escalate inside printed 1e dungeon-level
+     bands (DMG App C). RAW table I–X by dungeon level; house maps
+     Ch IV ≈ levels VII–IX and Ch V ≈ VIII–X+. Do not flatten to 5–9. */
+  if(ch===4) return [6,12];
+  return [7,16];
 }
 function wanderKindAllowed(k){
   let hd=bestiaryHd(k);
@@ -8574,7 +8804,8 @@ function dressRuinBuildings(L){
   const footprints=[
     [6,8,12,10],[22,6,14,10],[56,6,18,12],
     [64,20,18,16],[6,38,12,12],[64,42,18,16],[20,54,24,12],
-    [84,8,16,12],[92,28,18,14],[80,54,22,14],[8,70,16,14],[42,74,22,14],[72,76,18,12],[100,40,14,16]
+    [84,8,16,12],[92,28,18,14],[80,54,22,14],[8,70,16,14],[42,74,22,14],[72,76,18,12],[100,40,14,16],
+    [118,4,16,12],[120,40,16,16],[110,74,22,14],[4,96,16,14],[38,98,22,12],[78,96,20,14]
   ];
   footprints.forEach((fp, idx)=>{
     const [x,y,w,h]=fp;
@@ -8684,12 +8915,12 @@ function buildGoblinWarrens(L, sec){
   hint('Goblin Warrens. Stairs at the far den drop to the king.',4.8);
   const rooms=[];
   let cx=mouth.x+3.2, cy=mouth.y+4.8;
-  const n=8+(rnd()*4)|0;
+  const n=10+(rnd()*5)|0;
   for(let i=0;i<n;i++){
     cx += 2.6+rnd()*5.8;
     cy += (rnd()<0.42?-1:1)*(1.6+rnd()*4.2);
     cx=clamp(cx, 46, L.w-9);
-    cy=clamp(cy, 38, Math.min(56, L.h-22));
+    cy=clamp(cy, 38, Math.min(72, L.h-22));
     const rw=3.6+rnd()*2.6, rh=3.0+rnd()*2.2;
     caveDisk(g, cx, cy, rw, rh, 0);
     const prev=rooms.length?rooms[rooms.length-1]:mouth;
@@ -8709,7 +8940,9 @@ function buildGoblinWarrens(L, sec){
     {leader:'goblinChieftain', pack:[['goblin',2]]},
     {pack:[['rat',3],['beetle',1]]},
     {leader:'bugbear', pack:[['goblin',2]]},
-    {pack:[['kobold',4]]}
+    {pack:[['kobold',4]]},
+    {pack:[['warg',3]]},
+    {pack:[['spider',3]]}
   ];
   if(!L.flags.warrenSpawned){
     rooms.forEach((r,i)=>{
@@ -8748,7 +8981,7 @@ function buildGoblinKingLevel(L){
   const g=L.grid;
   const kx=74, ky=68;
   L.kingEntry={x:62.4, y:64.2};
-  rect(g, 58, 58, 32, 18, 0);
+  rect(g, 58, 58, 40, 24, 0);
   rect(g, 68, 62, 12, 9, 3);
   caveDisk(g, kx, ky, 11, 7.2, 0);
   if(L.warrenStair) carvePath(g, [[L.warrenStair.x,L.warrenStair.y],[L.kingEntry.x,L.kingEntry.y],[kx,ky]], 2.4, 0);
@@ -8770,6 +9003,8 @@ function buildGoblinKingLevel(L){
     spawnLairGroup(kx+3.4, ky+1.2, {leader:'goblinChieftain', pack:[['goblinBoss',1],['goblin',2]], spread:1.5, aggro:4.4});
     spawnLairGroup(kx-1.2, ky+3.2, {pack:[['warg',3]], spread:1.8, aggro:4.8});
     spawnLairGroup(kx+5.2, ky-0.6, {pack:[['warg',2],['goblin',1]], spread:1.4, aggro:4.5});
+    spawnLairGroup(kx+9.2, ky+3.4, {pack:[['kobold',4]], spread:1.4, aggro:4.0});
+    spawnLairGroup(kx-8.4, ky+2.8, {pack:[['warg',2],['goblin',2]], spread:1.5, aggro:4.4});
     if(!L.flags.shamanSkipKing && !L.flags.shamanDead){
       spawnLairGroup(kx+0.2, ky+2.4, {leader:'goblinShaman', pack:[['goblin',2]], spread:1.3, aggro:4.2});
       (G.ents||[]).forEach(e=>{ if(e.shaman){ e.npc=0; e.aggro=6; e.engaged=1; } });
