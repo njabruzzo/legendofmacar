@@ -148,7 +148,32 @@ assert(!stay.ok && stay.reason === 'cursed', 'cursed armor will not doff');
 const boots = Eq.annotate({n:'Boots of Elvenkind', k:'misc'});
 assert(Eq.itemSlot(boots) === 'boots', 'pack boots map to feet');
 
-const html = require('fs').readFileSync(require('path').join(__dirname, '../../index.html'), 'utf8');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
+
+const leather = Eq.annotate({n:'Leather Armor', k:'armor'});
+const missSh = Eq.annotate({n:'Shield, large, +1, +4 vs missiles', k:'armor', plus:1, missilePlus:4,
+  d:'+1 large shield, +4 vs missiles.'});
+assert(missSh.slot === 'secondary', 'large +4 vs missiles shield maps to off hand');
+assert(Eq.shieldMissilePlus(missSh) === 4, 'large shield missile plus is +4');
+assert(Eq.shieldMissilePlus({n:'Shield +1', plus:1}) === 0, 'ordinary +1 shield has no missile extra');
+let leatherSh = Eq.equip(Eq.emptyEquipped(), leather).equipped;
+leatherSh = Eq.equip(leatherSh, missSh).equipped;
+assert(Eq.computeWornAC(leatherSh) === 6, 'leather + large shield melee AC 6 (8 −1 −1)');
+assert(Eq.computeWornAC(leatherSh, {missile:true}) === 2, 'leather + large shield missile AC 2 (melee 6 −4)');
+const parsedSh = Eq.annotate({n:'Shield, large, +1, +4 vs missiles', k:'armor', plus:1,
+  d:'+1 large shield, +4 vs missiles.'});
+assert(Eq.shieldMissilePlus(parsedSh) === 4, 'parses +4 vs missiles from n/d when missilePlus is omitted');
+let leatherPlain = Eq.equip(Eq.emptyEquipped(), leather).equipped;
+leatherPlain = Eq.equip(leatherPlain, Eq.annotate({n:'Shield +1', k:'armor', plus:1})).equipped;
+assert(Eq.computeWornAC(leatherPlain) === 6, 'leather + ordinary +1 shield melee AC 6');
+assert(Eq.computeWornAC(leatherPlain, {missile:true}) === 6, 'ordinary +1 shield missile AC stays 6');
+let leatherPri = Eq.equip(Eq.emptyEquipped(), leather).equipped;
+leatherPri.primary = missSh;
+assert(Eq.computeWornAC(leatherPri) === 6 && Eq.computeWornAC(leatherPri, {missile:true}) === 2,
+  'missile shield in primary hand still grants +4 vs missiles');
 const gateRow = html.match(/n:'Ring of Protection \+4 on AC 5 or better',k:'ring',plus:(\d+)/);
 assert(gateRow && gateRow[1] === '4', 'table stores Ring of Protection +4 as plus:4');
 assert(/function rollDmgRing\(/.test(html) && /plus:r\.plus/.test(html.match(/function rollDmgRing\([\s\S]*?\n\}/)[0]),
@@ -157,6 +182,34 @@ assert(/src\/packs\/EquipmentSlots\.js/.test(html), 'index.html loads EquipmentS
 assert(/drawEquipDoll|drawPaperDoll/.test(html), 'pack screen draws the paper doll');
 assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit');
 assert(/computeWornAC/.test(html), 'party AC uses worn 1e values');
+assert(/missile:!!opts\.missile/.test(html.match(/function partyAC\([\s\S]*?\nfunction isRearAttack/)[0]),
+  'partyAC forwards missile to computeWornAC');
+assert(/atk&&atk\.ranged/.test(html.match(/function effectiveAC\([\s\S]*?\nconst SPECIALTY/)[0]),
+  'effectiveAC marks incoming ranged attacks as missiles');
+
+function extractFn(name){
+  const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
+  const m=html.match(re);
+  if(!m) throw new Error('missing '+name);
+  return m[0];
+}
+const acCtx={
+  G:{equipped:leatherSh},
+  EquipmentSlots:Eq,
+  clamp:(v,a,b)=>v<a?a:v>b?b:v,
+  entityAbil:()=>({dex:10,str:10}),
+  dexDefAdj:()=>0,
+  effectiveDex:()=>10,
+  isRearAttack:()=>false
+};
+vm.createContext(acCtx);
+vm.runInContext(extractFn('partyAC')+extractFn('effectiveAC'), acCtx);
+const mac={hero:1, team:'party', stun:0, prone:0, held:0};
+assert(acCtx.partyAC(mac)===6, 'partyAC leather+missile-shield melee is 6');
+assert(acCtx.partyAC(mac,{missile:1})===2, 'partyAC leather+missile-shield vs missiles is 2');
+assert(acCtx.effectiveAC(mac,{ranged:0})===6, 'melee against party ignores missile shield extra');
+assert(acCtx.effectiveAC(mac,{ranged:1})===2, 'ranged against party applies +4 vs missiles');
+assert(acCtx.effectiveAC(mac)===6, 'HUD effectiveAC with no attacker stays melee');
 assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && /icon_doll/.test(html), 'inventory slot graphics are registered');
 const dollFn=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/);
 assert(!!dollFn && /blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(dollFn[0]),

@@ -5757,7 +5757,7 @@ function partyAC(e, opts){
   let ac=10;
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(e.hero && ES && ES.computeWornAC){
-    ac=ES.computeWornAC(G.equipped||{}, {noShield});
+    ac=ES.computeWornAC(G.equipped||{}, {noShield, missile:!!opts.missile});
   } else {
     if(cls==='t') ac=8;
     else ac=5;
@@ -6121,6 +6121,7 @@ function wieldWeapon(it){
 function isSpiderFoe(e){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isSpiderFoe&&DwarfMouth.isSpiderFoe(e)); }
 function isUndeadFoe(e){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isUndeadFoe&&DwarfMouth.isUndeadFoe(e)); }
 function weaponVsDouble(wep, def){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.weaponVsDouble&&DwarfMouth.weaponVsDouble(wep, def)); }
+function weaponVsPlus(wep, def){ return (typeof DwarfMouth!=='undefined'&&DwarfMouth.weaponVsPlus)?(DwarfMouth.weaponVsPlus(wep, def)|0):0; }
 function isGuardianRuby(gm){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isGuardianRuby&&DwarfMouth.isGuardianRuby(gm)); }
 function packGainNote(bits, who){
   const list=(bits||[]).filter(Boolean);
@@ -6234,8 +6235,10 @@ function thacNeed(atk, ac){
   if(kind==='f') return THAC_F[fighterMatrixRow(lv)][col];
   return THAC_M[monsterMatrixRow(monsterHD(atk))][col];
 }
-function wornWeaponPlus(e){
+function wornWeaponPlus(e, def){
   if(!e) return 0;
+  let plus=0;
+  let wep=null;
   if(e.hero && G && G.equipped){
     const eq=G.equipped;
     if(e.ranged){
@@ -6243,23 +6246,25 @@ function wornWeaponPlus(e){
       if(!bow) return 0;
       const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
       if(ES&&ES.isShield&&ES.isShield(bow)) return 0;
-      if(bow.cursed) return bow.plus|| -1;
-      return bow.plus||0;
+      wep=bow;
+      plus=bow.cursed?(bow.plus|| -1):(bow.plus||0);
+    } else {
+      wep=eq.primary||eq.weapon;
+      if(wep) plus=wep.cursed?(wep.plus|| -1):(wep.plus||0);
+      else plus=(e.gear&&e.gear.magicAtk)||0;
     }
-    const wep=eq.primary||eq.weapon;
-    if(wep){
-      if(wep.cursed) return wep.plus|| -1;
-      return wep.plus||0;
-    }
+  } else {
+    plus=(e.gear&&e.gear.magicAtk)||0;
   }
-  return (e.gear&&e.gear.magicAtk)||0;
+  if(wep && typeof weaponVsPlus==='function') plus+=weaponVsPlus(wep, def);
+  return plus;
 }
-function hitBonus(e){
+function hitBonus(e, def){
   let b=0;
   if(e.team==='party'){
     const g=e.gear||{};
     const ab=entityAbil(e);
-    b+=(g.wt||0)+wornWeaponPlus(e);
+    b+=(g.wt||0)+wornWeaponPlus(e, def);
     if(g.rune) b+=1;
     if(e.buff>0) b+=2;
     if(e.blessHit && (e.blessT||0)>0) b+=1;
@@ -6277,8 +6282,9 @@ function hitBonus(e){
 function effectiveAC(e, atk){
   const rear=atk?isRearAttack(atk,e):false;
   const helpless=e.stun>0||e.prone||(e.held||0)>0;
+  const missile=!!(atk&&atk.ranged);
   let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
-  if(e.team==='party') ac=partyAC(e,{rear, helpless});
+  if(e.team==='party') ac=partyAC(e,{rear, helpless, missile});
   if(e.stoneskin>0) ac-=2;
   return clamp(ac,-8,10);
 }
@@ -6295,14 +6301,14 @@ function specialtyInBand(kind, tot){
   if(kind===4) return tot>=21;
   return tot>=B.lo && tot<=B.hi;
 }
-function specialtyHitBonus(e){
+function specialtyHitBonus(e, def){
   /* Band tot = d20 + STR hit + magic-weapon to-hit. No rear / dex / buff. */
   let b=0;
   if(e&&e.team==='party'){
     const g=e.gear||{};
     const ab=typeof entityAbil==='function'?entityAbil(e):null;
     b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit||0;
-    b+=wornWeaponPlus(e);
+    b+=wornWeaponPlus(e, def);
   } else if(e&&e.sa&&/\+\d/.test(e.sa)){
     const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1];
   }
@@ -6344,7 +6350,7 @@ function addAttack(atk, def, opts){
   const specKind=(opts&&opts.specialty)||atk._specialty||atk.specialty||0;
   const spec=specialtyBand(specKind);
   const roll=(opts&&opts.roll!=null)?(opts.roll|0):d20();
-  let bonus=hitBonus(atk);
+  let bonus=hitBonus(atk, def);
   if(rear) bonus+=2;
   if(def.stun>0||def.prone) bonus+=4;
   if(atk.ranged){
@@ -6352,7 +6358,7 @@ function addAttack(atk, def, opts){
     if(d>rng*0.85) bonus-=5;
     else if(d>rng*0.55) bonus-=2;
   }
-  const specBonus=spec?specialtyHitBonus(atk):bonus;
+  const specBonus=spec?specialtyHitBonus(atk, def):bonus;
   const specTot=roll+specBonus;
   const matrixTot=roll+bonus;
   const tot=spec?specTot:matrixTot;
@@ -6382,7 +6388,7 @@ function addAttack(atk, def, opts){
     if(wep){
       const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
       if(!(ES&&ES.isShield&&ES.isShield(wep))){
-        raw+=(wep.plus||0);
+        raw+=(wep.plus||0)+((typeof weaponVsPlus==='function')?weaponVsPlus(wep, def):0);
         if(weaponVsDouble(wep, def)) raw*=2;
       }
     }
@@ -6715,6 +6721,8 @@ function magItem(o){
     vs:o.vs||'', cursed:!!o.cursed, xp:o.xp||0};
   if(o.dexPlus) raw.dexPlus=o.dexPlus;
   else raw.plus=o.plus||0;
+  if(o.vsPlus!=null) raw.vsPlus=o.vsPlus;
+  if(o.missilePlus!=null) raw.missilePlus=o.missilePlus;
   if(o.noAuto) raw.noAuto=1;
   return mapPackItemToEquipment(raw);
 }
@@ -6829,7 +6837,7 @@ const DMG_ARMOR=[
   {a:70,b:73,n:'Shield +3',k:'armor',plus:3,d:'+3 shield.'},
   {a:74,b:76,n:'Shield +4',k:'armor',plus:4,d:'+4 shield.'},
   {a:77,b:78,n:'Shield +5',k:'armor',plus:5,d:'+5 shield. A wall in the hand.'},
-  {a:79,b:80,n:'Shield, large, +1, +4 vs missiles',k:'armor',plus:1,d:'+1 large shield, +4 vs missiles.'},
+  {a:79,b:80,n:'Shield, large, +1, +4 vs missiles',k:'armor',plus:1,missilePlus:4,d:'+1 large shield, +4 vs missiles.'},
   {a:81,b:82,n:'Armor of Command',k:'armor',plus:1,d:'+1 armor. Wearer seems a born captain; +1 to loyalty and reaction.'},
   {a:83,b:84,n:'Armor of Etherealness',k:'armor',plus:3,d:'+3 plate. Become ethereal for a few turns per week.'},
   {a:85,b:86,n:'Armor of Fear',k:'armor',plus:1,d:'+1 armor. Enemies in melee must save vs spell or hesitate.'},
@@ -6840,10 +6848,10 @@ const DMG_ARMOR=[
 ];
 const DMG_SWORD=[
   {a:1,b:25,n:'Long Sword +1',k:'weapon',plus:1,d:'+1 to hit and damage. The common enchanted long sword.'},
-  {a:26,b:30,n:'Long Sword +1, +2 vs magic-using and enchanted creatures',k:'weapon',plus:1,vs:'magic',d:'+1, +2 vs casters and enchanted foes.'},
-  {a:31,b:35,n:'Long Sword +1, +3 vs lycanthropes and shape changers',k:'weapon',plus:1,vs:'lycan',d:'+1, +3 vs lycanthropes and other shape-changers.'},
-  {a:36,b:40,n:'Long Sword +1, +3 vs regenerating creatures',k:'weapon',plus:1,vs:'regen',d:'+1, +3 vs trolls and anything that grows back.'},
-  {a:41,b:45,n:'Long Sword +1, +4 vs reptiles',k:'weapon',plus:1,vs:'reptile',d:'+1, +4 vs reptiles and dragon-kin.'},
+  {a:26,b:30,n:'Long Sword +1, +2 vs magic-using and enchanted creatures',k:'weapon',plus:1,vs:'magic',vsPlus:1,d:'+1, +2 vs casters and enchanted foes.'},
+  {a:31,b:35,n:'Long Sword +1, +3 vs lycanthropes and shape changers',k:'weapon',plus:1,vs:'lycan',vsPlus:2,d:'+1, +3 vs lycanthropes and other shape-changers.'},
+  {a:36,b:40,n:'Long Sword +1, +3 vs regenerating creatures',k:'weapon',plus:1,vs:'regen',vsPlus:2,d:'+1, +3 vs trolls and anything that grows back.'},
+  {a:41,b:45,n:'Long Sword +1, +4 vs reptiles',k:'weapon',plus:1,vs:'reptile',vsPlus:3,d:'+1, +4 vs reptiles and dragon-kin.'},
   {a:46,b:49,n:'Long Sword +1, Flame Tongue',k:'weapon',plus:1,d:'+1 flame tongue. Extra vs cold-using, undead, and regenerating; sheds light.'},
   {a:50,b:53,n:'Long Sword +1, Luck Blade',k:'weapon',plus:1,d:'+1 luck blade. 1d4+1 wishes; +1 on saves while drawn.'},
   {a:54,b:57,n:'Broad Sword +1',k:'weapon',plus:1,d:'+1 broad sword.'},
@@ -6851,11 +6859,11 @@ const DMG_SWORD=[
   {a:62,b:66,n:'Long Sword +2',k:'weapon',plus:2,d:'+2 long sword.'},
   {a:67,b:70,n:'Broad Sword +2',k:'weapon',plus:2,d:'+2 broad sword.'},
   {a:71,b:72,n:'Long Sword +2, Nine Lives Stealer',k:'weapon',plus:2,d:'+2. On a natural 20, the foe must save vs spell or die (9 charges).'},
-  {a:73,b:74,n:'Long Sword +2, Dragon Slayer',k:'weapon',plus:2,vs:'dragon',d:'+2, +4 vs a chosen dragon type. A wyrm\'s bane.'},
+  {a:73,b:74,n:'Long Sword +2, Dragon Slayer',k:'weapon',plus:2,vs:'dragon',vsPlus:2,d:'+2, +4 vs a chosen dragon type. A wyrm\'s bane.'},
   {a:75,b:76,n:'Long Sword +3',k:'weapon',plus:3,d:'+3 long sword.'},
   {a:77,b:78,n:'Frost Brand',k:'weapon',plus:3,d:'+3, +6 vs fire-using or fire-dwelling creatures. Sheds light; fire resistance.'},
   {a:79,b:80,n:'Holy Avenger',k:'weapon',plus:2,d:'+2 in most hands; +5 in a paladin\'s, with dispel magic in 5 feet.'},
-  {a:81,b:82,n:'Long Sword +3, Giant Slayer',k:'weapon',plus:3,vs:'giant',d:'+3, +6 vs giants and giant-kin.'},
+  {a:81,b:82,n:'Long Sword +3, Giant Slayer',k:'weapon',plus:3,vs:'giant',vsPlus:3,d:'+3, +6 vs giants and giant-kin.'},
   {a:83,b:84,n:'Long Sword +4',k:'weapon',plus:4,d:'+4 long sword.'},
   {a:85,b:86,n:'Defender +4',k:'weapon',plus:4,d:'+4 defender. Split the plus each round between attack and AC.'},
   {a:87,b:88,n:'Long Sword +5',k:'weapon',plus:5,d:'+5 long sword. A king\'s blade.'},
@@ -7057,8 +7065,8 @@ const DMG_MISC_E=[
 function rollDmgScroll(){ const r=pickRange(DMG_SCROLL); return magItem({cat:'Scroll',n:r.n,d:r.d,k:r.k,cursed:r.cursed}); }
 function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed,charges:r.charges}); }
 function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
-function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed}); }
-function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,cursed:r.cursed}); }
+function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed}); }
+function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed}); }
 function rollDmgMisc(){
   const map=d100();

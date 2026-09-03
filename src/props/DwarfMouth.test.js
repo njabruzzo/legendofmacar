@@ -28,6 +28,54 @@ assert(!M.findShadowCleaver({macar:{magic:[]}}, {weapon:null}), 'missing cleaver
 assert(M.weaponVsDouble(axe,{kind:'spider'}), 'double vs spider');
 assert(M.weaponVsDouble(axe,{kind:'undead'}), 'double vs undead');
 assert(!M.weaponVsDouble(axe,{kind:'goblin'}), 'no double vs goblin');
+assert(M.weaponVsPlus(axe,{kind:'spider'})===0 && M.weaponVsPlus(axe,{kind:'undead'})===0,
+  'Shadow Cleaver stays vsDouble, never vsPlus');
+assert(axe.plus===2 && !axe.vsPlus, 'cleaver remains plus:2 with no vsPlus field');
+
+assert(M.isMagicFoe({kind:'drow', name:'Drow Blade'}), 'kind drow is magic-using');
+assert(M.isMagicFoe({kind:'goblin', name:'Goblin Shaman', shaman:1}), 'shaman name/flag is magic');
+assert(M.isMagicFoe({kind:'mage', name:'Cave Wizard'}), 'mage/wizard is magic');
+assert(M.isMagicFoe({name:'Enchanted Statue'}), 'enchanted name is magic');
+assert(!M.isMagicFoe({kind:'goblin', name:'Goblin'}), 'plain goblin is not magic');
+assert(M.isLycanFoe({name:'Werewolf', kind:'lycan'}), 'were/lycan');
+assert(M.isLycanFoe({name:'Shape Changer'}), 'shape-changer');
+assert(M.isRegenFoe({kind:'troll', name:'Cave Troll'}), 'troll is regen');
+assert(M.isRegenFoe({kind:'beast', regen:1}), 'regen flag');
+assert(M.isReptileFoe({kind:'kobold', name:'Kobold'}), 'kobold is 1e reptile-kin');
+assert(M.isReptileFoe({kind:'lizard', name:'Lizard Man'}), 'lizard');
+assert(M.isReptileFoe({kind:'naga'}), 'naga');
+assert(M.isReptileFoe({kind:'dragonkin', name:'Dragon-kin Scout'}), 'dragon-kin is reptile, not dragon');
+assert(!M.isReptileFoe({kind:'shadowdragon', name:'Shadow Dragon'}), 'true dragon is not reptile');
+assert(M.isDragonFoe({kind:'shadowdragon', name:'Shadow Dragon'}), 'shadow dragon is dragon');
+assert(M.isDragonFoe({kind:'deepdragon', name:'Deep Dragon Wyrm'}), 'wyrm is dragon');
+assert(M.isDragonFoe({kind:'wyvern', name:'Wyvern'}), 'wyvern is dragon');
+assert(!M.isDragonFoe({kind:'dragonkin', name:'Dragon-kin Scout'}), 'dragon-kin is not vs:dragon');
+assert(M.isGiantFoe({kind:'stonegiant', name:'Stone Giant'}), 'stone giant');
+assert(M.isGiantFoe({kind:'ogre', name:'Ogre'}), 'ogre is giant-kin');
+assert(!M.isGiantFoe({kind:'giantslug', name:'Giant Slug'}), 'giant slug is not a giant');
+
+const magicSw={n:'Long Sword +1, +2 vs magic-using and enchanted creatures',plus:1,vs:'magic',vsPlus:1};
+const lycanSw={n:'Long Sword +1, +3 vs lycanthropes and shape changers',plus:1,vs:'lycan',vsPlus:2};
+const regenSw={n:'Long Sword +1, +3 vs regenerating creatures',plus:1,vs:'regen',vsPlus:2};
+const reptileSw={n:'Long Sword +1, +4 vs reptiles',plus:1,vs:'reptile',vsPlus:3};
+const dragonSw={n:'Long Sword +2, Dragon Slayer',plus:2,vs:'dragon',vsPlus:2,d:'+2, +4 vs a chosen dragon type. A wyrm\'s bane.'};
+const giantSw={n:'Long Sword +3, Giant Slayer',plus:3,vs:'giant',vsPlus:3,d:'+3, +6 vs giants and giant-kin.'};
+
+assert(M.weaponVsPlus(magicSw,{kind:'drow'})===1 && !M.weaponVsDouble(magicSw,{kind:'drow'}),
+  'magic sword extra +1, not double');
+assert(M.weaponVsPlus(lycanSw,{name:'Werewolf'})===2, 'lycan extra +2');
+assert(M.weaponVsPlus(regenSw,{kind:'troll'})===2, 'regen extra +2');
+assert(M.weaponVsPlus(reptileSw,{kind:'kobold'})===3, 'reptile extra +3 vs kobold');
+assert(M.weaponVsPlus(reptileSw,{kind:'shadowdragon'})===0, 'reptile sword skips true dragons');
+assert(M.weaponVsPlus(dragonSw,{kind:'shadowdragon'})===2, 'dragon slayer extra +2 (tot +4)');
+assert(M.weaponVsPlus(giantSw,{kind:'stonegiant'})===3, 'giant slayer extra +3 (tot +6)');
+assert(M.weaponVsPlus(magicSw,{kind:'goblin'})===0, 'vs strings add nothing vs the wrong foe');
+assert(!M.weaponVsDouble(magicSw,{kind:'spider'}) && !M.weaponVsDouble(lycanSw,{kind:'undead'}),
+  'table vs tokens never trip weaponVsDouble');
+
+const parsedOnly={n:'Long Sword +1, +3 vs lycanthropes and shape changers',plus:1,vs:'lycan',
+  d:'+1, +3 vs lycanthropes and other shape-changers.'};
+assert(M.weaponVsPlus(parsedOnly,{name:'Werewolf'})===2, 'parses +3 vs extra from n/d when vsPlus is omitted');
 
 const ham=M.macarHammerItem();
 assert(ham.id==='macar_hammer' && ham.dice==='1d8' && ham.slot==='primary', 'hammer item is primary');
@@ -68,6 +116,18 @@ assert(/dwarf_macar_axe_atk\.png/.test(html) || /macar_axe_atk/.test(html), 'Mac
 assert(/dwarf_macar_axe_atk_recover\.png/.test(html), 'Macar axe recover sprite registered');
 assert(/wieldsShadowCleaver/.test(html), 'sprite key swaps when the cleaver is wielded');
 assert(/ensureShadowCleaverWielded/.test(html), 'attack wields the cleaver if Macar has it');
+assert(/vs:'magic',vsPlus:1/.test(html), 'magic-using sword stores vsPlus:1');
+assert(/vs:'lycan',vsPlus:2/.test(html), 'lycan sword stores vsPlus:2');
+assert(/vs:'regen',vsPlus:2/.test(html), 'regen sword stores vsPlus:2');
+assert(/vs:'reptile',vsPlus:3/.test(html), 'reptile sword stores vsPlus:3');
+assert(/vs:'dragon',vsPlus:2/.test(html), 'dragon slayer stores vsPlus:2');
+assert(/vs:'giant',vsPlus:3/.test(html), 'giant slayer stores vsPlus:3');
+assert(/missilePlus:4/.test(html) && /Shield, large, \+1, \+4 vs missiles/.test(html),
+  'large shield stores missilePlus:4 on the existing row');
+assert(/if\(o\.vsPlus!=null\) raw\.vsPlus=o\.vsPlus/.test(html), 'magItem copies table vsPlus');
+assert(/vsPlus:r\.vsPlus/.test(html), 'rollDmgSword copies vsPlus');
+assert(/missilePlus:r\.missilePlus/.test(html), 'rollDmgArmor copies missilePlus');
+assert(/function weaponVsPlus\(/.test(html), 'index wraps weaponVsPlus');
 assert(/loot_dwarfkey\.png/.test(html), 'key sprite registered');
 assert(/The mouth is open\. Old work\. Hungry work\./.test(html), 'touch dialogue');
 assert(/Offer it something\./.test(html), 'offer question');

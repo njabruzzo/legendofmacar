@@ -50,6 +50,84 @@
     if(e.kind==='undead'||e.kind==='undeadX') return true;
     return /undead|wraith|vampire|ghoul|lich|skeleton|zombie|barrow|ghost/i.test((e.kind||'')+' '+(e.name||''));
   }
+  function foeHay(e){
+    if(!e) return '';
+    const flags=e.flags;
+    let flagStr='';
+    if(typeof flags==='string') flagStr=flags;
+    else if(flags && typeof flags==='object'){
+      flagStr=Object.keys(flags).filter(function(k){ return flags[k]; }).join(' ');
+    }
+    return [
+      e.kind, e.name, e.sprite, e.spr, e.k,
+      e.regen?'regen':'', e.shaman?'shaman':'', e.mage?'mage':'',
+      e.lycan?'lycan':'', e.were?'were':'', flagStr
+    ].join(' ').toLowerCase();
+  }
+  function isMagicFoe(e){
+    if(!e) return false;
+    const hay=foeHay(e);
+    if(/mage|caster|drow|shaman|priest/.test(e.kind||'')) return true;
+    return /mage|wizard|cleric|shaman|enchant/.test(hay);
+  }
+  function isLycanFoe(e){
+    if(!e) return false;
+    return /were|lycan|shape/.test(foeHay(e));
+  }
+  function isRegenFoe(e){
+    if(!e) return false;
+    if(e.regen) return true;
+    return /troll|regen/.test(foeHay(e));
+  }
+  function isDragonFoe(e){
+    if(!e) return false;
+    const hay=foeHay(e);
+    if(/dragon-?kin/.test(hay)) return false;
+    return /dragon|wyrm|wyvern/.test(hay);
+  }
+  function isReptileFoe(e){
+    if(!e) return false;
+    if(isDragonFoe(e)) return false;
+    const hay=foeHay(e);
+    if(/dragon-?kin/.test(hay)) return true;
+    return /lizard|reptile|naga|croc|snake|kobold/.test(hay);
+  }
+  function isGiantFoe(e){
+    if(!e) return false;
+    const hay=foeHay(e);
+    if(/giant\s*slug|giantslug/.test(hay)) return false;
+    return /giant|ogre|titan|ettin/.test(hay);
+  }
+  function vsTokens(wep){
+    return String(wep&&wep.vs||'').toLowerCase().split(/[,\s]+/).filter(Boolean);
+  }
+  function weaponMatchesVs(wep, def){
+    if(!wep||!def) return false;
+    const toks=vsTokens(wep);
+    for(let i=0;i<toks.length;i++){
+      const t=toks[i];
+      if(t==='magic' && isMagicFoe(def)) return true;
+      if((t==='lycan'||t==='lycanthrope') && isLycanFoe(def)) return true;
+      if(t==='regen' && isRegenFoe(def)) return true;
+      if(t==='reptile' && isReptileFoe(def)) return true;
+      if(t==='dragon' && isDragonFoe(def)) return true;
+      if(t==='giant' && isGiantFoe(def)) return true;
+    }
+    return false;
+  }
+  function parseWeaponVsPlus(wep){
+    if(!wep||wep.vsDouble) return 0;
+    if(wep.vsPlus!=null && wep.vsPlus!=='') return wep.vsPlus|0;
+    const text=String(wep.n||'')+' '+String(wep.d||'');
+    const m=text.match(/\+(\d+)\s*,\s*\+(\d+)\s*vs/i);
+    if(!m) return 0;
+    return Math.max(0, (+m[2])-(wep.plus||0));
+  }
+  function weaponVsPlus(wep, def){
+    if(!wep||!def||wep.vsDouble) return 0;
+    if(!weaponMatchesVs(wep, def)) return 0;
+    return parseWeaponVsPlus(wep);
+  }
   function weaponVsDouble(wep, def){
     if(!wep||!def||!(wep.vsDouble||wep.vs)) return false;
     const vs=String(wep.vs||'').toLowerCase();
@@ -77,7 +155,8 @@
 
   global.DwarfMouth={
     macarHammerItem, shadowCleaverItem, dwarfMouthKey, isShadowCleaver, findShadowCleaver,
-    isGuardianRuby, isSpiderFoe, isUndeadFoe, weaponVsDouble,
+    isGuardianRuby, isSpiderFoe, isUndeadFoe, isMagicFoe, isLycanFoe, isRegenFoe,
+    isReptileFoe, isDragonFoe, isGiantFoe, weaponVsPlus, weaponVsDouble,
     resolveMouthDrop, takeGemByRef, shouldWieldMouthAxe
   };
 })(typeof globalThis!=='undefined'?globalThis:this);
