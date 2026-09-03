@@ -43,7 +43,9 @@ function pngSize(p){
   return {w:b.readUInt32BE(16), h:b.readUInt32BE(20)};
 }
 
-assert(!fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'helmeted Macar strike is gone');
+assert(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'title-law Macar strike is on disk');
+const macarAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
+assert(macarAtk && macarAtk.w===470 && macarAtk.h===512, 'title-law Macar strike is 470x512');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'leftover Macar recover is gone');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_e_atk.png')), 'leftover east strike is gone');
 assert(fs.existsSync(path.join(root,'dwarf_macar.png')), 'title-law idle remains the Macar identity');
