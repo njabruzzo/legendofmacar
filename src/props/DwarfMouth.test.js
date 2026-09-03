@@ -98,7 +98,7 @@ assert(M.weaponVsPlus(thrower,{kind:'goblin'})===0, 'dwarven thrower vs goblin i
  'Short Sword of Quickness +2','Sword of Life Stealing'].forEach(n=>{
   const stub={n, plus:/Luck/.test(n)||/Quickness/.test(n)? (/Luck/.test(n)?1:2) : (/Vorpal/.test(n)?3:2)};
   assert(M.weaponVsPlus(stub,{kind:'undead'})===0 && M.weaponVsPlus(stub,{kind:'giant'})===0,
-    n+' stays plus-only (no vs extras; wishes/vorpal/life-steal stub)');
+    n+' stays plus-only on vsPlus (no vs extras; Luck/Nine Lives stay stubs)');
 });
 assert(!M.weaponVsDouble(magicSw,{kind:'spider'}) && !M.weaponVsDouble(lycanSw,{kind:'undead'}),
   'table vs tokens never trip weaponVsDouble');
@@ -163,11 +163,11 @@ assert(/Luck Blade'[^}]*plus:1/.test(html) && !/Luck Blade'[^}]*vs:/.test(html),
 assert(/Nine Lives Stealer'[^}]*plus:2/.test(html) && !/Nine Lives Stealer'[^}]*vs:/.test(html),
   'Nine Lives Stealer stays plus-only');
 assert(/Vorpal Sword'[^}]*plus:3/.test(html) && !/Vorpal Sword'[^}]*vs:/.test(html),
-  'Vorpal Sword stays plus-only (no limb chart)');
+  'Vorpal Sword table stays plus:3 with no vs token (no limb chart)');
 assert(/Quickness \+2'[^}]*plus:2/.test(html) && !/Quickness \+2'[^}]*vs:/.test(html),
-  'Sword of Quickness stays plus-only');
+  'Sword of Quickness table stays plus:2 with no vs token');
 assert(/Life Stealing'[^}]*plus:2/.test(html) && !/Life Stealing'[^}]*vs:/.test(html),
-  'Life Stealer stays plus-only');
+  'Life Stealer table stays plus:2 with no vs token');
 assert(/missilePlus:4/.test(html) && /Shield, large, \+1, \+4 vs missiles/.test(html),
   'large shield stores missilePlus:4 on the existing row');
 assert(/if\(o\.vsPlus!=null\) raw\.vsPlus=o\.vsPlus/.test(html), 'magItem copies table vsPlus');

@@ -63,7 +63,7 @@ const ctx={
   beginFight:null
 };
 vm.createContext(ctx);
-['wornMoveMul','wearingElvenkind','moveStep','move','wanderCheckHits','beginFight'].forEach(n=>{
+['wornMoveMul','wearingElvenkind','wearingLevitation','isHovering','moveStep','move','wanderCheckHits','beginFight'].forEach(n=>{
   vm.runInContext(extractFn(n), ctx);
 });
 
@@ -98,7 +98,9 @@ step=ctx.moveStep(mac, mac.sp, 0, 1);
 assert(step.x===4.5, 'Striding step is 1.5× e.sp (4.5)');
 
 ctx.G.equipped={boots:{n:'Boots of Levitation', k:'misc'}};
-assert(ctx.wornMoveMul(mac)===1, 'Levitation stays stub (no fly mul)');
+assert(ctx.wornMoveMul(mac)===1, 'Levitation does not add a fly move mul (no 3D jump)');
+assert(ctx.wearingLevitation(mac) && ctx.isHovering(mac),
+  'Levitation is a hover flag (pit skip), not a 3D jump');
 
 ctx.G.equipped={boots:{n:'Boots of Elvenkind', k:'misc'}};
 assert(ctx.wornMoveMul(mac)===1, 'Elvenkind boots do not double move');

@@ -331,7 +331,7 @@ const stayDance = Eq.unequip(danceEq, 'boots');
 assert(!stayDance.ok && stayDance.reason === 'cursed', 'cursed Dancing boots will not doff');
 
 const levi = Eq.annotate({n:'Boots of Levitation', k:'misc'});
-assert(levi.slot === 'boots' && !levi.plus, 'Levitation boots annotate as boots (fly stays stub)');
+assert(levi.slot === 'boots' && !levi.plus, 'Levitation boots annotate as boots (hover is engine-side, no plus)');
 
 const fs = require('fs');
 const path = require('path');

@@ -38,11 +38,13 @@ const wandFn=extractFn('useWandByName');
 assert(/Staff of Curing/i.test(wandFn) && /applyHeal\(e, 18\)/.test(wandFn) && /clearPoison\(e\)/.test(wandFn),
   'Staff of Curing uses the existing heal-18 + clearPoison pipe');
 assert(/rollDice\(6,6,0\)/.test(useFn), 'other wands still roll 6d6');
-assert(!/it\.k==='ammo'[\s\S]*rollDice\(6,6/.test(useFn),
-  'k:ammo no longer 6d6-zaps');
-assert(/nocked|stays packed/.test(useFn), 'ammo use is nock/ready or a no-op say');
-assert(/slaying|javelin of lightning/i.test(useFn),
-  'Arrow of Slaying and Javelin of Lightning stay stub');
+assert(/javelin of lightning/i.test(useFn) && /becomes a lightning bolt/.test(useFn),
+  'Javelin of Lightning is the ammo that may 6d6-zap');
+assert(/slaying/i.test(useFn) && /flies as \+6/.test(useFn),
+  'Arrow of Slaying uses +6 once (or slays a named type)');
+assert(!/stays packed\. Not this fight/.test(useFn),
+  'slaying / lightning ammo are no longer packed stubs');
+assert(/nocked|stays packed/.test(useFn), 'plus-shot ammo use is still nock/ready');
 assert(/EquipmentSlots\.isEquippable\(it\)/.test(useFn),
   'wearable misc (Displacement) dons through isEquippable before the generic buff+heal');
 
@@ -110,10 +112,15 @@ ctx.useMagicItem(cloak, who);
 assert(ctx.donned===cloak && ctx.donSlot==='necklace', 'using the cloak from pack dons it');
 assert(ctx.healed===0, 'using the cloak does not buff+heal 6');
 
-ctx.healed=0; ctx.donned=null;
+ctx.healed=0; ctx.donned=null; who.buff=0;
 const bag={n:'Bag of Holding', k:'misc'};
-who.buff=0;
 ctx.useMagicItem(bag, who);
+assert(ctx.donned==null && ctx.healed===0 && who.buff===0, 'Bag of Holding does not buff+heal');
+assert(/extra room|fraction|capacity/i.test(ctx.lastSay), 'Bag of Holding says the extra capacity');
+
+ctx.healed=0; ctx.donned=null; who.buff=0;
+const jug={n:'Alchemy Jug', k:'misc'};
+ctx.useMagicItem(jug, who);
 assert(ctx.donned==null && ctx.healed===6 && who.buff>=10, 'other unequippable misc still buff+heal 6');
 
 ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.buff=0;
@@ -146,13 +153,17 @@ assert(ctx.dmg===0 && ctx.healed===0, 'using +N arrows does not 6d6-zap');
 assert(/nocked/i.test(ctx.lastSay), 'using +N arrows nocks them for the next shot');
 assert(arrows.qty===7, 'nock does not decrement the bundle');
 
+ctx.dmg=0; ctx.healed=0; ctx.foe.hp=40;
+const slay={n:'Arrow of Slaying', k:'ammo', plus:3};
+const slayRet=ctx.useMagicItem(slay, who);
+assert(slayRet==='spent' && ctx.healed===0, 'Arrow of Slaying is spent once');
+assert(ctx.dmg===6*4, 'nameless Arrow of Slaying is +6 ammo vs the current target (got '+ctx.dmg+')');
+
 ctx.dmg=0; ctx.healed=0;
-['Arrow of Slaying','Javelin of Lightning'].forEach(n=>{
-  ctx.dmg=0; ctx.healed=0;
-  const stub={n, k:'ammo', plus:3};
-  const ret=ctx.useMagicItem(stub, who);
-  assert(ret!=='spent' && ctx.dmg===0 && ctx.healed===0, n+' stays stub (no 6d6, not spent)');
-});
+const javelin={n:'Javelin of Lightning', k:'ammo', plus:2};
+const javRet=ctx.useMagicItem(javelin, who);
+assert(javRet==='spent' && ctx.healed===0, 'Javelin of Lightning is spent');
+assert(ctx.dmg===36*4, 'Javelin of Lightning is the 6d6 zap (got '+ctx.dmg+')');
 
 const boltRow=html.match(/n:'Bolts \+/);
 assert(!boltRow, 'no invented Bolts +N table row (arrows only)');

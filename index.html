@@ -5846,6 +5846,32 @@ function fallDamageAmt(e, amt){
   if(wearingFeatherFalling(e)) return 0;
   return amt||0;
 }
+function wearingLevitation(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
+  const it=(G.equipped||{}).boots;
+  return !!(it && /boots of levitation/i.test(it.n||''));
+}
+/* Hover / e.fly: no z-height in this mover. Ignore pit tiles. Not a 3D jump. */
+function isHovering(e){
+  if(!e) return false;
+  if(e.fly||e.hover) return true;
+  return wearingLevitation(e);
+}
+function applyHoverFlags(e){
+  if(!e) return;
+  if(wearingLevitation(e)){
+    e.hover=1;
+    e.fly=1;
+    e._fromLevi=1;
+  } else if(e.flyPotion){
+    e.hover=1;
+    e.fly=1;
+  } else if(e._fromLevi){
+    e.hover=0;
+    e.fly=0;
+    e._fromLevi=0;
+  }
+}
 function tickWoundClosure(e, dt){
   if(!wearingWoundClosure(e) || !e || e.hp>=e.maxhp) return;
   e.hp=Math.min(e.maxhp, e.hp+2.2*(dt||0));
@@ -5875,6 +5901,86 @@ function wornMoveMul(e){
   /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
   if(/striding and springing/i.test(n)) return 1.5;
   return 1;
+}
+function wornPrimaryWeapon(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return null;
+  return (G.equipped||{}).primary||(G.equipped||{}).weapon||null;
+}
+function isVorpalWeapon(it){ return !!(it && /vorpal/i.test(it.n||'')); }
+function isQuicknessWeapon(it){ return !!(it && /quickness/i.test(it.n||'')); }
+function isLifeStealerWeapon(it){ return !!(it && /life steal/i.test(it.n||'')); }
+function isLivingFoe(e){
+  if(!e) return false;
+  if(typeof isUndeadFoe==='function' && isUndeadFoe(e)) return false;
+  const hay=((e.kind||'')+' '+(e.name||'')+' '+(e.sprite||'')).toLowerCase();
+  if(/construct|statue|golem|thin ?one/.test(hay)) return false;
+  return true;
+}
+function maxWeaponDice(expr){
+  if(!expr) expr='1d8';
+  let tot=0;
+  String(expr).split('/').forEach(part=>{
+    const m=part.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+    if(m) tot+=(+m[1])*(+m[2])+(m[3]?+m[3]:0);
+    else { const n=parseFloat(part); if(!isNaN(n)) tot+=Math.max(1,Math.round(n)); }
+  });
+  return Math.max(1, tot);
+}
+/* Nat-20 vorpal: living non-boss hp=0. Boss / non-living: extra max-dice×2 only. */
+function applyVorpalHit(atk, def, roll){
+  if(!atk||!def||atk.ranged||roll!==20) return 0;
+  const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(atk):null;
+  if(!isVorpalWeapon(wep)) return 0;
+  const extra=maxWeaponDice(atk.dice||(wep&&wep.dice)||'1d8')*2;
+  if(isLivingFoe(def) && !def.boss){
+    def.hp=0;
+    if(typeof say==='function') say('Vorpal — the neck severs.','#ffe08a','combat');
+    return extra;
+  }
+  if(typeof say==='function') say('Vorpal bites — extra damage.','#ffe08a','combat');
+  return extra;
+}
+function applyLifeStealHit(atk){
+  if(!atk||atk.ranged) return 0;
+  const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(atk):null;
+  if(!isLifeStealerWeapon(wep)) return 0;
+  if(typeof applyHeal==='function') return applyHeal(atk, 1);
+  return 0;
+}
+/* Mild haste while the Quickness sword is wielded. Not potion half-cd. */
+function wornAttackCd(e){
+  const base=(e&&e.baseCd!=null)?e.baseCd:((e&&e.cd)||1);
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return (e&&e.cd)||base;
+  const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
+  if(!isQuicknessWeapon(wep)) return base;
+  return Math.max(.45, base*0.85);
+}
+/* No pack item/weight cap exists. Bag of Holding cannot raise one. */
+function packItemCap(_pk){ return 0; }
+function packHasHolding(pk){
+  const mag=(pk&&pk.magic)||[];
+  for(let i=0;i<mag.length;i++){
+    if(/bag of holding/i.test((mag[i]&&mag[i].n)||'')) return true;
+  }
+  return false;
+}
+function slayingTypeFromName(n){
+  const s=String(n||'').toLowerCase();
+  if(/dragon/.test(s)) return 'dragon';
+  if(/undead/.test(s)) return 'undead';
+  return '';
+}
+function foeMatchesSlayingType(e, type){
+  if(!e||!type) return false;
+  if(type==='dragon'){
+    if(typeof DwarfMouth!=='undefined'&&DwarfMouth.isDragonFoe) return !!DwarfMouth.isDragonFoe(e);
+    return /dragon|wyrm|wyvern/.test(((e.kind||'')+' '+(e.name||'')).toLowerCase());
+  }
+  if(type==='undead'){
+    if(typeof isUndeadFoe==='function') return !!isUndeadFoe(e);
+    return /undead|wraith|vampire|ghoul|lich|skeleton|zombie/.test(((e.kind||'')+' '+(e.name||'')).toLowerCase());
+  }
+  return false;
 }
 function consumeDisplacementMiss(e){
   if(!G.displaceMiss) return false;
@@ -6591,6 +6697,11 @@ function addAttack(atk, def, opts){
   raw=Math.round(raw*ADD_SCALE*wepMult(atk));
   if(atk.buff>0) raw=Math.round(raw*1.25);
   if(spec) ftext(def.x,def.y,'×'+spec.mult,'#ffe08a',1,'hit');
+  if(typeof applyVorpalHit==='function'){
+    const vorp=applyVorpalHit(atk, def, roll);
+    if(vorp) raw+=Math.round(vorp*ADD_SCALE*wepMult(atk));
+  }
+  if(typeof applyLifeStealHit==='function') applyLifeStealHit(atk);
   return Math.max(1, raw);
 }
 const SAVE_F=[
@@ -7348,6 +7459,9 @@ function applyEquipped(){
     macE.dice=(wep&&wep.dice)||'1d8';
     macE.ac=partyAC(macE);
     if(wep && /flame tongue/i.test(wep.n||'')) macE.glow=macE.glow||'#ffb45c';
+    if(macE.baseCd==null) macE.baseCd=macE.cd;
+    if(!(macE.buff>0) && typeof wornAttackCd==='function') macE.cd=wornAttackCd(macE);
+    if(typeof applyHoverFlags==='function') applyHoverFlags(macE);
   }
 }
 function cancelOneMagicItem(e){
@@ -7483,15 +7597,37 @@ function useMagicItem(it, e){
     return 'spent';
   }
   if(it.k==='ammo'){
-    if(/slaying|javelin of lightning/i.test(it.n||'')){
-      say(it.n+' stays packed. Not this fight.','#c9b895');
-      return;
+    if(/javelin of lightning/i.test(it.n||'')){
+      const t=e?nearestFoe(e,8):null;
+      const dmg=rollDice(6,6,0)*ADD_SCALE;
+      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      say(it.n+' becomes a lightning bolt.','#7ad0ff');
+      return 'spent';
+    }
+    if(/slaying/i.test(it.n||'')){
+      const t=e?nearestFoe(e,8):null;
+      if(!t){ say(it.n+' finds no foe.','#c9b895'); return; }
+      const type=typeof slayingTypeFromName==='function'?slayingTypeFromName(it.n):'';
+      if(type && typeof foeMatchesSlayingType==='function' && foeMatchesSlayingType(t, type)){
+        t.hp=0;
+        say(it.n+' slays the '+type+'.','#ff6a5a');
+        damage(t, 1, '#ff6a5a', {magic:1,kind:'ammo',n:it.n});
+      } else {
+        const dmg=6*ADD_SCALE;
+        damage(t, dmg, '#cfe3ff', {kind:'ammo',n:it.n});
+        say(it.n+' flies as +6 vs '+(t.name||'the foe')+'.','#cfe3ff');
+      }
+      return 'spent';
     }
     if(typeof isPlusShotAmmo==='function' && isPlusShotAmmo(it)){
       say(it.n+' — nocked. The plus waits on the next shot.','#cfe3ff');
       return;
     }
     say(it.n+' stays packed.','#c9b895');
+    return;
+  }
+  if(/bag of holding/i.test(it.n||'')){
+    say('The bag opens extra room in the pack. Weight is a fraction of what it holds.','#cfe3ff');
     return;
   }
   if(it.k==='sense'){ if(e) e.trueSee=40; return; }
@@ -7760,7 +7896,7 @@ function drinkPotion(p, e){
   else if(k==='haste'){ e.buff=Math.max(e.buff||0, lv*0.6); e.cd=Math.max(.28,(e.cd||1)*0.5); e.sp=(e.baseSp||e.sp||3)*1.35; }
   else if(k==='invis'){ e.invis=lv*0.6; e.aggro=2; }
   else if(k==='invuln'){ e.guardT=Math.max(e.guardT||0, lv*0.6); }
-  else if(k==='fly'){ e.sp=Math.max(e.sp,5.2); e.buff=Math.max(e.buff||0,8); }
+  else if(k==='fly'){ e.sp=Math.max(e.sp,5.2); e.buff=Math.max(e.buff||0,8); e.fly=1; e.hover=1; e.flyPotion=1; }
   else if(k==='regen'||k==='fast'){ e.potionRegen=60; }
   else if(k==='str2'){ e.strMul=2; e.buff=Math.max(e.buff||0, lv*0.6); }
   else if(k==='str3'){ e.strMul=3; e.buff=Math.max(e.buff||0, lv*0.6); }
@@ -9120,6 +9256,10 @@ function update(dt){
         if(e.dead||e.team!=='party') continue;
         if(dist(e,pr)<0.72){
           const pit=pr.trap==='trap_pit', rune=pr.trap==='trap_runes';
+          if(pit && typeof isHovering==='function' && isHovering(e)){
+            say((e.name||'Kin')+' hovers over the pit.','#cfe3ff');
+            pr.cd=2.8; continue;
+          }
           const trapSrc=rune?{magic:1,kind:'rune'}:pit?{kind:'pit',fall:1}:{kind:'trap'};
           damage(e, pit?fallDamageAmt(e,16):rune?13:11, rune?'#c07bff':'#ff6a4a', trapSrc);
           burst(pr.x,pr.y, rune?'#c07bff':'#c2452e', 12, 2.4);
@@ -9253,7 +9393,7 @@ function update(dt){
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
         if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
-          e.atk=e.atkMax; e.ct=e.cd; e.swung=0; e.aim=tgt;
+          e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=tgt;
           if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
         }
       }
