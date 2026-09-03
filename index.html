@@ -5733,6 +5733,26 @@ function wornProtectionPlus(e){
   if(/protection/i.test(it.n||'') || it.k==='ring') return it.plus|0;
   return 0;
 }
+/* Cloak of Displacement: +2 saves while worn. Not a Protection ring; Dex never counts. */
+function wornDisplacementPlus(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
+  const eq=G.equipped||{};
+  const it=eq.necklace||eq.ring;
+  if(!it || !/cloak of displacement/i.test(it.n||'')) return 0;
+  if(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
+  return it.plus|0;
+}
+function wearingDisplacement(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
+  const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
+  return !!(it && /cloak of displacement/i.test(it.n||''));
+}
+function consumeDisplacementMiss(e){
+  if(!G.displaceMiss) return false;
+  if(!wearingDisplacement(e)) return false;
+  G.displaceMiss=0;
+  return true;
+}
 function effectiveDex(e){
   const ab=entityAbil(e)||{};
   return (ab.dex||10)+wornDexPlus(e);
@@ -6344,6 +6364,13 @@ function pickMonsterSpecialty(){
 }
 function addAttack(atk, def, opts){
   if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
+  if(typeof consumeDisplacementMiss==='function' && consumeDisplacementMiss(def)){
+    const ac=effectiveAC(def, atk);
+    const need=thacNeed(atk, ac);
+    say((atk.name||'atk')+' displaced vs '+need+' (AC '+ac+') miss', '#9a8a78', 'combat');
+    ftext(def.x,def.y,'MISS','#c9b8a0',1,'miss');
+    return 0;
+  }
   const rear=isRearAttack(atk, def);
   const ac=effectiveAC(def, atk);
   const need=thacNeed(atk, ac);
@@ -6453,7 +6480,7 @@ function saveNeed(e, kind){
   return need-dwarfSaveBonus(e, kind);
 }
 function savingThrow(e, kind){
-  const need=saveNeed(e,kind)-(e.juice||0)-wornProtectionPlus(e);
+  const need=saveNeed(e,kind)-(e.juice||0)-wornProtectionPlus(e)-wornDisplacementPlus(e);
   const roll=d20();
   const ok=roll===20||roll>=need;
   ftext(e.x,e.y+(ok?0.15:0),(ok?'save':'fail')+' '+roll,'#cfe3ff');
@@ -6461,6 +6488,7 @@ function savingThrow(e, kind){
 }
 function beginFight(foe){
   G.fightOn=1;
+  G.displaceMiss=1;
   G.fightGotKill=0;
   G.fightMercy=0; G.mercyTalk=0; G.mercyGoblinId=null;
   G.fightWasBoss=!!(foe&&foe.boss)||(typeof Bgm!=='undefined'&&Bgm.livingBoss&&Bgm.livingBoss(G));
@@ -7180,9 +7208,14 @@ function useMagicItem(it, e){
   if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
     G.equipped.wand=it;
     if(e&&it.charges){
-      const t=nearestFoe(e,8);
-      const dmg=rollDice(6,6,0)*ADD_SCALE;
-      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      if(/Staff of Curing/i.test(it.n||'')){
+        applyHeal(e, 18);
+        clearPoison(e);
+      } else {
+        const t=nearestFoe(e,8);
+        const dmg=rollDice(6,6,0)*ADD_SCALE;
+        if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      }
       it.charges=Math.max(0,(it.charges||1)-1);
       say(it.n+' ('+it.charges+' charges left).','#7ad0ff');
     }

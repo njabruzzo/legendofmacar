@@ -49,10 +49,13 @@ assert(/savingThrow\(mac,'spell'\)/.test(html) && /savingThrow\(tal,'spell'\)/.t
 assert(/dwarfSaveBonus\(e, kind\)/.test(html.match(/function saveNeed[\s\S]*?\n\}/)[0]),
   'spell saves still subtract dwarfSaveBonus');
 assert(/function wornProtectionPlus\(/.test(html), 'Protection save helper exists');
-assert(/saveNeed\(e,kind\)-\(e\.juice\|\|0\)-wornProtectionPlus\(e\)/.test(html.match(/function savingThrow[\s\S]*?\n\}/)[0]),
-  'savingThrow lowers the target by Protection plus (same math as juice)');
+assert(/saveNeed\(e,kind\)-\(e\.juice\|\|0\)-wornProtectionPlus\(e\)-wornDisplacementPlus\(e\)/.test(html.match(/function savingThrow[\s\S]*?\n\}/)[0]),
+  'savingThrow lowers the target by Protection plus and Displacement plus (same math as juice)');
 assert(/if\(it\.dexPlus\) return 0/.test(extract('wornProtectionPlus')),
   'dexPlus never counts as a Protection save ward');
+assert(/function wornDisplacementPlus\(/.test(html), 'Displacement save helper exists');
+assert(/cloak of displacement/i.test(extract('wornDisplacementPlus')),
+  'Displacement helper is name-gated, not a Protection ring');
 
 const saveCtx={
   G:{equipped:{}},
@@ -61,7 +64,7 @@ const saveCtx={
   saveNeed:()=>16
 };
 vm.createContext(saveCtx);
-vm.runInContext(extract('wornProtectionPlus')+extract('savingThrow'), saveCtx);
+vm.runInContext(extract('wornProtectionPlus')+extract('wornDisplacementPlus')+extract('savingThrow'), saveCtx);
 
 const mac={hero:1, team:'party', x:1, y:1, juice:0};
 saveCtx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
@@ -84,6 +87,15 @@ assert(saveCtx.wornProtectionPlus(mac)===4, 'gated +4 ring still stores plus:4 f
 
 saveCtx.G.equipped={necklace:{n:'Cloak of Displacement', k:'misc', plus:2}};
 assert(saveCtx.wornProtectionPlus(mac)===0, 'Displacement plus is not a Protection ward');
+assert(saveCtx.wornDisplacementPlus(mac)===2, 'Cloak of Displacement plus feeds saves');
+saveCtx.saveNeed=()=>16;
+saveCtx.d20=()=>13;
+assert(saveCtx.savingThrow(mac,'spell')===false, 'need 16-2=14; roll 13 still fails');
+saveCtx.d20=()=>14;
+assert(saveCtx.savingThrow(mac,'spell')===true, 'need 14; roll 14 saves (Displacement lowered the target)');
+
+saveCtx.G.equipped={necklace:{n:'Ring of Dexterity +1', k:'dex', dexPlus:1, plus:1}};
+assert(saveCtx.wornDisplacementPlus(mac)===0, 'Dexterity ring is not Displacement');
 const sham=html.match(/goblinShaman:\{[^}]+\}/);
 assert(sham && /cls:'c'/.test(sham[0]) && /wis:14/.test(sham[0]) && /lvl:7/.test(sham[0]),
   'shaman is a 7th-level evil cleric, WIS 14');
