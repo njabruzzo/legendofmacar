@@ -229,13 +229,15 @@ assert(resistCtx.applyResistDamage(macR, 11, {kind:'trap'})===11, 'spike trap is
 assert(/kind:'pit'/.test(html) && /fallDamageAmt\(e,16\)/.test(html),
   'pit trap path uses the fall helper (fall/pit damage exists)');
 resistCtx.G.equipped={necklace:{n:'Periapt of Wound Closure', k:'misc'}};
+macR.hp=10;
 resistCtx.tickWoundClosure(macR, 1);
-assert(macR.hp===12.2, 'wound-closure tick matches potionRegen 2.2 hp/sec while worn');
+assert(macR.hp===10+2.2, 'wound-closure tick matches potionRegen 2.2 hp/sec while worn');
 resistCtx.tickWoundClosure(macR, 1);
-assert(macR.hp===14.4, 'wound-closure keeps ticking when not camped');
+assert(macR.hp===10+2.2+2.2, 'wound-closure keeps ticking when not camped');
+const afterTicks=macR.hp;
 resistCtx.G.equipped={};
 resistCtx.tickWoundClosure(macR, 1);
-assert(macR.hp===14.4, 'doffing wound-closure stops the tick');
+assert(macR.hp===afterTicks, 'doffing wound-closure stops the tick');
 resistCtx.G.equipped={necklace:{n:'Periapt of Health', k:'misc'}};
 macR.disease=1; macR.diseaseT=4;
 resistCtx.clearWornDisease(macR);
