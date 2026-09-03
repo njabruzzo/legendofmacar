@@ -94,6 +94,7 @@ const ctx={
   say:(line)=>{ ctx.lastLine=line; (ctx.G.log=ctx.G.log||[]).push(line); },
   ftext:()=>{},
   rollExpr:()=>4,
+  rnd:()=>1,
   entityAbil:(e)=>e.abil||{str:10},
   weaponVsDouble:()=>false,
   weaponVsPlus:(wep, def)=>{
