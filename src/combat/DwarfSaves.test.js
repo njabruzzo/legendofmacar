@@ -49,8 +49,9 @@ assert(/savingThrow\(mac,'spell'\)/.test(html) && /savingThrow\(tal,'spell'\)/.t
 assert(/dwarfSaveBonus\(e, kind\)/.test(html.match(/function saveNeed[\s\S]*?\n\}/)[0]),
   'spell saves still subtract dwarfSaveBonus');
 assert(/function wornProtectionPlus\(/.test(html), 'Protection save helper exists');
-assert(/saveNeed\(e,kind\)-\(e\.juice\|\|0\)-wornProtectionPlus\(e\)-wornDisplacementPlus\(e\)/.test(html.match(/function savingThrow[\s\S]*?\n\}/)[0]),
-  'savingThrow lowers the target by Protection plus and Displacement plus (same math as juice)');
+assert(/saveNeed\(e,kind\)-\(e\.juice\|\|0\)-wornProtectionPlus\(e\)-wornDisplacementPlus\(e\)-wornResistSavePlus\(e,kind\)/.test(html.match(/function savingThrow[\s\S]*?\n\}/)[0]),
+  'savingThrow lowers the target by Protection, Displacement, and resist-item plus (same math as juice)');
+assert(/function wornResistSavePlus\(/.test(html), 'resist-item save helper exists');
 assert(/if\(it\.dexPlus\) return 0/.test(extract('wornProtectionPlus')),
   'dexPlus never counts as a Protection save ward');
 assert(/function wornDisplacementPlus\(/.test(html), 'Displacement save helper exists');
@@ -64,7 +65,7 @@ const saveCtx={
   saveNeed:()=>16
 };
 vm.createContext(saveCtx);
-vm.runInContext(extract('wornProtectionPlus')+extract('wornDisplacementPlus')+extract('savingThrow'), saveCtx);
+vm.runInContext(extract('wornProtectionPlus')+extract('wornDisplacementPlus')+extract('wornResistSavePlus')+extract('savingThrow'), saveCtx);
 
 const mac={hero:1, team:'party', x:1, y:1, juice:0};
 saveCtx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
@@ -102,6 +103,38 @@ assert(saveCtx.wornProtectionPlus(mac)===1, 'dex gauntlets do not replace Protec
 saveCtx.G.equipped={gloves:{n:'Gauntlets of Ogre Power', k:'misc'}};
 assert(saveCtx.wornProtectionPlus(mac)===0 && saveCtx.wornDisplacementPlus(mac)===0,
   'ogre gauntlets are not a Protection or Displacement ward');
+
+saveCtx.G.equipped={necklace:{n:'Ring of Fire Resistance', k:'resist'}};
+assert(saveCtx.wornProtectionPlus(mac)===0, 'fire resist is not a Protection ward');
+assert(saveCtx.wornResistSavePlus(mac,'breath')===4, 'fire resist is +4 vs breath (fire-ish)');
+assert(saveCtx.wornResistSavePlus(mac,'spell')===0, 'fire resist does not blanket-bonus spell');
+assert(saveCtx.wornResistSavePlus(mac,'poison')===0, 'fire resist is not a poison ward');
+saveCtx.saveNeed=()=>16;
+saveCtx.d20=()=>11;
+assert(saveCtx.savingThrow(mac,'breath')===false, 'need 16-4=12; roll 11 still fails');
+saveCtx.d20=()=>12;
+assert(saveCtx.savingThrow(mac,'breath')===true, 'need 12; roll 12 saves (fire resist lowered the target)');
+
+saveCtx.G.equipped={necklace:{n:'Ring of Warmth', k:'resist'}};
+assert(saveCtx.wornResistSavePlus(mac,'breath')===2, 'warmth is +2 vs breath (no cold save kind)');
+assert(saveCtx.wornProtectionPlus(mac)===0, 'warmth is not a Protection ward');
+
+saveCtx.G.equipped={necklace:{n:'Periapt of Proof against Poison', k:'misc'}};
+assert(saveCtx.wornResistSavePlus(mac,'poison')===4, 'poison periapt is +4 vs poison');
+assert(saveCtx.wornResistSavePlus(mac,'breath')===0, 'poison periapt is not a breath ward');
+saveCtx.saveNeed=()=>16;
+saveCtx.d20=()=>11;
+assert(saveCtx.savingThrow(mac,'poison')===false, 'need 16-4=12; roll 11 still fails poison');
+saveCtx.d20=()=>12;
+assert(saveCtx.savingThrow(mac,'poison')===true, 'need 12; roll 12 saves (poison periapt lowered the target)');
+
+saveCtx.G.equipped={necklace:{n:'Ring of Dexterity +1', k:'dex', dexPlus:1, plus:1}};
+assert(saveCtx.wornResistSavePlus(mac,'breath')===0 && saveCtx.wornResistSavePlus(mac,'poison')===0,
+  'dex ring isolation still holds for resist-item saves');
+
+saveCtx.G.equipped={chest:{n:'Robe of the Archmagi', k:'misc', plus:5}};
+assert(saveCtx.wornProtectionPlus(mac)===0 && saveCtx.wornResistSavePlus(mac,'spell')===0,
+  'robe plus:5 is not a save ward');
 
 const mrCtx={
   G:{equipped:{}},
@@ -147,6 +180,88 @@ assert(/magicResist\(o\)/.test(html.match(/if\(\(typeof magicResist[\s\S]*?savin
   'onHitFx targeted spells honor magicResist the same way they honored e.mr');
 assert(/magicResist\(mac\)/.test(html) && /magicResist\(tal\)/.test(html),
   'Hold Person and Silence Talpor use the targeted-spell MR helper');
+
+mrCtx.G.equipped={chest:{n:'Robe of the Archmagi', k:'misc', plus:5}};
+assert(mrCtx.wornMagicResistPct(mac)===5, 'robe alone is 5% MR');
+mrCtx.d100=()=>5;
+assert(mrCtx.magicResist(mac)===true, 'robe resists on d100 5');
+mrCtx.d100=()=>6;
+assert(mrCtx.magicResist(mac)===false, 'robe fails on d100 6');
+mrCtx.G.equipped={
+  chest:{n:'Leather Armor', k:'armor'},
+  robe:{n:'Robe of the Archmagi', k:'misc', plus:5},
+  necklace:{n:'Ring of Protection +2', k:'ring', plus:2}
+};
+assert(mrCtx.wornMagicResistPct(mac)===15, 'robe 5% stacks with Protection +2 10%');
+mrCtx.G.equipped={
+  chest:{n:'Robe of the Archmagi', k:'misc', plus:5},
+  necklace:{n:'Ring of Protection +3', k:'ring', plus:3}
+};
+assert(mrCtx.wornMagicResistPct(mac)===20, 'robe 5% stacks with Protection +3 15%');
+mrCtx.G.equipped={chest:{n:'Robe of the Archmagi', k:'misc', plus:5}, necklace:{n:'Ring of Dexterity +1', k:'dex', dexPlus:1}};
+assert(mrCtx.wornMagicResistPct(mac)===5, 'dex ring does not add MR; robe 5% remains');
+mrCtx.G.equipped={necklace:{n:'Robe of the Archmagi', k:'misc', plus:5}};
+assert(mrCtx.wornMagicResistPct(mac)===0, 'robe plus:5 on the necklace is not Protection MR');
+
+const resistCtx={
+  G:{equipped:{}},
+  d20:()=>20,
+  ftext:()=>{},
+  saveNeed:()=>16
+};
+vm.createContext(resistCtx);
+['wornNecklaceItem','wearingFireResistance','wearingWarmth','wearingFeatherFalling','wearingWoundClosure','wearingHealthPeriapt','fallDamageAmt','tickWoundClosure','clearWornDisease','resistSrcHay','isFireishSrc','isMundaneFlameSrc','isMagicalFireSrc','isColdishSrc','isFallSrc','applyResistDamage'].forEach(n=>{
+  vm.runInContext(extract(n), resistCtx);
+});
+const macR={hero:1, team:'party', hp:10, maxhp:80};
+resistCtx.G.equipped={necklace:{n:'Ring of Fire Resistance', k:'resist'}};
+assert(resistCtx.applyResistDamage(macR, 20, {kind:'flame'})===0, 'mundane flame is ignored');
+assert(resistCtx.applyResistDamage(macR, 20, {magic:1,kind:'wand',n:'Wand of Fire'})===10, 'magical fire (wand) is halved');
+assert(resistCtx.applyResistDamage(macR, 20, {magic:1,kind:'wand',n:'Wand of Lightning'})===20, 'lightning wand is not fire');
+resistCtx.G.equipped={primary:{n:'Frost Brand', k:'weapon', plus:3, vs:'fire', vsPlus:3}};
+assert(resistCtx.wearingFireResistance(macR)===true, 'Frost Brand grants fire resist while wielded');
+assert(resistCtx.applyResistDamage(macR, 20, {magic:1,kind:'wand',n:'Wand of Fire'})===10, 'Frost Brand halves magical fire');
+assert(resistCtx.applyResistDamage(macR, 20, {kind:'firegiant', sa:'Breath'})===10, 'breath fire is halved after the save');
+resistCtx.G.equipped={necklace:{n:'Ring of Warmth', k:'resist'}};
+assert(resistCtx.applyResistDamage(macR, 20, {kind:'bolt'})===20, 'warmth is comfort-only when no cold src');
+assert(resistCtx.applyResistDamage(macR, 20, {kind:'cold', magic:1})===10, 'cold src is halved if one exists');
+resistCtx.G.equipped={necklace:{n:'Ring of Feather Falling', k:'buff'}};
+assert(resistCtx.fallDamageAmt(macR, 16)===0, 'feather falling zeroes fall/pit hp loss');
+assert(resistCtx.applyResistDamage(macR, 16, {kind:'pit',fall:1})===0, 'pit src is 0 while feather falling is worn');
+assert(resistCtx.applyResistDamage(macR, 11, {kind:'trap'})===11, 'spike trap is not a fall');
+assert(/kind:'pit'/.test(html) && /fallDamageAmt\(e,16\)/.test(html),
+  'pit trap path uses the fall helper (fall/pit damage exists)');
+resistCtx.G.equipped={necklace:{n:'Periapt of Wound Closure', k:'misc'}};
+macR.hp=10;
+resistCtx.tickWoundClosure(macR, 1);
+assert(macR.hp===10+2.2, 'wound-closure tick matches potionRegen 2.2 hp/sec while worn');
+resistCtx.tickWoundClosure(macR, 1);
+assert(macR.hp===10+2.2+2.2, 'wound-closure keeps ticking when not camped');
+const afterTicks=macR.hp;
+resistCtx.G.equipped={};
+resistCtx.tickWoundClosure(macR, 1);
+assert(macR.hp===afterTicks, 'doffing wound-closure stops the tick');
+resistCtx.G.equipped={necklace:{n:'Periapt of Health', k:'misc'}};
+macR.disease=1; macR.diseaseT=4;
+resistCtx.clearWornDisease(macR);
+assert(macR.disease===0 && macR.diseaseT===0, 'health periapt clears a disease flag when one exists');
+resistCtx.G.equipped={};
+macR.disease=1;
+resistCtx.clearWornDisease(macR);
+assert(macR.disease===1, 'without the periapt, disease is a no-op');
+
+vm.runInContext(extract('wearingFreeAction')+extract('applyFreeAction')+extract('applyWeb'), resistCtx);
+resistCtx.G.equipped={necklace:{n:'Ring of Free Action', k:'buff'}};
+macR.held=4; macR.webbed=3; macR.slowT=2; macR.stun=1;
+resistCtx.applyFreeAction(macR);
+assert(macR.held===0 && macR.webbed===0 && macR.slowT===0, 'Free Action clears hold/web/slow');
+macR.webbed=0;
+resistCtx.applyWeb(macR);
+assert(!macR.webbed, 'Free Action skips applyWeb');
+resistCtx.G.equipped={};
+macR.held=2; macR.webbed=0;
+resistCtx.applyWeb(macR);
+assert(macR.webbed>0, 'without Free Action, web still binds');
 const sham=html.match(/goblinShaman:\{[^}]+\}/);
 assert(sham && /cls:'c'/.test(sham[0]) && /wis:14/.test(sham[0]) && /lvl:7/.test(sham[0]),
   'shaman is a 7th-level evil cleric, WIS 14');

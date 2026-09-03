@@ -71,6 +71,29 @@ assert(Eq.itemSlot({n:'Cloak of Poisonousness', k:'cursed', cursed:1}) == null,
   'Cloak of Poisonousness is not a jewelry slot');
 assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
   'dex ring → jewelry slot');
+assert(Eq.itemSlot({n:'Ring of Fire Resistance', k:'resist'}) === 'necklace',
+  'Ring of Fire Resistance → necklace');
+assert(Eq.itemSlot({n:'Ring of Warmth', k:'resist'}) === 'necklace',
+  'Ring of Warmth → necklace');
+assert(Eq.itemSlot({n:'Ring of Feather Falling', k:'buff'}) === 'necklace',
+  'Ring of Feather Falling → necklace');
+assert(Eq.itemSlot({n:'Periapt of Proof against Poison', k:'misc'}) === 'necklace',
+  'Periapt of Proof against Poison → necklace');
+assert(Eq.itemSlot({n:'Periapt of Wound Closure', k:'misc'}) === 'necklace',
+  'Periapt of Wound Closure → necklace');
+assert(Eq.itemSlot({n:'Periapt of Health', k:'misc'}) === 'necklace',
+  'Periapt of Health → necklace');
+assert(Eq.itemSlot({n:'Robe of the Archmagi', k:'misc', plus:5}) === 'chest',
+  'Robe of the Archmagi → chest');
+assert(Eq.isEquippable({n:'Robe of the Archmagi', k:'misc', plus:5}),
+  'Robe of the Archmagi is wearable');
+assert(Eq.itemSlot({n:'Robe of Eyes', k:'misc'}) == null, 'Robe of Eyes is not a chest slot this slice');
+assert(Eq.itemSlot({n:'Robe of Blending', k:'misc'}) == null, 'Robe of Blending is not a chest slot this slice');
+assert(Eq.itemSlot({n:'Robe of Useful Items', k:'misc'}) == null, 'Robe of Useful Items is not a chest slot this slice');
+assert(Eq.itemSlot({n:'Staff of Power', k:'wand', plus:2}) === 'primary', 'Staff of Power → primary (wieldable +2)');
+assert(Eq.itemSlot({n:'Hammer +3, Dwarven Thrower', k:'weapon', plus:3}) === 'primary', 'dwarven thrower → primary');
+assert(Eq.itemSlot({n:'Ring of Free Action', k:'buff'}) === 'necklace', 'Free Action → necklace');
+assert(Eq.itemSlot({n:'Defender +4', k:'weapon', plus:4}) === 'primary', 'Defender → primary');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
 assert(Eq.itemSlot({n:'Arrows +2 (1d6)', k:'ammo', plus:2}) == null, 'Arrows +2 stay pack ammo');
 assert(Eq.itemSlot({n:'Arrows +3 (1d4)', k:'ammo', plus:3}) == null, 'Arrows +3 stay pack ammo');
@@ -184,6 +207,66 @@ Eq.annotate(dexRing);
 assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
   'dex ring does not stack as Protection AC');
 
+const robe = Eq.annotate({n:'Robe of the Archmagi', k:'misc', plus:5,
+  d:'AC 5, +5% magic resistance, and other gifts for a magic-user of the robe\'s alignment.'});
+assert(Eq.isArchmagiRobe(robe), 'archmagi name helper');
+assert(robe.plus === 5, 'robe table plus:5 is stored');
+assert(robe.ac === 5 && robe.slot === 'chest', 'robe annotates as chest AC 5, not +5');
+assert(Eq.jewelryAcPlus(robe, 8) === 0, 'jewelryAcPlus must not treat the robe as +5 AC jewelry');
+assert(Eq.jewelryAcPlus(robe, 10) === 0, 'robe plus:5 is never jewelry AC even unarmored');
+let robeBare = Eq.equip(Eq.emptyEquipped(), robe).equipped;
+assert(robeBare.chest === robe && !robeBare.robe, 'empty chest dons the robe on chest');
+assert(Eq.computeWornAC(robeBare) === 5, 'robe alone is AC 5 (not 10−5 from plus)');
+assert(Eq.magicAcBonus(robeBare) === 0, 'robe plus:5 is not a magic-armor plus');
+assert(/robe AC 5/.test(Eq.describeAC(robeBare).note), 'AC note names robe AC 5');
+const leatherKeep = Eq.annotate({n:'Leather Armor', k:'armor'});
+let robeOver = Eq.equip(Eq.emptyEquipped(), leatherKeep).equipped;
+assert(Eq.computeWornAC(robeOver) === 8, 'leather alone is AC 8');
+const over = Eq.equip(robeOver, robe);
+assert(over.ok && over.slot === 'robe', 'robe overlays when chest is occupied');
+robeOver = over.equipped;
+assert(robeOver.chest === leatherKeep, 'robe overlay does not steal worn leather');
+assert(robeOver.robe === robe, 'robe sits on the dedicated robe layer');
+assert(Eq.wornArchmagiRobe(robeOver), 'overlay still counts as worn robe');
+assert(Eq.computeWornAC(robeOver) === 5, 'leather 8 + robe overlay → AC 5 (better chest AC)');
+const plateKeep = Eq.annotate({n:'Plate Mail', k:'armor'});
+let robePlate = Eq.equip(Eq.emptyEquipped(), plateKeep).equipped;
+robePlate = Eq.equip(robePlate, robe).equipped;
+assert(robePlate.chest === plateKeep && robePlate.robe === robe, 'robe overlays plate without stealing it');
+assert(Eq.computeWornAC(robePlate) === 3, 'plate AC 3 is better than robe AC 5');
+let robeHelm = Eq.equip(Eq.emptyEquipped(), leatherKeep).equipped;
+robeHelm = Eq.equip(robeHelm, Eq.annotate({n:'Iron Helm', k:'armor', acBonus:1})).equipped;
+robeHelm = Eq.equip(robeHelm, robe).equipped;
+assert(Eq.computeWornAC(robeHelm) === 4, 'robe AC 5 then helm +1 → AC 4');
+const fireR = Eq.annotate({n:'Ring of Fire Resistance', k:'resist'});
+assert(fireR.slot === 'necklace', 'fire resist annotates as necklace');
+assert(Eq.jewelryAcPlus(fireR, 8) === 0, 'fire resist is not Protection AC');
+let leatherFire = Eq.equip(Eq.emptyEquipped(), leatherKeep).equipped;
+leatherFire = Eq.equip(leatherFire, fireR).equipped;
+assert(Eq.computeWornAC(leatherFire) === 8, 'fire resist does not change worn AC');
+assert(leatherFire.necklace === fireR, 'fire resist sits in the necklace slot');
+const warmR = Eq.annotate({n:'Ring of Warmth', k:'resist'});
+assert(Eq.jewelryAcPlus(warmR, 8) === 0, 'warmth is not Protection AC');
+const fallR = Eq.annotate({n:'Ring of Feather Falling', k:'buff'});
+assert(fallR.slot === 'necklace' && Eq.jewelryAcPlus(fallR, 8) === 0, 'feather falling is jewelry, not AC');
+const poisonP = Eq.annotate({n:'Periapt of Proof against Poison', k:'misc'});
+assert(poisonP.slot === 'necklace', 'poison periapt annotates as necklace');
+const woundP = Eq.annotate({n:'Periapt of Wound Closure', k:'misc'});
+assert(woundP.slot === 'necklace', 'wound-closure periapt annotates as necklace');
+const healthP = Eq.annotate({n:'Periapt of Health', k:'misc'});
+assert(healthP.slot === 'necklace', 'health periapt annotates as necklace');
+assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
+  'dex ring isolation still holds after resist jewelry');
+
+const defSw = Eq.annotate({n:'Defender +4', k:'weapon', plus:4});
+assert(Eq.isDefenderSword(defSw), 'defender name helper');
+assert(Eq.jewelryAcPlus(defSw, 8) === 0, 'defender plus is not jewelry AC');
+let leatherDef = Eq.equip(Eq.emptyEquipped(), leatherKeep).equipped;
+leatherDef = Eq.equip(leatherDef, defSw).equipped;
+assert(leatherDef.primary === defSw, 'defender wields in primary');
+assert(Eq.computeWornAC(leatherDef) === 7, 'leather 8 + defender +1 AC => AC 7');
+assert(Eq.defenderAcPlus(leatherDef) === 1, 'defender contributes +1 AC, remaining plus is to-hit');
+
 const ogreG = Eq.annotate({n:'Gauntlets of Ogre Power', k:'misc'});
 assert(ogreG.slot === 'gloves' && !ogreG.plus, 'ogre gauntlets annotate as gloves with no plus');
 assert(Eq.jewelryAcPlus(ogreG, 8) === 0, 'ogre gauntlets are not jewelry AC');
@@ -289,6 +372,9 @@ assert(!!dexGRow && /k:'misc'/.test(dexGRow[0]) && !/id:'/.test(dexGRow[0]),
 const fumbleRow = html.match(/\{a:42,b:44,n:'Gauntlets of Fumbling'[^}]+\}/);
 assert(!!fumbleRow && /k:'cursed'/.test(fumbleRow[0]) && /cursed:1/.test(fumbleRow[0]) && !/id:'/.test(fumbleRow[0]),
   'fumbling gauntlets table row stays cursed with no invented id');
+const robeTable = html.match(/\{a:49,b:51,n:'Robe of the Archmagi'[^}]+\}/);
+assert(!!robeTable && /k:'misc'/.test(robeTable[0]) && /plus:5/.test(robeTable[0]) && !/id:'/.test(robeTable[0]),
+  'Robe of the Archmagi table row stays k:misc plus:5 with no invented id');
 assert(/src\/packs\/EquipmentSlots\.js/.test(html), 'index.html loads EquipmentSlots');
 assert(/drawEquipDoll|drawPaperDoll/.test(html), 'pack screen draws the paper doll');
 assert(/ensureMacarStartingGear/.test(html), 'Macar is seeded with starting kit');
