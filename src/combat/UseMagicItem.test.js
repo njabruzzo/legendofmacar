@@ -158,5 +158,47 @@ assert(/n:'Arrows \+3 \(1d4\)',k:'ammo',plus:3/.test(html), 'Arrows +3 table row
 assert(!/it\.k==='ammo'/.test(html.match(/const consume=it\.k==='scroll'[\s\S]*?;/)[0]),
   'pack use no longer auto-splices k:ammo as a one-shot');
 
+function assertDonNoHeal(it, slot, label){
+  ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.buff=0; who.stun=0; who.invis=0;
+  assert(Eq.isEquippable(it), label+' is equippable so useMagicItem dons it');
+  ctx.useMagicItem(it, who);
+  assert(ctx.donned===it && ctx.donSlot===slot, 'using '+label+' from pack dons '+slot);
+  assert(ctx.healed===0 && who.buff===0, 'using '+label+' does not buff+heal 6');
+  assert(!who.invis, 'using '+label+' does not set potion invis');
+}
+
+assertDonNoHeal({n:'Boots of Speed', k:'misc', d:'Double movement.'}, 'boots', 'Boots of Speed');
+assertDonNoHeal({n:'Boots of Elvenkind', k:'misc', d:'Surprise as an elf.'}, 'boots', 'Boots of Elvenkind');
+assertDonNoHeal({n:'Boots of Striding and Springing', k:'misc', d:'Stride far.'}, 'boots', 'Boots of Striding and Springing');
+assertDonNoHeal({n:'Boots of Levitation', k:'misc', d:'Levitate as the spell.'}, 'boots', 'Boots of Levitation');
+assertDonNoHeal({n:'Cloak of Elvenkind', k:'misc', d:'Camouflage.'}, 'necklace', 'Cloak of Elvenkind');
+
+ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.stun=0; who.buff=0;
+const dancing={n:'Boots of Dancing', k:'cursed', cursed:1, d:'The wearer dances.'};
+assert(Eq.isEquippable(dancing), 'Dancing boots are equippable');
+ctx.useMagicItem(dancing, who);
+assert(ctx.donned===dancing && ctx.donSlot==='boots', 'using Dancing boots dons and binds');
+assert(ctx.healed===0 && ctx.dmg===0, 'cursed Dancing boots don instead of the stun+damage fallback');
+assert(/The curse binds/.test(ctx.lastSay), 'Dancing use speaks the curse bind line');
+
+const speedRow=html.match(/\{a:80,b:84,n:'Boots of Speed'[^}]+\}/);
+assert(!!speedRow && /k:'misc'/.test(speedRow[0]) && !/id:'/.test(speedRow[0]),
+  'Boots of Speed table row stays k:misc with no invented id');
+const elfBootRow=html.match(/\{a:71,b:76,n:'Boots of Elvenkind'[^}]+\}/);
+assert(!!elfBootRow && /k:'misc'/.test(elfBootRow[0]) && !/id:'/.test(elfBootRow[0]),
+  'Boots of Elvenkind table row stays k:misc with no invented id');
+const strideRow=html.match(/\{a:85,b:89,n:'Boots of Striding and Springing'[^}]+\}/);
+assert(!!strideRow && /k:'misc'/.test(strideRow[0]) && !/id:'/.test(strideRow[0]),
+  'Boots of Striding table row stays k:misc with no invented id');
+const leviRow=html.match(/\{a:77,b:79,n:'Boots of Levitation'[^}]+\}/);
+assert(!!leviRow && /k:'misc'/.test(leviRow[0]) && !/id:'/.test(leviRow[0]),
+  'Boots of Levitation table row stays k:misc with no invented id');
+const danceRow=html.match(/\{a:68,b:70,n:'Boots of Dancing'[^}]+\}/);
+assert(!!danceRow && /k:'cursed'/.test(danceRow[0]) && /cursed:1/.test(danceRow[0]) && !/id:'/.test(danceRow[0]),
+  'Boots of Dancing table row stays cursed with no invented id');
+const elfCloakRow=html.match(/\{a:38,b:44,n:'Cloak of Elvenkind'[^}]+\}/);
+assert(!!elfCloakRow && /k:'misc'/.test(elfCloakRow[0]) && !/id:'/.test(elfCloakRow[0]),
+  'Cloak of Elvenkind table row stays k:misc with no invented id');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nuseMagicItem checks passed');

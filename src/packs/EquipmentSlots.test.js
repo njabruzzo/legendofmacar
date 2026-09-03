@@ -43,6 +43,11 @@ assert(!Eq.isDexRing({n:'Gauntlets of Dexterity', k:'misc'}),
   'dex gauntlets are not the Dexterity ring');
 assert(Eq.itemSlot({n:'Wool Trousers', slot:'pants'}) === 'pants', 'pants');
 assert(Eq.itemSlot({n:'Boots of Speed', k:'misc'}) === 'boots', 'boots');
+assert(Eq.itemSlot({n:'Boots of Elvenkind', k:'misc'}) === 'boots', 'Elvenkind boots → feet');
+assert(Eq.itemSlot({n:'Boots of Striding and Springing', k:'misc'}) === 'boots', 'Striding boots → feet');
+assert(Eq.itemSlot({n:'Boots of Levitation', k:'misc'}) === 'boots', 'Levitation boots → feet');
+assert(Eq.itemSlot({n:'Boots of Dancing', k:'cursed', cursed:1}) === 'boots', 'Dancing boots → feet');
+assert(Eq.itemSlot({n:'Leather Boots', k:'armor', slot:'boots'}) === 'boots', 'starting Leather Boots stay boots');
 assert(Eq.itemSlot({n:"Macar's War Hammer", k:'weapon'}) === 'primary', 'hammer → primary');
 assert(Eq.itemSlot({n:'Shadow Cleaver', k:'weapon'}) === 'primary', 'cleaver → primary');
 assert(Eq.itemSlot({n:'Light Crossbow', k:'weapon'}) === 'secondary', 'crossbow → secondary');
@@ -56,10 +61,14 @@ assert(Eq.isEquippable({n:'Cloak of Displacement', k:'misc', plus:2}),
   'Cloak of Displacement is wearable');
 assert(Eq.itemSlot({n:'Cloak of Protection +2', k:'ring', plus:2}) === 'necklace',
   'Cloak of Protection still maps to necklace');
-assert(Eq.itemSlot({n:'Cloak of Elvenkind', k:'misc'}) == null,
-  'Cloak of Elvenkind is not a jewelry slot');
+assert(Eq.itemSlot({n:'Cloak of Elvenkind', k:'misc'}) === 'necklace',
+  'Cloak of Elvenkind → necklace (same family as Displacement)');
+assert(Eq.isEquippable({n:'Cloak of Elvenkind', k:'misc'}),
+  'Cloak of Elvenkind is wearable');
 assert(Eq.itemSlot({n:'Cloak of Manta Ray', k:'misc'}) == null,
   'Cloak of Manta Ray is not a jewelry slot');
+assert(Eq.itemSlot({n:'Cloak of Poisonousness', k:'cursed', cursed:1}) == null,
+  'Cloak of Poisonousness is not a jewelry slot');
 assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
   'dex ring → jewelry slot');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
@@ -210,6 +219,36 @@ assert(!stay.ok && stay.reason === 'cursed', 'cursed armor will not doff');
 
 const boots = Eq.annotate({n:'Boots of Elvenkind', k:'misc'});
 assert(Eq.itemSlot(boots) === 'boots', 'pack boots map to feet');
+assert(boots.slot === 'boots' && !boots.plus, 'Elvenkind boots annotate as boots with no plus');
+let leatherFeet = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+leatherFeet = Eq.equip(leatherFeet, Eq.annotate({n:'Leather Boots', k:'armor', slot:'boots', id:'macar_boots'})).equipped;
+assert(leatherFeet.boots && leatherFeet.boots.id === 'macar_boots', 'starting Leather Boots occupy feet');
+assert(Eq.computeWornAC(leatherFeet) === 8, 'Leather Boots add no AC');
+const speedB = Eq.annotate({n:'Boots of Speed', k:'misc'});
+leatherFeet = Eq.equip(leatherFeet, speedB).equipped;
+assert(leatherFeet.boots === speedB, 'Boots of Speed replace Leather Boots');
+assert(Eq.computeWornAC(leatherFeet) === 8, 'Boots of Speed add no AC');
+assert(Eq.unequip(leatherFeet, 'boots').ok, 'Boots of Speed doff');
+
+const cloakElf = Eq.annotate({n:'Cloak of Elvenkind', k:'misc'});
+assert(cloakElf.slot === 'necklace', 'Elvenkind cloak annotates as necklace');
+assert(Eq.jewelryAcPlus(cloakElf, 8) === 0, 'Elvenkind cloak has no jewelry AC (no plus)');
+let leatherElf = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+leatherElf = Eq.equip(leatherElf, cloakElf).equipped;
+assert(leatherElf.necklace && leatherElf.necklace.n === 'Cloak of Elvenkind',
+  'Elvenkind cloak sits in the necklace slot');
+assert(leatherElf.ring !== cloakElf, 'Elvenkind cloak is not stored as a Protection ring');
+assert(Eq.computeWornAC(leatherElf) === 8, 'Elvenkind cloak does not change worn AC');
+
+const dance = Eq.annotate({n:'Boots of Dancing', k:'cursed', cursed:1});
+assert(dance.slot === 'boots' && dance.cursed, 'Dancing boots stay cursed feet');
+let danceEq = Eq.equip(Eq.emptyEquipped(), dance).equipped;
+assert(danceEq.boots === dance, 'Dancing boots don');
+const stayDance = Eq.unequip(danceEq, 'boots');
+assert(!stayDance.ok && stayDance.reason === 'cursed', 'cursed Dancing boots will not doff');
+
+const levi = Eq.annotate({n:'Boots of Levitation', k:'misc'});
+assert(levi.slot === 'boots' && !levi.plus, 'Levitation boots annotate as boots (fly stays stub)');
 
 const fs = require('fs');
 const path = require('path');

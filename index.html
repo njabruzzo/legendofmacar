@@ -3526,7 +3526,7 @@ function makeChapter(n){
         L.wanderT=(L.wanderT||0)+(dt||0.016);
         if(L.wanderT>20){
           L.wanderT=0;
-          if(ri(1,6)===1){
+          if(wanderCheckHits().hit){
             const names=spawnWanderers(p);
             if(names.length) say('Ruin-walkers: '+names.join(', ')+'.','#ff6a5a');
           }
@@ -5113,6 +5113,9 @@ function wanderKindAllowed(k){
 }
 function wanderCheckHits(){
   const roll=typeof ri==='function'?ri(1,6):1;
+  const who=typeof player==='function'?player():null;
+  if(typeof wearingElvenkind==='function' && wearingElvenkind(who))
+    return {roll, hit:false, silent:1};
   return {roll, hit:roll===1};
 }
 
@@ -5786,6 +5789,27 @@ function wearingDisplacement(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
   return !!(it && /cloak of displacement/i.test(it.n||''));
+}
+/* Boots or Cloak of Elvenkind: one hide, no stack, no potion invis, no Specialty tot. */
+function wearingElvenkind(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
+  const eq=G.equipped||{};
+  const boots=eq.boots;
+  const cloak=eq.necklace||eq.ring;
+  if(boots && /boots of elvenkind/i.test(boots.n||'')) return true;
+  if(cloak && /cloak of elvenkind/i.test(cloak.n||'')) return true;
+  return false;
+}
+/* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
+function wornMoveMul(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 1;
+  const it=(G.equipped||{}).boots;
+  if(!it) return 1;
+  const n=String(it.n||'');
+  if(/boots of speed/i.test(n)) return 2;
+  /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
+  if(/striding and springing/i.test(n)) return 1.5;
+  return 1;
 }
 function consumeDisplacementMiss(e){
   if(!G.displaceMiss) return false;
@@ -6572,7 +6596,9 @@ function beginFight(foe){
   syncMusic();
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
-  const pSur=pSeg<=(sneak?4:2), fSur=fSeg<=(sneak?1:2);
+  const elf=typeof wearingElvenkind==='function'&&wearingElvenkind(typeof player==='function'?player():null);
+  const pSur=pSeg<=(sneak?4:2) && !elf;
+  const fSur=fSeg<=(elf?4:sneak?1:2);
   if(pSur&&!fSur){
     G.ents.forEach(e=>{
       if(e.team!=='party'||e.dead) return;
@@ -8175,10 +8201,14 @@ function canBe(x,y,r,e){
          walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e)&&
          wallFaceClear(x,y,e);
 }
+function moveStep(e,dx,dy,dt){
+  const mul=typeof wornMoveMul==='function'?wornMoveMul(e):1;
+  return {x:e.x+dx*dt*mul, y:e.y+dy*dt*mul};
+}
 function move(e,dx,dy,dt){
-  const nx=e.x+dx*dt, ny=e.y+dy*dt; let moved=0;
-  if(canBe(nx,e.y,e.r,e)){ e.x=nx; moved=1; }
-  if(canBe(e.x,ny,e.r,e)){ e.y=ny; moved=1; }
+  const n=moveStep(e,dx,dy,dt); let moved=0;
+  if(canBe(n.x,e.y,e.r,e)){ e.x=n.x; moved=1; }
+  if(canBe(e.x,n.y,e.r,e)){ e.y=n.y; moved=1; }
   return moved;
 }
 
