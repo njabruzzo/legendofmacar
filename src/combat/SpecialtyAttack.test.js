@@ -116,7 +116,7 @@ const ctx={
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 vm.runInContext(extractConst('SPECIALTY'), ctx);
-['wornWeaponPlus','wornOgrePower','meleeStrAbil','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','wornDisplacementPlus','wearingDisplacement','consumeDisplacementMiss','addAttack'].forEach(n=>{
+['wornWeaponPlus','isPlusShotAmmo','ensureAmmoQty','takeMagicShotAmmo','wornOgrePower','meleeStrAbil','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','wornDisplacementPlus','wearingDisplacement','consumeDisplacementMiss','addAttack'].forEach(n=>{
   vm.runInContext(extractFn(n), ctx);
 });
 
@@ -224,6 +224,28 @@ ctx.G.equipped={primary:hammer, weapon:hammer, secondary:bow};
 const boltAtk={name:'Macar', team:'party', hero:1, cls:'f', abil:{str:10}, gear:{magicAtk:0}, dice:'1d4', ranged:1};
 const boltHit=ctx.addAttack(boltAtk, def, {roll:18});
 assert(boltHit>=(4+3)*4, 'secondary +3 feeds missile damage (got '+boltHit+')');
+boltAtk._shotAmmoPlus=2;
+assert(ctx.wornWeaponPlus(boltAtk)===5, 'arrow +2 stacks on bow +3 for missile to-hit');
+assert(ctx.specialtyHitBonus(boltAtk)===5, 'ammo plus enters specialty tot as weapon to-hit (STR 10 + 5)');
+const ammoDmg=ctx.addAttack(boltAtk, def, {roll:18});
+assert(ammoDmg>=(4+3+2)*4, 'arrow +2 stacks on bow +3 for missile damage (got '+ammoDmg+')');
+boltAtk._shotAmmoPlus=0;
+assert(ctx.wornWeaponPlus(boltAtk)===3, 'no nocked ammo leaves mundane bow plus only');
+
+ctx.G.packs={macar:{magic:[
+  {n:'Arrows +2 (1d6)', k:'ammo', plus:2, qty:3},
+  {n:'Arrow of Slaying', k:'ammo', plus:3, qty:1}
+]}};
+assert(ctx.isPlusShotAmmo({n:'Arrows +1 (2d6)', k:'ammo', plus:1}), '+N arrows are shot ammo');
+assert(ctx.isPlusShotAmmo({n:'Bolts +1', k:'ammo', plus:1}), '+N bolts are shot ammo if a row exists');
+assert(!ctx.isPlusShotAmmo({n:'Arrow of Slaying', k:'ammo', plus:3}), 'Arrow of Slaying is not shot ammo');
+assert(!ctx.isPlusShotAmmo({n:'Javelin of Lightning', k:'ammo', plus:2}), 'Javelin of Lightning is not shot ammo');
+const nocked=ctx.takeMagicShotAmmo();
+assert(nocked && nocked.plus===2, 'firing consumes one +2 arrow from pack');
+assert(ctx.G.packs.macar.magic[0].qty===2, 'bundle qty drops by one');
+assert(ctx.G.packs.macar.magic.some(it=>/Slaying/.test(it.n)), 'Slaying arrow stays in pack');
+ctx.G.packs={macar:{magic:[]}, ammo:10};
+assert(ctx.takeMagicShotAmmo()==null, 'no magic ammo leaves mundane ammo path alone');
 
 ctx.G.equipped={primary:cleaver, weapon:cleaver, secondary:xbow};
 ctx.weaponVsDouble=()=>false;

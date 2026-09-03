@@ -63,6 +63,10 @@ assert(Eq.itemSlot({n:'Cloak of Manta Ray', k:'misc'}) == null,
 assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
   'dex ring → jewelry slot');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
+assert(Eq.itemSlot({n:'Arrows +2 (1d6)', k:'ammo', plus:2}) == null, 'Arrows +2 stay pack ammo');
+assert(Eq.itemSlot({n:'Arrows +3 (1d4)', k:'ammo', plus:3}) == null, 'Arrows +3 stay pack ammo');
+assert(Eq.itemSlot({n:'Bolts +1', k:'ammo', plus:1}) == null, 'loose +N bolts are not a worn slot');
+assert(!Eq.isEquippable({n:'Arrows +1 (2d6)', k:'ammo', plus:1}), '+N arrows do not don a slot');
 
 assert(Eq.inferArmorType('Leather Armor +1') === 'leather', 'infer leather');
 assert(Eq.inferArmorType('Hide Cloak') === 'leather', 'hide cloak is leather AC 8');
