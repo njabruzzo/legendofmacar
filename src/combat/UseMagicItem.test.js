@@ -172,6 +172,16 @@ assertDonNoHeal({n:'Boots of Elvenkind', k:'misc', d:'Surprise as an elf.'}, 'bo
 assertDonNoHeal({n:'Boots of Striding and Springing', k:'misc', d:'Stride far.'}, 'boots', 'Boots of Striding and Springing');
 assertDonNoHeal({n:'Boots of Levitation', k:'misc', d:'Levitate as the spell.'}, 'boots', 'Boots of Levitation');
 assertDonNoHeal({n:'Cloak of Elvenkind', k:'misc', d:'Camouflage.'}, 'necklace', 'Cloak of Elvenkind');
+assertDonNoHeal({n:'Robe of the Archmagi', k:'misc', plus:5, d:'AC 5, +5% MR.'}, 'chest', 'Robe of the Archmagi');
+assertDonNoHeal({n:'Ring of Fire Resistance', k:'resist', d:'+4 vs fire saves.'}, 'necklace', 'Ring of Fire Resistance');
+assertDonNoHeal({n:'Ring of Warmth', k:'resist', d:'Comfort in cold.'}, 'necklace', 'Ring of Warmth');
+assertDonNoHeal({n:'Ring of Feather Falling', k:'buff', d:'No falling damage.'}, 'necklace', 'Ring of Feather Falling');
+assertDonNoHeal({n:'Periapt of Proof against Poison', k:'misc', d:'+4 vs poison.'}, 'necklace', 'Periapt of Proof against Poison');
+assertDonNoHeal({n:'Periapt of Wound Closure', k:'misc', d:'Wounds close.'}, 'necklace', 'Periapt of Wound Closure');
+assertDonNoHeal({n:'Periapt of Health', k:'misc', d:'Immune to disease.'}, 'necklace', 'Periapt of Health');
+
+assert(!/Periapt of Wound/.test(useFn) || !/Periapt of Wound[\s\S]{0,80}applyHeal\(e, 18\)/.test(useFn),
+  'Periapt of Wound Closure is not the one-shot heal-18 pack-use path');
 
 ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.stun=0; who.buff=0;
 const dancing={n:'Boots of Dancing', k:'cursed', cursed:1, d:'The wearer dances.'};
@@ -199,6 +209,27 @@ assert(!!danceRow && /k:'cursed'/.test(danceRow[0]) && /cursed:1/.test(danceRow[
 const elfCloakRow=html.match(/\{a:38,b:44,n:'Cloak of Elvenkind'[^}]+\}/);
 assert(!!elfCloakRow && /k:'misc'/.test(elfCloakRow[0]) && !/id:'/.test(elfCloakRow[0]),
   'Cloak of Elvenkind table row stays k:misc with no invented id');
+const robeRow=html.match(/\{a:49,b:51,n:'Robe of the Archmagi'[^}]+\}/);
+assert(!!robeRow && /k:'misc'/.test(robeRow[0]) && /plus:5/.test(robeRow[0]) && !/id:'/.test(robeRow[0]),
+  'Robe of the Archmagi table row stays k:misc plus:5 with no invented id');
+const fireRow=html.match(/\{a:22,b:27,n:'Ring of Fire Resistance'[^}]+\}/);
+assert(!!fireRow && /k:'resist'/.test(fireRow[0]) && !/id:'/.test(fireRow[0]),
+  'Ring of Fire Resistance table row stays k:resist with no invented id');
+const warmRow=html.match(/\{a:81,b:85,n:'Ring of Warmth'[^}]+\}/);
+assert(!!warmRow && /k:'resist'/.test(warmRow[0]) && !/id:'/.test(warmRow[0]),
+  'Ring of Warmth table row stays k:resist with no invented id');
+const fallRow=html.match(/\{a:15,b:21,n:'Ring of Feather Falling'[^}]+\}/);
+assert(!!fallRow && /k:'buff'/.test(fallRow[0]) && !/id:'/.test(fallRow[0]),
+  'Ring of Feather Falling table row stays k:buff with no invented id');
+const proofRow=html.match(/\{a:22,b:25,n:'Periapt of Proof against Poison'[^}]+\}/);
+assert(!!proofRow && /k:'misc'/.test(proofRow[0]) && !/id:'/.test(proofRow[0]),
+  'Periapt of Proof against Poison table row stays k:misc with no invented id');
+const woundRow=html.match(/\{a:26,b:28,n:'Periapt of Wound Closure'[^}]+\}/);
+assert(!!woundRow && /k:'misc'/.test(woundRow[0]) && !/id:'/.test(woundRow[0]),
+  'Periapt of Wound Closure table row stays k:misc with no invented id');
+const healthRow=html.match(/\{a:18,b:21,n:'Periapt of Health'[^}]+\}/);
+assert(!!healthRow && /k:'misc'/.test(healthRow[0]) && !/id:'/.test(healthRow[0]),
+  'Periapt of Health table row stays k:misc with no invented id');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nuseMagicItem checks passed');

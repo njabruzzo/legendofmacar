@@ -18,7 +18,7 @@
     {k:'quiver', label:'Quiver', short:'Qvr'}
   ];
   var SLOT_KEYS = SLOTS.map(function (s) { return s.k; });
-  var LEGACY_KEYS = ['weapon', 'armor', 'ring', 'wand'];
+  var LEGACY_KEYS = ['weapon', 'armor', 'ring', 'wand', 'robe'];
   var ALL_KEYS = SLOT_KEYS.concat(LEGACY_KEYS);
   var START_WORN = ['helmet', 'chest', 'pants', 'boots', 'primary', 'secondary', 'quiver'];
   var SLOT_ICON = {
@@ -119,7 +119,9 @@
     if (it.k === 'weapon' || it.cat === 'Sword' || it.cat === 'Weapon') return 'primary';
     if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
     if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';
+    if (/robe of the archmagi/i.test(it.n || '')) return 'chest';
     if (it.k === 'ring' || it.k === 'dex' || it.cat === 'Ring') return 'necklace';
+    if (/^ring of /i.test(String(it.n || ''))) return 'necklace';
     if (/cloak of (?:protection|displacement|elvenkind)/i.test(n)) return 'necklace';
     return null;
   }
@@ -132,6 +134,10 @@
     if (!it || typeof it !== 'object') return it;
     var slot = itemSlot(it);
     if (slot) it.slot = slot;
+    if (isArchmagiRobe(it)) {
+      it.ac = 5;
+      return it;
+    }
     if (slot === 'chest' && !isShield(it)) {
       it.armorType = it.armorType || inferArmorType(it.n);
       if (it.ac == null && it.armorType && ARMOR_AC[it.armorType] != null) it.ac = ARMOR_AC[it.armorType];
@@ -168,6 +174,15 @@
     return !!(it && /protection/i.test(String(it.n || '')) && /AC 5 or better/i.test(String(it.n || '')));
   }
 
+  function isArchmagiRobe(it) {
+    return !!(it && /robe of the archmagi/i.test(String(it.n || '')));
+  }
+
+  function wornArchmagiRobe(eq) {
+    eq = eq || {};
+    return isArchmagiRobe(eq.chest) || isArchmagiRobe(eq.armor) || isArchmagiRobe(eq.robe);
+  }
+
   function helmAcBonus(it) {
     if (!it) return 0;
     if (it.acBonus != null) return it.acBonus;
@@ -176,7 +191,7 @@
 
   /** AC plus from jewelry. Dex rings never stack as Protection. +4-on-AC-5 is gated. */
   function jewelryAcPlus(it, acBefore) {
-    if (!it || isDexRing(it)) return 0;
+    if (!it || isDexRing(it) || isArchmagiRobe(it)) return 0;
     var p = it.acBonus ? it.acBonus : (it.plus || 0);
     if (!p) return 0;
     if (isAc5GateRing(it) && !(acBefore <= 5)) return 0;
@@ -251,6 +266,16 @@
     it = annotate(it);
     var slot = itemSlot(it);
     if (!slot) return {ok: false, reason: 'no-slot', equipped: eq};
+    if (isArchmagiRobe(it) && slot === 'chest') {
+      var occ = eq.chest || eq.armor;
+      if (occ && occ !== it && !isArchmagiRobe(occ)) {
+        clearItem(eq, it);
+        eq.robe = it;
+        eq.weapon = eq.primary;
+        eq.armor = eq.chest;
+        return {ok: true, slot: 'robe', equipped: eq, prev: null};
+      }
+    }
     var cur = eq[slot];
     if (cur && cur !== it && cur.cursed) return {ok: false, reason: 'cursed', slot: slot, equipped: eq};
     if (cur === it) return {ok: true, slot: slot, equipped: eq, already: true};
@@ -296,13 +321,17 @@
     var chest = eq.chest || eq.armor;
     var base = 10;
     if (chest && !isShield(chest)) {
-      if (typeof chest.ac === 'number') base = chest.ac;
+      if (isArchmagiRobe(chest)) base = 5;
       else {
-        var t = chest.armorType || inferArmorType(chest.n);
-        if (t && ARMOR_AC[t] != null) base = ARMOR_AC[t];
+        if (typeof chest.ac === 'number') base = chest.ac;
+        else {
+          var t = chest.armorType || inferArmorType(chest.n);
+          if (t && ARMOR_AC[t] != null) base = ARMOR_AC[t];
+        }
+        if (chest.plus) base -= chest.plus;
       }
-      if (chest.plus) base -= chest.plus;
     }
+    if (eq.robe && isArchmagiRobe(eq.robe) && 5 < base) base = 5;
     var helm = eq.helmet;
     if (helm) base -= helmAcBonus(helm);
     ['bracers', 'gloves', 'pants', 'boots'].forEach(function (s) {
@@ -329,7 +358,7 @@
     eq = eq || {};
     var n = 0;
     var chest = eq.chest || eq.armor;
-    if (chest && chest.plus) n += chest.plus;
+    if (chest && chest.plus && !isArchmagiRobe(chest)) n += chest.plus;
     var acBefore = computeWornAC(eq, {noJewelry: true});
     var ring = eq.ring || eq.necklace;
     if (ring && ring.plus) n += jewelryAcPlus(ring, acBefore);
@@ -341,10 +370,13 @@
     var parts = [];
     var chest = eq.chest || eq.armor;
     if (chest && !isShield(chest)) {
-      var t = chest.armorType || inferArmorType(chest.n) || 'armor';
-      var ac = (typeof chest.ac === 'number') ? chest.ac : (ARMOR_AC[t] != null ? ARMOR_AC[t] : 10);
-      parts.push(t + ' AC ' + ac);
-      if (chest.plus) parts.push((chest.plus > 0 ? '+' : '') + chest.plus);
+      if (isArchmagiRobe(chest)) parts.push('robe AC 5');
+      else {
+        var t = chest.armorType || inferArmorType(chest.n) || 'armor';
+        var ac = (typeof chest.ac === 'number') ? chest.ac : (ARMOR_AC[t] != null ? ARMOR_AC[t] : 10);
+        parts.push(t + ' AC ' + ac);
+        if (chest.plus) parts.push((chest.plus > 0 ? '+' : '') + chest.plus);
+      }
     } else {
       parts.push('unarmored AC 10');
     }
@@ -401,6 +433,8 @@
     isDexGauntlets: isDexGauntlets,
     isDexRing: isDexRing,
     isAc5GateRing: isAc5GateRing,
+    isArchmagiRobe: isArchmagiRobe,
+    wornArchmagiRobe: wornArchmagiRobe,
     helmAcBonus: helmAcBonus,
     jewelryAcPlus: jewelryAcPlus,
     startingItems: startingItems,

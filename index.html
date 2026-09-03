@@ -5743,19 +5743,21 @@ function meleeStrAbil(e){
   if(wornOgrePower(e)) return {str:18, exc:100};
   return ab;
 }
-/* +2 / +3 Ring of Protection only. Potion/scroll e.mr stays full resist. */
+/* +2 / +3 Ring of Protection plus Robe of the Archmagi 5%. Potion/scroll e.mr stays full resist. */
 function wornMagicResistPct(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
-  const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
-  if(!it) return 0;
-  if(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
-  if(/displacement/i.test(it.n||'')) return 0;
-  if(!/protection/i.test(it.n||'')) return 0;
-  if(/AC 5 or better/i.test(it.n||'')) return 0;
-  const p=it.plus|0;
-  if(p===2) return 10;
-  if(p===3) return 15;
-  return 0;
+  const eq=G.equipped||{};
+  let pct=0;
+  const it=eq.necklace||eq.ring;
+  if(it && !(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) && !/displacement/i.test(it.n||'') && /protection/i.test(it.n||'') && !/AC 5 or better/i.test(it.n||'')){
+    const p=it.plus|0;
+    if(p===2) pct+=10;
+    if(p===3) pct+=15;
+  }
+  if((eq.robe && /robe of the archmagi/i.test(eq.robe.n||'')) ||
+     (eq.chest && /robe of the archmagi/i.test(eq.chest.n||'')) ||
+     (eq.armor && /robe of the archmagi/i.test(eq.armor.n||''))) pct+=5;
+  return pct;
 }
 function magicResist(e){
   if(e&&e.mr) return true;
@@ -5789,6 +5791,55 @@ function wearingDisplacement(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
   return !!(it && /cloak of displacement/i.test(it.n||''));
+}
+function wornNecklaceItem(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return null;
+  return (G.equipped||{}).necklace||(G.equipped||{}).ring||null;
+}
+/* Fire → breath; poison periapt → poison; warmth → breath if no cold kind. Dex never counts. */
+function wornResistSavePlus(e, kind){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
+  const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
+  if(!it) return 0;
+  if(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
+  const n=it.n||'';
+  if(kind==='poison' && /periapt of proof against poison/i.test(n)) return 4;
+  if(kind==='breath' && /ring of fire resistance/i.test(n)) return 4;
+  if(kind==='breath' && /ring of warmth/i.test(n)) return 2;
+  return 0;
+}
+function wearingFireResistance(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /ring of fire resistance/i.test(it.n||''));
+}
+function wearingWarmth(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /ring of warmth/i.test(it.n||''));
+}
+function wearingFeatherFalling(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /ring of feather falling/i.test(it.n||''));
+}
+function wearingWoundClosure(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /periapt of wound closure/i.test(it.n||''));
+}
+function wearingHealthPeriapt(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /periapt of health/i.test(it.n||''));
+}
+function fallDamageAmt(e, amt){
+  if(wearingFeatherFalling(e)) return 0;
+  return amt||0;
+}
+function tickWoundClosure(e, dt){
+  if(!wearingWoundClosure(e) || !e || e.hp>=e.maxhp) return;
+  e.hp=Math.min(e.maxhp, e.hp+2.2*(dt||0));
+}
+function clearWornDisease(e){
+  if(!wearingHealthPeriapt(e) || !e) return;
+  if(e.disease) e.disease=0;
+  if(e.diseaseT) e.diseaseT=0;
 }
 /* Boots or Cloak of Elvenkind: one hide, no stack, no potion invis, no Specialty tot. */
 function wearingElvenkind(e){
@@ -6579,7 +6630,7 @@ function saveNeed(e, kind){
   return need-dwarfSaveBonus(e, kind);
 }
 function savingThrow(e, kind){
-  const need=saveNeed(e,kind)-(e.juice||0)-wornProtectionPlus(e)-wornDisplacementPlus(e);
+  const need=saveNeed(e,kind)-(e.juice||0)-wornProtectionPlus(e)-wornDisplacementPlus(e)-wornResistSavePlus(e,kind);
   const roll=d20();
   const ok=roll===20||roll>=need;
   ftext(e.x,e.y+(ok?0.15:0),(ok?'save':'fail')+' '+roll,'#cfe3ff');
@@ -7321,7 +7372,7 @@ function useMagicItem(it, e){
       } else {
         const t=nearestFoe(e,8);
         const dmg=rollDice(6,6,0)*ADD_SCALE;
-        if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
+        if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
       }
       it.charges=Math.max(0,(it.charges||1)-1);
       say(it.n+' ('+it.charges+' charges left).','#7ad0ff');
@@ -7332,7 +7383,7 @@ function useMagicItem(it, e){
     if(e){ applyHeal(e, 18); clearPoison(e); }
     return 'spent';
   }
-  if(/Ointment|Curing|Periapt of Wound/.test(it.n)){
+  if(/Ointment|Curing/.test(it.n)){
     if(e){ applyHeal(e, 18); clearPoison(e); }
     return;
   }
@@ -7673,8 +7724,43 @@ function useHerb(name, e){
 
 
 /* ---------------------------- combat ---------------------------- */
+function resistSrcHay(src){
+  if(!src) return '';
+  return [src.kind, src.n, src.name, src.sa].join(' ');
+}
+function isFireishSrc(src){
+  return /fire|flame/i.test(resistSrcHay(src));
+}
+function isMundaneFlameSrc(src){
+  if(!src || src.magic) return false;
+  const hay=resistSrcHay(src);
+  if(/wand|breath|spell|rune/i.test(hay)) return false;
+  return /^(flame|fire)$/i.test(String(src.kind||''));
+}
+function isMagicalFireSrc(src){
+  if(!isFireishSrc(src)) return false;
+  if(src.magic) return true;
+  return /wand|breath|spell/i.test(resistSrcHay(src));
+}
+function isColdishSrc(src){
+  return /cold|frost|ice/i.test(resistSrcHay(src));
+}
+function isFallSrc(src){
+  if(!src) return false;
+  return !!(src.fall || src.pit || /^(pit|fall)$/i.test(String(src.kind||'')));
+}
+function applyResistDamage(e, amt, src){
+  if(wearingFeatherFalling(e) && isFallSrc(src)) return 0;
+  if(wearingFireResistance(e)){
+    if(isMundaneFlameSrc(src)) return 0;
+    if(isMagicalFireSrc(src)) amt=Math.floor((amt||0)/2);
+  }
+  if(wearingWarmth(e) && isColdishSrc(src)) amt=Math.floor((amt||0)/2);
+  return amt;
+}
 function damage(e,amt,col,src){
   if(e.dead) return;
+  amt=applyResistDamage(e, amt, src);
   if(e.stoneskin>0){ e.stoneskin--; ftext(e.x,e.y,'stoneskin','#cfe3ff'); return; }
   if(e.guard) amt*=.5;
   if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
@@ -8943,7 +9029,8 @@ function update(dt){
         if(e.dead||e.team!=='party') continue;
         if(dist(e,pr)<0.72){
           const pit=pr.trap==='trap_pit', rune=pr.trap==='trap_runes';
-          damage(e, pit?16:rune?13:11, rune?'#c07bff':'#ff6a4a', rune?{magic:1,kind:'rune'}:{kind:'trap'});
+          const trapSrc=rune?{magic:1,kind:'rune'}:pit?{kind:'pit',fall:1}:{kind:'trap'};
+          damage(e, pit?fallDamageAmt(e,16):rune?13:11, rune?'#c07bff':'#ff6a4a', trapSrc);
           burst(pr.x,pr.y, rune?'#c07bff':'#c2452e', 12, 2.4);
           say((e.name||'Kin')+' hits a trap.','#ff6a6a');
           pr.cd=pit?2.8:rune?1.6:2.2; pr.sprung=0.55; shake(8); break;
@@ -8967,6 +9054,8 @@ function update(dt){
     if(e.stun>0){ e.stun-=dt; continue; }
     if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
     if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+    if(typeof tickWoundClosure==='function') tickWoundClosure(e, dt);
+    if(typeof clearWornDisease==='function') clearWornDisease(e);
     if(e.afterHaste>0 && (e.buff||0)<=0){ e.afterHaste-=dt; e.sp=Math.max(1.2,(e.sp||3)*0.985); }
     if(e.invis>0){ e.invis-=dt; if(e.invis<=0) e.aggro=7.5; }
     if(e.poisonT>0){
