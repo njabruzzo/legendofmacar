@@ -41,6 +41,9 @@
 <script src="src/packs/GhostKit.js"></script>
 <script src="src/saves/GameSave.js"></script>
 <script src="src/loot/SpiderLair.js"></script>
+<script src="src/loot/DmgPotions.js"></script>
+<script src="src/loot/LoreClues.js"></script>
+<script src="src/ui/MajorTalk.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -4765,6 +4768,68 @@ const NPC_TALK={
       {t:'Run.', say:'MACAR: "Run."', then:()=>{ goblinHonestYield(); }}
     ]
   },
+  spider_lord:{
+    who:'SPIDER LORD',
+    line:'Soft meat. The deep is quieter. I keep the quiet.',
+    choices:[
+      {t:'Cut the silk.', say:'MACAR: "Cut it."', then:()=>{ majorTalkFight(); }},
+      {t:'What is quieter?', say:'MACAR: "What is quieter?"', reply:'SPIDER LORD: "Something that eats drums. It waits under the last web."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', say:'MACAR: "Steel."', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  goblin_king:{
+    who:'GOBLIN KING',
+    line:'This gold was dwarf-cut. Maglubiyet fattened me on it. You will make more.',
+    choices:[
+      {t:'That gold is ours.', say:'MACAR: "That gold is ours."', then:()=>{ majorTalkFight(); }},
+      {t:'What fattens you?', say:'MACAR: "What fattens you?"', reply:'GOBLIN KING: "Not the gold. The hole under the throne. It breathes when I sit."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', say:'MACAR: "Steel."', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  goblin_warlord:{
+    who:'GOBLIN WARLORD',
+    line:'Drums. Always drums. Not mine. From under.',
+    choices:[
+      {t:'Whose drums?', say:'MACAR: "Whose drums?"', reply:'GOBLIN WARLORD: "Not goblin. Not dwarf. We keep them fed so they stay down."', then:()=>{ majorTalkFight(); }},
+      {t:'Break the drums.', say:'MACAR: "Break them."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  goblin_chieftain:{
+    who:'GOBLIN CHIEFTAIN',
+    line:'The fat one eats first. The hole eats last. I do not look down.',
+    choices:[
+      {t:'Look down.', say:'MACAR: "Look down."', reply:'GOBLIN CHIEFTAIN: "Bones go in. Warm air comes out. I will not."', then:()=>{ majorTalkFight(); }},
+      {t:'Call him.', say:'MACAR: "Call him."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  goblin_boss:{
+    who:'GOBLIN BOSS',
+    line:'Painted hole first. Then the deep hole. Then you. I run last.',
+    choices:[
+      {t:'The deep hole.', say:'MACAR: "The deep hole."', reply:'GOBLIN BOSS: "Not the painted one. Under that. Maglubiyet\'s mouth."', then:()=>{ majorTalkFight(); }},
+      {t:'Run.', say:'MACAR: "Run."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  kobold_chief:{
+    who:'KOBOLD CHIEF',
+    line:'Goblin-kings keep the down-stairs. We keep the count. The count is wrong.',
+    choices:[
+      {t:'Wrong how?', say:'MACAR: "Wrong how?"', reply:'KOBOLD CHIEF: "More holes than maps. One hole has no goblin smell."', then:()=>{ majorTalkFight(); }},
+      {t:'Sell the count.', say:'MACAR: "Sell it."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  shaman_steel:{
+    who:'GOBLIN SHAMAN',
+    line:'Maglubiyet is not in the hall. He is under it.',
+    choices:[
+      {t:'Then I go under.', say:'MACAR: "Then I go under."', then:()=>{ majorTalkFight(); }},
+      {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
 };
 function startTalkObj(pack){
   if(!pack||!pack.line) return;
@@ -4775,8 +4840,52 @@ function startTalk(key){
   const pack=NPC_TALK[key]; if(!pack) return;
   startTalkObj(Object.assign({key}, pack));
 }
+function isMajorTalkKey(key){
+  return key==='spider_lord'||key==='goblin_king'||key==='goblin_warlord'||key==='goblin_chieftain'
+    ||key==='goblin_boss'||key==='kobold_chief'||key==='shaman_steel';
+}
+function majorTalkKey(e){
+  const flags=(G.lvl&&G.lvl.flags)||{};
+  if(typeof MajorTalk!=='undefined'&&MajorTalk.talkKey) return MajorTalk.talkKey(e, flags);
+  return '';
+}
+function openMajorTalk(e){
+  if(!e||e.majorTalked||G.talk) return false;
+  const key=majorTalkKey(e);
+  if(!key||!NPC_TALK[key]) return false;
+  e.majorTalked=1;
+  G.talkMajor=e;
+  startTalk(key);
+  return true;
+}
+function majorTalkFight(){
+  const e=G.talkMajor;
+  G.talkMajor=null;
+  if(!e||e.dead) return;
+  e.npc=0; e.aggro=99; e.engaged=1;
+  if(typeof beginFight==='function') beginFight(e);
+}
+function maybeOpenMajorTalkOnAggro(e){
+  if(!e||e.majorTalked||G.talk) return false;
+  return openMajorTalk(e);
+}
+function maybeMajorTalks(p){
+  if(!p||G.talk||G.fightOn) return;
+  let best=null, bd=2.15;
+  (G.ents||[]).forEach(e=>{
+    if(!e||e.dead||e.majorTalked) return;
+    if((e.shaman||e.name==='Goblin Shaman') && G.lvl&&G.lvl.flags&&G.lvl.flags.shamanHailed) return;
+    if((e.shaman||e.name==='Goblin Shaman')) return;
+    const key=majorTalkKey(e);
+    if(!key) return;
+    const d=dist(p,e);
+    if(d<bd){ bd=d; best=e; }
+  });
+  if(best) interact('Speak',()=>openMajorTalk(best));
+}
 function talkWalkOffKey(key){
-  return key==='goblin_mercy'||key==='goblin_yield'||key==='web_skeleton'||key==='web_skeleton_more'||key==='shaman_hail'||key==='shaman_bargain'||key==='shaman_chant'||key==='shaman_blood';
+  return key==='goblin_mercy'||key==='goblin_yield'||key==='web_skeleton'||key==='web_skeleton_more'||key==='shaman_hail'||key==='shaman_bargain'||key==='shaman_chant'||key==='shaman_blood'
+    ||isMajorTalkKey(key);
 }
 function dismissTalkWalkOff(){
   const key=G.talk&&G.talk.key;
@@ -4788,6 +4897,7 @@ function dismissTalkWalkOff(){
   if(key==='shaman_chant') shamanInterruptChant();
   if(key==='shaman_blood') shamanDarknessOnMelee();
   if(key==='goblin_yield') goblinHonestYield();
+  if(isMajorTalkKey(key)) majorTalkFight();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
 }
 function packMercyGoblin(){
@@ -6100,7 +6210,7 @@ function hitChancePct(need, bonus){
   return Math.round((21-req)/20*100);
 }
 function newPack(r){
-  const p={potions:[],healPots:[],herbs:{},magic:[],gems:[],bombs:0,ales:0,rations:7,torches:6,ammo:0,bombKit:0,burps:0};
+  const p={potions:[],healPots:[],herbs:{},magic:[],gems:[],notes:[],bombs:0,ales:0,rations:7,torches:6,ammo:0,bombKit:0,burps:0};
   if(!r) return p;
   if(r.key==='macar'){ p.bombs=2; p.ales=1; p.torches=8; p.ammo=10; }
   else if(r.key==='pordoom'){ p.bombs=1; p.ales=1; }
@@ -6118,6 +6228,7 @@ function ensurePacks(){
     if(!pk.magic) pk.magic=[];
     if(!pk.gems) pk.gems=[];
     if(!pk.herbs) pk.herbs={};
+    if(!pk.notes) pk.notes=[];
     if(!pk.bombKit) pk.bombKit=pk.bombKit||0;
     if(!pk.burps) pk.burps=pk.burps||0;
     if(r.key==='macar') ensureMacarStartingGear(pk);
@@ -6223,9 +6334,11 @@ function restoreBorrowedGear(){
 }
 function isHealPotion(p){
   if(!p) return false;
+  if(typeof DmgPotions!=='undefined' && DmgPotions.isHeal && DmgPotions.isHeal(p)) return true;
   const k=p.k||'';
-  if(k==='heal10'||k==='heal20'||k==='heal40'||k==='healall'||k==='heal') return true;
-  return /^(Cure (Light|Serious|Critical)|Heal Wounds)/i.test(p.n||'');
+  if(k==='heal10'||k==='heal20'||k==='heal40'||k==='healall'||k==='heal'||k==='extraheal') return true;
+  return /^(Potion of )?(Healing|Extra-Healing|Cure (Light|Serious|Critical)|Heal Wounds)$/i.test(p.n||'')
+    || /^(Cure (Light|Serious|Critical)|Heal Wounds)/i.test(p.n||'');
 }
 function isEquipWeapon(it){
   if(!it) return false;
@@ -6434,6 +6547,20 @@ function isUndeadFoe(e){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.i
 function weaponVsDouble(wep, def){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.weaponVsDouble&&DwarfMouth.weaponVsDouble(wep, def)); }
 function weaponVsPlus(wep, def){ return (typeof DwarfMouth!=='undefined'&&DwarfMouth.weaponVsPlus)?(DwarfMouth.weaponVsPlus(wep, def)|0):0; }
 function isGuardianRuby(gm){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isGuardianRuby&&DwarfMouth.isGuardianRuby(gm)); }
+function giveClue(it, silent){
+  if(!it) return '';
+  ensurePacks();
+  const pk=packOf('macar');
+  pk.notes=pk.notes||[];
+  pk.notes.push({n:it.n, d:it.d, k:'clue', mundane:1, clueKey:it.clueKey||''});
+  syncPackTotals();
+  if(!silent) say((it.n||'A scrap')+' into MACAR\'s pack.','#c9b895');
+  return it.n;
+}
+function attachLoreClue(pile, e){
+  if(typeof LoreClues!=='undefined'&&LoreClues.attach) return LoreClues.attach(pile||{}, e);
+  return pile;
+}
 function packGainNote(bits, who){
   const list=(bits||[]).filter(Boolean);
   if(!list.length){
@@ -7048,7 +7175,7 @@ function potionByRoll(r){
   for(const p of POTIONS) if(r>=p.a&&r<=p.b) return p;
   return POTIONS[POTIONS.length-1];
 }
-function rollPotion(){ return potionByRoll(d10000()); }
+function rollPotion(){ return rollDmgPotion(); }
 function givePotion(p, silent){
   if(!p) return '';
   ensurePacks();
@@ -7070,9 +7197,17 @@ function givePotion(p, silent){
 
 /* ==========================================================================
    AD&D 1e DMG magic items (Table III and subtables)
-   Potions that come up as a category still use the campaign d10,000 list.
-   Names follow the Dungeon Masters Guide; notes are short play effects.
+   RAW 1e: potion *treasure drops* use DMG Table III.A (d100), not UA and
+   not the campaign POTIONS[] d10,000 kitchen-sink list. potionByRoll stays
+   so unused table data remains for tests.
    ========================================================================== */
+const DMG_POTIONS=(typeof DmgPotions!=='undefined'&&DmgPotions.TABLE)?DmgPotions.TABLE:[];
+function rollDmgPotion(roll){
+  if(typeof DmgPotions!=='undefined'&&DmgPotions.byRoll) return DmgPotions.byRoll(roll==null?d100():roll);
+  const r=roll==null?d100():roll;
+  return pickRange(DMG_POTIONS, r);
+}
+function rollCampaignPotion(){ return potionByRoll(d10000()); }
 function pickRange(table, roll){
   roll=roll==null?d100():roll;
   for(const row of table){ if(roll>=row.a && roll<=row.b) return row; }
@@ -7474,6 +7609,7 @@ function magicCategory(kind){
 function rollMagicItem(kind){
   const cat=magicCategory(kind);
   if(cat==='potion'){
+    /* RAW 1e DMG Table III.A — not the UA d10,000 list. */
     const p=rollPotion();
     return {kind:'potion', potion:p, n:p.n, d:p.d, cat:'Potion'};
   }
@@ -7940,10 +8076,157 @@ function applyHeal(e, n){
   return amt;
 }
 function clearPoison(e){ e.poisonT=0; e._pt=0; e.slowT=0; }
+function potionHay(p){ return String((p&&(p.n||''))+' '+(p&&(p.k||''))); }
+function charmFoeKind(e, re, rounds){
+  const t=nearestFoe(e,8);
+  if(!t){ say('Nothing of that kind is near.','#c9b895'); return false; }
+  if(re && !re.test([t.kind,t.name,t.n].join(' '))){ say((t.name||'The foe')+' is the wrong kind.','#c9b895'); return false; }
+  t.stun=Math.max(t.stun||0, rounds||8);
+  t.charmed=1; t.aggro=0;
+  say((t.name||'The foe')+' is held in thrall.','#e0d2ff');
+  return true;
+}
+function applyDmgPotion(p, e){
+  if(!p||!e) return false;
+  const k=p.k||'';
+  const hay=potionHay(p);
+  const lv=e.lvl||(typeof partyLevel==='function'?partyLevel():1);
+  const dice=(n,s,b)=> (typeof rollDice==='function'?rollDice(n,s,b||0):n*Math.ceil(s/2)+(b||0));
+  /* RAW 1e: a sip identifies; this engine drinks the whole vial in one pack use. */
+  if(k==='heal' || /^(Potion of )?Healing$/i.test(p.n||'')){
+    applyHeal(e, dice(2,4,2)); return true;
+  }
+  if(k==='extraheal' || /Extra-Healing/i.test(hay)){
+    applyHeal(e, dice(3,8,3)); return true;
+  }
+  if(k==='poison' || /^(Potion of )?Poison$/i.test(p.n||'')){
+    /* RAW 1e: sip or draught — save vs poison or die. */
+    if(typeof savingThrow==='function' && savingThrow(e,'poison')){
+      say('The poison fails.','#6aff8a');
+    } else {
+      e.hp=0;
+      say((e.name||'The drinker')+' fails the poison save and dies.','#ff6a5a');
+      if(typeof damage==='function') damage(e, 1, '#c07bff', {kind:'poison',n:p.n});
+    }
+    return true;
+  }
+  if(k==='delusion' || /Delusion/i.test(hay)){
+    const fake=(typeof rollDmgPotion==='function'?rollDmgPotion(42):{n:'Healing'});
+    const name=(fake&&fake.n&&fake.n!=='Delusion')?fake.n:'Healing';
+    e.delusion=name;
+    say('It tastes like '+name+'. The mind is sure. The body is not.','#e0d2ff');
+    return true;
+  }
+  if(k==='diminish' || /Diminution/i.test(hay)){
+    e.tiny=1; e.tinyT=Math.max(e.tinyT||0, 16);
+    say('Macar shrinks to a fifth of a fifth.','#e0d2ff');
+    return true;
+  }
+  if(k==='growth' || /^(Potion of )?Growth$/i.test(p.n||'')){
+    e.grown=1; e.strMul=Math.max(e.strMul||1, 2); e.buff=Math.max(e.buff||0, 16);
+    say('The drinker swells. Blows land twice as hard.','#e0d2ff');
+    return true;
+  }
+  if(/^(Potion of )?Speed$/i.test(p.n||'') || (k==='haste' && /speed/i.test(p.n||''))){
+    /* RAW 1e Speed = haste and ages 1 year. */
+    e.buff=Math.max(e.buff||0, 5+dice(4,4,0));
+    e.cd=Math.max(.28,(e.cd||1)*0.5);
+    e.sp=(e.baseSp||e.sp||3)*1.35;
+    e.ageYears=(e.ageYears||50)+1;
+    say('Haste. The year takes its due.','#e0d2ff');
+    return true;
+  }
+  if(k==='invis' || /Invisibility/i.test(hay)){
+    e.invis=Math.max(e.invis||0, 30+lv); e.aggro=2; return true;
+  }
+  if(k==='invuln' || /Invulnerability/i.test(hay)){
+    e.guardT=Math.max(e.guardT||0, 8+lv); e.invulnPot=1; return true;
+  }
+  if(k==='fly' || /^(Potion of )?Fly(ing)?$/i.test(p.n||'')){
+    e.sp=Math.max(e.sp,5.2); e.buff=Math.max(e.buff||0,8); e.fly=1; e.hover=1; e.flyPotion=1;
+    return true;
+  }
+  if(k==='levitate' || /Levitation/i.test(hay)){
+    e.hover=1; e.fly=1; e.buff=Math.max(e.buff||0, 12); return true;
+  }
+  if(k==='gaseous' || /Gaseous Form/i.test(hay)){
+    e.gaseous=1; e.hover=1; e.buff=Math.max(e.buff||0, 10); return true;
+  }
+  if(k==='ethereal' || /Etherealness/i.test(hay)){
+    e.ethereal=1; e.hover=1; e.invis=Math.max(e.invis||0, 8); return true;
+  }
+  if(k==='slip' || /Slipperiness/i.test(hay)){
+    e.slip=1; e.webbed=0; e.slowT=0; say('Nothing holds.','#e0d2ff'); return true;
+  }
+  if(k==='fireres' || /Fire Resistance/i.test(hay)){
+    e.potionFireRes=Math.max(e.potionFireRes||0, 20); return true;
+  }
+  if(k==='giantstr' || /Giant Strength/i.test(hay)){
+    e.strMul=2; e.buff=Math.max(e.buff||0, 12); return true;
+  }
+  if(k==='heroism' || /^(Potion of )?Heroism$/i.test(p.n||'')){
+    applyHeal(e, 8); e.buff=Math.max(e.buff||0, 12); e.heroPot=1; return true;
+  }
+  if(k==='superhero' || /Super-Heroism/i.test(hay)){
+    applyHeal(e, 16); e.buff=Math.max(e.buff||0, 16); e.heroPot=1; return true;
+  }
+  if(k==='longevity' || /Longevity/i.test(hay)){
+    const yrs=dice(1,12,0);
+    e.ageYears=Math.max(15, (e.ageYears||50)-yrs);
+    say(yrs+' years fall away.','#e0d2ff'); return true;
+  }
+  if(k==='sweetwater' || /Sweet Water/i.test(hay)){
+    clearPoison(e); say('The draught is clean. Poison leaves.','#6aff8a'); return true;
+  }
+  if(k==='waterbreath' || /Water Breathing/i.test(hay)){
+    e.waterBreath=1; e.buff=Math.max(e.buff||0, 20); return true;
+  }
+  if(k==='climb' || /Climbing/i.test(hay)){
+    e.climb=1; e.buff=Math.max(e.buff||0, 12); return true;
+  }
+  if(k==='clairaud' || k==='clairvoy' || k==='esp' || k==='sense' || /Clairaudience|Clairvoyance|^ESP$/i.test(hay)){
+    e.trueSee=Math.max(e.trueSee||0, 30); return true;
+  }
+  if(k==='treasure' || /Treasure Finding/i.test(hay)){
+    e.trueSee=Math.max(e.trueSee||0, 40);
+    const pile=(G.loot||[]).find(x=>x&&!x.gone);
+    say(pile?'The draught pulls toward treasure.':'The draught finds no hoard nearby.','#ffd27a');
+    return true;
+  }
+  if(k==='animalctrl' || /Animal Control/i.test(hay)){
+    charmFoeKind(e, /rat|beetle|spider|wolf|warg|bat|centipede|animal/i, 10); return true;
+  }
+  if(k==='dragonctrl' || /Dragon Control/i.test(hay)){
+    charmFoeKind(e, /dragon|wyrm/i, 10); return true;
+  }
+  if(k==='giantctrl' || /Giant Control/i.test(hay)){
+    charmFoeKind(e, /giant|ogre|troll|ettin/i, 10); return true;
+  }
+  if(k==='humanctrl' || /Human Control/i.test(hay)){
+    charmFoeKind(e, /goblin|hobgob|orc|kobold|human|drow|duergar|gnoll|bugbear/i, 10); return true;
+  }
+  if(k==='undeadctrl' || /Undead Control/i.test(hay)){
+    charmFoeKind(e, /undead|skeleton|zombie|ghoul|wight|wraith|spectre|lich/i, 10); return true;
+  }
+  if(k==='plantctrl' || /Plant Control/i.test(hay)){
+    charmFoeKind(e, /fung|shrieker|myconid|plant|violet/i, 10); return true;
+  }
+  if(k==='love' || /Philter of Love/i.test(hay)){
+    charmFoeKind(e, null, 12); return true;
+  }
+  if(k==='persua' || /Persuasiveness/i.test(hay)){
+    e.buff=Math.max(e.buff||0, 10); say('The voice carries.','#e0d2ff'); return true;
+  }
+  if(k==='polymorph' || /Polymorph Self/i.test(hay)){
+    e.buff=Math.max(e.buff||0, 12); e.polymorph=1; say('The shape will take.','#e0d2ff'); return true;
+  }
+  return false;
+}
 function drinkPotion(p, e){
   e=e||player(); if(!e||!p) return;
   const k=p.k, lv=e.lvl||partyLevel();
   say(e.name+' drinks '+p.n+'.','#e0d2ff');
+  if(typeof applyDmgPotion==='function' && applyDmgPotion(p, e)) return;
   if(k==='heal10') applyHeal(e,10);
   else if(k==='heal20') applyHeal(e,20);
   else if(k==='heal40') applyHeal(e,40);
@@ -7991,7 +8274,8 @@ function useHerb(name, e){
   else if(k==='healall'){ e.hp=e.maxhp; applyHeal(e,1); }
   else if(k==='antidote'){ clearPoison(e); say('The toxin fades.','#6aff8a'); }
   else if(k==='haste'){ e.buff=3; e.cd=Math.max(.3,(e.cd||1)*0.5); e.sp=(e.baseSp||e.sp||3)*1.3; e.stun=Math.max(e.stun||0,0); e.afterHaste=5; }
-  else if(k==='regen'||k==='tickheal'){ e.potionRegen=8; }
+  else if(k==='tickheal'){ e.potionRegen=5; }
+  else if(k==='regen'){ e.potionRegen=8; }
   else if(k==='light'){ e.glow='#c8fff0'; }
   else if(k==='hide'){ e.invis=12; }
   else if(k==='see'){ e.trueSee=20; }
@@ -8033,7 +8317,7 @@ function isFallSrc(src){
 }
 function applyResistDamage(e, amt, src){
   if(wearingFeatherFalling(e) && isFallSrc(src)) return 0;
-  if(wearingFireResistance(e)){
+  if(wearingFireResistance(e) || (e&&e.potionFireRes>0)){
     if(isMundaneFlameSrc(src)) return 0;
     if(isMagicalFireSrc(src)) amt=Math.floor((amt||0)/2);
   }
@@ -8084,7 +8368,7 @@ function onHitFx(atk,o,dmg){
         ftext(o.x,o.y+0.2,'poison death','#c07bff');
         say((o.n||o.name||'A dwarf')+' fails the poison save and dies.','#ff6a5a');
       } else if(atk.slowPoison||atk.web||atk.kind==='spider'||/Web/i.test(sa)){
-        if(!(typeof wearingFreeAction==='function' && wearingFreeAction(o))) o.slowT=Math.max(o.slowT||0, atk.boss?8:4.5);
+        if(!(o.slip) && !(typeof wearingFreeAction==='function' && wearingFreeAction(o))) o.slowT=Math.max(o.slowT||0, atk.boss?8:4.5);
         ftext(o.x,o.y+0.2,'slowed','#c9b895');
       } else {
         o.poisonT=Math.max(o.poisonT||0,4.2);
@@ -9291,6 +9575,8 @@ function update(dt){
       const sh=nearestShroom(p,1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
     }
+    if(typeof maybeShamanTalks==='function') maybeShamanTalks(p, 0);
+    if(typeof maybeMajorTalks==='function') maybeMajorTalks(p);
     if(!PROMPT){
       const station=nearestCraftStation(p,1.55);
       if(station) interact('Craft at the station',()=>openCraftStation(station));
@@ -9341,6 +9627,8 @@ function update(dt){
     if(e.stun>0){ e.stun-=dt; continue; }
     if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
     if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+    if(e.potionFireRes>0) e.potionFireRes-=dt;
+    if(e.tinyT>0){ e.tinyT-=dt; if(e.tinyT<=0) e.tiny=0; }
     if(typeof tickWoundClosure==='function') tickWoundClosure(e, dt);
     if(typeof clearWornDisease==='function') clearWornDisease(e);
     if(typeof applyFreeAction==='function') applyFreeAction(e);
@@ -9429,7 +9717,12 @@ function update(dt){
     } else {
       tgt=nearestAlly(e,999);
       if(tgt){ const d=dist(e,tgt);
-        if(d>e.aggro&&!e.boss&&!e.engaged) tgt=null; else e.engaged=1; }
+        if(d>e.aggro&&!e.boss&&!e.engaged) tgt=null;
+        else {
+          if(!e.engaged && typeof maybeOpenMajorTalkOnAggro==='function') maybeOpenMajorTalkOnAggro(e);
+          e.engaged=1;
+        }
+      }
       want=e.ranged?e.range*.75:e.range;
     }
     if(tgt){
@@ -11559,6 +11852,7 @@ function takeLoot(pile, quiet){
   (pile.items||[]).forEach(it=>{
     extra+=it.gp||it.xp||0;
     if(it.k==='pack'||it.field){ addToPack('macar', it.field||'ammo', it.count||1); bits.push((it.n||it.field||'kit')+' \u00d7'+(it.count||1)); return; }
+    if(it.k==='clue'||it.k==='note'||it.mundane){ const n=giveClue(it,1); if(n) bits.push(n); return; }
     if(it.k==='gem'){ giveGem(it,1); bits.push(it.n||'gem'); }
     else { const n=giveMagic(it,1); if(n) bits.push(n); }
   });
@@ -11711,6 +12005,7 @@ function foeDrop(e){
         potions:[], items:[], glow:'#ffd27a'};
     }
     pile.label=pile.label||'Spider Lord (Type U)';
+    attachLoreClue(pile, e);
     e.drop=pile;
     const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
     const floor=spawnLoot(e.x+ox, e.y+oy, pile);
@@ -11740,6 +12035,7 @@ function foeDrop(e){
     if(pile.kind==='pile') pile.kind='coins';
   }
   pile.label=pile.label||((e.name||'Foe')+' (house individual)');
+  attachLoreClue(pile, e);
   e.drop=pile;
   const ox=(Math.random()-0.5)*0.45, oy=(Math.random()-0.5)*0.45;
   const floor=spawnLoot(e.x+ox, e.y+oy, pile);
@@ -13681,6 +13977,9 @@ function collectPackRows(pk, who){
     const from=gm._borrowOwner?('Borrowed from '+kinName(gm._borrowOwner)+'. Returns at camp. '):'';
     rows.push({kind:'gem',gm,i,t:gm.n+(gm.gp?('  \u2014  '+gm.gp+' gp'):''),info:from+lend+(gm.d||''),tag:'Gem'});
   });
+  (pk.notes||[]).forEach((nt,i)=>{
+    rows.push({kind:'note',nt,i,t:nt.n,info:lend+(nt.d||''),tag:'Note'});
+  });
   Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),
     info:lend+((HERBS.find(h=>h.n===n)||{}).d||''),tag:'Herb'}));
   return rows;
@@ -13825,6 +14124,9 @@ function usePackRow(r){
   } else if(r.kind==='gem'){
     const gm=(bag.gems||[])[r.i];
     if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
+  } else if(r.kind==='note'){
+    const nt=(bag.notes||[])[r.i];
+    if(nt) say(nt.n+(nt.d?(' — '+nt.d):''),'#c9b895');
   } else if(r.kind==='kit'){
     if(isGhostPack()) takeStackToMacar('bombKit');
     else say('Bomb kit stays in the pack. Craft more bombs at a station.','#ffb45c');
