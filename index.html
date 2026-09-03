@@ -4936,7 +4936,7 @@ function shamanKneelFearBless(){
   if(s) shamanSpend(s,'causeFear',1);
   G.ents.forEach(e=>{
     if(e.team!=='party'||e.dead) return;
-    if(savingThrow(e,'spell')){
+    if((typeof magicResist==='function'&&magicResist(e))||savingThrow(e,'spell')){
       say((e.name||'Kin')+' holds against Cause Fear.','#cfe3ff');
       return;
     }
@@ -4952,7 +4952,7 @@ function shamanHoldMacar(){
   const s=livingShaman(); const mac=player();
   if(s) shamanSpend(s,'holdPerson',2);
   if(mac){
-    if(savingThrow(mac,'spell')){
+    if((typeof magicResist==='function'&&magicResist(mac))||savingThrow(mac,'spell')){
       say('Hold Person fails. Macar saves vs spell.','#cfe3ff');
     } else {
       mac.held=Math.max(mac.held||0, roundSec(11));
@@ -5009,7 +5009,7 @@ function shamanSilenceTalpor(){
   if(s) shamanSpend(s,'silence',2);
   const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
   if(tal){
-    if(savingThrow(tal,'spell')){
+    if((typeof magicResist==='function'&&magicResist(tal))||savingThrow(tal,'spell')){
       say('Talpor saves vs spell. The sun-staff still speaks.','#cfe3ff');
     } else {
       tal.silenced=Math.max(tal.silenced||0, roundSec(14));
@@ -5718,8 +5718,48 @@ function wornDexPlus(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   const ring=eq.necklace||eq.ring;
-  if(ring&&ring.dexPlus) return ring.dexPlus|0;
+  let plus=0;
+  if(ring&&ring.dexPlus) plus+=ring.dexPlus|0;
+  const g=eq.gloves;
+  if(g && !g.cursed && !/fumbling/i.test(g.n||'') && /gauntlets of dexterity/i.test(g.n||'')){
+    const ab=typeof entityAbil==='function'?entityAbil(e):(e.abil||{});
+    const base=(ab&&ab.dex)||10;
+    if(base>=18) plus+=4;
+    else plus+=Math.max(0, 18-base);
+  }
+  return plus;
+}
+function wornOgrePower(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
+  const g=(G.equipped||{}).gloves;
+  if(!g || g.cursed || /fumbling/i.test(g.n||'')) return false;
+  return /ogre power/i.test(g.n||'');
+}
+function meleeStrAbil(e){
+  const ab=(typeof entityAbil==='function'?entityAbil(e):null)||{};
+  if(wornOgrePower(e)) return {str:18, exc:100};
+  return ab;
+}
+/* +2 / +3 Ring of Protection only. Potion/scroll e.mr stays full resist. */
+function wornMagicResistPct(e){
+  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
+  const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
+  if(!it) return 0;
+  if(it.dexPlus || it.k==='dex' || /dexterity/i.test(it.n||'')) return 0;
+  if(/displacement/i.test(it.n||'')) return 0;
+  if(!/protection/i.test(it.n||'')) return 0;
+  if(/AC 5 or better/i.test(it.n||'')) return 0;
+  const p=it.plus|0;
+  if(p===2) return 10;
+  if(p===3) return 15;
   return 0;
+}
+function magicResist(e){
+  if(e&&e.mr) return true;
+  const pct=wornMagicResistPct(e);
+  if(!pct) return false;
+  const roll=typeof d100==='function'?d100():(typeof ri==='function'?ri(1,100):100);
+  return roll<=pct;
 }
 /* 1e Ring/Cloak of Protection: plus to saves. Dex ring is never a ward. */
 function wornProtectionPlus(e){
@@ -6255,6 +6295,40 @@ function thacNeed(atk, ac){
   if(kind==='f') return THAC_F[fighterMatrixRow(lv)][col];
   return THAC_M[monsterMatrixRow(monsterHD(atk))][col];
 }
+function isPlusShotAmmo(it){
+  if(!it || it.k!=='ammo') return false;
+  const n=it.n||'';
+  if(/slaying|javelin/i.test(n)) return false;
+  if(!/arrow|bolt|quarrel/i.test(n)) return false;
+  return (it.plus|0)!==0;
+}
+function ensureAmmoQty(it){
+  if(!it) return 0;
+  if(it.qty==null){
+    const m=/\((\d+)d(\d+)\)/.exec(it.n||'');
+    if(m) it.qty=typeof rollDice==='function'?rollDice(+m[1], +m[2], 0):(+m[1]);
+    else it.qty=1;
+  }
+  return it.qty|0;
+}
+function takeMagicShotAmmo(){
+  if(typeof ensurePacks==='function') ensurePacks();
+  const packs=G.packs||{};
+  const keys=['macar'].concat(Object.keys(packs).filter(k=>k!=='macar'));
+  for(let k=0;k<keys.length;k++){
+    const mag=(packs[keys[k]]&&packs[keys[k]].magic)||[];
+    for(let i=0;i<mag.length;i++){
+      const it=mag[i];
+      if(!isPlusShotAmmo(it) || ensureAmmoQty(it)<=0) continue;
+      it.qty=(it.qty|0)-1;
+      const plus=it.plus|0, n=it.n;
+      if(it.qty<=0) mag.splice(i,1);
+      if(typeof syncPackTotals==='function') syncPackTotals();
+      return {plus, n};
+    }
+  }
+  return null;
+}
 function wornWeaponPlus(e, def){
   if(!e) return 0;
   let plus=0;
@@ -6268,6 +6342,7 @@ function wornWeaponPlus(e, def){
       if(ES&&ES.isShield&&ES.isShield(bow)) return 0;
       wep=bow;
       plus=bow.cursed?(bow.plus|| -1):(bow.plus||0);
+      plus+=(e._shotAmmoPlus|0);
     } else {
       wep=eq.primary||eq.weapon;
       if(wep) plus=wep.cursed?(wep.plus|| -1):(wep.plus||0);
@@ -6290,7 +6365,7 @@ function hitBonus(e, def){
     if(e.blessHit && (e.blessT||0)>0) b+=1;
     if((g.wd||1)<=0) b-=2;
     if(e.ranged) b+=dexMissile(effectiveDex(e));
-    else b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
+    else b+=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(e):ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
   } else {
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
     if(e.blessHit && (e.blessT||0)>0) b+=1;
@@ -6326,7 +6401,7 @@ function specialtyHitBonus(e, def){
   let b=0;
   if(e&&e.team==='party'){
     const g=e.gear||{};
-    const ab=typeof entityAbil==='function'?entityAbil(e):null;
+    const ab=typeof meleeStrAbil==='function'?meleeStrAbil(e):(typeof entityAbil==='function'?entityAbil(e):null);
     b+=strMods(ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit||0;
     b+=wornWeaponPlus(e, def);
   } else if(e&&e.sa&&/\+\d/.test(e.sa)){
@@ -6408,14 +6483,14 @@ function addAttack(atk, def, opts){
   if(atk.dice) raw=rollExpr(atk.dice);
   else if(atk.team==='party') raw=rollExpr(atk.hero?'1d8':atk.ranged?'1d6':'1d6+1');
   else raw=Math.max(1, Math.round((atk.dmg||6)/1.65*rnd(1.15,.85)));
-  if(atk.team==='party' && !atk.ranged) raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
+  if(atk.team==='party' && !atk.ranged) raw+=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(atk):entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.ranged && atk.role==='pick') raw+=strMods(entityAbil(atk), atk.cls||'f').dmg;
   if(atk.team==='party' && atk.hero && G.equipped){
     const wep=atk.ranged?(G.equipped.secondary):(G.equipped.primary||G.equipped.weapon);
     if(wep){
       const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
       if(!(ES&&ES.isShield&&ES.isShield(wep))){
-        raw+=(wep.plus||0)+((typeof weaponVsPlus==='function')?weaponVsPlus(wep, def):0);
+        raw+=(wep.plus||0)+((typeof weaponVsPlus==='function')?weaponVsPlus(wep, def):0)+(atk.ranged?(atk._shotAmmoPlus|0):0);
         if(weaponVsDouble(wep, def)) raw*=2;
       }
     }
@@ -6751,6 +6826,11 @@ function magItem(o){
   else raw.plus=o.plus||0;
   if(o.vsPlus!=null) raw.vsPlus=o.vsPlus;
   if(o.missilePlus!=null) raw.missilePlus=o.missilePlus;
+  if(o.qty!=null) raw.qty=o.qty;
+  else if(o.k==='ammo' && /arrow|bolt|quarrel/i.test(o.n||'') && !/slaying|javelin/i.test(o.n||'')){
+    const m=/\((\d+)d(\d+)\)/.exec(o.n||'');
+    if(m) raw.qty=typeof rollDice==='function'?rollDice(+m[1], +m[2], 0):(+m[1]);
+  }
   if(o.noAuto) raw.noAuto=1;
   return mapPackItemToEquipment(raw);
 }
@@ -7182,7 +7262,8 @@ function useMagicItem(it, e){
   if(!it) return;
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
-    if(it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')){
+    const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+    if((it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')) || (ES&&ES.isEquippable&&ES.isEquippable(it))){
       equipPackItem(it, {silent:true});
       say('The curse binds. It will not be set aside.','#ff6a5a');
       return;
@@ -7235,10 +7316,16 @@ function useMagicItem(it, e){
     return 'spent';
   }
   if(it.k==='ammo'){
-    const t=e?nearestFoe(e,8):null;
-    const dmg=rollDice(6,6,0)*ADD_SCALE;
-    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand'}); burst(t.x,t.y,'#7ad0ff',16,3); }
-    return 'spent';
+    if(/slaying|javelin of lightning/i.test(it.n||'')){
+      say(it.n+' stays packed. Not this fight.','#c9b895');
+      return;
+    }
+    if(typeof isPlusShotAmmo==='function' && isPlusShotAmmo(it)){
+      say(it.n+' — nocked. The plus waits on the next shot.','#cfe3ff');
+      return;
+    }
+    say(it.n+' stays packed.','#c9b895');
+    return;
   }
   if(it.k==='sense'){ if(e) e.trueSee=40; return; }
   if(e){ e.buff=Math.max(e.buff||0, 10); applyHeal(e, 6); }
@@ -7623,7 +7710,7 @@ function onHitFx(atk,o,dmg){
     if(!savingThrow(o,'poison')) o.stun=Math.max(o.stun||0,2.4);
   }
   if(/Confusion|Mind Blast|Spore/i.test(sa)){
-    if(o.mr||savingThrow(o,'spell')) {}
+    if((typeof magicResist==='function'?magicResist(o):o.mr)||savingThrow(o,'spell')) {}
     else o.stun=Math.max(o.stun||0,1.6);
   }
   return dmg;
@@ -7650,11 +7737,13 @@ function meleeSwing(e,arc,reach,dmg,col){
 }
 function shoot(from,tx,ty,dmg,kind,col,spd){
   const a=ang(tx-from.x,ty-from.y);
-  G.shots.push({x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
-    rust:from.rust,poison:from.poison,killPoison:from.killPoison,slowPoison:from.slowPoison,sa:from.sa,from});
+  const s={x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
+    rust:from.rust,poison:from.poison,killPoison:from.killPoison,slowPoison:from.slowPoison,sa:from.sa,from};
+  G.shots.push(s);
+  return s;
 }
 function strengthCheck(e){
-  const ab=entityAbil(e)||{};
+  const ab=(typeof meleeStrAbil==='function'?meleeStrAbil(e):entityAbil(e))||{};
   const str=ab.str||10, exc=ab.exc||0;
   const roll=d20();
   let ok=roll<=str;
@@ -8595,18 +8684,22 @@ function fire(key){
   if(key==='bow'){
     if(refuseAttack(p)) return;
     syncPackTotals();
-    if(partyCount('ammo')<=0){ hint('No bolts. Buy from Noz, or pick quarrels that save.',3); return; }
     if(cds.bow>0) return;
+    const magAmmo=typeof takeMagicShotAmmo==='function'?takeMagicShotAmmo():null;
+    if(!magAmmo){
+      if(partyCount('ammo')<=0){ hint('No bolts. Buy from Noz, or pick quarrels that save.',3); return; }
+      takeFromPacks('ammo', G.packPrefer);
+    }
     const t=nearestFoe(p,9);
     const tx=t?t.x:p.x+p.fdx*7, ty=t?t.y:p.y+p.fdy*7;
-    takeFromPacks('ammo', G.packPrefer);
     cds.bow=1.4;
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
     // Pose only. swung=1 up front so the melee tick never fires off this timer.
     p.atkKind='bow'; p.atk=p.atkMax; p.swung=1;
-    shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
-    say('MACAR looses a quarrel.','#ffb45c');
+    const shot=shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
+    if(shot && magAmmo) shot.ammoPlus=magAmmo.plus;
+    say(magAmmo?('MACAR looses '+magAmmo.n+'.'):'MACAR looses a quarrel.','#ffb45c');
     return;
   }
   const a=ABIL.find(z=>z.key===key); if(!a||cds[key]>0) return;
@@ -8980,8 +9073,10 @@ function update(dt){
         if(s.kind==='bolt'&&s.from){
           const prevD=s.from.dice, prevR=s.from.ranged;
           s.from.dice='1d4'; s.from.ranged=1;
+          s.from._shotAmmoPlus=s.ammoPlus||0;
           rolled=addAttack(s.from,o);
           s.from.dice=prevD; s.from.ranged=prevR;
+          s.from._shotAmmoPlus=0;
         } else rolled=s.from?addAttack(s.from,o):(s.dmg||8);
         if(rolled) damage(o,onHitFx(s.from||s,o,rolled),s.col,s.from||s);
         s.life=0; burst(s.x,s.y,s.col,9,2.5); tryRetrieveBolt(s); break; } }
@@ -13305,7 +13400,7 @@ function usePackRow(r){
   if(r.kind==='magic'){
     const it=bag.magic[r.i];
     if(!it) return;
-    const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal'||it.k==='ammo';
+    const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal';
     if(inField){
       const spent=useMagicItem(it, who);
       if(spent==='spent'||consume) bag.magic.splice(r.i,1);
