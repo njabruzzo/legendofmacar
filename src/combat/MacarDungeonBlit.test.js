@@ -33,6 +33,11 @@ assert(/function punchLivingMacarCanvas\(/.test(html)
   'living Macar bake runs the magenta / binary-alpha punch');
 assert(/imageSmoothingEnabled=false/.test(extractFn('blitFacing')),
   'party blit can disable bilinear smoothing');
+assert(/imageSmoothingEnabled=false/.test(extractFn('flippedSprite'))
+  && /punchLivingMacarCanvas\(c\)/.test(extractFn('flippedSprite')),
+  'west mirror is crisp and re-punched');
+assert(/!out\|\|!out\.width\|\|!out\.height/.test(extractFn('blitLivingMacar')),
+  '0-size bake falls back instead of flashing a sliver');
 assert(/MACAR_FOOT_WIDEN=1\.24/.test(html), 'extra mass is a width scale');
 assert(/entSpriteH\(e,z\)\*frameFit\(e,img\)/.test(extractFn('drawLivingMacar')),
   'dungeon height stays kin entSpriteH — not taller than title law');

@@ -124,11 +124,13 @@ assert(/livingMacarIdleKey\(\)/.test(doll) && /blitLivingMacar\(SPR\[livingMacar
 const faceFn=extractFn('face');
 assert(/livingMacarIdleKey\(\)/.test(faceFn), 'HUD face uses the same idle key');
 
-/* --- Flip helper: living Macar invert. D / gold-right flips painted-right. --- */
-assert(/e\.hero && !e\.ghost\) return moveHeadingSX\(e\) > 0\.02/.test(extractFn('wantsSpriteFlip')),
-  'living Macar flip sign is inverted (sx > +0.02)');
+/* --- Flip helper: title-law sheets travel screen-right. Flip ONLY left. --- */
+assert(/e\.hero && !e\.ghost\) return moveHeadingSX\(e\) < -0\.02/.test(extractFn('wantsSpriteFlip')),
+  'living Macar flips only for screen-left (sx < -0.02)');
 assert(/return moveHeadingSX\(e\) < -0\.02/.test(extractFn('wantsSpriteFlip')),
   'party kin keep the shared heading flip (sx < -0.02)');
+assert(!/moveHeadingSX\(e\) > 0\.02/.test(extractFn('wantsSpriteFlip')),
+  'invert leftover (sx > +0.02) is gone');
 
 const SPR={
   macar:{width:8}, macar_w1:{width:8}, macar_w2:{width:8}
@@ -191,21 +193,22 @@ assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle stays macar with the 
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'entAnimKey strike stays the live idle');
 ctx._axe=false;
 
-/* Fake east / west headings: living Macar invert. Walk-right MUST flip the
-   painted-right sheets; the old east-unflipped sign is the backwards leak. */
+/* Fake east / west headings: title-law sheets travel screen-right.
+   D / gold-right stays unflipped; A / gold-left flips. Invert leftover
+   was the moonwalk. */
 const eastWalk=macar({moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, gait:0.12});
 const westWalk=macar({moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, gait:0.12});
 assert(ctx.moveHeadingSX(eastWalk)>0.02, 'east heading has positive screen-x');
 assert(ctx.moveHeadingSX(westWalk)<-0.02, 'west heading has negative screen-x');
-assert(ctx.wantsSpriteFlip(eastWalk)===true, 'walk-right (D / gold-right) flips living Macar');
-assert(ctx.wantsSpriteFlip(westWalk)===false, 'walk-left (A / gold-left) stays unflipped');
+assert(ctx.wantsSpriteFlip(eastWalk)===false, 'walk-right (D / gold-right) stays unflipped');
+assert(ctx.wantsSpriteFlip(westWalk)===true, 'walk-left (A / gold-left) flips the painted-right sheet');
 assert(ctx.livingMacarAnimKey(eastWalk)==='macar_w1'
   && ctx.livingMacarAnimKey(westWalk)==='macar_w1',
   'east and west walks share the same front sheet (flip is blit-only)');
 const eastIdle=macar({fdx:0.707, fdy:-0.707});
 const westIdle=macar({fdx:-0.707, fdy:0.707});
-assert(ctx.wantsSpriteFlip(eastIdle)===true, 'idle facing east flips living Macar');
-assert(ctx.wantsSpriteFlip(westIdle)===false, 'idle facing west is unflipped');
+assert(ctx.wantsSpriteFlip(eastIdle)===false, 'idle facing east is unflipped');
+assert(ctx.wantsSpriteFlip(westIdle)===true, 'idle facing west flips living Macar');
 
 /* Combat facing: a foe as aim wins over leftover walk heading. */
 const foeLeft={team:'foe', dead:0, x:9, y:11};
@@ -217,8 +220,8 @@ const closing=macar({
 const vClose=ctx.faceVec(closing);
 assert(vClose.dx<0 && vClose.dy>0,
   'closing on a screen-left foe faces the foe, not leftover walk-right');
-assert(ctx.wantsSpriteFlip(closing)===false,
-  'closing on a screen-left foe uses the inverted living-Macar sign');
+assert(ctx.wantsSpriteFlip(closing)===true,
+  'closing on a screen-left foe flips the painted-right sheet');
 const swinging=macar({
   moving:0, ix:0, iy:0, fdx:-0.707, fdy:0.707,
   aim:foeRight, atk:0.5, atkMax:1
@@ -226,8 +229,8 @@ const swinging=macar({
 const vSwing=ctx.faceVec(swinging);
 assert(vSwing.dx>0 && vSwing.dy<0,
   'swinging at a screen-right foe faces the foe, not leftover walk-left');
-assert(ctx.wantsSpriteFlip(swinging)===true,
-  'swinging at a screen-right foe flips living Macar');
+assert(ctx.wantsSpriteFlip(swinging)===false,
+  'swinging at a screen-right foe stays unflipped');
 const kinClose={
   hero:0, team:'party', dead:0, ghost:1, defending:0, atk:0,
   x:10, y:10, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7,
@@ -235,6 +238,22 @@ const kinClose={
 };
 const vKin=ctx.faceVec(kinClose);
 assert(vKin.dx<0 && vKin.dy>0, 'party kin closing on a foe face the foe, not Macar walk');
+
+/* Opaque blit: no invert leftover, no ramped edge, no empty-canvas flash. */
+const flipBake=extractFn('flippedSprite');
+assert(/imageSmoothingEnabled=false/.test(flipBake), 'mirror bake is nearest-neighbor');
+assert(/punchLivingMacarCanvas\(c\)/.test(flipBake), 'mirror bake re-punches so flip cannot reintroduce fringe');
+assert(/globalAlpha=1/.test(flipBake) && /globalCompositeOperation='source-over'/.test(flipBake),
+  'mirror bake is source-over at alpha 1');
+const bake=extractFn('blitLivingMacar');
+assert(/!out\|\|!out\.width\|\|!out\.height/.test(bake), 'empty bake is never cached');
+assert(!/out=img/.test(bake), 'failed repair does not ship the raw fringe sheet');
+assert(/d\[p\+3\]=255/.test(extractFn('repairSpriteSheet')),
+  'repair forces every silhouette pixel opaque');
+assert(/w:\s*\{flip:1/.test(html) && /e:\s*\{flip:0/.test(html),
+  'MACAR_PLAN west flips, east stays unflipped — agrees with wantsSpriteFlip');
+assert(/const flip=wantsSpriteFlip\(e\)/.test(extractFn('macarPose')),
+  'macarPose flip is wantsSpriteFlip, not a stale dir.flip');
 
 /* Title splash: image moves down, gold type stays high. */
 const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
