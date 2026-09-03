@@ -348,6 +348,8 @@ assert(!/effectiveDex/.test(extractFn('specialtyHitBonus')),
   'Specialty tot still does not read effectiveDex / dex gauntlets');
 assert(/meleeStrAbil/.test(extractFn('specialtyHitBonus')),
   'Specialty tot reads meleeStrAbil (ogre STR, not a weapon plus)');
+ctx.G.equipped={primary:hammer, weapon:hammer, boots:{n:'Boots of Elvenkind', k:'misc'}, necklace:{n:'Cloak of Elvenkind', k:'misc'}};
+assert(ctx.specialtyHitBonus(ogreWielder)===0, 'Elvenkind boots/cloak do not enter the specialty tot');
 
 ctx.thacNeed=()=>10;
 ctx.hitBonus=()=>0;

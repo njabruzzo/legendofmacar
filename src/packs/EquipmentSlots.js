@@ -120,7 +120,7 @@
     if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
     if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';
     if (it.k === 'ring' || it.k === 'dex' || it.cat === 'Ring') return 'necklace';
-    if (/cloak of (?:protection|displacement)/i.test(n)) return 'necklace';
+    if (/cloak of (?:protection|displacement|elvenkind)/i.test(n)) return 'necklace';
     return null;
   }
 
