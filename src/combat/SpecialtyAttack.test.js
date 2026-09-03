@@ -94,6 +94,7 @@ const ctx={
   say:(line)=>{ ctx.lastLine=line; (ctx.G.log=ctx.G.log||[]).push(line); },
   ftext:()=>{},
   rollExpr:()=>4,
+  rnd:()=>1,
   entityAbil:(e)=>e.abil||{str:10},
   weaponVsDouble:()=>false,
   weaponVsPlus:(wep, def)=>{
@@ -114,7 +115,7 @@ const ctx={
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 vm.runInContext(extractConst('SPECIALTY'), ctx);
-['wornWeaponPlus','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','addAttack'].forEach(n=>{
+['wornWeaponPlus','specialtyBand','specialtyInBand','specialtyHitBonus','armSpecialty','beginSpecialtySwing','endSpecialtySwing','pickMonsterSpecialty','wornDisplacementPlus','wearingDisplacement','consumeDisplacementMiss','addAttack'].forEach(n=>{
   vm.runInContext(extractFn(n), ctx);
 });
 
@@ -274,6 +275,34 @@ ctx.G.equipped={primary:cleaver, weapon:cleaver};
 ctx.weaponVsDouble=(wep, foe)=>!!(wep&&wep.vsDouble&&foe&&foe.kind==='spider');
 assert(ctx.wornWeaponPlus(melee, {kind:'spider'})===2, 'cleaver vs spider stays plus:2 for specialty/hit');
 assert(ctx.specialtyHitBonus(melee, {kind:'spider'})===3, 'cleaver specialty tot is STR +2, not a vsPlus bump');
+
+assert(/G\.displaceMiss=1/.test(extractFn('beginFight')),
+  'a new fight resets the Displacement first-miss flag');
+assert(/consumeDisplacementMiss\(def\)/.test(extractFn('addAttack')),
+  'first incoming attack against a displaced wearer is forced to miss');
+
+ctx.G.displaceMiss=1;
+ctx.G.equipped={necklace:{n:'Cloak of Displacement', k:'misc', plus:2}};
+ctx.thacNeed=()=>1;
+ctx.hitBonus=()=>20;
+ctx.effectiveAC=()=>6;
+const wearer={name:'Macar', team:'party', hero:1, x:1, y:1, stun:0, prone:0};
+const gobAtk={name:'Goblin', team:'foe', hd:1, x:2, y:1, stun:0, prone:0};
+const firstMiss=ctx.addAttack(gobAtk, wearer, {roll:20});
+assert(firstMiss===0 && /displaced/.test(ctx.lastLine) && /miss/.test(ctx.lastLine),
+  'first attack in a fight vs Displacement always misses ('+ctx.lastLine+')');
+assert(ctx.G.displaceMiss===0, 'first miss consumes the per-fight flag');
+const secondHit=ctx.addAttack(gobAtk, wearer, {roll:20});
+assert(secondHit>0, 'later attacks use the matrix vs +2 AC (nat 20 hits)');
+ctx.G.displaceMiss=1;
+const ally={name:'Pordum', team:'party', hero:0, x:1, y:1, stun:0, prone:0};
+const allyHit=ctx.addAttack(gobAtk, ally, {roll:20});
+assert(allyHit>0 && ctx.G.displaceMiss===1, 'attacks on a non-wearer do not spend the first miss');
+ctx.G.displaceMiss=0;
+ctx.G.equipped={necklace:{n:'Ring of Protection +1', k:'ring', plus:1}};
+ctx.G.displaceMiss=1;
+const protHit=ctx.addAttack(gobAtk, wearer, {roll:20});
+assert(protHit>0, 'Protection ring does not force a first miss');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nspecialty attack checks passed');

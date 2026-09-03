@@ -37,6 +37,16 @@ assert(Eq.itemSlot({n:'Crossbow of Accuracy +3', k:'weapon'}) === 'secondary', '
 assert(Eq.itemSlot({n:'Shield +1', k:'armor'}) === 'secondary', 'shield → off hand');
 assert(Eq.itemSlot({n:'Bolt Quiver', k:'ammo'}) === 'quiver', 'quiver');
 assert(Eq.itemSlot({n:'Ring of Protection +1', k:'ring', cat:'Ring'}) === 'necklace', 'ring → jewelry slot');
+assert(Eq.itemSlot({n:'Cloak of Displacement', k:'misc', plus:2}) === 'necklace',
+  'Cloak of Displacement → necklace (same family as Cloak of Protection)');
+assert(Eq.isEquippable({n:'Cloak of Displacement', k:'misc', plus:2}),
+  'Cloak of Displacement is wearable');
+assert(Eq.itemSlot({n:'Cloak of Protection +2', k:'ring', plus:2}) === 'necklace',
+  'Cloak of Protection still maps to necklace');
+assert(Eq.itemSlot({n:'Cloak of Elvenkind', k:'misc'}) == null,
+  'Cloak of Elvenkind is not a jewelry slot');
+assert(Eq.itemSlot({n:'Cloak of Manta Ray', k:'misc'}) == null,
+  'Cloak of Manta Ray is not a jewelry slot');
 assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
   'dex ring → jewelry slot');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
@@ -133,6 +143,16 @@ let leatherProt = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k
 leatherProt = Eq.equip(leatherProt, prot1).equipped;
 assert(Eq.computeWornAC(leatherProt) === 7, 'ordinary Protection +1 still stacks on leather');
 
+const cloakDisp = Eq.annotate({n:'Cloak of Displacement', k:'misc', plus:2});
+assert(cloakDisp.slot === 'necklace', 'Displacement annotates as necklace');
+assert(Eq.jewelryAcPlus(cloakDisp, 8) === 2, 'Displacement plus:2 is jewelry AC (not a dex ring)');
+let leatherDisp = Eq.equip(Eq.emptyEquipped(), Eq.annotate({n:'Leather Armor', k:'armor'})).equipped;
+leatherDisp = Eq.equip(leatherDisp, cloakDisp).equipped;
+assert(Eq.computeWornAC(leatherDisp) === 6, 'leather 8 + Displacement +2 => AC 6');
+assert(leatherDisp.necklace && leatherDisp.necklace.n === 'Cloak of Displacement',
+  'Displacement sits in the necklace slot');
+assert(leatherDisp.ring !== cloakDisp, 'Displacement is not stored as a Protection ring');
+
 const dexRing = {n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1};
 Eq.annotate(dexRing);
 assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
@@ -218,6 +238,9 @@ assert(!!dollFn && /livingMacarIdleKey\(\)/.test(dollFn[0]),
   'paper doll swaps to the punched axe sheet when Shadow Cleaver is wielded');
 assert(/ph\.key==='macar'/.test(html) && /openPackMenu\('play'\)/.test(html), 'Macar portrait opens the pack doll');
 assert(/GEAR/.test(html), 'Macar portrait marks the gear screen');
+assert(/if\(!slot\) return null/.test(html.match(/function maybeAutoEquip[\s\S]*?\n\}/)[0])
+  && /if\(G\.equipped\[slot\]\) return null/.test(html.match(/function maybeAutoEquip[\s\S]*?\n\}/)[0]),
+  'maybeAutoEquip still dons empty slots only (does not steal an occupied necklace)');
 
 if (failed) {
   console.error('\n' + failed + ' failed');
