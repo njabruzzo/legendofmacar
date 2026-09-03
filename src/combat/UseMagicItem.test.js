@@ -34,7 +34,8 @@ assert(!!cloakRow && /k:'misc'/.test(cloakRow[0]) && /plus:2/.test(cloakRow[0]),
 assert(!/id:'/.test(cloakRow[0]), 'Cloak of Displacement does not invent an id');
 
 const useFn=extractFn('useMagicItem');
-assert(/Staff of Curing/i.test(useFn) && /applyHeal\(e, 18\)/.test(useFn) && /clearPoison\(e\)/.test(useFn),
+const wandFn=extractFn('useWandByName');
+assert(/Staff of Curing/i.test(wandFn) && /applyHeal\(e, 18\)/.test(wandFn) && /clearPoison\(e\)/.test(wandFn),
   'Staff of Curing uses the existing heal-18 + clearPoison pipe');
 assert(/rollDice\(6,6,0\)/.test(useFn), 'other wands still roll 6d6');
 assert(!/it\.k==='ammo'[\s\S]*rollDice\(6,6/.test(useFn),
@@ -52,13 +53,14 @@ const ctx={
   ADD_SCALE:4,
   EquipmentSlots:Eq,
   lastSay:'',
+  says:[],
   healed:0,
   dmg:0,
   cleared:0,
   donned:null,
   donSlot:null,
   foe:{name:'Goblin', x:2, y:1, team:'foe'},
-  say(line){ ctx.lastSay=line; },
+  say(line){ ctx.lastSay=line; ctx.says.push(line); },
   player(){ return ctx.who; },
   isEquipWeapon(){ return false; },
   isEquipArmor(){ return false; },
@@ -69,10 +71,12 @@ const ctx={
   damage(t, dmg){ ctx.dmg+=(dmg||0); },
   burst(){},
   applyHeal(e, n){ ctx.healed+=(n||0); if(e) e.hp=Math.min(e.maxhp||999, (e.hp||0)+n); },
-  clearPoison(e){ if(e) e.poisonT=0; ctx.cleared=1; }
+  clearPoison(e){ if(e) e.poisonT=0; ctx.cleared=1; },
+  packOf(){ return ctx.pack; }
 };
+ctx.pack={magic:[]};
 vm.createContext(ctx);
-vm.runInContext(extractFn('isPlusShotAmmo')+useFn, ctx);
+vm.runInContext(extractFn('isPlusShotAmmo')+extractFn('cancelOneMagicItem')+wandFn+useFn, ctx);
 
 const who={name:'Macar', hero:1, team:'party', hp:10, maxhp:80, poisonT:4};
 ctx.who=who;
@@ -91,7 +95,7 @@ assert(staff.charges===0, 'last charge decrements to 0');
 assert(last!=='spent', 'zero-charge staff is spent like other wands (not spliced as k:heal)');
 
 ctx.healed=0; ctx.cleared=0; ctx.dmg=0;
-['Rod of Absorption','Staff of the Magi','Wand of Fire','Wand of Lightning'].forEach(n=>{
+['Rod of Absorption','Staff of the Magi','Staff of Power','Wand of Fire','Wand of Lightning','Wand of Magic Missiles'].forEach(n=>{
   ctx.healed=0; ctx.dmg=0;
   const wand={n, k:'wand', charges:20};
   ctx.useMagicItem(wand, who);
@@ -179,6 +183,76 @@ assertDonNoHeal({n:'Ring of Feather Falling', k:'buff', d:'No falling damage.'},
 assertDonNoHeal({n:'Periapt of Proof against Poison', k:'misc', d:'+4 vs poison.'}, 'necklace', 'Periapt of Proof against Poison');
 assertDonNoHeal({n:'Periapt of Wound Closure', k:'misc', d:'Wounds close.'}, 'necklace', 'Periapt of Wound Closure');
 assertDonNoHeal({n:'Periapt of Health', k:'misc', d:'Immune to disease.'}, 'necklace', 'Periapt of Health');
+assertDonNoHeal({n:'Ring of Free Action', k:'buff', d:'Move in web or hold.'}, 'necklace', 'Ring of Free Action');
+
+ctx.healed=0; ctx.dmg=0; ctx.donned=null; who.buff=0; who.stun=0;
+const cancel={n:'Rod of Cancellation', k:'wand', charges:1, d:'One touch drains a magic item forever.'};
+const cursedRing={n:'Ring of Weakness', k:'cursed', cursed:1, plus:-1};
+ctx.G.equipped={necklace:cursedRing};
+ctx.pack={magic:[cursedRing]};
+ctx.useMagicItem(cancel, who);
+assert(ctx.dmg===0 && ctx.healed===0, 'Rod of Cancellation never 6d6-zaps');
+assert(cancel.charges===0, 'Rod of Cancellation spends its 1 charge');
+assert(cursedRing.plus===0 && cursedRing.charges===0, 'cancellation strips plus/charges from the worst cursed item');
+
+ctx.dmg=0; ctx.healed=0;
+['Wand of Enemy Detection','Wand of Magic Detection','Wand of Secret Door and Trap Detection'].forEach(n=>{
+  ctx.dmg=0; ctx.healed=0; ctx.says=[];
+  const wand={n, k:'wand', charges:20};
+  ctx.useMagicItem(wand, who);
+  assert(ctx.dmg===0 && ctx.healed===0, n+' detects; never 6d6');
+  assert(wand.charges===19, n+' spends 1 charge');
+  assert(/points|glows|pulses|still|dark|hostile|magic|secret|trap/i.test(ctx.says.join('\n')), n+' says a detect line');
+});
+
+ctx.dmg=0; ctx.foe.stun=0;
+['Wand of Paralyzation','Wand of Fear'].forEach(n=>{
+  ctx.dmg=0; ctx.healed=0; ctx.foe.stun=0;
+  const wand={n, k:'wand', charges:20};
+  ctx.useMagicItem(wand, who);
+  assert(ctx.dmg===0 && ctx.healed===0, n+' never 6d6');
+  assert(ctx.foe.stun>=3, n+' stuns the nearest foe');
+  assert(wand.charges===19, n+' spends 1 charge');
+});
+
+ctx.dmg=0; who.trueSee=0; who.glow=null;
+const lamp={n:'Wand of Illumination', k:'wand', charges:20};
+ctx.useMagicItem(lamp, who);
+assert(ctx.dmg===0, 'Wand of Illumination never 6d6');
+assert(who.trueSee>=20 || who.glow, 'Illumination sets trueSee or a glow/light flag');
+assert(lamp.charges===19, 'Illumination spends 1 charge');
+
+ctx.healed=0; ctx.dmg=0; who.guardT=0; who.mr=0; who.poisonT=4;
+const protScroll={n:'Scroll of Protection from Magic', k:'prot', d:'A 5-foot anti-magic shell.'};
+const protRet=ctx.useMagicItem(protScroll, who);
+assert(protRet==='spent' && who.guardT>=8 && who.mr===1 && ctx.healed===8,
+  'Protection from * scroll still guard+MR+heal 8');
+assert(ctx.dmg===0, 'Protection scroll never 6d6');
+
+ctx.healed=0; who.guardT=0; who.mr=0;
+const spellScroll={n:'Scroll of 1 Spell', k:'scroll', d:'One spell, cast at 6th level.'};
+ctx.useMagicItem(spellScroll, who);
+assert(who.guardT>=8 && ctx.healed===8, 'named-count spell scroll keeps the guard+heal stub');
+assert(!/magic missile|fireball|wish/i.test(useFn), 'useMagicItem does not parse a full MU spell list');
+
+ctx.healed=0; ctx.cleared=0; who.poisonT=3; who.guardT=0; who.mr=0;
+const cureScroll={n:'Scroll of Cure Serious Wounds', k:'scroll', d:'Cure serious wounds.'};
+ctx.useMagicItem(cureScroll, who);
+assert(ctx.healed===18 && ctx.cleared===1, 'a heal/cure-named scroll uses the heal pipe');
+
+ctx.healed=0; ctx.dmg=0; who.stun=0;
+const cursedScroll={n:'Cursed Scroll', k:'cursed', cursed:1, d:'Reading unleashes a curse.'};
+assert(!Eq.isEquippable(cursedScroll), 'Cursed Scroll is not wearable');
+ctx.useMagicItem(cursedScroll, who);
+assert(who.stun>=2 && ctx.dmg>0, 'Cursed Scroll still stuns');
+
+const powerRow=html.match(/\{a:32,b:35,n:'Staff of Power'[^}]+\}/);
+assert(!!powerRow && /k:'wand'/.test(powerRow[0]) && /plus:2/.test(powerRow[0]) && /charges:20/.test(powerRow[0]) && !/id:'/.test(powerRow[0]),
+  'Staff of Power table row stays k:wand plus:2 charges:20 with no invented id');
+assert(Eq.itemSlot({n:'Staff of Power', k:'wand', plus:2})==='primary',
+  'Staff of Power is wieldable as +2 melee');
+assert(cancel.charges===0, 'cancellation charge already spent above');
+assert(!/n:'Wand of Illumination'/.test(html), 'no invented Wand of Illumination table row');
 
 assert(!/Periapt of Wound/.test(useFn) || !/Periapt of Wound[\s\S]{0,80}applyHeal\(e, 18\)/.test(useFn),
   'Periapt of Wound Closure is not the one-shot heal-18 pack-use path');

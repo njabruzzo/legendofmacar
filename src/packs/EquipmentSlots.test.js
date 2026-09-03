@@ -90,6 +90,10 @@ assert(Eq.isEquippable({n:'Robe of the Archmagi', k:'misc', plus:5}),
 assert(Eq.itemSlot({n:'Robe of Eyes', k:'misc'}) == null, 'Robe of Eyes is not a chest slot this slice');
 assert(Eq.itemSlot({n:'Robe of Blending', k:'misc'}) == null, 'Robe of Blending is not a chest slot this slice');
 assert(Eq.itemSlot({n:'Robe of Useful Items', k:'misc'}) == null, 'Robe of Useful Items is not a chest slot this slice');
+assert(Eq.itemSlot({n:'Staff of Power', k:'wand', plus:2}) === 'primary', 'Staff of Power → primary (wieldable +2)');
+assert(Eq.itemSlot({n:'Hammer +3, Dwarven Thrower', k:'weapon', plus:3}) === 'primary', 'dwarven thrower → primary');
+assert(Eq.itemSlot({n:'Ring of Free Action', k:'buff'}) === 'necklace', 'Free Action → necklace');
+assert(Eq.itemSlot({n:'Defender +4', k:'weapon', plus:4}) === 'primary', 'Defender → primary');
 assert(Eq.itemSlot({n:'Arrows +1 (2d6)', k:'ammo'}) == null, 'loose arrows are not a worn slot');
 assert(Eq.itemSlot({n:'Arrows +2 (1d6)', k:'ammo', plus:2}) == null, 'Arrows +2 stay pack ammo');
 assert(Eq.itemSlot({n:'Arrows +3 (1d4)', k:'ammo', plus:3}) == null, 'Arrows +3 stay pack ammo');
@@ -253,6 +257,15 @@ const healthP = Eq.annotate({n:'Periapt of Health', k:'misc'});
 assert(healthP.slot === 'necklace', 'health periapt annotates as necklace');
 assert(Eq.isDexRing(dexRing) && Eq.jewelryAcPlus(dexRing, 8) === 0,
   'dex ring isolation still holds after resist jewelry');
+
+const defSw = Eq.annotate({n:'Defender +4', k:'weapon', plus:4});
+assert(Eq.isDefenderSword(defSw), 'defender name helper');
+assert(Eq.jewelryAcPlus(defSw, 8) === 0, 'defender plus is not jewelry AC');
+let leatherDef = Eq.equip(Eq.emptyEquipped(), leatherKeep).equipped;
+leatherDef = Eq.equip(leatherDef, defSw).equipped;
+assert(leatherDef.primary === defSw, 'defender wields in primary');
+assert(Eq.computeWornAC(leatherDef) === 7, 'leather 8 + defender +1 AC => AC 7');
+assert(Eq.defenderAcPlus(leatherDef) === 1, 'defender contributes +1 AC, remaining plus is to-hit');
 
 const ogreG = Eq.annotate({n:'Gauntlets of Ogre Power', k:'misc'});
 assert(ogreG.slot === 'gloves' && !ogreG.plus, 'ogre gauntlets annotate as gloves with no plus');

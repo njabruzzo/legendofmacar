@@ -117,7 +117,7 @@
     if (/crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(n) && it.k !== 'ammo') return 'secondary';
     if (/shield/i.test(it.n || '')) return 'secondary';
     if (it.k === 'weapon' || it.cat === 'Sword' || it.cat === 'Weapon') return 'primary';
-    if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of Striking|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
+    if (/(Sword|Axe|Mace|Hammer|Spear|Dagger|Staff of (?:Striking|Power)|Rod of (Lordly|Smiting))/i.test(it.n || '')) return 'primary';
     if (it.k === 'armor' || it.cat === 'Armor/Shield') return 'chest';
     if (/robe of the archmagi/i.test(it.n || '')) return 'chest';
     if (it.k === 'ring' || it.k === 'dex' || it.cat === 'Ring') return 'necklace';
@@ -191,7 +191,7 @@
 
   /** AC plus from jewelry. Dex rings never stack as Protection. +4-on-AC-5 is gated. */
   function jewelryAcPlus(it, acBefore) {
-    if (!it || isDexRing(it) || isArchmagiRobe(it)) return 0;
+    if (!it || isDexRing(it) || isArchmagiRobe(it) || isDefenderSword(it)) return 0;
     var p = it.acBonus ? it.acBonus : (it.plus || 0);
     if (!p) return 0;
     if (isAc5GateRing(it) && !(acBefore <= 5)) return 0;
@@ -351,7 +351,21 @@
         if (opts.missile) base -= shieldMissilePlus(sh);
       }
     }
+    var defAc = defenderAcPlus(eq);
+    if (defAc) base -= defAc;
     return base;
+  }
+
+  function isDefenderSword(it) {
+    return !!(it && /defender/i.test(String(it.n || '')));
+  }
+
+  /** Defender: +1 AC from the sword while wielded. Remaining plus stays on to-hit. */
+  function defenderAcPlus(eq) {
+    eq = eq || {};
+    var wep = eq.primary || eq.weapon;
+    if (!wep || isShield(wep) || !isDefenderSword(wep)) return 0;
+    return 1;
   }
 
   function magicAcBonus(eq) {
@@ -435,6 +449,8 @@
     isAc5GateRing: isAc5GateRing,
     isArchmagiRobe: isArchmagiRobe,
     wornArchmagiRobe: wornArchmagiRobe,
+    isDefenderSword: isDefenderSword,
+    defenderAcPlus: defenderAcPlus,
     helmAcBonus: helmAcBonus,
     jewelryAcPlus: jewelryAcPlus,
     startingItems: startingItems,

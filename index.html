@@ -4954,6 +4954,8 @@ function shamanHoldMacar(){
   if(mac){
     if((typeof magicResist==='function'&&magicResist(mac))||savingThrow(mac,'spell')){
       say('Hold Person fails. Macar saves vs spell.','#cfe3ff');
+    } else if(typeof wearingFreeAction==='function' && wearingFreeAction(mac)){
+      say('Hold Person fails. Free Action.','#cfe3ff');
     } else {
       mac.held=Math.max(mac.held||0, roundSec(11));
       mac.stun=Math.max(mac.stun||0, roundSec(11));
@@ -5810,7 +5812,9 @@ function wornResistSavePlus(e, kind){
 }
 function wearingFireResistance(e){
   const it=wornNecklaceItem(e);
-  return !!(it && /ring of fire resistance/i.test(it.n||''));
+  if(it && /ring of fire resistance/i.test(it.n||'')) return true;
+  const wep=(G.equipped||{}).primary||(G.equipped||{}).weapon;
+  return !!(e&&(e.hero||(e.col&&e.col.key==='macar')) && wep && /frost brand/i.test(wep.n||''));
 }
 function wearingWarmth(e){
   const it=wornNecklaceItem(e);
@@ -5827,6 +5831,16 @@ function wearingWoundClosure(e){
 function wearingHealthPeriapt(e){
   const it=wornNecklaceItem(e);
   return !!(it && /periapt of health/i.test(it.n||''));
+}
+function wearingFreeAction(e){
+  const it=wornNecklaceItem(e);
+  return !!(it && /ring of free action/i.test(it.n||''));
+}
+function applyFreeAction(e){
+  if(!wearingFreeAction(e) || !e) return;
+  if(e.held) e.held=0;
+  if(e.webbed) e.webbed=0;
+  if(e.slowT) e.slowT=0;
 }
 function fallDamageAmt(e, amt){
   if(wearingFeatherFalling(e)) return 0;
@@ -6422,6 +6436,7 @@ function wornWeaponPlus(e, def){
       wep=eq.primary||eq.weapon;
       if(wep) plus=wep.cursed?(wep.plus|| -1):(wep.plus||0);
       else plus=(e.gear&&e.gear.magicAtk)||0;
+      if(wep && /defender/i.test(wep.n||'')) plus=Math.max(0, plus-1);
     }
   } else {
     plus=(e.gear&&e.gear.magicAtk)||0;
@@ -6984,7 +6999,7 @@ const DMG_WAND=[
   {a:23,b:24,n:'Staff of Command',k:'wand',charges:12,d:'Command plants, animals, or humans as the spells.'},
   {a:25,b:27,n:'Staff of Curing',k:'wand',charges:16,d:'Cure disease, blindness, insanity, or serious wounds. 1 charge each.'},
   {a:28,b:31,n:'Staff of the Magi',k:'wand',charges:25,d:'A high wizard\'s staff: many spells, absorption, and a final retributive strike.'},
-  {a:32,b:35,n:'Staff of Power',k:'wand',charges:20,d:'Cone of cold, lightning, fireballs, and a +2 weapon.'},
+  {a:32,b:35,n:'Staff of Power',k:'wand',plus:2,charges:20,d:'Cone of cold, lightning, fireballs, and a +2 weapon.'},
   {a:36,b:38,n:'Staff of the Serpent',k:'weapon',plus:2,d:'+2 staff. May become a python or adder on command.'},
   {a:39,b:41,n:'Staff of Striking',k:'weapon',plus:3,d:'+3 staff. Spend charges for extra damage dice.'},
   {a:42,b:43,n:'Staff of Withering',k:'weapon',plus:1,d:'Age and wither a limb on a hit if a charge is spent.'},
@@ -7037,7 +7052,7 @@ const DMG_SWORD=[
   {a:31,b:35,n:'Long Sword +1, +3 vs lycanthropes and shape changers',k:'weapon',plus:1,vs:'lycan',vsPlus:2,d:'+1, +3 vs lycanthropes and other shape-changers.'},
   {a:36,b:40,n:'Long Sword +1, +3 vs regenerating creatures',k:'weapon',plus:1,vs:'regen',vsPlus:2,d:'+1, +3 vs trolls and anything that grows back.'},
   {a:41,b:45,n:'Long Sword +1, +4 vs reptiles',k:'weapon',plus:1,vs:'reptile',vsPlus:3,d:'+1, +4 vs reptiles and dragon-kin.'},
-  {a:46,b:49,n:'Long Sword +1, Flame Tongue',k:'weapon',plus:1,d:'+1 flame tongue. Extra vs cold-using, undead, and regenerating; sheds light.'},
+  {a:46,b:49,n:'Long Sword +1, Flame Tongue',k:'weapon',plus:1,vs:'undead,regen,cold',vsPlus:2,d:'+1 flame tongue. Extra vs cold-using, undead, and regenerating; sheds light.'},
   {a:50,b:53,n:'Long Sword +1, Luck Blade',k:'weapon',plus:1,d:'+1 luck blade. 1d4+1 wishes; +1 on saves while drawn.'},
   {a:54,b:57,n:'Broad Sword +1',k:'weapon',plus:1,d:'+1 broad sword.'},
   {a:58,b:61,n:'Short Sword +1',k:'weapon',plus:1,d:'+1 short sword.'},
@@ -7046,8 +7061,8 @@ const DMG_SWORD=[
   {a:71,b:72,n:'Long Sword +2, Nine Lives Stealer',k:'weapon',plus:2,d:'+2. On a natural 20, the foe must save vs spell or die (9 charges).'},
   {a:73,b:74,n:'Long Sword +2, Dragon Slayer',k:'weapon',plus:2,vs:'dragon',vsPlus:2,d:'+2, +4 vs a chosen dragon type. A wyrm\'s bane.'},
   {a:75,b:76,n:'Long Sword +3',k:'weapon',plus:3,d:'+3 long sword.'},
-  {a:77,b:78,n:'Frost Brand',k:'weapon',plus:3,d:'+3, +6 vs fire-using or fire-dwelling creatures. Sheds light; fire resistance.'},
-  {a:79,b:80,n:'Holy Avenger',k:'weapon',plus:2,d:'+2 in most hands; +5 in a paladin\'s, with dispel magic in 5 feet.'},
+  {a:77,b:78,n:'Frost Brand',k:'weapon',plus:3,vs:'fire',vsPlus:3,d:'+3, +6 vs fire-using or fire-dwelling creatures. Sheds light; fire resistance.'},
+  {a:79,b:80,n:'Holy Avenger',k:'weapon',plus:2,vs:'undead,evil',vsPlus:3,d:'+2 in most hands; +5 in a paladin\'s, with dispel magic in 5 feet.'},
   {a:81,b:82,n:'Long Sword +3, Giant Slayer',k:'weapon',plus:3,vs:'giant',vsPlus:3,d:'+3, +6 vs giants and giant-kin.'},
   {a:83,b:84,n:'Long Sword +4',k:'weapon',plus:4,d:'+4 long sword.'},
   {a:85,b:86,n:'Defender +4',k:'weapon',plus:4,d:'+4 defender. Split the plus each round between attack and AC.'},
@@ -7077,7 +7092,7 @@ const DMG_WEAP=[
   {a:55,b:56,n:'Dagger +3, vs Large creatures +2',k:'weapon',plus:3,d:'+3 vs man-size, +2 vs large.'},
   {a:57,b:60,n:'Hammer +1',k:'weapon',plus:1,d:'+1 war hammer. Fits a miner\'s hand.'},
   {a:61,b:63,n:'Hammer +2',k:'weapon',plus:2,d:'+2 war hammer.'},
-  {a:64,b:65,n:'Hammer +3, Dwarven Thrower',k:'weapon',plus:3,d:'+3 dwarven thrower. In a dwarf\'s hand it flies 60 feet and returns; +6 vs giants.'},
+  {a:64,b:65,n:'Hammer +3, Dwarven Thrower',k:'weapon',plus:3,vs:'giant',vsPlus:3,d:'+3 dwarven thrower. In a dwarf\'s hand it flies 60 feet and returns; +6 vs giants.'},
   {a:66,b:69,n:'Javelin +2',k:'weapon',plus:2,d:'+2 javelin.'},
   {a:70,b:73,n:'Mace +1',k:'weapon',plus:1,d:'+1 footman\'s mace.'},
   {a:74,b:76,n:'Mace +2',k:'weapon',plus:2,d:'+2 mace.'},
@@ -7252,7 +7267,7 @@ function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',
 function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
 function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed}); }
 function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
-function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed}); }
+function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgMisc(){
   const map=d100();
   const table=map<=15?DMG_MISC_A:map<=30?DMG_MISC_B:map<=45?DMG_MISC_C:map<=60?DMG_MISC_D:DMG_MISC_E;
@@ -7332,7 +7347,78 @@ function applyEquipped(){
   if(macE){
     macE.dice=(wep&&wep.dice)||'1d8';
     macE.ac=partyAC(macE);
+    if(wep && /flame tongue/i.test(wep.n||'')) macE.glow=macE.glow||'#ffb45c';
   }
+}
+function cancelOneMagicItem(e){
+  const t=typeof nearestFoe==='function'?nearestFoe(e,2):null;
+  if(t && t.gear && (t.gear.magicAtk||t.gear.magicAc)){
+    t.gear.magicAtk=0; t.gear.magicAc=0;
+    say('The rod drinks the foe\'s enchantment.','#7ad0ff');
+    return;
+  }
+  const eq=G.equipped||{};
+  const bag=(typeof packOf==='function'&&packOf('macar')||{}).magic||[];
+  let worst=null, worstPlus=99;
+  const pool=[];
+  Object.keys(eq).forEach(k=>{ if(eq[k] && typeof eq[k]==='object') pool.push(eq[k]); });
+  bag.forEach(it=>pool.push(it));
+  pool.forEach(it=>{
+    if(!it||!it.cursed) return;
+    const p=it.plus!=null?it.plus:0;
+    if(!worst || p<worstPlus){ worst=it; worstPlus=p; }
+  });
+  if(worst){
+    worst.plus=0;
+    if(worst.dexPlus) worst.dexPlus=0;
+    worst.charges=0;
+    say('The rod drains '+worst.n+'.','#7ad0ff');
+    return;
+  }
+  say('The rod finds no magic to drink.','#c9b895');
+}
+function useWandByName(it, e){
+  const n=String((it&&it.n)||'');
+  if(/Staff of Curing/i.test(n)){
+    applyHeal(e, 18);
+    clearPoison(e);
+    return 'cure';
+  }
+  if(/Rod of Cancellation/i.test(n)){
+    cancelOneMagicItem(e);
+    return 'cancel';
+  }
+  if(/Enemy Detection/i.test(n)){
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    say(t?('The wand points: '+(t.name||'a foe')+'.'):'The wand finds no hostile mind nearby.','#7ad0ff');
+    return 'detect';
+  }
+  if(/Magic Detection/i.test(n)){
+    const pile=(G.loot||[]).find(p=>p&&!p.gone&&((p.items||[]).some(x=>x&&(x.plus||x.k==='misc'||x.k==='ring'||x.cat==='Ring'))));
+    say(pile?'The wand glows near magic.':'The wand is dark. No magic nearby.','#7ad0ff');
+    return 'detect';
+  }
+  if(/Secret Door|Trap Detection/i.test(n)){
+    const L=G.lvl||{};
+    const sec=(L.secrets||[]).find(s=>s&&!s.open);
+    const trap=(G.props||[]).find(p=>p&&p.k==='trap');
+    if(sec){ sec.hinted=1; say('The wand pulses at a hidden seam.','#7ad0ff'); }
+    else if(trap) say('The wand pulses at a trap.','#7ad0ff');
+    else say('The wand is still. No secret or trap nearby.','#7ad0ff');
+    return 'detect';
+  }
+  if(/Paralyzation|Wand of Fear/i.test(n)){
+    const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' stuns '+(t.name||'a foe')+'.','#7ad0ff'); }
+    else say(it.n+' finds no foe in reach.','#7ad0ff');
+    return 'stun';
+  }
+  if(/Illumination/i.test(n)){
+    if(e){ e.trueSee=Math.max(e.trueSee||0, 20); e.glow=e.glow||'#fff4c8'; }
+    say(it.n+' sheds light.','#7ad0ff');
+    return 'light';
+  }
+  return 'zap';
 }
 function useMagicItem(it, e){
   e=e||player();
@@ -7351,7 +7437,7 @@ function useMagicItem(it, e){
   if(isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'){
     wieldWeapon(it); return;
   }
-  if(isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield' || (typeof EquipmentSlots!=='undefined' && EquipmentSlots.isEquippable(it))){
+  if(!(it.k==='wand'||it.cat==='Rod/Staff/Wand') && (isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield' || (typeof EquipmentSlots!=='undefined' && EquipmentSlots.isEquippable(it)))){
     const slot=equipPackItem(it, {silent:true});
     say((slot==='primary'||slot==='secondary'?'Wielded: ':'Donned: ')+it.n+'.','#cfe3ff'); return;
   }
@@ -7366,10 +7452,8 @@ function useMagicItem(it, e){
   if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
     G.equipped.wand=it;
     if(e&&it.charges){
-      if(/Staff of Curing/i.test(it.n||'')){
-        applyHeal(e, 18);
-        clearPoison(e);
-      } else {
+      const mode=typeof useWandByName==='function'?useWandByName(it, e):'zap';
+      if(mode==='zap'){
         const t=nearestFoe(e,8);
         const dmg=rollDice(6,6,0)*ADD_SCALE;
         if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
@@ -7388,7 +7472,13 @@ function useMagicItem(it, e){
     return;
   }
   if(it.k==='scroll'||it.k==='prot'){
-    if(e){ e.guardT=Math.max(e.guardT||0, 8); e.mr=1; applyHeal(e, 8); }
+    if(e){
+      if(/heal|cure/i.test(String(it.n||'')+' '+String(it.d||''))){
+        applyHeal(e, 18); clearPoison(e);
+      } else {
+        e.guardT=Math.max(e.guardT||0, 8); e.mr=1; applyHeal(e, 8);
+      }
+    }
     say('The scroll is read and the ink fades.','#e0d2ff');
     return 'spent';
   }
@@ -7802,7 +7892,7 @@ function onHitFx(atk,o,dmg){
         ftext(o.x,o.y+0.2,'poison death','#c07bff');
         say((o.n||o.name||'A dwarf')+' fails the poison save and dies.','#ff6a5a');
       } else if(atk.slowPoison||atk.web||atk.kind==='spider'||/Web/i.test(sa)){
-        o.slowT=Math.max(o.slowT||0, atk.boss?8:4.5);
+        if(!(typeof wearingFreeAction==='function' && wearingFreeAction(o))) o.slowT=Math.max(o.slowT||0, atk.boss?8:4.5);
         ftext(o.x,o.y+0.2,'slowed','#c9b895');
       } else {
         o.poisonT=Math.max(o.poisonT||0,4.2);
@@ -7864,6 +7954,7 @@ function strengthCheck(e){
 }
 function applyWeb(e){
   if(!e||e.dead) return;
+  if(typeof wearingFreeAction==='function' && wearingFreeAction(e)) return;
   e.webbed=Math.max(e.webbed||0, 5.8);
   e.dest=null; e.moving=0;
   ftext(e.x,e.y,'webbed','#e8e0d0');
@@ -9056,6 +9147,7 @@ function update(dt){
     if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
     if(typeof tickWoundClosure==='function') tickWoundClosure(e, dt);
     if(typeof clearWornDisease==='function') clearWornDisease(e);
+    if(typeof applyFreeAction==='function') applyFreeAction(e);
     if(e.afterHaste>0 && (e.buff||0)<=0){ e.afterHaste-=dt; e.sp=Math.max(1.2,(e.sp||3)*0.985); }
     if(e.invis>0){ e.invis-=dt; if(e.invis<=0) e.aggro=7.5; }
     if(e.poisonT>0){

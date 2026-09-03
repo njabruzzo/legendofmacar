@@ -98,6 +98,25 @@
     if(/giant\s*slug|giantslug/.test(hay)) return false;
     return /giant|ogre|titan|ettin/.test(hay);
   }
+  function isColdUsingFoe(e){
+    if(!e) return false;
+    if(e.cold || e.frost || e.ice) return true;
+    return /cold|frost|ice|winter/.test(foeHay(e));
+  }
+  function isFireUsingFoe(e){
+    if(!e) return false;
+    if(e.fire || e.flame) return true;
+    const hay=foeHay(e);
+    return /fire|flame|magma|lava/.test(hay);
+  }
+  function isEvilFoe(e){
+    if(!e) return false;
+    if(e.evil) return true;
+    const flags=e.flags;
+    if(flags && typeof flags==='object' && flags.evil) return true;
+    if(typeof flags==='string' && /evil/i.test(flags)) return true;
+    return /evil|fiend|demon|devil/.test(foeHay(e));
+  }
   function vsTokens(wep){
     return String(wep&&wep.vs||'').toLowerCase().split(/[,\s]+/).filter(Boolean);
   }
@@ -112,6 +131,10 @@
       if(t==='reptile' && isReptileFoe(def)) return true;
       if(t==='dragon' && isDragonFoe(def)) return true;
       if(t==='giant' && isGiantFoe(def)) return true;
+      if(t==='undead' && isUndeadFoe(def)) return true;
+      if((t==='cold'||t==='cold-using') && isColdUsingFoe(def)) return true;
+      if((t==='fire'||t==='fire-using') && isFireUsingFoe(def)) return true;
+      if(t==='evil' && isEvilFoe(def)) return true;
     }
     return false;
   }
@@ -129,7 +152,7 @@
     return parseWeaponVsPlus(wep);
   }
   function weaponVsDouble(wep, def){
-    if(!wep||!def||!(wep.vsDouble||wep.vs)) return false;
+    if(!wep||!def||!wep.vsDouble) return false;
     const vs=String(wep.vs||'').toLowerCase();
     if(vs.indexOf('spider')>=0 && isSpiderFoe(def)) return true;
     if(vs.indexOf('undead')>=0 && isUndeadFoe(def)) return true;
@@ -156,7 +179,8 @@
   global.DwarfMouth={
     macarHammerItem, shadowCleaverItem, dwarfMouthKey, isShadowCleaver, findShadowCleaver,
     isGuardianRuby, isSpiderFoe, isUndeadFoe, isMagicFoe, isLycanFoe, isRegenFoe,
-    isReptileFoe, isDragonFoe, isGiantFoe, weaponVsPlus, weaponVsDouble,
+    isReptileFoe, isDragonFoe, isGiantFoe, isColdUsingFoe, isFireUsingFoe, isEvilFoe,
+    weaponVsPlus, weaponVsDouble,
     resolveMouthDrop, takeGemByRef, shouldWieldMouthAxe
   };
 })(typeof globalThis!=='undefined'?globalThis:this);

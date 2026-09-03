@@ -53,6 +53,12 @@ assert(!M.isDragonFoe({kind:'dragonkin', name:'Dragon-kin Scout'}), 'dragon-kin 
 assert(M.isGiantFoe({kind:'stonegiant', name:'Stone Giant'}), 'stone giant');
 assert(M.isGiantFoe({kind:'ogre', name:'Ogre'}), 'ogre is giant-kin');
 assert(!M.isGiantFoe({kind:'giantslug', name:'Giant Slug'}), 'giant slug is not a giant');
+assert(M.isColdUsingFoe({kind:'ice', name:'Ice Toad'}), 'cold-using kind');
+assert(M.isFireUsingFoe({kind:'firegiant', name:'Fire Giant'}), 'fire-using kind');
+assert(M.isFireUsingFoe({kind:'drake', fire:1}), 'fire flag');
+assert(M.isEvilFoe({name:'Goblin', evil:1}), 'evil flag');
+assert(M.isEvilFoe({name:'Cave Devil'}), 'devil name is evil');
+assert(!M.isEvilFoe({kind:'goblin', name:'Goblin'}), 'plain goblin is not evil');
 
 const magicSw={n:'Long Sword +1, +2 vs magic-using and enchanted creatures',plus:1,vs:'magic',vsPlus:1};
 const lycanSw={n:'Long Sword +1, +3 vs lycanthropes and shape changers',plus:1,vs:'lycan',vsPlus:2};
@@ -70,6 +76,30 @@ assert(M.weaponVsPlus(reptileSw,{kind:'shadowdragon'})===0, 'reptile sword skips
 assert(M.weaponVsPlus(dragonSw,{kind:'shadowdragon'})===2, 'dragon slayer extra +2 (tot +4)');
 assert(M.weaponVsPlus(giantSw,{kind:'stonegiant'})===3, 'giant slayer extra +3 (tot +6)');
 assert(M.weaponVsPlus(magicSw,{kind:'goblin'})===0, 'vs strings add nothing vs the wrong foe');
+
+const flame={n:'Long Sword +1, Flame Tongue',plus:1,vs:'undead,regen,cold',vsPlus:2};
+assert(M.weaponVsPlus(flame,{kind:'undead'})===2, 'flame tongue extra vs undead');
+assert(M.weaponVsPlus(flame,{kind:'troll'})===2, 'flame tongue extra vs regen');
+assert(M.weaponVsPlus(flame,{kind:'ice', name:'Ice Toad'})===2, 'flame tongue extra vs cold-using');
+assert(M.weaponVsPlus(flame,{kind:'goblin'})===0, 'flame tongue no extra vs goblin');
+assert(!M.weaponVsDouble(flame,{kind:'undead'}), 'flame tongue uses vsPlus, not vsDouble');
+const frost={n:'Frost Brand',plus:3,vs:'fire',vsPlus:3,d:'+3, +6 vs fire-using or fire-dwelling creatures.'};
+assert(M.weaponVsPlus(frost,{kind:'firegiant'})===3, 'frost brand extra +3 vs fire-using (tot +6)');
+assert(M.weaponVsPlus(frost,{kind:'goblin'})===0, 'frost brand no extra vs goblin');
+const holy={n:'Holy Avenger',plus:2,vs:'undead,evil',vsPlus:3};
+assert(M.weaponVsPlus(holy,{kind:'undead'})===3, 'holy avenger extra vs undead (tot +5)');
+assert(M.weaponVsPlus(holy,{name:'Goblin', evil:1})===3, 'holy avenger extra vs evil flag');
+assert(M.weaponVsPlus(holy,{kind:'goblin', name:'Goblin'})===0, 'holy avenger no extra vs plain goblin');
+const thrower={n:'Hammer +3, Dwarven Thrower',plus:3,vs:'giant',vsPlus:3};
+assert(M.weaponVsPlus(thrower,{kind:'stonegiant'})===3, 'dwarven thrower extra +3 vs giant (tot +6)');
+assert(M.weaponVsPlus(thrower,{kind:'goblin'})===0, 'dwarven thrower vs goblin is base only');
+
+['Long Sword +1, Luck Blade','Long Sword +2, Nine Lives Stealer','Vorpal Sword',
+ 'Short Sword of Quickness +2','Sword of Life Stealing'].forEach(n=>{
+  const stub={n, plus:/Luck/.test(n)||/Quickness/.test(n)? (/Luck/.test(n)?1:2) : (/Vorpal/.test(n)?3:2)};
+  assert(M.weaponVsPlus(stub,{kind:'undead'})===0 && M.weaponVsPlus(stub,{kind:'giant'})===0,
+    n+' stays plus-only (no vs extras; wishes/vorpal/life-steal stub)');
+});
 assert(!M.weaponVsDouble(magicSw,{kind:'spider'}) && !M.weaponVsDouble(lycanSw,{kind:'undead'}),
   'table vs tokens never trip weaponVsDouble');
 
@@ -122,6 +152,22 @@ assert(/vs:'regen',vsPlus:2/.test(html), 'regen sword stores vsPlus:2');
 assert(/vs:'reptile',vsPlus:3/.test(html), 'reptile sword stores vsPlus:3');
 assert(/vs:'dragon',vsPlus:2/.test(html), 'dragon slayer stores vsPlus:2');
 assert(/vs:'giant',vsPlus:3/.test(html), 'giant slayer stores vsPlus:3');
+assert(/Flame Tongue'[^}]*vs:'undead,regen,cold',vsPlus:2/.test(html), 'flame tongue stores vs tokens + vsPlus:2');
+assert(/Frost Brand'[^}]*vs:'fire',vsPlus:3/.test(html), 'frost brand stores vs:fire vsPlus:3');
+assert(/Holy Avenger'[^}]*vs:'undead,evil',vsPlus:3/.test(html), 'holy avenger stores vs:undead,evil vsPlus:3');
+assert(/Dwarven Thrower'[^}]*vs:'giant',vsPlus:3/.test(html), 'dwarven thrower stores vs:giant vsPlus:3');
+assert(/vsPlus:r\.vsPlus/.test(html.match(/function rollDmgWeapon\([\s\S]*?\n\}/)[0]),
+  'rollDmgWeapon copies vsPlus (thrower path)');
+assert(/Luck Blade'[^}]*plus:1/.test(html) && !/Luck Blade'[^}]*vs:/.test(html),
+  'Luck Blade stays plus-only (wishes stub)');
+assert(/Nine Lives Stealer'[^}]*plus:2/.test(html) && !/Nine Lives Stealer'[^}]*vs:/.test(html),
+  'Nine Lives Stealer stays plus-only');
+assert(/Vorpal Sword'[^}]*plus:3/.test(html) && !/Vorpal Sword'[^}]*vs:/.test(html),
+  'Vorpal Sword stays plus-only (no limb chart)');
+assert(/Quickness \+2'[^}]*plus:2/.test(html) && !/Quickness \+2'[^}]*vs:/.test(html),
+  'Sword of Quickness stays plus-only');
+assert(/Life Stealing'[^}]*plus:2/.test(html) && !/Life Stealing'[^}]*vs:/.test(html),
+  'Life Stealer stays plus-only');
 assert(/missilePlus:4/.test(html) && /Shield, large, \+1, \+4 vs missiles/.test(html),
   'large shield stores missilePlus:4 on the existing row');
 assert(/if\(o\.vsPlus!=null\) raw\.vsPlus=o\.vsPlus/.test(html), 'magItem copies table vsPlus');
