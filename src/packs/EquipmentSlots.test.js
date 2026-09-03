@@ -413,7 +413,7 @@ const dollFn=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunc
 assert(!!dollFn && /blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(dollFn[0]),
   'paper doll blits the blitLivingMacar idle pipe, not a separate kettle-hat');
 assert(!!dollFn && /livingMacarIdleKey\(\)/.test(dollFn[0]),
-  'paper doll swaps to the punched axe sheet when Shadow Cleaver is wielded');
+  'paper doll stays on the live title-law idle');
 assert(/ph\.key==='macar'/.test(html) && /openPackMenu\('play'\)/.test(html), 'Macar portrait opens the pack doll');
 assert(/GEAR/.test(html), 'Macar portrait marks the gear screen');
 assert(/if\(!slot\) return null/.test(html.match(/function maybeAutoEquip[\s\S]*?\n\}/)[0])

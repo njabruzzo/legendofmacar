@@ -30,7 +30,7 @@ assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
-assert(/walkCycleKey\(e, stem\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair of the stem');
+assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair of the live idle');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey),
   'living Macar walk does not bind washed directional stems');
 
@@ -114,6 +114,13 @@ vm.runInContext(
   html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/)[0]
   +extractFn('isLivingMacarKey')
   +extractFn('livingMacarIdleKey')
+  +extractFn('partyFrameFitOk')
+  +extractFn('samePaintedFamily')
+  +extractFn('partyCrownMatches')
+  +extractFn('sheetCrownId')
+  +extractFn('partySheetMatchesIdle')
+  +extractFn('partyAnimKeyReady')
+  +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 
@@ -151,8 +158,12 @@ assert(ctx.wantsSpriteFlip(macRight)===true && ctx.wantsSpriteFlip(kinRight)===f
 assert(ctx.wantsSpriteFlip(macLeft)===false && ctx.wantsSpriteFlip(kinLeft)===true,
   'living Macar invert: A leaves Macar unflipped, kin still flip');
 
-const party=['dwarf_macar','dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'];
-party.forEach(stem=>{
+assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w1.png'))
+  && fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w2.png')),
+  'title-law Macar walk pair is on disk');
+assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w3.png')),
+  'Macar w3 leftover is gone');
+['dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'].forEach(stem=>{
   ['_w1.png','_w2.png','_w3.png'].forEach(suf=>{
     const f=stem+suf;
     assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
@@ -163,8 +174,7 @@ party.forEach(stem=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 ['mon_rat_w3.png','mon_goblin_w3.png','mon_spider_w3.png','mon_greenslime_w3.png',
- 'mon_warg_w1.png','mon_warg_w2.png','mon_warg_w3.png',
- 'dwarf_macar_e_w3.png','dwarf_macar_s_w3.png','dwarf_macar_back_w3.png'].forEach(f=>{
+ 'mon_warg_w1.png','mon_warg_w2.png','mon_warg_w3.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 

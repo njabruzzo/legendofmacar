@@ -47,8 +47,8 @@ assert(/k==='v'\) fire\('wall'\)/.test(html) && !/k==='d'\) fire\('wall'\)/.test
   'D is walk-right, not Defend — V raises the shield');
 assert(/The _nw_ sheets are painted walking upper-right/.test(html),
   'NW moonwalk is called out: those sheets are not selected for west');
-assert(/macar_title/.test(html) && /dwarf_macar_title\.png/.test(html),
-  'title still sheet stays registered for later binary-alpha');
+assert(!/dwarf_macar_title\.png/.test(html) && !/macar_title:/.test(html),
+  'leftover macar_title sheet is unwired');
 assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0]),
   'title fallback blits the blitLivingMacar idle pipe');
 
@@ -156,8 +156,7 @@ assert(wantsBackView({atk:0.4, aim:{x:9,y:9,dead:0}, x:10, y:10, fdx:0, fdy:1}),
   'attack toward iso north uses the back sheet');
 
 const root=path.join(__dirname,'../../assets/creatures');
-['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_s_w1.png','dwarf_macar_s_w2.png',
- 'dwarf_macar_title.png',
+['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png',
  'dwarf_orbo_ghost_e_w1.png','dwarf_fendur_ghost_e_w1.png','dwarf_pordoom_ghost_e_w1.png','dwarf_talpor_ghost_e_w1.png',
  'dwarf_orbo_ghost_s_w1.png','dwarf_fendur_ghost_s_w1.png','dwarf_pordoom_ghost_s_w1.png','dwarf_talpor_ghost_s_w1.png',
  'dwarf_orbo_e_w1.png','dwarf_fendur_e_w1.png','dwarf_pordoom_e_w1.png','dwarf_talpor_e_w1.png']

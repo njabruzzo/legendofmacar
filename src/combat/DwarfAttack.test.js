@@ -43,15 +43,10 @@ function pngSize(p){
   return {w:b.readUInt32BE(16), h:b.readUInt32BE(20)};
 }
 
-assert(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'macar strike on disk');
-assert(fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'macar recover on disk');
-
-const macAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
-const macRec=pngSize(path.join(root,'dwarf_macar_atk_recover.png'));
-const macE=pngSize(path.join(root,'dwarf_macar_e_atk.png'));
-assert(macAtk && macAtk.h===512, 'macar strike is 512 tall');
-assert(macRec && macRec.h===512 && macRec.w>400, 'macar recover is a full-height sheet, not the 374px crouch');
-assert(macE && macE.h===512 && macE.w<800, 'east strike is not the 885px fringe sheet');
+assert(!fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'helmeted Macar strike is gone');
+assert(!fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'leftover Macar recover is gone');
+assert(!fs.existsSync(path.join(root,'dwarf_macar_e_atk.png')), 'leftover east strike is gone');
+assert(fs.existsSync(path.join(root,'dwarf_macar.png')), 'title-law idle remains the Macar identity');
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   ['','_ghost'].forEach(g=>{

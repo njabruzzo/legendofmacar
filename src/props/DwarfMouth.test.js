@@ -137,14 +137,9 @@ assert(/timberOnDwarfMouthLane/.test(html) && /billboardCoversDwarfMouth/.test(h
   'T-post cannot sit on the open mouth');
 assert(!/\{x:43,y:14,k:'lantern'\}/.test(html), 'old face-line lantern is gone');
 assert(/loot_shadowcleaver\.png/.test(html), 'axe sprite registered');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'idle axe PNG on disk');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk.png')), 'swing axe PNG on disk');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk_recover.png')), 'axe follow-through PNG on disk');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_back.png')), 'axe back PNG on disk');
-assert(/dwarf_macar_axe\.png/.test(html), 'Macar idle axe sprite registered');
-assert(/dwarf_macar_axe_atk\.png/.test(html) || /macar_axe_atk/.test(html), 'Macar swing axe sprite registered');
-assert(/dwarf_macar_axe_atk_recover\.png/.test(html), 'Macar axe recover sprite registered');
-assert(/wieldsShadowCleaver/.test(html), 'sprite key swaps when the cleaver is wielded');
+assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'leftover axe idle is gone');
+assert(!/dwarf_macar_axe\.png/.test(html), 'Macar axe sprite is unwired');
+assert(/wieldsShadowCleaver/.test(html), 'cleaver still has a wield helper');
 assert(/ensureShadowCleaverWielded/.test(html), 'attack wields the cleaver if Macar has it');
 assert(/vs:'magic',vsPlus:1/.test(html), 'magic-using sword stores vsPlus:1');
 assert(/vs:'lycan',vsPlus:2/.test(html), 'lycan sword stores vsPlus:2');

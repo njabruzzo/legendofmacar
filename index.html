@@ -429,18 +429,14 @@ function syncMusic(){
 bgm.want('title'); /* resume+play now; first gesture if the browser blocks autoplay */
 const SPRITE_FILES={
   macar:'assets/creatures/dwarf_macar.png',
-  macar_title:'assets/creatures/dwarf_macar_title.png',
-  macar_axe:'assets/creatures/dwarf_macar_axe.png',
   pordoom:'assets/creatures/dwarf_pordoom.png', fendur:'assets/creatures/dwarf_fendur.png',
   orbo:'assets/creatures/dwarf_orbo.png', talpor:'assets/creatures/dwarf_talpor.png',
   pordoom_ghost:'assets/creatures/dwarf_pordoom_ghost.png', fendur_ghost:'assets/creatures/dwarf_fendur_ghost.png',
   orbo_ghost:'assets/creatures/dwarf_orbo_ghost.png', talpor_ghost:'assets/creatures/dwarf_talpor_ghost.png',
-  macar_back:'assets/creatures/dwarf_macar_back.png',
   pordoom_ghost_back:'assets/creatures/dwarf_pordoom_ghost_back.png',
   fendur_ghost_back:'assets/creatures/dwarf_fendur_ghost_back.png',
   orbo_ghost_back:'assets/creatures/dwarf_orbo_ghost_back.png',
   talpor_ghost_back:'assets/creatures/dwarf_talpor_ghost_back.png',
-  macar_sleep:'assets/creatures/dwarf_macar_sleep.png',
   pordoom_dead:'assets/creatures/dwarf_pordoom_dead.png', fendur_dead:'assets/creatures/dwarf_fendur_dead.png',
   orbo_dead:'assets/creatures/dwarf_orbo_dead.png', talpor_dead:'assets/creatures/dwarf_talpor_dead.png',
   rat:'assets/creatures/mon_rat.png', bat:'assets/creatures/mon_bat.png', spider:'assets/creatures/mon_spider.png', spitter:'assets/creatures/mon_spitter.png',
@@ -585,10 +581,6 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   SPRITE_FILES[k+'_w2']=stem+'_w2.png';
   SPRITE_FILES[k+'_atk']=stem+'_atk.png';
 });
-/* Ranged attack frame. Registered after the _w1/_w2/_atk derivation loops so
-   they do not spin off dwarf_macar_atk_bow_w1.png and friends. If the painted
-   file is missing, buildHeroAttackFrames() draws one at load. */
-SPRITE_FILES.macar_atk_bow='assets/creatures/dwarf_macar_atk_bow.png';
 /* Limner pack 74: painted FX + n/e/w secret masonry (never south). After
    walk/dead derivation so we do not invent missing _w1/_dead fetches. */
 SPRITE_FILES.fx_bolt='assets/fx/fx_bolt.png';
@@ -602,16 +594,9 @@ SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
 SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
 SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
 
-SPRITE_FILES.macar_atk_recover='assets/creatures/dwarf_macar_atk_recover.png';
-SPRITE_FILES.macar_axe_atk_recover='assets/creatures/dwarf_macar_axe_atk_recover.png';
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
 });
-SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
-SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
-SPRITE_FILES.macar_axe_back='assets/creatures/dwarf_macar_axe_back.png';
-SPRITE_FILES.macar_axe_back_w1='assets/creatures/dwarf_macar_axe_back_w1.png';
-SPRITE_FILES.macar_axe_back_w2='assets/creatures/dwarf_macar_axe_back_w2.png';
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_back_w1']='assets/creatures/dwarf_'+k+'_ghost_back_w1.png';
   SPRITE_FILES[k+'_ghost_back_w2']='assets/creatures/dwarf_'+k+'_ghost_back_w2.png';
@@ -620,27 +605,15 @@ SPRITE_FILES.macar_axe_back_w2='assets/creatures/dwarf_macar_axe_back_w2.png';
 /* Painted screen-east (D) and screen-south (S) walks. West is the east sheet
    flipped. North still uses the existing back sheets. Registered after the
    _w1/_w2 derivation loops so they do not spawn phantom _e_w1_w1 files. */
-['macar','macar_axe','pordoom','fendur','orbo','talpor'].forEach(k=>{
+['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_e_w1']='assets/creatures/dwarf_'+k+'_e_w1.png';
   SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
 });
-['macar','macar_axe'].forEach(k=>{
-  SPRITE_FILES[k+'_s_w1']='assets/creatures/dwarf_'+k+'_s_w1.png';
-  SPRITE_FILES[k+'_s_w2']='assets/creatures/dwarf_'+k+'_s_w2.png';
-});
-SPRITE_FILES.macar_e_atk='assets/creatures/dwarf_macar_e_atk.png';
-SPRITE_FILES.macar_axe_e_atk='assets/creatures/dwarf_macar_axe_e_atk.png';
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
   SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
   SPRITE_FILES[k+'_ghost_s_w1']='assets/creatures/dwarf_'+k+'_ghost_s_w1.png';
   SPRITE_FILES[k+'_ghost_s_w2']='assets/creatures/dwarf_'+k+'_ghost_s_w2.png';
-});
-['macar','macar_axe'].forEach(k=>{
-  ['nw','ne','se'].forEach(ang=>{
-    SPRITE_FILES[k+'_'+ang+'_w1']='assets/creatures/dwarf_'+k+'_'+ang+'_w1.png';
-    SPRITE_FILES[k+'_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_'+ang+'_w2.png';
-  });
 });
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   ['nw','ne','se'].forEach(ang=>{
@@ -656,6 +629,13 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(!src || /\/prop_/.test(src)) return;
   const w3=k.replace(/_w1$/,'_w3');
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
+});
+/* Title-law Macar is idle + front w1/w2 only until Limner delivers the
+   maul-corrected set. Drop axe / compass / helmeted combat / sleep / title
+   / w3 so they cannot fetch or blit. Kin sheets stay. */
+Object.keys(SPRITE_FILES).forEach(k=>{
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2') return;
+  if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
@@ -687,22 +667,20 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_title','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_save',
-    'macar_axe','pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
+    'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
     'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
-    'macar_back','macar_back_w1','macar_back_w2','pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
+    'pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
     'pordoom_atk_recover','fendur_atk_recover','orbo_atk_recover','talpor_atk_recover',
     'pordoom_ghost_w1','pordoom_ghost_w2','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover','pordoom_ghost_back_w1','pordoom_ghost_back_w2',
     'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
     'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
     'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_w3','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
-    'macar_e_w1','macar_e_w2','macar_s_w1','macar_s_w2','macar_e_atk',
-    'macar_nw_w1','macar_nw_w2','macar_ne_w1','macar_ne_w2','macar_se_w1','macar_se_w2',
     'pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2',
     'fendur_ghost_e_w1','fendur_ghost_e_w2','fendur_ghost_s_w1','fendur_ghost_s_w2',
     'orbo_ghost_e_w1','orbo_ghost_e_w2','orbo_ghost_s_w1','orbo_ghost_s_w2',
@@ -711,7 +689,6 @@ function loadSprites(done){
     'fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
     'orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
     'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
-    'macar_w1','macar_w2','macar_w3','macar_e_w3','macar_s_w3','macar_back_w3','macar_ne_w3','macar_se_w3','macar_nw_w3','macar_atk','macar_atk_bow','macar_atk_recover','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2','macar_sleep',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'cavein',
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
@@ -755,8 +732,7 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_w3','macar_back','macar_back_w1','macar_back_w2','macar_back_w3','macar_atk','macar_atk_bow','macar_atk_recover',
-    'macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_axe_atk_recover','macar_axe_back','macar_axe_back_w1','macar_axe_back_w2',
+  ['macar','macar_w1','macar_w2',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
@@ -770,7 +746,7 @@ function warmLivingMacarSheets(){
   const add=k=>{ if(k && SPR[k] && keys.indexOf(k)<0) keys.push(k); };
   try{
     Object.keys(LIVING_MACAR_KEYS).forEach(add);
-  }catch(_){ ['macar','macar_w1','macar_axe'].forEach(add); }
+  }catch(_){ ['macar','macar_w1','macar_w2'].forEach(add); }
   let i=0;
   const step=()=>{
     const now=()=>(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
@@ -804,10 +780,14 @@ function ensureDeadSprites(){
     SPR[k+'_dead']=c;
   });
 }
-function drawBillboard(g,img,h){
+function drawBillboard(g,img,h,crisp){
   if(!img||!img.width) return false;
   const W=h*(img.width/Math.max(1,img.height));
-  g.drawImage(img,-W/2,-h,W,h); return true;
+  const prev=g.imageSmoothingEnabled;
+  if(crisp){ g.imageSmoothingEnabled=false; if(g.imageSmoothingQuality) g.imageSmoothingQuality='low'; }
+  g.drawImage(img,-W/2,-h,W,h);
+  if(crisp) g.imageSmoothingEnabled=prev;
+  return true;
 }
 function drawStairWell(g,z,p){
   const pulse=.55+Math.sin((G.elapsed||0)*3.6+(p&&p.x||0))*.22;
@@ -895,7 +875,7 @@ function spriteBounds(img){
     if(d[(y*w+x)*4+3]<=30) continue;
     footX+=x; footN++;
   }
-  const fcx=footN?Math.round(footX/footN):Math.round((lo+hi)/2);
+    const fcx=footN?Math.round(footX/footN):Math.round((lo+hi)/2);
   const half=Math.max(6, Math.round((hi-lo+1)*0.16));
   let crown=bot, gaps=0;
   for(let y=bot;y>=top;y--){
@@ -907,12 +887,30 @@ function spriteBounds(img){
     if(hit){ crown=y; gaps=0; }
     else { gaps++; if(gaps>2) break; }
   }
+  let metal=0, warm=0, hairN=0, cn=0;
+  const bw=hi-lo+1, bh=bot-top+1;
+  const cx0=lo+((bw*0.32)|0), cx1=lo+((bw*0.68)|0);
+  const cy0=top, cy1=top+((bh*0.16)|0);
+  for(let y=cy0;y<cy1;y++) for(let x=cx0;x<cx1;x++){
+    const p=(y*w+x)*4, a=d[p+3];
+    if(a<=40) continue;
+    const R=d[p], G=d[p+1], B=d[p+2];
+    cn++;
+    const mx=R>G?(R>B?R:B):(G>B?G:B);
+    const mn=R<G?(R<B?R:B):(G<B?G:B);
+    const sat=mx?(mx-mn)/mx:0;
+    if(sat<0.22 && mx>55) metal++;
+    if(R>G+10 && G>=B-5) warm++;
+    if(R>G+5 && mx<130 && sat>0.12) hairN++;
+  }
+  const crownId=cn?{ok:true, metal:metal/cn, warm:warm/cn, hair:hairN/cn, n:cn}:{ok:false};
   return stampMetrics(img,{
     ok:true,
     botY:(bot+1)/h,
     cx:((lo+hi+1)/2)/w,
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h,
-    personY0:crown/h
+    personY0:crown/h,
+    crown:crownId
   });
 }
 function figurePersonFrac(b){
@@ -983,6 +981,43 @@ function morphPass(src,dst,W,H,R,wantMax,vertical){
     }
   }
 }
+/* Magenta / violet export matte. Hard-alpha edges plus a leftover
+   magenta RGB is what bilinear-downscale turns into a violet fringe. */
+function isMagentaMatte(r,g,b){
+  if(g>=r-12 && g>=b-12) return false;
+  return (r>=90 && b>=90 && g<=Math.min(r,b)-18)
+    || (r>=70 && b>=110 && g<=80 && b>g+25);
+}
+/* Living-Macar / living-kin binary alpha. a≤40 punched. a>40 un-premultiply
+   RGB then a=255. Magenta matte is treated as a≤40 so it cannot fringe. */
+function punchLivingAlpha(d, n){
+  const LO=40;
+  for(let i=0,p=0;i<n;i++,p+=4){
+    const r=d[p], g2=d[p+1], b=d[p+2], a=d[p+3];
+    if(a<=LO || isMagentaMatte(r,g2,b)){
+      d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0;
+      continue;
+    }
+    if(a<255){
+      const s=255/a;
+      d[p]=Math.min(255,(r*s+0.5)|0);
+      d[p+1]=Math.min(255,(g2*s+0.5)|0);
+      d[p+2]=Math.min(255,(b*s+0.5)|0);
+    }
+    d[p+3]=255;
+  }
+}
+function punchLivingMacarCanvas(c){
+  if(!c||!c.width||!c.height) return c;
+  try{
+    const x=c.getContext('2d',{willReadFrequently:true});
+    const idat=x.getImageData(0,0,c.width,c.height);
+    punchLivingAlpha(idat.data, c.width*c.height);
+    x.putImageData(idat,0,0);
+  }catch(_){}
+  return c;
+}
+
 /* ==========================================================================
    Limner sheet repair.
    Background removal punched pixels out of the FIGURE on most sheets: holes
@@ -1010,7 +1045,7 @@ function repairSpriteSheet(img){
   let area=0, lumSum=0, lumN=0;
   for(let i=0,p=0;i<N;i++,p+=4){
     const a=d[p+3];
-    if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    if(a<=LO || isMagentaMatte(d[p],d[p+1],d[p+2])){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
     if(a<255){
       /* getImageData is already straight alpha, so this only lifts the dark
          matte the sheets were exported over. Capped — an uncapped 255/a on a
@@ -1167,6 +1202,7 @@ function blitLivingMacar(img){
   let out=null;
   try{
     out=repairSpriteSheet(img);
+    out=punchLivingMacarCanvas(out);
   }catch(_){
     out=img;   // repair failed (tainted canvas, no 2d context) — ship the sheet as painted
   }
@@ -1195,11 +1231,23 @@ function flippedSprite(img){
   if(FLIP_CACHE) FLIP_CACHE.set(img,c);
   return c;
 }
-function blitFacing(g,img,dx,dy,W,H,flip){
+function blitFacing(g,img,dx,dy,W,H,flip,crisp){
   // Bake a mirrored canvas and draw it unflipped so west never depends on
   // negative-width drawImage (some GPU paths ignore dest-width sign).
+  // Crisp = nearest-neighbor. Title-law idle is ~470x512; a smoothed ~70x74
+  // blit collapses painted-mini detail and amplifies magenta fringe.
   const src=flip?flippedSprite(img):img;
+  const prevS=g.imageSmoothingEnabled;
+  const prevQ=g.imageSmoothingQuality;
+  if(crisp){
+    g.imageSmoothingEnabled=false;
+    if(g.imageSmoothingQuality) g.imageSmoothingQuality='low';
+  }
   g.drawImage(src, dx, dy, W, H);
+  if(crisp){
+    g.imageSmoothingEnabled=prevS;
+    if(prevQ!=null && g.imageSmoothingQuality) g.imageSmoothingQuality=prevQ;
+  }
 }
 function drawEntBillboard(g,e,img,z,flip){
   if(!img||!img.width) return false;
@@ -1217,110 +1265,138 @@ function drawEntBillboard(g,e,img,z,flip){
     g.drawImage(img, sx, sy, sw, sh, -pw/2, -ph*0.82, pw, ph);
     return true;
   }
-  // Living Macar: only punched whitelist keys (maul + axe). Directional /
-  // title / w3 sheets stay unused — they are not face-safe binary-alpha.
+  // Living Macar: only punched whitelist keys (idle + front w1/w2).
   if(e.hero && !e.dead && !e.ghost){
     img=livingMacarImg(livingMacarAnimKey(e));
     if(!img||!img.width) return false;
   }
   const H=entSpriteH(e,z)*frameFit(e,img);
-  const W=img.width*(H/Math.max(1,img.height));
+  const widen=(e.hero&&!e.dead&&!e.ghost)?MACAR_FOOT_WIDEN:1;
+  const W=img.width*(H/Math.max(1,img.height))*widen;
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
   const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
   const dy=(b&&b.ok)?-H*b.botY:-H;
+  const party=e.kind==='dwarf' && !e.dead;
   if(e.hero && !e.dead){
     g.save();
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
-    blitFacing(g,img,dx,dy,W,H,flip);
+    blitFacing(g,img,dx,dy,W,H,flip,true);
     g.restore();
     return true;
   }
-  blitFacing(g,img,dx,dy,W,H,flip);
+  blitFacing(g,img,dx,dy,W,H,flip,party);
   return true;
 }
 /* ==========================================================================
    Macar's sheet plan.
 
-   Two facts drove this, both measured rather than assumed:
-
-   1. FACING. Verified at head level against dwarf_fendur_ghost_*, by where
-      the nose and beard point — not by silhouette, which is how the maul
-      head once got mistaken for his front and sent him walking backwards.
-      Macar is painted to the same convention as every other dwarf:
-      _e_ faces screen-RIGHT, _se_ down-right, _ne_ up-right, _back_ away.
-      Screen-left headings mirror the screen-right sheet.
-
-   2. CONDITION. Background removal chewed holes in most sheets. Measuring
-      punched interior as a share of the painted figure:
-          w3 set        0.01-0.8%   pristine
-          back / axe    0.2-1.4%    clean
-          w1 / w2 set   2.3-4.9%    visibly holed after any honest repair
-      So the plan below is built from the clean sheets. The w1/w2 walk pairs
-      are deliberately NOT listed for the diagonals and profile: repairing
-      them hard enough to close is what produced the rust-coloured mottling
-      that read as a translucent Macar. Better one clean frame plus the walk
-      bob than two shredded ones.
-
-   3. WEAPON. dwarf_macar_axe_{e,se,ne,nw,s}_* are not axe art at all — they
-      are copies of the maul sheets under axe names, which is why he walked
-      around holding a hammer while wielding the Shadow Cleaver. Only the
-      keys listed under `axe` below actually depict the axe, so those are the
-      only ones he may use with it drawn. That costs him the side profile
-      while wielding the axe; carrying the right weapon wins.
-
-   Each entry: frames blitted in gait order, and whether to mirror.
-   If better art ever lands, add the key here — nothing else needs changing.
+   Title-law identity is the live idle plus front w1/w2. Attack plants that
+   idle until Limner delivers the maul-corrected set. Compass / leftover
+   combat / sleep stills are gone — do not rebind them.
    ========================================================================== */
 const MACAR_PLAN={
   macar:{
-    e:  {flip:0, frames:['macar_e_w3']},
-    w:  {flip:1, frames:['macar_e_w3']},
-    se: {flip:0, frames:['macar_se_w3']},
-    sw: {flip:1, frames:['macar_se_w3']},
-    ne: {flip:0, frames:['macar_ne_w2','macar_ne_w3']},
-    nw: {flip:1, frames:['macar_ne_w2','macar_ne_w3']},
-    n:  {flip:0, frames:['macar_back_w1','macar_back_w2']},
-    s:  {flip:0, frames:['macar_w1','macar']},
+    e:  {flip:0, frames:['macar_w1','macar_w2']},
+    w:  {flip:0, frames:['macar_w1','macar_w2']},
+    se: {flip:0, frames:['macar_w1','macar_w2']},
+    sw: {flip:0, frames:['macar_w1','macar_w2']},
+    ne: {flip:0, frames:['macar_w1','macar_w2']},
+    nw: {flip:0, frames:['macar_w1','macar_w2']},
+    n:  {flip:0, frames:['macar_w1','macar_w2']},
+    s:  {flip:0, frames:['macar_w1','macar_w2']},
     idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
-          n:'macar_back_w1', ne:'macar_ne_w2', nw:'macar_ne_w2'},
-    atk:'macar_atk', rec:'macar_atk_recover', sideAtk:'macar_e_atk'
-  },
-  macar_axe:{
-    /* no axe-bearing profile or diagonal art exists, so every ground-level
-       heading uses the front pair and only up-screen turns away. */
-    e:  {flip:0, frames:['macar_axe_w1','macar_axe_w2']},
-    w:  {flip:0, frames:['macar_axe_w1','macar_axe_w2']},
-    se: {flip:0, frames:['macar_axe_w1','macar_axe_w2']},
-    sw: {flip:0, frames:['macar_axe_w1','macar_axe_w2']},
-    s:  {flip:0, frames:['macar_axe_w1','macar_axe_w2']},
-    ne: {flip:0, frames:['macar_axe_back_w1','macar_axe_back_w2']},
-    nw: {flip:0, frames:['macar_axe_back_w1','macar_axe_back_w2']},
-    n:  {flip:0, frames:['macar_axe_back_w1','macar_axe_back_w2']},
-    idle:{e:'macar_axe', w:'macar_axe', se:'macar_axe', sw:'macar_axe', s:'macar_axe',
-          n:'macar_axe_back', ne:'macar_axe_back', nw:'macar_axe_back'},
-    atk:'macar_axe_atk', rec:'macar_axe_atk_recover', sideAtk:null
+          n:'macar', ne:'macar', nw:'macar'},
+    atk:null, rec:null, sideAtk:null
   }
 };
-/* Limner living-Macar gate. Every key living Macar actually blits is listed
-   here and goes through blitLivingMacar. Directional / title / sleep / w3 stay
-   unused — walk art is parked; facing is a blit flip only. */
+/* Title-law Macar only: live idle + front w1/w2. No axe / compass / atk
+   whitelist — those sheets are gone until Limner delivers the maul set. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_recover:1,
-  macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1, macar_axe_atk_recover:1
+  macar:1, macar_w1:1, macar_w2:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
-  return (typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
-    ? 'macar_axe' : 'macar';
+  return 'macar';
+}
+/* Extra mass is WIDTH, not height. Dungeon height stays kin 78*z so Macar
+   never reads taller than title-law / party. 1.24× turns the old ~70px
+   blit into a readable planted dwarf without lifting his crown. */
+const MACAR_FOOT_WIDEN=1.24;
+function partyFrameFitOk(img, idleImg){
+  if(!img||!img.width) return false;
+  const w=img.width, h=img.height||0;
+  /* Unit-test stubs often set only width. A real sliver is tall and thin. */
+  if(!h || h<80) return true;
+  const aspect=w/h;
+  if(aspect<0.12) return false;
+  if(w<64 || aspect<0.38) return false;
+  const b=img._b||null;
+  if(b&&b.ok&&b.x0!=null&&b.x1!=null&&b.y0!=null&&b.y1!=null){
+    const boxW=(b.x1-b.x0)*w, boxH=(b.y1-b.y0)*h;
+    if(boxW>0 && boxH>0 && (boxW<16 || boxW/boxH<0.12)) return false;
+  }
+  if(idleImg&&idleImg.width&&idleImg.height&&idleImg.height>=80){
+    const idleW=idleImg.width/idleImg.height;
+    const candW=w/h;
+    if(candW<idleW*0.40) return false;
+  }
+  return true;
+}
+function samePaintedFamily(img, idle){
+  if(!img||!idle||!img.width||!idle.width) return false;
+  if(!img.height||!idle.height||img.height<80||idle.height<80) return true;
+  const wr=img.width/idle.width, hr=img.height/idle.height;
+  return wr>=0.92 && wr<=1.08 && hr>=0.95 && hr<=1.05;
+}
+function partyCrownMatches(cand, ref){
+  if(!cand||!cand.ok||!ref||!ref.ok) return false;
+  if(ref.hair>=0.65 && ref.metal<=0.08){
+    if(cand.metal>0.10 || cand.hair<0.62 || cand.warm<0.70) return false;
+  }
+  if(cand.metal>ref.metal+0.25) return false;
+  return true;
+}
+function sheetCrownId(img){
+  if(!img) return null;
+  if(img._id) return img._id;
+  const b=img._b||(typeof spriteBounds==='function'?spriteBounds(img):null);
+  return (b&&b.crown)||null;
+}
+function partySheetMatchesIdle(img, idle, key){
+  if(!img||!idle) return false;
+  if(!img.height||!idle.height||img.height<80||idle.height<80) return true;
+  if(samePaintedFamily(img, idle)) return true;
+  /* Title-law idle is 470×512. Old helmeted atk is a different crop and a
+     different dwarf — plant the idle instead. A matching atk sheet may pass
+     only when both crowns sample and the cand is unhelmeted. Missing idle
+     crown never accepts a substitute. */
+  if(key && /_atk/.test(key)){
+    const rid=sheetCrownId(idle);
+    if(!rid||!rid.ok) return false;
+    return partyCrownMatches(sheetCrownId(img), rid);
+  }
+  return false;
+}
+function partyAnimKeyReady(key, idleKey){
+  if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
+  const img=SPR[key];
+  const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
+  if(!partyFrameFitOk(img, idle)) return false;
+  if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
+  return true;
+}
+function pickReadyPartyKey(key, idleKey){
+  if(partyAnimKeyReady(key, idleKey)) return key;
+  if(idleKey && partyAnimKeyReady(idleKey, idleKey)) return idleKey;
+  if(idleKey && SPR[idleKey] && SPR[idleKey].width) return idleKey;
+  return (key && SPR[key] && SPR[key].width)?key:null;
 }
 function livingMacarImg(key){
-  let k=isLivingMacarKey(key)&&sprReady(key)?key:null;
-  if(!k){
-    const idle=livingMacarIdleKey();
-    k=(isLivingMacarKey(idle)&&sprReady(idle))?idle:(sprReady('macar')?'macar':null);
-  }
+  const idle=livingMacarIdleKey();
+  const k=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
+    || (sprReady('macar')?'macar':null);
   if(!k) return null;
   return blitLivingMacar(SPR[k]);
 }
@@ -1336,8 +1412,7 @@ function macarFirstReady(list){
 function macarPose(e){
   const none={key:null,flip:false};
   if(!e||!e.hero||e.dead||e.ghost) return none;
-  const axe=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'));
-  const stem=axe?'macar_axe':'macar';
+  const stem='macar';
   const plan=MACAR_PLAN[stem]||MACAR_PLAN.macar;
   const oct=e.defending?'n':screenOctant(e);
   const dir=plan[oct]||plan.s;
@@ -1345,8 +1420,7 @@ function macarPose(e){
 
   if(wantsMeleePose(e)||wantsMeleeRecover(e)){
     const rec=wantsMeleeRecover(e);
-    /* macar_e_atk swings screen-RIGHT, same hand as the _e_ walk sheets, so
-       it takes the same flip. The axe has no side-strike art of its own. */
+    /* No live title-law side-strike. Plant idle via livingMacarAnimKey. */
     if(!rec && (oct==='e'||oct==='w') && plan.sideAtk && sprReady(plan.sideAtk)){
       return {key:plan.sideAtk, flip:flip};
     }
@@ -1372,18 +1446,15 @@ function macarPose(e){
   ]);
   return idle?{key:idle, flip:flip}:none;
 }
-/* Living Macar only. Idle / front w1-w2 / strike / recover, maul or axe.
-   Same FACE, opposite FOOT. Never a washed directional stem. */
+/* Living Macar only. Idle / front w1-w2. Attack plants idle.
+   Same FACE, opposite FOOT. Never a leftover combat stem. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
-  const stem=(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
-    ? 'macar_axe' : 'macar';
-  const rec=stem+'_atk_recover', atk=stem+'_atk';
-  if(wantsMeleeRecover(e) && isLivingMacarKey(rec) && sprReady(rec)) return rec;
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && isLivingMacarKey(atk) && sprReady(atk)) return atk;
-  const hit=(e.moving && !e.defending)?walkCycleKey(e, stem):null;
-  if(isLivingMacarKey(hit)) return hit;
-  return (isLivingMacarKey(stem) && sprReady(stem)) ? stem : (sprReady('macar')?'macar':null);
+  const idle='macar';
+  /* No live title-law atk sheet. Plant idle — never a helmeted substitute. */
+  if(wantsMeleePose(e)||wantsMeleeRecover(e)) return idle;
+  const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
+  return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1400,12 +1471,12 @@ function drawLivingMacar(g,e){
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const H=entSpriteH(e,z)*frameFit(e,img);
-  const W=img.width*(H/Math.max(1,img.height));
+  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
   const b=spriteBounds(img);
   const cx=(b&&b.ok)?(flip?1-b.cx:b.cx):0.5;
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
-  blitFacing(g,img,dx,dy,W,H,flip);
+  blitFacing(g,img,dx,dy,W,H,flip,true);
   g.restore();
 }
 function drawDeadBillboard(g,e,img,z){
@@ -1923,7 +1994,6 @@ function entSpriteKey(e){
   if(e.kind==='dwarf'){
     const k=e.col && e.col.key;
     if(e.ghost && k) return k+'_ghost';
-    if(k==='macar' && wieldsShadowCleaver()) return 'macar_axe';
     return k;
   }
   if(e.sprite) return e.sprite;
@@ -2005,14 +2075,10 @@ function dwarfAngleKey(e,k){
     return null;
   }
   if(oct==='n'){
-    const macarKey=(k==='macar'||k==='macar_axe');
     const aKey=k+'_back_w1', bKey=k+'_back_w2';
-    const a=SPR[aKey]?aKey:(macarKey&&SPR.macar_back_w1?'macar_back_w1':null);
-    const b=SPR[bKey]?bKey:(macarKey&&SPR.macar_back_w2?'macar_back_w2':null);
-    const hit=gait(a,b,null);
+    const hit=gait(SPR[aKey]?aKey:null, SPR[bKey]?bKey:null, null);
     if(hit) return hit;
     if(SPR[k+'_back']) return k+'_back';
-    if(macarKey && SPR.macar_back) return 'macar_back';
     return null;
   }
   if(oct==='s') return gait(k+'_s_w1', k+'_s_w2', k+'_s');
@@ -2020,15 +2086,11 @@ function dwarfAngleKey(e,k){
   // The _nw_ sheets are painted walking upper-right; using them for west
   // without a flip is the moonwalk after #105.
   if(oct==='w'||oct==='sw'||oct==='nw'){
-    let wk=k;
-    if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') wk='macar';
-    return gait(wk+'_e_w1', wk+'_e_w2', wk+'_e');
+    return gait(k+'_e_w1', k+'_e_w2', k+'_e');
   }
   if(oct==='ne') return gait(k+'_ne_w1', k+'_ne_w2', k+'_ne');
   if(oct==='se') return gait(k+'_se_w1', k+'_se_w2', k);
-  let ek=k;
-  if(!(SPR[k+'_e_w1']||SPR[k+'_e_w2']) && k==='macar_axe') ek='macar';
-  return gait(ek+'_e_w1', ek+'_e_w2', ek+'_e');
+  return gait(k+'_e_w1', k+'_e_w2', k+'_e');
 }
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
@@ -2069,36 +2131,30 @@ function entAnimKey(e){
   if(e.hero && !e.dead && !e.ghost) return livingMacarAnimKey(e);
   const k=entSpriteKey(e);
   if(!k) return null;
-  if(e.dead||e.crushed) return SPR[k+'_dead']?k+'_dead':k;
-  if(e.atk>0 && e.atkKind==='bow'){
-    if(SPR[k+'_atk_bow']) return k+'_atk_bow';
-    return k;
-  }
-  if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) return k+'_atk_recover';
-  if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']){
+  let key=k;
+  if(e.dead||e.crushed) key=SPR[k+'_dead']?k+'_dead':k;
+  else if(e.atk>0 && e.atkKind==='bow') key=SPR[k+'_atk_bow']?k+'_atk_bow':k;
+  else if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) key=k+'_atk_recover';
+  else if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']){
     const card=screenCardinal(e);
-    if((card==='e'||card==='w') && SPR[k+'_e_atk']) return k+'_e_atk';
-    if((card==='e'||card==='w') && k==='macar_axe' && SPR.macar_e_atk) return 'macar_e_atk';
-    return k+'_atk';
-  }
-  if(e.kind==='dwarf'){
-    const angled=dwarfAngleKey(e,k);
-    if(angled) return angled;
-  }
-  if(wantsBackView(e)){
+    key=((card==='e'||card==='w') && SPR[k+'_e_atk'])?k+'_e_atk':k+'_atk';
+  } else if(e.kind==='dwarf' && dwarfAngleKey(e,k)) key=dwarfAngleKey(e,k);
+  else if(wantsBackView(e)){
     if(e.moving && !e.defending){
-      const macarKey=(k==='macar'||k==='macar_axe');
-      const backStem=sprReady(k+'_back_w1')?k+'_back':(macarKey&&sprReady('macar_back_w1')?'macar_back':null);
+      const backStem=sprReady(k+'_back_w1')?k+'_back':null;
       const stepped=walkCycleKey(e, backStem);
-      if(stepped) return stepped;
-    }
-    if(SPR[k+'_back']) return k+'_back';
-  }
-  if(e.moving){
+      if(stepped) key=stepped;
+      else if(SPR[k+'_back']) key=k+'_back';
+    } else if(SPR[k+'_back']) key=k+'_back';
+  } else if(e.moving){
     const stepped=walkCycleKey(e, k);
-    if(stepped) return stepped;
+    if(stepped) key=stepped;
   }
-  return k;
+  /* Living kin: missing / sliver walk or atk plants that kin's idle. Ghosts keep their sheets. */
+  if(e.kind==='dwarf' && !e.ghost && !e.dead && !e.crushed && k){
+    if(!sprReady(key) || !partyFrameFitOk(SPR[key], SPR[k])) return k;
+  }
+  return key;
 }
 function entAnimImg(e){
   const key=entAnimKey(e);
@@ -12202,7 +12258,10 @@ function face(g,cx,cy,rr,c,dead,ghost){
       g.globalAlpha=1;
       g.globalCompositeOperation='source-over';
     }
+    const prevS=g.imageSmoothingEnabled;
+    if(c&&c.key==='macar'&&!ghost) g.imageSmoothingEnabled=false;
     g.drawImage(img, cx-w/2, cy-rr*0.55, w, h);
+    if(c&&c.key==='macar'&&!ghost) g.imageSmoothingEnabled=prevS;
   } else {
   const u=rr/20;
   g.fillStyle=c.skin; g.beginPath(); g.ellipse(cx,cy+2*u,12.4*u,13.4*u,0,0,TAU); g.fill();
@@ -12840,7 +12899,7 @@ function drawSleepRest(g){
   glow.addColorStop(0.38,'rgba(180,70,18,0.12)');
   glow.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=glow; g.fillRect(0,0,VW,VH);
-  const img=SPR.macar_sleep;
+  const img=blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
   const caption='Macar decides to camp to rest and heal.';
   g.textAlign='center';
   if(img){
@@ -12910,7 +12969,7 @@ function drawTitleCavern(g){
         g.save();
         g.globalAlpha=1;
         g.globalCompositeOperation='source-over';
-        drawBillboard(g, sheet, 74*z);
+        drawBillboard(g, sheet, 74*z, true);
         g.restore();
       }
     } else if(SPR[keys[i]]) drawBillboard(g, SPR[keys[i]], 64*z);
