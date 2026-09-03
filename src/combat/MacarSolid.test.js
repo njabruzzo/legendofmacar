@@ -38,34 +38,38 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
   'living Macar is a single source-over blit after lighting, haze, and grain');
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
-assert(/macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html)
-  && /macar_axe_w1:1/.test(html) && /macar_axe_atk_recover:1/.test(html),
-  'living Macar whitelist includes punched axe idle / walk / atk / recover');
+assert(/macar:1/.test(html) && /macar_w1:1/.test(html) && /macar_w2:1/.test(html)
+  && !/macar_axe:1/.test(html) && !/macar_atk:1/.test(html),
+  'living Macar whitelist is idle + front w1/w2 only');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');
-assert(/const LO=64/.test(html) && /if\(a<=LO\)/.test(html) && /d\[p\+3\]=0/.test(html),
+assert(/const LO=64/.test(html) && /a<=LO/.test(html) && /d\[p\+3\]=0/.test(html),
   'bake: low-alpha fringe is punched to 0');
 assert(/a>=HI\?255/.test(html), 'bake: high-alpha silhouette is forced to 255');
 assert(/255\/a/.test(html), 'bake un-premultiplies RGB before lifting alpha');
+assert(/function punchLivingAlpha\(/.test(html) && /function isMagentaMatte\(/.test(html)
+  && /const LO=40/.test(html),
+  'living pipe punches magenta matte and binary-alpha a<=40');
+assert(/MACAR_FOOT_WIDEN=1\.24/.test(html) && /imageSmoothingEnabled=false/.test(extractFn('blitFacing')),
+  'dungeon Macar blit is crisp and wider, not taller');
 assert(/const idle=/.test(bake) && /SPR\.macar/.test(bake),
   'empty sheet falls back to idle Macar');
 
 const liveKey=extractFn('livingMacarAnimKey');
-assert(/walkCycleKey\(e, stem\)/.test(liveKey) && /stem\+'_atk'/.test(liveKey)
-  && /stem\+'_atk_recover'/.test(liveKey),
-  'living Macar uses front walkCycleKey plus atk / recover');
+assert(/walkCycleKey\(e, idle\)/.test(liveKey),
+  'living Macar walk uses the live idle stem');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk is not QUALITY-gated');
 assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while moving');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
   && !/macar_ne/.test(liveKey) && !/macar_se/.test(liveKey) && !/macar_title/.test(liveKey),
   'living Macar does not bind washed directional / title stems');
-assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(liveKey),
-  'living Macar binds punched axe sheets when the cleaver is wielded');
-assert(/stem\+'_atk_recover'/.test(liveKey) || /macar_axe_atk_recover/.test(liveKey),
-  'axe recover is on the living-Macar key path');
+assert(!/macar_axe/.test(liveKey) && !/wieldsShadowCleaver/.test(liveKey),
+  'living Macar does not bind axe sheets');
+assert(/wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\) return idle/.test(liveKey),
+  'attack plants the live idle — no helmeted substitute');
 assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
@@ -138,10 +142,12 @@ assert(ctx.heroFigureFit(mac,back)>1.05, 'inset back pose is scaled up to idle h
 assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
 
-['dwarf_macar.png','dwarf_macar_atk.png','dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png','dwarf_macar_axe_atk_recover.png',
- 'dwarf_macar_axe_e_atk.png','dwarf_macar_back.png','dwarf_macar_title.png'].forEach(f=>{
+['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+});
+['dwarf_macar_atk.png','dwarf_macar_axe.png','dwarf_macar_title.png','dwarf_macar_back.png',
+ 'dwarf_macar_sleep.png','dwarf_macar_e_atk.png'].forEach(f=>{
+  assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' leftover Macar art is gone');
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

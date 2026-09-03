@@ -86,10 +86,11 @@ const backWalkIdx=html.indexOf("sprReady(k+'_back_w1')");
 assert(recoverIdx>0 && atkIdx>recoverIdx, 'follow-through sprite is chosen before the raised swing');
 assert(atkIdx>0 && backWalkIdx>atkIdx, 'kin attack sprite is chosen before the back walk');
 assert(/p\.moving=0; p\.ix=0; p\.iy=0;/.test(html), 'Attack click stops walk so the swing can play');
-assert(/dwarf_macar_atk_recover\.png/.test(html) && /dwarf_macar_axe_atk_recover\.png/.test(html), 'hammer and axe recover frames registered');
-assert(/dwarf_macar_back_w1\.png/.test(html) && /dwarf_macar_back_w2\.png/.test(html), 'angled walk-away frames registered');
-['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png','dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+assert(!/dwarf_macar_atk_recover\.png/.test(html) && !/dwarf_macar_axe_atk_recover\.png/.test(html),
+  'leftover Macar recover sheets are unwired');
+assert(!/dwarf_macar_back_w1\.png/.test(html), 'leftover Macar back walks are unwired');
+['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png','dwarf_macar_back_w1.png'].forEach(f=>{
+  assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' leftover is gone');
 });
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }

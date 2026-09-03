@@ -23,7 +23,8 @@ KIN.forEach(k=>{
   });
 });
 
-assert(/macarKey=\(k==='macar'\|\|k==='macar_axe'\)/.test(html), 'living Macar back-walk is not used for ghost kin');
+assert(!/macar_axe/.test(html.match(/function entAnimKey\(e\)\{[\s\S]*?\nfunction entAnimImg/)[0]),
+  'living Macar leftover stems are not used for ghost kin');
 assert(/wantsMeleeRecover\(e\)\) && SPR\[k\+'_atk'\]/.test(html) || /\(wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\)/.test(html),
   'ghost combat holds a ghost attack pose through follow-through');
 assert(/pordoom_ghost_back_w1/.test(html) && /talpor_ghost_atk_recover/.test(html), 'ghost angled walk and recover keys preload');
