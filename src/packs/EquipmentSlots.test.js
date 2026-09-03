@@ -407,7 +407,8 @@ assert(acCtx.partyAC(mac,{missile:1})===2, 'partyAC leather+missile-shield vs mi
 assert(acCtx.effectiveAC(mac,{ranged:0})===6, 'melee against party ignores missile shield extra');
 assert(acCtx.effectiveAC(mac,{ranged:1})===2, 'ranged against party applies +4 vs missiles');
 assert(acCtx.effectiveAC(mac)===6, 'HUD effectiveAC with no attacker stays melee');
-assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && /icon_doll/.test(html), 'inventory slot graphics are registered');
+assert(/icon_helm/.test(html) && /icon_quiver/.test(html) && !/icon_doll/.test(html),
+  'inventory slot plates are registered; kettle-hat icon_doll is not');
 const dollFn=html.match(/function drawEquipDoll\(g, x, y, w, h\)\{[\s\S]*?\nfunction drawPack/);
 assert(!!dollFn && /blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(dollFn[0]),
   'paper doll blits the blitLivingMacar idle pipe, not a separate kettle-hat');
