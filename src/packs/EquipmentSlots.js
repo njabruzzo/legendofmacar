@@ -93,6 +93,15 @@
     return /shield/i.test(String(it.n || ''));
   }
 
+  /** Extra descending-AC bonus vs incoming missiles. Parses "+N vs missiles" from n/d. */
+  function shieldMissilePlus(it) {
+    if (!it || !isShield(it)) return 0;
+    if (it.missilePlus != null && it.missilePlus !== '') return it.missilePlus | 0;
+    var text = String(it.n || '') + ' ' + String(it.d || '');
+    var m = /[+](\d+)\s*vs\s*missiles/i.exec(text);
+    return m ? (+m[1]) : 0;
+  }
+
   function itemSlot(it) {
     if (!it) return null;
     if (it.slot && SLOT_KEYS.indexOf(it.slot) >= 0) return it.slot;
@@ -292,7 +301,10 @@
     }
     if (!opts.noShield) {
       var sh = isShield(eq.secondary) ? eq.secondary : (isShield(eq.primary) ? eq.primary : null);
-      if (sh) base -= 1 + (sh.plus || 0);
+      if (sh) {
+        base -= 1 + (sh.plus || 0);
+        if (opts.missile) base -= shieldMissilePlus(sh);
+      }
     }
     return base;
   }
@@ -364,6 +376,7 @@
     ensureShape: ensureShape,
     inferArmorType: inferArmorType,
     isShield: isShield,
+    shieldMissilePlus: shieldMissilePlus,
     itemSlot: itemSlot,
     isEquippable: isEquippable,
     annotate: annotate,

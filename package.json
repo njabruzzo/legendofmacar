@@ -3,6 +3,6 @@
   "private": true,
   "description": "The Legend of Macar — GitHub Pages",
   "scripts": {
-    "test": "node src/combat/LivingMacarQA.test.js && node src/combat/MacarSolid.test.js && node src/combat/WalkCycle.test.js && node src/combat/DwarfFacing.test.js && node src/combat/PartyAutoFight.test.js && node src/ui/TitleTunnel.test.js && node src/ui/PackDoll.test.js && node src/ui/Ch1RubbleLoad.test.js && node src/packs/EquipmentSlots.test.js"
+    "test": "node src/combat/LivingMacarQA.test.js && node src/combat/MacarSolid.test.js && node src/combat/WalkCycle.test.js && node src/combat/DwarfFacing.test.js && node src/combat/PartyAutoFight.test.js && node src/combat/SpecialtyAttack.test.js && node src/ui/TitleTunnel.test.js && node src/ui/PackDoll.test.js && node src/ui/Ch1RubbleLoad.test.js && node src/packs/EquipmentSlots.test.js && node src/props/DwarfMouth.test.js"
   }
 }
