@@ -48,16 +48,16 @@ assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0])
-  && /macar_w2:1/.test(keysDecl[0]) && /macar_atk:1/.test(keysDecl[0]),
-  'whitelist is idle + live walk pair + title-law atk');
-assert(!/macar_axe:1/.test(keysDecl[0]),
-  'whitelist does not include leftover axe');
+  && /macar_w2:1/.test(keysDecl[0]) && /macar_atk:1/.test(keysDecl[0])
+  && /macar_axe:1/.test(keysDecl[0]) && /macar_axe_atk:1/.test(keysDecl[0]),
+  'whitelist is maul set + Shadow Cleaver carry/atk');
 
-['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png'].forEach(f=>{
+['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
+ 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
 });
 ['dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_title.png','dwarf_macar_sleep.png',
+ 'dwarf_macar_title.png','dwarf_macar_sleep.png',
  'dwarf_macar_back.png','dwarf_macar_w3.png'].forEach(f=>{
   assert(!fs.existsSync(path.join(root,'assets/creatures',f)), f+' leftover Macar art is gone');
   assert(!html.includes('assets/creatures/'+f), f+' is unwired from the registry');
@@ -66,9 +66,11 @@ assert(!/macar_axe:1/.test(keysDecl[0]),
 const start=html.indexOf('const SPRITE_FILES={');
 const end=html.indexOf('const ICON_SPR={');
 const registry=new Function(html.slice(start, end)+'\nreturn SPRITE_FILES;')();
-assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.macar_atk, 'live Macar keys stay registered');
+assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.macar_atk
+  && registry.macar_axe && registry.macar_axe_atk, 'live Macar + axe keys stay registered');
 Object.keys(registry).forEach(k=>{
-  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk') return;
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
+     || k==='macar_axe' || k==='macar_axe_atk') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 
@@ -80,6 +82,7 @@ const SPR={
 const ctx={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
+  wieldsShadowCleaver(){ return !!ctx._axe; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
 };
@@ -111,7 +114,8 @@ function macar(extra){
   }, extra||{});
 }
 
-assert(ctx.livingMacarIdleKey()==='macar', 'idle key is always the title-law idle');
+ctx._axe=false;
+assert(ctx.livingMacarIdleKey()==='macar', 'idle key is title-law maul when cleaver is off');
 assert(ctx.livingMacarAnimKey(macar())==='macar', 'idle blits the live idle');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'ready w1 is used');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.62}))==='macar_w2', 'ready w2 is used');
@@ -120,6 +124,16 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar', 'recover pl
 SPR.macar_atk={width:470, height:512};
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'title-law 470x512 atk is used');
 delete SPR.macar_atk;
+
+SPR.macar_axe={width:470, height:512};
+SPR.macar_axe_atk={width:470, height:512};
+ctx._axe=true;
+assert(ctx.livingMacarIdleKey()==='macar_axe', 'cleaver idle is macar_axe');
+assert(ctx.livingMacarAnimKey(macar())==='macar_axe', 'cleaver idle blits macar_axe');
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver melee uses axe atk');
+delete SPR.macar_axe; delete SPR.macar_axe_atk;
+ctx._axe=false;
 
 SPR.macar_w1={width:8, height:512};
 SPR.macar_w2={width:8, height:512};

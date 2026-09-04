@@ -80,12 +80,14 @@ function pngAlphaHist(filePath){
   return {ok:true, w, h, mid, a0, a255, unique:midVals.size+(a0?1:0)+(a255?1:0)};
 }
 
-const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk'];
+const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk'];
 const KEY_FILE={
   macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
   macar_w2:'dwarf_macar_w2.png',
-  macar_atk:'dwarf_macar_atk.png'
+  macar_atk:'dwarf_macar_atk.png',
+  macar_axe:'dwarf_macar_axe.png',
+  macar_axe_atk:'dwarf_macar_axe_atk.png'
 };
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
@@ -107,14 +109,17 @@ BLIT_KEYS.forEach(k=>{
 
 /* --- Source: living Macar is title idle + front w1/w2. Attack plants idle. --- */
 const liveKey=extractFn('livingMacarAnimKey');
-assert(!/macar_axe/.test(liveKey) && !/wieldsShadowCleaver/.test(liveKey),
-  'livingMacarAnimKey never binds axe sheets');
+assert(/macar_axe/.test(liveKey) && /livingMacarIdleKey/.test(liveKey),
+  'livingMacarAnimKey binds axe via livingMacarIdleKey when cleaver is on');
+assert(/wieldsShadowCleaver/.test(extractFn('livingMacarIdleKey')),
+  'livingMacarIdleKey gates on wieldsShadowCleaver');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
   && !/macar_w3/.test(liveKey) && !/macar_title/.test(liveKey),
   'livingMacarAnimKey never binds directional / w3 / title sheets');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'walk uses the front w1/w2 pair of the live idle');
-assert(/pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
-  'attack uses title-law atk when the sheet matches idle');
+assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(liveKey)
+  || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)),
+  'attack uses matching atk for equipped idle (maul or axe)');
 
 assert(/function livingMacarIdleKey\(/.test(html), 'idle key helper exists for doll / HUD / title');
 assert(/SPR\[livingMacarIdleKey\(\)\]/.test(html), 'doll / HUD / title idle go through livingMacarIdleKey');
@@ -181,17 +186,23 @@ ctx._axe=false;
 assert(ctx.livingMacarAnimKey(macar())==='macar', 'idle maul key is macar');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'walk plant A is macar_w1');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.62}))==='macar_w2', 'walk plant B is macar_w2');
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'maul strike plants the live idle');
-assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar', 'maul recover plants the live idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'maul strike plants the live idle until atk ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar', 'maul recover plants the live idle until atk ready');
 assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle is macar');
+SPR.macar_atk={width:8};
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul strike uses macar_atk when ready');
+delete SPR.macar_atk;
 
+SPR.macar_axe={width:8};
+SPR.macar_axe_atk={width:8};
 ctx._axe=true;
-assert(ctx.livingMacarIdleKey()==='macar', 'cleaver does not swap Macar off the title-law idle');
-assert(ctx.livingMacarAnimKey(macar())==='macar', 'idle stays macar when the cleaver is on');
-assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'cleaver walk still uses title-law w1');
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'cleaver strike plants the live idle');
-assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle stays macar with the cleaver');
-assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'entAnimKey strike stays the live idle');
+assert(ctx.livingMacarIdleKey()==='macar_axe', 'cleaver swaps idle to macar_axe when sheet ready');
+assert(ctx.livingMacarAnimKey(macar())==='macar_axe', 'idle is macar_axe when the cleaver is on');
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle (no axe_w1/w2)');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver strike uses macar_axe_atk');
+assert(ctx.entAnimKey(macar())==='macar_axe', 'entAnimKey idle is macar_axe with the cleaver');
+assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'entAnimKey strike is macar_axe_atk');
+delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
 
 /* Fake east / west headings: title-law sheets travel screen-right.
