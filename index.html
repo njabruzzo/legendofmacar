@@ -13883,12 +13883,15 @@ function drawArtRect(g, img, x, y, w, h, r){
 function drawTitle(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
+  let splashOk=0;
   if(SPLASH_STATE==='ready'){
     const splash=SPR.title_splash;
     if(splash&&splash.width){
       /* Shift the party plate down so BOOK ONE / THE LEGEND OF MACAR sit on
          dark cave, not hats. Scale in to enlarge the tunnel; crop overflow.
-         Gold type stays on the high-stack (do not move the text down). */
+         Gold type stays on the high-stack (do not move the text down).
+         Splash already bakes the rise-to-hero flavor — skip canvas reprint. */
+      splashOk=1;
       const caveH=Math.max(12,(splash.height*0.14)|0);
       g.drawImage(splash, 0, 0, splash.width, caveH, 0, 0, VW, VH*0.26);
       g.fillStyle='rgba(8,6,5,0.28)';
@@ -13915,7 +13918,7 @@ function drawTitle(g){
   const titleLay=layoutHighPlate(g, {
     s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:btnFloor-12*s,
     label:'B O O K   O N E', title:'THE LEGEND OF MACAR',
-    flavor:'From simple beginnings Macar would rise to become a hero among dwarves.',
+    flavor:splashOk?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
     music:musicIsPlaying()?musicNowLabel():'',
     labSize:13*s, titleSize:(PORT?32:48)*s, flSize:(PORT?14:18)*s, musSize:(PORT?8:9)*s,
     labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
