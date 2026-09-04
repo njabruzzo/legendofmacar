@@ -43,6 +43,13 @@ assert(/midGap=16\*s/.test(html), 'chapter-select cards keep air between gold ti
 assert(/B O O K   O N E/.test(titleFn), 'Book One label stays on the splash');
 assert(/From simple beginnings Macar would rise to become a hero among dwarves\./.test(html),
   'title flavor is the rise-to-hero line');
+assert((titleFn.match(/paintHighPlate\(/g)||[]).length===1,
+  'drawTitle paints the high plate once');
+assert(/flavor:splashOk\?''/.test(titleFn) &&
+  /From simple beginnings Macar would rise to become a hero among dwarves\./.test(titleFn),
+  'ready splash skips canvas flavor; cavern fallback still paints the rise-to-hero line once');
+assert(/label:'B O O K   O N E'/.test(titleFn) && /title:'THE LEGEND OF MACAR'/.test(titleFn),
+  'BOOK ONE and the display title stay on the canvas high plate');
 assert(!/He went down a miner\. Something else came back up\./.test(html),
   'old miner-came-back quote is gone');
 assert(!/woulld/.test(html), 'title flavor uses would, not woulld');
