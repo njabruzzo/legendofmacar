@@ -35,7 +35,8 @@ assert(/titleGap: 28\*s/.test(html) && /titleGapMin: 22\*s/.test(html),
 const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0];
 assert(/layoutHighPlate\(g, \{/.test(titleFn) && /label:'B O O K   O N E'/.test(titleFn),
   'title splash uses the high-stack helper');
-assert(/title:'THE LEGEND OF MACAR'/.test(titleFn), 'Book One display title is in the compact top stack');
+assert(/title:splashOk\?''/.test(titleFn) && /THE LEGEND OF MACAR/.test(titleFn),
+  'ready splash skips canvas title; cavern fallback still paints THE LEGEND OF MACAR');
 assert(/btnFloor=VH-\(PORT\?118:108\)\*s/.test(titleFn), 'title buttons stay on the bottom band');
 assert(!/VH\*\(PORT\?0\.155:0\.162\)/.test(titleFn), 'old mid-high title Y is gone');
 assert(!/let qy=VH\*\(PORT\?0\.198:0\.188\)/.test(titleFn), 'quote is not a floating mid-dark percentage');
@@ -48,8 +49,8 @@ assert((titleFn.match(/paintHighPlate\(/g)||[]).length===1,
 assert(/flavor:splashOk\?''/.test(titleFn) &&
   /From simple beginnings Macar would rise to become a hero among dwarves\./.test(titleFn),
   'ready splash skips canvas flavor; cavern fallback still paints the rise-to-hero line once');
-assert(/label:'B O O K   O N E'/.test(titleFn) && /title:'THE LEGEND OF MACAR'/.test(titleFn),
-  'BOOK ONE and the display title stay on the canvas high plate');
+assert(/label:'B O O K   O N E'/.test(titleFn) && !/label:splashOk/.test(titleFn),
+  'BOOK ONE stays on the canvas high plate even when splash is ready');
 assert(!/He went down a miner\. Something else came back up\./.test(html),
   'old miner-came-back quote is gone');
 assert(!/woulld/.test(html), 'title flavor uses would, not woulld');

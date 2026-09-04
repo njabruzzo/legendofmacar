@@ -34,7 +34,7 @@ assert(!/dwarfface|prop_dwarfface/.test(block),
 
 assert(/function layoutHighPlate\(/.test(html) && /function paintHighPlate\(/.test(html),
   'title high-stack helpers stay on main');
-assert(/title:'THE LEGEND OF MACAR'/.test(html), 'title copy is unchanged');
+assert(/THE LEGEND OF MACAR/.test(html), 'title copy is unchanged');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\npack doll identity checks passed');
