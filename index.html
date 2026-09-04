@@ -351,7 +351,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='91';
+const ASSET_VER='92';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -633,13 +633,17 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const w3=k.replace(/_w1$/,'_w3');
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
 });
-/* Title-law Macar is idle + front w1/w2 only until Limner delivers the
-   maul-corrected set. Drop axe / compass / helmeted combat / sleep / title
-   / w3 so they cannot fetch or blit. Kin sheets stay. */
+/* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk.
+   Drop compass / helmeted combat / sleep / title / w3 leftovers. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
-  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk') return;
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
+     || k==='macar_axe' || k==='macar_axe_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
+/* Shadow Cleaver carry + atk — registered after the strip so they survive
+   and do not invent missing axe_w1/w2 fetches. */
+SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
+SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -670,7 +674,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -735,7 +739,7 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2',
+  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
@@ -1322,9 +1326,9 @@ function drawEntBillboard(g,e,img,z,flip){
 /* ==========================================================================
    Macar's sheet plan.
 
-   Title-law identity is the live idle plus front w1/w2. Attack plants that
-   idle until Limner delivers the maul-corrected set. Compass / leftover
-   combat / sleep stills are gone — do not rebind them.
+   Title-law identity is the live maul idle plus front w1/w2 + maul atk.
+   Shadow Cleaver carry/atk swap in via livingMacarIdleKey when equipped.
+   Compass / sleep / title leftovers stay gone — do not rebind them.
    ========================================================================== */
 const MACAR_PLAN={
   macar:{
@@ -1341,12 +1345,14 @@ const MACAR_PLAN={
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Title-law Macar: live idle + front w1/w2 + maul atk. No axe / compass leftovers. */
+/* Title-law Macar: maul idle + front w1/w2 + maul atk + Shadow Cleaver carry/atk. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
+  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+    return 'macar_axe';
   return 'macar';
 }
 /* Extra mass is WIDTH, not height. Dungeon height stays kin 78*z so Macar
@@ -1478,13 +1484,16 @@ function macarPose(e){
   ]);
   return idle?{key:idle, flip:flip}:none;
 }
-/* Living Macar only. Idle / front w1-w2. Attack plants idle.
-   Same FACE, opposite FOOT. Never a leftover combat stem. */
+/* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
+   Melee uses matching atk for the equipped idle. Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
-  const idle='macar';
-  /* Title-law maul atk when the sheet matches idle; else plant idle. */
-  if(wantsMeleePose(e)||wantsMeleeRecover(e)) return pickReadyPartyKey('macar_atk', idle) || idle;
+  const idle=livingMacarIdleKey();
+  if(wantsMeleePose(e)||wantsMeleeRecover(e)){
+    const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
+    return pickReadyPartyKey(atk, idle) || idle;
+  }
+  /* Axe has no w1/w2 — walkCycleKey plants axe idle (do not use maul walks). */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }

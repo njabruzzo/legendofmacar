@@ -39,8 +39,8 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
 assert(/macar:1/.test(html) && /macar_w1:1/.test(html) && /macar_w2:1/.test(html) && /macar_atk:1/.test(html)
-  && !/macar_axe:1/.test(html),
-  'living Macar whitelist is idle + front w1/w2 + title-law atk');
+  && /macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html),
+  'living Macar whitelist is maul set + Shadow Cleaver carry/atk');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
 
@@ -70,10 +70,11 @@ assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
   && !/macar_ne/.test(liveKey) && !/macar_se/.test(liveKey) && !/macar_title/.test(liveKey),
   'living Macar does not bind washed directional / title stems');
-assert(!/macar_axe/.test(liveKey) && !/wieldsShadowCleaver/.test(liveKey),
-  'living Macar does not bind axe sheets');
-assert(/pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
-  'attack uses title-law atk when the sheet matches idle');
+assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(html),
+  'living Macar binds axe sheets when the cleaver is wielded');
+assert(/pickReadyPartyKey\(atk, idle\)/.test(liveKey) || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
+  'attack uses matching atk for the equipped idle');
+assert(/macar_axe_atk/.test(liveKey), 'cleaver melee uses macar_axe_atk');
 assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
@@ -146,10 +147,11 @@ assert(ctx.heroFigureFit(mac,back)>1.05, 'inset back pose is scaled up to idle h
 assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
 
-['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png'].forEach(f=>{
+['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
+ 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
-['dwarf_macar_axe.png','dwarf_macar_title.png','dwarf_macar_back.png',
+['dwarf_macar_title.png','dwarf_macar_back.png',
  'dwarf_macar_sleep.png','dwarf_macar_e_atk.png'].forEach(f=>{
   assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' leftover Macar art is gone');
 });
