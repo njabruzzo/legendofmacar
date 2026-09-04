@@ -18,10 +18,9 @@ if len(xs):
     print('content_aspect', bw/bh)
 else:
     print('content_aspect', 0)
-y0,y1=int(h*0.32), int(h*0.50)
+y0,y1=int(h*0.42), int(h*0.58)
 x0,x1=int(w*0.34), int(w*0.66)
-band=gray[y0:y1, x0:x1]
-mask=opq[y0:y1, x0:x1]
-print('mouth_opaque', float(mask.mean()))
-print('mouth_dark', float((band[mask]<55).mean()) if mask.any() else 0)
+hole=alpha[y0:y1, x0:x1]==0
+print('mouth_clear', float(hole.mean()))
+print('mouth_opaque', float((alpha[y0:y1, x0:x1]>40).mean()))
 print('binary', int(((alpha==0)|(alpha==255)).mean()>0.98))
