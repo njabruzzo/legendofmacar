@@ -7,8 +7,8 @@
  * props (gone/taken plus trap/fallen/backwall/scatter identity),
  * objective done-bits, and kill count.
  *
- * TimedEffects / Navigation / discoveries are not in the live save path and
- * are not invented here.
+ * MAC-03 haste: optional play.party[].effects + baseSp/baseCd when a timed
+ * haste is active. Navigation / discoveries are still not invented here.
  *
  * Storage:
  *   legendofmacar.save.v2         live v2 slot
@@ -155,7 +155,7 @@
   }
 
   function captureParty(e) {
-    return {
+    var row = {
       key: e.col.key,
       id: e.id,
       sid: stableSid(e),
@@ -163,6 +163,15 @@
       dead: !!e.dead, ghost: !!e.ghost, crushed: !!e.crushed,
       x: e.x, y: e.y, looted: !!e.looted
     };
+    if (root.TimedEffects && root.TimedEffects.serialize) {
+      var fx = root.TimedEffects.serialize(e);
+      if (fx && fx.length) {
+        row.effects = fx;
+        if (e.baseSp != null) row.baseSp = e.baseSp;
+        if (e.baseCd != null) row.baseCd = e.baseCd;
+      }
+    }
+    return row;
   }
 
   function captureWorld(G, extra) {
@@ -269,6 +278,11 @@
         if (sv.id != null) pe.id = sv.id;
         if (sv.sid) pe.sid = sv.sid;
         if (pe.crushed) { pe.prone = 1; pe.corpse = 1; pe.moving = 0; pe.hidden = 0; }
+        if (sv.baseSp != null) pe.baseSp = sv.baseSp;
+        if (sv.baseCd != null) pe.baseCd = sv.baseCd;
+        if (sv.effects && root.TimedEffects && root.TimedEffects.restore) {
+          root.TimedEffects.restore(pe, sv.effects);
+        }
       });
       applied.party = true;
     }

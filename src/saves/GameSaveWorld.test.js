@@ -315,10 +315,44 @@ const GS=loadGS();
   assert(old.play.flags.touched===1 && old.play.party.length===2, 'old applyPlaySave can still read flags and party');
 }
 
+/* ---------- MAC-03 haste remaining on party rows (optional, v2 compatible) ---------- */
+{
+  const ctx={ globalThis:{} };
+  ctx.globalThis=ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../combat/TimedEffects.js'),'utf8'), ctx);
+  vm.runInContext(src, ctx);
+  const GS2=ctx.GameSave;
+  const TE=ctx.TimedEffects;
+  const G=freshWorld();
+  const mac=G.ents.find(e=>e.col&&e.col.key==='macar');
+  mac.baseSp=4; mac.sp=4; mac.baseCd=1.1; mac.cd=1.1;
+  TE.applyHaste(mac, {duration:6, moveMul:1.35, cdMul:0.5, policy:'refresh', source:'potion'});
+  TE.syncActor(mac);
+  const play=GS2.captureWorld(G,{nextEid:21});
+  const row=(play.party||[]).find(p=>p.key==='macar');
+  assert(row && row.effects && row.effects[0].kind==='haste' && row.effects[0].remaining===6,
+    'captureWorld writes haste remaining onto the party row');
+  assert(row.baseSp===4 && row.baseCd===1.1, 'captureWorld keeps baseSp/baseCd with haste');
+  const bare=GS.captureWorld(freshWorld(),{nextEid:21});
+  const bareRow=(bare.party||[]).find(p=>p.key==='macar');
+  assert(!bareRow.effects, 'party rows without haste omit effects (old readers stay valid)');
+  const G2=freshWorld();
+  const mac2=G2.ents.find(e=>e.col&&e.col.key==='macar');
+  mac2.baseSp=4; mac2.sp=4; mac2.baseCd=1.1; mac2.cd=1.1;
+  GS2.applyWorld(G2, play);
+  assert(TE.hasHaste(mac2) && TE.getHaste(mac2).remaining===6, 'applyWorld restores haste remaining');
+  TE.syncActor(mac2);
+  assert(Math.abs(mac2.sp-4*1.35)<1e-9, 'reload derives the same haste move from base');
+}
+
 /* ---------- host wiring + no forbidden integrations ---------- */
 assert(/function remakeSavedEnt\(/.test(html), 'host remakes saved ents through ent()');
 assert(/sv\.id!=null\) e\.id=sv\.id/.test(html), 'host preserves numeric EID on remake');
-assert(!/TimedEffects/.test(html.match(/function applyPlaySave\([\s\S]*?\nfunction loadSavedGame/)[0]), 'applyPlaySave does not pull in TimedEffects');
+assert(!/TimedEffects/.test(html.match(/function applyPlaySave\([\s\S]*?\nfunction loadSavedGame/)[0]),
+  'applyPlaySave does not pull in TimedEffects (restorePartyHaste owns haste)');
+assert(/restorePartyHaste/.test(html.match(/function applyPlaySave\([\s\S]*?\nfunction loadSavedGame/)[0]),
+  'applyPlaySave reapplies party haste after applyWorld');
 assert(!/ASSET_VER/.test(src), 'GameSave.js does not touch ASSET_VER');
 assert(/'trap','fallen','backwall','scatter'/.test(src), 'PROP_COPY allowlists trap/fallen/backwall/scatter');
 
