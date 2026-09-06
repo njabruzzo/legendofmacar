@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Pixel checks for the cropped ruby-door dwarf-face sheet."""
+"""Optional local pixel checks for the cropped ruby-door dwarf-face sheet.
+
+CI uses DwarfFaceCrop.test.js (Node / src/qa/pngRgba.js) so this script is
+not required for `npm test`.
+"""
 import sys
 from PIL import Image
 import numpy as np
