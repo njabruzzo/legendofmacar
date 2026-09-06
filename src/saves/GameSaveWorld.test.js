@@ -320,6 +320,7 @@ assert(/function remakeSavedEnt\(/.test(html), 'host remakes saved ents through 
 assert(/sv\.id!=null\) e\.id=sv\.id/.test(html), 'host preserves numeric EID on remake');
 assert(!/TimedEffects/.test(html.match(/function applyPlaySave\([\s\S]*?\nfunction loadSavedGame/)[0]), 'applyPlaySave does not pull in TimedEffects');
 assert(!/ASSET_VER/.test(src), 'GameSave.js does not touch ASSET_VER');
+assert(/'trap','fallen','backwall','scatter'/.test(src), 'PROP_COPY allowlists trap/fallen/backwall/scatter');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nGameSave world checks passed');
