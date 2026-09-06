@@ -91,7 +91,13 @@ function freshWorld(){
     props:[
       {x:1.2,y:1.1,k:'lantern'},
       {x:3.5,y:2.5,k:'crate',taken:1,gone:1,craft:1},
-      {x:2.0,y:1.8,k:'timber',s:0.9}
+      {x:2.0,y:1.8,k:'timber',s:0.9},
+      {x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
+      {x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
+      {x:15.08,y:18.72,k:'timber',fallen:1,s:0.70,seed:72,cover:1},
+      {x:14.22,y:16.4,k:'cavein',s:1.12,seed:960,backwall:1},
+      {x:14.38,y:16.8,k:'dust',s:0.70,seed:940,backwall:1},
+      {x:15.15,y:19.85,k:'rubble',spr:'rubble2',s:0.38,seed:1100,scatter:1}
     ],
     loot:[loot],
     lvl:{
@@ -119,6 +125,18 @@ const GS=loadGS();
   assert(play.grid[2][2]==='1' && play.seen[1].slice(1,3)==='11', 'grid and explored cells are packed');
   assert(play.wallHP['2,2'].hp===40, 'wall HP is captured');
   assert(play.props[1].gone===1 && play.props[1].taken===1, 'scavenged props are captured');
+  {
+    const pit=play.props.find(p=>p.k==='trap'&&p.trap==='trap_pit');
+    const rune=play.props.find(p=>p.k==='trap'&&p.trap==='trap_runes');
+    const fallen=play.props.find(p=>p.k==='timber'&&p.fallen===1);
+    const cavein=play.props.find(p=>p.k==='cavein'&&p.backwall===1);
+    const dust=play.props.find(p=>p.k==='dust'&&p.backwall===1);
+    const scatter=play.props.find(p=>p.k==='rubble'&&p.scatter===1);
+    assert(!!pit && !!rune, 'captureWorld keeps pit and rune trap types');
+    assert(!!fallen && fallen.cover===1, 'captureWorld keeps fallen timber identity');
+    assert(!!cavein && !!dust, 'captureWorld keeps backwall cavein and dust identity');
+    assert(!!scatter && scatter.spr==='rubble2', 'captureWorld keeps scatter rubble identity');
+  }
   assert(play.kills===1 && play.nextEid===21, 'kill count and next EID are captured');
 
   const mutated=freshWorld();
@@ -142,6 +160,20 @@ const GS=loadGS();
   assert(rat && rat.id===11 && rat.dead===true && rat.corpse===true, 'corpse identity reloads');
   assert(mutated.loot[0]._corpse===11 && mutated.loot[0].id===20, 'corpse loot still points at the same EID');
   assert(mutated.props[1].k==='crate' && mutated.props[1].gone===1, 'taken prop stays gone');
+  {
+    const pit=mutated.props.find(p=>p.k==='trap'&&p.trap==='trap_pit');
+    const rune=mutated.props.find(p=>p.k==='trap'&&p.trap==='trap_runes');
+    const fallen=mutated.props.find(p=>p.k==='timber'&&p.fallen===1);
+    const cavein=mutated.props.find(p=>p.k==='cavein'&&p.backwall===1);
+    const dust=mutated.props.find(p=>p.k==='dust'&&p.backwall===1);
+    const scatter=mutated.props.find(p=>p.k==='rubble'&&p.scatter===1);
+    assert(!!pit && pit.trap!==undefined, 'Continue keeps trap_pit (does not fall back to spikes)');
+    assert(!!rune && rune.trap==='trap_runes', 'Continue keeps trap_runes');
+    assert(!!fallen && fallen.fallen===1, 'Continue keeps fallen timber');
+    assert(!!cavein && cavein.backwall===1 && !!dust && dust.backwall===1, 'Continue keeps backwall cavein and dust');
+    assert(!!scatter && scatter.scatter===1, 'Continue keeps scatter rubble');
+    assert(!mutated.props.some(p=>p.k==='trap'&&p.trap==null), 'no trap reloads with a stripped type');
+  }
   assert(mutated.kills===1 && mutated.lvl.objs[0].d===true, 'kills and objective bits reload');
   const macar=mutated.ents.find(e=>e.col&&e.col.key==='macar');
   assert(macar && macar.x===1.5 && macar.hp===40, 'party overlay restores Macar');
@@ -157,6 +189,15 @@ const GS=loadGS();
   assert(GS.write(store, snap)===true, 'v2 write commits');
   const got=GS.read(store);
   assert(got && got.v===2 && got.schemaVersion===2 && got.play.ents[0].id===10, 'read returns schema v2 world');
+  {
+    const pit=got.play.props.find(p=>p.k==='trap'&&p.trap==='trap_pit');
+    const rune=got.play.props.find(p=>p.k==='trap'&&p.trap==='trap_runes');
+    const fallen=got.play.props.find(p=>p.fallen===1);
+    const backwall=got.play.props.find(p=>p.backwall===1);
+    const scatter=got.play.props.find(p=>p.scatter===1);
+    assert(!!pit && !!rune && !!fallen && !!backwall && !!scatter,
+      'Continue slot roundtrips pit/rune/fallen/backwall/scatter');
+  }
   assert(store.data[GS.KEY_V1], 'legacy v1 key is still present after v2 commit');
   const v1=JSON.parse(store.data[GS.KEY_V1]);
   assert(v1.v===1 && !v1.play.ents && !v1.play.grid, 'v1 mirror is a compatible old-reader snapshot');
@@ -279,6 +320,7 @@ assert(/function remakeSavedEnt\(/.test(html), 'host remakes saved ents through 
 assert(/sv\.id!=null\) e\.id=sv\.id/.test(html), 'host preserves numeric EID on remake');
 assert(!/TimedEffects/.test(html.match(/function applyPlaySave\([\s\S]*?\nfunction loadSavedGame/)[0]), 'applyPlaySave does not pull in TimedEffects');
 assert(!/ASSET_VER/.test(src), 'GameSave.js does not touch ASSET_VER');
+assert(/'trap','fallen','backwall','scatter'/.test(src), 'PROP_COPY allowlists trap/fallen/backwall/scatter');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nGameSave world checks passed');

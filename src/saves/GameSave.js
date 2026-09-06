@@ -4,7 +4,8 @@
  * Schema v2 (MAC-01) snapshots the mutable world that actually has writers:
  * chapter identity, campaign/party/inventory, roster HP, flags/secrets/loot,
  * world ents (stable sid + numeric EID), terrain grid, wallHP, explored cells,
- * props (gone/taken), objective done-bits, and kill count.
+ * props (gone/taken plus trap/fallen/backwall/scatter identity),
+ * objective done-bits, and kill count.
  *
  * TimedEffects / Navigation / discoveries are not in the live save path and
  * are not invented here.
@@ -39,7 +40,8 @@
 
   var PROP_COPY = [
     'x','y','k','s','spr','seed','gone','taken','pin','cover','webRock','label','n',
-    'dress','plant','craft','lairDen','station','stone'
+    'dress','plant','craft','lairDen','station','stone',
+    'trap','fallen','backwall','scatter'
   ];
 
   var ENT_BOOL = {
