@@ -122,6 +122,8 @@ assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'walk uses the front w1/w2 pair 
 assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(liveKey)
   || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)),
   'attack uses matching atk for equipped idle (maul or axe)');
+assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
+  'matching equipped atk skips crown/family so a parked crown cannot plant idle');
 
 assert(/function livingMacarIdleKey\(/.test(html), 'idle key helper exists for doll / HUD / title');
 assert(/SPR\[livingMacarIdleKey\(\)\]/.test(html), 'doll / HUD / title idle go through livingMacarIdleKey');
@@ -162,6 +164,7 @@ vm.runInContext(
   +extractFn('partyCrownMatches')
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
+  +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('walkCycleKey')
@@ -209,6 +212,69 @@ assert(ctx.entAnimKey(macar())==='macar_axe', 'entAnimKey idle is macar_axe with
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'entAnimKey strike is macar_axe_atk');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
+
+/* Identity (family + crown) must not hide a ready matching swing sheet.
+   400×512 fails samePaintedFamily vs 470×512; a helmeted crown fails the
+   unhelmeted idle. Hits still land on the atk/ct/swung timer. */
+SPR.macar={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_atk={width:400, height:512, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
+assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,
+  'mismatched maul atk crop fails identity vs the 470×512 idle');
+assert(ctx.matchingPartyAtkReady('macar_atk', 'macar')===true,
+  'matching maul atk is still ready when the sheet fits');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk',
+  'maul strike blits macar_atk even when crown/family would plant idle');
+delete SPR.macar_atk;
+SPR.macar={width:8};
+
+SPR.macar_axe={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_axe_atk={width:400, height:512, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
+ctx._axe=true;
+assert(ctx.partySheetMatchesIdle(SPR.macar_axe_atk, SPR.macar_axe, 'macar_axe_atk')===false,
+  'mismatched cleaver atk crop fails identity vs axe idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk',
+  'cleaver strike blits macar_axe_atk even when crown/family would plant idle');
+delete SPR.macar_axe; delete SPR.macar_axe_atk;
+ctx._axe=false;
+
+function tickMelee(e, dt){
+  if(!(e.atk>0)) return 'idle';
+  if(e.defending){ e.atk=0; e.swung=0; return 'cancel'; }
+  e.atk-=dt;
+  if(!e.swung && e.atk<e.atkMax*0.55){ e.swung=1; return 'hit'; }
+  if(e.atk<=0){ e.swung=0; return 'done'; }
+  return 'wind';
+}
+function fireManual(p){
+  if(p.defending) return false;
+  p.moving=0; p.ix=0; p.iy=0; p.atkKind='melee';
+  if(p.atk<=0){
+    p.atk=p.atkMax;
+    if((p.ct||0)<=0){ p.ct=p.cd||1; p.swung=0; }
+    else p.swung=1;
+  }
+  return true;
+}
+const swing=macar({atk:0, atkMax:0.78, ct:0, cd:1, defending:0, swung:0});
+assert(fireManual(swing)===true && swing.swung===0 && swing.atk===0.78,
+  'manual Attack with Defend down starts a swung=0 timer');
+let landed=0;
+for(let t=0;t<1.2;t+=0.05){ if(tickMelee(swing, 0.05)==='hit') landed++; }
+assert(landed===1, 'swung/ct path lands exactly one hit on the manual timer');
+const auto=macar({atk:0, atkMax:0.78, ct:0, cd:1, defending:0, swung:0, moving:0});
+auto.atkKind='melee'; auto.atk=auto.atkMax; auto.ct=auto.cd; auto.swung=0;
+landed=0;
+for(let t=0;t<1.2;t+=0.05){ if(tickMelee(auto, 0.05)==='hit') landed++; }
+assert(landed===1, 'standing auto-melee lands on the same swung/ct path');
+const shielded=macar({atk:0, atkMax:0.78, ct:0, defending:1, swung:0});
+assert(fireManual(shielded)===false && shielded.atk===0,
+  'manual Attack is refused while Defend is up');
+const poseOnly=macar({atk:0, atkMax:0.78, ct:0.4, cd:1, defending:0, swung:0});
+assert(fireManual(poseOnly)===true && poseOnly.swung===1,
+  'Attack during cooldown is pose-only (swung already 1 — no second hit)');
+landed=0;
+for(let t=0;t<1.2;t+=0.05){ if(tickMelee(poseOnly, 0.05)==='hit') landed++; }
+assert(landed===0, 'pose-only cooldown swing never fires the hit tick');
 
 /* Fake east / west headings: title-law sheets travel screen-right.
    D / gold-right stays unflipped; A / gold-left flips. Invert leftover
@@ -259,7 +325,8 @@ assert(vKin.dx<0 && vKin.dy>0, 'party kin closing on a foe face the foe, not Mac
 /* Opaque blit: no invert leftover, no ramped edge, no empty-canvas flash. */
 const flipBake=extractFn('flippedSprite');
 assert(/imageSmoothingEnabled=false/.test(flipBake), 'mirror bake is nearest-neighbor');
-assert(/punchLivingMacarCanvas\(c\)/.test(flipBake), 'mirror bake re-punches so flip cannot reintroduce fringe');
+assert(/punch!==false/.test(flipBake) && /if\(doPunch\) punchLivingMacarCanvas\(c\)/.test(flipBake),
+  'mirror bake re-punches living sheets and can skip punch for ghost mid-alpha');
 assert(/globalAlpha=1/.test(flipBake) && /globalCompositeOperation='source-over'/.test(flipBake),
   'mirror bake is source-over at alpha 1');
 const bake=extractFn('blitLivingMacar');
