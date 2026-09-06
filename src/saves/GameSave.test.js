@@ -32,7 +32,7 @@ const G={
   xp:{mine:3}, skillSnap:{mine:1}, gear:{macar:{wt:1}}
 };
 const snap=GS.snapshot(G, {scene:'play', play:{x:40.2,y:32.1,flags:{placed:1}}});
-assert(snap.v===1 && snap.ch===2 && snap.unlocked===3, 'snapshot keeps chapter progress');
+assert(snap.v===2 && snap.schemaVersion===2 && snap.ch===2 && snap.unlocked===3, 'snapshot keeps chapter progress');
 assert(snap.packs.macar.ammo===8 && snap.coin.gp===40, 'snapshot keeps pack and coin');
 assert(snap.ghostAllies.pordoom===1 && snap.play.x===40.2, 'snapshot keeps ghosts and play extras');
 assert(snap.packs.macar!==G.packs.macar, 'snapshot clones nested objects');
@@ -65,7 +65,11 @@ assert(/Save game/.test(html) && /function writeGameSave\(/.test(html), 'pause c
   assert(/The book is marked/.test(write) && /Saved\. /.test(write), 'manual save keeps the old confirmation');
   assert(/campSaveFlash/.test(write), 'manual save lights the camp Save plate');
   assert(/GameSave\.write\(localStorage/.test(write), 'camp Save writes the Continue localStorage slot');
+  assert(/ok=!!GameSave\.write/.test(write) || /GameSave\.write\(localStorage/.test(write), 'write result is checked before confirming');
 }
+assert(/GameSave\.captureWorld/.test(html) && /GameSave\.applyWorld/.test(html), 'play save uses the versioned world schema');
+assert(/remakeSavedEnt/.test(html) && /restoreSavedEid/.test(html), 'load remakes ents and restores numeric EIDs');
+assert(!/ASSET_VER='93'/.test(html) && /ASSET_VER='92'/.test(html), 'ASSET_VER is unchanged');
 assert(/G\.scene==='camp'/.test(html) && /drawHint\(g,UIS\)/.test(html), 'camp draws the Saved toast');
 assert(/Continue/.test(html) && /function loadSavedGame\(/.test(html), 'title can continue a save');
 assert(/G\._keepProgress/.test(html) && /G\._forceSeeds/.test(html), 'load keeps campaign and dungeon seeds');
