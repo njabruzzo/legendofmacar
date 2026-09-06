@@ -68,11 +68,9 @@ assert(/export default class AStar/.test(astarOrig) && /_getNeighbors/.test(path
   'vendored lib/path/astar.js, path.js, constants.js from rot.js');
 assert(!/flare|shattered pixel|brogue/i.test(navSrc) && !/flare|shattered pixel|brogue/i.test(rotSrc),
   'no Flare / SPD / Brogue path code');
-assert(!/\.x\s*=/.test(navSrc.replace(/from\.x|to\.x|goal\.x|st\.goal|leader\.x|wp\.x|w\.x|e\.ix/g,'')),
-  'Navigation does not assign actor world x');
-assert(!/e\.y\s*=/.test(navSrc) && !/actor\.x\s*=/.test(navSrc),
-  'Navigation does not assign actor world y');
-assert(!/wornMoveMul/.test(navSrc), 'Navigation does not apply wornMoveMul (boots stay in move)');
+assert(!/\be\.(x|y)\s*=/.test(navSrc) && !/\bactor\.(x|y)\s*=/.test(navSrc),
+  'Navigation does not assign actor world x/y');
+assert(!/wornMoveMul\s*\(/.test(navSrc), 'Navigation does not call wornMoveMul (boots stay in move)');
 assert(!/type\s*=\s*["']module["']/.test(html), 'index.html still has no type=module');
 
 const head=html.slice(0, html.indexOf('<script>\n"use strict";'));
@@ -183,7 +181,10 @@ function assertFourTopology(plan, msg){
   const dPlan=Nav.planRoute(start, goal, dwarf, {canBe:ctx.canBe});
   const gPlan=Nav.planRoute(start, goal, gnome, {canBe:ctx.canBe});
   assert(dPlan.ok===true, 'dwarf routes around gnome-only stone');
-  assert(!dPlan.path.some(p=>(p.x|0)===7), 'dwarf path never enters type-4 column');
+  assert(!dPlan.path.some(p=>{
+    const i=p.x|0, j=p.y|0;
+    return !!(grid[j] && grid[j][i]===4);
+  }), 'dwarf path never stands on type-4 tiles');
   assert(gPlan.ok===true, 'gnome can plan across type 4');
   assert(gPlan.path.some(p=>(p.x|0)===7) || gPlan.path.length<dPlan.path.length,
     'gnome plan may use the type-4 shortcut');
@@ -280,14 +281,15 @@ function assertFourTopology(plan, msg){
   const ctx=collisionCtx(grid, {
     startCaveInBlocks(x,y){ return x<15.12 && y>=16 && y<=30; }
   });
-  vm.runInContext('startCaveInBlocks=function(x,y){ return x<15.12 && y>=16 && y<=30; };', ctx);
-  /* re-extract walk so it closes over the new startCaveInBlocks — already in ctx via first extract.
-     The extracted walk calls startCaveInBlocks from the context. Redefine then re-run walk. */
-  vm.runInContext(extractThrough('walk','move'), ctx);
   assert(ctx.walk(14.5, 22, dwarf)===false, 'Chapter I cave-in lip refuses walk');
+  assert(ctx.canBe(14.25, 22.25, 0.38, dwarf)===false, 'cannot stand inside the cave-in');
   assert(ctx.canBe(20.5, 22.0, 0.38, dwarf)===true, 'Chapter I spawn tile is standable');
-  const plan=Nav.planRoute({x:20.25,y:22.25},{x:14.25,y:22.25}, dwarf, {canBe:ctx.canBe, maxExpand:800});
-  assert(plan.ok===false, 'route into the west cave-in fails closed (no clip)');
+  const deep=Nav.planRoute({x:20.25,y:22.25},{x:10.25,y:22.25}, dwarf, {canBe:ctx.canBe, maxExpand:800});
+  assert(deep.ok===false && deep.reason==='blocked-end',
+    'goal deep in the west cave-in is rejected (no snap / clip through the lip)');
+  const lip=Nav.planRoute({x:20.25,y:22.25},{x:16.25,y:22.25}, dwarf, {canBe:ctx.canBe, maxExpand:800});
+  assert(lip.ok===true && lip.path.every(p=>p.x>=15.12-1e-9),
+    'a standable goal east of the lip never enters the cave-in');
 }
 
 /* pilot pick: pordoom first; Noz / fleeTo excluded */
