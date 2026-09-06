@@ -293,6 +293,10 @@
     var pad = 8 * s;
     var who = (host.whoName || 'MACAR').toUpperCase();
     var title = 'COMPARE  ·  ' + who;
+    g.save();
+    g.beginPath();
+    g.rect(x + 2, y + 2, w - 4, h - 4);
+    g.clip();
     g.font = '800 ' + (9 * s) + 'px ' + FONT_TITLE;
     g.fillStyle = '#ffe9c0';
     g.textAlign = 'left';
@@ -308,8 +312,9 @@
     g.fillText(ellip ? ellip(g, sub, w - pad * 2) : sub, x + pad, y + 24 * s);
     var yy = y + 36 * s;
     var lineH = 11 * s;
+    var floor = y + h - 6 * s;
     function row(label, cur, next, warn) {
-      if (yy > y + h - 10 * s) return;
+      if (yy > floor) return false;
       g.font = '700 ' + (8 * s) + 'px ' + FONT_UI;
       g.fillStyle = warn ? '#ff8a7a' : 'rgba(180,160,120,0.86)';
       g.fillText(label, x + pad, yy);
@@ -318,38 +323,39 @@
       g.fillStyle = warn ? '#ffb0a0' : '#f4e2b8';
       g.fillText(ellip ? ellip(g, right, w - pad * 2 - 72 * s) : right, x + pad + 72 * s, yy);
       yy += lineH;
+      return true;
     }
     if (report && !report.ok && report.reasonText) {
       row('Blocked', report.reasonText, null, true);
     }
-    var i, ln, groups;
-    groups = [
-      { title: 'Kit', rows: (report && report.kitLines) || [] },
-      { title: 'Temporary', rows: (report && report.tempLines) || [] },
-      { title: 'Resist', rows: (report && report.resistLines) || [] },
-      { title: 'Need', rows: ((report && report.reqLines) || []).map(function (t) {
-        return { k: 'req', label: 'Need', cur: t, next: null };
-      }) }
-    ];
-    for (i = 0; i < groups.length; i++) {
-      if (!groups[i].rows.length) continue;
-      if (groups[i].title === 'Temporary') {
-        g.font = '700 ' + (7.5 * s) + 'px ' + FONT_UI;
-        g.fillStyle = 'rgba(140,190,220,0.9)';
-        if (yy <= y + h - 10 * s) {
-          g.fillText('TEMPORARY  ·  haste', x + pad, yy);
-          yy += lineH;
-        }
-      }
-      for (var j = 0; j < groups[i].rows.length; j++) {
-        ln = groups[i].rows[j];
-        if (ln.k === 'note' || ln.k === 'haste-left') {
-          row(ln.label, ln.cur, null, false);
-        } else {
-          row(ln.label, ln.cur, ln.next, groups[i].title === 'Need' && report && !report.ok);
-        }
-      }
+    var kit = (report && report.kitLines) || [];
+    var i, ln;
+    for (i = 0; i < kit.length; i++) {
+      ln = kit[i];
+      if (ln.k === 'note') continue;
+      if (!row(ln.label, ln.cur, ln.next, false)) break;
     }
+    var temp = (report && report.tempLines) || [];
+    if (temp.length && yy <= floor) {
+      var hm = '', hc = '', hl = '';
+      for (i = 0; i < temp.length; i++) {
+        if (temp[i].k === 'haste-move') hm = temp[i].cur;
+        if (temp[i].k === 'haste-cd') hc = temp[i].cur;
+        if (temp[i].k === 'haste-left') hl = temp[i].cur;
+      }
+      row('Haste (temp)', [hm, hc, hl].filter(Boolean).join('  ·  '), null, false);
+    }
+    var resists = (report && report.resistLines) || [];
+    for (i = 0; i < resists.length; i++) {
+      ln = resists[i];
+      if (!row(ln.label, ln.cur, ln.next, false)) break;
+    }
+    var reqs = (report && report.reqLines) || [];
+    for (i = 0; i < reqs.length; i++) {
+      if (report && !report.ok && i === 0) continue;
+      if (!row('Need', reqs[i], null, !!(report && !report.ok))) break;
+    }
+    g.restore();
     g.textAlign = 'left';
     return rect;
   }

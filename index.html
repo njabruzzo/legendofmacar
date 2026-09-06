@@ -15198,7 +15198,7 @@ function drawPack(g){
 
   const split=!PORT && VW>=640;
   const cmpOn=typeof useEquipCompare==='function' && useEquipCompare() && G.packSel && isPackEquipable({kind:'magic',it:G.packSel});
-  const cmpH=cmpOn?(PORT?88*s:80*s):0;
+  const cmpH=cmpOn?(PORT?128*s:118*s):0;
   if(cmpOn) drawPackCompare(g, 10*s, kitY+kitH+6*s, VW-20*s, cmpH);
   const dollTop=kitY+kitH+6*s+(cmpH?cmpH+6*s:0);
   const dollBot=VH-52*s;
