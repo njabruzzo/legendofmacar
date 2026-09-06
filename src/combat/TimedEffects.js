@@ -265,4 +265,7 @@
     restore: restore,
     removeHaste: removeHaste
   };
+  if (root.SystemsReady && typeof root.SystemsReady.declare === 'function') {
+    root.SystemsReady.declare('TimedEffects', root.TimedEffects);
+  }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

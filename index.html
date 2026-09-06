@@ -42,7 +42,14 @@
 <script src="src/saves/GameSave.js"></script>
 <script src="src/loot/SpiderLair.js"></script>
 <script src="src/loot/DmgPotions.js"></script>
+<!-- Systems modules: classic sync tags only (no type=module).
+     SystemsReady first so declare() is live, then TimedEffects, then TapGate.
+     Future Batch D: Navigation.js / PartyOrders.js after TapGate, same sync pattern.
+     Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
+     future file cannot use a blocking tag. -->
+<script src="src/systems/SystemsReady.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
+<script src="src/ui/TapGate.js"></script>
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
@@ -9397,7 +9404,7 @@ function move(e,dx,dy,dt){
    ========================================================================== */
 const IN={stick:null,keys:{},taps:[]};
 const UIBTN=[];
-const UI={};
+const UI={overlayHits:[]};
 
 const HUDSKILLS=[
   {key:'pack', ico:'pack', label:'PACK'},
@@ -9652,6 +9659,14 @@ function onDown(id,x,y,ptr){
     G.showObjs=0; return;
   }
   if(hitRect(UI.objHit,x,y)){ G.showObjs=1; return; }
+  /* MAC-05/06: future overlayHits (party-order plates) consume before stick / dest. */
+  if(typeof TapGate!=='undefined' && TapGate.use()){
+    const extra=UI.overlayHits||[];
+    if(TapGate.firstHit(extra,x,y)){
+      const r=TapGate.resolvePlayTap(extra,{x:x,y:y});
+      if(r.consumed) return;
+    }
+  }
   const nearHome = Math.hypot(x-UI.stickHome.x,y-UI.stickHome.y) < UI.stickHome.r*2.2;
   if(G.aim && !(x<VW*0.5||nearHome)){ aimDrag=id; }
   const touchStick = ptr!=='mouse' && (x < VW*0.5 || nearHome);
@@ -10356,6 +10371,7 @@ function ray(sx,sy,r,c,i){ if(QUALITY) RAYS.push({x:sx,y:sy,r,c,i}); }
    ========================================================================== */
 function render(){
   const g=ctx; EMIT=[]; RAYS=[];
+  if(G.scene==='play') UI.overlayHits=[];
   syncCamProj();
   try{
   g.save();
@@ -14197,6 +14213,7 @@ function tryEnterPlay(){
   if(!G._wantPlay) return false;
   if(G.scene!=='intro' && G.scene!=='play') return false;
   if(!worldArtReady(G.ch)) return false;
+  if(typeof SystemsReady!=='undefined' && SystemsReady.systemsHold()) return false;
   G._wantPlay=0;
   if(G.scene==='play') return true;
   G.scene='play';
@@ -15266,11 +15283,37 @@ function drawPause(g){
 }
 
 /* ---------------------------- tap resolution ---------------------------- */
+function applyPortraitTap(ph){
+  if(!ph) return;
+  if(ph.key==='macar'){
+    G.inspect=null;
+    G.packWho='macar';
+    G.packTab='gear';
+    openPackMenu('play');
+    return;
+  }
+  G.inspect=ph.key;
+}
+function consumePlayUiTap(t){
+  if(typeof TapGate==='undefined'||!TapGate.use()) return false;
+  if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+    fire('use'); return true; }
+  if(G.talk){
+    const hit=(UI.talkHits||[]).find(z=>t.x>=z.x&&t.x<=z.x+z.w&&t.y>=z.y&&t.y<=z.y+z.h);
+    if(hit) pickTalk(hit.i);
+    return true;
+  }
+  const ph=TapGate.firstHit(UI.portraitHits, t.x, t.y);
+  if(ph){ applyPortraitTap(ph); return true; }
+  const r=TapGate.resolvePlayTap(UI.overlayHits||[], t);
+  return !!(r&&r.consumed);
+}
 function resolveTaps(){
   while(IN.taps.length){
     const t=IN.taps.shift();
     if(G.sleepShow) continue;
     if(G.scene==='play'&&!G.paused){
+      if(typeof consumePlayUiTap==='function' && consumePlayUiTap(t)) continue;
       if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
         fire('use'); continue; }
       const p=player(); if(!p) continue;
@@ -15316,7 +15359,8 @@ function loop(now){
   let dt=(now-last)/1000; last=now; dt=Math.min(dt,.05); G.t+=dt;
   tickGfx(dt);
   const holdingWorld=G.scene==='play' && !worldArtReady(G.ch);
-  if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld) update(dt);
+  const holdingSystems=typeof SystemsReady!=='undefined' && SystemsReady.systemsHold();
+  if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld && !holdingSystems) update(dt);
   tryEnterPlay();
   syncMusic();
   render(); resolveTaps();
