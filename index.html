@@ -43,13 +43,15 @@
 <script src="src/loot/SpiderLair.js"></script>
 <script src="src/loot/DmgPotions.js"></script>
 <!-- Systems modules: classic sync tags only (no type=module).
-     SystemsReady first so declare() is live, then TimedEffects, then TapGate.
-     Future Batch D: Navigation.js / PartyOrders.js after TapGate, same sync pattern.
+     SystemsReady first so declare() is live, then TimedEffects, then TapGate,
+     then rot-path + Navigation (MAC-07 Batch D). Future: PartyOrders.js.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
+<script src="src/vendor/rotjs/rot-path.js"></script>
+<script src="src/systems/Navigation.js"></script>
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
@@ -4510,7 +4512,9 @@ function startChapter(n){
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
-  G.seenRev=0; BX_KEY=''; TILEBLIT.key='';
+  G.seenRev=0; G.topologyRev=0; BX_KEY=''; TILEBLIT.key='';
+  if(typeof Navigation!=='undefined' && Navigation.invalidate)
+    Navigation.invalidate({levelId:String(n)+':'+String(n)+':0', topologyRev:0, reason:'chapter'});
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
   if(sfx&&sfx.stopBed) sfx.stopBed();
@@ -9172,6 +9176,7 @@ function tryFindSecret(p, mode){
 function openSecret(sec){
   if(!sec||sec.open) return;
   sec.open=1;
+  /* topologyRev (not seenRev) — nav cache must drop when the grid opens. */
   const L=G.lvl, g=L.grid;
   (G.props||[]).forEach(p=>{
     if(p.k==='secret_door' && Math.hypot(p.x-(sec.x||sec.i), p.y-(sec.y||sec.j))<2.6) p.gone=1;
@@ -9182,10 +9187,12 @@ function openSecret(sec){
   burst(sec.x||sec.i, sec.y||sec.j, '#d4a04a', 16, 2.6);
   if(sec.kind==='warrens'){
     buildGoblinWarrens(L, sec);
+    bumpTopology('openSecret-warrens');
     return;
   }
   if(sec.kind==='treasure'){
     buildSecretTreasureRoom(L, sec);
+    bumpTopology('openSecret-treasure');
     return;
   }
   if(sec.path) carvePath(g, sec.path, 2.1, 0);
@@ -9197,6 +9204,7 @@ function openSecret(sec){
     const dx=L.dungeon?L.dungeon.x:44, dy=L.dungeon?L.dungeon.y:11;
     wave([['goblin',dx-1.4,dy-0.8],['goblin',dx+1.6,dy+0.6],['goblin',dx-0.4,dy+1.5],['goblin',dx,dy]]);
   }
+  bumpTopology('openSecret');
 }
 function seedRng(s){
   let x=(s>>>0)||1;
@@ -9272,6 +9280,7 @@ function enterGoblinKingLevel(L){
   if(p&&dest){
     p.x=dest.x; p.y=dest.y; p.dest=null; p.moving=0; p.ix=0; p.iy=0;
   }
+  bumpTopology('kingLevel');
   say('The stair drops into a throne-hall of stolen dwarven gold.','#ffe08a');
   hint('The Goblin King and his wargs hold the deep.',5.2);
   if(dest) burst(dest.x, dest.y, '#ffc061', 22, 3);
@@ -9387,6 +9396,28 @@ function canBe(x,y,r,e){
   return walk(x+r,y,e)&&walk(x-r,y,e)&&walk(x,y+r,e)&&walk(x,y-r,e)&&
          walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e)&&
          wallFaceClear(x,y,e);
+}
+/* Nav lattice uses canStand → canBe. topologyRev is independent of seenRev
+   (fog). Level identity is chapter + king-hall so a new map drops the cache. */
+function navLevelId(){
+  const L=G.lvl;
+  return String(G.ch||0)+':'+String(L&&L.n||0)+':'+(L&&L.flags&&L.flags.kingLevel?1:0);
+}
+function bumpTopology(why){
+  G.topologyRev=(G.topologyRev||0)+1;
+  if(typeof Navigation!=='undefined' && typeof Navigation.invalidate==='function'){
+    Navigation.invalidate({topologyRev:G.topologyRev, levelId:navLevelId(), reason:why||'grid'});
+  }
+}
+function navHost(){
+  return {
+    canBe:canBe,
+    steerWalk:steerWalk,
+    partyForm:partyForm,
+    dist:dist,
+    levelId:navLevelId(),
+    topologyRev:G.topologyRev||0
+  };
 }
 function moveStep(e,dx,dy,dt){
   const mul=typeof wornMoveMul==='function'?wornMoveMul(e):1;
@@ -10259,6 +10290,16 @@ function update(dt){
       if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
         e.aim=null;
+        /* One-follower Follow default (pordoom / first living kin). No plates.
+           Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
+        if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
+          const nr=Navigation.tickFollower(e, p, dt, navHost());
+          if(nr && nr.handled){
+            if(p){ e.fdx=p.fdx; e.fdy=p.fdy; }
+            ghostSapperBomb(e, dt);
+            continue;
+          }
+        }
         if(p.moving) tgt=trailSlot(idx<0?0:idx)||partyForm(idx<0?1:idx+1, p);
         else tgt=partyForm(idx<0?1:idx+1, p);
         want=.38; form=1;
@@ -12663,6 +12704,7 @@ function breakRock(L,i,j){
   const vein=isVein(i,j);
   L.grid[j][i]=0; L.seen[j][i]=1; delete L.wallHP[i+','+j];
   BX_KEY=''; G.seenRev=(G.seenRev||0)+1;
+  bumpTopology('breakRock');
   burst(i+0.5,j+0.5, vein?'#d8b46a':'#9a8163', 22, 3.6);
   addDecal(i+0.5,j+0.5,rnd(1.4,0.8));
   oreDrop(i,j,vein);

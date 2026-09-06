@@ -1,0 +1,22 @@
+rot.js path / A* (BSD-3-Clause)
+================================
+
+This directory vendors a subset of rot.js for Macar party navigation.
+
+Upstream: https://github.com/ondras/rot.js
+Pinned commit: 46782e248c2db9d379a5e4f13bb8323f18dff04b
+Copyright (c) 2012-now(), Ondrej Zara
+License: BSD-3-Clause (see LICENSE)
+
+Vendored source (ES2015 modules, not loaded by the game):
+  lib/constants.js
+  lib/path/path.js
+  lib/path/astar.js
+
+Classic script adaptation (sync <script>, no type="module"):
+  rot-path.js — DIRS + Path + AStar only, same algorithm as the pinned
+  files. The game must not import the ES modules (deferred modules race
+  the first play frame).
+
+Do not replace this with Flare, Shattered Pixel Dungeon, or Brogue
+path code.
