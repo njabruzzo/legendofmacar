@@ -5,6 +5,8 @@
  *   <script src="src/systems/SystemsReady.js"></script>
  *   <script src="src/combat/TimedEffects.js"></script>
  *   <script src="src/ui/TapGate.js"></script>
+ *   <script src="src/combat/DerivedStats.js"></script>
+ *   <script src="src/ui/EquipCompare.js"></script>
  *   <script src="src/vendor/rotjs/rot-path.js"></script>
  *   <script src="src/systems/Navigation.js"></script>
  *   <script src="src/systems/EnemyIntent.js"></script>
@@ -22,8 +24,9 @@
  *
  * Required now: TimedEffects (MAC-03).
  * Shipped optional: Navigation (Batch D), EnemyIntent (Batch E melee
- * pursuer), Interaction + Discovery (Batch F / MAC-09). Play starts
- * without the optional modules (legacy trail / chase / no room events).
+ * pursuer), Interaction + Discovery (Batch F / MAC-09), DerivedStats +
+ * EquipCompare (Batch G kit compare). Play starts without the optional
+ * modules (legacy trail / chase / no room events / no compare plate).
  * Upcoming: PartyOrders.
  */
 (function (root) {
@@ -32,7 +35,7 @@
   var declared = Object.create(null);
   var pending = 0;
   var REQUIRED = ['TimedEffects'];
-  var SHIPPED = ['Navigation', 'EnemyIntent', 'Interaction', 'Discovery'];
+  var SHIPPED = ['Navigation', 'EnemyIntent', 'Interaction', 'Discovery', 'DerivedStats', 'EquipCompare'];
   var UPCOMING = ['PartyOrders'];
 
   function declare(name, api) {

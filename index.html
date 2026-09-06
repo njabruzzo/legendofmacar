@@ -45,13 +45,16 @@
 <!-- Systems modules: classic sync tags only (no type=module).
      SystemsReady first so declare() is live, then TimedEffects, then TapGate,
      then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E),
-     then Interaction + Discovery (Batch F / MAC-09).
+     then Interaction + Discovery (Batch F / MAC-09), then DerivedStats +
+     EquipCompare (Batch G kit compare).
      Future: PartyOrders.js.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
+<script src="src/combat/DerivedStats.js"></script>
+<script src="src/ui/EquipCompare.js"></script>
 <script src="src/vendor/rotjs/rot-path.js"></script>
 <script src="src/systems/Navigation.js"></script>
 <script src="src/systems/EnemyIntent.js"></script>
@@ -6216,6 +6219,8 @@ function sheetHpNow(e){ return Math.max(0, Math.ceil((e.hp||0)/ADD_SCALE)); }
 function sheetHpMax(e){ return Math.max(1, Math.round((e.maxhp||ADD_SCALE)/ADD_SCALE)); }
 function entityAbil(e){ return e.abil||(e.col&&G.abil&&G.abil[e.col.key])||null; }
 function wornDexPlus(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornDexPlus)
+    return DerivedStats.wornDexPlus(e, G.equipped||{}, {entityAbil:typeof entityAbil==='function'?entityAbil:null});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   const ring=eq.necklace||eq.ring;
@@ -6231,18 +6236,24 @@ function wornDexPlus(e){
   return plus;
 }
 function wornOgrePower(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornOgrePower)
+    return DerivedStats.wornOgrePower(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const g=(G.equipped||{}).gloves;
   if(!g || g.cursed || /fumbling/i.test(g.n||'')) return false;
   return /ogre power/i.test(g.n||'');
 }
 function meleeStrAbil(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.meleeStrAbil)
+    return DerivedStats.meleeStrAbil(e, G.equipped||{}, {entityAbil:typeof entityAbil==='function'?entityAbil:null});
   const ab=(typeof entityAbil==='function'?entityAbil(e):null)||{};
   if(wornOgrePower(e)) return {str:18, exc:100};
   return ab;
 }
 /* +2 / +3 Ring of Protection plus Robe of the Archmagi 5%. Potion/scroll e.mr stays full resist. */
 function wornMagicResistPct(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornMagicResistPct)
+    return DerivedStats.wornMagicResistPct(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   let pct=0;
@@ -6266,6 +6277,8 @@ function magicResist(e){
 }
 /* 1e Ring/Cloak of Protection: plus to saves. Dex ring is never a ward. */
 function wornProtectionPlus(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornProtectionPlus)
+    return DerivedStats.wornProtectionPlus(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   const it=eq.necklace||eq.ring;
@@ -6278,6 +6291,8 @@ function wornProtectionPlus(e){
 }
 /* Cloak of Displacement: +2 saves while worn. Not a Protection ring; Dex never counts. */
 function wornDisplacementPlus(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornDisplacementPlus)
+    return DerivedStats.wornDisplacementPlus(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const eq=G.equipped||{};
   const it=eq.necklace||eq.ring;
@@ -6296,6 +6311,8 @@ function wornNecklaceItem(e){
 }
 /* Fire → breath; poison periapt → poison; warmth → breath if no cold kind. Dex never counts. */
 function wornResistSavePlus(e, kind){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornResistSavePlus)
+    return DerivedStats.wornResistSavePlus(e, G.equipped||{}, kind);
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 0;
   const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
   if(!it) return 0;
@@ -6307,16 +6324,22 @@ function wornResistSavePlus(e, kind){
   return 0;
 }
 function wearingFireResistance(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingFireResistance)
+    return DerivedStats.wearingFireResistance(e, G.equipped||{});
   const it=wornNecklaceItem(e);
   if(it && /ring of fire resistance/i.test(it.n||'')) return true;
   const wep=(G.equipped||{}).primary||(G.equipped||{}).weapon;
   return !!(e&&(e.hero||(e.col&&e.col.key==='macar')) && wep && /frost brand/i.test(wep.n||''));
 }
 function wearingWarmth(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingWarmth)
+    return DerivedStats.wearingWarmth(e, G.equipped||{});
   const it=wornNecklaceItem(e);
   return !!(it && /ring of warmth/i.test(it.n||''));
 }
 function wearingFeatherFalling(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingFeatherFalling)
+    return DerivedStats.wearingFeatherFalling(e, G.equipped||{});
   const it=wornNecklaceItem(e);
   return !!(it && /ring of feather falling/i.test(it.n||''));
 }
@@ -6329,6 +6352,8 @@ function wearingHealthPeriapt(e){
   return !!(it && /periapt of health/i.test(it.n||''));
 }
 function wearingFreeAction(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingFreeAction)
+    return DerivedStats.wearingFreeAction(e, G.equipped||{});
   const it=wornNecklaceItem(e);
   return !!(it && /ring of free action/i.test(it.n||''));
 }
@@ -6343,6 +6368,8 @@ function fallDamageAmt(e, amt){
   return amt||0;
 }
 function wearingLevitation(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingLevitation)
+    return DerivedStats.wearingLevitation(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const it=(G.equipped||{}).boots;
   return !!(it && /boots of levitation/i.test(it.n||''));
@@ -6379,6 +6406,8 @@ function clearWornDisease(e){
 }
 /* Boots or Cloak of Elvenkind: one hide, no stack, no potion invis, no Specialty tot. */
 function wearingElvenkind(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wearingElvenkind)
+    return DerivedStats.wearingElvenkind(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const eq=G.equipped||{};
   const boots=eq.boots;
@@ -6389,6 +6418,8 @@ function wearingElvenkind(e){
 }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
 function wornMoveMul(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornMoveMul)
+    return DerivedStats.wornMoveMul(e, G.equipped||{});
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 1;
   const it=(G.equipped||{}).boots;
   if(!it) return 1;
@@ -6445,6 +6476,8 @@ function applyLifeStealHit(atk){
 }
 /* Mild haste while the Quickness sword is wielded. Not potion half-cd. */
 function wornAttackCd(e){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornAttackCd)
+    return DerivedStats.wornAttackCd(e, G.equipped||{});
   const base=(e&&e.baseCd!=null)?e.baseCd:((e&&e.cd)||1);
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return (e&&e.cd)||base;
   const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
@@ -6455,6 +6488,9 @@ function wornAttackCd(e){
    Rollback: TimedEffects.FLAG=false or ?timedHaste=0. */
 function useTimedHaste(){
   return typeof TimedEffects!=='undefined' && TimedEffects.useHaste();
+}
+function useEquipCompare(){
+  return typeof EquipCompare!=='undefined' && EquipCompare.use();
 }
 function hasteSyncOpts(){
   return {wornAttackCd: typeof wornAttackCd==='function'?wornAttackCd:null};
@@ -6545,7 +6581,9 @@ function partyAC(e, opts){
   const cls=e.cls||(e.role==='faith'?'c':e.role==='bolt'?'t':'f');
   let ac=10;
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
-  if(e.hero && ES && ES.computeWornAC){
+  if(e.hero && typeof DerivedStats!=='undefined' && DerivedStats.wornAC){
+    ac=DerivedStats.wornAC(e, G.equipped||{}, {noShield, missile:!!opts.missile});
+  } else if(e.hero && ES && ES.computeWornAC){
     ac=ES.computeWornAC(G.equipped||{}, {noShield, missile:!!opts.missile});
   } else {
     if(cls==='t') ac=8;
@@ -7076,6 +7114,8 @@ function takeMagicShotAmmo(){
   return null;
 }
 function wornWeaponPlus(e, def){
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornWeaponPlus)
+    return DerivedStats.wornWeaponPlus(e, G.equipped||{}, def, {weaponVsPlus:typeof weaponVsPlus==='function'?weaponVsPlus:null});
   if(!e) return 0;
   let plus=0;
   let wep=null;
@@ -14677,6 +14717,32 @@ function packUser(){
   if(e&&e.ghost) return player();
   return (e&&e.team==='party'&&!e.dead)||player();
 }
+function packCompareReport(){
+  if(!useEquipCompare() || !G.packSel) return null;
+  if(!isPackEquipable({kind:'magic',it:G.packSel})) return null;
+  const who=typeof packUser==='function'?packUser():null;
+  return EquipCompare.inspect(who, G.equipped||{}, G.packSel, {
+    entityAbil:typeof entityAbil==='function'?entityAbil:null,
+    weaponVsPlus:typeof weaponVsPlus==='function'?weaponVsPlus:null
+  });
+}
+function drawPackCompare(g, x, y, w, h){
+  const report=packCompareReport();
+  if(!report || typeof EquipCompare==='undefined') return null;
+  UI.overlayHits=UI.overlayHits||[];
+  const rect=EquipCompare.layout(x, y, w, h);
+  EquipCompare.draw(g, rect, report, {
+    s:UIS, FONT_UI:FONT_UI, FONT_TITLE:FONT_TITLE,
+    plate:plate, roundPath:roundPath, ellipsize:ellipsize,
+    whoName:G.packWho||'macar'
+  });
+  const hits=EquipCompare.hits(rect);
+  hits.forEach(hit=>{
+    UI.overlayHits.push(hit);
+    menuHits.push(hit);
+  });
+  return rect;
+}
 function openPackMenu(from){
   G.packFrom=from||'play';
   G.packWho=G.packWho||'macar';
@@ -14841,7 +14907,8 @@ function usePackRow(r){
         return;
       }
       G.packSel=it;
-      equipPackItem(it);
+      if(!(typeof EquipCompare!=='undefined' && EquipCompare.use()))
+        equipPackItem(it);
     } else {
       G.packSel=it;
     }
@@ -15052,6 +15119,7 @@ function drawEquipDoll(g, x, y, w, h){
 }
 function drawPack(g){
   menuHits=[]; const s=UIS;
+  if(G.scene==='pack') UI.overlayHits=[];
   ensurePacks();
   if(!G.packWho) G.packWho='macar';
   if(!G.packTab) G.packTab='gear';
@@ -15129,7 +15197,10 @@ function drawPack(g){
   g.fillText(ellipsize(g, kit.join('   \u00b7   '), VW-36*s), 18*s, kitY+kitH*0.66);
 
   const split=!PORT && VW>=640;
-  const dollTop=kitY+kitH+6*s;
+  const cmpOn=typeof useEquipCompare==='function' && useEquipCompare() && G.packSel && isPackEquipable({kind:'magic',it:G.packSel});
+  const cmpH=cmpOn?(PORT?88*s:80*s):0;
+  if(cmpOn) drawPackCompare(g, 10*s, kitY+kitH+6*s, VW-20*s, cmpH);
+  const dollTop=kitY+kitH+6*s+(cmpH?cmpH+6*s:0);
   const dollBot=VH-52*s;
   const dollAvail=Math.max(120*s, dollBot-dollTop);
   const packDollH=PORT
@@ -15560,6 +15631,10 @@ function resolveTaps(){
       const hit=(UI.talkHits||[]).find(z=>t.x>=z.x&&t.x<=z.x+z.w&&t.y>=z.y&&t.y<=z.y+z.h);
       if(hit) pickTalk(hit.i);
       continue;
+    }
+    if(typeof TapGate!=='undefined' && TapGate.use() && (UI.overlayHits||[]).length){
+      const r=TapGate.resolvePlayTap(UI.overlayHits, t);
+      if(r&&r.consumed) continue;
     }
     for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); break; }
   }
