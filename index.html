@@ -369,7 +369,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='94';
+const ASSET_VER='95';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -658,12 +658,14 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    Drop compass / helmeted combat / sleep / title / w3 leftovers. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
-     || k==='macar_axe' || k==='macar_axe_atk') return;
+     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver carry + atk — registered after the strip so they survive
-   and do not invent missing axe_w1/w2 fetches. */
+   axe_w1/w2 now ship with quilt34 cleaver pack. */
 SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
+SPRITE_FILES.macar_axe_w1='assets/creatures/dwarf_macar_axe_w1.png';
+SPRITE_FILES.macar_axe_w2='assets/creatures/dwarf_macar_axe_w2.png';
 SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
@@ -695,7 +697,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -760,7 +762,7 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk',
+  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
@@ -1368,7 +1370,7 @@ const MACAR_PLAN={
 };
 /* Title-law Macar: maul idle + front w1/w2 + maul atk + Shadow Cleaver carry/atk. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_atk:1
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1610,7 +1612,7 @@ function livingMacarAnimKey(e){
     const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
     return pickReadyPartyKey(atk, idle) || idle;
   }
-  /* Axe has no w1/w2 — walkCycleKey plants axe idle (do not use maul walks). */
+  /* Cleaver walk uses axe_w1/w2 when ready; else plant axe idle (never maul walks). */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
@@ -6002,6 +6004,8 @@ function dropInDwarfMouth(r){
       if(axe){
         const pile=spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
         takeLoot(pile, true);
+        rememberShadowCleaver(axe);
+        stowPackItem(axe, {front:false});
       }
       hint('The mouth spat a key and a silver axe into MACAR\'s pack.',6);
     } else {
@@ -6902,21 +6906,120 @@ function takeHealCharge(){
 }
 function isShadowCleaver(it){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isShadowCleaver&&DwarfMouth.isShadowCleaver(it)); }
 function findShadowCleaver(){
-  if(typeof DwarfMouth==='undefined'||!DwarfMouth.findShadowCleaver) return null;
-  return DwarfMouth.findShadowCleaver(G.packs, G.equipped);
+  const eq=G.equipped||{};
+  if(isShadowCleaver(eq.weapon)) return rememberShadowCleaver(eq.weapon);
+  if(isShadowCleaver(eq.primary)) return rememberShadowCleaver(eq.primary);
+  if(typeof DwarfMouth!=='undefined'&&DwarfMouth.findShadowCleaver){
+    const found=DwarfMouth.findShadowCleaver(G.packs, G.equipped);
+    if(found) return rememberShadowCleaver(found);
+  }
+  if(G.shadowCleaver && isShadowCleaver(G.shadowCleaver)) return G.shadowCleaver;
+  return null;
+}
+function rememberShadowCleaver(it){
+  if(!it || !isShadowCleaver(it)) return it;
+  G.shadowCleaver=it;
+  return it;
+}
+function knownShadowCleaver(){
+  const found=typeof findShadowCleaver==='function'?findShadowCleaver():null;
+  if(found){ G.shadowCleaver=found; return found; }
+  if(G.shadowCleaver && isShadowCleaver(G.shadowCleaver)) return G.shadowCleaver;
+  return null;
+}
+function ensureShadowCleaverPacked(){
+  const axe=knownShadowCleaver();
+  if(!axe) return null;
+  stowPackItem(axe, {front:false});
+  return axe;
 }
 function wieldsShadowCleaver(){ return isShadowCleaver(G.equipped&&G.equipped.weapon); }
+function packHasItem(pk, it){
+  if(!pk||!it) return -1;
+  const magic=pk.magic||[];
+  const same=magic.indexOf(it);
+  if(same>=0) return same;
+  if(it.id){
+    for(let i=0;i<magic.length;i++){
+      if(magic[i]&&magic[i].id===it.id) return i;
+    }
+  }
+  return -1;
+}
+function stowPackItem(it, opts){
+  if(!it) return it;
+  opts=opts||{};
+  if(!G.packs) G.packs={};
+  if(!G.packs.macar) G.packs.macar={magic:[]};
+  const pk=G.packs.macar;
+  pk.magic=pk.magic||[];
+  const i=packHasItem(pk, it);
+  if(i>=0){
+    const have=pk.magic[i];
+    if(opts.front!==false && i!==0){ pk.magic.splice(i,1); pk.magic.unshift(have); }
+    return have;
+  }
+  if(opts.front===false) pk.magic.push(it);
+  else pk.magic.unshift(it);
+  if(typeof syncPackTotals==='function') syncPackTotals();
+  return it;
+}
+function snapshotWornKit(eq){
+  eq=eq||G.equipped||{};
+  const out=[];
+  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ALL_KEYS)||Object.keys(eq);
+  for(let i=0;i<keys.length;i++){
+    const it=eq[keys[i]];
+    if(it && out.indexOf(it)<0) out.push(it);
+  }
+  return out;
+}
+function restowDisplacedKit(before, keep){
+  (before||[]).forEach(it=>{
+    if(!it || it===keep) return;
+    if(typeof wornSlotOf==='function' && wornSlotOf(it)) return;
+    stowPackItem(it);
+  });
+}
+function ensureWornKitPacked(){
+  const eq=G.equipped||{};
+  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ALL_KEYS)||
+    ['helmet','necklace','chest','bracers','gloves','pants','boots','primary','secondary','quiver','weapon','armor'];
+  for(let i=0;i<keys.length;i++){
+    const it=eq[keys[i]];
+    if(it) stowPackItem(it, {front:false});
+  }
+}
+function packSelItem(){
+  const sel=G.packSel;
+  if(!sel) return null;
+  return sel.it||sel;
+}
+function confirmPackEquip(){
+  const it=packSelItem();
+  const keep=knownShadowCleaver();
+  if(!it || (typeof isPackEquipable==='function' && !isPackEquipable({kind:'magic',it}))) return null;
+  const worn=wornSlotOf(it);
+  const out=worn?unequipPackSlot(worn):equipPackItem(it);
+  if(keep && keep!==it) stowPackItem(keep);
+  ensureShadowCleaverPacked();
+  return out;
+}
 function ensureShadowCleaverWielded(){
   if(wieldsShadowCleaver()) return G.equipped.weapon;
   const axe=findShadowCleaver();
   if(!axe) return null;
+  const wep=G.equipped&&(G.equipped.primary||G.equipped.weapon);
+  if(wep && wep!==axe) return null;
   wieldWeapon(axe);
   return axe;
 }
 function ensureEquippedShape(){
+  const before=snapshotWornKit(G.equipped);
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(ES&&ES.ensureShape) G.equipped=ES.ensureShape(G.equipped||{});
   else if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  restowDisplacedKit(before, null);
   return G.equipped;
 }
 function mapPackItemToEquipment(it){
@@ -6940,6 +7043,9 @@ function equipPackItem(it, opts){
   if(!it) return null;
   mapPackItemToEquipment(it);
   if(isGhostPack()) claimItemToMacar('magic', it);
+  const before=snapshotWornKit(G.equipped);
+  const looseWep=(G.equipped&&G.equipped.weapon);
+  const loosePri=(G.equipped&&G.equipped.primary);
   ensureEquippedShape();
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(ES&&ES.equip){
@@ -6949,6 +7055,11 @@ function equipPackItem(it, opts){
       if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
       return null;
     }
+    restowDisplacedKit(before, it);
+    if(out.prev && out.prev!==it) stowPackItem(out.prev);
+    if(out.orphan && out.orphan!==it && out.orphan!==out.prev) stowPackItem(out.orphan);
+    if(looseWep && looseWep!==it && !wornSlotOf(looseWep)) stowPackItem(looseWep);
+    if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
     if(!opts.silent){
       if(out.slot==='primary' && out.prev && out.prev.id==='macar_hammer')
@@ -6957,8 +7068,20 @@ function equipPackItem(it, opts){
     }
     return out.slot;
   }
-  if(isEquipWeapon(it)){ G.equipped.weapon=it; G.equipped.primary=it; applyEquipped(); return 'primary'; }
-  if(isEquipArmor(it)){ G.equipped.armor=it; G.equipped.chest=it; applyEquipped(); return 'chest'; }
+  if(isEquipWeapon(it)){
+    const prev=G.equipped.primary||G.equipped.weapon;
+    G.equipped.weapon=it; G.equipped.primary=it;
+    restowDisplacedKit(before, it);
+    if(prev && prev!==it) stowPackItem(prev);
+    applyEquipped(); return 'primary';
+  }
+  if(isEquipArmor(it)){
+    const prev=G.equipped.armor||G.equipped.chest;
+    G.equipped.armor=it; G.equipped.chest=it;
+    restowDisplacedKit(before, it);
+    if(prev && prev!==it) stowPackItem(prev);
+    applyEquipped(); return 'chest';
+  }
   return null;
 }
 function unequipPackSlot(slot, opts){
@@ -6972,6 +7095,7 @@ function unequipPackSlot(slot, opts){
     if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
     return null;
   }
+  if(out.item) stowPackItem(out.item);
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
@@ -7759,7 +7883,9 @@ function giveMagic(it, silent){
   const pk=packOf('macar');
   pk.magic=pk.magic||[];
   pk.magic.push(it);
+  rememberShadowCleaver(it);
   const slot=maybeAutoEquip(it);
+  if(isShadowCleaver(it)) stowPackItem(it, {front:false});
   syncPackTotals();
   if(!silent){
     if(slot) say(it.n+' — equipped from MACAR\'s pack.','#ffd27a');
@@ -14865,6 +14991,11 @@ function openPackMenu(from){
   G.scene='pack';
 }
 function collectPackRows(pk, who){
+  if(!who || who==='macar'){
+    ensureWornKitPacked();
+    ensureShadowCleaverPacked();
+  }
+  pk=pk||packOf(who||'macar');
   const eq=G.equipped||{};
   const rows=[];
   const ghost=isGhostPack(who);
@@ -15417,8 +15548,7 @@ function drawPack(g){
   const canTake=isGhostPack();
   if(canEquip&&canTake){
     menuBtn(g,'Equip',VW/2-(PORT?110:120)*s,VH-22*s,Math.min(120*s,VW*.28),34*s,()=>{
-      if(wornSlotOf(G.packSel)) unequipPackSlot(wornSlotOf(G.packSel));
-      else equipPackItem(G.packSel);
+      confirmPackEquip();
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
       G.faceOffer=0;
     });
@@ -15429,8 +15559,7 @@ function drawPack(g){
     });
   } else if(canEquip){
     menuBtn(g,'Equip',VW/2-(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
-      if(wornSlotOf(G.packSel)) unequipPackSlot(wornSlotOf(G.packSel));
-      else equipPackItem(G.packSel);
+      confirmPackEquip();
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
       G.faceOffer=0;
     });

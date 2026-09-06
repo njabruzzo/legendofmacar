@@ -21,8 +21,10 @@
     return /shadow\s*cleaver/i.test(it.n||'');
   }
   function findShadowCleaver(packs, equipped){
-    const wep=(equipped&&(equipped.primary||equipped.weapon));
-    if(isShadowCleaver(wep)) return wep;
+    /* Blit / wieldsShadowCleaver read .weapon. Do not hide a weapon-only
+       cleaver behind a hammer that still sits on .primary. */
+    if(isShadowCleaver(equipped&&equipped.weapon)) return equipped.weapon;
+    if(isShadowCleaver(equipped&&equipped.primary)) return equipped.primary;
     const magic=(packs&&packs.macar&&packs.macar.magic)||[];
     for(let i=0;i<magic.length;i++){
       if(isShadowCleaver(magic[i])) return magic[i];
