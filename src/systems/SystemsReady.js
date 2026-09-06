@@ -7,6 +7,7 @@
  *   <script src="src/ui/TapGate.js"></script>
  *   <script src="src/vendor/rotjs/rot-path.js"></script>
  *   <script src="src/systems/Navigation.js"></script>
+ *   <script src="src/systems/EnemyIntent.js"></script>
  *   <!-- future: PartyOrders.js — same sync tags -->
  *   <script> /* play loop * /
  *
@@ -18,8 +19,9 @@
  * pending === 0. Do not add type="module" (deferred; races the first frame).
  *
  * Required now: TimedEffects (MAC-03).
- * Shipped optional (Batch D): Navigation — declare() on load; play starts
- * without it (legacy trail/form). Upcoming: PartyOrders.
+ * Shipped optional: Navigation (Batch D), EnemyIntent (Batch E melee
+ * pursuer). Play starts without either (legacy trail / chase).
+ * Upcoming: PartyOrders.
  */
 (function (root) {
   'use strict';
@@ -27,7 +29,7 @@
   var declared = Object.create(null);
   var pending = 0;
   var REQUIRED = ['TimedEffects'];
-  var SHIPPED = ['Navigation'];
+  var SHIPPED = ['Navigation', 'EnemyIntent'];
   var UPCOMING = ['PartyOrders'];
 
   function declare(name, api) {
