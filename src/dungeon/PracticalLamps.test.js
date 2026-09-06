@@ -1,6 +1,8 @@
 'use strict';
 /**
  * Dungeon light is lamps and torches, not floating globes.
+ * Chapter IV drowned-city water halls keep two shipped cyan punches
+ * (#179 deep quay / NE aboleth hall). Other table lights stay lamp amber.
  * Run: node src/dungeon/PracticalLamps.test.js
  */
 const fs=require('fs');
@@ -28,8 +30,17 @@ assert(!/pr\.k==='gate'/.test(g), 'gates do not throw a cyan globe');
 
 const lightsBlock=html.match(/L\.lights=\[\{[\s\S]*?\];/g)||[];
 const joined=lightsBlock.join('\n');
-assert(!/#a06cff|#6fd0ff|#c07bff|#7ad0ff|#8aa0b8|#a35bff|#ff7ad9|#7dff9a|#4ce0ff/.test(joined),
-  'chapter light tables are lamp amber, not magic globes');
+/* Shipped #179 drowned-city water halls keep cyan on the deep-east quay
+   (122,48) and far-NE aboleth hall (122,14). Those are encounter-flavor
+   floor punches on water rooms, not leftover magic globes. Every other
+   chapter table light stays lamp amber / fire / stone. */
+assert(/\{x:122,y:48,c:'#7ad0ff'/.test(joined) && /\{x:122,y:14,c:'#7ad0ff'/.test(joined),
+  'Chapter IV keeps drowned-city water-hall cyan on the deep quay and NE hall');
+const tables=joined
+  .replace(/\{x:122,y:48,c:'#7ad0ff'[^}]*\}/g,'')
+  .replace(/\{x:122,y:14,c:'#7ad0ff'[^}]*\}/g,'');
+assert(!/#a06cff|#6fd0ff|#c07bff|#7ad0ff|#8aa0b8|#a35bff|#ff7ad9|#7dff9a|#4ce0ff/.test(tables),
+  'other chapter light tables are lamp amber, not magic globes');
 assert(!/L\.lights\.push\(\{x:40\.0,y:41\.2,c:'#8aa0b8'/.test(html),
   'Chapter II no longer plants a spare blue globe by the camp lantern');
 assert(!/\{x:14\.4,y:22\.0,c:'#e0a060'/.test(html) && !/\{x:14\.5,y:26\.2,c:'#d09050'/.test(html),
