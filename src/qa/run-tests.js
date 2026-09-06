@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Discover and run every src/**/*.test.js.
+ * Discover and run every *.test.js file under src/.
  * CI / `npm test` must not silently skip half the suite.
  * Run: node src/qa/run-tests.js
  */
@@ -21,7 +21,7 @@ function walk(dir, acc){
 
 const files=walk(path.join(root,'src'), []).sort();
 if(!files.length){
-  console.error('no src/**/*.test.js files found');
+  console.error('no src/ *.test.js files found');
   process.exit(2);
 }
 
