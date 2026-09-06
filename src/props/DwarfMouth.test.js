@@ -142,7 +142,9 @@ assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe
 assert(/dwarf_macar_axe\.png/.test(html), 'Macar axe sprite is registered');
 assert(/dwarf_macar_axe_atk\.png/.test(html), 'Macar axe atk sprite is registered');
 assert(/wieldsShadowCleaver/.test(html), 'cleaver still has a wield helper');
-assert(/ensureShadowCleaverWielded/.test(html), 'attack wields the cleaver if Macar has it');
+assert(/ensureShadowCleaverWielded/.test(html), 'attack still has the cleaver wield helper');
+assert(/if\(wep && wep!==axe\) return null;/.test(html.match(/function ensureShadowCleaverWielded\([\s\S]*?\n\}/)[0]),
+  'attack does not yank the cleaver back over an explicitly equipped weapon');
 assert(/vs:'magic',vsPlus:1/.test(html), 'magic-using sword stores vsPlus:1');
 assert(/vs:'lycan',vsPlus:2/.test(html), 'lycan sword stores vsPlus:2');
 assert(/vs:'regen',vsPlus:2/.test(html), 'regen sword stores vsPlus:2');

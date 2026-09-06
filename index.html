@@ -6908,10 +6908,39 @@ function findShadowCleaver(){
   return DwarfMouth.findShadowCleaver(G.packs, G.equipped);
 }
 function wieldsShadowCleaver(){ return isShadowCleaver(G.equipped&&G.equipped.weapon); }
+function packHasItem(pk, it){
+  if(!pk||!it) return -1;
+  const magic=pk.magic||[];
+  const same=magic.indexOf(it);
+  if(same>=0) return same;
+  if(it.id){
+    for(let i=0;i<magic.length;i++){
+      if(magic[i]&&magic[i].id===it.id) return i;
+    }
+  }
+  return -1;
+}
+function stowPackItem(it){
+  if(!it) return it;
+  ensurePacks();
+  const pk=packOf('macar');
+  pk.magic=pk.magic||[];
+  const i=packHasItem(pk, it);
+  if(i>=0){
+    const have=pk.magic[i];
+    if(i!==0){ pk.magic.splice(i,1); pk.magic.unshift(have); }
+    return have;
+  }
+  pk.magic.unshift(it);
+  syncPackTotals();
+  return it;
+}
 function ensureShadowCleaverWielded(){
   if(wieldsShadowCleaver()) return G.equipped.weapon;
   const axe=findShadowCleaver();
   if(!axe) return null;
+  const wep=G.equipped&&(G.equipped.primary||G.equipped.weapon);
+  if(wep && wep!==axe) return null;
   wieldWeapon(axe);
   return axe;
 }
@@ -6951,6 +6980,7 @@ function equipPackItem(it, opts){
       if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
       return null;
     }
+    if(out.prev && out.prev!==it) stowPackItem(out.prev);
     applyEquipped();
     if(!opts.silent){
       if(out.slot==='primary' && out.prev && out.prev.id==='macar_hammer')
@@ -6959,8 +6989,18 @@ function equipPackItem(it, opts){
     }
     return out.slot;
   }
-  if(isEquipWeapon(it)){ G.equipped.weapon=it; G.equipped.primary=it; applyEquipped(); return 'primary'; }
-  if(isEquipArmor(it)){ G.equipped.armor=it; G.equipped.chest=it; applyEquipped(); return 'chest'; }
+  if(isEquipWeapon(it)){
+    const prev=G.equipped.primary||G.equipped.weapon;
+    G.equipped.weapon=it; G.equipped.primary=it;
+    if(prev && prev!==it) stowPackItem(prev);
+    applyEquipped(); return 'primary';
+  }
+  if(isEquipArmor(it)){
+    const prev=G.equipped.armor||G.equipped.chest;
+    G.equipped.armor=it; G.equipped.chest=it;
+    if(prev && prev!==it) stowPackItem(prev);
+    applyEquipped(); return 'chest';
+  }
   return null;
 }
 function unequipPackSlot(slot, opts){
@@ -6974,6 +7014,7 @@ function unequipPackSlot(slot, opts){
     if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
     return null;
   }
+  if(out.item) stowPackItem(out.item);
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
