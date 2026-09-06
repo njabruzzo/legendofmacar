@@ -630,6 +630,9 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
   SPRITE_FILES[k+'_e_w1']='assets/creatures/dwarf_'+k+'_e_w1.png';
   SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
 });
+/* Compass / walk / atk ghost files stay registered so they preload, but
+   entAnimKey will not blit them unless livingColorStats says they match
+   title-law kit. Current pack is cyan wash — Limner gap, not a bind. */
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
   SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
@@ -1446,6 +1449,107 @@ function pickReadyPartyKey(key, idleKey){
   if(idleKey && SPR[idleKey] && SPR[idleKey].width) return idleKey;
   return (key && SPR[key] && SPR[key].width)?key:null;
 }
+/* Color-true ghost identity is idle front + idle back. Walk / atk / compass
+   ghost sheets on disk are still the old cyan wash — do not blit them.
+   livingColorStats is the gate: when Limner ships living-color walk/atk,
+   those keys bind themselves. Until then, plant living kin w1/w2/atk. */
+function ghostKeyLooksUnsigned(key){
+  return /_ghost_(?:e_|s_|nw_|ne_|se_|w[123]|atk|back_w)/.test(key||'');
+}
+function livingColorStats(data){
+  let cyan=0, warm=0, n=0;
+  if(!data||!data.length) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
+  for(let i=0;i<data.length;i+=4){
+    const a=data[i+3]; if(a<=40) continue;
+    const R=data[i], G=data[i+1], B=data[i+2];
+    n++;
+    if(B>R+18 && G>R+4) cyan++;
+    if(R>B+8 && R>=G-12) warm++;
+  }
+  if(!n) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
+  const cyanR=cyan/n, warmR=warm/n;
+  return {ok:true, living:warmR>=0.16 && cyanR<0.38, cyanR, warmR, n};
+}
+function sampleLivingColors(img){
+  if(!img||!img.width) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
+  if(!img.height || img.height<80) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
+  try{
+    const MAX=120;
+    const sc=Math.min(1, MAX/Math.max(img.width,img.height));
+    const w=Math.max(1,Math.round(img.width*sc)), h=Math.max(1,Math.round(img.height*sc));
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.clearRect(0,0,w,h); x.drawImage(img,0,0,w,h);
+    return livingColorStats(x.getImageData(0,0,w,h).data);
+  }catch(_){
+    return {ok:false, living:true, cyanR:0, warmR:0, n:0};
+  }
+}
+function sheetLivingColors(img, key){
+  if(!img) return false;
+  if(img._live!=null) return !!img._live;
+  if(!img.width) return false;
+  const sampled=sampleLivingColors(img);
+  if(sampled.ok){ img._live=!!sampled.living; return img._live; }
+  img._live=!ghostKeyLooksUnsigned(key);
+  return img._live;
+}
+function ghostLiveTwin(key){
+  if(!key || key.indexOf('_ghost')<0) return null;
+  const step=key.match(/^(pordoom|fendur|orbo|talpor)_ghost_(?:e_|s_|nw_|ne_|se_)?(w[123]|atk_recover|atk_bow|atk)$/);
+  if(step) return step[1]+'_'+step[2];
+  const back=key.match(/^(pordoom|fendur|orbo|talpor)_ghost_back(?:_(w[123]))?$/);
+  if(back) return back[1]+'_back'+(back[2]?'_'+back[2]:'');
+  if(/_ghost$/.test(key)) return key.replace(/_ghost$/,'');
+  return key.replace('_ghost','');
+}
+function partyGhostKeyReady(key){
+  if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
+  const img=SPR[key];
+  if(!sheetLivingColors(img, key)) return false;
+  return partyFrameFitOk(img, null);
+}
+function pickReadyGhostKey(pref, idleKey, liveKey){
+  if(partyGhostKeyReady(pref)) return pref;
+  if(liveKey && sprReady(liveKey) && partyFrameFitOk(SPR[liveKey], null)) return liveKey;
+  if(idleKey && partyGhostKeyReady(idleKey)) return idleKey;
+  if(idleKey && sprReady(idleKey)) return idleKey;
+  if(liveKey && sprReady(liveKey)) return liveKey;
+  return pref||idleKey||liveKey||null;
+}
+function walkCycleLivingKey(e, stem){
+  const hit=walkCycleKey(e, stem);
+  if(!hit) return null;
+  return partyGhostKeyReady(hit)?hit:null;
+}
+function ghostAnimKey(e, k){
+  if(!e||!k) return null;
+  const idle=k;
+  const live=ghostLiveTwin(k);
+  if(e.atk>0 && e.atkKind==='bow')
+    return pickReadyGhostKey(k+'_atk_bow', idle, live?live+'_atk':null);
+  if(wantsMeleeRecover(e)){
+    return pickReadyGhostKey(k+'_atk_recover', idle, live?live+'_atk_recover':null)
+      || pickReadyGhostKey(k+'_atk', idle, live?live+'_atk':null);
+  }
+  if(wantsMeleePose(e)||wantsMeleeRecover(e))
+    return pickReadyGhostKey(k+'_atk', idle, live?live+'_atk':null);
+  if(wantsBackView(e)){
+    if(e.moving && !e.defending){
+      const ghostStep=walkCycleLivingKey(e, k+'_back');
+      const liveStep=walkCycleKey(e, live?live+'_back':null);
+      return pickReadyGhostKey(ghostStep, k+'_back', liveStep);
+    }
+    return pickReadyGhostKey(k+'_back', idle, live?live+'_back':null);
+  }
+  if(e.moving && !e.defending){
+    const ghostStep=walkCycleLivingKey(e, k);
+    const liveStep=walkCycleKey(e, live);
+    return pickReadyGhostKey(ghostStep, idle, liveStep);
+  }
+  return pickReadyGhostKey(idle, idle, live);
+}
 function livingMacarImg(key){
   const idle=livingMacarIdleKey();
   const k=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
@@ -2128,9 +2232,13 @@ function dwarfAngleKey(e,k){
     if(moving){
       const stem=(a&&a.replace(/_w1$/,''))||(b&&b.replace(/_w2$/,''));
       const hit=walkCycleKey(e, stem);
-      if(hit) return hit;
+      if(hit && /_w[12]$/.test(hit)) return hit;
       if(sprReady(a)) return a;
       if(sprReady(b)) return b;
+      /* Missing compass stems (no se/s/ne/back walk) must still cycle
+         the title-law front pair — planting idle here was the slide. */
+      const front=walkCycleKey(e, k);
+      if(front) return front;
     }
     if(idle && sprReady(idle)) return idle;
     if(sprReady(a)) return a;
@@ -2141,6 +2249,9 @@ function dwarfAngleKey(e,k){
     const aKey=k+'_back_w1', bKey=k+'_back_w2';
     const hit=gait(SPR[aKey]?aKey:null, SPR[bKey]?bKey:null, null);
     if(hit) return hit;
+    if(SPR[k+'_back'] && !moving) return k+'_back';
+    const front=moving?walkCycleKey(e, k):null;
+    if(front) return front;
     if(SPR[k+'_back']) return k+'_back';
     return null;
   }
@@ -2194,6 +2305,7 @@ function entAnimKey(e){
   if(!k) return null;
   let key=k;
   if(e.dead||e.crushed) key=SPR[k+'_dead']?k+'_dead':k;
+  else if(e.kind==='dwarf' && e.ghost && !e.dead) key=ghostAnimKey(e, k)||k;
   else if(e.atk>0 && e.atkKind==='bow') key=SPR[k+'_atk_bow']?k+'_atk_bow':k;
   else if(wantsMeleeRecover(e) && SPR[k+'_atk_recover']) key=k+'_atk_recover';
   else if((wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk']){
@@ -2211,9 +2323,15 @@ function entAnimKey(e){
     const stepped=walkCycleKey(e, k);
     if(stepped) key=stepped;
   }
-  /* Living kin: missing / sliver walk or atk plants that kin's idle. Ghosts keep their sheets. */
+  /* Living kin: missing / sliver walk or atk must still cycle w1/w2, not slide. */
   if(e.kind==='dwarf' && !e.ghost && !e.dead && !e.crushed && k){
-    if(!sprReady(key) || !partyFrameFitOk(SPR[key], SPR[k])) return k;
+    if(!sprReady(key) || !partyFrameFitOk(SPR[key], SPR[k])){
+      if(e.moving && !e.defending){
+        const stepped=walkCycleKey(e, k);
+        if(stepped && sprReady(stepped) && partyFrameFitOk(SPR[stepped], SPR[k])) return stepped;
+      }
+      return k;
+    }
   }
   return key;
 }

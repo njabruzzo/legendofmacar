@@ -30,6 +30,11 @@ assert(/wantsMeleeRecover\(e\)\) && SPR\[k\+'_atk'\]/.test(html) || /\(wantsMele
 assert(/pordoom_ghost_back_w1/.test(html) && /talpor_ghost_atk_recover/.test(html), 'ghost angled walk and recover keys preload');
 assert(/function screenCardinal\(e\)\{/.test(html) && /wantsSpriteFlip/.test(html),
   'ghost kin use the same screen cardinals as Macar');
+assert(/function ghostAnimKey\(/.test(html) && /function livingColorStats\(/.test(html)
+  && /function pickReadyGhostKey\(/.test(html),
+  'ghost bind prefers living-color sheets and plants a live-kin fallback');
+assert(/function ghostLiveTwin\(/.test(html),
+  'cyan ghost walk/atk maps to the matching living kin sheet');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost sprite checks passed');
