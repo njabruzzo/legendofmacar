@@ -1,8 +1,9 @@
 'use strict';
 /**
- * Ghost idle fronts/backs are color-true. Cyan/teal walk/atk/compass sheets
- * stay on disk for Limner redo — never paint them. Until replacements pass
- * color + kit vs idle, plant the signed idle (front or back).
+ * Ghost idle fronts/backs are color-true. Priority-16 front motion
+ * (w1/w2/atk/atk_recover ×4 kin) is living-color bind-ready.
+ * Remaining cyan/teal angled/compass/w3/back_w sheets stay on disk
+ * for Limner redo — never paint them; plant signed idle instead.
  * Run: node src/combat/GhostLivingBind.test.js
  */
 const fs=require('fs');
@@ -14,8 +15,9 @@ const root=path.join(__dirname,'../..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const creatures=path.join(root,'assets/creatures');
 const KIN=['pordoom','fendur','orbo','talpor'];
-const LIMNER_REPLACE_SUF=[
-  '_w1','_w2','_w3','_atk','_atk_recover',
+const BIND_READY_SUF=['_w1','_w2','_atk','_atk_recover'];
+const UNSIGNED_SUF=[
+  '_w3',
   '_back_w1','_back_w2',
   '_e_w1','_e_w2','_s_w1','_s_w2',
   '_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2'
@@ -57,7 +59,14 @@ KIN.forEach(k=>{
   assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color — keep');
   assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost') && !ctx.ghostKeyLooksUnsigned(k+'_ghost_back'),
     k+' idle front/back are the signed ghost identity');
-  LIMNER_REPLACE_SUF.forEach(suf=>{
+  BIND_READY_SUF.forEach(suf=>{
+    const file='dwarf_'+k+'_ghost'+suf+'.png';
+    const full=path.join(creatures, file);
+    assert(fs.existsSync(full), file+' on disk');
+    const st=ctx.livingColorStats(readRgba(full).data);
+    assert(st.living, file+' is living-color — bind-ready');
+  });
+  UNSIGNED_SUF.forEach(suf=>{
     const file='dwarf_'+k+'_ghost'+suf+'.png';
     const full=path.join(creatures, file);
     assert(fs.existsSync(full), file+' on disk for Limner redo');
@@ -67,8 +76,10 @@ KIN.forEach(k=>{
     replaceList.push(file);
   });
 });
-assert(replaceList.length===KIN.length*LIMNER_REPLACE_SUF.length,
-  'Limner replace list is every unsigned ghost walk/atk/compass sheet');
+assert(replaceList.length===KIN.length*UNSIGNED_SUF.length,
+  'Limner replace list is every remaining unsigned ghost walk/atk/compass sheet');
+assert(KIN.length*BIND_READY_SUF.length===16,
+  'Priority-16 front motion sheets are living bind-ready');
 
 const SPR={};
 function ready(k, live){
@@ -80,8 +91,8 @@ KIN.forEach(k=>{
   ready(k+'_e_w1', true); ready(k+'_e_w2', true);
   ready(k+'_atk', true); ready(k+'_atk_recover', true);
   ready(k+'_ghost', true); ready(k+'_ghost_back', true);
-  ready(k+'_ghost_w1', false); ready(k+'_ghost_w2', false);
-  ready(k+'_ghost_atk', false); ready(k+'_ghost_atk_recover', false);
+  ready(k+'_ghost_w1', true); ready(k+'_ghost_w2', true);
+  ready(k+'_ghost_atk', true); ready(k+'_ghost_atk_recover', true);
   ready(k+'_ghost_e_w1', false); ready(k+'_ghost_e_w2', false);
   ready(k+'_ghost_back_w1', false); ready(k+'_ghost_back_w2', false);
 });
@@ -149,22 +160,26 @@ function live(k, extra){
 
 KIN.forEach(k=>{
   assert(run.entAnimKey(ghost(k))===k+'_ghost', k+' idle ghost uses the color-true front');
-  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost',
-    k+' ghost walk plants idle — cyan w1/e_w1 stay unbound');
-  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))===k+'_ghost',
-    k+' ghost late gait still plants idle until Limner walk lands');
-  assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_ghost',
-    k+' ghost strike plants idle — cyan atk stays unbound');
-  assert(run.entAnimKey(ghost(k,{atk:0.3, atkMax:1}))===k+'_ghost',
-    k+' ghost recover plants idle — cyan recover stays unbound');
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost_w1',
+    k+' ghost walk binds living-color w1');
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))===k+'_ghost_w2',
+    k+' ghost late gait binds living-color w2');
+  assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_ghost_atk',
+    k+' ghost strike binds living-color atk');
+  assert(run.entAnimKey(ghost(k,{atk:0.3, atkMax:1}))===k+'_ghost_atk_recover',
+    k+' ghost recover binds living-color atk_recover');
   assert(run.entAnimKey(ghost(k,{fdx:-0.7, fdy:-0.7}))===k+'_ghost_back',
     k+' ghost north plants the color-true back');
-  SPR[k+'_ghost_w1']._live=true;
-  SPR[k+'_ghost_w2']._live=true;
-  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost_w1',
-    k+' ghost walk binds w1 once the sheet passes color/kit');
+  // Compass still unsigned — plants idle even if a fake e_w1 exists unbound
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:1, iy:0, fdx:1, fdy:0, gait:0.12}))===k+'_ghost_w1'
+      || run.entAnimKey(ghost(k,{moving:1, ix:1, iy:0, fdx:1, fdy:0, gait:0.12}))===k+'_ghost',
+    k+' ghost east prefers front walk / idle — cyan e_w stays unbound');
   SPR[k+'_ghost_w1']._live=false;
   SPR[k+'_ghost_w2']._live=false;
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost',
+    k+' ghost walk plants idle when front w1 fails color');
+  SPR[k+'_ghost_w1']._live=true;
+  SPR[k+'_ghost_w2']._live=true;
   const east=live(k,{moving:1, gait:0.12, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7});
   const se=live(k,{moving:1, gait:0.12, ix:1, iy:0, fdx:1, fdy:0});
   assert(run.entAnimKey(east)===k+'_e_w1' || run.entAnimKey(east)===k+'_w1',
@@ -180,5 +195,5 @@ assert(run.entAnimKey({
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost living-color bind checks passed');
-console.log('Limner must replace '+replaceList.length+' files:');
+console.log('Limner must still replace '+replaceList.length+' unsigned sheets:');
 replaceList.forEach(f=>console.log('  '+f));
