@@ -27,6 +27,8 @@ assert(SR.SHIPPED.indexOf('Navigation')>=0, 'Navigation is the shipped Batch D s
 assert(SR.SHIPPED.indexOf('EnemyIntent')>=0, 'EnemyIntent is the shipped Batch E slot');
 assert(SR.SHIPPED.indexOf('Interaction')>=0, 'Interaction is the shipped Batch F slot');
 assert(SR.SHIPPED.indexOf('Discovery')>=0, 'Discovery is the shipped Batch F journal slot');
+assert(SR.SHIPPED.indexOf('DerivedStats')>=0, 'DerivedStats is the shipped Batch G calc slot');
+assert(SR.SHIPPED.indexOf('EquipCompare')>=0, 'EquipCompare is the shipped Batch G panel slot');
 assert(SR.UPCOMING.indexOf('PartyOrders')>=0 && SR.UPCOMING.indexOf('Navigation')<0,
   'PartyOrders stays upcoming; Navigation is no longer a stub slot');
 assert(!/type\s*=\s*["']module["']/.test(html),
@@ -41,18 +43,24 @@ assert(/src="src\/combat\/TimedEffects\.js"/.test(head),
   'TimedEffects stays a classic sync tag before the inline play script');
 assert(/src="src\/ui\/TapGate\.js"/.test(head),
   'TapGate is a classic sync tag before the inline play script');
+assert(/src="src\/combat\/DerivedStats\.js"/.test(head),
+  'DerivedStats is a classic sync tag before the inline play script');
+assert(/src="src\/ui\/EquipCompare\.js"/.test(head),
+  'EquipCompare is a classic sync tag before the inline play script');
 
 const sysI=head.indexOf('src="src/systems/SystemsReady.js"');
 const teI=head.indexOf('src="src/combat/TimedEffects.js"');
 const tapI=head.indexOf('src="src/ui/TapGate.js"');
+const dsI=head.indexOf('src="src/combat/DerivedStats.js"');
+const ecI=head.indexOf('src="src/ui/EquipCompare.js"');
 const rotI=head.indexOf('src="src/vendor/rotjs/rot-path.js"');
 const navI=head.indexOf('src="src/systems/Navigation.js"');
 const intentI=head.indexOf('src="src/systems/EnemyIntent.js"');
 const ixI=head.indexOf('src="src/systems/Interaction.js"');
 const discI=head.indexOf('src="src/systems/Discovery.js"');
 const inlineI=html.indexOf('<script>\n"use strict";');
-assert(sysI>=0 && sysI<teI && teI<tapI && tapI<rotI && rotI<navI && navI<intentI && intentI<ixI && ixI<discI && discI<inlineI,
-  'load order: SystemsReady → TimedEffects → TapGate → rot-path → Navigation → EnemyIntent → Interaction → Discovery → inline');
+assert(sysI>=0 && sysI<teI && teI<tapI && tapI<dsI && dsI<ecI && ecI<rotI && rotI<navI && navI<intentI && intentI<ixI && ixI<discI && discI<inlineI,
+  'load order: SystemsReady → TimedEffects → TapGate → DerivedStats → EquipCompare → rot-path → Navigation → EnemyIntent → Interaction → Discovery → inline');
 
 assert(/src="src\/systems\/Navigation\.js"/.test(html) &&
   /src="src\/vendor\/rotjs\/rot-path\.js"/.test(html),
