@@ -42,6 +42,12 @@
     'dress','plant','craft','lairDen','station','stone'
   ];
 
+  var ENT_BOOL = {
+    ranged:1, dead:1, corpse:1, looted:1, crushed:1, ghost:1, prone:1, hidden:1,
+    boss:1, rubyDrop:1, nozCamp:1, shaman:1, webTalk:1, webTalkDone:1, webCorpse:1,
+    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1
+  };
+
   function clone(v) {
     if (v == null) return v;
     return JSON.parse(JSON.stringify(v));
@@ -109,7 +115,8 @@
     if (!e || !sv) return e;
     for (var i = 0; i < ENT_COPY.length; i++) {
       var k = ENT_COPY[i];
-      if (sv[k] !== undefined) e[k] = clone(sv[k]);
+      if (sv[k] === undefined) continue;
+      e[k] = ENT_BOOL[k] ? !!sv[k] : clone(sv[k]);
     }
     if (sv.id != null) e.id = sv.id;
     e.sid = sv.sid || stableSid(sv);

@@ -139,7 +139,7 @@ const GS=loadGS();
   const gob=mutated.ents.find(e=>e.kind==='goblin');
   const rat=mutated.ents.find(e=>e.kind==='rat');
   assert(gob && gob.id===10 && gob.hp===9 && gob.x===3.2, 'living foe identity and HP reload');
-  assert(rat && rat.id===11 && rat.dead===true && rat.corpse===1, 'corpse identity reloads');
+  assert(rat && rat.id===11 && rat.dead===true && rat.corpse===true, 'corpse identity reloads');
   assert(mutated.loot[0]._corpse===11 && mutated.loot[0].id===20, 'corpse loot still points at the same EID');
   assert(mutated.props[1].k==='crate' && mutated.props[1].gone===1, 'taken prop stays gone');
   assert(mutated.kills===1 && mutated.lvl.objs[0].d===true, 'kills and objective bits reload');
