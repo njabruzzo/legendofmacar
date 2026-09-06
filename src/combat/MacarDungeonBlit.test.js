@@ -53,7 +53,7 @@ assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0
   'whitelist is maul set + Shadow Cleaver carry/atk');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png'].forEach(f=>{
+ 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
 });
 ['dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
@@ -67,10 +67,10 @@ const start=html.indexOf('const SPRITE_FILES={');
 const end=html.indexOf('const ICON_SPR={');
 const registry=new Function(html.slice(start, end)+'\nreturn SPRITE_FILES;')();
 assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.macar_atk
-  && registry.macar_axe && registry.macar_axe_atk, 'live Macar + axe keys stay registered');
+  && registry.macar_axe && registry.macar_axe_w1 && registry.macar_axe_w2 && registry.macar_axe_atk, 'live Macar + axe keys stay registered');
 Object.keys(registry).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
-     || k==='macar_axe' || k==='macar_axe_atk') return;
+     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 
@@ -130,7 +130,10 @@ SPR.macar_axe_atk={width:470, height:512};
 ctx._axe=true;
 assert(ctx.livingMacarIdleKey()==='macar_axe', 'cleaver idle is macar_axe');
 assert(ctx.livingMacarAnimKey(macar())==='macar_axe', 'cleaver idle blits macar_axe');
-assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle');
+SPR.macar_axe_w1={width:470, height:512}; SPR.macar_axe_w2={width:470, height:512};
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'cleaver walk binds axe_w1');
+delete SPR.macar_axe_w1; delete SPR.macar_axe_w2;
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle without walks');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver melee uses axe atk');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;

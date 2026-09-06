@@ -38,7 +38,7 @@ assert(!/macar_e_w1/.test(html.match(/const MACAR_PLAN=\{[\s\S]*?\};/)[0])
   'engine does not bind deleted compass / e_w1 Macar art');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png'].forEach(f=>{
+ 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(creatures,f)), f+' on disk');
 });
 ['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_e_atk.png'].forEach(f=>{
@@ -66,6 +66,7 @@ function checkPair(aName, bName, label){
 }
 
 checkPair('dwarf_macar_w1.png','dwarf_macar_w2.png','title-law front plant');
+checkPair('dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','shadow-cleaver front plant');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nwalk face-pair checks passed');

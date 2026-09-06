@@ -80,13 +80,15 @@ function pngAlphaHist(filePath){
   return {ok:true, w, h, mid, a0, a255, unique:midVals.size+(a0?1:0)+(a255?1:0)};
 }
 
-const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk'];
+const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk'];
 const KEY_FILE={
   macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
   macar_w2:'dwarf_macar_w2.png',
   macar_atk:'dwarf_macar_atk.png',
   macar_axe:'dwarf_macar_axe.png',
+  macar_axe_w1:'dwarf_macar_axe_w1.png',
+  macar_axe_w2:'dwarf_macar_axe_w2.png',
   macar_axe_atk:'dwarf_macar_axe_atk.png'
 };
 
@@ -198,7 +200,10 @@ SPR.macar_axe_atk={width:8};
 ctx._axe=true;
 assert(ctx.livingMacarIdleKey()==='macar_axe', 'cleaver swaps idle to macar_axe when sheet ready');
 assert(ctx.livingMacarAnimKey(macar())==='macar_axe', 'idle is macar_axe when the cleaver is on');
-assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle (no axe_w1/w2)');
+SPR.macar_axe_w1={width:8}; SPR.macar_axe_w2={width:8};
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'cleaver walk binds axe_w1 when ready');
+delete SPR.macar_axe_w1; delete SPR.macar_axe_w2;
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle without axe_w1/w2');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver strike uses macar_axe_atk');
 assert(ctx.entAnimKey(macar())==='macar_axe', 'entAnimKey idle is macar_axe with the cleaver');
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'entAnimKey strike is macar_axe_atk');

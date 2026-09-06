@@ -148,7 +148,7 @@ assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_atk.png'].forEach(f=>{
+ 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 ['dwarf_macar_title.png','dwarf_macar_back.png',

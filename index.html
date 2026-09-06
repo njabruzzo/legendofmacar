@@ -369,7 +369,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='94';
+const ASSET_VER='95';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -658,12 +658,14 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    Drop compass / helmeted combat / sleep / title / w3 leftovers. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
-     || k==='macar_axe' || k==='macar_axe_atk') return;
+     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver carry + atk — registered after the strip so they survive
-   and do not invent missing axe_w1/w2 fetches. */
+   axe_w1/w2 now ship with quilt34 cleaver pack. */
 SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
+SPRITE_FILES.macar_axe_w1='assets/creatures/dwarf_macar_axe_w1.png';
+SPRITE_FILES.macar_axe_w2='assets/creatures/dwarf_macar_axe_w2.png';
 SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
@@ -695,7 +697,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -760,7 +762,7 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_atk',
+  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
@@ -1368,7 +1370,7 @@ const MACAR_PLAN={
 };
 /* Title-law Macar: maul idle + front w1/w2 + maul atk + Shadow Cleaver carry/atk. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_atk:1
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1610,7 +1612,7 @@ function livingMacarAnimKey(e){
     const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
     return pickReadyPartyKey(atk, idle) || idle;
   }
-  /* Axe has no w1/w2 — walkCycleKey plants axe idle (do not use maul walks). */
+  /* Cleaver walk uses axe_w1/w2 when ready; else plant axe idle (never maul walks). */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }

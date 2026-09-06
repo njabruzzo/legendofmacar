@@ -69,7 +69,7 @@ assert(/Save game/.test(html) && /function writeGameSave\(/.test(html), 'pause c
 }
 assert(/GameSave\.captureWorld/.test(html) && /GameSave\.applyWorld/.test(html), 'play save uses the versioned world schema');
 assert(/remakeSavedEnt/.test(html) && /restoreSavedEid/.test(html), 'load remakes ents and restores numeric EIDs');
-assert(!/ASSET_VER='95'/.test(html) && /ASSET_VER='94'/.test(html), 'ASSET_VER is unchanged');
+assert(!/ASSET_VER='96'/.test(html) && /ASSET_VER='95'/.test(html), 'ASSET_VER is unchanged');
 assert(/G\.scene==='camp'/.test(html) && /drawHint\(g,UIS\)/.test(html), 'camp draws the Saved toast');
 assert(/Continue/.test(html) && /function loadSavedGame\(/.test(html), 'title can continue a save');
 assert(/G\._keepProgress/.test(html) && /G\._forceSeeds/.test(html), 'load keeps campaign and dungeon seeds');
