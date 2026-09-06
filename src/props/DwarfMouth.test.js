@@ -24,6 +24,10 @@ assert(M.isShadowCleaver({n:'Shadow Cleaver'}), 'cleaver name matches');
 assert(!M.isShadowCleaver(M.macarHammerItem()), 'hammer is not the cleaver');
 assert(M.findShadowCleaver({macar:{magic:[axe]}}, {weapon:null})===axe, 'finds cleaver in pack');
 assert(M.findShadowCleaver({macar:{magic:[]}}, {weapon:axe})===axe, 'finds equipped cleaver');
+assert(M.findShadowCleaver({macar:{magic:[]}}, {primary:M.macarHammerItem(), weapon:axe})===axe,
+  'finds a weapon-only cleaver even when primary is still the hammer');
+assert(M.findShadowCleaver({macar:{magic:[]}}, {primary:M.macarHammerItem(), weapon:M.macarHammerItem()})===null,
+  'hammer on both hands is not the cleaver');
 assert(!M.findShadowCleaver({macar:{magic:[]}}, {weapon:null}), 'missing cleaver is null');
 assert(M.weaponVsDouble(axe,{kind:'spider'}), 'double vs spider');
 assert(M.weaponVsDouble(axe,{kind:'undead'}), 'double vs undead');

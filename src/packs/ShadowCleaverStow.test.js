@@ -1,7 +1,10 @@
 'use strict';
 /**
- * PACK Equip button / doll primary must keep Shadow Cleaver on the All-tab
- * list (collectPackRows) so it can be re-equipped. QA #203 criterion 4.
+ * PACK Equip must keep a mouth-spit Shadow Cleaver on the All-tab list
+ * (collectPackRows) so it can be re-equipped. QA #203 criterion 4.
+ *
+ * The live path is DwarfMouth spit → takeLoot → giveMagic (real ensurePacks,
+ * not a hand-built starting kit), then PACK Equip on the war hammer.
  * Run: node src/packs/ShadowCleaverStow.test.js
  */
 const fs=require('fs');
@@ -21,10 +24,19 @@ function assert(cond, msg){
 }
 
 function extractFn(name){
-  const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
-  const m=html.match(re);
-  if(!m) throw new Error('missing '+name);
-  return m[0];
+  const start=html.indexOf('function '+name+'(');
+  if(start<0) throw new Error('missing '+name);
+  let i=html.indexOf('{', start);
+  let depth=0;
+  for(; i<html.length; i++){
+    const ch=html[i];
+    if(ch==='{') depth++;
+    else if(ch==='}'){
+      depth--;
+      if(depth===0) return html.slice(start, i+1);
+    }
+  }
+  throw new Error('unclosed '+name);
 }
 
 const packUi=html.match(/function drawPack\(g\)\{[\s\S]*?\nfunction wareCostGp/)[0];
@@ -36,61 +48,108 @@ assert(/restowDisplacedKit\(before/.test(extractFn('ensureEquippedShape')),
   'doll ensureEquippedShape restows aliases ensureShape would drop');
 assert(/ensureWornKitPacked\(\)/.test(extractFn('collectPackRows')),
   'All-tab collectPackRows packs worn kit that is missing from magic');
+assert(/ensureShadowCleaverPacked\(\)/.test(extractFn('collectPackRows')),
+  'All-tab collectPackRows also pins a remembered Shadow Cleaver');
+assert(/rememberShadowCleaver\(axe\)/.test(extractFn('dropInDwarfMouth')),
+  'mouth spit pins the live axe object after takeLoot');
+assert(/stowPackItem\(axe/.test(extractFn('dropInDwarfMouth')),
+  'mouth spit restows the spit axe even if takeLoot no-ops');
+assert(/if\(isShadowCleaver\(it\)\) stowPackItem\(it/.test(extractFn('giveMagic')),
+  'giveMagic restows the cleaver after maybeAutoEquip');
+assert(/EquipmentSlots\.ALL_KEYS/.test(extractFn('ensureWornKitPacked')),
+  'ensureWornKitPacked walks ALL_KEYS so a weapon-only cleaver is packed');
+assert(/out\.orphan/.test(extractFn('equipPackItem')),
+  'equipPackItem restows the orphan .weapon EquipmentSlots.equip would drop');
 
-function boot(opts){
-  opts=opts||{};
-  const ham=M.macarHammerItem();
-  const axe=opts.axe||M.shadowCleaverItem();
-  const magic=opts.magic!=null?opts.magic.slice():[ham];
-  const eq=opts.eq||Eq.equip(Eq.emptyEquipped(), ham).equipped;
+const LIVE_FNS=[
+  'isShadowCleaver','findShadowCleaver','rememberShadowCleaver','knownShadowCleaver',
+  'ensureShadowCleaverPacked','wieldsShadowCleaver','packHasItem',
+  'stowPackItem','snapshotWornKit','restowDisplacedKit','ensureWornKitPacked',
+  'packSelItem','confirmPackEquip','ensureShadowCleaverWielded','ensureEquippedShape',
+  'mapPackItemToEquipment','wornSlotOf','equipPackItem','unequipPackSlot',
+  'maybeAutoEquip','ensureMacarHammer','ensureMacarStartingGear','wieldWeapon',
+  'giveMagic','takeLoot','newPack','ensurePacks','packOf','isHealPotion',
+  'isEquipWeapon','isEquipArmor','isPackEquipable','livingMacarIdleKey','collectPackRows'
+];
+
+function baseStubs(ctx){
+  ctx.says=[];
+  ctx.lastSay='';
+  ctx.say=function(line){ ctx.lastSay=line; ctx.says.push(line); };
+  ctx.isGhostPack=function(){ return false; };
+  ctx.player=function(){ return ctx.G.ents[0]; };
+  ctx.syncPackTotals=function(){
+    if(typeof ctx.ensurePacks==='function') ctx.ensurePacks();
+    ctx.G.inv=ctx.G.packs&&ctx.G.packs.macar;
+  };
+  ctx.partyAC=function(){ return 7; };
+  ctx.wornAttackCd=function(e){ return e&&e.cd; };
+  ctx.applyHoverFlags=function(){};
+  ctx.kinName=function(){ return 'MACAR'; };
+  ctx.sprReady=function(k){ return k==='macar'||k==='macar_axe'; };
+  ctx.convertHoard=function(){ return []; };
+  ctx.givePotion=function(){ return ''; };
+  ctx.giveClue=function(){ return ''; };
+  ctx.giveGem=function(){ return ''; };
+  ctx.addToPack=function(){};
+  ctx.packGainNote=function(){};
+  ctx.awardPartyXp=function(){};
+  ctx.applyEquipped=function(){
+    if(typeof ctx.ensureEquippedShape==='function') ctx.ensureEquippedShape();
+    const eq=ctx.G.equipped||{};
+    eq.weapon=eq.primary||eq.weapon;
+    eq.armor=eq.chest||eq.armor;
+  };
+}
+
+function bootLive(){
   const ctx={
     G:{
-      packs:{macar:{magic:magic, potions:[], healPots:[], gems:[], herbs:{}, notes:[],
-        ammo:13, rations:7, torches:8, bombs:0, ales:0, bombKit:0, burps:0}},
-      equipped:eq,
+      packs:{},
+      equipped:Eq.emptyEquipped(),
       packWho:'macar',
       packSel:null,
       packTab:'all',
-      macarGearReady:1,
+      macarGearReady:0,
+      shadowCleaver:null,
+      loot:[],
+      lvl:{flags:{}},
       ents:[{name:'Macar', hero:1, dice:'1d8', cd:1.05, baseCd:1.05, col:{key:'macar'}}],
       gear:{macar:{magicAtk:0, magicAc:0}}
     },
+    ROSTER:[
+      {key:'macar', name:'MACAR'},
+      {key:'pordoom', name:'PORDUM'},
+      {key:'fendur', name:'FENDUR'},
+      {key:'orbo', name:'ORBO'},
+      {key:'talpor', name:'TALPOR'}
+    ],
     EquipmentSlots:Eq,
     DwarfMouth:M,
-    HERBS:[],
-    lastSay:'',
-    says:[],
-    ham, axe,
-    say(line){ ctx.lastSay=line; ctx.says.push(line); },
-    isGhostPack(){ return false; },
-    ensurePacks(){},
-    packOf(key){ return ctx.G.packs[key||'macar']; },
-    player(){ return ctx.G.ents[0]; },
-    syncPackTotals(){},
-    partyAC(){ return 7; },
-    wornAttackCd(e){ return e&&e.cd; },
-    applyHoverFlags(){},
-    isHealPotion(){ return false; },
-    isEquipWeapon(it){ return !!(it&&(it.k==='weapon'||it.cat==='Weapon')); },
-    isEquipArmor(){ return false; },
-    isPackEquipable(r){
-      const it=r&&r.it;
-      if(!it||(r.kind!=='magic'&&r.kind!=='gear')) return false;
-      return Eq.isEquippable(it);
-    },
-    kinName(){ return 'MACAR'; },
-    sprReady(k){ return k==='macar'||k==='macar_axe'; }
+    HERBS:[]
   };
+  baseStubs(ctx);
   vm.createContext(ctx);
-  [
-    'isShadowCleaver','findShadowCleaver','wieldsShadowCleaver','packHasItem',
-    'stowPackItem','snapshotWornKit','restowDisplacedKit','ensureWornKitPacked',
-    'packSelItem','confirmPackEquip','ensureShadowCleaverWielded','ensureEquippedShape',
-    'mapPackItemToEquipment','wornSlotOf','equipPackItem','unequipPackSlot',
-    'maybeAutoEquip','ensureMacarHammer','wieldWeapon','giveMagic','applyEquipped',
-    'livingMacarIdleKey','collectPackRows'
-  ].forEach(n=>vm.runInContext(extractFn(n), ctx));
+  LIVE_FNS.forEach(n=>vm.runInContext(extractFn(n), ctx));
+  ctx.ensurePacks();
+  ctx.ham=(ctx.G.packs.macar.magic||[]).find(it=>it&&it.id==='macar_hammer')||M.macarHammerItem();
   return ctx;
+}
+
+function mouthObtain(ctx){
+  const ruby={n:'Ruby', guardian:1, d:'A blood-red shard from a ruby guardian.', src:'guardian'};
+  const verdict=M.resolveMouthDrop(ruby, !!ctx.G.lvl.flags.faceFed);
+  assert(verdict.ok && verdict.spit && verdict.spit.length===2, 'mouth spit is key + Shadow Cleaver');
+  const key=verdict.spit[0], axe=verdict.spit[1];
+  ctx.G.lvl.flags.faceFed=1;
+  /* Live dropInDwarfMouth: spitNearFace → takeLoot(pile, true) → giveMagic. */
+  ctx.takeLoot({items:[key], coins:{}, potions:[], gone:0}, true);
+  ctx.takeLoot({items:[axe], coins:{}, potions:[], gone:0}, true);
+  if(typeof ctx.rememberShadowCleaver==='function') ctx.rememberShadowCleaver(axe);
+  if(typeof ctx.stowPackItem==='function') ctx.stowPackItem(axe, {front:false});
+  ctx.axe=axe;
+  ctx.key=key;
+  return {key, axe};
 }
 
 function packHasCleaver(ctx){
@@ -105,26 +164,27 @@ function primaryName(ctx){
   return wep&&wep.n;
 }
 
-/* Live PACK path: EquipCompare selects, Equip button calls confirmPackEquip. */
+/* Live mouth path: spit / takeLoot / giveMagic, then PACK Equip the hammer. */
 {
-  const ham=M.macarHammerItem();
-  const start=Eq.startingItems(()=>ham);
-  const magic=[];
-  let eq=Eq.emptyEquipped();
-  start.forEach(it=>{
-    magic.push(it);
-    if(Eq.START_WORN.indexOf(it.slot)>=0) eq=Eq.equip(eq, it).equipped;
-  });
-  const ctx=boot({magic, eq, axe:M.shadowCleaverItem()});
-  ctx.ham=magic.find(it=>it.id==='macar_hammer');
-  ctx.giveMagic(ctx.axe, true);
-  assert(primaryName(ctx)==='Shadow Cleaver', 'giveMagic auto-wields the cleaver');
+  const ctx=bootLive();
+  assert(primaryName(ctx)==="Macar's War Hammer", 'real ensurePacks starts with the war hammer');
+  assert(!packHasCleaver(ctx), 'starting kit does not include the cleaver');
+  mouthObtain(ctx);
+  assert(ctx.wieldsShadowCleaver() || packHasCleaver(ctx),
+    'mouth takeLoot/giveMagic leaves the cleaver wielded or packed');
+  assert(packHasCleaver(ctx),
+    'giveMagic + mouth stow keep shadow_cleaver in pack.magic (not weapon-only)');
+  assert((ctx.G.packs.macar.magic||[]).some(it=>it&&it.id==='dwarf_mouth_key'),
+    'mouth key is also in pack.magic');
+  const hamAfterMouth=(ctx.G.packs.macar.magic||[]).find(it=>it&&it.id==='macar_hammer');
+  assert(!!hamAfterMouth, 'auto-equip restows the hammer instead of leaving it nowhere');
+  ctx.ham=hamAfterMouth;
   ctx.G.packSel=ctx.ham;
   ctx.G.packTab='all';
   ctx.ensureEquippedShape();
   ctx.confirmPackEquip();
   assert(primaryName(ctx)==="Macar's War Hammer", 'confirmPackEquip wields the selected hammer');
-  assert(packHasCleaver(ctx), 'cleaver is in pack.magic after PACK Equip');
+  assert(packHasCleaver(ctx), 'cleaver is in pack.magic after PACK Equip (mouth path)');
   assert(rowsHaveCleaver(ctx), 'All-tab collectPackRows still contains shadow_cleaver');
   const row=ctx.collectPackRows(ctx.G.packs.macar, 'macar').find(r=>r.it&&M.isShadowCleaver(r.it));
   assert(row && row.t==='Shadow Cleaver', 'All-tab row title is Shadow Cleaver');
@@ -134,42 +194,57 @@ function primaryName(ctx){
   assert(ctx.livingMacarIdleKey()==='macar_axe', 're-Equip restores the axe blit key');
 }
 
-/* Live desync: blit reads .weapon (cleaver) while primary is still the hammer.
-   Opening PACK / Equip runs ensureEquippedShape which used to drop .weapon. */
+/* Live park the QA screenshot hits: mouth object exists, but only on
+   G.equipped.weapon (blit OK) while primary is still the hammer and
+   pack.magic has no cleaver. find used to look at primary||weapon. */
 {
-  const ham=M.macarHammerItem();
-  const axe=M.shadowCleaverItem();
-  const ctx=boot({magic:[ham], axe});
-  ctx.G.equipped.primary=ham;
-  ctx.G.equipped.weapon=axe;
-  assert(!packHasCleaver(ctx), 'desync fixture has no packed cleaver');
-  ctx.ensureEquippedShape();
-  assert(packHasCleaver(ctx), 'doll ensureEquippedShape restows the orphan .weapon cleaver');
-  ctx.G.packSel=ham;
+  const ctx=bootLive();
+  const got=mouthObtain(ctx);
+  ctx.G.packs.macar.magic=(ctx.G.packs.macar.magic||[]).filter(it=>!M.isShadowCleaver(it));
+  ctx.G.equipped.primary=ctx.ham;
+  ctx.G.equipped.weapon=got.axe;
+  ctx.G.shadowCleaver=got.axe;
+  assert(!packHasCleaver(ctx), 'fixture: cleaver stripped from pack.magic');
+  assert(ctx.wieldsShadowCleaver(), 'fixture: blit still reads .weapon as the cleaver');
+  assert(M.isShadowCleaver(ctx.findShadowCleaver()),
+    'findShadowCleaver sees the weapon-only cleaver behind a hammer primary');
+  ctx.G.packSel=ctx.ham;
   ctx.confirmPackEquip();
-  assert(primaryName(ctx)==="Macar's War Hammer", 'Equip hammer after desync still wields hammer');
-  assert(rowsHaveCleaver(ctx), 'All-tab still lists the restowed cleaver after Equip');
+  assert(primaryName(ctx)==="Macar's War Hammer", 'Equip hammer from the weapon-only park');
+  assert(rowsHaveCleaver(ctx), 'All-tab lists the restowed mouth-spit cleaver');
   ctx.G.packSel=ctx.findShadowCleaver();
   ctx.confirmPackEquip();
   assert(ctx.wieldsShadowCleaver() && ctx.livingMacarIdleKey()==='macar_axe',
-    're-Equip after desync restow restores axe blit');
+    're-Equip after weapon-only restow restores axe blit');
+}
+
+/* Opening PACK / Equip used to run ensureShape and drop .weapon. */
+{
+  const ctx=bootLive();
+  const got=mouthObtain(ctx);
+  ctx.G.equipped.primary=ctx.ham;
+  ctx.G.equipped.weapon=got.axe;
+  ctx.ensureEquippedShape();
+  assert(packHasCleaver(ctx), 'doll ensureEquippedShape restows the orphan .weapon cleaver');
+  ctx.G.packSel=ctx.ham;
+  ctx.confirmPackEquip();
+  assert(rowsHaveCleaver(ctx), 'All-tab still lists the restowed cleaver after Equip');
 }
 
 /* Equip button on an already-worn hammer unequips/re-dons; cleaver must survive. */
 {
-  const ham=M.macarHammerItem();
-  const axe=M.shadowCleaverItem();
-  const ctx=boot({magic:[ham], axe});
-  ctx.G.equipped.primary=ham;
-  ctx.G.equipped.weapon=axe;
-  ctx.G.packSel=ham;
+  const ctx=bootLive();
+  const got=mouthObtain(ctx);
+  ctx.G.equipped.primary=ctx.ham;
+  ctx.G.equipped.weapon=got.axe;
+  ctx.G.packSel=ctx.ham;
   ctx.confirmPackEquip();
   assert(rowsHaveCleaver(ctx), 'Equip on worn hammer restows the .weapon cleaver into All-tab');
 }
 
 {
-  const ctx=boot();
-  ctx.giveMagic(ctx.axe, true);
+  const ctx=bootLive();
+  mouthObtain(ctx);
   ctx.G.packSel=ctx.ham;
   ctx.confirmPackEquip();
   ctx.ensureShadowCleaverWielded();

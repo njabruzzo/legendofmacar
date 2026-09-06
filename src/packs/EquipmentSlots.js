@@ -262,10 +262,13 @@
   }
 
   function equip(eq, it) {
+    /* ensureShape aliases .weapon onto .primary and drops a distinct
+       weapon-only item. Hand that orphan back so the host can restow it. */
+    var orphanWep = eq && eq.weapon && eq.weapon !== eq.primary ? eq.weapon : null;
     eq = ensureShape(eq);
     it = annotate(it);
     var slot = itemSlot(it);
-    if (!slot) return {ok: false, reason: 'no-slot', equipped: eq};
+    if (!slot) return {ok: false, reason: 'no-slot', equipped: eq, orphan: orphanWep};
     if (isArchmagiRobe(it) && slot === 'chest') {
       var occ = eq.chest || eq.armor;
       if (occ && occ !== it && !isArchmagiRobe(occ)) {
@@ -277,8 +280,8 @@
       }
     }
     var cur = eq[slot];
-    if (cur && cur !== it && cur.cursed) return {ok: false, reason: 'cursed', slot: slot, equipped: eq};
-    if (cur === it) return {ok: true, slot: slot, equipped: eq, already: true};
+    if (cur && cur !== it && cur.cursed) return {ok: false, reason: 'cursed', slot: slot, equipped: eq, orphan: orphanWep};
+    if (cur === it) return {ok: true, slot: slot, equipped: eq, already: true, orphan: orphanWep && orphanWep !== it ? orphanWep : null};
     clearItem(eq, it);
     eq[slot] = it;
     if (slot === 'primary') eq.weapon = it;
@@ -286,7 +289,10 @@
     if (slot === 'necklace' && (it.k === 'ring' || it.cat === 'Ring' || /protection/i.test(it.n || ''))) eq.ring = it;
     eq.weapon = eq.primary;
     eq.armor = eq.chest;
-    return {ok: true, slot: slot, equipped: eq, prev: cur || null};
+    return {
+      ok: true, slot: slot, equipped: eq, prev: cur || null,
+      orphan: orphanWep && orphanWep !== it && orphanWep !== cur ? orphanWep : null
+    };
   }
 
   function unequip(eq, slot) {

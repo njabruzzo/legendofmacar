@@ -6004,6 +6004,8 @@ function dropInDwarfMouth(r){
       if(axe){
         const pile=spitNearFace(face, 0.55,{kind:'axe', glow:'#b8a0ff', items:[axe]});
         takeLoot(pile, true);
+        rememberShadowCleaver(axe);
+        stowPackItem(axe, {front:false});
       }
       hint('The mouth spat a key and a silver axe into MACAR\'s pack.',6);
     } else {
@@ -6904,8 +6906,32 @@ function takeHealCharge(){
 }
 function isShadowCleaver(it){ return !!(typeof DwarfMouth!=='undefined'&&DwarfMouth.isShadowCleaver&&DwarfMouth.isShadowCleaver(it)); }
 function findShadowCleaver(){
-  if(typeof DwarfMouth==='undefined'||!DwarfMouth.findShadowCleaver) return null;
-  return DwarfMouth.findShadowCleaver(G.packs, G.equipped);
+  const eq=G.equipped||{};
+  if(isShadowCleaver(eq.weapon)) return rememberShadowCleaver(eq.weapon);
+  if(isShadowCleaver(eq.primary)) return rememberShadowCleaver(eq.primary);
+  if(typeof DwarfMouth!=='undefined'&&DwarfMouth.findShadowCleaver){
+    const found=DwarfMouth.findShadowCleaver(G.packs, G.equipped);
+    if(found) return rememberShadowCleaver(found);
+  }
+  if(G.shadowCleaver && isShadowCleaver(G.shadowCleaver)) return G.shadowCleaver;
+  return null;
+}
+function rememberShadowCleaver(it){
+  if(!it || !isShadowCleaver(it)) return it;
+  G.shadowCleaver=it;
+  return it;
+}
+function knownShadowCleaver(){
+  const found=typeof findShadowCleaver==='function'?findShadowCleaver():null;
+  if(found){ G.shadowCleaver=found; return found; }
+  if(G.shadowCleaver && isShadowCleaver(G.shadowCleaver)) return G.shadowCleaver;
+  return null;
+}
+function ensureShadowCleaverPacked(){
+  const axe=knownShadowCleaver();
+  if(!axe) return null;
+  stowPackItem(axe, {front:false});
+  return axe;
 }
 function wieldsShadowCleaver(){ return isShadowCleaver(G.equipped&&G.equipped.weapon); }
 function packHasItem(pk, it){
@@ -6957,7 +6983,7 @@ function restowDisplacedKit(before, keep){
 }
 function ensureWornKitPacked(){
   const eq=G.equipped||{};
-  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.SLOT_KEYS)||
+  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ALL_KEYS)||
     ['helmet','necklace','chest','bracers','gloves','pants','boots','primary','secondary','quiver','weapon','armor'];
   for(let i=0;i<keys.length;i++){
     const it=eq[keys[i]];
@@ -6971,10 +6997,13 @@ function packSelItem(){
 }
 function confirmPackEquip(){
   const it=packSelItem();
+  const keep=knownShadowCleaver();
   if(!it || (typeof isPackEquipable==='function' && !isPackEquipable({kind:'magic',it}))) return null;
   const worn=wornSlotOf(it);
-  if(worn) return unequipPackSlot(worn);
-  return equipPackItem(it);
+  const out=worn?unequipPackSlot(worn):equipPackItem(it);
+  if(keep && keep!==it) stowPackItem(keep);
+  ensureShadowCleaverPacked();
+  return out;
 }
 function ensureShadowCleaverWielded(){
   if(wieldsShadowCleaver()) return G.equipped.weapon;
@@ -7028,6 +7057,7 @@ function equipPackItem(it, opts){
     }
     restowDisplacedKit(before, it);
     if(out.prev && out.prev!==it) stowPackItem(out.prev);
+    if(out.orphan && out.orphan!==it && out.orphan!==out.prev) stowPackItem(out.orphan);
     if(looseWep && looseWep!==it && !wornSlotOf(looseWep)) stowPackItem(looseWep);
     if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
@@ -7853,7 +7883,9 @@ function giveMagic(it, silent){
   const pk=packOf('macar');
   pk.magic=pk.magic||[];
   pk.magic.push(it);
+  rememberShadowCleaver(it);
   const slot=maybeAutoEquip(it);
+  if(isShadowCleaver(it)) stowPackItem(it, {front:false});
   syncPackTotals();
   if(!silent){
     if(slot) say(it.n+' — equipped from MACAR\'s pack.','#ffd27a');
@@ -14959,7 +14991,10 @@ function openPackMenu(from){
   G.scene='pack';
 }
 function collectPackRows(pk, who){
-  if(!who || who==='macar') ensureWornKitPacked();
+  if(!who || who==='macar'){
+    ensureWornKitPacked();
+    ensureShadowCleaverPacked();
+  }
   pk=pk||packOf(who||'macar');
   const eq=G.equipped||{};
   const rows=[];
