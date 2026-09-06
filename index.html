@@ -4711,6 +4711,9 @@ function revealCrushTiles(){
   G.seenRev=(G.seenRev||0)+1; BX_KEY='';
 }
 function capturePlaySave(){
+  if(typeof GameSave!=='undefined' && GameSave.captureWorld){
+    return GameSave.captureWorld(G, {nextEid:EID});
+  }
   const L=G.lvl, p=player();
   if(!L||!p) return null;
   return {
@@ -4735,14 +4738,31 @@ function writeGameSave(quiet){
   const extra={scene:(G.scene==='camp')?'camp':'play'};
   if(G.lvl) extra.play=capturePlaySave();
   const snap=GameSave.snapshot(G, extra);
-  try{ GameSave.write(localStorage, snap); }
-  catch(err){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
+  let ok=false;
+  try{ ok=!!GameSave.write(localStorage, snap); }
+  catch(err){ ok=false; }
+  if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
   if(!quiet){
     say('The book is marked. Progress is kept.','#ffe08a');
     hint('Saved. '+GameSave.label(snap), 3.8);
     G.campSaveFlash=(G.t||0)+2.4;
   }
   return true;
+}
+function remakeSavedEnt(sv){
+  const e=ent({kind:sv.kind||'foe', team:sv.team||'foe', x:sv.x||0, y:sv.y||0, hp:sv.hp||1});
+  if(typeof GameSave!=='undefined' && GameSave.stampEnt) GameSave.stampEnt(e, sv);
+  else Object.assign(e, sv);
+  if(sv.id!=null) e.id=sv.id;
+  return e;
+}
+function restoreSavedEid(play){
+  let mx=EID;
+  if(typeof GameSave!=='undefined' && GameSave.maxSavedId) mx=Math.max(mx, (GameSave.maxSavedId(play)||0)+1);
+  (G.ents||[]).forEach(e=>{ if(e&&e.id>=mx) mx=e.id+1; });
+  (G.loot||[]).forEach(z=>{ if(z&&z.id>=mx) mx=z.id+1; });
+  if(play&&play.nextEid!=null) mx=Math.max(mx, play.nextEid|0);
+  EID=mx;
 }
 function applyPlaySave(play){
   const L=G.lvl; if(!L||!play) return;
@@ -4758,18 +4778,23 @@ function applyPlaySave(play){
     L.flags.kingLevel=0;
     enterGoblinKingLevel(L);
   }
-  G.loot=[];
-  (play.loot||[]).forEach(z=>spawnLoot(z.x,z.y,{
-    kind:z.kind, coins:z.coins||{}, gems:z.gems||0, jew:z.jew||0,
-    potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow
-  }));
-  (play.party||[]).forEach(sv=>{
-    const e=(G.ents||[]).find(z=>z.col&&z.col.key===sv.key);
-    if(!e) return;
-    e.x=sv.x; e.y=sv.y; e.hp=sv.hp; e.maxhp=sv.maxhp||e.maxhp;
-    e.dead=!!sv.dead; e.ghost=!!sv.ghost; e.crushed=!!sv.crushed;
-    if(e.crushed){ e.prone=1; e.corpse=1; e.moving=0; e.hidden=0; }
-  });
+  if(typeof GameSave!=='undefined' && GameSave.applyWorld){
+    GameSave.applyWorld(G, play, {remakeEnt:remakeSavedEnt});
+    restoreSavedEid(play);
+  } else {
+    G.loot=[];
+    (play.loot||[]).forEach(z=>spawnLoot(z.x,z.y,{
+      kind:z.kind, coins:z.coins||{}, gems:z.gems||0, jew:z.jew||0,
+      potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow
+    }));
+    (play.party||[]).forEach(sv=>{
+      const e=(G.ents||[]).find(z=>z.col&&z.col.key===sv.key);
+      if(!e) return;
+      e.x=sv.x; e.y=sv.y; e.hp=sv.hp; e.maxhp=sv.maxhp||e.maxhp;
+      e.dead=!!sv.dead; e.ghost=!!sv.ghost; e.crushed=!!sv.crushed;
+      if(e.crushed){ e.prone=1; e.corpse=1; e.moving=0; e.hidden=0; }
+    });
+  }
   pinFallenKin();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
