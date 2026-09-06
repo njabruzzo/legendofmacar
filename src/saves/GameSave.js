@@ -4,11 +4,12 @@
  * Schema v2 (MAC-01) snapshots the mutable world that actually has writers:
  * chapter identity, campaign/party/inventory, roster HP, flags/secrets/loot,
  * world ents (stable sid + numeric EID), terrain grid, wallHP, explored cells,
- * props (gone/taken plus trap/fallen/backwall/scatter identity),
+ * props (gone/taken plus trap/fallen/backwall/scatter/interact identity),
  * objective done-bits, and kill count.
  *
  * MAC-03 haste: optional play.party[].effects + baseSp/baseCd when a timed
- * haste is active. Navigation / discoveries are still not invented here.
+ * haste is active. MAC-09: optional play.discoveries when the journal has
+ * facts. Navigation is still not invented here.
  *
  * Storage:
  *   legendofmacar.save.v2         live v2 slot
@@ -35,19 +36,20 @@
     'ranged','dead','corpse','looted','crushed','ghost','prone','hidden','boss','glow','aggro',
     'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
-    'id','sid','treasure','tt','hd'
+    'id','sid','treasure','tt','hd','interactSleeper'
   ];
 
   var PROP_COPY = [
     'x','y','k','s','spr','seed','gone','taken','pin','cover','webRock','label','n',
     'dress','plant','craft','lairDen','station','stone',
-    'trap','fallen','backwall','scatter'
+    'trap','fallen','backwall','scatter',
+    'interact','room','hinted','read'
   ];
 
   var ENT_BOOL = {
     ranged:1, dead:1, corpse:1, looted:1, crushed:1, ghost:1, prone:1, hidden:1,
     boss:1, rubyDrop:1, nozCamp:1, shaman:1, webTalk:1, webTalkDone:1, webCorpse:1,
-    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1
+    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1
   };
 
   function clone(v) {
@@ -182,7 +184,7 @@
     if (!L || !p) return null;
     var nextEid = extra.nextEid;
     if (nextEid == null && typeof G.nextEid === 'number') nextEid = G.nextEid;
-    return {
+    var world = {
       x: p.x, y: p.y, hp: p.hp, maxhp: p.maxhp,
       flags: clone(L.flags || {}),
       secrets: (L.secrets || []).map(function (s) {
@@ -203,6 +205,11 @@
       nextEid: nextEid != null ? nextEid : null,
       w: L.w, h: L.h, n: L.n
     };
+    if (root.Discovery && root.Discovery.serialize) {
+      var disc = root.Discovery.serialize();
+      if (disc && disc.length) world.discoveries = disc;
+    }
+    return world;
   }
 
   function rowsMatchLevel(rows, L) {
@@ -286,6 +293,10 @@
       });
       applied.party = true;
     }
+    if (play.discoveries && root.Discovery && root.Discovery.restore) {
+      root.Discovery.restore(play.discoveries);
+      applied.discoveries = true;
+    }
     return applied;
   }
 
@@ -342,6 +353,7 @@
     if (play.seen && !Array.isArray(play.seen)) return false;
     if (play.wallHP && typeof play.wallHP !== 'object') return false;
     if (play.flags && typeof play.flags !== 'object') return false;
+    if (play.discoveries && !Array.isArray(play.discoveries)) return false;
     return true;
   }
 

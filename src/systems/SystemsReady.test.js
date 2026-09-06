@@ -25,6 +25,8 @@ assert(!!SR && typeof SR.declare==='function' && typeof SR.playReady==='function
 assert(SR.REQUIRED.indexOf('TimedEffects')>=0, 'TimedEffects is required');
 assert(SR.SHIPPED.indexOf('Navigation')>=0, 'Navigation is the shipped Batch D slot');
 assert(SR.SHIPPED.indexOf('EnemyIntent')>=0, 'EnemyIntent is the shipped Batch E slot');
+assert(SR.SHIPPED.indexOf('Interaction')>=0, 'Interaction is the shipped Batch F slot');
+assert(SR.SHIPPED.indexOf('Discovery')>=0, 'Discovery is the shipped Batch F journal slot');
 assert(SR.UPCOMING.indexOf('PartyOrders')>=0 && SR.UPCOMING.indexOf('Navigation')<0,
   'PartyOrders stays upcoming; Navigation is no longer a stub slot');
 assert(!/type\s*=\s*["']module["']/.test(html),
@@ -46,15 +48,20 @@ const tapI=head.indexOf('src="src/ui/TapGate.js"');
 const rotI=head.indexOf('src="src/vendor/rotjs/rot-path.js"');
 const navI=head.indexOf('src="src/systems/Navigation.js"');
 const intentI=head.indexOf('src="src/systems/EnemyIntent.js"');
+const ixI=head.indexOf('src="src/systems/Interaction.js"');
+const discI=head.indexOf('src="src/systems/Discovery.js"');
 const inlineI=html.indexOf('<script>\n"use strict";');
-assert(sysI>=0 && sysI<teI && teI<tapI && tapI<rotI && rotI<navI && navI<intentI && intentI<inlineI,
-  'load order: SystemsReady → TimedEffects → TapGate → rot-path → Navigation → EnemyIntent → inline');
+assert(sysI>=0 && sysI<teI && teI<tapI && tapI<rotI && rotI<navI && navI<intentI && intentI<ixI && ixI<discI && discI<inlineI,
+  'load order: SystemsReady → TimedEffects → TapGate → rot-path → Navigation → EnemyIntent → Interaction → Discovery → inline');
 
 assert(/src="src\/systems\/Navigation\.js"/.test(html) &&
   /src="src\/vendor\/rotjs\/rot-path\.js"/.test(html),
   'Batch D Navigation + rot-path are classic sync tags');
 assert(/src="src\/systems\/EnemyIntent\.js"/.test(html),
   'Batch E EnemyIntent is a classic sync tag');
+assert(/src="src\/systems\/Interaction\.js"/.test(html) &&
+  /src="src\/systems\/Discovery\.js"/.test(html),
+  'Batch F Interaction + Discovery are classic sync tags');
 assert(!/src="src\/systems\/PartyOrders\.js"/.test(html),
   'PartyOrders is not shipped (no order-menu plates)');
 assert(/Future: PartyOrders\.js/.test(html) || /future: PartyOrders\.js/.test(html),

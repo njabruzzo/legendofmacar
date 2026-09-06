@@ -44,7 +44,8 @@
 <script src="src/loot/DmgPotions.js"></script>
 <!-- Systems modules: classic sync tags only (no type=module).
      SystemsReady first so declare() is live, then TimedEffects, then TapGate,
-     then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E).
+     then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E),
+     then Interaction + Discovery (Batch F / MAC-09).
      Future: PartyOrders.js.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
@@ -54,6 +55,8 @@
 <script src="src/vendor/rotjs/rot-path.js"></script>
 <script src="src/systems/Navigation.js"></script>
 <script src="src/systems/EnemyIntent.js"></script>
+<script src="src/systems/Interaction.js"></script>
+<script src="src/systems/Discovery.js"></script>
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
@@ -4519,6 +4522,7 @@ function startChapter(n){
   G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; G.topologyRev=0; BX_KEY=''; TILEBLIT.key='';
+  if(typeof Discovery!=='undefined' && Discovery.reset) Discovery.reset();
   if(typeof Navigation!=='undefined' && Navigation.invalidate)
     Navigation.invalidate({levelId:String(n)+':'+String(n)+':0', topologyRev:0, reason:'chapter'});
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
@@ -4599,6 +4603,8 @@ function startChapter(n){
     G.scene=loadSnap.scene==='camp'?'camp':'play';
     G.introT=99; G.paused=false;
   }
+  if(typeof Interaction!=='undefined' && Interaction.installChapterI)
+    Interaction.installChapterI(G.lvl, G, interactHost());
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
 }
 function pinFallenKin(){
@@ -9444,6 +9450,74 @@ function intentHost(){
     inSilence:typeof inSilenceZone==='function'?inSilenceZone:function(){ return false; }
   };
 }
+function gainCoin(k,n){
+  G.coin=G.coin||{};
+  G.coin[k]=(G.coin[k]||0)+(n||0);
+}
+function alertNearby(x,y,r){
+  r=r==null?6.5:r;
+  let n=0;
+  for(const e of (G.ents||[])){
+    if(!e||e.dead||e.team!=='foe'||e.npc) continue;
+    if(Math.hypot((e.x||0)-x,(e.y||0)-y)>r) continue;
+    e.lastSeenX=x; e.lastSeenY=y;
+    e.intent='investigate';
+    e.intentAge=0;
+    e.engaged=1;
+    n++;
+  }
+  return n;
+}
+function wakeInteractSleeper(x,y){
+  let n=0;
+  for(const e of (G.ents||[])){
+    if(!e||e.dead||e.team!=='foe') continue;
+    if(Math.hypot((e.x||0)-x,(e.y||0)-y)>3.2) continue;
+    if(e.sleeping){ e.sleeping=0; e.aggro=Math.max(e.aggro||0,3.2); n++; }
+  }
+  return n;
+}
+function spawnInteractSleeper(spec){
+  if(!spec){
+    return (G.ents||[]).find(e=>e&&e.team==='foe'&&e.interactSleeper&&!e.dead)||null;
+  }
+  const crate=(G.props||[]).find(p=>p&&p.interact==='guarded_alcove');
+  if(crate&&(crate.taken||crate.gone)) return null;
+  const exist=(G.ents||[]).find(e=>e&&!e.dead&&e.kind==='rat'&&Math.hypot(e.x-spec.x,e.y-spec.y)<1.4);
+  if(exist){ exist.interactSleeper=1; return exist; }
+  const make=(typeof FOE!=='undefined'&&FOE.rat)?FOE.rat:null;
+  if(!make) return null;
+  const e=make();
+  e.x=spec.x; e.y=spec.y;
+  e.sleeping=1; e.interactSleeper=1; e.aggro=2.4;
+  G.ents=G.ents||[];
+  G.ents.push(e);
+  return e;
+}
+function interactHost(){
+  return {
+    G:G,
+    L:G.lvl,
+    lvl:G.lvl,
+    Discovery:typeof Discovery!=='undefined'?Discovery:null,
+    breakRock:typeof breakRock==='function'?breakRock:null,
+    openSecret:typeof openSecret==='function'?openSecret:null,
+    bumpTopology:function(why){ bumpTopology(why||'weak-seam'); },
+    burst:burst,
+    say:say,
+    hint:hint,
+    shake:shake,
+    gain:gain,
+    gainCoin:gainCoin,
+    learn:learn,
+    playSfx:function(){},
+    isSearching:function(){ return !!G.searching; },
+    hasTool:function(){ return !!G.searching; },
+    alertNearby:alertNearby,
+    wakeSleeper:wakeInteractSleeper,
+    spawnSleeper:spawnInteractSleeper
+  };
+}
 function applyEnemyIntent(e, ir, dt){
   if(!e||!ir) return;
   if(ir.engaged && !e.engaged){
@@ -10215,6 +10289,14 @@ function update(dt){
     if(!PROMPT){
       const station=nearestCraftStation(p,1.55);
       if(station) interact('Craft at the station',()=>openCraftStation(station));
+    }
+    if(!PROMPT && typeof Interaction!=='undefined' && Interaction.use && Interaction.use()){
+      Interaction.tickHints(p, G, interactHost());
+      const hit=Interaction.nearest(p, G.props);
+      if(hit){
+        const pr=Interaction.promptFor(hit, interactHost());
+        if(pr) interact(pr.label,()=>Interaction.resolveInteraction(p, hit, pr.action, interactHost()));
+      }
     }
     if(!PROMPT){
       const craft=nearestCraftProp(p,1.35);
@@ -12242,6 +12324,7 @@ function nearestCraftProp(e,maxd){
   let best=null, bd=maxd||1.35;
   for(const pr of (G.props||[])){
     if(pr.gone||pr.taken) continue;
+    if(pr.interact) continue;
     if(!CRAFT_PROP[pr.k] && !pr.craft) continue;
     if(!CRAFT_PROP[pr.k]) continue;
     const d=Math.hypot(e.x-pr.x,e.y-pr.y);
@@ -12741,6 +12824,8 @@ function rockAt(L,i,j){
 }
 function diggable(L,i,j){
   if(L.n===1 && i<14) return false;
+  if(typeof Interaction!=='undefined' && Interaction.isProtectedCell && Interaction.isProtectedCell(L,i,j))
+    return false;
   return i>=1 && j>=1 && i<L.w-1 && j<L.h-1 && L.grid[j] && L.grid[j][i]===1;
 }
 function digTarget(e){
@@ -12797,6 +12882,8 @@ function breakRock(L,i,j){
   }
   learn('mining', vein?6:3);
   shake(7);
+  if(typeof Interaction!=='undefined' && Interaction.afterBreakRock)
+    Interaction.afterBreakRock(L,i,j,interactHost());
   return true;
 }
 /* returns true if the swing was spent on rock */
@@ -13362,6 +13449,17 @@ function drawMinimap(g,s){
   if(gd && tileExplored(gd.x,gd.y)){ g.fillStyle='#ffd24a'; g.beginPath();
     g.moveTo(ox+gd.x*cell,oy+gd.y*cell-4); g.lineTo(ox+gd.x*cell+3.4,oy+gd.y*cell+2);
     g.lineTo(ox+gd.x*cell-3.4,oy+gd.y*cell+2); g.closePath(); g.fill(); }
+  if(typeof Discovery!=='undefined' && Discovery.use && Discovery.use() && Discovery.markers){
+    const marks=Discovery.markers();
+    for(let mi=0; mi<marks.length; mi++){
+      const mk=marks[mi];
+      if(!mk || !tileExplored(mk.x, mk.y)) continue;
+      g.fillStyle='#7ad8ff';
+      g.beginPath();
+      g.arc(ox+mk.x*cell, oy+mk.y*cell, 2.4*s, 0, Math.PI*2);
+      g.fill();
+    }
+  }
   g.textAlign='left';
   g.restore();
 }
