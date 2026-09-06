@@ -5,7 +5,9 @@
  *   <script src="src/systems/SystemsReady.js"></script>
  *   <script src="src/combat/TimedEffects.js"></script>
  *   <script src="src/ui/TapGate.js"></script>
- *   <!-- future Batch D: Navigation.js / PartyOrders.js — same sync tags -->
+ *   <script src="src/vendor/rotjs/rot-path.js"></script>
+ *   <script src="src/systems/Navigation.js"></script>
+ *   <!-- future: PartyOrders.js — same sync tags -->
  *   <script> /* play loop * /
  *
  * Classic tags block HTML parse, so declare() runs before loop() is defined.
@@ -15,8 +17,9 @@
  * the host already holds update() / tryEnterPlay via systemsHold() until
  * pending === 0. Do not add type="module" (deferred; races the first frame).
  *
- * Required now: TimedEffects (MAC-03, already shipped).
- * Upcoming (optional until Batch D): Navigation, PartyOrders.
+ * Required now: TimedEffects (MAC-03).
+ * Shipped optional (Batch D): Navigation — declare() on load; play starts
+ * without it (legacy trail/form). Upcoming: PartyOrders.
  */
 (function (root) {
   'use strict';
@@ -24,7 +27,8 @@
   var declared = Object.create(null);
   var pending = 0;
   var REQUIRED = ['TimedEffects'];
-  var UPCOMING = ['Navigation', 'PartyOrders'];
+  var SHIPPED = ['Navigation'];
+  var UPCOMING = ['PartyOrders'];
 
   function declare(name, api) {
     if (!name) return null;
@@ -105,6 +109,7 @@
 
   root.SystemsReady = {
     REQUIRED: REQUIRED,
+    SHIPPED: SHIPPED,
     UPCOMING: UPCOMING,
     declare: declare,
     get: get,
