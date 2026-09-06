@@ -55,14 +55,13 @@ function checkPair(aName, bName, label){
   const mb=resizedAlphaMask(readRgba(b), size[0], size[1]);
   const same=corr(ma, mb);
   const flipped=corr(flipH(ma, size[0], size[1]), mb);
-  /* Title-law front plants swap the planted boot. Older packs measured
-     ~0.49 same / ~0.21 mirror; quilt34 length-lock packs share more
-     silhouette (~0.78 same / ~0.66 flip) while still same-facing.
-     Hard contract: same>flipped (not a painted mirror). Absolute flip
-     ceiling 0.70 (was 0.55, calibrated on older ~0.21 packs; Meticulous
-     accepted for quilt34). Camera floor stays 0.40. */
+  /* Title-law front plants swap the planted boot more than the deleted
+     east D-walk pair. PIL measures ~0.49 same-face / ~0.21 mirror.
+     Camera-share floor is 0.40 (not the old 0.55 east-pair floor).
+     Absolute mirror ceiling stays 0.55 (Meticulous hard gate). Binding
+     contract: same facing, not a painted mirror. */
   assert(same>flipped, `${label}: unflipped pair matches more than a mirror (${same.toFixed(3)}>${flipped.toFixed(3)})`);
-  assert(flipped<0.70, `${label}: w2 is not a painted mirror of w1 (flip corr ${flipped.toFixed(3)})`);
+  assert(flipped<0.55, `${label}: w2 is not a painted mirror of w1 (flip corr ${flipped.toFixed(3)})`);
   assert(same>0.40, `${label}: w1/w2 share a title-law camera (corr ${same.toFixed(3)})`);
 }
 
