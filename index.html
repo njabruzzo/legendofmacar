@@ -44,7 +44,8 @@
 <script src="src/loot/DmgPotions.js"></script>
 <!-- Systems modules: classic sync tags only (no type=module).
      SystemsReady first so declare() is live, then TimedEffects, then TapGate,
-     then rot-path + Navigation (MAC-07 Batch D). Future: PartyOrders.js.
+     then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E).
+     Future: PartyOrders.js.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
@@ -52,6 +53,7 @@
 <script src="src/ui/TapGate.js"></script>
 <script src="src/vendor/rotjs/rot-path.js"></script>
 <script src="src/systems/Navigation.js"></script>
+<script src="src/systems/EnemyIntent.js"></script>
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
@@ -2059,6 +2061,10 @@ function faceToward(e,x,y){
 }
 function faceVec(e){
   if(!e) return {dx:0,dy:0};
+  /* Committed _attack facing holds for the live swing (impact + recover). */
+  if(e._attack && e.atk>0){
+    return {dx:e._attack.fdx||0, dy:e._attack.fdy||0};
+  }
   /* If a foe is the current aim, facing follows the foe — swinging or
      closing — not leftover walk heading. */
   if(e.aim && !e.aim.dead && e.aim.x!=null && (e.aim.team==='foe' || e.atk>0)){
@@ -2676,7 +2682,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   res:{}, xp:{}, skillSnap:{}, gear:{}, bombs:2, ales:2, songBuff:0, sang:false,
   thrown:[], aim:null, campScroll:0, campTab:'repair', campSel:null, campSkills:0, coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
   inv:{potions:[],herbs:{},magic:[]}, equipped:null, macarGearReady:0,
-  fightOn:0, fightWasBoss:0, fightGotKill:0, fightMercy:0, mercyTalk:0, mercyGoblinId:null, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
+  fightOn:0, fightWasBoss:0, fightBossDead:0, fightGotKill:0, fightMercy:0, mercyTalk:0, mercyGoblinId:null, carryEffects:[], searching:0, secretSearch:0, digging:0, dig:null, sleepShow:null,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
@@ -4516,7 +4522,7 @@ function startChapter(n){
   if(typeof Navigation!=='undefined' && Navigation.invalidate)
     Navigation.invalidate({levelId:String(n)+':'+String(n)+':0', topologyRev:0, reason:'chapter'});
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
-  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.trail=[];
+  G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightBossDead=0; G.fightGotKill=0; G.trail=[];
   if(sfx&&sfx.stopBed) sfx.stopBed();
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
@@ -7305,6 +7311,7 @@ function beginFight(foe){
   G.fightOn=1;
   G.displaceMiss=1;
   G.fightGotKill=0;
+  G.fightBossDead=0;
   G.fightMercy=0; G.mercyTalk=0; G.mercyGoblinId=null;
   G.fightWasBoss=!!(foe&&foe.boss)||(typeof Bgm!=='undefined'&&Bgm.livingBoss&&Bgm.livingBoss(G));
   if(bgm&&bgm.cancelSting) bgm.cancelSting();
@@ -7367,10 +7374,13 @@ function livingFightFoes(p){
 function endFightIfClear(){
   if(!G.fightOn) return;
   if(livingFightFoes()) return;
-  const bossWin=!!G.fightWasBoss;
+  /* Boss victory requires a confirmed boss death this fight — retreat,
+     reload, and return must not award the sting / horn. */
+  const bossWin=!!G.fightBossDead;
   const won=!!(G.fightGotKill||bossWin);
   G.fightOn=0;
   G.fightWasBoss=0;
+  G.fightBossDead=0;
   G.fightGotKill=0;
   G.fightMercy=0; G.mercyTalk=0; G.mercyGoblinId=null;
   if(sfx&&sfx.stopBed) sfx.stopBed();
@@ -8882,7 +8892,7 @@ function damage(e,amt,col,src){
       foeDrop(e);
       e.corpse=1; e.looted=0; e.flash=0;
       if(e.shaman && G.lvl && G.lvl.flags) G.lvl.flags.shamanDead=1;
-      if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; G.fightWasBoss=1; }
+      if(e.boss){ shake(26); G.flash={c:'#fff',a:.45}; say(e.name+' is broken.','#ffd27a'); G.hitstop=.12; G.fightWasBoss=1; G.fightBossDead=1; }
       endFightIfClear();
     } else if(e.ghost){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
@@ -8927,11 +8937,14 @@ function onHitFx(atk,o,dmg){
   return dmg;
 }
 function meleeSwing(e,arc,reach,dmg,col){
-  const fa=ang(e.fdx,e.fdy); let hit=0;
+  const af=e._attack&&e.atk>0?e._attack:{fdx:e.fdx,fdy:e.fdy};
+  const fa=ang(af.fdx,af.fdy); let hit=0;
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
+    if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
+       !EnemyIntent.meleeClear(e,o,{hasLOS:hasLOS,dist:dist,walk:walk})) continue;
     const a=ang(o.x-e.x,o.y-e.y); const df=Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI);
     if(df<=wedge/2){
       const rolled=addAttack(e,o);
@@ -9419,6 +9432,53 @@ function navHost(){
     topologyRev:G.topologyRev||0
   };
 }
+function intentHost(){
+  return {
+    canBe:canBe,
+    walk:walk,
+    hasLOS:hasLOS,
+    dist:dist,
+    ents:G.ents,
+    nearestAlly:nearestAlly,
+    inDarkZone:typeof inDarkZone==='function'?inDarkZone:function(){ return false; },
+    inSilence:typeof inSilenceZone==='function'?inSilenceZone:function(){ return false; }
+  };
+}
+function applyEnemyIntent(e, ir, dt){
+  if(!e||!ir) return;
+  if(ir.engaged && !e.engaged){
+    if(typeof maybeOpenMajorTalkOnAggro==='function') maybeOpenMajorTalkOnAggro(e);
+    e.engaged=1;
+  } else if(ir.engaged) e.engaged=1;
+  else if(ir.engaged===false) e.engaged=0;
+  if(ir.attack && ir.attack.hp!==undefined && !e.defending && e.ct<=0 && !(e.atk>0)){
+    faceToward(e, ir.attack.x, ir.attack.y);
+    e._attack={fdx:e.fdx, fdy:e.fdy};
+    e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=ir.attack;
+    if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+    e.moving=0; e.ix=0; e.iy=0;
+    return;
+  }
+  if(ir.holdFacing && e._attack){
+    e.fdx=e._attack.fdx; e.fdy=e._attack.fdy;
+    e.moving=0; e.ix=0; e.iy=0;
+    return;
+  }
+  if(ir.move){
+    let vx=ir.move.dx-e.x, vy=ir.move.dy-e.y;
+    const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+    if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
+    else {
+      for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
+        if(dd<(e.r+o.r)*1.15&&dd>.001){ vx+=(e.x-o.x)/dd*.35; vy+=(e.y-o.y)/dd*.35; } }
+      steerWalk(e, vx, vy, go, dt);
+      if(ir.face) faceToward(e, ir.face.x, ir.face.y);
+    }
+    return;
+  }
+  e.moving=0; e.ix=0; e.iy=0;
+  if(ir.face) faceToward(e, ir.face.x, ir.face.y);
+}
 function moveStep(e,dx,dy,dt){
   const mul=typeof wornMoveMul==='function'?wornMoveMul(e):1;
   return {x:e.x+dx*dt*mul, y:e.y+dy*dt*mul};
@@ -9831,6 +9891,7 @@ function fire(key){
     if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
     if(p.atk<=0){
       p.atk=p.atkMax;
+      p._attack={fdx:p.fdx,fdy:p.fdy};
       if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
       else p.swung=1;
     }
@@ -9840,7 +9901,7 @@ function fire(key){
   if(key==='wall'){
     p.defending=!p.defending;
     if(p.defending){
-      p.atk=0; p.swung=0; p.aim=null; p.dest=null; G.aim=null;
+      p.atk=0; p.swung=0; p._attack=null; p.aim=null; p.dest=null; G.aim=null;
       p.fdx=-0.72; p.fdy=-0.72;
       G.ents.forEach(e=>{
         if(e.team!=='party'||e.dead||e===p) return;
@@ -10101,7 +10162,8 @@ function update(dt){
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
         faceToward(p, t.x, t.y);
-        p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t; }
+        p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t;
+        p._attack={fdx:p.fdx,fdy:p.fdy}; }
       if(!t) p.aim=null;
     } else if(p.defending) p.aim=null;
 
@@ -10232,7 +10294,7 @@ function update(dt){
     if(e.buff>0) e.buff-=dt;
     skillSystem.tickAttack(e, dt);
     if(e.atk>0){
-      if(e.defending){ e.atk=0; e.swung=0; }
+        if(e.defending){ e.atk=0; e.swung=0; e._attack=null; }
       else {
         e.atk-=dt;
         if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
@@ -10250,7 +10312,7 @@ function update(dt){
           } else if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
-        if(e.atk<=0) e.swung=0;
+        if(e.atk<=0){ e.swung=0; e._attack=null; }
       }
     }
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
@@ -10305,6 +10367,16 @@ function update(dt){
         want=.38; form=1;
       }
     } else {
+      /* Batch E melee pursuer: decision only. Movement / attack stay on
+         steerWalk + atk/ct/swung. Flag-off keeps the legacy chase. */
+      if(typeof EnemyIntent!=='undefined' && EnemyIntent.use() && EnemyIntent.isMeleePursuer(e)){
+        const ir=EnemyIntent.decide(e, dt, intentHost());
+        if(ir && ir.handled){
+          applyEnemyIntent(e, ir, dt);
+          ghostSapperBomb(e, dt);
+          continue;
+        }
+      }
       tgt=nearestAlly(e,999);
       if(tgt){ const d=dist(e,tgt);
         if(d>e.aggro&&!e.boss&&!e.engaged) tgt=null;
@@ -12645,7 +12717,7 @@ function initEconomy(){
   G.inspect=null;
   G.equipped=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.emptyEquipped)?EquipmentSlots.emptyEquipped():{weapon:null,armor:null,ring:null,wand:null};
   G.macarGearReady=0;
-  G.fightOn=0; G.fightWasBoss=0; G.fightGotKill=0; G.carryEffects=G.carryEffects||[];
+  G.fightOn=0; G.fightWasBoss=0; G.fightBossDead=0; G.fightGotKill=0; G.carryEffects=G.carryEffects||[];
   G.borrowed=[];
   syncPackTotals();
 }
