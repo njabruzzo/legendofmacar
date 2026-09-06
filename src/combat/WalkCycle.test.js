@@ -31,6 +31,8 @@ assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
 const liveKey=extractFn('livingMacarAnimKey');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair of the live idle');
+assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
+  'walk helper does not steal the matching melee atk bind');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey),
   'living Macar walk does not bind washed directional stems');
 
@@ -119,6 +121,7 @@ vm.runInContext(
   +extractFn('partyCrownMatches')
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
+  +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')

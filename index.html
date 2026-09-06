@@ -630,9 +630,10 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
   SPRITE_FILES[k+'_e_w1']='assets/creatures/dwarf_'+k+'_e_w1.png';
   SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
 });
-/* Compass / walk / atk ghost files stay registered so they preload, but
-   entAnimKey will not blit them unless livingColorStats + idle-kit match.
-   Current pack is cyan/teal mono with wrong kits — Limner redo, not a bind. */
+/* Compass / w3 / back-walk ghost files stay registered so they preload, but
+   ghostAnimKey will not blit them unless livingColorStats + idle-kit match.
+   Priority-16 front w1/w2/atk/atk_recover are living-color. Remaining
+   compass / w3 / back_w packs are cyan/teal mono — Limner redo, not a bind. */
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
   SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
@@ -1273,9 +1274,12 @@ function solidDwarfSprite(e,img){
   return blitLivingMacar(img)||img;
 }
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
-function flippedSprite(img){
+const FLIP_CACHE_RAW=typeof WeakMap==='function'?new WeakMap():null;
+function flippedSprite(img, punch){
   if(!img||!img.width) return img;
-  if(FLIP_CACHE&&FLIP_CACHE.has(img)) return FLIP_CACHE.get(img);
+  const doPunch=punch!==false;
+  const cache=doPunch?FLIP_CACHE:FLIP_CACHE_RAW;
+  if(cache&&cache.has(img)) return cache.get(img);
   const c=document.createElement('canvas');
   c.width=img.width; c.height=img.height;
   const fg=c.getContext('2d',{willReadFrequently:true});
@@ -1284,16 +1288,18 @@ function flippedSprite(img){
   fg.globalCompositeOperation='source-over';
   fg.translate(c.width,0); fg.scale(-1,1);
   fg.drawImage(img,0,0);
-  punchLivingMacarCanvas(c);
-  if(FLIP_CACHE) FLIP_CACHE.set(img,c);
+  /* Living sheets re-punch so a flip cannot reintroduce fringe. Ghost sheets
+     are mid-alpha by design — punching them to a=255 is the solid↔ghost flash. */
+  if(doPunch) punchLivingMacarCanvas(c);
+  if(cache) cache.set(img,c);
   return c;
 }
-function blitFacing(g,img,dx,dy,W,H,flip,crisp){
+function blitFacing(g,img,dx,dy,W,H,flip,crisp,punch){
   // Bake a mirrored canvas and draw it unflipped so west never depends on
   // negative-width drawImage (some GPU paths ignore dest-width sign).
   // Crisp = nearest-neighbor. Title-law idle is ~470x512; a smoothed ~70x74
   // blit collapses painted-mini detail and amplifies magenta fringe.
-  const src=flip?flippedSprite(img):img;
+  const src=flip?flippedSprite(img, punch):img;
   const prevS=g.imageSmoothingEnabled;
   const prevQ=g.imageSmoothingQuality;
   if(crisp){
@@ -1335,15 +1341,16 @@ function drawEntBillboard(g,e,img,z,flip){
   const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
   const dy=(b&&b.ok)?-H*b.botY:-H;
   const party=e.kind==='dwarf' && !e.dead;
+  const punch=!e.ghost;
   if(e.hero && !e.dead){
     g.save();
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
-    blitFacing(g,img,dx,dy,W,H,flip,true);
+    blitFacing(g,img,dx,dy,W,H,flip,true,punch);
     g.restore();
     return true;
   }
-  blitFacing(g,img,dx,dy,W,H,flip,party);
+  blitFacing(g,img,dx,dy,W,H,flip,party,punch);
   return true;
 }
 /* ==========================================================================
@@ -1437,11 +1444,23 @@ function partySheetMatchesIdle(img, idle, key){
   }
   return false;
 }
+function matchingPartyAtkReady(key, idleKey){
+  /* Equipped idle + its own _atk / _atk_recover. Skip crown/family so a
+     Limner-parked crown (or a different crop) cannot plant idle while the
+     swing timer still runs. Fit still rejects slivers. */
+  if(!key || !idleKey) return false;
+  if(key!==idleKey+'_atk' && key!==idleKey+'_atk_recover') return false;
+  if(typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width)) return false;
+  const img=SPR[key];
+  const idle=(SPR[idleKey]&&SPR[idleKey].width)?SPR[idleKey]:null;
+  return partyFrameFitOk(img, idle);
+}
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
+  if(matchingPartyAtkReady(key, idleKey)) return true;
   if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
   return true;
 }
@@ -1457,7 +1476,9 @@ function pickReadyPartyKey(key, idleKey){
    plant the signed idle (front or back). livingColorStats + idle-kit match
    will bind replacement walk/atk themselves when they land. */
 function ghostKeyLooksUnsigned(key){
-  return /_ghost_(?:e_|s_|nw_|ne_|se_|w[123]|atk|back_w)/.test(key||'');
+  /* Compass / w3 / back-walk only. Front w1/w2/atk/atk_recover are Priority-16
+     living-color — do not treat them as unsigned or a failed sample plants idle. */
+  return /_ghost_(?:e_|s_|nw_|ne_|se_|w3|back_w)/.test(key||'');
 }
 function livingColorStats(data){
   let cyan=0, warm=0, n=0;
@@ -1495,8 +1516,11 @@ function sheetLivingColors(img, key){
   if(!img.width) return false;
   const sampled=sampleLivingColors(img);
   if(sampled.ok){ img._live=!!sampled.living; return img._live; }
-  img._live=!ghostKeyLooksUnsigned(key);
-  return img._live;
+  /* Do not cache a guess. A failed getImageData used to stamp _live=false on
+     every unsigned-looking key — including living-color front w1/atk — so
+     ghosts stayed on idle forever after one bad sample. */
+  if(ghostKeyLooksUnsigned(key)) return false;
+  return true;
 }
 function ghostIdleKey(k, back){
   if(!k) return null;
@@ -1510,6 +1534,7 @@ function partyGhostKeyReady(key, idleKey){
   if(!sheetLivingColors(img, key)) return false;
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
+  if(matchingPartyAtkReady(key, idleKey)) return true;
   if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
   return true;
 }
@@ -1610,6 +1635,7 @@ function livingMacarAnimKey(e){
   const idle=livingMacarIdleKey();
   if(wantsMeleePose(e)||wantsMeleeRecover(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
+    if(matchingPartyAtkReady(atk, idle)) return atk;
     return pickReadyPartyKey(atk, idle) || idle;
   }
   /* Cleaver walk uses axe_w1/w2 when ready; else plant axe idle (never maul walks). */
@@ -6933,7 +6959,10 @@ function ensureShadowCleaverPacked(){
   stowPackItem(axe, {front:false});
   return axe;
 }
-function wieldsShadowCleaver(){ return isShadowCleaver(G.equipped&&G.equipped.weapon); }
+function wieldsShadowCleaver(){
+  const eq=G.equipped||{};
+  return isShadowCleaver(eq.weapon)||isShadowCleaver(eq.primary);
+}
 function packHasItem(pk, it){
   if(!pk||!it) return -1;
   const magic=pk.magic||[];
@@ -10891,6 +10920,15 @@ function render(){
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
+      /* Source-over swipe only — not inside drawLivingMacar (no lighter /
+         gold). Readable when the atk sheet is a short window or a near-idle. */
+      if(mac.atk>0 && mac.atkKind!=='bow'){
+        const s=w2s(mac.x,mac.y), z=ZOOM*mac.scale;
+        const bob0=mac.moving?Math.sin((mac.gait||0)*TAU)*1.6*z:0;
+        g.save(); g.translate(s.x, s.y-bob0);
+        drawHeroMeleeArc(g,mac,z);
+        g.restore();
+      }
     }
     for(const e of G.ents){
       if(!e || e.hero || e.dead || e.crushed || e.hidden) continue;
@@ -12095,9 +12133,22 @@ function drawEnt(g,e){
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
-  if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){ g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
-    g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
-    g.globalCompositeOperation='source-over'; g.globalAlpha=1; }
+  if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){
+    if(e.ghost){
+      /* Mid-alpha ghost + lighter + flash*3 reads as solid↔translucent.
+         Keep a stable source-over rim so a hit is visible without a pop. */
+      g.globalCompositeOperation='source-over';
+      g.globalAlpha=clamp(e.flash*1.2,0,0.34);
+      g.strokeStyle='rgba(170,220,255,0.95)';
+      g.lineWidth=2.1*ZOOM;
+      g.beginPath(); g.ellipse(0,-27*z,17*z,26*z,0,0,TAU); g.stroke();
+      g.globalAlpha=1;
+    } else {
+      g.globalCompositeOperation='lighter'; g.globalAlpha=clamp(e.flash*3,0,1);
+      g.fillStyle='#ffb894'; g.beginPath(); g.ellipse(0,-27*z,19*z,29*z,0,0,TAU); g.fill();
+      g.globalCompositeOperation='source-over'; g.globalAlpha=1;
+    }
+  }
   if((e.webbed||0)>0){
     const webImg=TEX.web;
     if(webImg){

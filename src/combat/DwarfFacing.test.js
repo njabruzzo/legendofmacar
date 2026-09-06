@@ -23,7 +23,7 @@ assert(/function faceToward\(/.test(html) && /function faceVec\(/.test(html),
 assert(/function dwarfAngleKey\(/.test(html) && /oct==='w'\|\|oct==='sw'\|\|oct==='nw'/.test(html),
   'screen-left octants (A / SW / NW) share the east-painted walk');
 assert(/function moveHeadingSX\(e\)\{/.test(html), 'iso screen-x heading is ix-iy');
-assert(/function flippedSprite\(img\)\{/.test(html) && /function blitFacing\(/.test(html),
+assert(/function flippedSprite\(img/.test(html) && /function blitFacing\(/.test(html),
   'west facing bakes a mirrored canvas instead of relying on negative dest width');
 assert(/e\.hero && !e\.ghost\) return moveHeadingSX\(e\) < -0\.02/.test(html),
   'living Macar flips only for screen-left (sx < -0.02)');

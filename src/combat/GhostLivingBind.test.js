@@ -40,6 +40,20 @@ assert(/function livingColorStats\(/.test(html) && /function ghostAnimKey\(/.tes
   'living-color ghost bind helpers exist');
 assert(/function pickReadyGhostKey\(/.test(html) && /plant the signed idle/.test(html),
   'failed ghost walk/atk plants signed idle, not cyan and not a living twin');
+assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
+  'unsigned ghost keys are compass / w3 / back_w only — not front w1/w2/atk');
+assert(/Do not cache a guess/.test(html) && /if\(ghostKeyLooksUnsigned\(key\)\) return false/.test(extractFn('sheetLivingColors')),
+  'failed living-color sample does not stamp _live=false on bind-ready front motion');
+assert(/punch!==false/.test(extractFn('flippedSprite'))
+  && /Ghost sheets[\s\S]*solid/.test(extractFn('flippedSprite')),
+  'ghost flips skip the living a=255 punch');
+assert(/const punch=!e\.ghost/.test(html)
+  && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
+  'ghost billboard passes punch=false into blitFacing');
+assert(/Mid-alpha ghost \+ lighter/.test(html)
+  && /g\.strokeStyle='rgba\(170,220,255,0\.95\)'/.test(html)
+  && /g\.globalAlpha=clamp\(e\.flash\*1\.2,0,0\.34\)/.test(html),
+  'ghost hit feedback is a source-over rim, not lighter flash*3');
 assert(!/function ghostLiveTwin\(/.test(html),
   'living-kin twin fallback is gone — cyan mono is not a stand-in');
 assert(/e\.kind==='dwarf' && e\.ghost && !e\.dead\) key=ghostAnimKey/.test(html),
@@ -59,6 +73,10 @@ KIN.forEach(k=>{
   assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color — keep');
   assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost') && !ctx.ghostKeyLooksUnsigned(k+'_ghost_back'),
     k+' idle front/back are the signed ghost identity');
+  BIND_READY_SUF.forEach(suf=>{
+    assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost'+suf),
+      k+' ghost'+suf+' is bind-ready, not unsigned');
+  });
   BIND_READY_SUF.forEach(suf=>{
     const file='dwarf_'+k+'_ghost'+suf+'.png';
     const full=path.join(creatures, file);
@@ -117,6 +135,7 @@ vm.runInContext(
   +extractFn('partyCrownMatches')
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
+  +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('ghostKeyLooksUnsigned')
@@ -192,6 +211,28 @@ assert(run.entAnimKey({
   hero:1, kind:'dwarf', ghost:0, dead:0, crushed:0, defending:0,
   moving:1, gait:0.12, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7
 })==='macar_w1', 'living Macar walk stays on the title-law maul pair');
+
+const unsamp={width:120, height:120};
+assert(run.sheetLivingColors(unsamp, 'pordoom_ghost_w1')===true,
+  'failed sample allows Priority-16 front w1 (does not plant idle)');
+assert(unsamp._live==null, 'failed sample does not cache _live');
+assert(run.sheetLivingColors({width:120, height:120}, 'pordoom_ghost_e_w1')===false,
+  'failed sample still refuses unsigned cyan e_w');
+assert(run.sheetLivingColors({width:120, height:120}, 'pordoom_ghost_atk')===true,
+  'failed sample allows living-color front atk');
+
+SPR.pordoom_ghost={width:485, height:512, _live:true, _id:{ok:true, metal:0, hair:0.90, warm:0.95}};
+SPR.pordoom_ghost_atk={width:400, height:512, _live:true, _id:{ok:true, metal:0.62, hair:0.12, warm:0.20}};
+SPR.pordoom_ghost_atk_recover={width:400, height:512, _live:true, _id:{ok:true, metal:0.62, hair:0.12, warm:0.20}};
+assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_atk, SPR.pordoom_ghost, 'pordoom_ghost_atk')===false,
+  'mismatched ghost atk crop fails identity');
+assert(run.entAnimKey(ghost('pordoom',{atk:0.7, atkMax:1}))==='pordoom_ghost_atk',
+  'ghost strike still binds the living-color atk when ready');
+assert(run.entAnimKey(ghost('pordoom',{atk:0.3, atkMax:1}))==='pordoom_ghost_atk_recover',
+  'ghost recover still binds the living-color recover when ready');
+ready('pordoom_ghost', true);
+ready('pordoom_ghost_atk', true);
+ready('pordoom_ghost_atk_recover', true);
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost living-color bind checks passed');

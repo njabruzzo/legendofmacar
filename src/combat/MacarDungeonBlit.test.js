@@ -96,6 +96,7 @@ vm.runInContext(
   +extractFn('partyCrownMatches')
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
+  +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('walkCycleKey')
@@ -154,8 +155,12 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar',
 SPR.macar_atk={width:409, height:512, _id:{ok:true, metal:0.19, hair:0.46, warm:0.55}};
 assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,
   'old helmeted atk crop fails identity vs the 470x512 idle');
-assert(ctx.pickReadyPartyKey('macar_atk', 'macar')==='macar',
-  'helmeted atk is never picked over the live idle');
+assert(ctx.pickReadyPartyKey('macar_atk', 'macar')==='macar_atk',
+  'matching equipped atk still blits when ready — leftover helmeted file is gone');
+SPR.macar_atk={width:8, height:512};
+assert(ctx.partyFrameFitOk(SPR.macar_atk, SPR.macar)===false
+  && ctx.pickReadyPartyKey('macar_atk', 'macar')==='macar',
+  'sliver atk still plants the live idle');
 
 SPR.pordoom={width:485, height:512};
 SPR.pordoom_w1={width:8, height:512};

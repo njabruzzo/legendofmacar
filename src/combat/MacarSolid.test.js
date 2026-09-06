@@ -74,6 +74,8 @@ assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(html),
   'living Macar binds axe sheets when the cleaver is wielded');
 assert(/pickReadyPartyKey\(atk, idle\)/.test(liveKey) || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
   'attack uses matching atk for the equipped idle');
+assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
+  'matching equipped atk is used even when crown/family would plant idle');
 assert(/macar_axe_atk/.test(liveKey), 'cleaver melee uses macar_axe_atk');
 assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
