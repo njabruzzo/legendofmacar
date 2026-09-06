@@ -6920,20 +6920,61 @@ function packHasItem(pk, it){
   }
   return -1;
 }
-function stowPackItem(it){
+function stowPackItem(it, opts){
   if(!it) return it;
-  ensurePacks();
-  const pk=packOf('macar');
+  opts=opts||{};
+  if(!G.packs) G.packs={};
+  if(!G.packs.macar) G.packs.macar={magic:[]};
+  const pk=G.packs.macar;
   pk.magic=pk.magic||[];
   const i=packHasItem(pk, it);
   if(i>=0){
     const have=pk.magic[i];
-    if(i!==0){ pk.magic.splice(i,1); pk.magic.unshift(have); }
+    if(opts.front!==false && i!==0){ pk.magic.splice(i,1); pk.magic.unshift(have); }
     return have;
   }
-  pk.magic.unshift(it);
-  syncPackTotals();
+  if(opts.front===false) pk.magic.push(it);
+  else pk.magic.unshift(it);
+  if(typeof syncPackTotals==='function') syncPackTotals();
   return it;
+}
+function snapshotWornKit(eq){
+  eq=eq||G.equipped||{};
+  const out=[];
+  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ALL_KEYS)||Object.keys(eq);
+  for(let i=0;i<keys.length;i++){
+    const it=eq[keys[i]];
+    if(it && out.indexOf(it)<0) out.push(it);
+  }
+  return out;
+}
+function restowDisplacedKit(before, keep){
+  (before||[]).forEach(it=>{
+    if(!it || it===keep) return;
+    if(typeof wornSlotOf==='function' && wornSlotOf(it)) return;
+    stowPackItem(it);
+  });
+}
+function ensureWornKitPacked(){
+  const eq=G.equipped||{};
+  const keys=(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.SLOT_KEYS)||
+    ['helmet','necklace','chest','bracers','gloves','pants','boots','primary','secondary','quiver','weapon','armor'];
+  for(let i=0;i<keys.length;i++){
+    const it=eq[keys[i]];
+    if(it) stowPackItem(it, {front:false});
+  }
+}
+function packSelItem(){
+  const sel=G.packSel;
+  if(!sel) return null;
+  return sel.it||sel;
+}
+function confirmPackEquip(){
+  const it=packSelItem();
+  if(!it || (typeof isPackEquipable==='function' && !isPackEquipable({kind:'magic',it}))) return null;
+  const worn=wornSlotOf(it);
+  if(worn) return unequipPackSlot(worn);
+  return equipPackItem(it);
 }
 function ensureShadowCleaverWielded(){
   if(wieldsShadowCleaver()) return G.equipped.weapon;
@@ -6945,9 +6986,11 @@ function ensureShadowCleaverWielded(){
   return axe;
 }
 function ensureEquippedShape(){
+  const before=snapshotWornKit(G.equipped);
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(ES&&ES.ensureShape) G.equipped=ES.ensureShape(G.equipped||{});
   else if(!G.equipped) G.equipped={weapon:null,armor:null,ring:null,wand:null};
+  restowDisplacedKit(before, null);
   return G.equipped;
 }
 function mapPackItemToEquipment(it){
@@ -6971,6 +7014,9 @@ function equipPackItem(it, opts){
   if(!it) return null;
   mapPackItemToEquipment(it);
   if(isGhostPack()) claimItemToMacar('magic', it);
+  const before=snapshotWornKit(G.equipped);
+  const looseWep=(G.equipped&&G.equipped.weapon);
+  const loosePri=(G.equipped&&G.equipped.primary);
   ensureEquippedShape();
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(ES&&ES.equip){
@@ -6980,7 +7026,10 @@ function equipPackItem(it, opts){
       if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
       return null;
     }
+    restowDisplacedKit(before, it);
     if(out.prev && out.prev!==it) stowPackItem(out.prev);
+    if(looseWep && looseWep!==it && !wornSlotOf(looseWep)) stowPackItem(looseWep);
+    if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
     if(!opts.silent){
       if(out.slot==='primary' && out.prev && out.prev.id==='macar_hammer')
@@ -6992,12 +7041,14 @@ function equipPackItem(it, opts){
   if(isEquipWeapon(it)){
     const prev=G.equipped.primary||G.equipped.weapon;
     G.equipped.weapon=it; G.equipped.primary=it;
+    restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
     applyEquipped(); return 'primary';
   }
   if(isEquipArmor(it)){
     const prev=G.equipped.armor||G.equipped.chest;
     G.equipped.armor=it; G.equipped.chest=it;
+    restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
     applyEquipped(); return 'chest';
   }
@@ -14908,6 +14959,8 @@ function openPackMenu(from){
   G.scene='pack';
 }
 function collectPackRows(pk, who){
+  if(!who || who==='macar') ensureWornKitPacked();
+  pk=pk||packOf(who||'macar');
   const eq=G.equipped||{};
   const rows=[];
   const ghost=isGhostPack(who);
@@ -15460,8 +15513,7 @@ function drawPack(g){
   const canTake=isGhostPack();
   if(canEquip&&canTake){
     menuBtn(g,'Equip',VW/2-(PORT?110:120)*s,VH-22*s,Math.min(120*s,VW*.28),34*s,()=>{
-      if(wornSlotOf(G.packSel)) unequipPackSlot(wornSlotOf(G.packSel));
-      else equipPackItem(G.packSel);
+      confirmPackEquip();
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
       G.faceOffer=0;
     });
@@ -15472,8 +15524,7 @@ function drawPack(g){
     });
   } else if(canEquip){
     menuBtn(g,'Equip',VW/2-(PORT?70:80)*s,VH-22*s,Math.min(150*s,VW*.34),34*s,()=>{
-      if(wornSlotOf(G.packSel)) unequipPackSlot(wornSlotOf(G.packSel));
-      else equipPackItem(G.packSel);
+      confirmPackEquip();
       G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
       G.faceOffer=0;
     });
