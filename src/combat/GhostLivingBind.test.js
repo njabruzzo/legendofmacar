@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Ghost fronts/backs stay title-law living color. Cyan walk/atk/compass
- * sheets stay on disk but must not paint. Walk and combat fall back to
- * the matching living kin w1/w2/atk pair.
+ * Ghost idle fronts/backs are color-true. Cyan/teal walk/atk/compass sheets
+ * stay on disk for Limner redo — never paint them. Until replacements pass
+ * color + kit vs idle, plant the signed idle (front or back).
  * Run: node src/combat/GhostLivingBind.test.js
  */
 const fs=require('fs');
@@ -14,6 +14,12 @@ const root=path.join(__dirname,'../..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const creatures=path.join(root,'assets/creatures');
 const KIN=['pordoom','fendur','orbo','talpor'];
+const LIMNER_REPLACE_SUF=[
+  '_w1','_w2','_w3','_atk','_atk_recover',
+  '_back_w1','_back_w2',
+  '_e_w1','_e_w2','_s_w1','_s_w2',
+  '_nw_w1','_nw_w2','_ne_w1','_ne_w2','_se_w1','_se_w2'
+];
 
 let failed=0;
 function assert(cond, msg){
@@ -30,8 +36,10 @@ function extractFn(name){
 
 assert(/function livingColorStats\(/.test(html) && /function ghostAnimKey\(/.test(html),
   'living-color ghost bind helpers exist');
-assert(/function ghostLiveTwin\(/.test(html) && /function pickReadyGhostKey\(/.test(html),
-  'ghost keys fall back to living kin twins');
+assert(/function pickReadyGhostKey\(/.test(html) && /plant the signed idle/.test(html),
+  'failed ghost walk/atk plants signed idle, not cyan and not a living twin');
+assert(!/function ghostLiveTwin\(/.test(html),
+  'living-kin twin fallback is gone — cyan mono is not a stand-in');
 assert(/e\.kind==='dwarf' && e\.ghost && !e\.dead\) key=ghostAnimKey/.test(html),
   'entAnimKey routes risen kin through ghostAnimKey');
 assert(/walkCycleKey\(e, k\)/.test(extractFn('entAnimKey')),
@@ -39,31 +47,28 @@ assert(/walkCycleKey\(e, k\)/.test(extractFn('entAnimKey')),
 
 const ctx={};
 vm.createContext(ctx);
-vm.runInContext(extractFn('livingColorStats')+extractFn('ghostKeyLooksUnsigned')
-  +extractFn('ghostLiveTwin'), ctx);
+vm.runInContext(extractFn('livingColorStats')+extractFn('ghostKeyLooksUnsigned'), ctx);
 
+const replaceList=[];
 KIN.forEach(k=>{
   const idle=readRgba(path.join(creatures,'dwarf_'+k+'_ghost.png'));
   const back=readRgba(path.join(creatures,'dwarf_'+k+'_ghost_back.png'));
-  const w1=readRgba(path.join(creatures,'dwarf_'+k+'_ghost_w1.png'));
-  const atk=readRgba(path.join(creatures,'dwarf_'+k+'_ghost_atk.png'));
-  const liveW1=readRgba(path.join(creatures,'dwarf_'+k+'_w1.png'));
-  const liveAtk=readRgba(path.join(creatures,'dwarf_'+k+'_atk.png'));
-  assert(ctx.livingColorStats(idle.data).living, k+' ghost idle is living-color');
-  assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color');
-  assert(!ctx.livingColorStats(w1.data).living, k+' ghost_w1 is cyan — do not bind');
-  assert(!ctx.livingColorStats(atk.data).living, k+' ghost_atk is cyan — do not bind');
-  assert(ctx.livingColorStats(liveW1.data).living, k+' living w1 is the walk fallback');
-  assert(ctx.livingColorStats(liveAtk.data).living, k+' living atk is the strike fallback');
-  assert(ctx.ghostLiveTwin(k+'_ghost_e_w1')===k+'_w1', k+' ghost east walk twins living w1');
-  assert(ctx.ghostLiveTwin(k+'_ghost_atk')===k+'_atk', k+' ghost atk twins living atk');
-  assert(ctx.ghostLiveTwin(k+'_ghost_atk_recover')===k+'_atk_recover', k+' recover twins living recover');
-  assert(ctx.ghostLiveTwin(k+'_ghost_back')===k+'_back', k+' ghost back twins living back (may be missing)');
-  assert(ctx.ghostKeyLooksUnsigned(k+'_ghost_e_w1') && ctx.ghostKeyLooksUnsigned(k+'_ghost_w1'),
-    k+' unsigned ghost walk suffixes are flagged');
+  assert(ctx.livingColorStats(idle.data).living, k+' ghost idle is living-color — keep');
+  assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color — keep');
   assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost') && !ctx.ghostKeyLooksUnsigned(k+'_ghost_back'),
     k+' idle front/back are the signed ghost identity');
+  LIMNER_REPLACE_SUF.forEach(suf=>{
+    const file='dwarf_'+k+'_ghost'+suf+'.png';
+    const full=path.join(creatures, file);
+    assert(fs.existsSync(full), file+' on disk for Limner redo');
+    const st=ctx.livingColorStats(readRgba(full).data);
+    assert(!st.living, file+' is cyan/teal mono — do not bind');
+    assert(ctx.ghostKeyLooksUnsigned(k+'_ghost'+suf), file+' is flagged unsigned');
+    replaceList.push(file);
+  });
 });
+assert(replaceList.length===KIN.length*LIMNER_REPLACE_SUF.length,
+  'Limner replace list is every unsigned ghost walk/atk/compass sheet');
 
 const SPR={};
 function ready(k, live){
@@ -107,11 +112,11 @@ vm.runInContext(
   +extractFn('livingColorStats')
   +extractFn('sampleLivingColors')
   +extractFn('sheetLivingColors')
-  +extractFn('ghostLiveTwin')
+  +extractFn('ghostIdleKey')
   +extractFn('partyGhostKeyReady')
   +extractFn('pickReadyGhostKey')
   +extractFn('walkCycleKey')
-  +extractFn('walkCycleLivingKey')
+  +extractFn('walkCycleGhostKey')
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
@@ -144,16 +149,22 @@ function live(k, extra){
 
 KIN.forEach(k=>{
   assert(run.entAnimKey(ghost(k))===k+'_ghost', k+' idle ghost uses the color-true front');
-  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_w1',
-    k+' ghost walk plant A uses living w1, not cyan ghost_e_w1');
-  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))===k+'_w2',
-    k+' ghost walk plant B uses living w2');
-  assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_atk',
-    k+' ghost strike uses living atk, not cyan ghost_atk');
-  assert(run.entAnimKey(ghost(k,{atk:0.3, atkMax:1}))===k+'_atk_recover',
-    k+' ghost recover uses living recover');
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost',
+    k+' ghost walk plants idle — cyan w1/e_w1 stay unbound');
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))===k+'_ghost',
+    k+' ghost late gait still plants idle until Limner walk lands');
+  assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_ghost',
+    k+' ghost strike plants idle — cyan atk stays unbound');
+  assert(run.entAnimKey(ghost(k,{atk:0.3, atkMax:1}))===k+'_ghost',
+    k+' ghost recover plants idle — cyan recover stays unbound');
   assert(run.entAnimKey(ghost(k,{fdx:-0.7, fdy:-0.7}))===k+'_ghost_back',
     k+' ghost north plants the color-true back');
+  SPR[k+'_ghost_w1']._live=true;
+  SPR[k+'_ghost_w2']._live=true;
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost_w1',
+    k+' ghost walk binds w1 once the sheet passes color/kit');
+  SPR[k+'_ghost_w1']._live=false;
+  SPR[k+'_ghost_w2']._live=false;
   const east=live(k,{moving:1, gait:0.12, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7});
   const se=live(k,{moving:1, gait:0.12, ix:1, iy:0, fdx:1, fdy:0});
   assert(run.entAnimKey(east)===k+'_e_w1' || run.entAnimKey(east)===k+'_w1',
@@ -169,3 +180,5 @@ assert(run.entAnimKey({
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost living-color bind checks passed');
+console.log('Limner must replace '+replaceList.length+' files:');
+replaceList.forEach(f=>console.log('  '+f));

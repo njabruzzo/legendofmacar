@@ -631,8 +631,8 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
   SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
 });
 /* Compass / walk / atk ghost files stay registered so they preload, but
-   entAnimKey will not blit them unless livingColorStats says they match
-   title-law kit. Current pack is cyan wash — Limner gap, not a bind. */
+   entAnimKey will not blit them unless livingColorStats + idle-kit match.
+   Current pack is cyan/teal mono with wrong kits — Limner redo, not a bind. */
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
   SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
@@ -1450,9 +1450,10 @@ function pickReadyPartyKey(key, idleKey){
   return (key && SPR[key] && SPR[key].width)?key:null;
 }
 /* Color-true ghost identity is idle front + idle back. Walk / atk / compass
-   ghost sheets on disk are still the old cyan wash — do not blit them.
-   livingColorStats is the gate: when Limner ships living-color walk/atk,
-   those keys bind themselves. Until then, plant living kin w1/w2/atk. */
+   ghost sheets on disk are cyan/teal mono with wrong kits (Limner redo).
+   Do not blit them as “correct.” Until new sheets pass color + kit vs idle,
+   plant the signed idle (front or back). livingColorStats + idle-kit match
+   will bind replacement walk/atk themselves when they land. */
 function ghostKeyLooksUnsigned(key){
   return /_ghost_(?:e_|s_|nw_|ne_|se_|w[123]|atk|back_w)/.test(key||'');
 }
@@ -1495,60 +1496,54 @@ function sheetLivingColors(img, key){
   img._live=!ghostKeyLooksUnsigned(key);
   return img._live;
 }
-function ghostLiveTwin(key){
-  if(!key || key.indexOf('_ghost')<0) return null;
-  const step=key.match(/^(pordoom|fendur|orbo|talpor)_ghost_(?:e_|s_|nw_|ne_|se_)?(w[123]|atk_recover|atk_bow|atk)$/);
-  if(step) return step[1]+'_'+step[2];
-  const back=key.match(/^(pordoom|fendur|orbo|talpor)_ghost_back(?:_(w[123]))?$/);
-  if(back) return back[1]+'_back'+(back[2]?'_'+back[2]:'');
-  if(/_ghost$/.test(key)) return key.replace(/_ghost$/,'');
-  return key.replace('_ghost','');
+function ghostIdleKey(k, back){
+  if(!k) return null;
+  if(back && (typeof sprReady==='function'?sprReady(k+'_back'):(SPR[k+'_back']&&SPR[k+'_back'].width)))
+    return k+'_back';
+  return k;
 }
-function partyGhostKeyReady(key){
+function partyGhostKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
   if(!sheetLivingColors(img, key)) return false;
-  return partyFrameFitOk(img, null);
+  const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
+  if(!partyFrameFitOk(img, idle)) return false;
+  if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
+  return true;
 }
-function pickReadyGhostKey(pref, idleKey, liveKey){
-  if(partyGhostKeyReady(pref)) return pref;
-  if(liveKey && sprReady(liveKey) && partyFrameFitOk(SPR[liveKey], null)) return liveKey;
-  if(idleKey && partyGhostKeyReady(idleKey)) return idleKey;
+function pickReadyGhostKey(pref, idleKey){
+  if(partyGhostKeyReady(pref, idleKey)) return pref;
+  if(idleKey && partyGhostKeyReady(idleKey, idleKey)) return idleKey;
   if(idleKey && sprReady(idleKey)) return idleKey;
-  if(liveKey && sprReady(liveKey)) return liveKey;
-  return pref||idleKey||liveKey||null;
+  return pref||idleKey||null;
 }
-function walkCycleLivingKey(e, stem){
+function walkCycleGhostKey(e, stem, idleKey){
   const hit=walkCycleKey(e, stem);
   if(!hit) return null;
-  return partyGhostKeyReady(hit)?hit:null;
+  return partyGhostKeyReady(hit, idleKey)?hit:null;
 }
 function ghostAnimKey(e, k){
   if(!e||!k) return null;
   const idle=k;
-  const live=ghostLiveTwin(k);
+  const back=ghostIdleKey(k, true);
   if(e.atk>0 && e.atkKind==='bow')
-    return pickReadyGhostKey(k+'_atk_bow', idle, live?live+'_atk':null);
-  if(wantsMeleeRecover(e)){
-    return pickReadyGhostKey(k+'_atk_recover', idle, live?live+'_atk_recover':null)
-      || pickReadyGhostKey(k+'_atk', idle, live?live+'_atk':null);
-  }
+    return pickReadyGhostKey(k+'_atk_bow', idle);
+  if(wantsMeleeRecover(e))
+    return pickReadyGhostKey(k+'_atk_recover', idle);
   if(wantsMeleePose(e)||wantsMeleeRecover(e))
-    return pickReadyGhostKey(k+'_atk', idle, live?live+'_atk':null);
+    return pickReadyGhostKey(k+'_atk', idle);
   if(wantsBackView(e)){
     if(e.moving && !e.defending){
-      const ghostStep=walkCycleLivingKey(e, k+'_back');
-      const liveStep=walkCycleKey(e, live?live+'_back':null);
-      return pickReadyGhostKey(ghostStep, k+'_back', liveStep);
+      const ghostStep=walkCycleGhostKey(e, k+'_back', back);
+      return pickReadyGhostKey(ghostStep, back);
     }
-    return pickReadyGhostKey(k+'_back', idle, live?live+'_back':null);
+    return pickReadyGhostKey(back, idle);
   }
   if(e.moving && !e.defending){
-    const ghostStep=walkCycleLivingKey(e, k);
-    const liveStep=walkCycleKey(e, live);
-    return pickReadyGhostKey(ghostStep, idle, liveStep);
+    const ghostStep=walkCycleGhostKey(e, k, idle);
+    return pickReadyGhostKey(ghostStep, idle);
   }
-  return pickReadyGhostKey(idle, idle, live);
+  return pickReadyGhostKey(idle, idle);
 }
 function livingMacarImg(key){
   const idle=livingMacarIdleKey();
