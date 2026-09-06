@@ -8,6 +8,8 @@
  *   <script src="src/vendor/rotjs/rot-path.js"></script>
  *   <script src="src/systems/Navigation.js"></script>
  *   <script src="src/systems/EnemyIntent.js"></script>
+ *   <script src="src/systems/Interaction.js"></script>
+ *   <script src="src/systems/Discovery.js"></script>
  *   <!-- future: PartyOrders.js — same sync tags -->
  *   <script> /* play loop * /
  *
@@ -20,7 +22,8 @@
  *
  * Required now: TimedEffects (MAC-03).
  * Shipped optional: Navigation (Batch D), EnemyIntent (Batch E melee
- * pursuer). Play starts without either (legacy trail / chase).
+ * pursuer), Interaction + Discovery (Batch F / MAC-09). Play starts
+ * without the optional modules (legacy trail / chase / no room events).
  * Upcoming: PartyOrders.
  */
 (function (root) {
@@ -29,7 +32,7 @@
   var declared = Object.create(null);
   var pending = 0;
   var REQUIRED = ['TimedEffects'];
-  var SHIPPED = ['Navigation', 'EnemyIntent'];
+  var SHIPPED = ['Navigation', 'EnemyIntent', 'Interaction', 'Discovery'];
   var UPCOMING = ['PartyOrders'];
 
   function declare(name, api) {
