@@ -58,6 +58,7 @@ function checkPair(aName, bName, label){
   /* Title-law front plants swap the planted boot more than the deleted
      east D-walk pair. PIL measures ~0.49 same-face / ~0.21 mirror.
      Camera-share floor is 0.40 (not the old 0.55 east-pair floor).
+     Absolute mirror ceiling 0.55 (quilt34_w2opp plant clears ~0.50).
      Binding contract: same facing, not a painted mirror. */
   assert(same>flipped, `${label}: unflipped pair matches more than a mirror (${same.toFixed(3)}>${flipped.toFixed(3)})`);
   assert(flipped<0.55, `${label}: w2 is not a painted mirror of w1 (flip corr ${flipped.toFixed(3)})`);
