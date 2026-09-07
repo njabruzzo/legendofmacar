@@ -124,6 +124,8 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'attack pla
 assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar', 'recover plants idle until a matching atk sheet is ready');
 SPR.macar_atk={width:470, height:512};
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'title-law 470x512 atk is used');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar',
+  'recover plants idle even when the wind-up atk sheet is ready');
 delete SPR.macar_atk;
 
 SPR.macar_axe={width:470, height:512};
@@ -136,6 +138,8 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'c
 delete SPR.macar_axe_w1; delete SPR.macar_axe_w2;
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle without walks');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver melee uses axe atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar_axe',
+  'cleaver recover plants axe idle — does not hold axe_atk');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
 
