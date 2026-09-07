@@ -124,6 +124,10 @@ assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(l
   'attack uses matching atk for equipped idle (maul or axe)');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk skips crown/family so a parked crown cannot plant idle');
+assert(/if\(wantsMeleePose\(e\)\)\{/.test(liveKey) && /if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey),
+  'strike and recover are separate key windows');
+assert(/macar_atk_recover/.test(liveKey) && /return idle/.test(liveKey),
+  'recover plants idle unless a signed _atk_recover is ready');
 
 assert(/function livingMacarIdleKey\(/.test(html), 'idle key helper exists for doll / HUD / title');
 assert(/SPR\[livingMacarIdleKey\(\)\]/.test(html), 'doll / HUD / title idle go through livingMacarIdleKey');
@@ -196,6 +200,8 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar', 'maul recov
 assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle is macar');
 SPR.macar_atk={width:8};
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul strike uses macar_atk when ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar',
+  'maul recover plants idle when atk is ready — not the wind-up sheet');
 delete SPR.macar_atk;
 
 SPR.macar_axe={width:8};
@@ -208,8 +214,11 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'c
 delete SPR.macar_axe_w1; delete SPR.macar_axe_w2;
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle without axe_w1/w2');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver strike uses macar_axe_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar_axe',
+  'cleaver recover plants axe idle when axe_atk is ready');
 assert(ctx.entAnimKey(macar())==='macar_axe', 'entAnimKey idle is macar_axe with the cleaver');
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'entAnimKey strike is macar_axe_atk');
+assert(ctx.entAnimKey(macar({atk:0.3, atkMax:1}))==='macar_axe', 'entAnimKey recover is axe idle');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
 
@@ -338,6 +347,26 @@ assert(/w:\s*\{flip:1/.test(html) && /e:\s*\{flip:0/.test(html),
   'MACAR_PLAN west flips, east stays unflipped — agrees with wantsSpriteFlip');
 assert(/const flip=wantsSpriteFlip\(e\)/.test(extractFn('macarPose')),
   'macarPose flip is wantsSpriteFlip, not a stale dir.flip');
+assert(/if\(wantsMeleePose\(e\)\)\{/.test(extractFn('macarPose')),
+  'macarPose strike is wantsMeleePose only — recover is not the wind-up sheet');
+
+const swipe=extractFn('drawHeroMeleeArc');
+assert(/if\(!wantsMeleePose\(e\)\) return/.test(swipe),
+  'melee swipe is strike-window only');
+assert(/globalCompositeOperation='source-over'/.test(swipe),
+  'melee swipe stays source-over (no lighter flash)');
+assert(/wantsSpriteFlip/.test(swipe),
+  'melee swipe mirrors with heading so west is a forward blow');
+assert(/if\(wantsMeleePose\(mac\)\)/.test(html),
+  'after-grain Macar swipe is gated on the strike window');
+
+SPR.macar={width:8};
+SPR.macar_atk_recover={width:8};
+assert(ctx.matchingPartyAtkReady('macar_atk_recover', 'macar')===true,
+  'a signed recover sheet is recognized as the idle\'s own recover');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar_atk_recover',
+  'recover binds _atk_recover when Limner signs one');
+delete SPR.macar_atk_recover;
 
 /* Title splash: image moves down, gold type stays high. */
 const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];

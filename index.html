@@ -264,7 +264,9 @@ function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
    SAME painted facing — opposite FOOT, never opposite heading. Do not
    insert a _w3 pass; several of those sheets were painted turned around
    and ping-ponged Macar left/right on a straight D walk. Flip is heading
-   only (west = east / front sheet flipped once), never per frame. */
+   only (west = east / front sheet flipped once), never per frame.
+   Macar (and kin) are a signed 2-plant cycle — code cannot invent
+   in-betweens. Odd gait on live is art-limited until more walk frames. */
 function walkCycleKey(e, stem){
   /* w1 / w2 are the same painted facing. Only the planted boot swaps.
      Flip is heading-only on the blit (wantsSpriteFlip) — never by swapping sheets. */
@@ -1266,12 +1268,58 @@ function blitLivingMacar(img){
 }
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
-   Macar, so their living frames take the same repair. Ghost frames are left
-   alone — those are supposed to be see-through. */
+   Macar, so their living frames take the same repair. Ghost sheets are a
+   flat mid-alpha stamp (idle a=150, walk/atk a=140) — lift them toward a
+   paler spirit, never punch to 255 (that was the west-flip solid flash). */
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
-  if(!e||e.kind!=='dwarf'||e.ghost||e.dead||e.crushed||e.team!=='party') return img;
+  if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
+  if(e.ghost) return liftGhostSpirit(img);
   return blitLivingMacar(img)||img;
+}
+/* Ghost silhouette stay mid-alpha. CAP<255 so a west flip (punch=false)
+   cannot suddenly go opaque. WHITE lifts dark brown paints toward spirit. */
+const GHOST_DRAW_ALPHA=0.96;
+const GHOST_ALPHA_LO=40;
+const GHOST_ALPHA_CAP=228;
+const GHOST_ALPHA_LIFT=1.52;
+const GHOST_WHITE_LIFT=0.48;
+const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
+function liftGhostAlpha(d){
+  if(!d||!d.length) return d;
+  const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT, WHITE=GHOST_WHITE_LIFT;
+  for(let p=0;p<d.length;p+=4){
+    const a=d[p+3];
+    if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    d[p]=d[p]+(((255-d[p])*WHITE)|0);
+    d[p+1]=d[p+1]+(((255-d[p+1])*WHITE)|0);
+    d[p+2]=d[p+2]+(((255-d[p+2])*WHITE)|0);
+    const na=Math.round(a*LIFT);
+    d[p+3]=na>=255?CAP:Math.min(CAP, na);
+  }
+  return d;
+}
+function liftGhostSpirit(img){
+  if(!img||!img.width) return img;
+  if(GHOST_SPIRIT&&GHOST_SPIRIT.has(img)) return GHOST_SPIRIT.get(img);
+  if(img.__ghostSpirit) return img.__ghostSpirit;
+  let out=img;
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.imageSmoothingEnabled=false;
+    x.globalAlpha=1;
+    x.globalCompositeOperation='source-over';
+    x.drawImage(img,0,0);
+    const id=x.getImageData(0,0,c.width,c.height);
+    liftGhostAlpha(id.data);
+    x.putImageData(id,0,0);
+    out=c;
+  }catch(_){ out=img; }
+  if(GHOST_SPIRIT) GHOST_SPIRIT.set(img,out);
+  else img.__ghostSpirit=out;
+  return out;
 }
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
 const FLIP_CACHE_RAW=typeof WeakMap==='function'?new WeakMap():null;
@@ -1600,15 +1648,13 @@ function macarPose(e){
      alone or west stays unflipped while the blit mirrors. */
   const flip=wantsSpriteFlip(e);
 
-  if(wantsMeleePose(e)||wantsMeleeRecover(e)){
-    const rec=wantsMeleeRecover(e);
-    /* No live title-law side-strike. Plant idle via livingMacarAnimKey. */
-    if(!rec && (oct==='e'||oct==='w') && plan.sideAtk && sprReady(plan.sideAtk)){
+  if(wantsMeleePose(e)){
+    /* Strike window only. Recover plants idle — the atk sheet is a wind-up
+       / bring-back, so holding it through follow-through never reads as a swing. */
+    if((oct==='e'||oct==='w') && plan.sideAtk && sprReady(plan.sideAtk)){
       return {key:plan.sideAtk, flip:flip};
     }
-    const k=macarFirstReady(rec?[plan.rec,plan.atk]:[plan.atk]);
-    // front strike sheets face camera; sideways, mirror the follow-through
-    // so the weapon lands on the side he actually swung at.
+    const k=macarFirstReady([plan.atk]);
     if(k) return {key:k, flip:(oct==='e'||oct==='w')?flip:false};
   }
 
@@ -1629,14 +1675,21 @@ function macarPose(e){
   return idle?{key:idle, flip:flip}:none;
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
-   Melee uses matching atk for the equipped idle. Same FACE, opposite FOOT. */
+   Strike window uses matching atk for the equipped idle. Recover plants
+   idle (or a real _atk_recover if Limner signs one) — holding _atk through
+   t 0.55–0.96 was the bring-back-only swing. Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle=livingMacarIdleKey();
-  if(wantsMeleePose(e)||wantsMeleeRecover(e)){
+  if(wantsMeleePose(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
     return pickReadyPartyKey(atk, idle) || idle;
+  }
+  if(wantsMeleeRecover(e)){
+    const rec=(idle==='macar_axe')?'macar_axe_atk_recover':'macar_atk_recover';
+    if(matchingPartyAtkReady(rec, idle)) return rec;
+    return idle;
   }
   /* Cleaver walk uses axe_w1/w2 when ready; else plant axe idle (never maul walks). */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
@@ -10920,9 +10973,10 @@ function render(){
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
-      /* Source-over swipe only — not inside drawLivingMacar (no lighter /
-         gold). Readable when the atk sheet is a short window or a near-idle. */
-      if(mac.atk>0 && mac.atkKind!=='bow'){
+      /* Source-over swipe only during the strike window — not inside
+         drawLivingMacar (no lighter / gold). The atk sheet is a wind-up;
+         the swipe is the readable forward blow. Recover plants idle. */
+      if(wantsMeleePose(mac)){
         const s=w2s(mac.x,mac.y), z=ZOOM*mac.scale;
         const bob0=mac.moving?Math.sin((mac.gait||0)*TAU)*1.6*z:0;
         g.save(); g.translate(s.x, s.y-bob0);
@@ -12113,7 +12167,7 @@ function drawEnt(g,e){
   const sw=e.atk>0?Math.sin((1-e.atk/e.atkMax)*Math.PI):0;
   const squash=img?1:(1+sw*0.06);
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
-  if(e.ghost && !e.dead) g.globalAlpha=0.84;
+  if(e.ghost && !e.dead) g.globalAlpha=GHOST_DRAW_ALPHA;
   g.save(); g.translate(0,-bob0); g.scale(img?1:(flip?-1:1),1); g.scale(1/squash,squash);
   if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
     /* prone corpse sprite */
@@ -12129,7 +12183,7 @@ function drawEnt(g,e){
     else if(e.kind==='king') drawKing(g,e,z,sw);
     else drawStatue(g,e,z,sw);
   }
-  if(e.ghost && e.atk>0 && !e.dead && e.atkKind!=='bow') drawHeroMeleeArc(g,e,z);
+  if(e.ghost && wantsMeleePose(e)) drawHeroMeleeArc(g,e,z);
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
@@ -12230,23 +12284,35 @@ function drawBeard(g,z,c,len,braids){
 }
 
 function drawHeroMeleeArc(g,e,z){
+  /* Strike window only. Recover must not keep a bring-back slash over idle.
+     Heading flip so a west swing travels screen-left with the sheet. */
+  if(!wantsMeleePose(e)) return;
   const t=attackProgress(e);
-  const sw=Math.sin(t*Math.PI);
-  if(sw<0.08) return;
-  const axe=wieldsShadowCleaver();
+  const u=clamp((t-0.08)/Math.max(0.01,0.47),0,1);
+  const sw=Math.sin(u*Math.PI);
+  if(sw<0.06) return;
+  const axe=typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver();
+  const flip=typeof wantsSpriteFlip==='function' && wantsSpriteFlip(e);
   g.save();
+  g.globalCompositeOperation='source-over';
+  if(flip) g.scale(-1,1);
   g.translate(12*z,-36*z);
-  const steps=10;
+  const steps=14;
   for(let i=0;i<steps;i++){
     const f=i/steps;
-    const aa=-1.65+t*2.7-f*0.42;
+    const aa=-1.85+u*3.05-f*0.50;
+    const a=sw*(axe?0.74:0.82)*(1-f*0.52);
     g.strokeStyle=axe
-      ?('rgba(200,184,255,'+(sw*0.55*(1-f))+')')
-      :('rgba(255,'+Math.round(210-f*70)+',110,'+(sw*0.58*(1-f))+')');
-    g.lineWidth=(11-f*8)*z;
+      ?('rgba(220,200,255,'+a+')')
+      :('rgba(255,'+Math.round(224-f*48)+',92,'+a+')');
+    g.lineWidth=(15-f*9)*z;
     g.lineCap='round';
-    g.beginPath(); g.arc(-4*z,8*z,42*z,aa-0.16,aa+0.16); g.stroke();
+    g.beginPath(); g.arc(-4*z,8*z,48*z,aa-0.20,aa+0.20); g.stroke();
   }
+  g.strokeStyle=axe?'rgba(255,244,255,'+(sw*0.94)+')':'rgba(255,236,170,'+(sw*0.96)+')';
+  g.lineWidth=5.4*z;
+  const tip=-1.85+u*3.05;
+  g.beginPath(); g.arc(-4*z,8*z,48*z,tip-0.14,tip+0.18); g.stroke();
   g.restore();
 }
 function drawDwarf(g,e,z,sw){

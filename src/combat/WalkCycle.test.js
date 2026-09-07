@@ -25,6 +25,8 @@ function extractFn(name){
 assert(/function walkCycleKey\(/.test(html), 'walkCycleKey exists');
 assert(/gaitAdvance\(e,dt\)\{ e\.gait=\(e\.gait\|\|0\)\+Math\.max\(0,dt\)\*3\.35/.test(html),
   'gait advances on a step timer (~3.35)');
+assert(/signed 2-plant cycle/.test(html) && /art-limited until more walk frames/.test(html),
+  '2-frame Macar walk is documented as art-limited, not a missing bind');
 assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
   'optional _w3 sheets are registered from every _w1');
 

@@ -1,0 +1,163 @@
+'use strict';
+/**
+ * Macar melee: strike window blits matching _atk + source-over swipe;
+ * recover plants idle (or a signed _atk_recover). Manual / auto / maul /
+ * Shadow Cleaver share one key helper.
+ * Run: node src/combat/MacarMeleeStrike.test.js
+ */
+const fs=require('fs');
+const path=require('path');
+const vm=require('vm');
+
+const root=path.join(__dirname,'../..');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+
+let failed=0;
+function assert(cond, msg){
+  if(!cond){ failed++; console.error('FAIL  '+msg); }
+  else console.log('ok    '+msg);
+}
+
+function extractFn(name){
+  const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
+  const m=html.match(re);
+  if(!m) throw new Error('missing '+name);
+  return m[0];
+}
+
+const liveKey=extractFn('livingMacarAnimKey');
+assert(/if\(wantsMeleePose\(e\)\)\{/.test(liveKey), 'strike is its own window');
+assert(/if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey), 'recover is its own window');
+assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
+  'crown/family cannot plant idle during the strike window');
+assert(/matchingPartyAtkReady\(rec, idle\)/.test(liveKey),
+  'a signed recover sheet can still bind when present');
+assert(!/wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)/.test(liveKey),
+  'living Macar no longer holds _atk through recover');
+
+const swipe=extractFn('drawHeroMeleeArc');
+assert(/if\(!wantsMeleePose\(e\)\) return/.test(swipe), 'swipe dies when recover starts');
+assert(/globalCompositeOperation='source-over'/.test(swipe), 'swipe is source-over');
+assert(/wantsSpriteFlip/.test(swipe), 'swipe flips with heading');
+assert(/if\(wantsMeleePose\(mac\)\)/.test(html), 'after-grain Macar swipe is strike-only');
+assert(/e\.ghost && wantsMeleePose\(e\)/.test(html), 'ghost swipe is strike-only');
+assert(!/drawHeroMeleeArc/.test(extractFn('drawLivingMacar')),
+  'living blit itself still has no swipe / lighter');
+
+assert(/t>=0\.08 && t<0\.55/.test(extractFn('wantsMeleePose')),
+  'strike window is t 0.08–0.55');
+assert(/t>=0\.55 && t<=0\.96/.test(extractFn('wantsMeleeRecover')),
+  'recover window is t 0.55–0.96');
+
+const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
+const SPR={
+  macar:{width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}},
+  macar_w1:{width:470, height:512},
+  macar_w2:{width:470, height:512}
+};
+const ctx={
+  SPR,
+  sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
+  wieldsShadowCleaver(){ return !!ctx._axe; },
+  clamp:(v,a,b)=>v<a?a:v>b?b:v,
+  TAU:Math.PI*2
+};
+vm.createContext(ctx);
+vm.runInContext(
+  keysDecl[0]
+  +extractFn('isLivingMacarKey')
+  +extractFn('livingMacarIdleKey')
+  +extractFn('partyFrameFitOk')
+  +extractFn('samePaintedFamily')
+  +extractFn('partyCrownMatches')
+  +extractFn('sheetCrownId')
+  +extractFn('partySheetMatchesIdle')
+  +extractFn('matchingPartyAtkReady')
+  +extractFn('partyAnimKeyReady')
+  +extractFn('pickReadyPartyKey')
+  +extractFn('walkCycleKey')
+  +extractFn('attackProgress')
+  +extractFn('wantsMeleePose')
+  +extractFn('wantsMeleeRecover')
+  +extractFn('livingMacarAnimKey'),
+  ctx
+);
+
+function macar(extra){
+  return Object.assign({
+    hero:1, team:'party', dead:0, ghost:0, crushed:0, defending:0,
+    moving:0, atk:0, atkMax:1, atkKind:'melee', gait:0.12,
+    x:10, y:10, ix:0, iy:0, fdx:0, fdy:0
+  }, extra||{});
+}
+
+function keysAcrossSwing(readyAtk, expectStrike, expectRecover){
+  const seen=[];
+  for(let t=0; t<=1.001; t+=0.02){
+    const e=macar({atk:1-t, atkMax:1});
+    const key=ctx.livingMacarAnimKey(e);
+    const pose=ctx.wantsMeleePose(e);
+    const rec=ctx.wantsMeleeRecover(e);
+    if(pose) assert(key===expectStrike, 't='+t.toFixed(2)+' strike key is '+expectStrike+' (got '+key+')');
+    if(rec) assert(key===expectRecover, 't='+t.toFixed(2)+' recover key is '+expectRecover+' (got '+key+')');
+    seen.push({t:+t.toFixed(2), key, pose, rec});
+  }
+  return seen;
+}
+
+ctx._axe=false;
+SPR.macar_atk={width:470, height:512};
+const maul=keysAcrossSwing('macar_atk', 'macar_atk', 'macar');
+assert(maul.some(s=>s.pose && s.key==='macar_atk'), 'maul strike samples include macar_atk');
+assert(maul.some(s=>s.rec && s.key==='macar'), 'maul recover samples include planted idle');
+assert(maul.filter(s=>s.pose).every(s=>s.key==='macar_atk'), 'every maul strike sample is atk');
+assert(maul.filter(s=>s.rec).every(s=>s.key==='macar'), 'every maul recover sample is idle');
+
+SPR.macar_atk={width:400, height:512, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
+assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,
+  'mismatched crop still fails identity');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk',
+  'manual / auto strike still blits atk when crown would plant idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.3, atkMax:1}))==='macar',
+  'same crown miss cannot hold the wind-up through recover');
+delete SPR.macar_atk;
+
+SPR.macar_axe={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_axe_atk={width:470, height:512};
+SPR.macar_axe_w1={width:470, height:512};
+SPR.macar_axe_w2={width:470, height:512};
+ctx._axe=true;
+const cleaver=keysAcrossSwing('macar_axe_atk', 'macar_axe_atk', 'macar_axe');
+assert(cleaver.filter(s=>s.pose).every(s=>s.key==='macar_axe_atk'),
+  'every Shadow Cleaver strike sample is axe_atk');
+assert(cleaver.filter(s=>s.rec).every(s=>s.key==='macar_axe'),
+  'every Shadow Cleaver recover sample is axe idle');
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1',
+  'cleaver walk is unchanged beside the melee split');
+
+function fireManual(p){
+  if(p.defending) return false;
+  p.moving=0; p.ix=0; p.iy=0; p.atkKind='melee';
+  if(p.atk<=0){
+    p.atk=p.atkMax;
+    if((p.ct||0)<=0){ p.ct=p.cd||1; p.swung=0; }
+    else p.swung=1;
+  }
+  return true;
+}
+const manual=macar({atk:0, atkMax:0.78, ct:0, cd:1, defending:0, swung:0});
+assert(fireManual(manual)===true, 'manual Attack starts a melee timer');
+assert(ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.70}))==='macar_axe_atk',
+  'manual Attack mid-timer is the cleaver strike sheet');
+assert(ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.30}))==='macar_axe',
+  'manual Attack recover plants axe idle');
+
+const auto=macar({atk:0.78*0.70, atkMax:0.78, atkKind:'melee', moving:0});
+assert(ctx.wantsMeleePose(auto)===true && ctx.livingMacarAnimKey(auto)==='macar_axe_atk',
+  'standing auto-melee uses the same strike key');
+const autoRec=macar({atk:0.78*0.30, atkMax:0.78, atkKind:'melee', moving:0});
+assert(ctx.wantsMeleeRecover(autoRec)===true && ctx.livingMacarAnimKey(autoRec)==='macar_axe',
+  'standing auto-melee recover plants idle');
+
+if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
+console.log('\nMacar melee strike / recover checks passed');

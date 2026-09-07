@@ -114,7 +114,12 @@ assert(/solidMacarSprite\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(fa
   'HUD face bakes living Macar through solidMacarSprite of the idle key');
 assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
   'HUD face never blits raw SPR.macar for living Macar');
-assert(/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html), 'kin ghosts stay translucent');
+assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
+  && /const GHOST_DRAW_ALPHA=0\.96/.test(html)
+  && /const GHOST_ALPHA_CAP=228/.test(html),
+  'kin ghosts lift toward a paler spirit without punching to 255');
+assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
+  'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');
 assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),
   'no living-Macar blit bakes a raw un-gated sheet');
 
