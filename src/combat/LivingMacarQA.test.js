@@ -120,8 +120,14 @@ assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.tes
   'livingMacarAnimKey never binds directional / w3 / title sheets');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'walk uses the front w1/w2 pair of the live idle');
 assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(liveKey)
-  || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)),
+  || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)
+  || /matchingPartyAtkReady\(atk, idle\)/.test(liveKey)),
   'attack uses matching atk for equipped idle (maul or axe)');
+assert(/function livingMacarBlitKey\(/.test(html)
+  && /matchingPartyAtkReady\(key, idle\)\) return key/.test(extractFn('livingMacarBlitKey')),
+  'livingMacarImg cannot re-pick idle over a ready matching atk');
+assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html) && /holdProgress:0/.test(html),
+  'MacarStrikeQA lastKey / holdProgress is wired for live proof');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk skips crown/family so a parked crown cannot plant idle');
 assert(/if\(wantsMeleePose\(e\)\)\{/.test(liveKey) && /if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey),
@@ -171,6 +177,7 @@ vm.runInContext(
   +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
+  +extractFn('livingMacarBlitKey')
   +extractFn('walkCycleKey')
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
@@ -196,13 +203,17 @@ assert(ctx.livingMacarAnimKey(macar())==='macar', 'idle maul key is macar');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'walk plant A is macar_w1');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.62}))==='macar_w2', 'walk plant B is macar_w2');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'maul strike plants the live idle until atk ready');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar', 'maul recover plants the live idle until atk ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar', 'maul recover plants the live idle until atk ready');
 assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle is macar');
 SPR.macar_atk={width:8};
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul strike uses macar_atk when ready');
 assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk',
   'maul late swing t≈0.68 still holds macar_atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar',
+assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk',
+  'blit key holds macar_atk when the sheet is ready');
+assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
+  'Attack press t=0 already blits macar_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'maul recover plants idle when atk is ready — not the wind-up sheet');
 delete SPR.macar_atk;
 
@@ -218,11 +229,11 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'clea
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver strike uses macar_axe_atk');
 assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_axe_atk',
   'cleaver late swing t≈0.68 still holds macar_axe_atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar_axe',
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_axe',
   'cleaver recover plants axe idle when axe_atk is ready');
 assert(ctx.entAnimKey(macar())==='macar_axe', 'entAnimKey idle is macar_axe with the cleaver');
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'entAnimKey strike is macar_axe_atk');
-assert(ctx.entAnimKey(macar({atk:0.20, atkMax:1}))==='macar_axe', 'entAnimKey recover is axe idle');
+assert(ctx.entAnimKey(macar({atk:0.10, atkMax:1}))==='macar_axe', 'entAnimKey recover is axe idle');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
 
@@ -368,7 +379,7 @@ SPR.macar={width:8};
 SPR.macar_atk_recover={width:8};
 assert(ctx.matchingPartyAtkReady('macar_atk_recover', 'macar')===true,
   'a signed recover sheet is recognized as the idle\'s own recover');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar_atk_recover',
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_atk_recover',
   'recover binds _atk_recover when Limner signs one');
 delete SPR.macar_atk_recover;
 

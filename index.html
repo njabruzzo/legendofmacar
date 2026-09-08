@@ -1259,7 +1259,11 @@ function blitLivingMacar(img){
     }catch(_){ out=null; }
   }
   if(!out||!out.width||!out.height){
-    if(idle&&idle!==img) return blitLivingMacar(idle);
+    /* A ready mid-swing sheet must not plant idle. That was the cocked-shoulder
+       FAIL: livingMacarAnimKey returned macar_atk, bake missed, idle blitted. */
+    const keepAtk=(typeof SPR!=='undefined')&&((SPR.macar_atk&&img===SPR.macar_atk)
+      ||(SPR.macar_axe_atk&&img===SPR.macar_axe_atk));
+    if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
     return null;
   }
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
@@ -1620,13 +1624,53 @@ function ghostAnimKey(e, k){
   }
   return pickReadyGhostKey(idle, idle);
 }
-function livingMacarImg(key){
+/* Sheet that livingMacarImg will actually bake. Ready matching _atk skips
+   pickReadyPartyKey so a second crown/family pass cannot plant idle after
+   livingMacarAnimKey already chose the mid-swing sheet. */
+function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
-  const k=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
+  if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
+  return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
+}
+function livingMacarImg(key){
+  const k=livingMacarBlitKey(key);
   if(!k) return null;
   return blitLivingMacar(SPR[k]);
 }
+const MacarStrikeQA={
+  lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
+  atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false
+};
+function macarStrikeHoldProgress(e){
+  if(!e) return 0;
+  return (typeof attackProgress==='function')?attackProgress(e):0;
+}
+function noteMacarStrikeQA(e, key, blitKey){
+  MacarStrikeQA.lastKey=key||null;
+  MacarStrikeQA.blitKey=blitKey||null;
+  MacarStrikeQA.holdProgress=macarStrikeHoldProgress(e);
+  MacarStrikeQA.pose=!!(e && typeof wantsMeleePose==='function' && wantsMeleePose(e));
+  MacarStrikeQA.recover=!!(e && typeof wantsMeleeRecover==='function' && wantsMeleeRecover(e));
+  MacarStrikeQA.atk=e&&e.atk||0;
+  MacarStrikeQA.atkMax=e&&e.atkMax||0;
+  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk')){
+    MacarStrikeQA.lastStrikeKey=key;
+    MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
+  }
+}
+function macarStrikeHoldMid(){
+  const p=(typeof player==='function')?player():null;
+  if(!p||p.dead||p.ghost) return false;
+  p.atkKind='melee';
+  p.moving=0; p.ix=0; p.iy=0;
+  if(!(p.atkMax>0)) p.atkMax=0.78;
+  p.atk=p.atkMax*0.60;
+  MacarStrikeQA.hold=true;
+  return true;
+}
+MacarStrikeQA.holdMid=macarStrikeHoldMid;
+if(typeof window!=='undefined') window.MacarStrikeQA=MacarStrikeQA;
 /* First sheet in the list that is actually decoded. */
 function macarFirstReady(list){
   if(!list) return null;
@@ -1676,8 +1720,8 @@ function macarPose(e){
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
-   idle (or a real _atk_recover if Limner signs one) — t 0.72–0.96 still
-   plants idle so living Macar is not the maul-on-shoulder cocked pose.
+   idle (or a real _atk_recover if Limner signs one) — living Macar holds
+   mid-swing t 0–0.84 so Attack is never the maul-on-shoulder idle plant.
    Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
@@ -1700,7 +1744,10 @@ function livingMacarAnimKey(e){
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const img=livingMacarImg(livingMacarAnimKey(e));
+  const key=livingMacarAnimKey(e);
+  const blitKey=livingMacarBlitKey(key);
+  noteMacarStrikeQA(e, key, blitKey);
+  const img=livingMacarImg(key);
   if(!img||!img.width) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
@@ -2362,12 +2409,15 @@ function attackProgress(e){
 function wantsMeleePose(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  // Mid-swing sheet through the hit and a readable follow. Recover plants idle.
+  // Living Macar: mid-swing from the Attack press (t=0) through the hit.
+  // Kin / foes keep the shorter wind-up so ghost recover sheets still bind.
+  if(e.hero && !e.ghost) return t>=0 && t<0.84;
   return t>=0.08 && t<0.72;
 }
 function wantsMeleeRecover(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
+  if(e.hero && !e.ghost) return t>=0.84 && t<=0.96;
   return t>=0.72 && t<=0.96;
 }
 function gaitImg(a,b,e){
@@ -10740,7 +10790,11 @@ function update(dt){
     if(e.atk>0){
         if(e.defending){ e.atk=0; e.swung=0; e._attack=null; }
       else {
-        e.atk-=dt;
+        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold){
+          e.atk=e.atkMax*0.60;
+        } else {
+          e.atk-=dt;
+        }
         if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
           const spec=beginSpecialtySwing(e);
           if(spec){
@@ -10975,8 +11029,8 @@ function render(){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
       /* Source-over swipe only during the strike window — not inside
-         drawLivingMacar (no lighter / gold). The atk sheet is a wind-up;
-         the swipe is the readable forward blow. Recover plants idle. */
+         drawLivingMacar (no lighter / gold). Living Macar holds the
+         mid-swing sheet here; the swipe reads the forward blow. */
       if(wantsMeleePose(mac)){
         const s=w2s(mac.x,mac.y), z=ZOOM*mac.scale;
         const bob0=mac.moving?Math.sin((mac.gait||0)*TAU)*1.6*z:0;
@@ -12289,7 +12343,10 @@ function drawHeroMeleeArc(g,e,z){
      Heading flip so a west swing travels screen-left with the sheet. */
   if(!wantsMeleePose(e)) return;
   const t=attackProgress(e);
-  const u=clamp((t-0.08)/Math.max(0.01,0.64),0,1);
+  const living=!!(e.hero && !e.ghost);
+  const u=living
+    ? clamp(t/Math.max(0.01,0.84),0,1)
+    : clamp((t-0.08)/Math.max(0.01,0.64),0,1);
   const sw=Math.sin(u*Math.PI);
   if(sw<0.06) return;
   const axe=typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver();

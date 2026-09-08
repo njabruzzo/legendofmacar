@@ -44,12 +44,23 @@ assert(/e\.ghost && wantsMeleePose\(e\)/.test(html), 'ghost swipe is strike-only
 assert(!/drawHeroMeleeArc/.test(extractFn('drawLivingMacar')),
   'living blit itself still has no swipe / lighter');
 
+assert(/e\.hero && !e\.ghost\) return t>=0 && t<0\.84/.test(extractFn('wantsMeleePose')),
+  'living Macar strike is t 0–0.84 so Attack press is already mid-swing');
 assert(/t>=0\.08 && t<0\.72/.test(extractFn('wantsMeleePose')),
-  'strike window is t 0.08–0.72');
+  'kin / foe strike window stays t 0.08–0.72');
+assert(/e\.hero && !e\.ghost\) return t>=0\.84 && t<=0\.96/.test(extractFn('wantsMeleeRecover')),
+  'living Macar recover is t 0.84–0.96');
 assert(/t>=0\.72 && t<=0\.96/.test(extractFn('wantsMeleeRecover')),
-  'recover window is t 0.72–0.96');
-assert(/\(t-0\.08\)\/Math\.max\(0\.01,0\.64\)/.test(swipe),
-  'swipe rematches the wider strike window');
+  'kin / foe recover window stays t 0.72–0.96');
+assert(/t\/Math\.max\(0\.01,0\.84\)/.test(swipe)
+  && /\(t-0\.08\)\/Math\.max\(0\.01,0\.64\)/.test(swipe),
+  'swipe rematches living 0–0.84 and kin 0.08–0.72');
+assert(/function livingMacarBlitKey\(/.test(html)
+  && /matchingPartyAtkReady\(key, idle\)\) return key/.test(extractFn('livingMacarBlitKey')),
+  'ready atk blit key skips pickReadyPartyKey idle plant');
+assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
+  && /lastKey:null/.test(html) && /holdProgress:0/.test(html),
+  'MacarStrikeQA exposes lastKey / holdProgress for live proof');
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 const SPR={
@@ -77,6 +88,7 @@ vm.runInContext(
   +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
+  +extractFn('livingMacarBlitKey')
   +extractFn('walkCycleKey')
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
@@ -120,7 +132,9 @@ assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,
   'mismatched crop still fails identity');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk',
   'manual / auto strike still blits atk when crown would plant idle');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar',
+assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk',
+  'blit key still honors ready atk when crown would plant idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'same crown miss cannot hold the wind-up through recover');
 delete SPR.macar_atk;
 
@@ -154,8 +168,11 @@ assert(ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.70}
 assert(ctx.wantsMeleePose(Object.assign({}, manual, {atk:manual.atkMax*0.35}))===true
   && ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.35}))==='macar_axe_atk',
   'manual Attack late swing t≈0.65 still holds the mid-swing sheet');
-assert(ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.20}))==='macar_axe',
+assert(ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax*0.10}))==='macar_axe',
   'manual Attack recover plants axe idle');
+assert(ctx.wantsMeleePose(Object.assign({}, manual, {atk:manual.atkMax}))===true
+  && ctx.livingMacarAnimKey(Object.assign({}, manual, {atk:manual.atkMax}))==='macar_axe_atk',
+  'manual Attack press (t=0) is already the mid-swing sheet');
 
 const auto=macar({atk:0.78*0.70, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleePose(auto)===true && ctx.livingMacarAnimKey(auto)==='macar_axe_atk',
@@ -163,9 +180,12 @@ assert(ctx.wantsMeleePose(auto)===true && ctx.livingMacarAnimKey(auto)==='macar_
 const autoLate=macar({atk:0.78*0.35, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleePose(autoLate)===true && ctx.livingMacarAnimKey(autoLate)==='macar_axe_atk',
   'standing auto-melee late swing still holds the mid-swing sheet');
-const autoRec=macar({atk:0.78*0.20, atkMax:0.78, atkKind:'melee', moving:0});
+const autoRec=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleeRecover(autoRec)===true && ctx.livingMacarAnimKey(autoRec)==='macar_axe',
   'standing auto-melee recover plants idle');
+const autoPress=macar({atk:0.78, atkMax:0.78, atkKind:'melee', moving:0});
+assert(ctx.wantsMeleePose(autoPress)===true && ctx.livingMacarAnimKey(autoPress)==='macar_axe_atk',
+  'standing auto-melee press is already the mid-swing sheet');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar melee strike / recover checks passed');

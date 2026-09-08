@@ -99,6 +99,7 @@ vm.runInContext(
   +extractFn('matchingPartyAtkReady')
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
+  +extractFn('livingMacarBlitKey')
   +extractFn('walkCycleKey')
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
@@ -121,12 +122,15 @@ assert(ctx.livingMacarAnimKey(macar())==='macar', 'idle blits the live idle');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'ready w1 is used');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.62}))==='macar_w2', 'ready w2 is used');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'attack plants idle until a matching atk sheet is ready');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar', 'recover plants idle until a matching atk sheet is ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar', 'recover plants idle until a matching atk sheet is ready');
 SPR.macar_atk={width:470, height:512};
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'title-law 470x512 atk is used');
+assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
+  'Attack press t=0 already holds the mid-swing sheet');
+assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk', 'blit key does not re-plant idle over ready atk');
 assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk',
   'late swing t≈0.68 still holds the mid-swing sheet');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar',
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'recover plants idle even when the wind-up atk sheet is ready');
 delete SPR.macar_atk;
 
@@ -140,7 +144,7 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'c
 delete SPR.macar_axe_w1; delete SPR.macar_axe_w2;
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe', 'cleaver walk plants axe idle without walks');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk', 'cleaver melee uses axe atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.20, atkMax:1}))==='macar_axe',
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_axe',
   'cleaver recover plants axe idle — does not hold axe_atk');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
