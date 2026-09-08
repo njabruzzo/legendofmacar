@@ -52,6 +52,8 @@ assert(/keepAtk/.test(extractFn('blitLivingMacar'))
 assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   && /noteMacarStrikeQA\(e, key, blitKey\)/.test(extractFn('drawLivingMacar')),
   'after-grain blit notes MacarStrikeQA lastKey / blitKey');
+assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html),
+  'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');

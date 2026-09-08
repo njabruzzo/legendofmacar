@@ -39,7 +39,9 @@ const swipe=extractFn('drawHeroMeleeArc');
 assert(/if\(!wantsMeleePose\(e\)\) return/.test(swipe), 'swipe dies when recover starts');
 assert(/globalCompositeOperation='source-over'/.test(swipe), 'swipe is source-over');
 assert(/wantsSpriteFlip/.test(swipe), 'swipe flips with heading');
-assert(/if\(wantsMeleePose\(mac\)\)/.test(html), 'after-grain Macar swipe is strike-only');
+assert(!/if\(wantsMeleePose\(mac\)\)/.test(html)
+  || !/drawHeroMeleeArc\(g,mac/.test(html),
+  'after-grain living Macar has no gold swipe over the mid-swing sheet');
 assert(/e\.ghost && wantsMeleePose\(e\)/.test(html), 'ghost swipe is strike-only');
 assert(!/drawHeroMeleeArc/.test(extractFn('drawLivingMacar')),
   'living blit itself still has no swipe / lighter');

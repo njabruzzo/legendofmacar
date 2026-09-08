@@ -941,6 +941,7 @@ function spriteBounds(img){
     ok:true,
     botY:(bot+1)/h,
     cx:((lo+hi+1)/2)/w,
+    footCx:fcx/w,
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h,
     personY0:crown/h,
     crown:crownId
@@ -1760,7 +1761,11 @@ function drawLivingMacar(g,e){
   const H=entSpriteH(e,z)*frameFit(e,img);
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
   const b=spriteBounds(img);
-  const cx=(b&&b.ok)?(flip?1-b.cx:b.cx):0.5;
+  /* Plant on the feet, not the opaque-box center. Mid-swing spans the
+     full canvas (maul to the edge); box-cx slides the dwarf off the tile
+     and hides the maul head under the old swipe. */
+  const plant=(b&&b.ok)?(b.footCx!=null?b.footCx:b.cx):0.5;
+  const cx=flip?1-plant:plant;
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
@@ -11028,16 +11033,8 @@ function render(){
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
-      /* Source-over swipe only during the strike window — not inside
-         drawLivingMacar (no lighter / gold). Living Macar holds the
-         mid-swing sheet here; the swipe reads the forward blow. */
-      if(wantsMeleePose(mac)){
-        const s=w2s(mac.x,mac.y), z=ZOOM*mac.scale;
-        const bob0=mac.moving?Math.sin((mac.gait||0)*TAU)*1.6*z:0;
-        g.save(); g.translate(s.x, s.y-bob0);
-        drawHeroMeleeArc(g,mac,z);
-        g.restore();
-      }
+      /* No gold swipe over living Macar — the mid-swing sheet is the blow.
+         A source-over arc covered the maul head and read as idle+swoosh. */
     }
     for(const e of G.ents){
       if(!e || e.hero || e.dead || e.crushed || e.hidden) continue;

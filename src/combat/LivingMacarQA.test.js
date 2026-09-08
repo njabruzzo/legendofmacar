@@ -372,8 +372,8 @@ assert(/globalCompositeOperation='source-over'/.test(swipe),
   'melee swipe stays source-over (no lighter flash)');
 assert(/wantsSpriteFlip/.test(swipe),
   'melee swipe mirrors with heading so west is a forward blow');
-assert(/if\(wantsMeleePose\(mac\)\)/.test(html),
-  'after-grain Macar swipe is gated on the strike window');
+assert(!/drawHeroMeleeArc\(g,mac/.test(html),
+  'after-grain living Macar has no gold swipe covering the maul head');
 
 SPR.macar={width:8};
 SPR.macar_atk_recover={width:8};
