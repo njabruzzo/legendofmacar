@@ -79,6 +79,8 @@ const ctx={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
+  wieldsCrossbow(){ return !!ctx._xbow; },
+  player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
 };
@@ -160,6 +162,22 @@ assert(cleaver.filter(s=>s.rec).every(s=>s.key==='macar_axe'),
   'every Shadow Cleaver recover sample is axe idle');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1',
   'cleaver walk is unchanged beside the melee split');
+
+SPR.macar_xbow={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_xbow_atk={width:470, height:512};
+SPR.macar_xbow_w1={width:470, height:512};
+SPR.macar_xbow_w2={width:470, height:512};
+ctx._axe=false;
+ctx._xbow=true;
+const xbow=keysAcrossSwing('macar_xbow_atk', 'macar_xbow_atk', 'macar_xbow');
+assert(xbow.filter(s=>s.pose).every(s=>s.key==='macar_xbow_atk'),
+  'every crossbow strike sample is xbow_atk');
+assert(xbow.filter(s=>s.rec).every(s=>s.key==='macar_xbow'),
+  'every crossbow recover sample is xbow idle');
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow_w1',
+  'crossbow walk is unchanged beside the melee split');
+ctx._xbow=false;
+ctx._axe=true;
 
 function fireManual(p){
   if(p.defending) return false;

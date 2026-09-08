@@ -80,7 +80,8 @@ function pngAlphaHist(filePath){
   return {ok:true, w, h, mid, a0, a255, unique:midVals.size+(a0?1:0)+(a255?1:0)};
 }
 
-const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk'];
+const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+  'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk'];
 const KEY_FILE={
   macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
@@ -89,7 +90,11 @@ const KEY_FILE={
   macar_axe:'dwarf_macar_axe.png',
   macar_axe_w1:'dwarf_macar_axe_w1.png',
   macar_axe_w2:'dwarf_macar_axe_w2.png',
-  macar_axe_atk:'dwarf_macar_axe_atk.png'
+  macar_axe_atk:'dwarf_macar_axe_atk.png',
+  macar_xbow:'dwarf_macar_xbow.png',
+  macar_xbow_w1:'dwarf_macar_xbow_w1.png',
+  macar_xbow_w2:'dwarf_macar_xbow_w2.png',
+  macar_xbow_atk:'dwarf_macar_xbow_atk.png'
 };
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
@@ -113,8 +118,12 @@ BLIT_KEYS.forEach(k=>{
 const liveKey=extractFn('livingMacarAnimKey');
 assert(/macar_axe/.test(liveKey) && /livingMacarIdleKey/.test(liveKey),
   'livingMacarAnimKey binds axe via livingMacarIdleKey when cleaver is on');
+assert(/macar_xbow/.test(liveKey) && /macar_xbow_atk/.test(liveKey),
+  'livingMacarAnimKey binds xbow via livingMacarIdleKey when the shooting loadout is on');
 assert(/wieldsShadowCleaver/.test(extractFn('livingMacarIdleKey')),
   'livingMacarIdleKey gates on wieldsShadowCleaver');
+assert(/wieldsCrossbow/.test(extractFn('livingMacarIdleKey')),
+  'livingMacarIdleKey gates on wieldsCrossbow');
 assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
   && !/macar_w3/.test(liveKey) && !/macar_title/.test(liveKey),
   'livingMacarAnimKey never binds directional / w3 / title sheets');
@@ -162,7 +171,8 @@ const ctx={
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
-  player(){ return null; },
+  wieldsCrossbow(){ return !!ctx._xbow; },
+  player(){ return ctx._player||null; },
   kinCanAutoFight(e){ return !!(e && !e.hero && !e.dead); },
   TAU:Math.PI*2
 };
@@ -242,6 +252,28 @@ assert(ctx.entAnimKey(macar({atk:0.10, atkMax:1}))==='macar_axe', 'entAnimKey re
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
 
+SPR.macar_xbow={width:8};
+SPR.macar_xbow_atk={width:8};
+ctx._xbow=true;
+assert(ctx.livingMacarIdleKey()==='macar_xbow', 'crossbow swaps idle to macar_xbow when sheet ready');
+assert(ctx.livingMacarAnimKey(macar())==='macar_xbow', 'idle is macar_xbow when the shooting loadout is on');
+SPR.macar_xbow_w1={width:8}; SPR.macar_xbow_w2={width:8};
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow_w1', 'xbow walk binds xbow_w1 when ready');
+delete SPR.macar_xbow_w1; delete SPR.macar_xbow_w2;
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow', 'xbow walk plants xbow idle without xbow_w1/w2');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'xbow strike uses macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_xbow_atk',
+  'xbow late swing t≈0.68 still holds macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow',
+  'xbow recover plants xbow idle when xbow_atk is ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
+  'Shoot pose uses macar_xbow_atk');
+assert(ctx.entAnimKey(macar())==='macar_xbow', 'entAnimKey idle is macar_xbow with the crossbow');
+assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'entAnimKey strike is macar_xbow_atk');
+assert(ctx.entAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow', 'entAnimKey recover is xbow idle');
+delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
+ctx._xbow=false;
+
 /* Identity (family + crown) must not hide a ready matching swing sheet.
    400×512 fails samePaintedFamily vs 470×512; a helmeted crown fails the
    unhelmeted idle. Hits still land on the atk/ct/swung timer. */
@@ -269,6 +301,16 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_axe_atk',
   'cleaver strike blits macar_axe_atk even when crown/family would plant idle');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
+
+SPR.macar_xbow={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_xbow_atk={width:400, height:512, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
+ctx._xbow=true;
+assert(ctx.partySheetMatchesIdle(SPR.macar_xbow_atk, SPR.macar_xbow, 'macar_xbow_atk')===false,
+  'mismatched xbow atk crop fails identity vs xbow idle');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk',
+  'xbow strike blits macar_xbow_atk even when crown/family would plant idle');
+delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
+ctx._xbow=false;
 
 function tickMelee(e, dt){
   if(!(e.atk>0)) return 'idle';
