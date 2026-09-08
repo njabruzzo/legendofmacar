@@ -64,11 +64,15 @@ const slotFn=extractFn('slotAnimImg');
 assert(!/_w1/.test(slotFn) && !/_w2/.test(slotFn) && !/_atk/.test(slotFn),
   'HUD slot draw does not swap to _w1/_w2/_atk images');
 assert(/return SPR\[k\]\|\|null/.test(slotFn), 'HUD slot draw uses the base icon plate');
+assert(/function attackHudIco\(/.test(html) && /attackHudIco\(\)/.test(slotFn),
+  'Attack HUD plate resolves through attackHudIco, not a frozen maul ico');
 
 const drawSlot=html.match(/function drawSlot\(g,b,s\)\{[\s\S]*?\nfunction /)[0];
 assert(/if\(b\.hold\)/.test(drawSlot) && /globalAlpha=\(ready&&atForge\)\?1:0\.42/.test(drawSlot),
   'hold stroke and not-ready dimming stay in drawSlot');
 assert(/Math\.ceil\(cds\[ab\.key\]\)/.test(drawSlot), 'cooldown overlay stays in drawSlot');
+assert(/attackHudIco\(\)/.test(drawSlot),
+  'drawSlot vector fallback also follows attackHudIco');
 
 const slotCtx={
   ICON_SPR:{sword:'icon_sword', flask:'icon_flask'},
