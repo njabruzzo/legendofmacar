@@ -54,6 +54,10 @@ assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   'after-grain blit notes MacarStrikeQA lastKey / blitKey');
 assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html),
   'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
+assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=1\.70/.test(html),
+  'living strike hold outlives the atk timer for the dmg floater');
+assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
+  'mid-swing blit is a bit wider so the maul head reads at dungeon scale');
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');

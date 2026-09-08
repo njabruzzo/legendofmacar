@@ -150,6 +150,9 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_STRIKE_HOLD=1.70;'
+  +extractFn('armLivingMacarStrike')
+  +extractFn('wantsLivingMacarStrike')
   +extractFn('faceVec')
   +extractFn('screenOctant')
   +extractFn('screenCardinal')

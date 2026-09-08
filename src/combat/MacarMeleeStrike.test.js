@@ -26,7 +26,7 @@ function extractFn(name){
 }
 
 const liveKey=extractFn('livingMacarAnimKey');
-assert(/if\(wantsMeleePose\(e\)\)\{/.test(liveKey), 'strike is its own window');
+assert(/if\(wantsLivingMacarStrike\(e\)\)\{/.test(liveKey), 'strike includes the post-hit hold');
 assert(/if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey), 'recover is its own window');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'crown/family cannot plant idle during the strike window');
@@ -61,8 +61,13 @@ assert(/function livingMacarBlitKey\(/.test(html)
   && /matchingPartyAtkReady\(key, idle\)\) return key/.test(extractFn('livingMacarBlitKey')),
   'ready atk blit key skips pickReadyPartyKey idle plant');
 assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
-  && /lastKey:null/.test(html) && /holdProgress:0/.test(html),
-  'MacarStrikeQA exposes lastKey / holdProgress for live proof');
+  && /lastKey:null/.test(html) && /holdProgress:0/.test(html)
+  && /strikeHold:0/.test(html) && /swung:false/.test(html),
+  'MacarStrikeQA exposes lastKey / holdProgress / strikeHold for live proof');
+assert(/const MACAR_STRIKE_HOLD=1\.70/.test(html)
+  && /function wantsLivingMacarStrike\(/.test(html)
+  && /function armLivingMacarStrike\(/.test(html),
+  'living Macar holds mid-swing 1.70s through swung / dmg floater');
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 const SPR={
@@ -95,6 +100,9 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_STRIKE_HOLD=1.70;'
+  +extractFn('armLivingMacarStrike')
+  +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey'),
   ctx
 );
@@ -185,6 +193,19 @@ assert(ctx.wantsMeleePose(autoLate)===true && ctx.livingMacarAnimKey(autoLate)==
 const autoRec=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleeRecover(autoRec)===true && ctx.livingMacarAnimKey(autoRec)==='macar_axe',
   'standing auto-melee recover plants idle');
+const afterHit=macar({atk:0, atkMax:0.78, atkKind:'melee', moving:0, swung:0, macarStrikeHold:1.70});
+assert(ctx.wantsLivingMacarStrike(afterHit)===true
+  && ctx.livingMacarAnimKey(afterHit)==='macar_axe_atk',
+  'post-swung hold still blits mid-swing after the atk timer dies (dmg floater window)');
+const afterHitMaul=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0, macarStrikeHold:1.2});
+ctx._axe=false;
+SPR.macar_atk={width:470, height:512};
+assert(ctx.wantsMeleeRecover(afterHitMaul)===true
+  && ctx.wantsLivingMacarStrike(afterHitMaul)===true
+  && ctx.livingMacarAnimKey(afterHitMaul)==='macar_atk',
+  'maul recover t still holds macar_atk while strikeHold is running');
+delete SPR.macar_atk;
+ctx._axe=true;
 const autoPress=macar({atk:0.78, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleePose(autoPress)===true && ctx.livingMacarAnimKey(autoPress)==='macar_axe_atk',
   'standing auto-melee press is already the mid-swing sheet');

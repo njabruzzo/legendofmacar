@@ -127,6 +127,7 @@ vm.runInContext(
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
+  +'const MACAR_STRIKE_HOLD=1.70;'+extractFn('armLivingMacarStrike')+extractFn('wantsLivingMacarStrike')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 
 function holdWalk(ix, iy){
