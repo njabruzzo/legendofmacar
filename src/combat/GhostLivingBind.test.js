@@ -120,6 +120,8 @@ const run={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   player(){ return run._lead||null; },
+  _now:10000,
+  performance:{now(){ return run._now; }},
   wieldsShadowCleaver(){ return false; },
   kinCanAutoFight(e){ return !!(e && !e.hero && !e.dead && !e.crushed); },
   TAU:Math.PI*2, TW:64, TH:32,
@@ -150,8 +152,11 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
-  +'const MACAR_BOW_POSE=0.45;'
+  +'const MACAR_BOW_POSE_S=0.40;'
+  +extractFn('nowMs')
+  +extractFn('armBowPose')
   +extractFn('wantsBowPose')
+  +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')

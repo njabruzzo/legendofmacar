@@ -1665,7 +1665,7 @@ function livingMacarImg(key){
 const MacarStrikeQA={
   lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
   atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false,
-  swung:false, strikeHold:0
+  swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0
 };
 function macarStrikeHoldProgress(e){
   if(!e) return 0;
@@ -1682,6 +1682,8 @@ function noteMacarStrikeQA(e, key, blitKey){
   MacarStrikeQA.atkMax=e&&e.atkMax||0;
   MacarStrikeQA.swung=!!(e&&e.swung);
   MacarStrikeQA.strikeHold=+(e&&e.macarStrikeHold||0);
+  MacarStrikeQA.bowPoseT=+(e&&e.bowPoseT||0);
+  MacarStrikeQA.bowPoseUntil=+(e&&e.bowPoseUntil||0);
   if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk')){
     MacarStrikeQA.lastStrikeKey=key;
     MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
@@ -1753,17 +1755,15 @@ function macarPose(e){
    idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
    is still running — a short post-blow hold so the mid-swing sheet is
    readable at the hit, then idle carry returns. Same FACE, opposite FOOT.
-   Shoot has no signed xbow recover sheet: a short loose pose, then idle. */
+   Shoot pose is render-time wall clock (bowPoseUntil), not update(dt). */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
+  if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
-  if(e.atk>0 && e.atkKind==='bow'){
+  if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
-    if(typeof wantsBowPose==='function' ? wantsBowPose(e) : attackProgress(e)<0.45){
-      if(matchingPartyAtkReady(atk, idle)) return atk;
-      return pickReadyPartyKey(atk, idle) || idle;
-    }
-    return idle;
+    if(matchingPartyAtkReady(atk, idle)) return atk;
+    return pickReadyPartyKey(atk, idle) || idle;
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
@@ -2466,18 +2466,34 @@ function wantsMeleeRecover(e){
   return t>=0.72 && t<=0.96;
 }
 /* Shoot: short loose pose, then plant idle. No macar_xbow_atk_recover sheet.
-   Wall-clock bowPoseT is the source of truth so MacarStrikeQA.hold (melee
-   mid-swing freeze at t≈0.40) cannot keep the cocked sheet forever.
-   Progress t∈[0, 0.45) is only a fallback when bowPoseT was never armed. */
-const MACAR_BOW_POSE=0.45;
+   bowPoseUntil is render-time wall clock so a stalled update() cannot keep
+   the cocked sheet. bowPoseT is optional leftover if until was never set. */
 const MACAR_BOW_POSE_S=0.40;
+function nowMs(){
+  if(typeof performance!=='undefined' && performance.now) return performance.now();
+  return Date.now();
+}
+function armBowPose(e){
+  if(!e) return;
+  const s=typeof MACAR_BOW_POSE_S==='number'?MACAR_BOW_POSE_S:0.40;
+  e.bowPoseT=s;
+  e.bowPoseUntil=nowMs()+s*1000;
+}
 function wantsBowPose(e){
-  if(!e||e.atkKind!=='bow') return false;
-  if(!e.hero||e.dead||e.ghost) return false;
-  if((e.bowPoseT||0)>0) return true;
-  if(!(e.atk>0)) return false;
-  if(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold) return false;
-  return attackProgress(e)<MACAR_BOW_POSE;
+  if(!e||!e.hero||e.dead||e.ghost) return false;
+  if(e.bowPoseUntil>0) return nowMs()<e.bowPoseUntil;
+  return (e.bowPoseT||0)>0;
+}
+function expireBowPose(e){
+  if(!e||!e.hero) return;
+  if(typeof wantsBowPose==='function' && wantsBowPose(e)) return;
+  if(e.atkKind!=='bow' && !(e.bowPoseUntil>0) && !(e.bowPoseT>0)) return;
+  e.bowPoseT=0;
+  e.bowPoseUntil=0;
+  if(e.atkKind!=='bow') return;
+  e.atk=0;
+  e.atkKind='melee';
+  e.swung=0;
 }
 /* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
    long enough to read the blow (~0.36s), then plant idle carry so the
@@ -10586,9 +10602,9 @@ function fire(key){
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
     // Pose only. swung=1 up front so the melee tick never fires off this timer.
-    // bowPoseT is wall-clock so a melee QA hold cannot freeze the cocked sheet.
+    // bowPoseUntil is render-time so a stalled update cannot keep the aim sheet.
     p.atkKind='bow'; p.atk=p.atkMax; p.swung=1;
-    p.bowPoseT=typeof MACAR_BOW_POSE_S==='number'?MACAR_BOW_POSE_S:0.40;
+    if(typeof armBowPose==='function') armBowPose(p);
     const shot=shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
     if(shot && magAmmo) shot.ammoPlus=magAmmo.plus;
     say(magAmmo?('MACAR looses '+magAmmo.n+'.'):'MACAR looses a quarrel.','#ffb45c');

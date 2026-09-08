@@ -88,7 +88,9 @@ const ctx={
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
   wieldsCrossbow(){ return !!ctx._xbow; },
-  MacarStrikeQA:{hold:false},
+  MacarStrikeQA:{hold:false, blitKey:null, bowPoseT:0, bowPoseUntil:0},
+  _now:10000,
+  performance:{now(){ return ctx._now; }},
   player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
@@ -111,8 +113,11 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
-  +'const MACAR_BOW_POSE=0.45;'
+  +'const MACAR_BOW_POSE_S=0.40;'
+  +extractFn('nowMs')
+  +extractFn('armBowPose')
   +extractFn('wantsBowPose')
+  +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -173,15 +178,13 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow', 'cro
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'crossbow melee uses xbow atk');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow',
   'crossbow recover plants xbow idle — does not hold xbow_atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
-  'Shoot pose uses macar_xbow_atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='macar_xbow',
-  'Shoot recover plants macar_xbow idle after the loose window');
-assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
-  'late Shoot timer does not hold macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now+400}))==='macar_xbow_atk',
+  'until in the future uses macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-1}))==='macar_xbow',
+  'until expired + atk still high plants macar_xbow idle');
 ctx.MacarStrikeQA.hold=true;
-assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow'}))==='macar_xbow',
-  'hold-frozen Shoot progress plants idle, not macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-50}))==='macar_xbow',
+  'hold + until expired plants idle, not macar_xbow_atk');
 ctx.MacarStrikeQA.hold=false;
 delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
 ctx._xbow=false;
