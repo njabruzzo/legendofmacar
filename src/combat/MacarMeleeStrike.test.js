@@ -64,10 +64,11 @@ assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   && /lastKey:null/.test(html) && /holdProgress:0/.test(html)
   && /strikeHold:0/.test(html) && /swung:false/.test(html),
   'MacarStrikeQA exposes lastKey / holdProgress / strikeHold for live proof');
-assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html)
+assert(/const MACAR_STRIKE_HOLD=0\.12/.test(html)
   && /function wantsLivingMacarStrike\(/.test(html)
-  && /function armLivingMacarStrike\(/.test(html),
-  'living Macar holds mid-swing 0.36s after the blow, then idle carry');
+  && /function armLivingMacarStrike\(/.test(html)
+  && /wantsMeleeRecover\(e\)\) return false/.test(extractFn('wantsLivingMacarStrike')),
+  'living Macar mid-swing is t 0–0.84; recover / timer-end return idle carry');
 assert(/const MACAR_BOW_POSE_S=0\.40/.test(html) && /function wantsBowPose\(/.test(html)
   && /bowPoseUntil/.test(html) && /function expireBowPose\(/.test(html),
   'Shoot pose is render-time bowPoseUntil, then expire plants idle');
@@ -123,7 +124,7 @@ vm.runInContext(
   +extractFn('armBowPose')
   +extractFn('wantsBowPose')
   +extractFn('expireBowPose')
-  +'const MACAR_STRIKE_HOLD=0.36;'
+  +'const MACAR_STRIKE_HOLD=0.12;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey'),
@@ -249,28 +250,28 @@ assert(ctx.wantsMeleePose(autoLate)===true && ctx.livingMacarAnimKey(autoLate)==
 const autoRec=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0});
 assert(ctx.wantsMeleeRecover(autoRec)===true && ctx.livingMacarAnimKey(autoRec)==='macar_axe',
   'standing auto-melee recover plants idle');
-const afterHit=macar({atk:0, atkMax:0.78, atkKind:'melee', moving:0, swung:0, macarStrikeHold:0.36});
-assert(ctx.wantsLivingMacarStrike(afterHit)===true
-  && ctx.livingMacarAnimKey(afterHit)==='macar_axe_atk',
-  'short post-swung hold still blits mid-swing after the atk timer dies');
-const afterHitMaul=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0, macarStrikeHold:0.30});
+const afterHit=macar({atk:0, atkMax:0.78, atkKind:'melee', moving:0, swung:0, macarStrikeHold:0.12});
+assert(ctx.wantsLivingMacarStrike(afterHit)===false
+  && ctx.livingMacarAnimKey(afterHit)==='macar_axe',
+  'timer-end plants idle carry even if a leftover strikeHold is set');
+const afterHitMaul=macar({atk:0.78*0.10, atkMax:0.78, atkKind:'melee', moving:0, macarStrikeHold:0.12});
 ctx._axe=false;
 SPR.macar_atk={width:470, height:512};
 assert(ctx.wantsMeleeRecover(afterHitMaul)===true
-  && ctx.wantsLivingMacarStrike(afterHitMaul)===true
-  && ctx.livingMacarAnimKey(afterHitMaul)==='macar_atk',
-  'maul recover t still holds macar_atk while the short strikeHold is running');
+  && ctx.wantsLivingMacarStrike(afterHitMaul)===false
+  && ctx.livingMacarAnimKey(afterHitMaul)==='macar',
+  'maul recover t plants idle carry even if strikeHold is still running');
 delete SPR.macar_atk;
 ctx._axe=true;
 const afterHold=macar({atk:0, atkMax:0.78, atkKind:'melee', moving:0, swung:0, macarStrikeHold:0});
 assert(ctx.wantsLivingMacarStrike(afterHold)===false
   && ctx.livingMacarAnimKey(afterHold)==='macar_axe',
-  'cleaver returns to idle carry once strikeHold expires');
+  'cleaver returns to idle carry once the strike window ends');
 ctx._axe=false;
 SPR.macar_atk={width:470, height:512};
 const afterHoldMaul=macar({atk:0, atkMax:0.78, atkKind:'melee', moving:0, swung:0, macarStrikeHold:0});
 assert(ctx.livingMacarAnimKey(afterHoldMaul)==='macar',
-  'maul returns to idle carry once strikeHold expires');
+  'maul returns to idle carry once the strike window ends');
 delete SPR.macar_atk;
 ctx._axe=true;
 const autoPress=macar({atk:0.78, atkMax:0.78, atkKind:'melee', moving:0});

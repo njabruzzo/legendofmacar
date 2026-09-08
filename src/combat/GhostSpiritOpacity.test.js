@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Ghost kin must read as moonlit spirits — cooler tint, gentler lift,
- * no chalk-white wash, never punch mid-alpha to 255, never lighter-on-hit.
+ * Ghost kin must read as Limner α168 cool spirits — no chalk-white remesh,
+ * never punch mid-alpha to 255, never lighter-on-hit.
  * Run: node src/combat/GhostSpiritOpacity.test.js
  */
 const fs=require('fs');
@@ -26,17 +26,18 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/const GHOST_DRAW_ALPHA=0\.72/.test(html), 'draw alpha is 0.72 (was 0.96 chalk)');
+assert(/const GHOST_DRAW_ALPHA=1;/.test(html), 'draw alpha is 1 — baked α168 is the spirit');
 assert(!/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html),
   'old half-transparent 0.84 multiply is gone');
 assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
-  && !/const GHOST_WHITE_LIFT=0\.48/.test(html),
-  'chalk-white 0.96/0.48 wash is gone');
+  && !/const GHOST_WHITE_LIFT=0\.48/.test(html)
+  && !/const GHOST_WHITE_LIFT=0\.06/.test(html),
+  'chalk-white 0.96/0.48 and 0.06 washes are gone');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
-assert(/const GHOST_ALPHA_CAP=200/.test(html) && /const GHOST_ALPHA_LIFT=1\.12/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.06/.test(html) && /const GHOST_COOL_LIFT=0\.26/.test(html),
-  'lift is a gentle moonlit veil — CAP 200, never 255');
+assert(/const GHOST_ALPHA_CAP=200/.test(html) && /const GHOST_ALPHA_LIFT=1;/.test(html)
+  && /const GHOST_WHITE_LIFT=0;/.test(html) && /const GHOST_COOL_LIFT=0;/.test(html),
+  'lift passes Limner α168 through — CAP 200, no white/cool remesh');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'pixel lift is a dedicated ghost pipe');
 assert(/if\(e\.ghost\) return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
@@ -59,14 +60,14 @@ assert(/g\.globalAlpha=clamp\(e\.flash\*1\.2,0,0\.34\)/.test(html)
 const ctx={
   GHOST_ALPHA_LO:40,
   GHOST_ALPHA_CAP:200,
-  GHOST_ALPHA_LIFT:1.12,
-  GHOST_WHITE_LIFT:0.06,
-  GHOST_COOL_LIFT:0.26
+  GHOST_ALPHA_LIFT:1,
+  GHOST_WHITE_LIFT:0,
+  GHOST_COOL_LIFT:0
 };
 vm.createContext(ctx);
 vm.runInContext(
-  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=200,GHOST_ALPHA_LIFT=1.12,'
-  +'GHOST_WHITE_LIFT=0.06,GHOST_COOL_LIFT=0.26;'
+  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=200,GHOST_ALPHA_LIFT=1,'
+  +'GHOST_WHITE_LIFT=0,GHOST_COOL_LIFT=0;'
   +extractFn('liftGhostAlpha'),
   ctx
 );
@@ -79,26 +80,25 @@ function liftCopy(rgba){
 
 const mid140=new Uint8ClampedArray([90,80,70,140]);
 const out140=liftCopy(mid140);
-assert(out140[3]===157 && out140[3]<255 && out140[3]<=200,
-  'walk/atk stamp a=140 lifts to 157 (still mid-alpha)');
-assert(out140[0]>90 && out140[1]>80 && out140[2]>70,
-  'dark mid-alpha RGB still lifts a little');
-assert(out140[2]-70 > out140[0]-90,
-  'blue channel gains more than red — moonlit, not chalk');
-assert(out140[0]<160 && out140[1]<160 && out140[2]<160,
-  'white lift does not blow the silhouette to paper-white');
+assert(out140[3]===140 && out140[3]<255 && out140[3]<=200,
+  'mid-alpha a=140 is passed through (still mid-alpha)');
+assert(out140[0]===90 && out140[1]===80 && out140[2]===70,
+  'signed RGB is not remeshed — Limner cool stays');
 
-const mid150=new Uint8ClampedArray([100,88,82,150]);
-const out150=liftCopy(mid150);
-assert(out150[3]===168 && out150[3]!==255 && out150[3]<=200,
-  'idle stamp a=150 lifts to 168, not CAP and not opaque 255');
-assert(out150[2]-82 > out150[0]-100,
-  'idle stamp cools toward cyan, not white');
+const mid168=new Uint8ClampedArray([82,78,89,168]);
+const out168=liftCopy(mid168);
+assert(out168[3]===168 && out168[0]===82 && out168[1]===78 && out168[2]===89,
+  'α168 cool spirit is not bleached or inflated');
+
+const chalk=new Uint8ClampedArray([220,220,220,168]);
+const outChalk=liftCopy(chalk);
+assert(outChalk[0]===220 && outChalk[1]===220 && outChalk[2]===220 && outChalk[3]===168,
+  'a near-white dither pixel is not washed further toward paper');
 
 const denser=new Uint8ClampedArray([110,96,88,195]);
 const out195=liftCopy(denser);
-assert(out195[3]===200 && out195[3]!==255,
-  'denser TARGET_A=195 stamp caps at 200, not opaque 255');
+assert(out195[3]===195 && out195[3]!==255,
+  'a leftover denser stamp stays mid-alpha, not opaque 255');
 
 const already=new Uint8ClampedArray([200,200,200,255]);
 const out255=liftCopy(already);
@@ -109,9 +109,9 @@ const outFringe=liftCopy(fringe);
 assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifted)');
 
 const oldChalk=228*0.96/255;
-const newEff=200*0.72/255;
-assert(newEff>0.52 && newEff<0.62 && newEff<oldChalk,
-  'readable opacity is ~0.56 translucent vs the chalk ~0.86 multiply');
+const newEff=168*1/255;
+assert(newEff>0.60 && newEff<0.72 && newEff<oldChalk,
+  'readable opacity is baked α168 (~0.66) vs the chalk ~0.86 multiply');
 
 const BIND=['','_w1','_w2','_atk','_atk_recover'];
 const KIN=['pordoom','fendur','orbo','talpor'];
@@ -127,9 +127,22 @@ KIN.forEach(k=>{
       if(a===255) a255++;
     }
     const mean=n?sum/n:0;
-    assert(a255===0 && mean>175 && mean<215,
-      f+' is a denser mid-alpha stamp (mean '+mean.toFixed(1)+', a255='+a255+')');
+    assert(a255===0 && mean>160 && mean<176,
+      f+' is a signed α168 cool stamp (mean '+mean.toFixed(1)+', a255='+a255+')');
   });
+});
+
+const crypto=require('crypto');
+const IDLE_SHA={
+  'dwarf_fendur_ghost.png':'1c6f22bd',
+  'dwarf_orbo_ghost.png':'2056057d',
+  'dwarf_pordoom_ghost.png':'84878c34',
+  'dwarf_talpor_ghost.png':'24e13ec6'
+};
+Object.keys(IDLE_SHA).forEach(f=>{
+  const buf=fs.readFileSync(path.join(creatures,f));
+  const sha=crypto.createHash('sha256').update(buf).digest('hex');
+  assert(sha.indexOf(IDLE_SHA[f])===0, f+' idle sha is Limner SIGNED '+IDLE_SHA[f]);
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
