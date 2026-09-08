@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='98';
+const ASSET_VER='99';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1281,8 +1281,8 @@ function blitLivingMacar(img){
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
    Macar, so their living frames take the same repair. Ghost sheets are a
-   mid-alpha stamp (denser pack TARGET_A≈195) — cool moonlit spirit, never
-   punch to 255 (that was the west-flip solid flash) and never chalk-white. */
+   signed α168 cool spirit (Limner moonlit pack) — pass the baked color
+   through. Never punch to 255 (west-flip solid flash) and never chalk-white. */
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
@@ -1290,14 +1290,14 @@ function solidDwarfSprite(e,img){
   return blitLivingMacar(img)||img;
 }
 /* Ghost silhouette stay mid-alpha. CAP<255 so a west flip (punch=false)
-   cannot suddenly go opaque. WHITE is a light spirit veil; COOL tints
-   toward moonlit blue/cyan without washing kit identity to chalk. */
-const GHOST_DRAW_ALPHA=0.72;
+   cannot suddenly go opaque. WHITE/COOL stay at 0 — Limner already baked
+   the cool spectral grade; a code remesh re-bleaches α168 to chalk. */
+const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=200;
-const GHOST_ALPHA_LIFT=1.12;
-const GHOST_WHITE_LIFT=0.06;
-const GHOST_COOL_LIFT=0.26;
+const GHOST_ALPHA_LIFT=1;
+const GHOST_WHITE_LIFT=0;
+const GHOST_COOL_LIFT=0;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
@@ -1399,11 +1399,13 @@ function drawEntBillboard(g,e,img,z,flip){
     return true;
   }
   // Living Macar: only punched whitelist keys (idle + front w1/w2).
+  let liveKey=null;
   if(e.hero && !e.dead && !e.ghost){
-    img=livingMacarImg(livingMacarAnimKey(e));
+    liveKey=livingMacarAnimKey(e);
+    img=livingMacarImg(liveKey);
     if(!img||!img.width) return false;
   }
-  const H=entSpriteH(e,z)*frameFit(e,img);
+  const H=entSpriteH(e,z)*(liveKey?livingMacarPlantFit(e,liveKey,img):frameFit(e,img));
   const widen=(e.hero&&!e.dead&&!e.ghost)?MACAR_FOOT_WIDEN:1;
   const W=img.width*(H/Math.max(1,img.height))*widen;
   const b=spriteBounds(img);
@@ -1568,7 +1570,9 @@ function livingColorStats(data){
   }
   if(!n) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
   const cyanR=cyan/n, warmR=warm/n;
-  return {ok:true, living:warmR>=0.16 && cyanR<0.38, cyanR, warmR, n};
+  /* Signed α168 cool idles sit ~warm 0.07–0.16. Cyan/teal mono unsigned
+     sheets are warm≈0 / cyan≈0.99 — keep those rejected. */
+  return {ok:true, living:warmR>=0.07 && cyanR<0.38, cyanR, warmR, n};
 }
 function sampleLivingColors(img){
   if(!img||!img.width) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
@@ -1676,8 +1680,7 @@ function noteMacarStrikeQA(e, key, blitKey){
   MacarStrikeQA.blitKey=blitKey||null;
   MacarStrikeQA.holdProgress=macarStrikeHoldProgress(e);
   MacarStrikeQA.pose=!!(e && typeof wantsLivingMacarStrike==='function' && wantsLivingMacarStrike(e));
-  MacarStrikeQA.recover=!!(e && typeof wantsMeleeRecover==='function' && wantsMeleeRecover(e)
-    && !(e.macarStrikeHold>0));
+  MacarStrikeQA.recover=!!(e && typeof wantsMeleeRecover==='function' && wantsMeleeRecover(e));
   MacarStrikeQA.atk=e&&e.atk||0;
   MacarStrikeQA.atkMax=e&&e.atkMax||0;
   MacarStrikeQA.swung=!!(e&&e.swung);
@@ -1752,10 +1755,10 @@ function macarPose(e){
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe / xbow carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
-   idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
-   is still running — a short post-blow hold so the mid-swing sheet is
-   readable at the hit, then idle carry returns. Same FACE, opposite FOOT.
-   Shoot pose is render-time wall clock (bowPoseUntil), not update(dt). */
+   idle (or a real _atk_recover if Limner signs one). Recover and timer-end
+   clear strikeHold so idle carry returns as soon as t≥0.84. Same FACE,
+   opposite FOOT. Shoot pose is render-time wall clock (bowPoseUntil),
+   not update(dt). */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
@@ -1779,6 +1782,17 @@ function livingMacarAnimKey(e){
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
+/* Walk / carry share idle plant so the quilt34 shaft cannot shrink when
+   gait swaps w1/w2. The bake canvas is not SPR.macar_w1 — lock by key.
+   Mid-swing keeps its own crop (weapon is out). */
+function livingMacarPlantFit(e, key, img){
+  if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
+  const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
+  const idle=SPR[idleKey]||SPR.macar;
+  if(idle && key && (/_w[12]$/.test(key) || key===idleKey || key==='macar' || key==='macar_axe' || key==='macar_xbow'))
+    return heroFigureFit(e, idle);
+  return frameFit(e, img);
+}
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
@@ -1796,7 +1810,7 @@ function drawLivingMacar(g,e){
   g.globalCompositeOperation='source-over';
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
-  const H=entSpriteH(e,z)*frameFit(e,img);
+  const H=entSpriteH(e,z)*livingMacarPlantFit(e, blitKey||key, img);
   const strike=key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk'
     ||blitKey==='macar_atk'||blitKey==='macar_axe_atk'||blitKey==='macar_xbow_atk';
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN*(strike?1.16:1);
@@ -2495,10 +2509,11 @@ function expireBowPose(e){
   e.atkKind='melee';
   e.swung=0;
 }
-/* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
-   long enough to read the blow (~0.36s), then plant idle carry so the
-   weapon is not stuck cocked. Kin / ghosts are unchanged. */
-const MACAR_STRIKE_HOLD=0.36;
+/* Hit lands at t≈0.45; living pose ends at 0.84. Mid-swing stays up for
+   the strike window (t 0–0.84). HOLD is a last-resort leftover if the
+   timer dies mid-pose; recover and timer-end clear it so idle carry
+   returns immediately. Kin / ghosts are unchanged. */
+const MACAR_STRIKE_HOLD=0.12;
 function armLivingMacarStrike(e){
   if(!e||!e.hero||e.ghost) return;
   e.macarStrikeHold=Math.max(e.macarStrikeHold||0, MACAR_STRIKE_HOLD);
@@ -2506,7 +2521,7 @@ function armLivingMacarStrike(e){
 function wantsLivingMacarStrike(e){
   if(!e||!e.hero||e.dead||e.ghost) return false;
   if(e.atkKind==='bow') return false;
-  if((e.macarStrikeHold||0)>0) return true;
+  if(wantsMeleeRecover(e)) return false;
   return wantsMeleePose(e);
 }
 function gaitImg(a,b,e){
@@ -10916,9 +10931,10 @@ function update(dt){
           } else if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
-        if(e.atk<=0){ e.swung=0; e._attack=null; }
+        if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost) e.macarStrikeHold=0; }
       }
     }
+    if(e.hero && !e.ghost && wantsMeleeRecover(e)) e.macarStrikeHold=0;
     if(e.hero && !e.ghost && (e.macarStrikeHold||0)>0){
       if(!(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold))
         e.macarStrikeHold=Math.max(0, e.macarStrikeHold-dt);

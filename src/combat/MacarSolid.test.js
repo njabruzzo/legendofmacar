@@ -55,8 +55,8 @@ assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   'after-grain blit notes MacarStrikeQA lastKey / blitKey');
 assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html),
   'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
-assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=0\.36/.test(html),
-  'living strike hold is a short readable beat after the blow');
+assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=0\.12/.test(html),
+  'living strike hold is a short leftover; recover returns idle carry');
 assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
   'mid-swing blit is a bit wider so the maul head reads at dungeon scale');
 
@@ -98,7 +98,8 @@ assert(/macar_axe_atk/.test(liveKey), 'cleaver melee uses macar_axe_atk');
 assert(/const key=livingMacarAnimKey\(e\)/.test(extractFn('drawLivingMacar'))
   && /img=livingMacarImg\(key\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
-assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
+assert(/liveKey=livingMacarAnimKey\(e\)/.test(html)
+  && /img=livingMacarImg\(liveKey\)/.test(html),
   'billboard safety net uses the same whitelist, not a raw sheet bake');
 
 const liveBlit=extractFn('drawLivingMacar');
@@ -134,10 +135,11 @@ assert(/solidMacarSprite\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(fa
 assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
   'HUD face never blits raw SPR.macar for living Macar');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
-  && /const GHOST_DRAW_ALPHA=0\.72/.test(html)
+  && /const GHOST_DRAW_ALPHA=1;/.test(html)
   && /const GHOST_ALPHA_CAP=200/.test(html)
-  && /const GHOST_COOL_LIFT=0\.26/.test(html),
-  'kin ghosts lift toward a moonlit spirit without punching to 255');
+  && /const GHOST_WHITE_LIFT=0;/.test(html)
+  && /const GHOST_COOL_LIFT=0;/.test(html),
+  'kin ghosts pass Limner α168 through without punching to 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');
 assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),

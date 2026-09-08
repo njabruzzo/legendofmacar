@@ -131,7 +131,7 @@ vm.runInContext(
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
   +'const MACAR_BOW_POSE_S=0.40;'+extractFn('nowMs')+extractFn('armBowPose')
   +extractFn('wantsBowPose')+extractFn('expireBowPose')
-  +'const MACAR_STRIKE_HOLD=0.36;'+extractFn('armLivingMacarStrike')+extractFn('wantsLivingMacarStrike')
+  +'const MACAR_STRIKE_HOLD=0.12;'+extractFn('armLivingMacarStrike')+extractFn('wantsLivingMacarStrike')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 
 function holdWalk(ix, iy){
