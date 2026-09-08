@@ -68,6 +68,10 @@ assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html)
   && /function wantsLivingMacarStrike\(/.test(html)
   && /function armLivingMacarStrike\(/.test(html),
   'living Macar holds mid-swing 0.36s after the blow, then idle carry');
+assert(/const MACAR_BOW_POSE=0\.45/.test(html) && /function wantsBowPose\(/.test(html),
+  'Shoot pose is a short t<0.45 window, then idle');
+assert(/atkKind==='bow'/.test(liveKey) && /wantsBowPose/.test(liveKey),
+  'livingMacarAnimKey gates the cocked xbow sheet on wantsBowPose');
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 const SPR={
@@ -102,6 +106,8 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE=0.45;'
+  +extractFn('wantsBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -176,6 +182,20 @@ assert(xbow.filter(s=>s.rec).every(s=>s.key==='macar_xbow'),
   'every crossbow recover sample is xbow idle');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow_w1',
   'crossbow walk is unchanged beside the melee split');
+
+assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
+  'Shoot press t=0 blits macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
+  'Shoot mid-window t≈0.30 still holds macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'Shoot after t≈0.45 plants xbow idle — no recover sheet');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'Shoot late timer stays planted on xbow idle');
+for(let t=0.50; t<=1.001; t+=0.05){
+  const e=macar({atk:1-t, atkMax:1, atkKind:'bow'});
+  assert(ctx.livingMacarAnimKey(e)==='macar_xbow',
+    'Shoot t='+t.toFixed(2)+' plants idle (got '+ctx.livingMacarAnimKey(e)+')');
+}
 ctx._xbow=false;
 ctx._axe=true;
 

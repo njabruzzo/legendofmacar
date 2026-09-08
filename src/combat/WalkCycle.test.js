@@ -127,6 +127,7 @@ vm.runInContext(
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE=0.45;'+extractFn('wantsBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'+extractFn('armLivingMacarStrike')+extractFn('wantsLivingMacarStrike')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 

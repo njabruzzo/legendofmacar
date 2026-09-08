@@ -141,6 +141,8 @@ assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk skips crown/family so a parked crown cannot plant idle');
 assert(/if\(wantsLivingMacarStrike\(e\)\)\{/.test(liveKey) && /if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey),
   'strike and recover are separate key windows');
+assert(/wantsBowPose/.test(liveKey) && /const MACAR_BOW_POSE=0\.45/.test(html),
+  'Shoot uses a short pose window then plants idle');
 assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html) && /strikeHold:0/.test(html),
   'post-hit strikeHold is a short readable beat, then idle carry');
 assert(/macar_atk_recover/.test(liveKey) && /return idle/.test(liveKey),
@@ -194,6 +196,8 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE=0.45;'
+  +extractFn('wantsBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -268,6 +272,12 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow',
   'xbow recover plants xbow idle when xbow_atk is ready');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
   'Shoot pose uses macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
+  'Shoot press t=0 is already macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'Shoot recover plants macar_xbow idle — no xbow_atk_recover sheet');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'late Shoot timer stays on xbow idle, not the cocked atk sheet');
 assert(ctx.entAnimKey(macar())==='macar_xbow', 'entAnimKey idle is macar_xbow with the crossbow');
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'entAnimKey strike is macar_xbow_atk');
 assert(ctx.entAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow', 'entAnimKey recover is xbow idle');

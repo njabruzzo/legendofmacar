@@ -1752,14 +1752,18 @@ function macarPose(e){
    Strike window uses matching atk for the equipped idle. Recover plants
    idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
    is still running — a short post-blow hold so the mid-swing sheet is
-   readable at the hit, then idle carry returns. Same FACE, opposite FOOT. */
+   readable at the hit, then idle carry returns. Same FACE, opposite FOOT.
+   Shoot has no signed xbow recover sheet: a short loose pose, then idle. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle=livingMacarIdleKey();
   if(e.atk>0 && e.atkKind==='bow'){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
-    if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || idle;
+    if(typeof wantsBowPose==='function' ? wantsBowPose(e) : attackProgress(e)<0.45){
+      if(matchingPartyAtkReady(atk, idle)) return atk;
+      return pickReadyPartyKey(atk, idle) || idle;
+    }
+    return idle;
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
@@ -2460,6 +2464,14 @@ function wantsMeleeRecover(e){
   const t=attackProgress(e);
   if(e.hero && !e.ghost) return t>=0.84 && t<=0.96;
   return t>=0.72 && t<=0.96;
+}
+/* Shoot: short loose pose, then plant idle. No macar_xbow_atk_recover sheet.
+   t∈[0, 0.45) is the readable bolt; the rest of the bow timer is idle carry. */
+const MACAR_BOW_POSE=0.45;
+function wantsBowPose(e){
+  if(!e||!(e.atk>0)||e.atkKind!=='bow') return false;
+  if(!e.hero||e.dead||e.ghost) return false;
+  return attackProgress(e)<MACAR_BOW_POSE;
 }
 /* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
    long enough to read the blow (~0.36s), then plant idle carry so the

@@ -110,6 +110,8 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE=0.45;'
+  +extractFn('wantsBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -172,6 +174,10 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow',
   'crossbow recover plants xbow idle — does not hold xbow_atk');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1, atkKind:'bow'}))==='macar_xbow_atk',
   'Shoot pose uses macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'Shoot recover plants macar_xbow idle after the loose window');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'late Shoot timer does not hold macar_xbow_atk');
 delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
 ctx._xbow=false;
 
