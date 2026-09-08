@@ -68,6 +68,19 @@ assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html)
   && /function wantsLivingMacarStrike\(/.test(html)
   && /function armLivingMacarStrike\(/.test(html),
   'living Macar holds mid-swing 0.36s after the blow, then idle carry');
+assert(/const MACAR_BOW_POSE_S=0\.40/.test(html) && /function wantsBowPose\(/.test(html)
+  && /bowPoseUntil/.test(html) && /function expireBowPose\(/.test(html),
+  'Shoot pose is render-time bowPoseUntil, then expire plants idle');
+assert(!/attackProgress\(e\)<MACAR_BOW_POSE/.test(html)
+  && !/attackProgress\(e\)<0\.45/.test(extractFn('wantsBowPose')),
+  'wantsBowPose has no attackProgress fallback');
+assert(/MacarStrikeQA\.hold/.test(html) && /atkKind!=='bow'/.test(html),
+  'melee QA hold does not freeze the bow atk timer');
+assert(/expireBowPose/.test(liveKey) && /wantsBowPose/.test(liveKey),
+  'livingMacarAnimKey gates the cocked xbow sheet on wantsBowPose');
+assert(/bowPoseUntil:0/.test(html) && /MacarStrikeQA\.bowPoseUntil=/.test(html)
+  && /MacarStrikeQA\.bowPoseT=/.test(html) && /MacarStrikeQA\.blitKey=/.test(html),
+  'MacarStrikeQA exposes bowPoseT / bowPoseUntil / blitKey');
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 const SPR={
@@ -79,6 +92,11 @@ const ctx={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
+  wieldsCrossbow(){ return !!ctx._xbow; },
+  MacarStrikeQA:{hold:false, blitKey:null, bowPoseT:0, bowPoseUntil:0},
+  _now:10000,
+  performance:{now(){ return ctx._now; }},
+  player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
 };
@@ -100,6 +118,11 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE_S=0.40;'
+  +extractFn('nowMs')
+  +extractFn('armBowPose')
+  +extractFn('wantsBowPose')
+  +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -160,6 +183,39 @@ assert(cleaver.filter(s=>s.rec).every(s=>s.key==='macar_axe'),
   'every Shadow Cleaver recover sample is axe idle');
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1',
   'cleaver walk is unchanged beside the melee split');
+
+SPR.macar_xbow={width:470, height:512, _id:{ok:true, metal:0, hair:0.86, warm:0.96}};
+SPR.macar_xbow_atk={width:470, height:512};
+SPR.macar_xbow_w1={width:470, height:512};
+SPR.macar_xbow_w2={width:470, height:512};
+ctx._axe=false;
+ctx._xbow=true;
+const xbow=keysAcrossSwing('macar_xbow_atk', 'macar_xbow_atk', 'macar_xbow');
+assert(xbow.filter(s=>s.pose).every(s=>s.key==='macar_xbow_atk'),
+  'every crossbow strike sample is xbow_atk');
+assert(xbow.filter(s=>s.rec).every(s=>s.key==='macar_xbow'),
+  'every crossbow recover sample is xbow idle');
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow_w1',
+  'crossbow walk is unchanged beside the melee split');
+
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now+400}))==='macar_xbow_atk',
+  'until in the future blits macar_xbow_atk');
+const expiredHigh=macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-1, bowPoseT:0.20});
+assert(ctx.livingMacarAnimKey(expiredHigh)==='macar_xbow',
+  'until expired + atk still high plants xbow idle');
+assert(expiredHigh.atk===0 && expiredHigh.atkKind==='melee',
+  'expired Shoot clears atk / atkKind so no path can force xbow_atk');
+ctx.MacarStrikeQA.hold=true;
+const holdExp=macar({atk:0.60, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-50});
+assert(ctx.livingMacarAnimKey(holdExp)==='macar_xbow',
+  'MacarStrikeQA.hold + until expired plants xbow idle');
+ctx.MacarStrikeQA.hold=false;
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseT:0.20}))==='macar_xbow_atk',
+  'optional bowPoseT still shows the loose when until is unset');
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'Shoot with no until / bowPoseT plants idle — no progress fallback');
+ctx._xbow=false;
+ctx._axe=true;
 
 function fireManual(p){
   if(p.defending) return false;

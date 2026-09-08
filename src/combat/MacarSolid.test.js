@@ -39,8 +39,9 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
 assert(/macar:1/.test(html) && /macar_w1:1/.test(html) && /macar_w2:1/.test(html) && /macar_atk:1/.test(html)
-  && /macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html),
-  'living Macar whitelist is maul set + Shadow Cleaver carry/atk');
+  && /macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html)
+  && /macar_xbow:1/.test(html) && /macar_xbow_atk:1/.test(html),
+  'living Macar whitelist is maul set + Shadow Cleaver + crossbow carry/atk');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
 assert(/function livingMacarBlitKey\(/.test(html)
@@ -87,6 +88,8 @@ assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.tes
   'living Macar does not bind washed directional / title stems');
 assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(html),
   'living Macar binds axe sheets when the cleaver is wielded');
+assert(/macar_xbow/.test(liveKey) && /wieldsCrossbow/.test(html),
+  'living Macar binds xbow sheets when the shooting loadout is on');
 assert(/pickReadyPartyKey\(atk, idle\)/.test(liveKey) || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey),
   'attack uses matching atk for the equipped idle');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
@@ -172,7 +175,8 @@ assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png'].forEach(f=>{
+ 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
+ 'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 ['dwarf_macar_title.png','dwarf_macar_back.png',

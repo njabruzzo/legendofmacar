@@ -146,6 +146,11 @@ assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe
 assert(/dwarf_macar_axe\.png/.test(html), 'Macar axe sprite is registered');
 assert(/dwarf_macar_axe_atk\.png/.test(html), 'Macar axe atk sprite is registered');
 assert(/wieldsShadowCleaver/.test(html), 'cleaver still has a wield helper');
+assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow.png')), 'crossbow carry sheet exists');
+assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow_atk.png')), 'crossbow atk sheet exists');
+assert(/dwarf_macar_xbow\.png/.test(html), 'Macar xbow sprite is registered');
+assert(/dwarf_macar_xbow_atk\.png/.test(html), 'Macar xbow atk sprite is registered');
+assert(/wieldsCrossbow/.test(html), 'crossbow has a wield helper');
 assert(/ensureShadowCleaverWielded/.test(html), 'attack still has the cleaver wield helper');
 assert(/if\(wep && wep!==axe\) return null;/.test(html.match(/function ensureShadowCleaverWielded\([\s\S]*?\n\}/)[0]),
   'attack does not yank the cleaver back over an explicitly equipped weapon');

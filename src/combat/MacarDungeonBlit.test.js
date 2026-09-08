@@ -49,11 +49,13 @@ assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0])
   && /macar_w2:1/.test(keysDecl[0]) && /macar_atk:1/.test(keysDecl[0])
-  && /macar_axe:1/.test(keysDecl[0]) && /macar_axe_atk:1/.test(keysDecl[0]),
-  'whitelist is maul set + Shadow Cleaver carry/atk');
+  && /macar_axe:1/.test(keysDecl[0]) && /macar_axe_atk:1/.test(keysDecl[0])
+  && /macar_xbow:1/.test(keysDecl[0]) && /macar_xbow_atk:1/.test(keysDecl[0]),
+  'whitelist is maul set + Shadow Cleaver + crossbow carry/atk');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
- 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png'].forEach(f=>{
+ 'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
+ 'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
 });
 ['dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
@@ -67,10 +69,12 @@ const start=html.indexOf('const SPRITE_FILES={');
 const end=html.indexOf('const ICON_SPR={');
 const registry=new Function(html.slice(start, end)+'\nreturn SPRITE_FILES;')();
 assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.macar_atk
-  && registry.macar_axe && registry.macar_axe_w1 && registry.macar_axe_w2 && registry.macar_axe_atk, 'live Macar + axe keys stay registered');
+  && registry.macar_axe && registry.macar_axe_w1 && registry.macar_axe_w2 && registry.macar_axe_atk
+  && registry.macar_xbow && registry.macar_xbow_w1 && registry.macar_xbow_w2 && registry.macar_xbow_atk, 'live Macar + axe + xbow keys stay registered');
 Object.keys(registry).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
-     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk') return;
+     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
+     || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 
@@ -83,6 +87,11 @@ const ctx={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
+  wieldsCrossbow(){ return !!ctx._xbow; },
+  MacarStrikeQA:{hold:false, blitKey:null, bowPoseT:0, bowPoseUntil:0},
+  _now:10000,
+  performance:{now(){ return ctx._now; }},
+  player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
 };
@@ -104,6 +113,11 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE_S=0.40;'
+  +extractFn('nowMs')
+  +extractFn('armBowPose')
+  +extractFn('wantsBowPose')
+  +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
@@ -151,6 +165,29 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_axe',
   'cleaver recover plants axe idle — does not hold axe_atk');
 delete SPR.macar_axe; delete SPR.macar_axe_atk;
 ctx._axe=false;
+
+SPR.macar_xbow={width:470, height:512};
+SPR.macar_xbow_atk={width:470, height:512};
+ctx._xbow=true;
+assert(ctx.livingMacarIdleKey()==='macar_xbow', 'crossbow idle is macar_xbow');
+assert(ctx.livingMacarAnimKey(macar())==='macar_xbow', 'crossbow idle blits macar_xbow');
+SPR.macar_xbow_w1={width:470, height:512}; SPR.macar_xbow_w2={width:470, height:512};
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow_w1', 'crossbow walk binds xbow_w1');
+delete SPR.macar_xbow_w1; delete SPR.macar_xbow_w2;
+assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_xbow', 'crossbow walk plants xbow idle without walks');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'crossbow melee uses xbow atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow',
+  'crossbow recover plants xbow idle — does not hold xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now+400}))==='macar_xbow_atk',
+  'until in the future uses macar_xbow_atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.90, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-1}))==='macar_xbow',
+  'until expired + atk still high plants macar_xbow idle');
+ctx.MacarStrikeQA.hold=true;
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow', bowPoseUntil:ctx._now-50}))==='macar_xbow',
+  'hold + until expired plants idle, not macar_xbow_atk');
+ctx.MacarStrikeQA.hold=false;
+delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
+ctx._xbow=false;
 
 SPR.macar_w1={width:8, height:512};
 SPR.macar_w2={width:8, height:512};

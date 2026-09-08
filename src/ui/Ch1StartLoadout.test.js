@@ -43,8 +43,8 @@ assert(/if\(r\.key==='macar'\) ensureMacarStartingGear\(pk\)/.test(html),
   'ensurePacks wears the starting kit on Macar');
 assert(/livingMacarIdleKey/.test(html) && /wieldsShadowCleaver/.test(html),
   'maul idle is the default; Cleaver is an equip swap');
-assert(/ASSET_VER='97'/.test(html),
-  'ASSET_VER stays 97 — this restore wires existing sheets, no new PNG');
+assert(/ASSET_VER='98'/.test(html),
+  'ASSET_VER is 98 — signed Macar crossbow bind');
 assert(/Interaction\.installChapterI/.test(html)
   && /if \(L\.n === 1 && i < 14\) return true/.test(fs.readFileSync(path.join(root,'src/systems/Interaction.js'),'utf8')),
   'later room interactions protect the west cave-in lip');
@@ -63,18 +63,28 @@ start.forEach(it=>{
 assert(eq.primary && eq.primary.id==='macar_hammer', 'fresh wear is the starting maul');
 assert(eq.weapon===eq.primary, 'legacy weapon alias is the maul');
 
-const SPR={macar:{width:8}, macar_axe:{width:8}};
+const SPR={macar:{width:8}, macar_axe:{width:8}, macar_xbow:{width:8}};
 const ctx={
   SPR,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   _axe:false,
-  wieldsShadowCleaver(){ return !!ctx._axe; }
+  _xbow:false,
+  _player:null,
+  player(){ return ctx._player; },
+  wieldsShadowCleaver(){ return !!ctx._axe; },
+  wieldsCrossbow(){ return !!ctx._xbow; }
 };
 vm.createContext(ctx);
 vm.runInContext(extractFn('livingMacarIdleKey'), ctx);
 assert(ctx.livingMacarIdleKey()==='macar', 'New Game idle key is the title-law maul');
 ctx._axe=true;
 assert(ctx.livingMacarIdleKey()==='macar_axe', 'Cleaver swap only after it is wielded');
+ctx._axe=false;
+ctx._xbow=true;
+assert(ctx.livingMacarIdleKey()==='macar_xbow', 'crossbow swap when the shooting loadout is on');
+ctx._xbow=false;
+ctx._player={atkKind:'bow'};
+assert(ctx.livingMacarIdleKey()==='macar_xbow', 'Shoot pose selects macar_xbow even without a worn bow helper');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nChapter I start loadout checks passed');

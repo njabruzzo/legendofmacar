@@ -109,6 +109,8 @@ Object.assign(ctx, {
   TW:64, TH:32,
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   player(){ return null; },
+  _now:10000,
+  performance:{now(){ return ctx._now; }},
   wieldsShadowCleaver(){ return false; },
   wantsMeleePose(){ return false; },
   wantsMeleeRecover(){ return false; },
@@ -127,6 +129,8 @@ vm.runInContext(
   +extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
+  +'const MACAR_BOW_POSE_S=0.40;'+extractFn('nowMs')+extractFn('armBowPose')
+  +extractFn('wantsBowPose')+extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'+extractFn('armLivingMacarStrike')+extractFn('wantsLivingMacarStrike')
   +extractThrough('faceVec','wantsSpriteFlip')+extractFn('wantsSpriteFlip')+extractFn('livingMacarAnimKey'), ctx);
 

@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='97';
+const ASSET_VER='98';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -657,19 +657,24 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const w3=k.replace(/_w1$/,'_w3');
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
 });
-/* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk.
-   Drop compass / helmeted combat / sleep / title / w3 leftovers. Kin stay. */
+/* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
+   + Limner SIGNED crossbow carry/atk. Drop compass / helmeted combat /
+   sleep / title / w3 leftovers. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
-     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk') return;
+     || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
+     || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
-/* Shadow Cleaver carry + atk — registered after the strip so they survive
-   axe_w1/w2 now ship with quilt34 cleaver pack. */
+/* Shadow Cleaver + crossbow carry/atk — registered after the strip so they survive. */
 SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
 SPRITE_FILES.macar_axe_w1='assets/creatures/dwarf_macar_axe_w1.png';
 SPRITE_FILES.macar_axe_w2='assets/creatures/dwarf_macar_axe_w2.png';
 SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk.png';
+SPRITE_FILES.macar_xbow='assets/creatures/dwarf_macar_xbow.png';
+SPRITE_FILES.macar_xbow_w1='assets/creatures/dwarf_macar_xbow_w1.png';
+SPRITE_FILES.macar_xbow_w2='assets/creatures/dwarf_macar_xbow_w2.png';
+SPRITE_FILES.macar_xbow_atk='assets/creatures/dwarf_macar_xbow_atk.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -700,7 +705,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -766,6 +771,7 @@ function loadSprites(done){
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
   ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+   'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
     'orbo','orbo_w1','orbo_w2','orbo_w3','orbo_atk','orbo_atk_recover','orbo_ghost','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover',
@@ -1263,7 +1269,8 @@ function blitLivingMacar(img){
     /* A ready mid-swing sheet must not plant idle. That was the cocked-shoulder
        FAIL: livingMacarAnimKey returned macar_atk, bake missed, idle blitted. */
     const keepAtk=(typeof SPR!=='undefined')&&((SPR.macar_atk&&img===SPR.macar_atk)
-      ||(SPR.macar_axe_atk&&img===SPR.macar_axe_atk));
+      ||(SPR.macar_axe_atk&&img===SPR.macar_axe_atk)
+      ||(SPR.macar_xbow_atk&&img===SPR.macar_xbow_atk));
     if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
     return null;
   }
@@ -1421,6 +1428,7 @@ function drawEntBillboard(g,e,img,z,flip){
 
    Title-law identity is the live maul idle plus front w1/w2 + maul atk.
    Shadow Cleaver carry/atk swap in via livingMacarIdleKey when equipped.
+   Crossbow carry/atk swap in the same way when the shooting loadout is on.
    Compass / sleep / title leftovers stay gone — do not rebind them.
    ========================================================================== */
 const MACAR_PLAN={
@@ -1438,14 +1446,19 @@ const MACAR_PLAN={
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Title-law Macar: maul idle + front w1/w2 + maul atk + Shadow Cleaver carry/atk. */
+/* Title-law Macar: maul idle + front w1/w2 + maul atk + Cleaver + crossbow. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
+  macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
+  const p=(typeof player==='function')?player():null;
+  if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
   if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
     return 'macar_axe';
+  if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
+    return 'macar_xbow';
   return 'macar';
 }
 /* Extra mass is WIDTH, not height. Dungeon height stays kin 78*z so Macar
@@ -1652,7 +1665,7 @@ function livingMacarImg(key){
 const MacarStrikeQA={
   lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
   atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false,
-  swung:false, strikeHold:0
+  swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0
 };
 function macarStrikeHoldProgress(e){
   if(!e) return 0;
@@ -1669,7 +1682,9 @@ function noteMacarStrikeQA(e, key, blitKey){
   MacarStrikeQA.atkMax=e&&e.atkMax||0;
   MacarStrikeQA.swung=!!(e&&e.swung);
   MacarStrikeQA.strikeHold=+(e&&e.macarStrikeHold||0);
-  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk')){
+  MacarStrikeQA.bowPoseT=+(e&&e.bowPoseT||0);
+  MacarStrikeQA.bowPoseUntil=+(e&&e.bowPoseUntil||0);
+  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk')){
     MacarStrikeQA.lastStrikeKey=key;
     MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
   }
@@ -1735,25 +1750,32 @@ function macarPose(e){
   ]);
   return idle?{key:idle, flip:flip}:none;
 }
-/* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
+/* Living Macar only. Idle / front w1-w2 (maul) or axe / xbow carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
    idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
    is still running — a short post-blow hold so the mid-swing sheet is
-   readable at the hit, then idle carry returns. Same FACE, opposite FOOT. */
+   readable at the hit, then idle carry returns. Same FACE, opposite FOOT.
+   Shoot pose is render-time wall clock (bowPoseUntil), not update(dt). */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
+  if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
+  if(typeof wantsBowPose==='function' && wantsBowPose(e)){
+    const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
+    if(matchingPartyAtkReady(atk, idle)) return atk;
+    return pickReadyPartyKey(atk, idle) || idle;
+  }
   if(wantsLivingMacarStrike(e)){
-    const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
+    const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
     return pickReadyPartyKey(atk, idle) || idle;
   }
   if(wantsMeleeRecover(e)){
-    const rec=(idle==='macar_axe')?'macar_axe_atk_recover':'macar_atk_recover';
+    const rec=(idle==='macar_axe')?'macar_axe_atk_recover':(idle==='macar_xbow')?'macar_xbow_atk_recover':'macar_atk_recover';
     if(matchingPartyAtkReady(rec, idle)) return rec;
     return idle;
   }
-  /* Cleaver walk uses axe_w1/w2 when ready; else plant axe idle (never maul walks). */
+  /* Cleaver / xbow walk uses matching w1/w2 when ready; else plant that idle. */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
@@ -1775,7 +1797,8 @@ function drawLivingMacar(g,e){
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const H=entSpriteH(e,z)*frameFit(e,img);
-  const strike=key==='macar_atk'||key==='macar_axe_atk'||blitKey==='macar_atk'||blitKey==='macar_axe_atk';
+  const strike=key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk'
+    ||blitKey==='macar_atk'||blitKey==='macar_axe_atk'||blitKey==='macar_xbow_atk';
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN*(strike?1.16:1);
   const b=spriteBounds(img);
   /* Plant on the feet, not the opaque-box center. Mid-swing spans the
@@ -2441,6 +2464,36 @@ function wantsMeleeRecover(e){
   const t=attackProgress(e);
   if(e.hero && !e.ghost) return t>=0.84 && t<=0.96;
   return t>=0.72 && t<=0.96;
+}
+/* Shoot: short loose pose, then plant idle. No macar_xbow_atk_recover sheet.
+   bowPoseUntil is render-time wall clock so a stalled update() cannot keep
+   the cocked sheet. bowPoseT is optional leftover if until was never set. */
+const MACAR_BOW_POSE_S=0.40;
+function nowMs(){
+  if(typeof performance!=='undefined' && performance.now) return performance.now();
+  return Date.now();
+}
+function armBowPose(e){
+  if(!e) return;
+  const s=typeof MACAR_BOW_POSE_S==='number'?MACAR_BOW_POSE_S:0.40;
+  e.bowPoseT=s;
+  e.bowPoseUntil=nowMs()+s*1000;
+}
+function wantsBowPose(e){
+  if(!e||!e.hero||e.dead||e.ghost) return false;
+  if(e.bowPoseUntil>0) return nowMs()<e.bowPoseUntil;
+  return (e.bowPoseT||0)>0;
+}
+function expireBowPose(e){
+  if(!e||!e.hero) return;
+  if(typeof wantsBowPose==='function' && wantsBowPose(e)) return;
+  if(e.atkKind!=='bow' && !(e.bowPoseUntil>0) && !(e.bowPoseT>0)) return;
+  e.bowPoseT=0;
+  e.bowPoseUntil=0;
+  if(e.atkKind!=='bow') return;
+  e.atk=0;
+  e.atkKind='melee';
+  e.swung=0;
 }
 /* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
    long enough to read the blow (~0.36s), then plant idle carry so the
@@ -7103,6 +7156,19 @@ function wieldsShadowCleaver(){
   const eq=G.equipped||{};
   return isShadowCleaver(eq.weapon)||isShadowCleaver(eq.primary);
 }
+/* Bows / crossbows live in secondary (EquipmentSlots.itemSlot). Shoot
+   sets atkKind='bow'. Same name test as pack icons / itemSlot. */
+function isCrossbowItem(it){
+  if(!it) return false;
+  if(typeof EquipmentSlots!=='undefined' && EquipmentSlots.isShield && EquipmentSlots.isShield(it))
+    return false;
+  if(it.k==='ammo') return false;
+  return /crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(it.n||'');
+}
+function wieldsCrossbow(){
+  const eq=G.equipped||{};
+  return isCrossbowItem(eq.secondary)||isCrossbowItem(eq.weapon)||isCrossbowItem(eq.primary);
+}
 function packHasItem(pk, it){
   if(!pk||!it) return -1;
   const magic=pk.magic||[];
@@ -10536,7 +10602,9 @@ function fire(key){
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
     // Pose only. swung=1 up front so the melee tick never fires off this timer.
+    // bowPoseUntil is render-time so a stalled update cannot keep the aim sheet.
     p.atkKind='bow'; p.atk=p.atkMax; p.swung=1;
+    if(typeof armBowPose==='function') armBowPose(p);
     const shot=shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
     if(shot && magAmmo) shot.ammoPlus=magAmmo.plus;
     say(magAmmo?('MACAR looses '+magAmmo.n+'.'):'MACAR looses a quarrel.','#ffb45c');
@@ -10827,7 +10895,8 @@ function update(dt){
     if(e.atk>0){
         if(e.defending){ e.atk=0; e.swung=0; e._attack=null; e.macarStrikeHold=0; }
       else {
-        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold){
+        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold
+          && e.atkKind!=='bow'){
           e.atk=e.atkMax*0.60;
         } else {
           e.atk-=dt;
@@ -10854,6 +10923,7 @@ function update(dt){
       if(!(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold))
         e.macarStrikeHold=Math.max(0, e.macarStrikeHold-dt);
     }
+    if(e.hero && !e.ghost && (e.bowPoseT||0)>0) e.bowPoseT=Math.max(0, e.bowPoseT-dt);
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
     if(e.hero) continue;
