@@ -174,6 +174,7 @@ const ctx={
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
   wieldsCrossbow(){ return !!ctx._xbow; },
+  MacarStrikeQA:{hold:false},
   player(){ return ctx._player||null; },
   kinCanAutoFight(e){ return !!(e && !e.hero && !e.dead); },
   TAU:Math.PI*2
@@ -278,6 +279,10 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='mac
   'Shoot recover plants macar_xbow idle — no xbow_atk_recover sheet');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
   'late Shoot timer stays on xbow idle, not the cocked atk sheet');
+ctx.MacarStrikeQA.hold=true;
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'hold-frozen progress t≈0.40 plants xbow idle — cannot stay aimed');
+ctx.MacarStrikeQA.hold=false;
 assert(ctx.entAnimKey(macar())==='macar_xbow', 'entAnimKey idle is macar_xbow with the crossbow');
 assert(ctx.entAnimKey(macar({atk:0.7, atkMax:1}))==='macar_xbow_atk', 'entAnimKey strike is macar_xbow_atk');
 assert(ctx.entAnimKey(macar({atk:0.10, atkMax:1}))==='macar_xbow', 'entAnimKey recover is xbow idle');

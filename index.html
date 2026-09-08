@@ -2466,11 +2466,17 @@ function wantsMeleeRecover(e){
   return t>=0.72 && t<=0.96;
 }
 /* Shoot: short loose pose, then plant idle. No macar_xbow_atk_recover sheet.
-   t∈[0, 0.45) is the readable bolt; the rest of the bow timer is idle carry. */
+   Wall-clock bowPoseT is the source of truth so MacarStrikeQA.hold (melee
+   mid-swing freeze at t≈0.40) cannot keep the cocked sheet forever.
+   Progress t∈[0, 0.45) is only a fallback when bowPoseT was never armed. */
 const MACAR_BOW_POSE=0.45;
+const MACAR_BOW_POSE_S=0.40;
 function wantsBowPose(e){
-  if(!e||!(e.atk>0)||e.atkKind!=='bow') return false;
+  if(!e||e.atkKind!=='bow') return false;
   if(!e.hero||e.dead||e.ghost) return false;
+  if((e.bowPoseT||0)>0) return true;
+  if(!(e.atk>0)) return false;
+  if(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold) return false;
   return attackProgress(e)<MACAR_BOW_POSE;
 }
 /* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
@@ -10580,7 +10586,9 @@ function fire(key){
     p.dest=null;
     const a=ang(tx-p.x,ty-p.y); p.fdx=Math.cos(a); p.fdy=Math.sin(a);
     // Pose only. swung=1 up front so the melee tick never fires off this timer.
+    // bowPoseT is wall-clock so a melee QA hold cannot freeze the cocked sheet.
     p.atkKind='bow'; p.atk=p.atkMax; p.swung=1;
+    p.bowPoseT=typeof MACAR_BOW_POSE_S==='number'?MACAR_BOW_POSE_S:0.40;
     const shot=shoot(p, tx, ty, 0, 'bolt', '#d8c49a', 14);
     if(shot && magAmmo) shot.ammoPlus=magAmmo.plus;
     say(magAmmo?('MACAR looses '+magAmmo.n+'.'):'MACAR looses a quarrel.','#ffb45c');
@@ -10871,7 +10879,8 @@ function update(dt){
     if(e.atk>0){
         if(e.defending){ e.atk=0; e.swung=0; e._attack=null; e.macarStrikeHold=0; }
       else {
-        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold){
+        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold
+          && e.atkKind!=='bow'){
           e.atk=e.atkMax*0.60;
         } else {
           e.atk-=dt;
@@ -10898,6 +10907,7 @@ function update(dt){
       if(!(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold))
         e.macarStrikeHold=Math.max(0, e.macarStrikeHold-dt);
     }
+    if(e.hero && !e.ghost && (e.bowPoseT||0)>0) e.bowPoseT=Math.max(0, e.bowPoseT-dt);
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
     if(e.hero) continue;

@@ -70,6 +70,10 @@ assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html)
   'living Macar holds mid-swing 0.36s after the blow, then idle carry');
 assert(/const MACAR_BOW_POSE=0\.45/.test(html) && /function wantsBowPose\(/.test(html),
   'Shoot pose is a short t<0.45 window, then idle');
+assert(/const MACAR_BOW_POSE_S=0\.40/.test(html) && /bowPoseT/.test(html),
+  'Shoot pose is armed on wall-clock bowPoseT so a melee hold cannot freeze it');
+assert(/MacarStrikeQA\.hold/.test(html) && /atkKind!=='bow'/.test(html),
+  'melee QA hold does not freeze the bow atk timer');
 assert(/atkKind==='bow'/.test(liveKey) && /wantsBowPose/.test(liveKey),
   'livingMacarAnimKey gates the cocked xbow sheet on wantsBowPose');
 
@@ -84,6 +88,7 @@ const ctx={
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
   wieldsCrossbow(){ return !!ctx._xbow; },
+  MacarStrikeQA:{hold:false},
   player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
@@ -107,6 +112,7 @@ vm.runInContext(
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
   +'const MACAR_BOW_POSE=0.45;'
+  +'const MACAR_BOW_POSE_S=0.40;'
   +extractFn('wantsBowPose')
   +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
@@ -196,6 +202,16 @@ for(let t=0.50; t<=1.001; t+=0.05){
   assert(ctx.livingMacarAnimKey(e)==='macar_xbow',
     'Shoot t='+t.toFixed(2)+' plants idle (got '+ctx.livingMacarAnimKey(e)+')');
 }
+ctx.MacarStrikeQA.hold=true;
+assert(ctx.wantsBowPose(macar({atk:0.60, atkMax:1, atkKind:'bow'}))===false,
+  'hold-frozen t≈0.40 is not a Shoot pose');
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'MacarStrikeQA.hold freeze at 0.60*atkMax plants xbow idle, not aimed atk');
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow', bowPoseT:0.20}))==='macar_xbow_atk',
+  'wall-clock bowPoseT still shows the loose while it remains');
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow', bowPoseT:0}))==='macar_xbow',
+  'expired bowPoseT plants idle even while hold freezes progress');
+ctx.MacarStrikeQA.hold=false;
 ctx._xbow=false;
 ctx._axe=true;
 

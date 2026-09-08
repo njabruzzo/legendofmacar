@@ -88,6 +88,7 @@ const ctx={
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   wieldsShadowCleaver(){ return !!ctx._axe; },
   wieldsCrossbow(){ return !!ctx._xbow; },
+  MacarStrikeQA:{hold:false},
   player(){ return ctx._player||null; },
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   TAU:Math.PI*2
@@ -178,6 +179,10 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.50, atkMax:1, atkKind:'bow'}))==='mac
   'Shoot recover plants macar_xbow idle after the loose window');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, atkKind:'bow'}))==='macar_xbow',
   'late Shoot timer does not hold macar_xbow_atk');
+ctx.MacarStrikeQA.hold=true;
+assert(ctx.livingMacarAnimKey(macar({atk:0.60, atkMax:1, atkKind:'bow'}))==='macar_xbow',
+  'hold-frozen Shoot progress plants idle, not macar_xbow_atk');
+ctx.MacarStrikeQA.hold=false;
 delete SPR.macar_xbow; delete SPR.macar_xbow_atk;
 ctx._xbow=false;
 
