@@ -185,7 +185,7 @@ KIN.forEach(k=>{
     k+' ghost late gait binds living-color w2');
   assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_ghost_atk',
     k+' ghost strike binds living-color atk');
-  assert(run.entAnimKey(ghost(k,{atk:0.3, atkMax:1}))===k+'_ghost_atk_recover',
+  assert(run.entAnimKey(ghost(k,{atk:0.20, atkMax:1}))===k+'_ghost_atk_recover',
     k+' ghost recover binds living-color atk_recover');
   assert(run.entAnimKey(ghost(k,{fdx:-0.7, fdy:-0.7}))===k+'_ghost_back',
     k+' ghost north plants the color-true back');
@@ -228,7 +228,7 @@ assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_atk, SPR.pordoom_ghost, 'pord
   'mismatched ghost atk crop fails identity');
 assert(run.entAnimKey(ghost('pordoom',{atk:0.7, atkMax:1}))==='pordoom_ghost_atk',
   'ghost strike still binds the living-color atk when ready');
-assert(run.entAnimKey(ghost('pordoom',{atk:0.3, atkMax:1}))==='pordoom_ghost_atk_recover',
+assert(run.entAnimKey(ghost('pordoom',{atk:0.20, atkMax:1}))==='pordoom_ghost_atk_recover',
   'ghost recover still binds the living-color recover when ready');
 ready('pordoom_ghost', true);
 ready('pordoom_ghost_atk', true);

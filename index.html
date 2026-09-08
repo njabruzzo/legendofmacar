@@ -1676,8 +1676,9 @@ function macarPose(e){
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
-   idle (or a real _atk_recover if Limner signs one) — holding _atk through
-   t 0.55–0.96 was the bring-back-only swing. Same FACE, opposite FOOT. */
+   idle (or a real _atk_recover if Limner signs one) — t 0.72–0.96 still
+   plants idle so living Macar is not the maul-on-shoulder cocked pose.
+   Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle=livingMacarIdleKey();
@@ -2361,13 +2362,13 @@ function attackProgress(e){
 function wantsMeleePose(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  // Raised hammer / axe until the blow lands. Follow-through is a later pose.
-  return t>=0.08 && t<0.55;
+  // Mid-swing sheet through the hit and a readable follow. Recover plants idle.
+  return t>=0.08 && t<0.72;
 }
 function wantsMeleeRecover(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  return t>=0.55 && t<=0.96;
+  return t>=0.72 && t<=0.96;
 }
 function gaitImg(a,b,e){
   const frames=[a,b].filter(img=>img&&img.width);
@@ -12288,7 +12289,7 @@ function drawHeroMeleeArc(g,e,z){
      Heading flip so a west swing travels screen-left with the sheet. */
   if(!wantsMeleePose(e)) return;
   const t=attackProgress(e);
-  const u=clamp((t-0.08)/Math.max(0.01,0.47),0,1);
+  const u=clamp((t-0.08)/Math.max(0.01,0.64),0,1);
   const sw=Math.sin(u*Math.PI);
   if(sw<0.06) return;
   const axe=typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver();
@@ -12297,20 +12298,20 @@ function drawHeroMeleeArc(g,e,z){
   g.globalCompositeOperation='source-over';
   if(flip) g.scale(-1,1);
   g.translate(12*z,-36*z);
-  const steps=14;
+  const steps=16;
   for(let i=0;i<steps;i++){
     const f=i/steps;
     const aa=-1.85+u*3.05-f*0.50;
-    const a=sw*(axe?0.74:0.82)*(1-f*0.52);
+    const a=sw*(axe?0.88:0.94)*(1-f*0.48);
     g.strokeStyle=axe
-      ?('rgba(220,200,255,'+a+')')
-      :('rgba(255,'+Math.round(224-f*48)+',92,'+a+')');
-    g.lineWidth=(15-f*9)*z;
+      ?('rgba(228,210,255,'+a+')')
+      :('rgba(255,'+Math.round(230-f*44)+',98,'+a+')');
+    g.lineWidth=(16.5-f*9)*z;
     g.lineCap='round';
     g.beginPath(); g.arc(-4*z,8*z,48*z,aa-0.20,aa+0.20); g.stroke();
   }
-  g.strokeStyle=axe?'rgba(255,244,255,'+(sw*0.94)+')':'rgba(255,236,170,'+(sw*0.96)+')';
-  g.lineWidth=5.4*z;
+  g.strokeStyle=axe?'rgba(255,246,255,'+(sw*1)+')':'rgba(255,238,176,'+(sw*1)+')';
+  g.lineWidth=6.4*z;
   const tip=-1.85+u*3.05;
   g.beginPath(); g.arc(-4*z,8*z,48*z,tip-0.14,tip+0.18); g.stroke();
   g.restore();
