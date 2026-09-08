@@ -1285,12 +1285,12 @@ function solidDwarfSprite(e,img){
 /* Ghost silhouette stay mid-alpha. CAP<255 so a west flip (punch=false)
    cannot suddenly go opaque. WHITE is a light spirit veil; COOL tints
    toward moonlit blue/cyan without washing kit identity to chalk. */
-const GHOST_DRAW_ALPHA=0.78;
+const GHOST_DRAW_ALPHA=0.72;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=200;
 const GHOST_ALPHA_LIFT=1.12;
-const GHOST_WHITE_LIFT=0.10;
-const GHOST_COOL_LIFT=0.18;
+const GHOST_WHITE_LIFT=0.06;
+const GHOST_COOL_LIFT=0.26;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;

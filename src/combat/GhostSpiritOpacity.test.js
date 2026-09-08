@@ -26,7 +26,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/const GHOST_DRAW_ALPHA=0\.78/.test(html), 'draw alpha is 0.78 (was 0.96 chalk)');
+assert(/const GHOST_DRAW_ALPHA=0\.72/.test(html), 'draw alpha is 0.72 (was 0.96 chalk)');
 assert(!/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html),
   'old half-transparent 0.84 multiply is gone');
 assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
@@ -35,7 +35,7 @@ assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
 assert(/const GHOST_ALPHA_CAP=200/.test(html) && /const GHOST_ALPHA_LIFT=1\.12/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.10/.test(html) && /const GHOST_COOL_LIFT=0\.18/.test(html),
+  && /const GHOST_WHITE_LIFT=0\.06/.test(html) && /const GHOST_COOL_LIFT=0\.26/.test(html),
   'lift is a gentle moonlit veil — CAP 200, never 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'pixel lift is a dedicated ghost pipe');
@@ -60,13 +60,13 @@ const ctx={
   GHOST_ALPHA_LO:40,
   GHOST_ALPHA_CAP:200,
   GHOST_ALPHA_LIFT:1.12,
-  GHOST_WHITE_LIFT:0.10,
-  GHOST_COOL_LIFT:0.18
+  GHOST_WHITE_LIFT:0.06,
+  GHOST_COOL_LIFT:0.26
 };
 vm.createContext(ctx);
 vm.runInContext(
   'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=200,GHOST_ALPHA_LIFT=1.12,'
-  +'GHOST_WHITE_LIFT=0.10,GHOST_COOL_LIFT=0.18;'
+  +'GHOST_WHITE_LIFT=0.06,GHOST_COOL_LIFT=0.26;'
   +extractFn('liftGhostAlpha'),
   ctx
 );
@@ -109,9 +109,9 @@ const outFringe=liftCopy(fringe);
 assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifted)');
 
 const oldChalk=228*0.96/255;
-const newEff=200*0.78/255;
-assert(newEff>0.55 && newEff<0.68 && newEff<oldChalk,
-  'readable opacity is ~0.61 translucent vs the chalk ~0.86 multiply');
+const newEff=200*0.72/255;
+assert(newEff>0.52 && newEff<0.62 && newEff<oldChalk,
+  'readable opacity is ~0.56 translucent vs the chalk ~0.86 multiply');
 
 const BIND=['','_w1','_w2','_atk','_atk_recover'];
 const KIN=['pordoom','fendur','orbo','talpor'];

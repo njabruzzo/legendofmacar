@@ -131,9 +131,9 @@ assert(/solidMacarSprite\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(fa
 assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
   'HUD face never blits raw SPR.macar for living Macar');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
-  && /const GHOST_DRAW_ALPHA=0\.78/.test(html)
+  && /const GHOST_DRAW_ALPHA=0\.72/.test(html)
   && /const GHOST_ALPHA_CAP=200/.test(html)
-  && /const GHOST_COOL_LIFT=0\.18/.test(html),
+  && /const GHOST_COOL_LIFT=0\.26/.test(html),
   'kin ghosts lift toward a moonlit spirit without punching to 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');
