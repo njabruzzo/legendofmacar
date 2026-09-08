@@ -3414,7 +3414,7 @@ const ALLY={
 
 /* ---------------------------- abilities ---------------------------- */
 const ABIL=[
- {key:'swing',label:'Attack',ico:'hammer',cd:6, hint:'Hammer arc, all around you'},
+ {key:'swing',label:'Attack',ico:'hammer',cd:6, hint:'Hammer arc, all around you'}, /* HUD icon: attackHudIco() */
  {key:'throw',label:'PICK', ico:'pick',  cd:4, hint:'Hurl the pickaxe'},
  {key:'bomb', label:'Throw',ico:'bomb',  cd:3, hint:'Throw a bomb (10d10) or Borga\'s Burp (3d10) at the nearest foe, or ahead.'},
  {key:'bow',  label:'Shoot',ico:'crossbow', cd:1.4, hint:'Loose a quarrel. Spent bolts may save and be retrieved'},
@@ -10103,6 +10103,7 @@ const UI={overlayHits:[]};
 const HUDSKILLS=[
   {key:'pack', ico:'pack', label:'PACK'},
   {key:'wall', ico:'defend', label:'Defend'},
+  /* Attack ico is the maul default. slotAnimImg / drawSlot swap via attackHudIco. */
   {key:'attack', ico:'attack', label:'Attack'},
   {key:'bow', ico:'crossbow', label:'Shoot'},
   {key:'bomb', ico:'bomb', label:'Throw'},
@@ -14322,8 +14323,18 @@ function icon(g,kind,x,y,s,col){
   g.restore();
 }
 
+/* Attack HUD plate follows living carry. Shoot stays its own chip. */
+function attackHudIco(){
+  const idle=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'';
+  const axeIco=(typeof ICON_SPR!=='undefined'&&ICON_SPR.axe)?'axe':((typeof ICON_SPR!=='undefined'&&ICON_SPR.cleaver)?'cleaver':'attack');
+  if(idle==='macar_xbow') return 'crossbow';
+  if(idle==='macar_axe') return axeIco;
+  if(typeof wieldsCrossbow==='function' && wieldsCrossbow()) return 'crossbow';
+  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver()) return axeIco;
+  return 'attack';
+}
 function slotAnimImg(b){
-  const ico=b.ico||(b.key==='attack'?'sword':((ABIL.find(a=>a.key===b.key)||{}).ico));
+  const ico=(b&&b.key==='attack'&&typeof attackHudIco==='function')?attackHudIco():(b.ico||(b.key==='attack'?'sword':((ABIL.find(a=>a.key===b.key)||{}).ico)));
   const k=ICON_SPR[ico];
   if(!k) return null;
   return SPR[k]||null;
@@ -14333,7 +14344,7 @@ function drawSlot(g,b,s){
   const ab=ABIL.find(a=>a.key===b.key);
   const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
   const atForge=b.key!=='craft' || (!foesVisible() && !!(player()&&nearestCraftStation(player(),1.7)));
-  const ico=b.ico||(b.key==='attack'?'attack':(ab&&ab.ico));
+  const ico=(b.key==='attack'&&typeof attackHudIco==='function')?attackHudIco():(b.ico||(b.key==='attack'?'attack':(ab&&ab.ico)));
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
   const specLit=b.spec && player() && player().specialty===b.spec;
