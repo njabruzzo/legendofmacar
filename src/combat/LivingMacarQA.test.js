@@ -132,8 +132,8 @@ assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk skips crown/family so a parked crown cannot plant idle');
 assert(/if\(wantsLivingMacarStrike\(e\)\)\{/.test(liveKey) && /if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey),
   'strike and recover are separate key windows');
-assert(/const MACAR_STRIKE_HOLD=1\.70/.test(html) && /strikeHold:0/.test(html),
-  'post-hit strikeHold covers the dmg floater');
+assert(/const MACAR_STRIKE_HOLD=0\.36/.test(html) && /strikeHold:0/.test(html),
+  'post-hit strikeHold is a short readable beat, then idle carry');
 assert(/macar_atk_recover/.test(liveKey) && /return idle/.test(liveKey),
   'recover plants idle unless a signed _atk_recover is ready');
 
@@ -184,7 +184,7 @@ vm.runInContext(
   +extractFn('attackProgress')
   +extractFn('wantsMeleePose')
   +extractFn('wantsMeleeRecover')
-  +'const MACAR_STRIKE_HOLD=1.70;'
+  +'const MACAR_STRIKE_HOLD=0.36;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey')
@@ -253,8 +253,10 @@ assert(ctx.matchingPartyAtkReady('macar_atk', 'macar')===true,
   'matching maul atk is still ready when the sheet fits');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk',
   'maul strike blits macar_atk even when crown/family would plant idle');
-assert(ctx.livingMacarAnimKey(macar({atk:0, atkMax:1, macarStrikeHold:1.70}))==='macar_atk',
-  'strikeHold keeps macar_atk after the timer / while the -12 floater lives');
+assert(ctx.livingMacarAnimKey(macar({atk:0, atkMax:1, macarStrikeHold:0.36}))==='macar_atk',
+  'short strikeHold keeps macar_atk after the timer');
+assert(ctx.livingMacarAnimKey(macar({atk:0, atkMax:1, macarStrikeHold:0}))==='macar',
+  'expired strikeHold plants maul idle carry');
 delete SPR.macar_atk;
 SPR.macar={width:8};
 

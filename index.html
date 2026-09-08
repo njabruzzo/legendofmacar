@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='96';
+const ASSET_VER='97';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1274,8 +1274,8 @@ function blitLivingMacar(img){
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
    Macar, so their living frames take the same repair. Ghost sheets are a
-   flat mid-alpha stamp (idle a=150, walk/atk a=140) — lift them toward a
-   paler spirit, never punch to 255 (that was the west-flip solid flash). */
+   mid-alpha stamp (denser pack TARGET_A≈195) — cool moonlit spirit, never
+   punch to 255 (that was the west-flip solid flash) and never chalk-white. */
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
@@ -1283,22 +1283,32 @@ function solidDwarfSprite(e,img){
   return blitLivingMacar(img)||img;
 }
 /* Ghost silhouette stay mid-alpha. CAP<255 so a west flip (punch=false)
-   cannot suddenly go opaque. WHITE lifts dark brown paints toward spirit. */
-const GHOST_DRAW_ALPHA=0.96;
+   cannot suddenly go opaque. WHITE is a light spirit veil; COOL tints
+   toward moonlit blue/cyan without washing kit identity to chalk. */
+const GHOST_DRAW_ALPHA=0.78;
 const GHOST_ALPHA_LO=40;
-const GHOST_ALPHA_CAP=228;
-const GHOST_ALPHA_LIFT=1.52;
-const GHOST_WHITE_LIFT=0.48;
+const GHOST_ALPHA_CAP=200;
+const GHOST_ALPHA_LIFT=1.12;
+const GHOST_WHITE_LIFT=0.10;
+const GHOST_COOL_LIFT=0.18;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
-  const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT, WHITE=GHOST_WHITE_LIFT;
+  const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT;
+  const WHITE=GHOST_WHITE_LIFT, COOL=GHOST_COOL_LIFT;
+  const moonR=168, moonG=210, moonB=236;
   for(let p=0;p<d.length;p+=4){
     const a=d[p+3];
     if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
-    d[p]=d[p]+(((255-d[p])*WHITE)|0);
-    d[p+1]=d[p+1]+(((255-d[p+1])*WHITE)|0);
-    d[p+2]=d[p+2]+(((255-d[p+2])*WHITE)|0);
+    let r=d[p]+(((255-d[p])*WHITE)|0);
+    let g=d[p+1]+(((255-d[p+1])*WHITE)|0);
+    let b=d[p+2]+(((255-d[p+2])*WHITE)|0);
+    r=r+(((moonR-r)*COOL)|0);
+    g=g+(((moonG-g)*COOL)|0);
+    b=b+(((moonB-b)*COOL)|0);
+    d[p]=r<0?0:r>255?255:r;
+    d[p+1]=g<0?0:g>255?255:g;
+    d[p+2]=b<0?0:b>255?255:b;
     const na=Math.round(a*LIFT);
     d[p+3]=na>=255?CAP:Math.min(CAP, na);
   }
@@ -1728,8 +1738,8 @@ function macarPose(e){
 /* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
    idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
-   is still running — that hold covers the 1.65s dmg floater after swung.
-   Same FACE, opposite FOOT. */
+   is still running — a short post-blow hold so the mid-swing sheet is
+   readable at the hit, then idle carry returns. Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle=livingMacarIdleKey();
@@ -2432,10 +2442,10 @@ function wantsMeleeRecover(e){
   if(e.hero && !e.ghost) return t>=0.84 && t<=0.96;
   return t>=0.72 && t<=0.96;
 }
-/* Dmg floaters live 1.65s. Hit lands at t≈0.45; living pose ended at 0.84
-   (~0.3s later), so a -12 capture was idle. Hold mid-swing through swung
-   for the floater lifetime. Kin / ghosts are unchanged. */
-const MACAR_STRIKE_HOLD=1.70;
+/* Hit lands at t≈0.45; living pose ends at 0.84. Hold mid-swing just
+   long enough to read the blow (~0.36s), then plant idle carry so the
+   weapon is not stuck cocked. Kin / ghosts are unchanged. */
+const MACAR_STRIKE_HOLD=0.36;
 function armLivingMacarStrike(e){
   if(!e||!e.hero||e.ghost) return;
   e.macarStrikeHold=Math.max(e.macarStrikeHold||0, MACAR_STRIKE_HOLD);
