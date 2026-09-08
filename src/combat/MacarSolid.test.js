@@ -54,8 +54,8 @@ assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   'after-grain blit notes MacarStrikeQA lastKey / blitKey');
 assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html),
   'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
-assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=1\.70/.test(html),
-  'living strike hold outlives the atk timer for the dmg floater');
+assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=0\.36/.test(html),
+  'living strike hold is a short readable beat after the blow');
 assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
   'mid-swing blit is a bit wider so the maul head reads at dungeon scale');
 
@@ -131,9 +131,10 @@ assert(/solidMacarSprite\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(fa
 assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.test(faceFn),
   'HUD face never blits raw SPR.macar for living Macar');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
-  && /const GHOST_DRAW_ALPHA=0\.96/.test(html)
-  && /const GHOST_ALPHA_CAP=228/.test(html),
-  'kin ghosts lift toward a paler spirit without punching to 255');
+  && /const GHOST_DRAW_ALPHA=0\.72/.test(html)
+  && /const GHOST_ALPHA_CAP=200/.test(html)
+  && /const GHOST_COOL_LIFT=0\.26/.test(html),
+  'kin ghosts lift toward a moonlit spirit without punching to 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');
 assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),

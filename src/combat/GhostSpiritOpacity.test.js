@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Ghost kin must read as paler / more solid spirits without the #204
- * solid↔flash: never punch mid-alpha to 255, never lighter-on-hit.
+ * Ghost kin must read as moonlit spirits — cooler tint, gentler lift,
+ * no chalk-white wash, never punch mid-alpha to 255, never lighter-on-hit.
  * Run: node src/combat/GhostSpiritOpacity.test.js
  */
 const fs=require('fs');
@@ -26,13 +26,17 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/const GHOST_DRAW_ALPHA=0\.96/.test(html), 'draw alpha is 0.96 (was 0.84)');
+assert(/const GHOST_DRAW_ALPHA=0\.72/.test(html), 'draw alpha is 0.72 (was 0.96 chalk)');
 assert(!/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html),
   'old half-transparent 0.84 multiply is gone');
+assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
+  && !/const GHOST_WHITE_LIFT=0\.48/.test(html),
+  'chalk-white 0.96/0.48 wash is gone');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
-assert(/const GHOST_ALPHA_CAP=228/.test(html) && /const GHOST_ALPHA_LIFT=1\.52/.test(html),
-  'lift remaps mid-alpha toward ~228, never 255');
+assert(/const GHOST_ALPHA_CAP=200/.test(html) && /const GHOST_ALPHA_LIFT=1\.12/.test(html)
+  && /const GHOST_WHITE_LIFT=0\.06/.test(html) && /const GHOST_COOL_LIFT=0\.26/.test(html),
+  'lift is a gentle moonlit veil — CAP 200, never 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'pixel lift is a dedicated ghost pipe');
 assert(/if\(e\.ghost\) return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
@@ -54,13 +58,15 @@ assert(/g\.globalAlpha=clamp\(e\.flash\*1\.2,0,0\.34\)/.test(html)
 
 const ctx={
   GHOST_ALPHA_LO:40,
-  GHOST_ALPHA_CAP:228,
-  GHOST_ALPHA_LIFT:1.52,
-  GHOST_WHITE_LIFT:0.48
+  GHOST_ALPHA_CAP:200,
+  GHOST_ALPHA_LIFT:1.12,
+  GHOST_WHITE_LIFT:0.06,
+  GHOST_COOL_LIFT:0.26
 };
 vm.createContext(ctx);
 vm.runInContext(
-  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=228,GHOST_ALPHA_LIFT=1.52,GHOST_WHITE_LIFT=0.48;'
+  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=200,GHOST_ALPHA_LIFT=1.12,'
+  +'GHOST_WHITE_LIFT=0.06,GHOST_COOL_LIFT=0.26;'
   +extractFn('liftGhostAlpha'),
   ctx
 );
@@ -73,58 +79,57 @@ function liftCopy(rgba){
 
 const mid140=new Uint8ClampedArray([90,80,70,140]);
 const out140=liftCopy(mid140);
-assert(out140[3]===213 && out140[3]<255 && out140[3]<=228,
-  'walk/atk stamp a=140 lifts to 213 (still mid-alpha)');
+assert(out140[3]===157 && out140[3]<255 && out140[3]<=200,
+  'walk/atk stamp a=140 lifts to 157 (still mid-alpha)');
 assert(out140[0]>90 && out140[1]>80 && out140[2]>70,
-  'dark mid-alpha RGB lifts toward white');
-assert(out140[0]<255 && out140[1]<255 && out140[2]<255,
+  'dark mid-alpha RGB still lifts a little');
+assert(out140[2]-70 > out140[0]-90,
+  'blue channel gains more than red — moonlit, not chalk');
+assert(out140[0]<160 && out140[1]<160 && out140[2]<160,
   'white lift does not blow the silhouette to paper-white');
 
 const mid150=new Uint8ClampedArray([100,88,82,150]);
 const out150=liftCopy(mid150);
-assert(out150[3]===228 && out150[3]!==255,
-  'idle stamp a=150 lifts to CAP 228, not opaque 255');
+assert(out150[3]===168 && out150[3]!==255 && out150[3]<=200,
+  'idle stamp a=150 lifts to 168, not CAP and not opaque 255');
+assert(out150[2]-82 > out150[0]-100,
+  'idle stamp cools toward cyan, not white');
+
+const denser=new Uint8ClampedArray([110,96,88,195]);
+const out195=liftCopy(denser);
+assert(out195[3]===200 && out195[3]!==255,
+  'denser TARGET_A=195 stamp caps at 200, not opaque 255');
 
 const already=new Uint8ClampedArray([200,200,200,255]);
 const out255=liftCopy(already);
-assert(out255[3]===228, 'a source a=255 is capped — west flip cannot go solid');
+assert(out255[3]===200, 'a source a=255 is capped — west flip cannot go solid');
 
 const fringe=new Uint8ClampedArray([40,30,20,30, 10,10,10,40]);
 const outFringe=liftCopy(fringe);
 assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifted)');
 
-const oldEff=150*0.84/255;
-const newEff=228*0.96/255;
-assert(newEff>0.82 && newEff<0.90 && newEff>oldEff*1.6,
-  'readable opacity is ~0.86 vs the old ~0.49 multiply');
+const oldChalk=228*0.96/255;
+const newEff=200*0.72/255;
+assert(newEff>0.52 && newEff<0.62 && newEff<oldChalk,
+  'readable opacity is ~0.56 translucent vs the chalk ~0.86 multiply');
 
-['dwarf_pordoom_ghost.png','dwarf_fendur_ghost.png',
- 'dwarf_orbo_ghost.png','dwarf_talpor_ghost.png'].forEach(f=>{
-  const {data}=readRgba(path.join(creatures,f));
-  let mid=0, n=0, sum=0, a255=0;
-  for(let i=3;i<data.length;i+=4){
-    const a=data[i];
-    if(a===0) continue;
-    n++; sum+=a;
-    if(a===255) a255++;
-    else mid++;
-  }
-  const mean=n?sum/n:0;
-  assert(a255===0 && mid===n && mean>130 && mean<160,
-    f+' is a flat mid-alpha stamp (mean '+mean.toFixed(1)+', a255='+a255+')');
-});
-['dwarf_pordoom_ghost_w1.png','dwarf_orbo_ghost_atk.png'].forEach(f=>{
-  const {data}=readRgba(path.join(creatures,f));
-  let n=0, sum=0, a255=0;
-  for(let i=3;i<data.length;i+=4){
-    const a=data[i];
-    if(a===0) continue;
-    n++; sum+=a;
-    if(a===255) a255++;
-  }
-  const mean=n?sum/n:0;
-  assert(a255===0 && mean>130 && mean<150,
-    f+' walk/atk stamp stays mid-alpha (mean '+mean.toFixed(1)+') — lift, do not punch');
+const BIND=['','_w1','_w2','_atk','_atk_recover'];
+const KIN=['pordoom','fendur','orbo','talpor'];
+KIN.forEach(k=>{
+  BIND.forEach(suf=>{
+    const f='dwarf_'+k+'_ghost'+(suf||'')+'.png';
+    const {data}=readRgba(path.join(creatures,f));
+    let n=0, sum=0, a255=0;
+    for(let i=3;i<data.length;i+=4){
+      const a=data[i];
+      if(a===0) continue;
+      n++; sum+=a;
+      if(a===255) a255++;
+    }
+    const mean=n?sum/n:0;
+    assert(a255===0 && mean>175 && mean<215,
+      f+' is a denser mid-alpha stamp (mean '+mean.toFixed(1)+', a255='+a255+')');
+  });
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
