@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='95';
+const ASSET_VER='96';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -941,6 +941,7 @@ function spriteBounds(img){
     ok:true,
     botY:(bot+1)/h,
     cx:((lo+hi+1)/2)/w,
+    footCx:fcx/w,
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h,
     personY0:crown/h,
     crown:crownId
@@ -1259,7 +1260,11 @@ function blitLivingMacar(img){
     }catch(_){ out=null; }
   }
   if(!out||!out.width||!out.height){
-    if(idle&&idle!==img) return blitLivingMacar(idle);
+    /* A ready mid-swing sheet must not plant idle. That was the cocked-shoulder
+       FAIL: livingMacarAnimKey returned macar_atk, bake missed, idle blitted. */
+    const keepAtk=(typeof SPR!=='undefined')&&((SPR.macar_atk&&img===SPR.macar_atk)
+      ||(SPR.macar_axe_atk&&img===SPR.macar_axe_atk));
+    if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
     return null;
   }
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
@@ -1620,13 +1625,59 @@ function ghostAnimKey(e, k){
   }
   return pickReadyGhostKey(idle, idle);
 }
-function livingMacarImg(key){
+/* Sheet that livingMacarImg will actually bake. Ready matching _atk skips
+   pickReadyPartyKey so a second crown/family pass cannot plant idle after
+   livingMacarAnimKey already chose the mid-swing sheet. */
+function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
-  const k=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
+  if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
+  return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
+}
+function livingMacarImg(key){
+  const k=livingMacarBlitKey(key);
   if(!k) return null;
   return blitLivingMacar(SPR[k]);
 }
+const MacarStrikeQA={
+  lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
+  atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false,
+  swung:false, strikeHold:0
+};
+function macarStrikeHoldProgress(e){
+  if(!e) return 0;
+  return (typeof attackProgress==='function')?attackProgress(e):0;
+}
+function noteMacarStrikeQA(e, key, blitKey){
+  MacarStrikeQA.lastKey=key||null;
+  MacarStrikeQA.blitKey=blitKey||null;
+  MacarStrikeQA.holdProgress=macarStrikeHoldProgress(e);
+  MacarStrikeQA.pose=!!(e && typeof wantsLivingMacarStrike==='function' && wantsLivingMacarStrike(e));
+  MacarStrikeQA.recover=!!(e && typeof wantsMeleeRecover==='function' && wantsMeleeRecover(e)
+    && !(e.macarStrikeHold>0));
+  MacarStrikeQA.atk=e&&e.atk||0;
+  MacarStrikeQA.atkMax=e&&e.atkMax||0;
+  MacarStrikeQA.swung=!!(e&&e.swung);
+  MacarStrikeQA.strikeHold=+(e&&e.macarStrikeHold||0);
+  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk')){
+    MacarStrikeQA.lastStrikeKey=key;
+    MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
+  }
+}
+function macarStrikeHoldMid(){
+  const p=(typeof player==='function')?player():null;
+  if(!p||p.dead||p.ghost) return false;
+  p.atkKind='melee';
+  p.moving=0; p.ix=0; p.iy=0;
+  if(!(p.atkMax>0)) p.atkMax=0.78;
+  p.atk=p.atkMax*0.60;
+  p.swung=1;
+  if(typeof armLivingMacarStrike==='function') armLivingMacarStrike(p);
+  MacarStrikeQA.hold=true;
+  return true;
+}
+MacarStrikeQA.holdMid=macarStrikeHoldMid;
+if(typeof window!=='undefined') window.MacarStrikeQA=MacarStrikeQA;
 /* First sheet in the list that is actually decoded. */
 function macarFirstReady(list){
   if(!list) return null;
@@ -1676,12 +1727,13 @@ function macarPose(e){
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe carry plant.
    Strike window uses matching atk for the equipped idle. Recover plants
-   idle (or a real _atk_recover if Limner signs one) — holding _atk through
-   t 0.55–0.96 was the bring-back-only swing. Same FACE, opposite FOOT. */
+   idle (or a real _atk_recover if Limner signs one) unless macarStrikeHold
+   is still running — that hold covers the 1.65s dmg floater after swung.
+   Same FACE, opposite FOOT. */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   const idle=livingMacarIdleKey();
-  if(wantsMeleePose(e)){
+  if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
     return pickReadyPartyKey(atk, idle) || idle;
@@ -1699,7 +1751,10 @@ function livingMacarAnimKey(e){
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const img=livingMacarImg(livingMacarAnimKey(e));
+  const key=livingMacarAnimKey(e);
+  const blitKey=livingMacarBlitKey(key);
+  noteMacarStrikeQA(e, key, blitKey);
+  const img=livingMacarImg(key);
   if(!img||!img.width) return;
   const s=w2s(e.x,e.y), z=ZOOM*e.scale;
   const bob0=e.moving?Math.sin((e.gait||0)*TAU)*1.6*z:0;
@@ -1710,9 +1765,14 @@ function drawLivingMacar(g,e){
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const H=entSpriteH(e,z)*frameFit(e,img);
-  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
+  const strike=key==='macar_atk'||key==='macar_axe_atk'||blitKey==='macar_atk'||blitKey==='macar_axe_atk';
+  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN*(strike?1.16:1);
   const b=spriteBounds(img);
-  const cx=(b&&b.ok)?(flip?1-b.cx:b.cx):0.5;
+  /* Plant on the feet, not the opaque-box center. Mid-swing spans the
+     full canvas (maul to the edge); box-cx slides the dwarf off the tile
+     and hides the maul head under the old swipe. */
+  const plant=(b&&b.ok)?(b.footCx!=null?b.footCx:b.cx):0.5;
+  const cx=flip?1-plant:plant;
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
@@ -2361,13 +2421,30 @@ function attackProgress(e){
 function wantsMeleePose(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  // Raised hammer / axe until the blow lands. Follow-through is a later pose.
-  return t>=0.08 && t<0.55;
+  // Living Macar: mid-swing from the Attack press (t=0) through the hit.
+  // Kin / foes keep the shorter wind-up so ghost recover sheets still bind.
+  if(e.hero && !e.ghost) return t>=0 && t<0.84;
+  return t>=0.08 && t<0.72;
 }
 function wantsMeleeRecover(e){
   if(!e||!(e.atk>0)||e.atkKind==='bow') return false;
   const t=attackProgress(e);
-  return t>=0.55 && t<=0.96;
+  if(e.hero && !e.ghost) return t>=0.84 && t<=0.96;
+  return t>=0.72 && t<=0.96;
+}
+/* Dmg floaters live 1.65s. Hit lands at t≈0.45; living pose ended at 0.84
+   (~0.3s later), so a -12 capture was idle. Hold mid-swing through swung
+   for the floater lifetime. Kin / ghosts are unchanged. */
+const MACAR_STRIKE_HOLD=1.70;
+function armLivingMacarStrike(e){
+  if(!e||!e.hero||e.ghost) return;
+  e.macarStrikeHold=Math.max(e.macarStrikeHold||0, MACAR_STRIKE_HOLD);
+}
+function wantsLivingMacarStrike(e){
+  if(!e||!e.hero||e.dead||e.ghost) return false;
+  if(e.atkKind==='bow') return false;
+  if((e.macarStrikeHold||0)>0) return true;
+  return wantsMeleePose(e);
 }
 function gaitImg(a,b,e){
   const frames=[a,b].filter(img=>img&&img.width);
@@ -10329,6 +10406,7 @@ function fire(key){
       p._attack={fdx:p.fdx,fdy:p.fdy};
       if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
       else p.swung=1;
+      armLivingMacarStrike(p);
     }
     return;
   }
@@ -10737,10 +10815,14 @@ function update(dt){
     if(e.buff>0) e.buff-=dt;
     skillSystem.tickAttack(e, dt);
     if(e.atk>0){
-        if(e.defending){ e.atk=0; e.swung=0; e._attack=null; }
+        if(e.defending){ e.atk=0; e.swung=0; e._attack=null; e.macarStrikeHold=0; }
       else {
-        e.atk-=dt;
-        if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; const bo=e.buff>0?1.5:1;
+        if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold){
+          e.atk=e.atkMax*0.60;
+        } else {
+          e.atk-=dt;
+        }
+        if(!e.swung&&e.atk<e.atkMax*.55){ e.swung=1; if(e.hero&&!e.ghost) armLivingMacarStrike(e); const bo=e.buff>0?1.5:1;
           const spec=beginSpecialtySwing(e);
           if(spec){
             meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo);
@@ -10757,6 +10839,10 @@ function update(dt){
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
         if(e.atk<=0){ e.swung=0; e._attack=null; }
       }
+    }
+    if(e.hero && !e.ghost && (e.macarStrikeHold||0)>0){
+      if(!(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold))
+        e.macarStrikeHold=Math.max(0, e.macarStrikeHold-dt);
     }
     if(e.kx||e.ky){ move(e,e.kx*6,e.ky*6,dt); e.kx*=Math.pow(.02,dt); e.ky*=Math.pow(.02,dt);
       if(Math.abs(e.kx)<.01)e.kx=0; if(Math.abs(e.ky)<.01)e.ky=0; }
@@ -10973,16 +11059,8 @@ function render(){
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
-      /* Source-over swipe only during the strike window — not inside
-         drawLivingMacar (no lighter / gold). The atk sheet is a wind-up;
-         the swipe is the readable forward blow. Recover plants idle. */
-      if(wantsMeleePose(mac)){
-        const s=w2s(mac.x,mac.y), z=ZOOM*mac.scale;
-        const bob0=mac.moving?Math.sin((mac.gait||0)*TAU)*1.6*z:0;
-        g.save(); g.translate(s.x, s.y-bob0);
-        drawHeroMeleeArc(g,mac,z);
-        g.restore();
-      }
+      /* No gold swipe over living Macar — the mid-swing sheet is the blow.
+         A source-over arc covered the maul head and read as idle+swoosh. */
     }
     for(const e of G.ents){
       if(!e || e.hero || e.dead || e.crushed || e.hidden) continue;
@@ -12288,7 +12366,10 @@ function drawHeroMeleeArc(g,e,z){
      Heading flip so a west swing travels screen-left with the sheet. */
   if(!wantsMeleePose(e)) return;
   const t=attackProgress(e);
-  const u=clamp((t-0.08)/Math.max(0.01,0.47),0,1);
+  const living=!!(e.hero && !e.ghost);
+  const u=living
+    ? clamp(t/Math.max(0.01,0.84),0,1)
+    : clamp((t-0.08)/Math.max(0.01,0.64),0,1);
   const sw=Math.sin(u*Math.PI);
   if(sw<0.06) return;
   const axe=typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver();
@@ -12297,20 +12378,20 @@ function drawHeroMeleeArc(g,e,z){
   g.globalCompositeOperation='source-over';
   if(flip) g.scale(-1,1);
   g.translate(12*z,-36*z);
-  const steps=14;
+  const steps=16;
   for(let i=0;i<steps;i++){
     const f=i/steps;
     const aa=-1.85+u*3.05-f*0.50;
-    const a=sw*(axe?0.74:0.82)*(1-f*0.52);
+    const a=sw*(axe?0.88:0.94)*(1-f*0.48);
     g.strokeStyle=axe
-      ?('rgba(220,200,255,'+a+')')
-      :('rgba(255,'+Math.round(224-f*48)+',92,'+a+')');
-    g.lineWidth=(15-f*9)*z;
+      ?('rgba(228,210,255,'+a+')')
+      :('rgba(255,'+Math.round(230-f*44)+',98,'+a+')');
+    g.lineWidth=(16.5-f*9)*z;
     g.lineCap='round';
     g.beginPath(); g.arc(-4*z,8*z,48*z,aa-0.20,aa+0.20); g.stroke();
   }
-  g.strokeStyle=axe?'rgba(255,244,255,'+(sw*0.94)+')':'rgba(255,236,170,'+(sw*0.96)+')';
-  g.lineWidth=5.4*z;
+  g.strokeStyle=axe?'rgba(255,246,255,'+(sw*1)+')':'rgba(255,238,176,'+(sw*1)+')';
+  g.lineWidth=6.4*z;
   const tip=-1.85+u*3.05;
   g.beginPath(); g.arc(-4*z,8*z,48*z,tip-0.14,tip+0.18); g.stroke();
   g.restore();

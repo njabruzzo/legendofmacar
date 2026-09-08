@@ -43,6 +43,21 @@ assert(/macar:1/.test(html) && /macar_w1:1/.test(html) && /macar_w2:1/.test(html
   'living Macar whitelist is maul set + Shadow Cleaver carry/atk');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
+assert(/function livingMacarBlitKey\(/.test(html)
+  && /livingMacarBlitKey\(key\)/.test(extractFn('livingMacarImg')),
+  'livingMacarImg bakes through livingMacarBlitKey, not a second idle plant');
+assert(/keepAtk/.test(extractFn('blitLivingMacar'))
+  && /macar_axe_atk/.test(extractFn('blitLivingMacar')),
+  'failed atk bake does not plant the idle shoulder pose');
+assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
+  && /noteMacarStrikeQA\(e, key, blitKey\)/.test(extractFn('drawLivingMacar')),
+  'after-grain blit notes MacarStrikeQA lastKey / blitKey');
+assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html),
+  'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
+assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=1\.70/.test(html),
+  'living strike hold outlives the atk timer for the dmg floater');
+assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
+  'mid-swing blit is a bit wider so the maul head reads at dungeon scale');
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');
@@ -77,7 +92,8 @@ assert(/pickReadyPartyKey\(atk, idle\)/.test(liveKey) || /pickReadyPartyKey\('ma
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk is used even when crown/family would plant idle');
 assert(/macar_axe_atk/.test(liveKey), 'cleaver melee uses macar_axe_atk');
-assert(/img=livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar')),
+assert(/const key=livingMacarAnimKey\(e\)/.test(extractFn('drawLivingMacar'))
+  && /img=livingMacarImg\(key\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
 assert(/if\(e\.hero && !e\.dead && !e\.ghost\)\{[\s\S]*livingMacarImg\(livingMacarAnimKey\(e\)\)/.test(html),
   'billboard safety net uses the same whitelist, not a raw sheet bake');

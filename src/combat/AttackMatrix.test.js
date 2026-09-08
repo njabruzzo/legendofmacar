@@ -72,8 +72,10 @@ assert(thacNeed({team:'foe', hd:0.5}, 10)===11, 'up to 1-1 vs AC 10 needs 11');
 const macarAtk={hero:1, atk:0.5, atkMax:0.78, atkKind:'melee'};
 assert(attackProgress(macarAtk)>0.2, 'attack progress advances while atk ticks down');
 assert(wantsMeleePose(macarAtk)===true, 'mid-swing uses the melee pose');
-const recoverAtk={hero:1, atk:0.2, atkMax:0.78, atkKind:'melee'};
-assert(attackProgress(recoverAtk)>0.7, 'late swing is follow-through time');
+assert(wantsMeleePose({hero:1, atk:0.78, atkMax:0.78, atkKind:'melee'})===true,
+  'Attack press (t=0) is already the mid-swing pose');
+const recoverAtk={hero:1, atk:0.10, atkMax:0.78, atkKind:'melee'};
+assert(attackProgress(recoverAtk)>0.84, 'late swing is follow-through time');
 assert(wantsMeleePose(recoverAtk)===false, 'raised pose ends once the blow has landed');
 assert(wantsMeleeRecover(recoverAtk)===true, 'follow-through pose after the swing');
 assert(wantsMeleeRecover({hero:1, atk:0.02, atkMax:0.78, atkKind:'melee'})===false, 'very end of cooldown returns to idle');
