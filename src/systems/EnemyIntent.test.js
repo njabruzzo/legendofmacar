@@ -62,7 +62,7 @@ assert(/function applyEnemyIntent\(/.test(html) && /function intentHost\(/.test(
   'host applies intent through existing steerWalk / atk machinery');
 assert(/EnemyIntent\.decide\(e, dt, intentHost\(\)\)/.test(html),
   'only the foe decision branch consults EnemyIntent');
-assert(/ASSET_VER='99'/.test(html), 'ASSET_VER is 99');
+assert(/ASSET_VER='100'/.test(html), 'ASSET_VER is 100');
 
 const head=html.slice(0, html.indexOf('<script>\n"use strict";'));
 const navI=head.indexOf('src="src/systems/Navigation.js"');

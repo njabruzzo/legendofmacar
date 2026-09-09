@@ -30,19 +30,21 @@ const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
 ['toy_find','toy_wind','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
-assert(/who:'A TOY'/.test(talk) && /A small brass walker in the dust\. Cold\. A key in its back\./.test(talk),
+assert(/who:'A TOY'/.test(talk) && /Cold brass\. A key in its back\. It ticks once, mean: "Wind me, dwarf\. Or stay thick\."/.test(talk),
   'toy_find Quill line');
 assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
-assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click\. Nothing else\.'/.test(talk),
-  'who-made-you stays mute until wound');
+assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click\. A whisper: "A fool who wound greed\."'/.test(talk),
+  'who-made-you whispers greed until wound');
 assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talk),
   'Wind it opens toy_wind and marks wound');
-assert(/who:'THE TOY'/.test(talk) && /Tick\. Froren… last wound\. The rock took him\. I kept the tick\./.test(talk),
-  'toy_wind lament is the wound line');
-assert(/The fall still holds your kin/.test(talk) && /red door is warm to a dwarf/.test(talk) &&
-  /false grey face/.test(talk) && /anvil still stands in this hall/.test(talk),
-  'toy_wind clues are cave-in, ruby door, north seam, hall anvil');
-assert(/A tinker\. Kind hands/.test(talk), 'Who was Froren lament');
+assert(/who:'THE TOY'/.test(talk) && /Tick-tock, thick-skull Macar/.test(talk) &&
+  /The secret of the ruby lies in the heart of it all/.test(talk),
+  'toy_wind opening pins the ruby-heart phrase');
+assert(/Your kin still sleep under the fall/.test(talk) && /red door warms to a dwarf/.test(talk) &&
+  /false grey face/.test(talk) && /SEARCH that lie/.test(talk) && /Froren\\'s anvil stands/.test(talk),
+  'toy_wind clues are cave-in, ruby door, north seam SEARCH, hall anvil');
+assert(/Kind hands\. Soft heart\. Dead soft/.test(talk), 'Who was Froren lament');
+assert(/Go clutch your ruby\. Heart of it all/.test(talk), 'toy_wind put-down still names the ruby heart');
 assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
   'toy_wind has no later-chapter compass');
 assert(/who:'GOBLIN'/.test(talk) && /Wait—wait! Nice goblin\. Friend\. No more knife\. Mercy, dwarf\./.test(talk),
@@ -64,6 +66,20 @@ assert(/const WINDUP_TOY=\{x:28\.85,y:26\.55\}/.test(html), 'toy sits in the sta
 assert(/k:'winduptoy'/.test(html), 'tiny brass walker prop is spawned');
 assert(/interact\(L\.flags\.toyWound\?'Talk to the brass walker':'Wind the brass walker'/.test(html),
   'Ch I interact is Wind / Talk');
+assert(/winduptoy:'assets\/props\/prop_winduptoy\.png'/.test(html), 'idle Limner walker is registered');
+assert(/winduptoy_wound:'assets\/props\/prop_winduptoy_wound\.png'/.test(html), 'wound Limner walker is registered');
+assert(/p\.k==='winduptoy' && G\.lvl && G\.lvl\.flags && G\.lvl\.flags\.toyWound && SPR\.winduptoy_wound/.test(html),
+  'wound sheet blits after toyWound');
+{
+  const idle=path.join(__dirname,'../../assets/props/prop_winduptoy.png');
+  const wound=path.join(__dirname,'../../assets/props/prop_winduptoy_wound.png');
+  const crypto=require('crypto');
+  assert(fs.existsSync(idle) && fs.existsSync(wound), 'Limner SIGNED walker PNGs are on disk');
+  assert(crypto.createHash('sha256').update(fs.readFileSync(idle)).digest('hex').indexOf('37b78eef')===0,
+    'idle sheet is Limner SIGNED 37b78eef');
+  assert(crypto.createHash('sha256').update(fs.readFileSync(wound)).digest('hex').indexOf('38111c95')===0,
+    'wound sheet is Limner SIGNED 38111c95');
+}
 assert(!/giveMagic\(/.test(html.match(/toy_find:\{[\s\S]*?toy_wind:\{[\s\S]*?\n  \},/)[0]),
   'toy talk does not giveMagic');
 assert(/startCaveInBlocks/.test(html) && /x<15\.12/.test(html), 'cave-in lip is still x<15.12');

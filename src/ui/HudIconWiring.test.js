@@ -57,6 +57,11 @@ assert(registry.macar_w1 && /dwarf_macar_w1/.test(registry.macar_w1), 'Macar wal
 assert(registry.rat_w1 && /mon_rat_w1/.test(registry.rat_w1), 'monster walk derivation is intact');
 assert(registry.lantern_atk && /prop_lantern_atk/.test(registry.lantern_atk) && !registry.lantern_w1,
   'prop sprung-frame derivation is intact (no walk cycle)');
+assert(registry.winduptoy && /prop_winduptoy\.png/.test(registry.winduptoy),
+  'idle brass walker is registered');
+assert(registry.winduptoy_wound && /prop_winduptoy_wound\.png/.test(registry.winduptoy_wound)
+  && !registry.winduptoy_wound_atk && !registry.winduptoy_w1,
+  'wound walker is a static sheet, not a walk/atk derivation');
 assert(registry.floor_mine_w1 && /tile_floor_mine_w1/.test(registry.floor_mine_w1),
   'tile walk derivation is intact');
 

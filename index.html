@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='99';
+const ASSET_VER='100';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -477,6 +477,8 @@ const SPRITE_FILES={
   umberhulk:'assets/creatures/mon_umberhulk.png', hookedhorror:'assets/creatures/mon_hookedhorror.png',
   beholder:'assets/creatures/mon_beholder.png',
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
+  winduptoy:'assets/props/prop_winduptoy.png',
+  winduptoy_wound:'assets/props/prop_winduptoy_wound.png',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
   dwarfface:'assets/props/prop_dwarfface.png',
@@ -578,14 +580,14 @@ UNDERDARK.forEach(k=>{ SPRITE_FILES[k]='assets/creatures/mon_'+k+'.png'; });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(!src || SPRITE_FILES[k+'_dead']) return;
-  if(/_(w1|w2|atk|dead|sleep|back)\./.test(src)) return;
-  if(/_ghost$/.test(k) || /_back$/.test(k) || /_title$/.test(k)) return;
+  if(/_(w1|w2|atk|dead|sleep|back|wound)\./.test(src)) return;
+  if(/_ghost$/.test(k) || /_back$/.test(k) || /_title$/.test(k) || /_wound$/.test(k)) return;
   if(/\/(mon_|dwarf_)/.test(src)) SPRITE_FILES[k+'_dead']=src.replace(/\.png$/,'_dead.png');
 });
 Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
-  if(/_(w1|w2|atk|dead|sleep|back)\.png$/.test(src)) return;
-  if(/_(dead|sleep|back)$/.test(k)) return;
+  if(/_(w1|w2|atk|dead|sleep|back|wound)\.png$/.test(src)) return;
+  if(/_(dead|sleep|back|wound)$/.test(k)) return;
   if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /_title$/.test(k)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
@@ -706,7 +708,7 @@ function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-    'rubble','rubble2','boulder','boulder2','lantern',
+    'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
     'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
@@ -2604,6 +2606,8 @@ function propSpriteKey(p){
 }
 function propAnimImg(p){
   const k=propSpriteKey(p);
+  if(p.k==='winduptoy' && G.lvl && G.lvl.flags && G.lvl.flags.toyWound && SPR.winduptoy_wound)
+    return SPR.winduptoy_wound;
   if((p.sprung||0)>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
   return SPR[k]||null;
 }
@@ -2630,7 +2634,7 @@ function propSpriteH(p,z){
   if(k==='rubypillar') return 78*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z*(p.s||1);
   if(k==='bones') return 42*z;
-  if(k==='winduptoy') return 28*z*(p.s||1);
+  if(k==='winduptoy') return 52*z*(p.s||1);
   if(k==='shroom') return 54*z*(p.s||1);
   if(k==='glowcap') return 58*z*(p.s||1);
   if(k==='cavefern') return 52*z*(p.s||1);
@@ -5357,20 +5361,20 @@ const NPC_TALK={
   },
   toy_find:{
     who:'A TOY',
-    line:'A small brass walker in the dust. Cold. A key in its back.',
+    line:'Cold brass. A key in its back. It ticks once, mean: "Wind me, dwarf. Or stay thick."',
     choices:[
       {t:'Wind it.', say:'MACAR: "Walk."', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
-      {t:'Who made you?', reply:'A dry click. Nothing else.'},
+      {t:'Who made you?', reply:'A dry click. A whisper: "A fool who wound greed."'},
       {t:'Put it down.'}
     ]
   },
   toy_wind:{
     who:'THE TOY',
-    line:'Tick. Froren… last wound. The rock took him. I kept the tick.',
+    line:'Tick-tock, thick-skull Macar— you dig for gold and call it war. Greed\'s your god. Power\'s your itch. The secret of the ruby lies in the heart of it all.',
     choices:[
-      {t:'What do you remember?', reply:'THE TOY: "The fall still holds your kin. The red door is warm to a dwarf\'s hand. North wall wears a false grey face. His anvil still stands in this hall."'},
-      {t:'Who was Froren?', reply:'THE TOY: "A tinker. Kind hands. He laughed when I walked. Then the hall fell, and the laughing stopped."'},
-      {t:'Put it down.'}
+      {t:'What do you remember?', reply:'THE TOY: "Your kin still sleep under the fall. The red door warms to a dwarf\'s small palm. North wears a false grey face— SEARCH that lie. Froren\'s anvil stands. He laughed. You won\'t."'},
+      {t:'Who was Froren?', reply:'THE TOY: "Kind hands. Soft heart. Dead soft. He wound me for joy, not a crown. You wind me for loot. Same key. Same greed. Same drown."'},
+      {t:'Put it down.', reply:'THE TOY: "Go clutch your ruby. Heart of it all. Leave the tinker. Take the fall."'}
     ]
   },
   goblin_mercy:{
