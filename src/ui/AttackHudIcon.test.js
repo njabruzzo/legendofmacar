@@ -8,6 +8,8 @@ const fs=require('fs');
 const path=require('path');
 const vm=require('vm');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
+require('../packs/EquipmentSlots.js');
+const Eq=globalThis.EquipmentSlots;
 
 let failed=0;
 function assert(cond, msg){
@@ -36,6 +38,10 @@ assert(/crossbow:'icon_crossbow'/.test(html) && /attack:'icon_attack'/.test(html
   'ICON_SPR still maps attack/hammer → icon_attack and crossbow → icon_crossbow');
 assert(!/bowPoseUntil/.test(extractFn('attackHudIco')) && !/ghost/.test(extractFn('attackHudIco')),
   'attackHudIco does not touch bowPoseUntil or spectral ghosts');
+assert(Eq.START_WORN.indexOf('secondary')<0,
+  'START_WORN excludes secondary so fresh New Game Attack HUD is not xbow');
+assert(Eq.START_WORN.indexOf('quiver')>=0,
+  'START_WORN still includes quiver (ammo UX)');
 
 const ICON_SPR={
   sword:'icon_sword', attack:'icon_attack', hammer:'icon_attack',
