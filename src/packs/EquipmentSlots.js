@@ -20,7 +20,10 @@
   var SLOT_KEYS = SLOTS.map(function (s) { return s.k; });
   var LEGACY_KEYS = ['weapon', 'armor', 'ring', 'wand', 'robe'];
   var ALL_KEYS = SLOT_KEYS.concat(LEGACY_KEYS);
-  var START_WORN = ['helmet', 'chest', 'pants', 'boots', 'primary', 'secondary', 'quiver'];
+  /* Off-hand stays packed on New Game so Macar carries the maul. Light
+     Crossbow is still in startingItems; PACK → secondary wields it later.
+     Quiver stays worn so bolt ammo UX is unchanged. */
+  var START_WORN = ['helmet', 'chest', 'pants', 'boots', 'primary', 'quiver'];
   var SLOT_ICON = {
     helmet: 'icon_helm',
     necklace: 'icon_necklace',

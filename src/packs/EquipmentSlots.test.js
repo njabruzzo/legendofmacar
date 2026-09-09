@@ -117,6 +117,10 @@ assert(byId.macar_helm.acBonus === 1, 'starting helm is +1 AC');
 assert(byId.macar_pants.slot === 'pants' && byId.macar_boots.slot === 'boots', 'pants and normal boots');
 assert(byId.macar_hammer.slot === 'primary', 'starting hammer is primary');
 assert(byId.macar_crossbow.slot === 'secondary', 'starting crossbow is secondary');
+assert(byId.macar_crossbow.n === 'Light Crossbow', 'starting kit still includes Light Crossbow');
+assert(Eq.START_WORN.indexOf('secondary') < 0, 'START_WORN does not auto-wear secondary');
+assert(Eq.START_WORN.indexOf('quiver') >= 0, 'START_WORN still auto-wears the quiver');
+assert(Eq.START_WORN.indexOf('primary') >= 0, 'START_WORN still auto-wears primary (maul)');
 assert(byId.macar_quiver.slot === 'quiver', 'starting quiver');
 assert(byId.macar_helm.spr === 'icon_helm', 'helm uses helm graphic');
 assert(byId.macar_leather.spr === 'icon_chest', 'leather uses chest graphic');
@@ -140,7 +144,11 @@ start.forEach(it => {
 assert(eq.primary && eq.primary.id === 'macar_hammer', 'primary is the hammer');
 assert(eq.weapon === eq.primary, 'legacy weapon alias tracks primary');
 assert(eq.chest.id === 'macar_leather' && eq.armor === eq.chest, 'legacy armor alias tracks chest');
-assert(eq.secondary.id === 'macar_crossbow', 'secondary is the crossbow');
+assert(!eq.secondary, 'fresh START_WORN leaves secondary empty (crossbow stays packed)');
+assert(eq.quiver && eq.quiver.id === 'macar_quiver', 'fresh START_WORN still dons the quiver');
+const donned = Eq.equip(eq, byId.macar_crossbow);
+assert(donned.ok && donned.equipped.secondary.id === 'macar_crossbow',
+  'PACK can still wield Light Crossbow on secondary');
 assert(Eq.computeWornAC(eq) === 7, 'leather 8 + helm +1 => AC 7');
 assert(Eq.describeAC(eq).note.indexOf('leather') >= 0, 'AC note names leather');
 assert(Eq.describeAC(eq).note.indexOf('helm') >= 0, 'AC note names helm');
