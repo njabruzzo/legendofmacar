@@ -92,7 +92,7 @@ assert(/bumpTopology\('openSecret/.test(html) && /bumpTopology\('breakRock'\)/.t
   'openSecret and breakRock invalidate nav topology');
 assert(/G\.topologyRev=0/.test(html) && /G\.seenRev=\(G\.seenRev\|\|0\)\+1/.test(html),
   'chapter reset clears topologyRev; breakRock still bumps seenRev separately');
-assert(/ASSET_VER='100'/.test(html), 'ASSET_VER is 100');
+assert(/ASSET_VER='101'/.test(html), 'ASSET_VER is 101');
 
 /* ---- real Macar canBe / walk / wallFaceClear ---- */
 function makeGrid(w, h, fill){
