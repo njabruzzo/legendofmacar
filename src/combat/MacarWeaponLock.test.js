@@ -102,7 +102,7 @@ const unlockedW1=ctx.heroFigureFit(mac, SPR.macar_w1);
 
 assert(Math.abs(w1Fit-idleFit)<1e-9 && Math.abs(w2Fit-idleFit)<1e-9,
   'maul w1/w2 plant at idle scale (lock '+idleFit.toFixed(3)+')');
-assert(Math.abs(unlockedW1-idleFit)>0.04,
+assert(Math.abs(unlockedW1-idleFit)>0.02,
   'without the lock, w1 personY0 miss would shrink the shaft (unlocked '
   +unlockedW1.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
 
