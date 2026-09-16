@@ -1,0 +1,16 @@
+# One-feature proof: title-new-game (run-mu3g1ait)
+# Isolated origin http://127.0.0.1:4174 — not www.legendofmacar.com
+# After cleanup, 17 evidence files still existed under artifacts/run-mu3g1ait/
+
+VERDICT: APPROVE
+CHECKS: doctor=pass reason=isolated instance healthy
+CHECKS: title-visible=pass reason=Enter the Deep on title
+CHECKS: enter-the-deep=pass reason=scene=intro after Enter the Deep
+CHECKS: intro-visible=pass reason=intro Descend ready
+CHECKS: descend-to-play=pass reason=scene=play
+CHECKS: play-hud=pass reason=play HUD has PACK/Defend/Attack/two SEARCH/Camp/Craft and no Rally
+CHECKS: cleanup-intact=pass reason=17 files remain after teardown
+EVIDENCE: artifacts/run-mu3g1ait/title-visible.png
+EVIDENCE: artifacts/run-mu3g1ait/intro-visible.png
+EVIDENCE: artifacts/run-mu3g1ait/play-hud.png
+EVIDENCE: artifacts/run-mu3g1ait/play-hud.json
