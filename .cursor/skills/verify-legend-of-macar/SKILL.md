@@ -191,3 +191,5 @@ control-macar doctor
 control-macar prove --feature title-new-game
 control-macar finish
 ```
+
+As the game changes, keep this map honest with `/maintain-verification-skill`.

@@ -42,6 +42,7 @@ Preconditions:
 
 ## Gotchas
 
+- Play does not clear the last menu-hit list. The probe reports `menus: []` on unpaused play so a leftover `Descend` plate cannot be clicked. Assert HUD labels and `scene=play`, not intro buttons.
 - A ready splash paints the gold title on the artwork. Assert `Enter the Deep` / `Continue` in the snapshot, not a canvas OCR of `THE LEGEND OF MACAR`.
 - `?play` or `#play` skips the splash and rewrites `document.title`. That is not this feature.
 - `Descend` may sit on `intro` until chapter art is ready. Wait for `scene=play`, not a fixed sleep. A hint `The seam is still settling.` means wait longer, then snapshot again.

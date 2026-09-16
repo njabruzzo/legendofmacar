@@ -72,7 +72,7 @@
         name: p.name, x: p.x, y: p.y, hp: p.hp, maxhp: p.maxhp,
         fdx: p.fdx, fdy: p.fdy, defending: !!p.defending
       } : null,
-      menus: menus,
+      menus: (G.scene === 'play' && !G.paused) ? [] : menus,
       hud: hud,
       hudLabels: hud.map(function (b) { return b.label; }).filter(Boolean),
       log: log,
