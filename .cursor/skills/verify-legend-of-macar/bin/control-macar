@@ -1,0 +1,851 @@
+#!/usr/bin/env node
+'use strict';
+/**
+ * Drive Legend of Macar for verification: isolated static server + Chrome CDP.
+ * Invocation is documented in SKILL.md. This file is the harness.
+ */
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
+
+const SKILL_DIR = path.resolve(__dirname, '..');
+const REPO = process.env.MACAR_REPO || path.resolve(SKILL_DIR, '../../..');
+const RUN_DIR = process.env.MACAR_RUN_DIR || path.join(SKILL_DIR, '.run');
+const STATE_PATH = path.join(RUN_DIR, 'state.json');
+const CHECKS_PATH = path.join(RUN_DIR, 'checks.jsonl');
+const CONSOLE_PATH = path.join(RUN_DIR, 'console.jsonl');
+const PROBE_PATH = path.join(SKILL_DIR, 'lib/probe-snippet.js');
+const DEFAULT_PORT = Number(process.env.MACAR_VERIFY_PORT || 4174);
+const LIVE_HOSTS = new Set(['www.legendofmacar.com', 'legendofmacar.com']);
+const SAVE_KEYS = [
+  'legendofmacar.save.v2',
+  'legendofmacar.save.v2.good',
+  'legendofmacar.save.v2.pending',
+  'legendofmacar.save.v1'
+];
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.css': 'text/css; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2'
+};
+
+function die(msg, code) {
+  process.stderr.write(msg + '\n');
+  process.exit(code == null ? 1 : code);
+}
+function out(msg) { process.stdout.write(String(msg) + '\n'); }
+function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
+function readState() {
+  if (!fs.existsSync(STATE_PATH)) return null;
+  return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+}
+function writeState(s) {
+  ensureDir(RUN_DIR);
+  fs.writeFileSync(STATE_PATH, JSON.stringify(s, null, 2));
+}
+function requireState() {
+  const s = readState();
+  if (!s) die('no verification run. Start with: control-macar launch');
+  return s;
+}
+function alive(pid) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); return true; } catch (e) { return false; }
+}
+function argVal(args, name, fallback) {
+  const i = args.indexOf(name);
+  if (i < 0) return fallback;
+  return args[i + 1];
+}
+function hasFlag(args, name) { return args.includes(name); }
+
+function injectProbe(html) {
+  const snippet = fs.readFileSync(PROBE_PATH, 'utf8');
+  const marker = '</script>';
+  const idx = html.lastIndexOf(marker);
+  if (idx < 0) throw new Error('index.html has no closing script tag');
+  return html.slice(0, idx) + '\n' + snippet + '\n' + html.slice(idx);
+}
+
+function startServer(port) {
+  const probe = fs.readFileSync(PROBE_PATH, 'utf8');
+  if (!/VERIFY-SCAFFOLDING begin/.test(probe)) throw new Error('probe snippet missing marker');
+  const server = http.createServer((req, res) => {
+    const raw = decodeURIComponent((req.url || '/').split('?')[0]);
+    let rel = raw === '/' ? '/index.html' : raw;
+    const file = path.normalize(path.join(REPO, rel));
+    if (!file.startsWith(REPO)) { res.writeHead(403); res.end('forbidden'); return; }
+    fs.stat(file, (err, st) => {
+      if (err || !st.isFile()) { res.writeHead(404); res.end('not found'); return; }
+      const ext = path.extname(file).toLowerCase();
+      const send = (body, type) => {
+        res.writeHead(200, {
+          'Content-Type': type || MIME[ext] || 'application/octet-stream',
+          'Cache-Control': 'no-store',
+          'X-Macar-Verify': '1'
+        });
+        res.end(body);
+      };
+      if (rel === '/index.html') {
+        fs.readFile(file, 'utf8', (e2, html) => {
+          if (e2) { res.writeHead(500); res.end('read fail'); return; }
+          send(injectProbe(html), 'text/html; charset=utf-8');
+        });
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': MIME[ext] || 'application/octet-stream',
+        'Cache-Control': 'no-store',
+        'X-Macar-Verify': '1'
+      });
+      fs.createReadStream(file).pipe(res);
+    });
+  });
+  return new Promise((resolve, reject) => {
+    server.on('error', reject);
+    server.listen(port, '127.0.0.1', () => resolve(server));
+  });
+}
+
+function waitHttp(url, ms) {
+  const limit = Date.now() + (ms || 8000);
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        if (res.statusCode >= 200 && res.statusCode < 400) return resolve(res.statusCode);
+        if (Date.now() > limit) return reject(new Error('HTTP ' + res.statusCode + ' for ' + url));
+        setTimeout(tick, 150);
+      });
+      req.on('error', () => {
+        if (Date.now() > limit) return reject(new Error('no HTTP at ' + url));
+        setTimeout(tick, 150);
+      });
+    };
+    tick();
+  });
+}
+
+function chromeBin() {
+  const cands = [
+    process.env.CHROME_PATH,
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/opt/google/chrome/chrome',
+    '/usr/local/bin/google-chrome'
+  ].filter(Boolean);
+  for (const c of cands) if (fs.existsSync(c)) return c;
+  die('Chrome not found. Set CHROME_PATH.');
+}
+
+function jsonGet(url) {
+  return new Promise((resolve, reject) => {
+    http.get(url, (res) => {
+      let b = '';
+      res.on('data', (d) => { b += d; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(b || 'null')); } catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+}
+
+function startChrome(cdpPort, userDataDir, headed) {
+  ensureDir(userDataDir);
+  const args = [
+    headed ? null : '--headless=new',
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--window-size=1280,800',
+    '--remote-debugging-address=127.0.0.1',
+    '--remote-debugging-port=' + cdpPort,
+    '--user-data-dir=' + userDataDir,
+    'about:blank'
+  ].filter(Boolean);
+  const child = spawn(chromeBin(), args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+  child.unref();
+  return child;
+}
+
+function waitCdp(cdpPort, ms) {
+  const limit = Date.now() + (ms || 15000);
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      jsonGet('http://127.0.0.1:' + cdpPort + '/json/version').then(resolve).catch(() => {
+        if (Date.now() > limit) return reject(new Error('CDP did not come up on ' + cdpPort));
+        setTimeout(tick, 150);
+      });
+    };
+    tick();
+  });
+}
+
+class Cdp {
+  constructor(wsUrl) {
+    this.wsUrl = wsUrl;
+    this.ws = null;
+    this.id = 0;
+    this.pending = new Map();
+    this.console = [];
+  }
+  async connect() {
+    this.ws = new WebSocket(this.wsUrl);
+    await new Promise((resolve, reject) => {
+      this.ws.addEventListener('open', resolve);
+      this.ws.addEventListener('error', reject);
+    });
+    this.ws.addEventListener('message', (ev) => {
+      const msg = JSON.parse(ev.data);
+      if (msg.id && this.pending.has(msg.id)) {
+        const { resolve, reject } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.error) reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+        else resolve(msg.result);
+      }
+      if (msg.method === 'Runtime.consoleAPICalled') {
+        const row = {
+          t: Date.now(),
+          type: msg.params.type,
+          text: (msg.params.args || []).map((a) => a.value != null ? String(a.value) : (a.description || '')).join(' ')
+        };
+        this.console.push(row);
+        try { fs.appendFileSync(CONSOLE_PATH, JSON.stringify(row) + '\n'); } catch (e) {}
+      }
+    });
+    await this.send('Runtime.enable');
+    await this.send('Page.enable');
+    return this;
+  }
+  send(method, params) {
+    const id = ++this.id;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.ws.send(JSON.stringify({ id, method, params: params || {} }));
+    });
+  }
+  async eval(expr, awaitPromise) {
+    const r = await this.send('Runtime.evaluate', {
+      expression: expr,
+      returnByValue: true,
+      awaitPromise: !!awaitPromise
+    });
+    if (r.exceptionDetails) {
+      const t = (r.exceptionDetails.exception && r.exceptionDetails.exception.description)
+        || r.exceptionDetails.text;
+      throw new Error(t || 'evaluate failed');
+    }
+    return r.result ? r.result.value : undefined;
+  }
+  close() { try { this.ws && this.ws.close(); } catch (e) {} }
+}
+
+async function pageWs(cdpPort, origin) {
+  const list = await jsonGet('http://127.0.0.1:' + cdpPort + '/json/list');
+  const pages = (list || []).filter((t) => t.type === 'page');
+  const mine = pages.find((t) => t.url && t.url.startsWith(origin));
+  const pick = mine || pages[0];
+  if (pick && pick.webSocketDebuggerUrl) return pick.webSocketDebuggerUrl;
+  const created = await jsonGet('http://127.0.0.1:' + cdpPort + '/json/new?' + encodeURIComponent(origin + '/'));
+  return created.webSocketDebuggerUrl;
+}
+
+async function attach() {
+  const state = requireState();
+  if (LIVE_HOSTS.has(new URL(state.origin).hostname) && !state.allowLive) {
+    die('refusing live origin ' + state.origin + ' (would share the player save). Relaunch isolated.');
+  }
+  if (!alive(state.chromePid)) die('Chrome for this run is not running. Relaunch.');
+  const wsUrl = await pageWs(state.cdpPort, state.origin);
+  const cdp = new Cdp(wsUrl);
+  await cdp.connect();
+  return { state, cdp };
+}
+
+async function waitProbe(cdp, ms) {
+  const limit = Date.now() + (ms || 20000);
+  while (Date.now() < limit) {
+    try {
+      const ok = await cdp.eval('!!(window.__MACAR_VERIFY__ && window.__MACAR_VERIFY__.snapshot)');
+      if (ok) return;
+    } catch (e) {}
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  throw new Error('verify probe never appeared. Is the isolated server injecting it?');
+}
+
+async function snapshot(cdp) {
+  await waitProbe(cdp, 8000);
+  return cdp.eval('window.__MACAR_VERIFY__.snapshot()');
+}
+
+function ariaFromSnap(s) {
+  const lines = [];
+  lines.push('app: The Legend of Macar');
+  lines.push('scene: ' + s.scene);
+  if (s.ch) lines.push('chapter: ' + s.ch);
+  if (s.paused) lines.push('paused: true');
+  if (s.wipeAsk) lines.push('wipeAsk: true');
+  if (s.hasSave) lines.push('save: ' + (s.saveLabel || 'present'));
+  if (s.hint) lines.push('hint: ' + s.hint);
+  if (s.prompt) lines.push('prompt: ' + s.prompt);
+  if (s.player) lines.push('player: ' + s.player.name + ' hp=' + s.player.hp + '/' + s.player.maxhp + ' pos=' + s.player.x.toFixed(2) + ',' + s.player.y.toFixed(2) + (s.defending ? ' defending' : ''));
+  lines.push('menus:');
+  (s.menus || []).forEach((m) => lines.push('  - button "' + m.name + '"'));
+  lines.push('hud:');
+  (s.hud || []).forEach((b) => lines.push('  - ' + (b.label ? 'button "' + b.label + '"' : 'control') + ' key=' + b.key));
+  if (s.log && s.log.length) {
+    lines.push('log:');
+    s.log.forEach((t) => lines.push('  - ' + t));
+  }
+  return lines.join('\n') + '\n';
+}
+
+function evidenceDir(state) {
+  const dir = state.evidenceDir;
+  ensureDir(dir);
+  return dir;
+}
+
+function recordCheck(id, status, reason) {
+  ensureDir(RUN_DIR);
+  const row = { id, status, reason: reason || '', at: Date.now() };
+  fs.appendFileSync(CHECKS_PATH, JSON.stringify(row) + '\n');
+  out('CHECK ' + id + '=' + status + (reason ? ' reason=' + reason : ''));
+  return row;
+}
+
+function readChecks() {
+  if (!fs.existsSync(CHECKS_PATH)) return [];
+  return fs.readFileSync(CHECKS_PATH, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+}
+
+function latestChecks() {
+  const map = new Map();
+  readChecks().forEach((c) => map.set(c.id, c));
+  return [...map.values()];
+}
+
+function listEvidence(state) {
+  const dir = state.evidenceDir;
+  if (!dir || !fs.existsSync(dir)) return [];
+  const walk = (d, acc) => {
+    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, ent.name);
+      if (ent.isDirectory()) walk(p, acc);
+      else acc.push(p);
+    }
+    return acc;
+  };
+  return walk(dir, []);
+}
+
+function emitVerdict(state, extraFail) {
+  const checks = latestChecks();
+  const evidence = listEvidence(state);
+  let verdict = 'APPROVE';
+  const reasons = [];
+  if (extraFail) { verdict = 'REJECT'; reasons.push(extraFail); }
+  if (!checks.length) { verdict = 'REJECT'; reasons.push('no checks recorded'); }
+  for (const c of checks) {
+    if (c.status === 'fail') { verdict = 'REJECT'; reasons.push(c.id + ' failed'); }
+    if (c.status === 'skip' && !/^verified-unreachable/.test(c.reason || '')) {
+      verdict = 'REJECT';
+      reasons.push(c.id + ' skipped without verified-unreachable');
+    }
+    if (c.status === 'pass') {
+      const tagged = evidence.some((p) => path.basename(p).startsWith(c.id + '.') || path.basename(p).includes(c.id));
+      if (!tagged && c.id !== 'cleanup-intact') {
+        /* doctor may use console/log files named doctor-* */
+        const loose = evidence.some((p) => path.basename(p).includes(c.id.split('-')[0]));
+        if (!loose && c.id !== 'doctor') {
+          verdict = 'REJECT';
+          reasons.push(c.id + ' passed but no named evidence');
+        }
+      }
+    }
+  }
+  const doctor = checks.find((c) => c.id === 'doctor');
+  if (!doctor || doctor.status !== 'pass') {
+    verdict = 'REJECT';
+    reasons.push('doctor did not pass');
+  }
+  const cleanup = checks.find((c) => c.id === 'cleanup-intact');
+  if (cleanup && cleanup.status !== 'pass') {
+    verdict = 'REJECT';
+    reasons.push('cleanup ate or lost evidence');
+  }
+  out('');
+  out('VERDICT: ' + verdict);
+  checks.forEach((c) => out('CHECKS: ' + c.id + '=' + c.status + (c.reason ? ' reason=' + c.reason : '')));
+  evidence.forEach((p) => out('EVIDENCE: ' + p));
+  if (reasons.length && verdict === 'REJECT') out('REASON: ' + reasons.join('; '));
+  return verdict === 'APPROVE' ? 0 : 2;
+}
+
+async function cmdLaunch(args) {
+  const existing = readState();
+  if (existing && (alive(existing.serverPid) || alive(existing.chromePid)) && !hasFlag(args, '--force')) {
+    die('a run is already live on ' + existing.origin + '. control-macar cleanup first, or pass --force');
+  }
+  if (existing && hasFlag(args, '--force')) await cmdCleanup(['--keep-evidence']);
+  const port = Number(argVal(args, '--port', DEFAULT_PORT));
+  const headed = hasFlag(args, '--headed');
+  const allowLive = hasFlag(args, '--allow-live');
+  const runId = (process.env.MACAR_RUN_ID || ('run-' + Date.now().toString(36)));
+  const evidenceDirPath = process.env.MACAR_EVIDENCE_DIR
+    || path.join(SKILL_DIR, 'artifacts', runId);
+  const userDataDir = path.join(RUN_DIR, 'chrome-' + runId);
+  const cdpPort = Number(argVal(args, '--cdp-port', port + 2000));
+  ensureDir(RUN_DIR);
+  ensureDir(evidenceDirPath);
+  if (fs.existsSync(CHECKS_PATH)) fs.unlinkSync(CHECKS_PATH);
+  if (fs.existsSync(CONSOLE_PATH)) fs.unlinkSync(CONSOLE_PATH);
+
+  const server = await startServer(port);
+  const origin = 'http://127.0.0.1:' + port;
+  await waitHttp(origin + '/', 8000);
+  const chrome = startChrome(cdpPort, userDataDir, headed);
+  await waitCdp(cdpPort, 20000);
+  const state = {
+    runId, port, origin, cdpPort, headed: !!headed, allowLive: !!allowLive,
+    serverPid: process.pid, chromePid: chrome.pid,
+    userDataDir, evidenceDir: evidenceDirPath,
+    repo: REPO, startedAt: new Date().toISOString()
+  };
+  writeState(state);
+  /* Keep this process as the HTTP server. Child commands attach via CDP. */
+  out('launch ready');
+  out('origin ' + origin);
+  out('cdp 127.0.0.1:' + cdpPort);
+  out('evidence ' + evidenceDirPath);
+  out('run ' + runId);
+  const stop = () => {
+    try { server.close(); } catch (e) {}
+    if (alive(chrome.pid)) try { process.kill(chrome.pid, 'SIGTERM'); } catch (e) {}
+    process.exit(0);
+  };
+  process.on('SIGTERM', stop);
+  process.on('SIGINT', stop);
+  /* Stay alive as the isolated file server. */
+}
+
+async function cmdDoctor(args) {
+  const state = requireState();
+  const dir = evidenceDir(state);
+  const lines = [];
+  const fail = (id, reason) => { lines.push('FAIL ' + id + ' ' + reason); return false; };
+  const ok = (id, note) => { lines.push('ok   ' + id + (note ? ' ' + note : '')); return true; };
+  let good = true;
+  try {
+    const code = await waitHttp(state.origin + '/', 3000);
+    good = ok('http', 'GET / → ' + code) && good;
+  } catch (e) { good = fail('http', e.message) && good; }
+  try {
+    const html = await new Promise((resolve, reject) => {
+      http.get(state.origin + '/index.html', (res) => {
+        let b = '';
+        res.on('data', (d) => { b += d; });
+        res.on('end', () => resolve({ code: res.statusCode, body: b, verify: res.headers['x-macar-verify'] }));
+      }).on('error', reject);
+    });
+    if (html.code !== 200) good = fail('index', 'status ' + html.code);
+    else if (!/VERIFY-SCAFFOLDING begin/.test(html.body)) good = fail('probe-inject', 'served index.html has no probe');
+    else if (html.verify !== '1') good = fail('probe-inject', 'missing X-Macar-Verify');
+    else ok('index', 'injected probe present');
+    if (!/The Legend of Macar/.test(html.body)) good = fail('identity', 'title copy missing');
+    else ok('identity', 'The Legend of Macar');
+  } catch (e) { good = fail('index', e.message) && good; }
+  const host = new URL(state.origin).hostname;
+  if (LIVE_HOSTS.has(host) && !state.allowLive) {
+    good = fail('origin', 'live host ' + host + ' is not isolated');
+  } else ok('origin', state.origin);
+  if (!alive(state.chromePid)) good = fail('chrome', 'chrome pid ' + state.chromePid + ' dead');
+  else ok('chrome', 'pid ' + state.chromePid);
+  if (!alive(state.serverPid) && state.serverPid !== process.pid) {
+    /* serverPid is the launch process */
+  }
+  try {
+    const { cdp } = await attach();
+    await cdp.eval('location.href').catch(() => {});
+    const href = await cdp.eval('location.href').catch(() => '');
+    if (href && href !== 'about:blank' && !String(href).startsWith(state.origin)) {
+      good = fail('browser-origin', String(href));
+    } else ok('browser-origin', href || 'about:blank');
+    cdp.close();
+  } catch (e) { good = fail('cdp', e.message); }
+  if (hasFlag(args, '--suite')) {
+    const r = spawnSync('npm', ['test'], { cwd: REPO, encoding: 'utf8' });
+    const body = ((r.stdout || '') + (r.stderr || '')).trimEnd();
+    fs.writeFileSync(path.join(dir, 'doctor-suite.txt'), body + '\nexit ' + r.status + '\n');
+    if (r.status !== 0) good = fail('npm-test', 'exit ' + r.status);
+    else ok('npm-test', 'full suite passed (helper, not user-path proof)');
+  }
+  fs.writeFileSync(path.join(dir, 'doctor.log'), lines.join('\n') + '\n');
+  out(lines.join('\n'));
+  recordCheck('doctor', good ? 'pass' : 'fail', good ? 'isolated instance healthy' : 'see doctor.log');
+  if (!good) die('doctor failed', 1);
+}
+
+async function cmdBrowser(args) {
+  const sub = args[0];
+  const rest = args.slice(1);
+  const { state, cdp } = await attach();
+  const dir = evidenceDir(state);
+  try {
+    if (sub === 'open') {
+      const rel = rest[0] && !rest[0].startsWith('--') ? rest[0] : '/';
+      const url = rel.startsWith('http') ? rel : (state.origin + (rel.startsWith('/') ? rel : '/' + rel));
+      if (LIVE_HOSTS.has(new URL(url).hostname) && !state.allowLive) {
+        die('refusing to open live site');
+      }
+      await cdp.send('Page.navigate', { url });
+      await waitProbe(cdp, 25000);
+      await new Promise((r) => setTimeout(r, 400));
+      const s = await snapshot(cdp);
+      out(JSON.stringify({ url, scene: s.scene, menus: s.menus.map((m) => m.name) }, null, 2));
+      return;
+    }
+    if (sub === 'wait') {
+      const scene = argVal(rest, '--scene', null);
+      const field = argVal(rest, '--field', null);
+      const value = argVal(rest, '--value', null);
+      const timeout = Number(argVal(rest, '--timeout', 30)) * 1000;
+      const limit = Date.now() + timeout;
+      let last = null;
+      while (Date.now() < limit) {
+        last = await snapshot(cdp);
+        const sceneOk = !scene || last.scene === scene;
+        const fieldOk = !field || String(last[field]) === String(value);
+        if (sceneOk && fieldOk) { out(JSON.stringify(last, null, 2)); return; }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      die('wait timed out scene=' + scene + ' last=' + (last && last.scene));
+    }
+    if (sub === 'click') {
+      const name = argVal(rest, '--name', null);
+      const key = argVal(rest, '--hud-key', null);
+      await waitProbe(cdp);
+      const r = name
+        ? await cdp.eval('window.__MACAR_VERIFY__.clickName(' + JSON.stringify(name) + ')')
+        : await cdp.eval('window.__MACAR_VERIFY__.clickHud(' + JSON.stringify(key) + ')');
+      if (!r || !r.ok) die('click failed ' + JSON.stringify(r));
+      await new Promise((x) => setTimeout(x, 250));
+      out(JSON.stringify(r));
+      return;
+    }
+    if (sub === 'press') {
+      const key = argVal(rest, '--key', null);
+      if (!key) die('press needs --key');
+      const hold = Number(argVal(rest, '--hold-ms', 0));
+      await cdp.eval('window.__MACAR_VERIFY__.press(' + JSON.stringify(key) + ',"down")');
+      if (hold > 0) await new Promise((r) => setTimeout(r, hold));
+      await cdp.eval('window.__MACAR_VERIFY__.press(' + JSON.stringify(key) + ',"up")');
+      await new Promise((r) => setTimeout(r, 80));
+      out(JSON.stringify({ key, hold }));
+      return;
+    }
+    if (sub === 'snapshot') {
+      const dest = argVal(rest, '--path', path.join(dir, 'snapshot.json'));
+      const s = await snapshot(cdp);
+      ensureDir(path.dirname(dest));
+      if (hasFlag(rest, '--aria') || /\.aria\.txt$/.test(dest) || hasFlag(rest, '--aria-also')) {
+        const ariaPath = hasFlag(rest, '--aria') && dest.endsWith('.txt') ? dest : dest.replace(/(\.json)?$/, '.aria.txt');
+        fs.writeFileSync(ariaPath, ariaFromSnap(s));
+        out(ariaPath);
+      }
+      if (!dest.endsWith('.txt')) fs.writeFileSync(dest, JSON.stringify(s, null, 2));
+      out(dest);
+      return;
+    }
+    if (sub === 'screenshot') {
+      const dest = argVal(rest, '--path', path.join(dir, 'screen.png'));
+      const r = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true });
+      ensureDir(path.dirname(dest));
+      fs.writeFileSync(dest, Buffer.from(r.data, 'base64'));
+      out(dest);
+      return;
+    }
+    if (sub === 'console') {
+      const dest = argVal(rest, '--path', path.join(dir, 'console.jsonl'));
+      if (fs.existsSync(CONSOLE_PATH)) fs.copyFileSync(CONSOLE_PATH, dest);
+      else fs.writeFileSync(dest, '');
+      out(dest);
+      return;
+    }
+    if (sub === 'isolate-saves') {
+      const r = await cdp.eval('window.__MACAR_VERIFY__.clearSaves()');
+      out(JSON.stringify(r));
+      return;
+    }
+    if (sub === 'state') {
+      out(JSON.stringify(await snapshot(cdp), null, 2));
+      return;
+    }
+    die('unknown browser subcommand ' + sub);
+  } finally {
+    cdp.close();
+  }
+}
+
+function cmdCheck(args) {
+  if (args[0] !== 'record') die('usage: control-macar check record --id ID --status pass|fail|skip [--reason TEXT]');
+  const rest = args.slice(1);
+  const id = argVal(rest, '--id', null);
+  const status = argVal(rest, '--status', null);
+  const reason = argVal(rest, '--reason', '');
+  if (!id || !status) die('check record needs --id and --status');
+  if (!['pass', 'fail', 'skip'].includes(status)) die('status must be pass|fail|skip');
+  recordCheck(id, status, reason);
+}
+
+async function cmdCleanup(args) {
+  const state = readState();
+  if (!state) { out('nothing to clean'); return; }
+  const keep = hasFlag(args, '--keep-evidence') || !hasFlag(args, '--wipe-evidence');
+  if (alive(state.chromePid)) {
+    try { process.kill(state.chromePid, 'SIGTERM'); } catch (e) {}
+    await new Promise((r) => setTimeout(r, 400));
+    if (alive(state.chromePid)) try { process.kill(state.chromePid, 'SIGKILL'); } catch (e) {}
+  }
+  if (alive(state.serverPid) && state.serverPid !== process.pid) {
+    try { process.kill(state.serverPid, 'SIGTERM'); } catch (e) {}
+    await new Promise((r) => setTimeout(r, 300));
+    if (alive(state.serverPid)) try { process.kill(state.serverPid, 'SIGKILL'); } catch (e) {}
+  }
+  /* Never delete evidence. Optional chrome profile scratch can go. */
+  if (state.userDataDir && fs.existsSync(state.userDataDir) && !hasFlag(args, '--keep-profile')) {
+    fs.rmSync(state.userDataDir, { recursive: true, force: true });
+  }
+  const evidence = keep ? listEvidence(state) : [];
+  fs.writeFileSync(path.join(RUN_DIR, 'last-cleanup.json'), JSON.stringify({
+    at: new Date().toISOString(), runId: state.runId, evidence
+  }, null, 2));
+  /* Keep state.json origin/evidenceDir so verdict can still name paths, but mark dead. */
+  writeState(Object.assign({}, state, { cleaned: true, chromePid: null, serverPid: null }));
+  out('cleaned chrome pid and server pid for run ' + state.runId);
+  out('evidence kept at ' + state.evidenceDir);
+  evidence.forEach((p) => out('kept ' + p));
+}
+
+function cmdConfirmEvidence() {
+  const state = requireState();
+  const needed = latestChecks()
+    .filter((c) => c.status === 'pass' && c.id !== 'doctor' && c.id !== 'cleanup-intact')
+    .map((c) => c.id);
+  const files = listEvidence(state);
+  const missing = [];
+  for (const id of needed) {
+    const hit = files.some((p) => path.basename(p).startsWith(id + '.'));
+    if (!hit) missing.push(id);
+  }
+  if (!files.length) {
+    recordCheck('cleanup-intact', 'fail', 'evidence directory empty after cleanup');
+    return;
+  }
+  if (missing.length) {
+    recordCheck('cleanup-intact', 'fail', 'missing evidence for ' + missing.join(','));
+    return;
+  }
+  recordCheck('cleanup-intact', 'pass', files.length + ' files remain at ' + state.evidenceDir);
+}
+
+function cmdVerdict() {
+  const state = requireState();
+  const code = emitVerdict(state);
+  process.exit(code);
+}
+
+function writeEvidence(state, name, body, bin) {
+  const dest = path.join(evidenceDir(state), name);
+  ensureDir(path.dirname(dest));
+  if (bin) fs.writeFileSync(dest, body);
+  else fs.writeFileSync(dest, typeof body === 'string' ? body : JSON.stringify(body, null, 2));
+  return dest;
+}
+
+async function proveTitleNewGame() {
+  const { state, cdp } = await attach();
+  const required = [];
+  const shot = async (id) => {
+    const r = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true });
+    return writeEvidence(state, id + '.png', Buffer.from(r.data, 'base64'), true);
+  };
+  const snapWrite = async (id) => {
+    const s = await snapshot(cdp);
+    writeEvidence(state, id + '.json', s);
+    writeEvidence(state, id + '.aria.txt', ariaFromSnap(s));
+    return s;
+  };
+  try {
+    await cdp.send('Page.navigate', { url: state.origin + '/' });
+    await waitProbe(cdp, 25000);
+    let s = null;
+    const limit = Date.now() + 25000;
+    while (Date.now() < limit) {
+      s = await snapshot(cdp);
+      if (s.scene === 'title' && s.menus.some((m) => m.name === 'Enter the Deep' || m.name === 'Continue')) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    const titleShot = await shot('title-visible');
+    await snapWrite('title-visible');
+    const enter = (s.menus || []).some((m) => m.name === 'Enter the Deep');
+    const cont = (s.menus || []).some((m) => m.name === 'Continue');
+    if (s.scene !== 'title' || (!enter && !cont)) {
+      recordCheck('title-visible', 'fail', 'title menus missing; got ' + JSON.stringify((s.menus || []).map((m) => m.name)));
+    } else if (cont && !enter) {
+      recordCheck('title-visible', 'fail', 'isolated origin still has a Continue slot; wipe saves and retry');
+    } else {
+      recordCheck('title-visible', 'pass', 'Enter the Deep on title; evidence ' + titleShot);
+    }
+
+    const click = await cdp.eval('window.__MACAR_VERIFY__.clickName("Enter the Deep")');
+    if (!click || !click.ok) {
+      recordCheck('enter-the-deep', 'fail', JSON.stringify(click));
+    } else {
+      const introLimit = Date.now() + 20000;
+      let intro = s;
+      while (Date.now() < introLimit) {
+        intro = await snapshot(cdp);
+        if (intro.scene === 'intro') break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      await shot('enter-the-deep');
+      await snapWrite('enter-the-deep');
+      if (intro.scene !== 'intro') recordCheck('enter-the-deep', 'fail', 'scene=' + intro.scene);
+      else recordCheck('enter-the-deep', 'pass', 'scene=intro after Enter the Deep');
+    }
+
+    s = await snapshot(cdp);
+    await shot('intro-visible');
+    await snapWrite('intro-visible');
+    const descend = (s.menus || []).some((m) => m.name === 'Descend');
+    if (s.scene !== 'intro' || !descend) {
+      recordCheck('intro-visible', 'fail', 'missing Descend; scene=' + s.scene);
+    } else {
+      recordCheck('intro-visible', 'pass', 'intro Descend ready');
+    }
+
+    const dclick = await cdp.eval('window.__MACAR_VERIFY__.clickName("Descend")');
+    if (!dclick || !dclick.ok) recordCheck('descend-to-play', 'fail', JSON.stringify(dclick));
+    const playLimit = Date.now() + 60000;
+    let play = s;
+    while (Date.now() < playLimit) {
+      play = await snapshot(cdp);
+      if (play.scene === 'play') break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    await shot('descend-to-play');
+    await snapWrite('descend-to-play');
+    if (play.scene !== 'play') {
+      recordCheck('descend-to-play', 'fail', 'scene=' + play.scene + ' worldArtReady=' + play.worldArtReady);
+    } else {
+      recordCheck('descend-to-play', 'pass', 'scene=play');
+    }
+
+    await new Promise((r) => setTimeout(r, 400));
+    play = await snapshot(cdp);
+    await shot('play-hud');
+    await snapWrite('play-hud');
+    const labels = play.hudLabels || [];
+    const need = ['PACK', 'Defend', 'Attack', 'SEARCH', 'Camp', 'Craft'];
+    const missing = need.filter((n) => !labels.includes(n));
+    const searchN = labels.filter((n) => n === 'SEARCH').length;
+    const rally = labels.includes('Rally') || (play.hud || []).some((b) => b.key === 'rally');
+    if (play.scene !== 'play' || missing.length || searchN < 2 || rally) {
+      recordCheck('play-hud', 'fail',
+        'missing=' + missing.join(',') + ' searchN=' + searchN + ' rally=' + rally + ' labels=' + labels.join('|'));
+    } else {
+      recordCheck('play-hud', 'pass', 'play HUD has PACK/Defend/Attack/two SEARCH/Camp/Craft and no Rally');
+    }
+    const cons = path.join(evidenceDir(state), 'console.jsonl');
+    if (fs.existsSync(CONSOLE_PATH)) fs.copyFileSync(CONSOLE_PATH, cons);
+    else fs.writeFileSync(cons, '');
+    required.push('title-visible', 'enter-the-deep', 'intro-visible', 'descend-to-play', 'play-hud');
+  } finally {
+    cdp.close();
+  }
+  return required;
+}
+
+async function cmdProve(args) {
+  const feature = argVal(args, '--feature', 'title-new-game');
+  if (feature !== 'title-new-game') die('prove currently ships title-new-game only; drive other map files by hand');
+  if (!readState() || !alive((readState() || {}).chromePid)) {
+    die('launch a run first: control-macar launch   (leave it running), then doctor, then prove');
+  }
+  await proveTitleNewGame();
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const cmd = argv[0];
+  const rest = argv.slice(1);
+  if (!cmd || cmd === 'help' || cmd === '--help') {
+    out(`control-macar — Legend of Macar verification harness
+
+  control-macar launch [--port 4174] [--headed] [--force]
+  control-macar doctor [--suite]
+  control-macar browser open [/]
+  control-macar browser wait --scene title|intro|play|pack|camp [--timeout 30]
+  control-macar browser click --name "Enter the Deep"
+  control-macar browser click --hud-key pack
+  control-macar browser press --key d [--hold-ms 800]
+  control-macar browser snapshot --path FILE [--aria]
+  control-macar browser screenshot --path FILE
+  control-macar browser console --path FILE
+  control-macar browser isolate-saves
+  control-macar browser state
+  control-macar check record --id ID --status pass|fail|skip [--reason TEXT]
+  control-macar prove --feature title-new-game
+  control-macar cleanup
+  control-macar confirm-evidence
+  control-macar finish
+  control-macar verdict
+`);
+    return;
+  }
+  if (cmd === 'launch') return cmdLaunch(rest);
+  if (cmd === 'doctor') return cmdDoctor(rest);
+  if (cmd === 'browser') return cmdBrowser(rest);
+  if (cmd === 'check') return cmdCheck(rest);
+  if (cmd === 'prove') return cmdProve(rest);
+  if (cmd === 'cleanup') return cmdCleanup(rest);
+  if (cmd === 'confirm-evidence') return cmdConfirmEvidence();
+  if (cmd === 'finish') {
+    return cmdCleanup(rest).then(() => {
+      cmdConfirmEvidence();
+      cmdVerdict();
+    });
+  }
+  if (cmd === 'verdict') return cmdVerdict();
+  if (cmd === 'status') {
+    const s = readState();
+    out(s ? JSON.stringify(s, null, 2) : 'no run');
+    return;
+  }
+  die('unknown command ' + cmd);
+}
+
+main().catch((err) => {
+  process.stderr.write(String(err && err.stack || err) + '\n');
+  process.exit(1);
+});
