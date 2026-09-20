@@ -54,6 +54,11 @@ assert(/L\.flags\.touched=1/.test(html.match(/function wakeRubyDoor\(\)\{[\s\S]*
   'Not yet does not set touched — only wakeRubyDoor does');
 assert(/FOE\.statue\(\)/.test(html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0]),
   'wake still spawns the six guardians');
+assert(/A red ruby seats itself on the pillar in the middle of the chamber/.test(
+  html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0]),
+  'wake seats a ruby on the center pillar at door touch, not after cleared');
+assert(/interact\('Pull the lever'/.test(html) && /L\.flags\.elevReady=1/.test(html),
+  'elevator activate is still a Ch1 interact that sets elevReady');
 
 assert(/startTalk\(riseKey\)/.test(html) && /talkKinKey\(k\)/.test(html),
   'makeGhostAlly starts rise talk after the raise');
