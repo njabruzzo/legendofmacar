@@ -48,6 +48,12 @@ assert(/tile_floor_mine\.png\?v=60/.test(html) && /tile_wall_worked\.png\?v=60/.
 assert(/ASSET_VER='101'/.test(html), 'asset cache-bust matches ChatGPT Macar maul lock');
 assert(/function scatterBurialRubble\(/.test(html) && /fallen:1/.test(html) && /k:'dust'/.test(html),
   'cave-in entry scatters extra timber, stone, and dust around the burial');
+assert(!/s:0\.55,seed:s\.seed\+40/.test(html) && !/s:0\.48,seed:s\.seed\+51/.test(html),
+  'cover stones on the kin are no longer twin waist-high boulders');
+assert(/nearCrush\(p\.x,p\.y,0\.72\)/.test(html) && !/nearCrush\(p\.x,p\.y,1\.35\)/.test(html),
+  'floor scatter may sit among the kin instead of a 1.35 clear circle');
+assert(/dwarfH\*0\.30/.test(html) && /dwarfH\*0\.26/.test(html) && !/dwarfH\*0\.42/.test(html),
+  'leg overlay rocks stay small enough that faces stay open');
 assert(/function drawFallenBeam\(/.test(html) && /function drawFloorDust\(/.test(html),
   'broken beams and floor dust have their own floor-hugging draws');
 assert(/chapters_plate\.jpg/.test(html) && fs.existsSync(path.join(__dirname,'../../assets/ui/chapters_plate.jpg')),

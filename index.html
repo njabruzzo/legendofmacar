@@ -3496,25 +3496,26 @@ function startRubbleSpr(seed, n){
 }
 function startBackWallRubble(){
   const out=[];
-  /* Foot chips stay small. The read is the wall-plane stack plus tall
-     cavein stamps (s≥1.0). No floor-beam hedge, no T-post. */
+  /* Foot chips stay on the lip. Hash-jitter y so the cave-in foot is not a
+     picket fence. The read is still the wall-plane stack plus tall cavein
+     stamps (s≥1.0). No floor-beam hedge, no T-post. */
   for(let i=0;i<10;i++){
-    const y=16.4+i*1.25+(h01(i,2,81)-0.5)*0.18;
-    const x=14.22+(h01(i,3,81)-0.5)*0.10;
+    const y=16.25+i*1.25+(h01(i,2,81)-0.5)*0.88;
+    const x=14.20+(h01(i,3,81)-0.5)*0.16;
     if(nearCrush(x,y,1.15)) continue;
-    const s=0.40+h01(i,5,81)*0.36;
+    const s=0.34+h01(i,5,81)*0.40;
     const spr=startRubbleSpr(81,i);
     out.push({x,y,k:/boulder/.test(spr)?'boulder':'rubble',spr,s,seed:900+i,backwall:1});
   }
   for(let i=0;i<6;i++){
-    const y=16.8+i*2.05+(h01(i,6,81)-0.5)*0.16;
-    const x=14.38+(h01(i,8,81)-0.5)*0.08;
+    const y=16.55+i*2.05+(h01(i,6,81)-0.5)*0.74;
+    const x=14.34+(h01(i,8,81)-0.5)*0.14;
     if(nearCrush(x,y,1.15)) continue;
-    out.push({x,y,k:'dust',s:0.55+h01(i,9,81)*0.35,seed:940+i,backwall:1});
+    out.push({x,y,k:'dust',s:0.50+h01(i,9,81)*0.38,seed:940+i,backwall:1});
   }
   for(let i=0;i<8;i++){
-    const y=16.55+i*1.62+(h01(i,4,83)-0.5)*0.12;
-    const x=14.16+(h01(i,5,83)-0.5)*0.08;
+    const y=16.40+i*1.62+(h01(i,4,83)-0.5)*0.58;
+    const x=14.14+(h01(i,5,83)-0.5)*0.10;
     if(nearCrush(x,y,1.05)) continue;
     const s=1.12+h01(i,7,83)*0.33;
     out.push({x,y,k:'cavein',s,seed:960+i,backwall:1});
@@ -3524,57 +3525,61 @@ function startBackWallRubble(){
 function scatterStartRubble(L){
   const seed=2041;
   const out=[];
-  const clusters=[
-    [15.85,17.80,5,0.72,0.70],[16.10,20.05,5,0.68,0.64],[15.70,24.55,5,0.70,0.66],
-    [16.05,18.40,4,0.58,0.54],[16.20,22.20,4,0.55,0.50],[16.00,25.20,4,0.56,0.50]
-  ];
+  const placed=[];
+  /* Burial-chamber field: hash-place singles across the west room so the
+     floor is cave-in debris, not six west-wall piles. Keep Macar's spawn
+     and crush heads clear; chips may sit among the kin. */
   let n=0;
-  clusters.forEach(c=>{
-    for(let i=0;i<c[2];i++){
-      n++;
-      const ang=h01(n,3,seed)*TAU;
-      const rad=Math.pow(h01(n,5,seed),0.65)*c[3];
-      const jx=c[0]+Math.cos(ang)*rad;
-      const jy=c[1]+Math.sin(ang)*rad*0.78;
-      if(Math.hypot(jx-20.5, jy-22.0)<0.88) continue;
-      if(nearCrush(jx,jy,0.62)) continue;
-      const ti=jx|0, tj=jy|0;
-      if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
-      const s=(0.22+h01(n,12,seed)*0.88)*c[4];
-      if(h01(n,15,seed)<0.16){
-        out.push({x:jx,y:jy,k:'dust',s:0.55+h01(n,16,seed)*0.55,seed:n*17+3,scatter:1});
-        continue;
-      }
-      const spr=startRubbleSpr(seed, n);
-      const k=(s>1.05 && /boulder/.test(spr))?'boulder':'rubble';
-      out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
+  for(let i=0;i<130 && out.length<38;i++){
+    n++;
+    const jx=15.18+h01(n,3,seed)*7.85+(h01(n,11,seed)-0.5)*0.92;
+    const jy=16.50+h01(n,5,seed)*11.35+(h01(n,13,seed)-0.5)*1.08;
+    if(Math.hypot(jx-20.5, jy-22.0)<0.92) continue;
+    if(nearCrush(jx,jy,0.70)) continue;
+    const ti=jx|0, tj=jy|0;
+    if(!L.grid[tj]||!isWalkTile(L.grid[tj][ti])) continue;
+    if(placed.some(p=>Math.hypot(jx-p.x,jy-p.y)<0.60)) continue;
+    placed.push({x:jx,y:jy});
+    if(h01(n,15,seed)<0.20){
+      out.push({x:jx,y:jy,k:'dust',s:0.48+h01(n,16,seed)*0.52,seed:n*17+3,scatter:1});
+      continue;
     }
-  });
+    const spr=startRubbleSpr(seed, n);
+    let s=0.16+h01(n,12,seed)*0.46;
+    if(h01(n,18,seed)<0.16) s=0.46+h01(n,19,seed)*0.26;
+    const k=(s>0.54 && /boulder/.test(spr))?'boulder':'rubble';
+    out.push({x:jx,y:jy,k,spr,s,seed:n*13+7,scatter:1});
+  }
   return out;
 }
 function scatterBurialRubble(){
   const out=[];
   Object.keys(CRUSH_SPOTS).forEach(k=>{
     const s=CRUSH_SPOTS[k];
-    out.push({x:s.x-0.46,y:s.y+0.58,k:'rubble',spr:'rubble2',s:0.34,seed:s.seed+70,cover:1});
-    out.push({x:s.x+0.44,y:s.y+0.62,k:'rubble',spr:'rubble',s:0.28,seed:s.seed+71,cover:1});
-    out.push({x:s.x+0.08,y:s.y+0.72,k:'timber',fallen:1,s:0.70,seed:s.seed+72,cover:1});
-    out.push({x:s.x-0.18,y:s.y+0.26,k:'dust',s:0.82,seed:s.seed+73,cover:1});
-    out.push({x:s.x+0.30,y:s.y+0.14,k:'dust',s:0.64,seed:s.seed+74,cover:1});
+    /* Small chips at the feet / hips. Heads, beards, and torsos stay open. */
+    const jx=(h01(s.seed,2,44)-0.5)*0.14;
+    const jy=(h01(s.seed,3,44)-0.5)*0.10;
+    out.push({x:s.x-0.42+jx,y:s.y+0.56+jy,k:'rubble',spr:'rubble2',s:0.22,seed:s.seed+70,cover:1});
+    out.push({x:s.x+0.46+jx,y:s.y+0.60+jy,k:'rubble',spr:'rubble',s:0.18,seed:s.seed+71,cover:1});
+    out.push({x:s.x+0.08+jx,y:s.y+0.76+jy,k:'timber',fallen:1,s:0.46,seed:s.seed+72,cover:1});
+    out.push({x:s.x-0.24+jx,y:s.y+0.34+jy,k:'dust',s:0.64,seed:s.seed+73,cover:1});
+    out.push({x:s.x+0.28+jx,y:s.y+0.22+jy,k:'dust',s:0.50,seed:s.seed+74,cover:1});
   });
+  /* Loose extras across the chamber — not a second west-wall line. */
   const extra=[
-    [15.15,19.85,0.38,'rubble2'],[15.35,22.40,0.42,'rubble'],[15.20,24.10,0.36,'boulder2'],
-    [16.35,19.20,0.30,'rubble'],[16.55,24.80,0.32,'rubble2'],[15.55,21.05,0.26,'rubble']
+    [16.85,18.35,0.30,'rubble2'],[18.95,18.10,0.26,'rubble'],[21.40,19.60,0.32,'boulder2'],
+    [16.25,25.75,0.28,'rubble'],[20.85,25.15,0.24,'rubble2'],[22.20,21.85,0.28,'rubble'],
+    [15.55,18.05,0.22,'rubble'],[21.75,24.25,0.26,'rubble2'],[17.15,26.25,0.20,'rubble']
   ];
   extra.forEach((e,i)=>{
-    if(nearCrush(e[0],e[1],0.55)) return;
+    if(nearCrush(e[0],e[1],0.62)) return;
     out.push({x:e[0],y:e[1],k:'rubble',spr:e[3],s:e[2],seed:1100+i,scatter:1});
   });
-  [[15.05,18.55],[15.25,23.15],[16.40,21.70],[15.60,26.05]].forEach((pt,i)=>{
-    out.push({x:pt[0],y:pt[1],k:'timber',fallen:1,s:0.58+i*0.06,seed:1120+i,scatter:1});
+  [[16.70,17.80],[18.55,25.90],[21.45,20.55],[15.90,26.40]].forEach((pt,i)=>{
+    out.push({x:pt[0],y:pt[1],k:'timber',fallen:1,s:0.48+i*0.05,seed:1120+i,scatter:1});
   });
-  [[15.4,20.2],[15.8,22.8],[16.1,25.4],[14.9,17.6]].forEach((pt,i)=>{
-    out.push({x:pt[0],y:pt[1],k:'dust',s:0.70+i*0.08,seed:1140+i,scatter:1});
+  [[17.25,18.35],[21.15,23.55],[16.45,26.05],[20.25,18.75],[22.05,25.55]].forEach((pt,i)=>{
+    out.push({x:pt[0],y:pt[1],k:'dust',s:0.58+i*0.06,seed:1140+i,scatter:1});
   });
   return out;
 }
@@ -3648,13 +3653,17 @@ function makeChapter(n){
     G.props=G.props.filter(p=>{
       if(p.pin||p.cover||p.fallen||p.k==='dust') return true;
       if(timberOnDwarfMouthLane(p, {x:43.2,y:7.28})) return false;
-      if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,1.35)) return false;
+      if((p.k==='rubble'||p.k==='boulder'||p.backwall) && nearCrush(p.x,p.y,0.72)) return false;
       return true;
     });
     Object.keys(CRUSH_SPOTS).forEach(k=>{
       const s=CRUSH_SPOTS[k];
-      G.props.push({x:s.x-0.28,y:s.y+0.40,k:'boulder',s:0.55,seed:s.seed+40,cover:1,spr:'boulder'});
-      G.props.push({x:s.x+0.32,y:s.y+0.34,k:'boulder',s:0.48,seed:s.seed+51,cover:1,spr:'boulder2'});
+      /* One small cover stone per hip — not twin waist-high slabs. Seed-jitter
+         so the four burials do not match. Faces stay in the open. */
+      const jx=(h01(s.seed,4,61)-0.5)*0.16;
+      const jy=(h01(s.seed,5,61)-0.5)*0.12;
+      G.props.push({x:s.x-0.36+jx,y:s.y+0.52+jy,k:'boulder',s:0.26+h01(s.seed,6,61)*0.06,seed:s.seed+40,cover:1,spr:'boulder'});
+      G.props.push({x:s.x+0.40-jx,y:s.y+0.48+jy,k:'rubble',s:0.20+h01(s.seed,7,61)*0.05,seed:s.seed+51,cover:1,spr:'rubble2'});
     });
     G.props.forEach(p=>{
       if(p.k==='rubble' && !p.spr) p.spr=((p.seed||0)%3===1)?'rubble2':((p.seed||0)%3===2)?'boulder':'rubble';
@@ -5060,11 +5069,11 @@ function blitCrushRock(g, key, dx, dy, h){
   g.restore();
 }
 function drawKinRubbleOverlay(g,e,z,dwarfH){
-  /* Single boulders on the legs — big enough to read as crush, small enough
+  /* Single chips on the legs — enough to read as crush, small enough
      that beard, helm, and torso stay in the open. */
-  blitCrushRock(g, 'boulder', -14*z, 12*z, dwarfH*0.42);
-  blitCrushRock(g, 'boulder2', 16*z, 10*z, dwarfH*0.36);
-  blitCrushRock(g, 'rubble2', 2*z, 16*z, dwarfH*0.24);
+  blitCrushRock(g, 'boulder', -16*z, 16*z, dwarfH*0.30);
+  blitCrushRock(g, 'boulder2', 18*z, 14*z, dwarfH*0.26);
+  blitCrushRock(g, 'rubble2', 4*z, 20*z, dwarfH*0.18);
 }
 function drawCrushCover(g){
   const pal=(G.lvl&&G.lvl.pal)||null;
