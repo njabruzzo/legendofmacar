@@ -3622,7 +3622,8 @@ function makeChapter(n){
       {x:16.2,y:16.65,k:'timber'},{x:15.8,y:27.05,k:'timber'},
       {x:26.5,y:12.5,k:'pillar'},{x:26.5,y:29.5,k:'pillar'},{x:47.2,y:17.4,k:'pillar'},{x:44.5,y:29.5,k:'pillar'},
       {x:35,y:12.8,k:'chain'},{x:38,y:30.6,k:'chain'},
-      {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},{x:36.5,y:21.5,k:'lift'},
+      {x:36.5,y:7.28,k:'rubydoor'},{x:43.2,y:7.28,k:'dwarfface'},
+      {x:36.5,y:21.5,k:'lift'},{x:36.5,y:21.5,k:'pillar'},
       {x:WINDUP_TOY.x,y:WINDUP_TOY.y,k:'winduptoy',s:0.82,seed:501},
       {x:27.4,y:18.2,k:'trap',trap:'trap_spikes'},{x:27.8,y:24.6,k:'trap',trap:'trap_pit'},
       {x:32.4,y:16.8,k:'trap',trap:'trap_runes'},
@@ -3727,16 +3728,15 @@ function makeChapter(n){
       if(!L.flags.touched && dist(p,{x:door.x,y:door.y+1.15})<2.6){
         interact('Touch the ruby door',()=>startTalk('ruby_door'));
       }
-      if(L.flags.touched && !L.flags.cleared && !foesLeft()){
+      ensureCh1CenterPillar();
+      if(L.flags.touched && !L.flags.cleared && !rubyGuardiansLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
         say('The last guardian falls. Every ruby in the chamber cracks.','#ff8a5a');
-        say('A pillar has appeared in the middle of this chamber.','#ffd27a');
-        if(!(G.props||[]).some(p=>p.k==='rubypillar'))
-          G.props.push({x:36.5,y:21.5,k:'rubypillar'});
-        hint('Touch the ruby on the pillar.',6);
+        say('The elevator lever is free.','#ffd27a');
+        hint('Pull the lever on the elevator.',6);
       }
       if(L.flags.cleared && !L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3){
-        interact('Touch the ruby pillar',()=>{
+        interact('Pull the lever',()=>{
           L.flags.elevReady=1; shake(20); G.flash={c:'#ff2030',a:.5};
           say('The ruby flares. The elevator groans and begins its descent into the depths.','#ffd27a');
           L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
@@ -5191,6 +5191,7 @@ function applyPlaySave(play){
     if(e && typeof restorePartyHaste==='function') restorePartyHaste(e, sv);
   });
   pinFallenKin();
+  if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   try{ rebuildVision(); }catch(e){}
@@ -5226,16 +5227,40 @@ let PROMPT=null;
 function interact(label,fn){ PROMPT={label,fn}; }
 
 /* ---------------------------- NPC dialogue (Macar choices) ---------------------------- */
+function ch1CenterPillar(p){
+  return !!(p && p.k==='pillar' && Math.hypot(p.x-36.5, p.y-21.5)<0.55);
+}
+function ch1PillarHasRuby(p){
+  const L=G.lvl;
+  return ch1CenterPillar(p) && !!(L && L.n===1 && L.flags && L.flags.touched);
+}
+function ensureCh1CenterPillar(){
+  const L=G.lvl;
+  if(!L || L.n!==1) return null;
+  G.props=G.props||[];
+  const have=(G.props||[]).find(ch1CenterPillar);
+  if(have) return have;
+  const p={x:36.5,y:21.5,k:'pillar'};
+  G.props.push(p);
+  return p;
+}
+function rubyGuardiansLeft(){
+  return (G.ents||[]).some(e=>e && e.team==='foe' && !e.dead && !e.npc && (e.rubyDrop || e.kind==='statue'));
+}
 function wakeRubyDoor(){
   const L=G.lvl; if(!L||L.n!==1||!L.flags||L.flags.touched) return;
   L.flags.touched=1; if(L.objs&&L.objs[1]) L.objs[1].d=1;
+  ensureCh1CenterPillar();
   shake(24); G.flash={c:'#ff2030',a:.7};
   say('The ruby door is warm. It knows your name.','#ff6a6a');
   [[33.6,12.4],[39.2,12.2],[32.4,14.6],[40.1,14.8],[36.4,13.6],[34.8,15.8]].forEach((s,i)=>{
     const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);
   });
   say('The guardians wake from the stone around the door.','#d8cbb0');
-  hint('Six guardians. Slay them, then seek the ruby pillar.',6);
+  say('A red ruby seats itself on the pillar in the middle of the chamber.','#ff8a5a');
+  if(!(L.lights||[]).some(q=>q && q.x===36.5 && q.y===21.5 && q.c==='#ff2f3a'))
+    L.lights.push({x:36.5,y:21.5,c:'#ff2f3a',r:5.2,f:1.15});
+  hint('Six guardians. Slay them, then pull the elevator lever.',6);
 }
 const NPC_TALK={
   noz_untie:{
@@ -11776,6 +11801,38 @@ function sc(g,base,y0,y1,lw,rim){
     g.stroke(); g.restore(); }
 }
 function flat(g,base,lw){ g.fillStyle=base; g.fill(); g.strokeStyle=OL; g.lineWidth=(lw||1.6)*ZOOM; g.stroke(); }
+function pillarRubyLocalY(z,p){
+  const h=propSpriteH(p,z);
+  const m=tilesetPropMetric(p.k);
+  const foot=m?((m.h-m.oy)/Math.max(1,m.h))*h:0;
+  return -h+foot+10*z;
+}
+function drawCh1PillarRuby(g,s,z,p){
+  const gy=pillarRubyLocalY(z,p);
+  const b=.55+Math.sin((G.elapsed||0)*3.2+(p&&p.x||0))*.25;
+  drawFacetGem(g,0,gy-6*z,14*z,18*z,1,z);
+  if(s){
+    emit(s.x,s.y+gy,52*z,'#ff2a3c',0.95+b*0.2);
+    ray(s.x,s.y+gy-6*z,44*z,'#ff4058',0.55);
+  }
+}
+function drawCh1LiftLever(g,z,ready){
+  const thrown=!!ready;
+  g.save();
+  g.translate(20*z,-6*z);
+  g.beginPath(); g.ellipse(0,2*z,6.5*z,3.6*z,0,0,TAU);
+  sc(g,'#5a4630',-4*z,6*z,1.5);
+  g.save();
+  g.rotate(thrown?-1.05:0.62);
+  g.beginPath(); g.rect(-2.1*z,-28*z,4.2*z,28*z);
+  sc(g,'#8a6a3a',-28*z,2*z,1.5);
+  g.beginPath(); g.arc(0,-30*z,5.4*z,0,TAU);
+  sc(g,thrown?'#e01828':'#c9a070',-36*z,-24*z,1.5);
+  g.fillStyle=thrown?'rgba(255,80,90,0.55)':'rgba(255,226,160,0.28)';
+  g.beginPath(); g.ellipse(-1.6*z,-32*z,2.4*z,1.5*z,-0.4,0,TAU); g.fill();
+  g.restore();
+  g.restore();
+}
 function drawFacetGem(g,x,y,w,h,on,z){
   const b=on?(.72+Math.sin(G.elapsed*2.8+x*0.01)*.28):.08;
   g.beginPath();
@@ -11922,6 +11979,9 @@ function drawProp(g,p,pal){
       const on=G.lvl&&(G.lvl.flags.elevReady||G.lvl.n===2);
       if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
         ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
+      if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,G.lvl.flags&&G.lvl.flags.elevReady);
+    }else if(k==='pillar'){
+      if(ch1PillarHasRuby(p)) drawCh1PillarRuby(g,s,z,p);
     }else if(k==='rubypillar'){
       const b=.55+Math.sin(G.elapsed*3.2+p.x)*.25;
       emit(s.x,s.y-52*z,52*z,'#ff2a3c',0.95+b*0.2);
@@ -12052,7 +12112,9 @@ function drawProp(g,p,pal){
     g.strokeStyle='rgba(255,236,200,0.10)'; g.lineWidth=2*z;
     g.beginPath(); g.moveTo(-13*z,-94*z); g.lineTo(-13*z,-4*z); g.stroke();
     g.beginPath(); g.rect(-19*z,-108*z,38*z,13*z); sc(g,'#6d573e',-108*z,-95*z,2);
-    g.beginPath(); g.rect(-18*z,-11*z,36*z,12*z); sc(g,'#6d573e',-11*z,1*z,2); break; }
+    g.beginPath(); g.rect(-18*z,-11*z,36*z,12*z); sc(g,'#6d573e',-11*z,1*z,2);
+    if(ch1PillarHasRuby(p)) drawCh1PillarRuby(g,s,z,p);
+    break; }
   case 'winduptoy':{
     const ts=p.s||1, wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
     const tick=wound?Math.sin(G.elapsed*8+p.x)*2*z*ts:0;
@@ -12145,6 +12207,7 @@ function drawProp(g,p,pal){
       g.beginPath(); g.moveTo(Math.cos(a)*42*z,Math.sin(a)*21*z); g.lineTo(Math.cos(a)*42*z,Math.sin(a)*21*z-100*z); g.stroke(); }
     if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
       ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
+    if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,on);
     break; }
   case 'rubypillar':{ softShadow(g,0,2*z,20*z,10*z,.55);
     g.beginPath(); g.rect(-11*z,-52*z,22*z,52*z); sc(g,'#5d4a35',-52*z,0,2);
