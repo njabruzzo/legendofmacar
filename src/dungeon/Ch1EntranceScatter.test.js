@@ -99,8 +99,11 @@ for(let i=1;i<wallY.length;i++) wallSteps.push(Math.abs(wallY[i]-wallY[i-1]));
 const uniqueSteps=new Set(wallSteps.map(s=>s.toFixed(2)));
 assert(uniqueSteps.size>=3, 'wall-foot y spacing is irregular, not a picket fence');
 
-assert(field.length>=18, 'start field has a real scatter count ('+field.length+')');
+assert(field.length>=70, 'start field is a dense cave-in ('+field.length+' props)');
 const stones=field.filter(p=>p.k==='rubble'||p.k==='boulder');
+assert(stones.length>=52, 'dense field still has many stones ('+stones.length+')');
+const chips=field.filter(p=>p.chip).length;
+assert(chips>=20, 'fine chips fill gaps between larger stones ('+chips+')');
 const xs=stones.map(p=>p.x);
 const ys=stones.map(p=>p.y);
 const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
@@ -112,13 +115,15 @@ assert(Math.min.apply(null,xs)<16.4 && Math.max.apply(null,xs)>20.5,
   'field reaches from the west lip into the chamber (x '+Math.min.apply(null,xs).toFixed(2)+'..'+Math.max.apply(null,xs).toFixed(2)+')');
 assert(stdev(xs)>1.4, 'field x-spread is not a west-wall line (stdev '+stdev(xs).toFixed(2)+')');
 assert(stdev(ys)>1.8, 'field y-spread is not a single clump (stdev '+stdev(ys).toFixed(2)+')');
+const westBand=stones.filter(p=>p.x<18.2).length;
+assert(westBand>=stones.length*0.40, 'collapse spill is heavier near the west lip');
 
 let clump=0;
 stones.forEach(a=>{
-  const n=stones.filter(b=>b!==a && Math.hypot(a.x-b.x,a.y-b.y)<0.70).length;
+  const n=stones.filter(b=>b!==a && Math.hypot(a.x-b.x,a.y-b.y)<0.40).length;
   if(n>clump) clump=n;
 });
-assert(clump<=3, 'no stone sits in a 4+ pile (max neighbors '+clump+')');
+assert(clump<=4, 'dense field still avoids neat matching piles (max close neighbors '+clump+')');
 
 const spots=Object.keys(ctx.CRUSH_SPOTS).map(k=>ctx.CRUSH_SPOTS[k]);
 assert(spots.length===4, 'four named crush spots still exist');
@@ -137,9 +142,12 @@ assert(coverRocks.every(p=>{
 }), 'cover rocks sit toward the feet, not over the face');
 
 const extras=burial.filter(p=>p.scatter && (p.k==='rubble'||p.k==='boulder'||p.k==='timber'));
+assert(extras.length>=16, 'burial extras add more cave-in volume ('+extras.length+')');
 const extraX=extras.map(p=>p.x);
 assert(Math.max.apply(null,extraX)-Math.min.apply(null,extraX)>4.5,
   'burial extras span the chamber, not a west-wall line');
+assert(wall.filter(p=>p.k==='rubble'||p.k==='boulder').length>=12,
+  'wall foot has a heavier chip spill');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nChapter I entrance scatter checks passed');
