@@ -39,16 +39,18 @@ assert(/Living Macar after multiply \/ haze \/ grain/.test(html)
 assert(/function drawLivingMacar\(/.test(html), 'dedicated living-Macar blit exists');
 assert(/function livingMacarAnimKey\(/.test(html), 'living Macar has a fringe-safe anim key');
 assert(/macar:1/.test(html) && /macar_w1:1/.test(html) && /macar_w2:1/.test(html) && /macar_atk:1/.test(html)
+  && /macar_atk_contact:1/.test(html)
   && /macar_axe:1/.test(html) && /macar_axe_atk:1/.test(html)
   && /macar_xbow:1/.test(html) && /macar_xbow_atk:1/.test(html),
-  'living Macar whitelist is maul set + Shadow Cleaver + crossbow carry/atk');
+  'living Macar whitelist is maul set + contact + Shadow Cleaver + crossbow carry/atk');
 assert(/function livingMacarImg\(/.test(html) && /function isLivingMacarKey\(/.test(html),
   'whitelist key gate feeds the blit pipe');
 assert(/function livingMacarBlitKey\(/.test(html)
   && /livingMacarBlitKey\(key\)/.test(extractFn('livingMacarImg')),
   'livingMacarImg bakes through livingMacarBlitKey, not a second idle plant');
 assert(/keepAtk/.test(extractFn('blitLivingMacar'))
-  && /macar_axe_atk/.test(extractFn('blitLivingMacar')),
+  && /macar_axe_atk/.test(extractFn('blitLivingMacar'))
+  && /macar_atk_contact/.test(extractFn('blitLivingMacar')),
   'failed atk bake does not plant the idle shoulder pose');
 assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   && /noteMacarStrikeQA\(e, key, blitKey\)/.test(extractFn('drawLivingMacar')),
@@ -67,8 +69,9 @@ assert(/const LO=64/.test(html) && /a<=LO/.test(html) && /d\[p\+3\]=0/.test(html
 assert(/a>=HI\?255/.test(html), 'bake: high-alpha silhouette is forced to 255');
 assert(/255\/a/.test(html), 'bake un-premultiplies RGB before lifting alpha');
 assert(/function punchLivingAlpha\(/.test(html) && /function isMagentaMatte\(/.test(html)
+  && /function isBlackMatte\(/.test(html)
   && /const LO=40/.test(html),
-  'living pipe punches magenta matte and binary-alpha a<=40');
+  'living pipe punches magenta / black export matte and binary-alpha a<=40');
 assert(/MACAR_FOOT_WIDEN=1\.24/.test(html) && /imageSmoothingEnabled=false/.test(extractFn('blitFacing')),
   'dungeon Macar blit is crisp and wider, not taller');
 assert(/imageSmoothingEnabled=false/.test(extractFn('flippedSprite')),
@@ -177,6 +180,7 @@ assert(ctx.heroFigureFit(ghost,recover)===1, 'ghost kin are not hero-fitted');
 assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not flattened-fit');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
+ 'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');

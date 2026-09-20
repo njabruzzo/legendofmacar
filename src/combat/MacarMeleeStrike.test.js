@@ -26,6 +26,8 @@ function extractFn(name){
 }
 
 const liveKey=extractFn('livingMacarAnimKey');
+assert(/macar_atk_contact/.test(liveKey) && /MACAR_MAUL_CONTACT_T/.test(liveKey),
+  'maul strike uses windup then contact at the hit');
 assert(/if\(wantsLivingMacarStrike\(e\)\)\{/.test(liveKey), 'strike includes the post-hit hold');
 assert(/if\(wantsMeleeRecover\(e\)\)\{/.test(liveKey), 'recover is its own window');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
@@ -125,6 +127,7 @@ vm.runInContext(
   +extractFn('wantsBowPose')
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
+  +'const MACAR_MAUL_CONTACT_T=0.45;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey'),
@@ -154,12 +157,32 @@ function keysAcrossSwing(readyAtk, expectStrike, expectRecover){
 }
 
 ctx._axe=false;
-SPR.macar_atk={width:470, height:512};
-const maul=keysAcrossSwing('macar_atk', 'macar_atk', 'macar');
-assert(maul.some(s=>s.pose && s.key==='macar_atk'), 'maul strike samples include macar_atk');
+SPR.macar_atk={width:470, height:540};
+SPR.macar_atk_contact={width:893, height:540};
+const maul=[];
+for(let t=0; t<=1.001; t+=0.02){
+  const e=macar({atk:1-t, atkMax:1});
+  const key=ctx.livingMacarAnimKey(e);
+  const pose=ctx.wantsMeleePose(e);
+  const rec=ctx.wantsMeleeRecover(e);
+  if(pose){
+    const expect=t>=0.45?'macar_atk_contact':'macar_atk';
+    assert(key===expect, 't='+t.toFixed(2)+' maul key is '+expect+' (got '+key+')');
+  }
+  if(rec) assert(key==='macar', 't='+t.toFixed(2)+' recover key is macar (got '+key+')');
+  maul.push({t:+t.toFixed(2), key, pose, rec});
+}
+assert(maul.some(s=>s.pose && s.key==='macar_atk'), 'maul strike samples include windup');
+assert(maul.some(s=>s.pose && s.key==='macar_atk_contact'), 'maul strike samples include contact');
 assert(maul.some(s=>s.rec && s.key==='macar'), 'maul recover samples include planted idle');
-assert(maul.filter(s=>s.pose).every(s=>s.key==='macar_atk'), 'every maul strike sample is atk');
+assert(maul.filter(s=>s.pose && s.t<0.45).every(s=>s.key==='macar_atk'),
+  'every early maul strike sample is windup');
+assert(maul.filter(s=>s.pose && s.t>=0.45).every(s=>s.key==='macar_atk_contact'),
+  'every hit-and-after maul strike sample is contact');
 assert(maul.filter(s=>s.rec).every(s=>s.key==='macar'), 'every maul recover sample is idle');
+assert(!/macar_atk_recover/.test(maul.map(s=>s.key).join(',')),
+  'windup is never mapped onto _atk_recover');
+delete SPR.macar_atk_contact;
 
 SPR.macar_atk={width:400, height:512, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
 assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,

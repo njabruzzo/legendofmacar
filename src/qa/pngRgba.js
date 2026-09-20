@@ -74,7 +74,11 @@ function readRgba(filePath){
 function alphaChannel(rgba){
   const {w,h,data}=rgba;
   const a=new Float32Array(w*h);
-  for(let i=0,p=3;i<a.length;i++,p+=4) a[i]=data[p];
+  for(let i=0,p=0;i<a.length;i++,p+=4){
+    const alpha=data[p+3];
+    /* Same black export matte the living bake punches (RGB 0 → a=0). */
+    a[i]=(alpha>0 && (data[p]|data[p+1]|data[p+2])===0)?0:alpha;
+  }
   return {w,h,a};
 }
 

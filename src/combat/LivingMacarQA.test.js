@@ -80,13 +80,14 @@ function pngAlphaHist(filePath){
   return {ok:true, w, h, mid, a0, a255, unique:midVals.size+(a0?1:0)+(a255?1:0)};
 }
 
-const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+const BLIT_KEYS=['macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
   'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk'];
 const KEY_FILE={
   macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
   macar_w2:'dwarf_macar_w2.png',
   macar_atk:'dwarf_macar_atk.png',
+  macar_atk_contact:'dwarf_macar_atk_contact.png',
   macar_axe:'dwarf_macar_axe.png',
   macar_axe_w1:'dwarf_macar_axe_w1.png',
   macar_axe_w2:'dwarf_macar_axe_w2.png',
@@ -96,6 +97,10 @@ const KEY_FILE={
   macar_xbow_w2:'dwarf_macar_xbow_w2.png',
   macar_xbow_atk:'dwarf_macar_xbow_atk.png'
 };
+/* Walk / carry stay hard-alpha on disk. Maul combat (Cel soft-note) has a
+   semi-opaque rim — punchLivingMacarCanvas bakes 0/255 at blit time. */
+const HARD_ALPHA_KEYS=['macar','macar_w1','macar_w2','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+  'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk'];
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 assert(!!keysDecl, 'LIVING_MACAR_KEYS is in index.html');
@@ -110,12 +115,27 @@ BLIT_KEYS.forEach(k=>{
   const file=path.join(root,'assets/creatures', KEY_FILE[k]);
   assert(fs.existsSync(file), KEY_FILE[k]+' on disk');
   const hist=pngAlphaHist(file);
-  assert(hist.ok && hist.mid===0,
-    KEY_FILE[k]+' alpha is 0/255 only'+(hist.ok?' (mid='+hist.mid+')':' ('+hist.err+')'));
+  assert(hist.ok, KEY_FILE[k]+' decodes'+(hist.ok?'':' ('+hist.err+')'));
+  if(HARD_ALPHA_KEYS.indexOf(k)>=0){
+    assert(hist.ok && hist.mid===0,
+      KEY_FILE[k]+' alpha is 0/255 only'+(hist.ok?' (mid='+hist.mid+')':' ('+hist.err+')'));
+  }
 });
+const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
+const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
+assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
+  'maul windup canvas is 470×540');
+assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
+  'maul contact canvas is 893×540 (GOLDEN overhang)');
+assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar')),
+  'combat soft rim relies on the existing living bake/punch, not a new art pass');
+assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
+  'maul contact takes over at the hit (t≥0.45)');
 
 /* --- Source: living Macar is title idle + front w1/w2. Attack plants idle. --- */
 const liveKey=extractFn('livingMacarAnimKey');
+assert(/macar_atk_contact/.test(liveKey) && /MACAR_MAUL_CONTACT_T/.test(liveKey),
+  'livingMacarAnimKey binds windup then contact — never _atk_recover');
 assert(/macar_axe/.test(liveKey) && /livingMacarIdleKey/.test(liveKey),
   'livingMacarAnimKey binds axe via livingMacarIdleKey when cleaver is on');
 assert(/macar_xbow/.test(liveKey) && /macar_xbow_atk/.test(liveKey),
@@ -205,6 +225,7 @@ vm.runInContext(
   +extractFn('wantsBowPose')
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
+  +'const MACAR_MAUL_CONTACT_T=0.45;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey')
@@ -231,15 +252,25 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'maul strik
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar', 'maul recover plants the live idle until atk ready');
 assert(ctx.entAnimKey(macar())==='macar', 'entAnimKey idle is macar');
 SPR.macar_atk={width:8};
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul strike uses macar_atk when ready');
-assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk',
-  'maul late swing t≈0.68 still holds macar_atk');
+SPR.macar_atk_contact={width:8};
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul windup uses macar_atk when ready');
+assert(ctx.livingMacarAnimKey(macar({atk:0.54, atkMax:1}))==='macar_atk_contact',
+  'maul hit t≈0.46 blits macar_atk_contact');
+assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk_contact',
+  'maul late swing t≈0.68 still holds macar_atk_contact');
 assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk',
   'blit key holds macar_atk when the sheet is ready');
+assert(ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
+  'blit key holds macar_atk_contact when the sheet is ready');
 assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
-  'Attack press t=0 already blits macar_atk');
+  'Attack press t=0 already blits the windup sheet');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'maul recover plants idle when atk is ready — not the wind-up sheet');
+delete SPR.macar_atk;
+delete SPR.macar_atk_contact;
+SPR.macar_atk={width:8};
+assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk',
+  'late swing holds windup when contact is not ready');
 delete SPR.macar_atk;
 
 SPR.macar_axe={width:8};
@@ -300,7 +331,13 @@ assert(ctx.partySheetMatchesIdle(SPR.macar_atk, SPR.macar, 'macar_atk')===false,
 assert(ctx.matchingPartyAtkReady('macar_atk', 'macar')===true,
   'matching maul atk is still ready when the sheet fits');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk',
-  'maul strike blits macar_atk even when crown/family would plant idle');
+  'maul windup blits macar_atk even when crown/family would plant idle');
+SPR.macar_atk_contact={width:893, height:540, _id:{ok:true, metal:0.55, hair:0.20, warm:0.30}};
+assert(ctx.matchingPartyAtkReady('macar_atk_contact', 'macar')===true,
+  'wide contact sheet is still the idle\'s own strike key');
+assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk_contact',
+  'maul contact blits even when crown/family would plant idle');
+delete SPR.macar_atk_contact;
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1, macarStrikeHold:0.12}))==='macar',
   'recover plants maul idle even while a leftover strikeHold is set');
 assert(ctx.livingMacarAnimKey(macar({atk:0, atkMax:1, macarStrikeHold:0}))==='macar',

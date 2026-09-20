@@ -158,6 +158,7 @@ vm.runInContext(
   +extractFn('wantsBowPose')
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
+  +'const MACAR_MAUL_CONTACT_T=0.45;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('faceVec')
