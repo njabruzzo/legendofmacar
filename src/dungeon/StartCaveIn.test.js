@@ -41,6 +41,9 @@ assert(/k:'dust'/.test(rubble), 'foot of the pile still has dust');
 assert(!/k:'lantern'/.test(rubble), 'no T-post on the cave-in stack');
 assert(!/\[14\.55,17\.15/.test(html) && !/\[14\.70,19\.35/.test(html),
   'west-lip chip clusters no longer fake a rubble hedge');
+assert(!/\[15\.85,17\.80,5,0\.72,0\.70\]/.test(html)
+  && !/const clusters=\[/.test(html.match(/function scatterStartRubble\(L\)\{[\s\S]*?\n\}/)[0]),
+  'start scatter is a hash field, not six west-wall piles');
 
 assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function isRubyNorthWall/.test(html),
   'did not take #81 / #44 or rewrite the ruby north wall');
