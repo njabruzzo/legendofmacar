@@ -1063,9 +1063,45 @@ function punchLivingMacarCanvas(c){
     const x=c.getContext('2d',{willReadFrequently:true});
     const idat=x.getImageData(0,0,c.width,c.height);
     punchLivingAlpha(idat.data, c.width*c.height);
+    punchBlackExportSlab(idat.data, c.width, c.height);
     x.putImageData(idat,0,0);
   }catch(_){}
   return c;
+}
+/* Freearm v8 walk hlock fills the canvas with a near-black slab (not only
+   exact RGB 0). Flood from the frame edge so the figure's enclosed dark
+   pockets stay. Combat sheets are already punched — this is a no-op there. */
+const MACAR_BLACK_SLAB_T=16;
+function punchBlackExportSlab(d, w, h){
+  if(!d||!(w>0)||!(h>0)) return d;
+  const T=typeof MACAR_BLACK_SLAB_T==='number'?MACAR_BLACK_SLAB_T:16;
+  const n=w*h;
+  const seen=new Uint8Array(n);
+  const q=new Int32Array(n);
+  let qs=0, qe=0;
+  const matte=i=>{
+    const p=i<<2;
+    return d[p+3]<=40 || (d[p]+d[p+1]+d[p+2])<=T;
+  };
+  const push=i=>{
+    if(i<0||i>=n||seen[i]||!matte(i)) return;
+    seen[i]=1; q[qe++]=i;
+  };
+  for(let x=0;x<w;x++){ push(x); push((h-1)*w+x); }
+  for(let y=1;y<h-1;y++){ push(y*w); push(y*w+w-1); }
+  while(qs<qe){
+    const i=q[qs++], x=i%w;
+    if(x) push(i-1);
+    if(x+1<w) push(i+1);
+    if(i>=w) push(i-w);
+    if(i+w<n) push(i+w);
+  }
+  for(let i=0;i<n;i++){
+    if(!seen[i]) continue;
+    const p=i<<2;
+    d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0;
+  }
+  return d;
 }
 
 /* ==========================================================================

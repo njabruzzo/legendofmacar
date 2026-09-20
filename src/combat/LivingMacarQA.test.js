@@ -127,8 +127,9 @@ assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
   'maul windup canvas is 470×540');
 assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
   'maul contact canvas is 893×540 (GOLDEN overhang)');
-assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar')),
-  'combat soft rim relies on the existing living bake/punch, not a new art pass');
+assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
+  && /function punchBlackExportSlab\(/.test(html),
+  'combat soft rim and walk black slab rely on the existing living bake/punch');
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
   'maul contact takes over at the hit (t≥0.45)');
 
