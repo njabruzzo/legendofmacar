@@ -72,7 +72,7 @@ The game is a canvas. There is no ARIA tree. The harness exposes a **virtual acc
 
 Prefer, in order:
 
-1. Labeled menu buttons (`Enter the Deep`, `Descend`, `Continue`, `New descent`, `Chapters`, `Credits`, `Burn it`, `Keep the mark`).
+1. Labeled menu buttons (`New descent`, `Descend`, `Continue`, `Chapters`, `Credits`, `Burn it`, `Keep the mark`).
 2. Keyboard verbs from play (not title): `d` walk-right, `a` walk-left, `w`/`s` walk, `v` Defend, `1` Attack, `i`/`p`/`4` PACK, `c`/`3` Camp, `f` herb SEARCH, `t` secret SEARCH, `k` Craft, `Escape` pause / leave pack.
 3. HUD keys from the snapshot (`pack`, `wall`, `attack`, `search`, `secret`, `camp`, `craft`) — not pixel guesses.
 
@@ -81,7 +81,7 @@ control-macar browser open /
 control-macar browser wait --scene title
 control-macar browser click --name "Continue"
 control-macar browser wait --scene title_menu
-control-macar browser click --name "Enter the Deep"
+control-macar browser click --name "New descent"
 control-macar browser wait --scene intro
 control-macar browser click --name "Descend"
 control-macar browser wait --scene play --timeout 60
@@ -114,7 +114,7 @@ control-macar browser screenshot --path "$EVIDENCE/title-visible.png"
 control-macar browser snapshot --path "$EVIDENCE/title-visible.json" --aria
 control-macar browser console --path "$EVIDENCE/console.jsonl"
 control-macar check record --id title-visible --status pass --reason "Continue on splash"
-control-macar check record --id title-menu-visible --status pass --reason "Enter the Deep on title_menu"
+control-macar check record --id title-menu-visible --status pass --reason "New descent on title_menu"
 ```
 
 Skip only with an explicit **verified-unreachable** reason after you attempted the mapped entry and observed the unmet precondition (example: east-chamber foe before four Rouse). A skip without that prefix is a REJECT.
@@ -140,7 +140,7 @@ All helpers are executable under this skill directory.
 | `control-macar doctor [--suite]` | Read-only instance health. `--suite` adds `npm test`. |
 | `control-macar browser open /` | Navigate the run's origin. |
 | `control-macar browser wait --scene <name> [--timeout 30]` | Poll the probe until scene matches. |
-| `control-macar browser click --name "Enter the Deep"` | Pointer-click a labeled menu plate. |
+| `control-macar browser click --name "New descent"` | Pointer-click a labeled menu plate. |
 | `control-macar browser click --hud-key pack` | Pointer-click a HUD slot by key. |
 | `control-macar browser press --key d [--hold-ms 800]` | `keydown` / `keyup` on `window`. |
 | `control-macar browser snapshot --path FILE [--aria]` | Probe JSON and optional virtual ARIA text. |

@@ -14876,20 +14876,37 @@ function displayTitle(g,txt,y,size,col){
   g.fillStyle=gr; g.fillText(txt,VW/2,y); g.textAlign='left';
   return sz;
 }
-function menuBtn(g,label,cx,cy,w,h,fn,dim,icon){
+function menuBtn(g,label,cx,cy,w,h,fn,dim,icon,style){
   const s=UIS;
-  plate(g,cx-w/2,cy-h/2,w,h,6,dim?.5:.84);
-  if(!dim){ g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.9; roundPath(g,cx-w/2,cy-h/2,w,h,6); g.stroke(); }
+  const x=cx-w/2, y=cy-h/2;
+  const primary=style==='primary', secondary=style==='secondary';
+  const rad=primary||secondary?10:6;
+  if(primary){
+    plate(g,x,y,w,h,rad,dim?.5:.92);
+    const gr=g.createLinearGradient(x,y,x,y+h);
+    gr.addColorStop(0,'rgba(255,216,124,0.34)');
+    gr.addColorStop(1,'rgba(181,122,44,0.26)');
+    g.fillStyle=gr; roundPath(g,x,y,w,h,rad); g.fill();
+    if(!dim){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2.2; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  } else if(secondary){
+    plate(g,x,y,w,h,rad,dim?.5:.50);
+    if(!dim){ g.strokeStyle='rgba(232,196,120,0.34)'; g.lineWidth=1.4; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  } else {
+    plate(g,x,y,w,h,rad,dim?.5:.84);
+    if(!dim){ g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.9; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  }
   if(icon && icon.width){
     const ih=h*0.78, iw=ih;
     g.save();
     g.globalAlpha=dim?0.42:1;
-    drawPhoto(g, icon, cx-w/2+4*s, cy-ih/2, iw, ih);
+    drawPhoto(g, icon, x+4*s, cy-ih/2, iw, ih);
     g.restore();
   }
-  g.textAlign='center'; g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle=dim?'rgba(150,130,100,0.5)':'#ffe9c0'; g.fillText(label,cx,cy+5.6*s); g.textAlign='left';
-  if(!dim) menuHits.push({x:cx-w/2,y:cy-h/2,w,h,fn});
+  const labelPx=(primary||secondary)?Math.max(16, 16*s):(16*s);
+  g.textAlign='center'; g.font='800 '+labelPx+'px "Trebuchet MS",sans-serif';
+  g.fillStyle=dim?'rgba(150,130,100,0.5)':(primary?'#fff6d4':(secondary?'#f3ddb0':'#ffe9c0'));
+  g.fillText(label,cx,cy+labelPx*0.35); g.textAlign='left';
+  if(!dim) menuHits.push({x,y,w,h,fn});
 }
 function drawSleepRest(g){
   const s=UIS, show=G.sleepShow; if(!show) return;
@@ -15178,12 +15195,38 @@ function titleMenuArt(){
   if(plate&&plate.width) return plate;
   return SPR.title_splash||null;
 }
+function titleMenuSafe(inset){
+  inset=inset||{t:0,r:0,b:0,l:0};
+  return {
+    t:Math.max(16, inset.t||0),
+    r:Math.max(16, inset.r||0),
+    b:Math.max(24+(inset.b||0), 16),
+    l:Math.max(16, inset.l||0)
+  };
+}
 function titleMenuBtnH(s, port){
-  return Math.max(port?44:48, (port?50:52)*s);
+  return Math.max(port?48:44, (port?50:46)*s);
+}
+function titleMenuGap(){ return 12; }
+function titleMenuPillW(vw, padL, padR){
+  return Math.min(360, Math.max(160, vw-padL-padR));
 }
 function titleSafeBottom(s, port){
   const inset=(typeof safeInsets==='function')?safeInsets():{b:0};
   return Math.max(port?28*s:24*s, (inset.b||0)+16);
+}
+function drawTitleMenuBillboard(g, img, x, y, w, h){
+  g.save();
+  g.fillStyle='#0a0706';
+  g.fillRect(x, y, w, h);
+  if(img&&img.width&&img.height&&w>2&&h>2){
+    const sc=Math.min(w/img.width, h/img.height);
+    const iw=img.width*sc, ih=img.height*sc;
+    drawPhoto(g, img, x+(w-iw)/2, y+(h-ih)/2, iw, ih);
+  }
+  g.restore();
+  drawArtFrame(g, x, y, w, h, 10);
+  return !!(img&&img.width);
 }
 function drawTitle(g){
   menuHits=[]; const s=UIS;
@@ -15244,76 +15287,75 @@ function drawTitle(g){
 function drawTitleMenu(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
-  const art=titleMenuArt();
-  const signed=!!(art&&SPR.title_menu&&art===SPR.title_menu);
-  if(!drawSplashCover(g, art, {zoom:1, ay:0.48, nudgeY:PORT?0:VH*0.02})){
-    if(SPLASH_STATE==='fail') drawTitleCavern(g);
-    else embers(g);
-  }
-  if(!PHONE_GFX){
-    const pulse=.55+Math.sin(G.t*2.1)*.45;
-    const rg=g.createRadialGradient(VW/2, VH*0.36, 10, VW/2, VH*0.40, Math.max(VW,VH)*0.50);
-    rg.addColorStop(0,'rgba(255,36,48,'+(0.06*pulse)+')');
-    rg.addColorStop(0.45,'rgba(140,16,24,0.03)');
-    rg.addColorStop(1,'rgba(0,0,0,0)');
-    g.fillStyle=rg; g.fillRect(0,0,VW,VH);
-  }
-  embers(g);
-  drawLetterbox(g, VH*0.20, VH*0.28, PHONE_GFX?0.80:0.70, 0.90);
-  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
+  const inset=(typeof safeInsets==='function')?safeInsets():{t:0,r:0,b:0,l:0};
+  const pad=titleMenuSafe(inset);
   const btnH=titleMenuBtnH(s, PORT);
-  const gap=PORT?14*s:16*s;
-  const safeB=titleSafeBottom(s, PORT);
+  const gap=titleMenuGap();
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
   const nBtns=G.wipeAsk?2:(hasSave?4:3);
   const stackH=nBtns*btnH+(nBtns-1)*gap;
-  const stackTop=VH-safeB-stackH;
-  const m=highPlateMetrics(s, PORT);
+  const stackTop=VH-pad.b-stackH;
+  const bw=titleMenuPillW(VW, pad.l, pad.r);
+  const maxW=VW-pad.l-pad.r;
+  const titleGap=Math.max(24, 28*s);
+  const wipeReserve=G.wipeAsk?40*s:0;
   const titleLay=layoutHighPlate(g, {
-    s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:stackTop-16*s,
-    label:'B O O K   O N E', title:signed?'':'THE LEGEND OF MACAR',
-    flavor:signed?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
-    music:musicIsPlaying()?musicNowLabel():'',
-    labSize:13*s, titleSize:(PORT?28:42)*s, flSize:(PORT?13:16)*s, musSize:(PORT?8:9)*s,
-    labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
+    s, maxW, ceil:pad.t, floor:stackTop-gap-wipeReserve,
+    label:'B O O K   O N E', title:'THE LEGEND OF MACAR',
+    flavor:'From simple beginnings Macar would rise to become a hero among dwarves.',
+    music:'',
+    labSize:Math.max(12, 13*s), titleSize:(PORT?30:26)*s,
+    flSize:Math.max(16, (PORT?15:14)*s), musSize:8*s,
+    labGap:8*s, titleGap:titleGap, titleGapMin:24, musGap:10*s
   });
-  drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(VW*0.92, 780*s), titleLay.h+40*s, 0.52);
   paintHighPlate(g, titleLay, {
-    alpha:1, maxW:VW*0.86, ruleW:220*s, musicFill:'rgba(160,140,110,0.55)',
+    alpha:1, maxW, ruleW:Math.min(200, maxW*0.42),
     paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
   });
+  const artTop=titleLay.bottom+12;
+  const artBot=stackTop-gap-wipeReserve;
+  const artH=Math.max(36, artBot-artTop);
+  const artW=PORT?maxW:Math.min(VW-pad.l-pad.r, Math.max(maxW, VW*0.92));
+  const artX=(VW-artW)/2;
+  if(artH>=36){
+    if(!drawTitleMenuBillboard(g, titleMenuArt(), artX, artTop, artW, artH) && SPLASH_STATE==='fail'){
+      g.save(); g.beginPath(); g.rect(artX, artTop, artW, artH); g.clip();
+      drawTitleCavern(g);
+      g.restore();
+      drawArtFrame(g, artX, artTop, artW, artH, 10);
+    }
+  }
   g.globalAlpha=1;
-  const bw=Math.min(320*s, VW*.78);
   let y=stackTop+btnH/2;
   if(G.wipeAsk){
     g.textAlign='center';
-    g.font='700 '+((PORT?12:14)*s)+'px '+FONT_UI;
+    g.font='700 '+Math.max(14, (PORT?12:14)*s)+'px '+FONT_UI;
     g.fillStyle='#ffe08a';
-    g.fillText('This burns the book. Start the descent over?', VW/2, stackTop-36*s);
-    g.font='600 '+(11*s)+'px '+FONT_UI;
-    g.fillStyle='rgba(200,180,140,0.82)';
-    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-16*s);
+    g.fillText('This burns the book. Start the descent over?', VW/2, stackTop-22*s);
+    g.font='600 '+Math.max(12, 11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(230,210,170,0.90)';
+    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-6*s);
     g.textAlign='left';
     menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>{
       if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
       G.wipeAsk=0; startChapter(1);
-    });
+    }, false, null, 'primary');
     y+=btnH+gap;
-    menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; });
+    menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; }, false, null, 'secondary');
   } else if(hasSave){
-    menuBtn(g,'Continue', VW/2, y, bw, btnH, ()=>loadSavedGame(), false, SPR.icon_save);
+    menuBtn(g,'Continue', VW/2, y, bw, btnH, ()=>loadSavedGame(), false, SPR.icon_save, 'primary');
     y+=btnH+gap;
-    menuBtn(g,'New descent', VW/2, y, Math.min(260*s,VW*.70), btnH, ()=>{ G.wipeAsk=1; });
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=1; }, false, null, 'secondary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
     y+=btnH+gap;
-    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'));
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   } else {
-    menuBtn(g,'Enter the Deep', VW/2, y, bw, btnH, ()=>startChapter(1));
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>startChapter(1), false, null, 'primary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
     y+=btnH+gap;
-    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'));
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   }
   g.textAlign='left';
 }

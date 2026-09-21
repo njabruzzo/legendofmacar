@@ -10,7 +10,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Run `control-macar doctor` and require the isolated origin, injected probe, and living Chrome pid.
 - Never drive `https://www.legendofmacar.com` from this skill. That origin holds the player's book.
 - Never drive an instance that was not started by this verification run.
-- Start title proofs from a blank book (splash `Continue`, then `Enter the Deep` on `title_menu`). If `New descent` is visible on the menu, run `control-macar browser isolate-saves` and reload.
+- Start title proofs from a blank book (splash `Continue`, then primary `New descent` on `title_menu`). If menu `Continue` is visible on an isolated origin, run `control-macar browser isolate-saves` and reload.
 
 ## Driving conventions
 
@@ -43,7 +43,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [Title, new game, continue](./title-new-game.md) covers the Book One splash, the second title menu, Enter the Deep, wipe-and-restart, and Continue from a marked book.
+- [Title, new game, continue](./title-new-game.md) covers the Book One splash, the second title menu, New descent, wipe-and-restart, and Continue from a marked book.
 - [Movement and HUD](./movement-hud.md) covers walking, the standing skill bar, Defend vs walk-right, and the collapsed combat log.
 - [Combat basics](./combat-basics.md) covers Attack, Defend-blocks-Attack, and the first-room quiet rule.
 - [Inventory and camp](./inventory-camp.md) covers PACK / Drop, in-seam camp rest, and the post-chapter CAMP plate.

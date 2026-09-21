@@ -725,12 +725,12 @@ async function proveTitleNewGame() {
       const menuLimit = Date.now() + 8000;
       while (Date.now() < menuLimit) {
         s = await snapshot(cdp);
-        if (s.scene === 'title_menu' && (s.menus || []).some((m) => m.name === 'Enter the Deep' || m.name === 'New descent')) break;
+        if (s.scene === 'title_menu' && (s.menus || []).some((m) => m.name === 'New descent')) break;
         await new Promise((r) => setTimeout(r, 200));
       }
       const menuShot = await shot('title-menu-visible');
       await snapWrite('title-menu-visible');
-      const enter = (s.menus || []).some((m) => m.name === 'Enter the Deep');
+      const enter = (s.menus || []).some((m) => m.name === 'New descent');
       const chapters = (s.menus || []).some((m) => m.name === 'Chapters');
       const credits = (s.menus || []).some((m) => m.name === 'Credits');
       const saveCont = (s.menus || []).some((m) => m.name === 'Continue');
@@ -739,11 +739,11 @@ async function proveTitleNewGame() {
       } else if (saveCont) {
         recordCheck('title-menu-visible', 'fail', 'isolated origin still has a Continue slot; wipe saves and retry');
       } else {
-        recordCheck('title-menu-visible', 'pass', 'Enter the Deep on title_menu; evidence ' + menuShot);
+        recordCheck('title-menu-visible', 'pass', 'New descent on title_menu; evidence ' + menuShot);
       }
     }
 
-    const click = await cdp.eval('window.__MACAR_VERIFY__.clickName("Enter the Deep")');
+    const click = await cdp.eval('window.__MACAR_VERIFY__.clickName("New descent")');
     if (!click || !click.ok) {
       recordCheck('enter-the-deep', 'fail', JSON.stringify(click));
     } else {
@@ -757,7 +757,7 @@ async function proveTitleNewGame() {
       await shot('enter-the-deep');
       await snapWrite('enter-the-deep');
       if (intro.scene !== 'intro') recordCheck('enter-the-deep', 'fail', 'scene=' + intro.scene);
-      else recordCheck('enter-the-deep', 'pass', 'scene=intro after Enter the Deep');
+      else recordCheck('enter-the-deep', 'pass', 'scene=intro after New descent');
     }
 
     s = await snapshot(cdp);
@@ -832,7 +832,7 @@ async function main() {
   control-macar doctor [--suite]
   control-macar browser open [/]
   control-macar browser wait --scene title|title_menu|intro|play|pack|camp [--timeout 30]
-  control-macar browser click --name "Enter the Deep"
+  control-macar browser click --name "New descent"
   control-macar browser click --hud-key pack
   control-macar browser press --key d [--hold-ms 800]
   control-macar browser snapshot --path FILE [--aria]

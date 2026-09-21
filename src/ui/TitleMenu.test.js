@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Two-screen title: splash → title_menu → Enter / Chapters / Credits.
+ * Helm second-screen title menu: title / quote / billboard / thumb stack.
  * Run: node src/ui/TitleMenu.test.js
  */
 const fs=require('fs');
@@ -35,10 +35,17 @@ assert(/SPR\.title_menu/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\
   /SPR\.title_splash/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0]),
   'unsigned title_menu falls back to chapters_plate then title_splash');
 assert(/function titleMenuBtnH\(s, port\)\{/.test(html) &&
-  /Math\.max\(port\?44:48, \(port\?50:52\)\*s\)/.test(html),
-  'menu buttons floor at 44px phone / 48px laptop');
-assert(/function titleSafeBottom\(s, port\)\{/.test(html) && /safeInsets/.test(html.match(/function titleSafeBottom[\s\S]*?\n\}/)[0]),
-  'both title screens keep a safe bottom margin');
+  /Math\.max\(port\?48:44, \(port\?50:46\)\*s\)/.test(html),
+  'menu buttons floor at 48px phone / 44px laptop');
+assert(/function titleMenuSafe\(inset\)\{/.test(html) &&
+  /Math\.max\(16, inset\.t/.test(html) && /Math\.max\(24\+\(inset\.b/.test(html),
+  'safe pad is max(16, inset) and home-indicator bottom is 24+inset');
+assert(/function titleMenuGap\(\)\{ return 12; \}/.test(html), 'stack gap is at least 12');
+assert(/function titleMenuPillW\(vw, padL, padR\)\{/.test(html) && /Math\.min\(360/.test(html),
+  'pills are full-width up to ~360');
+assert(/function drawTitleMenuBillboard\(/.test(html) &&
+  /Math\.min\(w\/img\.width, h\/img\.height\)/.test(html),
+  'billboard contains (scale-to-fit) and never squashes');
 
 assert(/if\(G\.scene==='title'\) drawTitle\(g\);/.test(html) &&
   /if\(G\.scene==='title_menu'\) drawTitleMenu\(g\);/.test(html),
@@ -53,54 +60,82 @@ assert(/drawSplashCover\(g, splash/.test(splash) && /drawLetterbox/.test(splash)
   'splash still covers and letterboxes the party plate');
 
 const menu=html.match(/function drawTitleMenu\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
-assert(/titleMenuArt\(\)/.test(menu) && /drawSplashCover\(g, art/.test(menu) && /drawLetterbox/.test(menu),
-  'menu covers title_menu (or fallback) and letterboxes');
-assert(/menuBtn\(g,'Enter the Deep'/.test(menu) && /startChapter\(1\)/.test(menu),
-  'blank-book menu starts Chapter I');
-assert(/menuBtn\(g,'Continue'/.test(menu) && /loadSavedGame\(\)/.test(menu),
-  'marked-book menu Continue loads the save');
-assert(/menuBtn\(g,'New descent'/.test(menu) && /G\.wipeAsk=1/.test(menu),
-  'marked-book menu can ask to burn the book');
-assert(/menuBtn\(g,'Chapters'/.test(menu) && /menuBtn\(g,'Credits'/.test(menu),
-  'menu keeps Chapters and Credits');
+assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuBillboard/.test(menu),
+  'menu paints a reserved billboard, not a full-bleed cover under the pills');
+assert(!/drawSplashCover/.test(menu), 'menu art is not a cover crop under the buttons');
+assert(!/UIBTN|stickHome|drawHUD|icon_pack/.test(menu),
+  'menu has no HUD chrome, stick, or inventory');
+assert(/title:'THE LEGEND OF MACAR'/.test(menu) && /titleGapMin:24/.test(menu),
+  'canvas title is always painted with ≥24px air before the quote');
+assert(/From simple beginnings Macar would rise to become a hero among dwarves\./.test(menu),
+  'quote stays on the canvas; it is not baked into the art');
+assert(/wrapLines/.test(html.match(/function layoutHighPlate\(g, spec\)\{[\s\S]*?function paintHighPlate/)[0]),
+  'quote wraps on word boundaries');
+assert(/menuBtn\(g,'New descent'[\s\S]*startChapter\(1\)[\s\S]*'primary'/.test(menu),
+  'blank-book primary is New descent and starts Chapter I');
+assert(/menuBtn\(g,'Continue'[\s\S]*loadSavedGame\(\)[\s\S]*'primary'/.test(menu),
+  'marked-book primary is Continue');
+assert(/menuBtn\(g,'New descent'[\s\S]*G\.wipeAsk=1[\s\S]*'secondary'/.test(menu),
+  'marked-book New descent is a quieter secondary');
+assert(/menuBtn\(g,'Chapters'[\s\S]*'secondary'/.test(menu) &&
+  /menuBtn\(g,'Credits'[\s\S]*'secondary'/.test(menu),
+  'Chapters and Credits are quieter secondaries');
 assert(/openCredits\('title_menu'\)/.test(menu), 'Credits from the menu returns to the menu');
 assert(/G\.scene='title_menu'/.test(html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\nfunction enterPlayFromIntro/)[0]),
   'Chapters Back returns to title_menu, not the splash');
 assert(/if\(!consumed && G\.scene==='title'\) enterTitleMenu\(\)/.test(html),
   'tap-anywhere on the splash opens the menu');
-assert(/nudgeY:PORT\?0:VH\*0\.02/.test(menu), 'phone menu plate is flush, no extra desktop ken-burns');
+assert(/Math\.max\(16, 16\*s\)/.test(html.match(/function menuBtn\(g,label[\s\S]*?\nfunction drawSleepRest/)[0]),
+  'Helm pills keep labels at least 16px');
+assert(/menuHits\.push\(\{x,y,w,h,fn\}\)/.test(html.match(/function menuBtn\(g,label[\s\S]*?\nfunction drawSleepRest/)[0]),
+  'hit box is the full painted plate');
 
 function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
-function titleMenuBtnH(s, port){ return Math.max(port?44:48, (port?50:52)*s); }
-function titleSafeBottom(s, port, insetB){
-  return Math.max(port?28*s:24*s, (insetB||0)+16);
+function titleMenuBtnH(s, port){ return Math.max(port?48:44, (port?50:46)*s); }
+function titleMenuSafe(inset){
+  inset=inset||{t:0,r:0,b:0,l:0};
+  return {
+    t:Math.max(16, inset.t||0),
+    r:Math.max(16, inset.r||0),
+    b:Math.max(24+(inset.b||0), 16),
+    l:Math.max(16, inset.l||0)
+  };
 }
-function checkStack(name, vw, vh, port){
+function titleMenuPillW(vw, padL, padR){ return Math.min(360, Math.max(160, vw-padL-padR)); }
+function checkStack(name, vw, vh, port, inset){
   const s=clamp(Math.min(vw,vh)/(port?430:700), 0.66, 1.30);
+  const pad=titleMenuSafe(inset||{});
   const btnH=titleMenuBtnH(s, port);
-  const gap=port?14*s:16*s;
-  const safeB=titleSafeBottom(s, port, 0);
+  const gap=12;
   const nBtns=3;
   const stackH=nBtns*btnH+(nBtns-1)*gap;
-  const stackTop=vh-safeB-stackH;
-  const splashH=Math.max(port?44:48, (port?48:52)*s);
-  const splashY=vh-safeB-splashH/2;
-  const splashTop=splashY-splashH/2;
-  assert(btnH>=(port?44:48), name+': menu tap height is '+(port?44:48)+'+ ('+btnH.toFixed(1)+')');
-  assert(splashH>=(port?44:48), name+': splash Continue is '+(port?44:48)+'+ ('+splashH.toFixed(1)+')');
-  assert(safeB>=(port?24:20), name+': safe bottom margin is generous ('+safeB.toFixed(1)+')');
-  assert(stackTop>vh*0.42, name+': stacked menu sits in the lower band, not over the title (top='+stackTop.toFixed(1)+')');
-  assert(stackTop+stackH<=vh-safeB+0.01, name+': menu stack ends above the safe inset');
-  assert(splashTop>=vh*0.72, name+': splash Continue is not a tiny bottom-corner chip (y='+splashTop.toFixed(1)+')');
-  assert(vw*0.78>=200, name+': Continue / Enter plates are wide, not corner stamps');
-  const ceil=vh*(port?0.048:0.038);
-  const titleY=ceil+13*s+8*s+(port?28:42)*s;
-  assert(titleY<vh*0.22, name+': menu gold title stays in the upper fifth (y='+titleY.toFixed(1)+')');
-  const titleGap=28*s;
-  assert(titleGap>=22*s, name+': air before the subtitle is at least the high-plate floor');
+  const stackTop=vh-pad.b-stackH;
+  const bw=titleMenuPillW(vw, pad.l, pad.r);
+  const titleGap=Math.max(24, 28*s);
+  const titleBottom=pad.t+Math.max(12,13*s)+8*s+(port?30:26)*s+titleGap+Math.max(16,(port?15:14)*s)*2;
+  const artTop=titleBottom+12;
+  const artBot=stackTop-gap;
+  const artH=artBot-artTop;
+  const startFloor=port?48:44;
+  assert(pad.t>=16 && pad.l>=16 && pad.r>=16, name+': pad ≥16 on the sides and top');
+  assert(pad.b>=24, name+': home-indicator bottom is ≥24 ('+pad.b+')');
+  assert(btnH>=startFloor, name+': start-path height is '+startFloor+'+ ('+btnH.toFixed(1)+')');
+  assert(gap>=12, name+': stack gap is ≥12');
+  assert(bw<=360 && bw>=vw-pad.l-pad.r-0.01 || bw===360, name+': pill width is full-band or 360 ('+bw.toFixed(1)+')');
+  assert(stackTop>titleBottom, name+': thumb stack stays under the title band');
+  assert(artH>=36, name+': billboard has a reserved middle band ('+artH.toFixed(1)+')');
+  assert(artBot<=stackTop-gap+0.01, name+': art ends above the pills (no cover-up)');
+  assert(titleGap>=24, name+': ≥24px air before the quote ('+titleGap.toFixed(1)+')');
+  assert(titleBottom<vh*0.42, name+': title+quote stay in the top band (bottom='+titleBottom.toFixed(1)+')');
+  const lastBottom=stackTop+stackH;
+  assert(lastBottom<=vh-pad.b+0.01, name+': last pill sits above the home inset');
+  assert(stackTop>=vh*0.55 || !port, name+': portrait pills sit in the thumb zone (top='+stackTop.toFixed(1)+')');
 }
-checkStack('phone 390x844', 390, 844, true);
-checkStack('desktop 1440x900', 1440, 900, false);
+checkStack('phone 375x667', 375, 667, true, {});
+checkStack('phone 390x844', 390, 844, true, {});
+checkStack('phone landscape 667x375', 667, 375, false, {});
+checkStack('desktop 1440x900', 1440, 900, false, {});
+checkStack('phone with home inset', 375, 667, true, {b:34,t:44,l:0,r:0});
 
 function titleMenuArt(SPR){
   const signed=SPR.title_menu;
@@ -111,9 +146,6 @@ function titleMenuArt(SPR){
   if(plate&&plate.width) return plate;
   return SPR.title_splash||null;
 }
-assert(titleMenuArt({chapters_plate:{width:8}, title_splash:{width:8}})===undefined ||
-  titleMenuArt({chapters_plate:{width:8}, title_splash:{width:8}}).width===8,
-  'fallback helper picks a loaded plate');
 {
   const plate={width:4, id:'plate'};
   const splash={width:4, id:'splash'};
@@ -134,4 +166,4 @@ function enterTitleMenu(G){ G.scene='title_menu'; }
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
-console.log('\nTitle menu two-screen checks passed');
+console.log('\nTitle menu Helm-layout checks passed');
