@@ -14,8 +14,8 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/ASSET_VER='107'/.test(html) && !/ASSET_VER='108'/.test(html),
-  'ASSET_VER is 107 — signed title_menu.jpg is in-repo and cache-busted past main 106');
+assert(/ASSET_VER='108'/.test(html) && !/ASSET_VER='109'/.test(html),
+  'ASSET_VER is 108 — signed title_menu stays cache-busted, chapel v3 bound');
 assert(/title_menu:'assets\/ui\/title_menu\.jpg'/.test(html),
   'SPRITE_FILES hooks title_menu to assets/ui/title_menu.jpg');
 assert(!/title_splash_2:/.test(html),

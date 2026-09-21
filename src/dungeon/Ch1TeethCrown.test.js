@@ -53,8 +53,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='107'/.test(html) && !/ASSET_VER='108'/.test(html),
-  'ASSET_VER is 107 — signed title hall and ruby door after the demon-face bind');
+assert(/ASSET_VER='108'/.test(html) && !/ASSET_VER='109'/.test(html),
+  'ASSET_VER is 108 — Disney SIGNED teeth chapel v3 bound');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
@@ -97,6 +97,55 @@ assert(/const x0=101, y0=2, rw=12, rh=12/.test(extractFn('buildTeethCrownRoom'))
   'chapel is carved north of the east-hall door');
 assert(/wall:'n'/.test(extractFn('buildTeethCrownRoom')),
   'demon face sits on the chapel north wall');
+assert(/WALL_TEETH_NORTH_SCALE=2\.25/.test(html) && /function teethNorthWallH\(L\)/.test(html),
+  'chapel north wall is raised above hall height');
+assert(/SPRITE_FILES\.teeth_floor='assets\/tiles\/teeth_floor\.png'/.test(html),
+  'tiny fang field is registered');
+assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
+  'signed altar-with-crown sheet is registered');
+assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
+  && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),
+  'chapel north masonry sheets are registered');
+['teeth_floor.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
+  assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
+});
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png')),
+  'prop_altar_teeth.png on disk');
+assert(/SPR\.teeth_floor/.test(extractFn('drawTeethTile')),
+  'floor teeth use the signed fang field when it is present');
+assert(/SPR\.wall_teeth_chapel_opaque/.test(extractFn('teethChapelWallImg'))
+  && /chapel\|\|faceL/.test(html),
+  'chapel north face prefers the opaque masonry sheet');
+assert(/function teethAltarSheetActive\(/.test(html)
+  && /SPR\.altar_teeth/.test(html)
+  && /if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
+  'signed altar replaces the altar-plus-crown stack while the crown is seated');
+assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
+  'only the teeth-chapel north row is the tall face wall');
+assert(/isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H/.test(html),
+  'drawWallCell uses the tall teeth face on that row');
+assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html),
+  'fog punch grows with the tall chapel wall');
+{
+  const room=extractFn('buildTeethCrownRoom');
+  assert(/k:'altar',s:1\.82,teethAltar:1/.test(room), 'teeth altar scale is 1.82');
+  assert(/k:'bonecrown',s:1\.70/.test(room), 'bone crown scale is 1.70');
+  assert(/x:altar\.x,y:altar\.y,k:'bonecrown'/.test(room),
+    'crown shares the altar foot so it can sit on the slab');
+  assert(!/y:altar\.y-0\.12,k:'bonecrown'/.test(room),
+    'crown is not offset into a ring around the pool');
+  assert(/s:0\.22\+h2\(i,11\)\*0\.08/.test(room),
+    'tooth props are specks on the painted fang field');
+}
+assert(/if\(k==='altar'\) return 100\*z\*\(p\.s\|\|1\)/.test(html),
+  'altar draw height honors the s factor');
+assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
+  'tooth prop height is the small-fang scale');
+assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
+  'bone crown is drawn up on the altar slab');
+assert(/\(8\.2\+h2\(i,x\)\*3\.4\)\*z\*sc/.test(extractFn('drawTeethTile'))
+  && /\(risen\?4\.0:6\.4\+h2\(i,x\+y\)\*2\.8\)\*z\*sc/.test(extractFn('drawTeethTile')),
+  'floor tile fangs are scaled down to a carpet');
 assert(!/x0=116, y0=16/.test(extractFn('buildTeethCrownRoom')),
   'old east-of-door chapel coords are gone');
 assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(html),

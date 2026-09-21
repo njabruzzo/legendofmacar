@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='107';
+const ASSET_VER='108';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -646,6 +646,12 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
 SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
 SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
 SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
+/* Disney SIGNED teeth-chapel v3. After walk/atk derivation so the altar
+   sheet does not spawn a missing _atk and the tiles do not spawn _w1. */
+SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
+SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
+SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
+SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
@@ -2254,6 +2260,63 @@ function isRubyNorthWall(L,x,y){
   return !!(L && L.n===1 && y===6 && x>=24 && x<=51);
 }
 function rubyNorthWallH(L){ return wallFaceH(L)*WALL_RUBY_NORTH_SCALE; }
+/* Teeth chapel north face only (room carved at y=2). Halls stay
+   WALL_HALL_SCALE. The demonic face is taller than a hall wall, so this
+   row has to rise until the carving sits in masonry, not the black void. */
+const WALL_TEETH_NORTH_SCALE=2.25;
+function isTeethNorthWall(L,x,y){
+  return !!(L && L.n===1 && y===1 && x>=101 && x<113);
+}
+function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
+/* Chapel north face. The signed sheet is masonry plus a wide empty margin
+   (black on the opaque flatten). Crop to the stone and fill the margin so
+   the live quad is wall mass, not a black void beside the demon face. */
+let TEETH_CHAPEL_WALL=null;
+function teethChapelWallImg(){
+  if(TEETH_CHAPEL_WALL&&TEETH_CHAPEL_WALL.width) return TEETH_CHAPEL_WALL;
+  const op=SPR.wall_teeth_chapel_opaque;
+  const tr=SPR.wall_teeth_chapel;
+  const img=(op&&op.width)?op:((tr&&tr.width)?tr:null);
+  if(!img) return null;
+  TEETH_CHAPEL_WALL=solidChapelMasonry(img)||img;
+  return TEETH_CHAPEL_WALL;
+}
+function solidChapelMasonry(img){
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d');
+    x.drawImage(img,0,0);
+    const data=x.getImageData(0,0,c.width,c.height);
+    const d=data.data, w=c.width, h=c.height;
+    let minx=w, miny=h, maxx=-1, maxy=-1, sr=0, sg=0, sb=0, n=0;
+    const stone=i=>d[i+3]>=20 && !(d[i]<16&&d[i+1]<16&&d[i+2]<16);
+    for(let y=0;y<h;y+=2) for(let xx=0;xx<w;xx+=2){
+      const i=(y*w+xx)*4;
+      if(!stone(i)) continue;
+      if(xx<minx) minx=xx; if(xx>maxx) maxx=xx;
+      if(y<miny) miny=y; if(y>maxy) maxy=y;
+      sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; n++;
+    }
+    if(maxx<minx||!n) return img;
+    const bw=maxx-minx+1, bh=maxy-miny+1;
+    const out=document.createElement('canvas');
+    out.width=bw; out.height=bh;
+    const g=out.getContext('2d');
+    g.fillStyle='rgb('+((sr/n)|0)+','+((sg/n)|0)+','+((sb/n)|0)+')';
+    g.fillRect(0,0,bw,bh);
+    const src=x.getImageData(minx,miny,bw,bh);
+    const sd=src.data;
+    for(let i=0;i<sd.length;i+=4){
+      if(sd[i+3]<20 || (sd[i]<16&&sd[i+1]<16&&sd[i+2]<16)) sd[i+3]=0;
+    }
+    const hold=document.createElement('canvas');
+    hold.width=bw; hold.height=bh;
+    hold.getContext('2d').putImageData(src,0,0);
+    g.drawImage(hold,0,0);
+    return out;
+  }catch(e){ return img; }
+}
 function wallHidesFloor(L,x,y){
   if(!L||!L.grid) return false;
   const ix=x|0, iy=y|0;
@@ -2931,10 +2994,11 @@ function propSpriteH(p,z){
   if(k==='dwarfface') return dwarfFaceH();
   if(k==='demonface') return dwarfFaceH()*1.08;
   if(k==='bonecrown') return 36*z*(p.s||1);
-  if(k==='tooth') return 22*z*(p.s||1);
+  if(k==='tooth') return 10*z*(p.s||1);
   if(k==='hourglass') return 118*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
-  if(k==='altar'||k==='throne') return 100*z;
+  if(k==='altar') return 100*z*(p.s||1);
+  if(k==='throne') return 100*z;
   if(k==='ruin_house') return 128*z*(p.s||1);
   if(k==='secret_door') return 92*z*(p.s||1);
   if(k==='gate'||k==='bronzedoor') return 132*z;
@@ -10506,9 +10570,10 @@ function buildTeethCrownRoom(L, sec){
   L.lights=L.lights||[];
   const altar={x:107.15,y:4.35};
   const face={x:107.25,y:2.48};
-  G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.08,teethAltar:1,seed:880});
+  G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.82,teethAltar:1,seed:880});
   if(!L.flags.crownTaken && !L.flags.crownTouched && !L.flags.crownDestroyed){
-    G.props.push({x:altar.x,y:altar.y-0.12,k:'bonecrown',s:0.92,seed:881});
+    /* Same foot as the altar. drawBoneCrownProp lifts it onto the slab. */
+    G.props.push({x:altar.x,y:altar.y,k:'bonecrown',s:1.70,seed:881});
   }
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:882,
     toothKind:'electrum', emptySocket:!!(L.flags.electrumTooth||L.flags.copperTooth)});
@@ -10517,7 +10582,7 @@ function buildTeethCrownRoom(L, sec){
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
       const ty=y0+1.1+h2(i,7)*9.4;
-      G.props.push({x:tx,y:ty,k:'tooth',spr:sprs[i%3],s:0.55+h2(i,11)*0.38,seed:900+i});
+      G.props.push({x:tx,y:ty,k:'tooth',spr:sprs[i%3],s:0.22+h2(i,11)*0.08,seed:900+i});
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
@@ -12528,7 +12593,7 @@ function drawWorld(g,L){
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
     const H=hallWallH(L);
-    const faceH=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):H;
+    const faceH=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(isTeethNorthWall(L,x,y)?teethNorthWallH(L):H);
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
@@ -12538,7 +12603,8 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
-      if(oS) drawMasonryFace(g, sf==='n'?secN:faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      const chapel=isTeethNorthWall(L,x,y)?teethChapelWallImg():null;
+      if(oS) drawMasonryFace(g, sf==='n'?secN:(chapel||faceL), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
       if(oE) drawMasonryFace(g, sf==='e'?secE:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
       if(oW) drawMasonryFace(g, sf==='w'?secW:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
@@ -12890,7 +12956,8 @@ function drawBeyondMask(g,L){
         const oN=L.grid[y-1]&&open(L.grid[y-1][x]);
         const oW=L.grid[y]&&open(L.grid[y][x-1]);
         if(oS||oE||oN||oW){
-          const tall=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(useWallFaces(L)?wallFaceH(L):TH);
+          let tall=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(useWallFaces(L)?wallFaceH(L):TH);
+          if(isTeethNorthWall(L,x,y)) tall=teethNorthWallH(L);
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -13091,8 +13158,23 @@ function drawBoneCrownShape(g, z, scale){
   });
 }
 function drawTeethTile(g,x,y){
-  const s=w2s(x+0.5,y+0.5), z=ZOOM;
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
+  const field=SPR.teeth_floor;
+  if(field&&field.width&&!risen){
+    const s=w2s(x,y);
+    g.save();
+    g.beginPath();
+    g.moveTo(s.x, s.y-TH/2);
+    g.lineTo(s.x+TW/2, s.y);
+    g.lineTo(s.x, s.y+TH/2);
+    g.lineTo(s.x-TW/2, s.y);
+    g.closePath();
+    g.clip();
+    g.drawImage(field, s.x-TW/2, s.y-TH/2, TW, TH);
+    g.restore();
+    return;
+  }
+  const s=w2s(x+0.5,y+0.5), z=ZOOM;
   g.save();
   g.translate(s.x,s.y);
   g.fillStyle=risen?'rgba(42,24,18,0.38)':'rgba(90,22,18,0.22)';
@@ -13103,20 +13185,20 @@ function drawTeethTile(g,x,y){
     const px=(h2(x*13+i,y*9)-0.5)*TW*0.90;
     const py=(h2(x*5+i,y*17)-0.5)*TH*0.84;
     const ang=(h2(i,x+y*3)-0.5)*(risen?1.25:0.95);
-    const sc=risen?(0.72+h2(i,7)*0.38):(0.88+h2(i,3)*0.55);
+    const sc=risen?(0.62+h2(i,7)*0.22):(0.70+h2(i,3)*0.30);
     const hero=!risen && imgs.length && i<8;
     g.save();
     g.translate(px, py);
     g.rotate(ang);
     if(hero){
       const img=imgs[(i+((x*3+y)|0))%imgs.length];
-      const h=(12.5+h2(i,x)*6.2)*z*sc;
+      const h=(8.2+h2(i,x)*3.4)*z*sc;
       const w=h*(img.width/Math.max(1,img.height));
       g.globalAlpha=0.96;
       g.drawImage(img, -w/2, -h*0.88, w, h);
       g.globalAlpha=1;
     } else {
-      drawProceduralFang(g, 0, 0, (risen?6.4:11.2+h2(i,x+y)*6.8)*z*sc, x*31+y*17+i, risen?1:0);
+      drawProceduralFang(g, 0, 0, (risen?4.0:6.4+h2(i,x+y)*2.8)*z*sc, x*31+y*17+i, risen?1:0);
     }
     g.restore();
   }
@@ -13137,15 +13219,43 @@ function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
   }
   g.restore();
 }
+/* Local Y of the altar slab lip (above the red pool), in the crown's foot space. */
+function teethCrownStillSeated(){
+  const f=G.lvl&&G.lvl.flags;
+  if(!f) return true;
+  return !(f.crownTaken||f.crownDestroyed||f.crownTouched);
+}
+function teethAltarSheetImg(){
+  const img=SPR.altar_teeth;
+  return (img&&img.width)?img:null;
+}
+/* Signed altar includes the bone crown. Use that one billboard while the
+   crown is still seated. After TAKE / ATTACK, fall back to the generic altar. */
+function teethAltarSheetActive(){
+  if(!teethCrownStillSeated()||!teethAltarSheetImg()) return false;
+  return (G.props||[]).some(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
+}
+function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
+function boneCrownSeatY(z){
+  const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
+  const H=100*z*((a&&a.s)||1);
+  const m=typeof tilesetPropMetric==='function'?tilesetPropMetric('altar'):null;
+  const foot=m?((m.h-m.oy)/Math.max(1,m.h)):0.149;
+  return (-1+foot+0.20)*H;
+}
 function drawBoneCrownProp(g,p,z){
   const img=crownSprite();
+  const seat=boneCrownSeatY(z);
   if(img){
     const H=36*z*(p.s||1);
     const W=H*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -W/2, -H*0.92, W, H);
+    g.drawImage(img, -W/2, seat-H, W, H);
     return;
   }
+  g.save();
+  g.translate(0, seat);
   drawBoneCrownShape(g, z, p.s||1);
+  g.restore();
 }
 function drawHourglassProp(g,p,z){
   const img=SPR.hourglass_flaming||SPR.hourglass_signed||SPR.hourglass||null;
@@ -13225,11 +13335,11 @@ function drawToothProp(g,p,z){
   const img=toothSprite(p);
   const sc=p.s||1;
   if(img){
-    const h=24*z*sc, w=h*(img.width/Math.max(1,img.height));
+    const h=10*z*sc, w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, -w/2, -h*0.92, w, h);
     return;
   }
-  drawProceduralFang(g, 0, 0, 18*z*sc, p.seed||0, 0);
+  drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
 }
 function demonFaceImg(){
   return SPR.demon_dwarfface||SPR.demonface||null;
@@ -13637,6 +13747,13 @@ function drawProp(g,p,pal){
     drawDemonDwarfFace(g,p);
     return;
   }
+  if(p.k==='bonecrown'){
+    if(teethAltarSheetActive()) return;
+    g.save(); g.translate(s.x,s.y);
+    drawBoneCrownProp(g,p,z);
+    g.restore();
+    return;
+  }
   if(timberOnDwarfMouthLane(p) || billboardCoversDwarfMouth(p)) return;
   g.save(); g.translate(s.x,s.y);
   if(p.k==='dust'){
@@ -13664,6 +13781,16 @@ function drawProp(g,p,pal){
   }
   if(p.k==='winduptoy'){
     drawWindupToyProp(g,p,z);
+    g.restore(); return;
+  }
+  if(p.k==='altar' && p.teethAltar && teethAltarSheetActive()){
+    const sheet=teethAltarSheetImg();
+    const H=teethAltarSheetH(p,z);
+    const sca=p.s||1;
+    softShadow(g,2*z,1*z,22*z*sca,9*z*sca,.45);
+    drawBillboard(g, sheet, H);
+    const b=.4+Math.sin(G.elapsed*1.8)*.2;
+    emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;
   }
   const img=(p.k==='stone')?null:propAnimImg(p);
@@ -13722,7 +13849,8 @@ function drawProp(g,p,pal){
         life:rnd(1.3,.6),max:1.3,c:'#ffab52',s:rnd(2.2,1),amb:1});
     }else if(k==='altar'){
       const b=.4+Math.sin(G.elapsed*1.8)*.2;
-      emit(s.x,s.y-14*z,46*z,'#c81824',0.5*b+0.3);
+      const sca=p.s||1;
+      emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     }else if(k==='throne'){
       emit(s.x,s.y-136*z,40*z,'#ffd24a',0.4);
     }else if(k==='trap'&&p.trap==='trap_runes'){
@@ -13731,9 +13859,6 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   switch(p.k){
-  case 'bonecrown':
-    drawBoneCrownProp(g,p,z);
-    break;
   case 'tooth':
     drawToothProp(g,p,z);
     break;
@@ -13974,7 +14099,8 @@ function drawProp(g,p,pal){
     for(let i=0;i<5;i++){ g.beginPath(); g.moveTo(-30*z,-22*z-i*18*z); g.lineTo(30*z,-22*z-i*18*z); g.stroke(); }
     const gemB=drawFacetGem(g,0,-78*z,26*z,32*z,on,z);
     emit(s.x,s.y-48*z,54*z*gemB,'#ff2a3c',1.0); ray(s.x,s.y-56*z,44*z,'#ff4058',0.5); break; }
-  case 'altar':{ softShadow(g,0,0,46*z,22*z,.55);
+  case 'altar':{ const sca=p.s||1; g.save(); g.scale(sca,sca);
+    softShadow(g,0,0,46*z,22*z,.55);
     g.beginPath(); g.moveTo(-38*z,-6*z); g.lineTo(0,-26*z); g.lineTo(38*z,-6*z); g.lineTo(0,15*z); g.closePath();
     sc(g,'#6d5646',-26*z,15*z,2.2);
     g.beginPath(); g.rect(-32*z,-6*z,64*z,14*z); sc(g,'#4b382e',-6*z,8*z,1.8);
@@ -13982,7 +14108,8 @@ function drawProp(g,p,pal){
     g.fillStyle='rgba(180,18,26,'+(0.55+b*0.3)+')';
     g.beginPath(); g.ellipse(0,-14*z,24*z,10*z,0,0,TAU); g.fill();
     g.fillStyle='rgba(255,110,96,0.35)'; g.beginPath(); g.ellipse(-7*z,-16*z,8*z,3.4*z,0,0,TAU); g.fill();
-    emit(s.x,s.y-14*z,46*z,'#c81824',0.5*b+0.3); break; }
+    g.restore();
+    emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3); break; }
   case 'throne':{ softShadow(g,0,0,40*z,19*z,.55);
     g.beginPath(); g.rect(-30*z,-120*z,60*z,120*z); sc(g,'#4e392c',-120*z,0,2.4);
     g.fillStyle='rgba(0,0,0,0.30)'; g.fillRect(2*z,-120*z,28*z,120*z);
