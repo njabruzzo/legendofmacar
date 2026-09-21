@@ -5534,20 +5534,39 @@ const NPC_TALK={
   },
   toy_find:{
     who:'A TOY',
-    line:'Cold brass. A key in its back. It ticks once, mean: "Wind me, dwarf. Or stay thick."',
+    line:'Cold brass. Ten empty sockets. A key in its back. It ticks once: "Wind me, thick-skull. Or stay blind."',
     choices:[
       {t:'Wind it.', say:'MACAR: "Walk."', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
-      {t:'Who made you?', reply:'A dry click. A whisper: "A fool who wound greed."'},
+      {t:'Who made you?', reply:'A dry click: "A soft fool. Not Grond."'},
       {t:'Put it down.'}
     ]
   },
   toy_wind:{
     who:'THE TOY',
-    line:'Tick-tock, thick-skull Macar— you dig for gold and call it war. Greed\'s your god. Power\'s your itch. The secret of the ruby lies in the heart of it all.',
+    line:'Tick-tock, Macar— greed made you dig, power made you crawl. Your kin kissed Grond and called it law. Chaos ate the halls. The secret of the ruby lies in the heart of it all.',
     choices:[
-      {t:'What do you remember?', reply:'THE TOY: "Your kin still sleep under the fall. The red door warms to a dwarf\'s small palm. North wears a false grey face— SEARCH that lie. Froren\'s anvil stands. He laughed. You won\'t."'},
-      {t:'Who was Froren?', reply:'THE TOY: "Kind hands. Soft heart. Dead soft. He wound me for joy, not a crown. You wind me for loot. Same key. Same greed. Same drown."'},
-      {t:'Put it down.', reply:'THE TOY: "Go clutch your ruby. Heart of it all. Leave the tinker. Take the fall."'}
+      {t:'What do you remember?', reply:'THE TOY: "Kin under the fall. Red door warm to a dwarf\'s palm. North wears a false grey face— SEARCH that lie. Soft Froren\'s anvil stands. He wound joy. You wind loot."'},
+      {t:'Who is Grond?', then:()=>startTalk('toy_grond')},
+      {t:'Where are your teeth?', then:()=>startTalk('toy_teeth')},
+      {t:'Put it down.', reply:'THE TOY: "Go clutch the heart. Leave the sockets bare. Ten teeth wait. I don\'t care."'}
+    ]
+  },
+  toy_grond:{
+    who:'THE TOY',
+    line:'Grond. Deep hunger. Pretty name. Dwarves knelt for crowns and flame. Soft hearts broke. Hard hearts stayed. Chaos wore their beards and prayed.',
+    choices:[
+      {t:'And the ruby?', reply:'THE TOY: "Heart of it all. Not a door. Not a wall. The lust that called Grond down the hall."'},
+      {t:'How do we end it?', then:()=>startTalk('toy_teeth')},
+      {t:'Enough.', reply:'THE TOY: "Enough is a word soft fools keep. Wind me again when you cannot sleep."'}
+    ]
+  },
+  toy_teeth:{
+    who:'THE TOY',
+    line:'Ten teeth torn. Scattered deep. Gather each. Do not weep. Smash them true— Mordain\'s holy hammer, Anvil of Truth— break the greed that stole my youth.',
+    choices:[
+      {t:'Say that again.', reply:'THE TOY: "Ten teeth. Mordain\'s hammer. Anvil of Truth. Smash. Or stay thick. Your choice, dwarf."'},
+      {t:'Where do I look?', reply:'THE TOY: "Everywhere the dark grows bold. No map from me. That tale\'s old. Follow greed. Follow power. Follow what the ruby calls a flower."'},
+      {t:'Put it down.', reply:'THE TOY: "Sockets wait. Teeth do not. Tick."'}
     ]
   },
   goblin_mercy:{
