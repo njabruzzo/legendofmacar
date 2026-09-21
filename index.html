@@ -1746,7 +1746,8 @@ function livingMacarImg(key){
 const MacarStrikeQA={
   lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
   atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false, holdT:0,
-  swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0
+  swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0,
+  plantFit:0, blitH:0, sheetW:0, sheetH:0
 };
 function macarStrikeHoldProgress(e){
   if(!e) return 0;
@@ -1883,16 +1884,20 @@ function livingMacarAnimKey(e){
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
-/* Walk / carry share idle plant so the quilt34 shaft cannot shrink when
-   gait swaps w1/w2. The bake canvas is not SPR.macar_w1 — lock by key.
-   Mid-swing keeps its own crop (weapon is out). */
+/* Living Macar dest scale is the equipped idle plant, never the live
+   sheet's figure frac. Walk / carry / windup / contact share that plant
+   so a taller 540 canvas or a wide contact overhang cannot change dwarf
+   stature. Pixel scale stays idleH-locked: destH/frameH = idleDest/idleH.
+   Width may still grow from sheet aspect (weapon overhang only). */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
   const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
   const idle=SPR[idleKey]||SPR.macar;
-  if(idle && key && (/_w[12]$/.test(key) || key===idleKey || key==='macar' || key==='macar_axe' || key==='macar_xbow'))
-    return heroFigureFit(e, idle);
-  return frameFit(e, img);
+  if(!idle) return frameFit(e, img);
+  const idleFit=heroFigureFit(e, idle);
+  const idleH=Math.max(1, idle.height||0);
+  const frameH=Math.max(1, (img&&img.height)||idleH);
+  return idleFit*(frameH/idleH);
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1911,10 +1916,15 @@ function drawLivingMacar(g,e){
   g.globalCompositeOperation='source-over';
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
-  const H=entSpriteH(e,z)*livingMacarPlantFit(e, blitKey||key, img);
-  const strike=key==='macar_atk'||key==='macar_atk_contact'||key==='macar_axe_atk'||key==='macar_xbow_atk'
-    ||blitKey==='macar_atk'||blitKey==='macar_atk_contact'||blitKey==='macar_axe_atk'||blitKey==='macar_xbow_atk';
-  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN*(strike?1.16:1);
+  const plantFit=livingMacarPlantFit(e, blitKey||key, img);
+  const H=entSpriteH(e,z)*plantFit;
+  /* Width follows sheet aspect only — no strike fatten. Contact 893
+     overhang may widen; windup 470 stays idle-wide. Stature is H. */
+  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
+  MacarStrikeQA.plantFit=plantFit;
+  MacarStrikeQA.blitH=H;
+  MacarStrikeQA.sheetW=img.width;
+  MacarStrikeQA.sheetH=img.height;
   const b=spriteBounds(img);
   /* Plant on the feet, not the opaque-box center. Mid-swing spans the
      full canvas (maul to the edge); box-cx slides the dwarf off the tile

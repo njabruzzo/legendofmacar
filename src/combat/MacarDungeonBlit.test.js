@@ -41,8 +41,9 @@ assert(/imageSmoothingEnabled=false/.test(extractFn('flippedSprite'))
 assert(/!out\|\|!out\.width\|\|!out\.height/.test(extractFn('blitLivingMacar')),
   '0-size bake falls back instead of flashing a sliver');
 assert(/MACAR_FOOT_WIDEN=1\.24/.test(html), 'extra mass is a width scale');
-assert(/entSpriteH\(e,z\)\*livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar')),
-  'dungeon height stays kin entSpriteH — walk plant locks to idle');
+assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar'))
+  && /entSpriteH\(e,z\)\*plantFit/.test(extractFn('drawLivingMacar')),
+  'dungeon height stays kin entSpriteH — plant locks to idle pixel scale');
 assert(/\*MACAR_FOOT_WIDEN/.test(extractFn('drawLivingMacar')),
   'living Macar blit applies the width scale');
 assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar')),
