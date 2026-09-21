@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=104">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=105">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='104';
+const ASSET_VER='105';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -496,8 +496,6 @@ const SPRITE_FILES={
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
   dwarfface:'assets/props/prop_dwarfface.png',
-  /* TODO(Disney SIGNED): swap prop_demon_dwarfface.png for the signed
-     demonic dwarven face. Keep keys demon_dwarfface + demonface. */
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
   craftstation:'assets/props/prop_craftstation.png',
@@ -12837,8 +12835,6 @@ function drawToothProp(g,p,z){
   drawProceduralFang(g, 0, 0, 18*z*sc, p.seed||0, 0);
 }
 function demonFaceImg(){
-  /* TODO(Disney SIGNED): prefer SPR.demon_dwarfface_signed when that sheet
-     lands. Do not fall back to friendly dwarfface + procedural horns. */
   return SPR.demon_dwarfface||SPR.demonface||null;
 }
 function demonFaceHalf(){

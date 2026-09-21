@@ -25,8 +25,8 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='104'/.test(html) && !/ASSET_VER='105'/.test(html),
-  'ASSET_VER is 104 — demon face bind, no Macar sheet swap');
+assert(/ASSET_VER='105'/.test(html) && !/ASSET_VER='106'/.test(html),
+  'ASSET_VER is 105 — SIGNED demon face bind, no Macar sheet swap');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
   'integer play DPR helper exists');
