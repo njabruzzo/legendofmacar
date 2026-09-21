@@ -1424,38 +1424,46 @@ function blitLivingMacar(img){
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
    Macar, so their living frames take the same repair. Ghost sheets are a
-   signed α168 cool spirit (Limner moonlit pack) — pass the baked color
-   through. Never punch to 255 (west-flip solid flash) and never chalk-white. */
+   signed α168 gray-blue — lift them to spectral white. Never punch to 255
+   (west-flip solid flash) and never a flat chalk-gray wash. */
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
   if(e.ghost) return liftGhostSpirit(img);
   return blitLivingMacar(img)||img;
 }
-/* Ghost silhouette stay mid-alpha. CAP<255 so a west flip (punch=false)
-   cannot suddenly go opaque. WHITE/COOL stay at 0 — Limner already baked
-   the cool spectral grade; a code remesh re-bleaches α168 to chalk. */
+/* CAP stays under 255 so a west flip (punch=false) cannot go solid.
+   WHITE lifts gray dust toward white. COOL then pulls that white cool
+   (spectral, not warm parchment). SHADE puts the original luminance
+   folds back so the kit does not flatten to paper. Alpha rises only
+   enough that the cave floor cannot stain the spirit yellow. */
 const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
-const GHOST_ALPHA_CAP=200;
-const GHOST_ALPHA_LIFT=1;
-const GHOST_WHITE_LIFT=0;
-const GHOST_COOL_LIFT=0;
+const GHOST_ALPHA_CAP=224;
+const GHOST_ALPHA_LIFT=1.28;
+const GHOST_WHITE_LIFT=0.66;
+const GHOST_COOL_LIFT=0.72;
+const GHOST_SHADE_KEEP=0.62;
+const GHOST_SHADE_PIVOT=82;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
   const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT;
-  const WHITE=GHOST_WHITE_LIFT, COOL=GHOST_COOL_LIFT;
-  const moonR=168, moonG=210, moonB=236;
+  const WHITE=GHOST_WHITE_LIFT, COOL=GHOST_COOL_LIFT, SHADE=GHOST_SHADE_KEEP, PIVOT=GHOST_SHADE_PIVOT;
+  const moonR=220, moonG=244, moonB=255;
   for(let p=0;p<d.length;p+=4){
     const a=d[p+3];
     if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
-    let r=d[p]+(((255-d[p])*WHITE)|0);
-    let g=d[p+1]+(((255-d[p+1])*WHITE)|0);
-    let b=d[p+2]+(((255-d[p+2])*WHITE)|0);
+    const r0=d[p], g0=d[p+1], b0=d[p+2];
+    const y0=(r0*30+g0*59+b0*11)/100;
+    let r=r0+(((255-r0)*WHITE)|0);
+    let g=g0+(((255-g0)*WHITE)|0);
+    let b=b0+(((255-b0)*WHITE)|0);
     r=r+(((moonR-r)*COOL)|0);
     g=g+(((moonG-g)*COOL)|0);
     b=b+(((moonB-b)*COOL)|0);
+    const dy=((y0-PIVOT)*SHADE)|0;
+    r+=dy; g+=dy; b+=dy;
     d[p]=r<0?0:r>255?255:r;
     d[p+1]=g<0?0:g>255?255:g;
     d[p+2]=b<0?0:b>255?255:b;

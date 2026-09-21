@@ -1,7 +1,8 @@
 'use strict';
 /**
- * Ghost kin must read as Limner α168 cool spirits — no chalk-white remesh,
- * never punch mid-alpha to 255, never lighter-on-hit.
+ * Ghost kin lift from the signed α168 gray-blue stamp to spectral white.
+ * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
+ * Never punch mid-alpha to 255, never lighter-on-hit.
  * Run: node src/combat/GhostSpiritOpacity.test.js
  */
 const fs=require('fs');
@@ -26,18 +27,20 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/const GHOST_DRAW_ALPHA=1;/.test(html), 'draw alpha is 1 — baked α168 is the spirit');
+assert(/const GHOST_DRAW_ALPHA=1;/.test(html), 'draw alpha is 1 — no second multiply on the spirit');
 assert(!/e\.ghost && !e\.dead\) g\.globalAlpha=0\.84/.test(html),
   'old half-transparent 0.84 multiply is gone');
 assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
   && !/const GHOST_WHITE_LIFT=0\.48/.test(html)
-  && !/const GHOST_WHITE_LIFT=0\.06/.test(html),
-  'chalk-white 0.96/0.48 and 0.06 washes are gone');
+  && !/const GHOST_WHITE_LIFT=0\.06/.test(html)
+  && !/const GHOST_WHITE_LIFT=0;/.test(html),
+  'chalk-white 0.96/0.48/0.06 washes and the zero white-lift are gone');
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
-assert(/const GHOST_ALPHA_CAP=200/.test(html) && /const GHOST_ALPHA_LIFT=1;/.test(html)
-  && /const GHOST_WHITE_LIFT=0;/.test(html) && /const GHOST_COOL_LIFT=0;/.test(html),
-  'lift passes Limner α168 through — CAP 200, no white/cool remesh');
+assert(/const GHOST_ALPHA_CAP=224/.test(html) && /const GHOST_ALPHA_LIFT=1\.28;/.test(html)
+  && /const GHOST_WHITE_LIFT=0\.66;/.test(html) && /const GHOST_COOL_LIFT=0\.72;/.test(html)
+  && /const GHOST_SHADE_KEEP=0\.62;/.test(html),
+  'lift is spectral white — cool mix, shade kept, cap under 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'pixel lift is a dedicated ghost pipe');
 assert(/if\(e\.ghost\) return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
@@ -57,17 +60,12 @@ assert(/g\.globalAlpha=clamp\(e\.flash\*1\.2,0,0\.34\)/.test(html)
   && /g\.fillStyle='#ffb894'/.test(html),
   'ghost rim is flash*1.2; living foes keep the flash*3 fill');
 
-const ctx={
-  GHOST_ALPHA_LO:40,
-  GHOST_ALPHA_CAP:200,
-  GHOST_ALPHA_LIFT:1,
-  GHOST_WHITE_LIFT:0,
-  GHOST_COOL_LIFT:0
-};
+const ctx={};
 vm.createContext(ctx);
 vm.runInContext(
-  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=200,GHOST_ALPHA_LIFT=1,'
-  +'GHOST_WHITE_LIFT=0,GHOST_COOL_LIFT=0;'
+  'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=224,GHOST_ALPHA_LIFT=1.28,'
+  +'GHOST_WHITE_LIFT=0.66,GHOST_COOL_LIFT=0.72,'
+  +'GHOST_SHADE_KEEP=0.62,GHOST_SHADE_PIVOT=82;'
   +extractFn('liftGhostAlpha'),
   ctx
 );
@@ -80,38 +78,55 @@ function liftCopy(rgba){
 
 const mid140=new Uint8ClampedArray([90,80,70,140]);
 const out140=liftCopy(mid140);
-assert(out140[3]===140 && out140[3]<255 && out140[3]<=200,
-  'mid-alpha a=140 is passed through (still mid-alpha)');
-assert(out140[0]===90 && out140[1]===80 && out140[2]===70,
-  'signed RGB is not remeshed — Limner cool stays');
+assert(out140[3]>140 && out140[3]<224 && out140[3]!==255,
+  'a=140 rises but stays translucent (got a='+out140[3]+')');
+assert(out140[0]>180 && out140[2]>out140[0],
+  'a gray-brown pixel becomes cool white, not warm dust');
 
 const mid168=new Uint8ClampedArray([82,78,89,168]);
 const out168=liftCopy(mid168);
-assert(out168[3]===168 && out168[0]===82 && out168[1]===78 && out168[2]===89,
-  'α168 cool spirit is not bleached or inflated');
+assert(out168[3]===215 && out168[3]<255,
+  'α168 lifts to 215 and does not punch opaque');
+assert(out168[0]>=200 && out168[1]>=210 && out168[2]>=220 && out168[2]>out168[0]+8,
+  'α168 gray-blue becomes spectral white (b ahead of r)');
+
+const shadow=new Uint8ClampedArray([49,40,59,168]);
+const outShadow=liftCopy(shadow);
+const hi=new Uint8ClampedArray([161,152,196,168]);
+const outHi=liftCopy(hi);
+const yOf=px=>px[0]*0.3+px[1]*0.59+px[2]*0.11;
+assert(yOf(outHi)-yOf(outShadow)>18,
+  'kit folds survive — highlight stays lighter than shadow');
+assert(yOf(outShadow)>170,
+  'even the shadow fold is white, not gray dust');
+
+const warm=new Uint8ClampedArray([120,90,60,168]);
+const outWarm=liftCopy(warm);
+assert(outWarm[2]>outWarm[0]+8 && outWarm[0]>200,
+  'a warm dust pixel is cooled into white');
 
 const chalk=new Uint8ClampedArray([220,220,220,168]);
 const outChalk=liftCopy(chalk);
-assert(outChalk[0]===220 && outChalk[1]===220 && outChalk[2]===220 && outChalk[3]===168,
-  'a near-white dither pixel is not washed further toward paper');
+assert(outChalk[0]>=230 && outChalk[1]>=230 && outChalk[2]>=230 && outChalk[3]<255,
+  'a near-white dither pixel stays white and translucent');
 
 const denser=new Uint8ClampedArray([110,96,88,195]);
 const out195=liftCopy(denser);
-assert(out195[3]===195 && out195[3]!==255,
-  'a leftover denser stamp stays mid-alpha, not opaque 255');
+assert(out195[3]===224 && out195[3]!==255,
+  'a denser stamp caps under opaque 255');
 
 const already=new Uint8ClampedArray([200,200,200,255]);
 const out255=liftCopy(already);
-assert(out255[3]===200, 'a source a=255 is capped — west flip cannot go solid');
+assert(out255[3]===224, 'a source a=255 is capped — west flip cannot go solid');
 
 const fringe=new Uint8ClampedArray([40,30,20,30, 10,10,10,40]);
 const outFringe=liftCopy(fringe);
 assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifted)');
 
 const oldChalk=228*0.96/255;
-const newEff=168*1/255;
-assert(newEff>0.60 && newEff<0.72 && newEff<oldChalk,
-  'readable opacity is baked α168 (~0.66) vs the chalk ~0.86 multiply');
+const newEff=215/255;
+assert(newEff>0.80 && newEff<oldChalk,
+  'spirit alpha sits above baked α168 and under the old chalk multiply');
 
 const BIND=['','_w1','_w2','_atk','_atk_recover'];
 const KIN=['pordoom','fendur','orbo','talpor'];
