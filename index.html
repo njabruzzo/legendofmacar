@@ -14882,12 +14882,13 @@ function menuBtn(g,label,cx,cy,w,h,fn,dim,icon,style){
   const primary=style==='primary', secondary=style==='secondary';
   const rad=primary||secondary?10:6;
   if(primary){
-    plate(g,x,y,w,h,rad,dim?.5:.92);
+    plate(g,x,y,w,h,rad,dim?.5:.96);
     const gr=g.createLinearGradient(x,y,x,y+h);
-    gr.addColorStop(0,'rgba(255,216,124,0.34)');
-    gr.addColorStop(1,'rgba(181,122,44,0.26)');
+    gr.addColorStop(0,'rgba(255,224,140,0.82)');
+    gr.addColorStop(0.5,'rgba(232,176,72,0.70)');
+    gr.addColorStop(1,'rgba(150,88,24,0.78)');
     g.fillStyle=gr; roundPath(g,x,y,w,h,rad); g.fill();
-    if(!dim){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2.2; roundPath(g,x,y,w,h,rad); g.stroke(); }
+    if(!dim){ g.strokeStyle='#ffe08a'; g.lineWidth=2.4; roundPath(g,x,y,w,h,rad); g.stroke(); }
   } else if(secondary){
     plate(g,x,y,w,h,rad,dim?.5:.50);
     if(!dim){ g.strokeStyle='rgba(232,196,120,0.34)'; g.lineWidth=1.4; roundPath(g,x,y,w,h,rad); g.stroke(); }
