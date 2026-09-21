@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='105';
+const ASSET_VER='106';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -640,6 +640,11 @@ SPRITE_FILES.fx_bomb='assets/fx/fx_bomb.png';
 SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
 SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
 SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
+/* Disney SIGNED Ch1 lift lever + pillar ruby. After prop derivation so
+   we do not invent a missing _atk fetch. */
+SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
+SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
+SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
@@ -13284,6 +13289,19 @@ function drawCutRuby(g,x,y,w,h,on,z){
   return pulse;
 }
 function drawCh1PillarRuby(g,s,z,p){
+  /* Disney SIGNED sheet. Cut-gem draw remains if the image has not loaded. */
+  const signedRuby=SPR.ch1_pillar_ruby;
+  if(signedRuby&&signedRuby.width){
+    const gy0=pillarRubyLocalY(z,p);
+    const Hr=42*z, Wr=Hr*(signedRuby.width/Math.max(1,signedRuby.height));
+    g.drawImage(signedRuby,-Wr/2,gy0-Hr*0.78,Wr,Hr);
+    if(s){
+      const b0=.55+Math.sin((G.elapsed||0)*3.2+(p&&p.x||0))*.25;
+      emit(s.x,s.y+gy0-8*z,56*z,'#ff2a3c',0.98+b0*0.2);
+      ray(s.x,s.y+gy0-12*z,48*z,'#ff4058',0.58);
+    }
+    return;
+  }
   const gy=pillarRubyLocalY(z,p);
   const b=.55+Math.sin((G.elapsed||0)*3.2+(p&&p.x||0))*.25;
   g.beginPath(); g.ellipse(0,gy+4.4*z,16.5*z,7.2*z,0,0,TAU);
@@ -13312,61 +13330,90 @@ function drawCh1PillarRuby(g,s,z,p){
     ray(s.x,s.y+gy-12*z,48*z,'#ff4058',0.58);
   }
 }
+function ch1LiftLeverSheet(ready){
+  /* Disney SIGNED rest / thrown. Procedural iron remains if a sheet misses. */
+  if(ready){
+    const thrownSheet=SPR.ch1_lift_lever_thrown;
+    if(thrownSheet&&thrownSheet.width) return thrownSheet;
+  }
+  const img=SPR.ch1_lift_lever;
+  return (img&&img.width)?img:null;
+}
 function paintCh1LiftLever(g,z){
   if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,G.lvl.flags&&G.lvl.flags.elevReady);
 }
 function drawCh1LiftLever(g,z,ready){
   const thrown=!!ready;
+  const img=ch1LiftLeverSheet(thrown);
   g.save();
   /* SE of the center pillar so the forged plate is not buried in the shaft. */
   g.translate(26*z,10*z);
+  if(img){
+    const H=86*z;
+    const W=H*(img.width/Math.max(1,img.height));
+    softShadow(g,1*z,3*z,16*z,7*z,.4);
+    g.drawImage(img,-W*0.47,-H,W,H);
+    g.restore();
+    return;
+  }
+  /* Interim painted-mini NMM iron. Open ring, not a flat UI knob. */
   g.scale(1.35,1.35);
-  facetPoly(g,[-10*z,5*z, -8.2*z,-6.4*z, 9.4*z,-7.2*z, 11.2*z,5.6*z],'#2e2820');
-  sc(g,'#3a3228',-8*z,7*z,1.55);
-  g.fillStyle='rgba(0,0,0,0.28)';
-  g.beginPath(); g.moveTo(1*z,-6*z); g.lineTo(10*z,-6*z); g.lineTo(11*z,5*z); g.lineTo(2*z,5*z); g.closePath(); g.fill();
-  g.strokeStyle='rgba(18,12,8,0.55)'; g.lineWidth=2.1*z; g.lineCap='round';
-  g.beginPath(); g.arc(0,1*z,9.2*z,-1.35,0.95); g.stroke();
-  g.strokeStyle=thrown?'rgba(255,70,80,0.35)':'rgba(200,170,110,0.16)';
-  g.lineWidth=1.2*z;
-  g.beginPath(); g.arc(0,1*z,9.2*z,-1.35,0.95); g.stroke();
+  const plate=g.createLinearGradient(-11*z,-8*z,11*z,7*z);
+  plate.addColorStop(0,'#6e5a46');
+  plate.addColorStop(0.42,'#3a2e24');
+  plate.addColorStop(1,'#16110c');
+  g.beginPath();
+  g.moveTo(-10.2*z,4.4*z); g.lineTo(-7.4*z,-6.1*z); g.lineTo(8.6*z,-6.6*z); g.lineTo(11.1*z,4.8*z);
+  g.closePath();
+  g.fillStyle=plate; g.fill();
+  g.strokeStyle='rgba(14,10,8,0.45)'; g.lineWidth=0.65*z; g.stroke();
+  g.beginPath(); g.ellipse(0,0.8*z,4.8*z,2.8*z,0,0,TAU);
+  g.fillStyle='#1c1612'; g.fill();
   const rivets=[[-6.2,-3.2],[7.2,-3.6],[-5.4,3.2],[8.0,3.4]];
   for(let i=0;i<rivets.length;i++){
     const rx=rivets[i][0]*z, ry=rivets[i][1]*z;
-    g.beginPath(); g.arc(rx,ry,1.35*z,0,TAU);
-    sc(g,'#6a5840',ry-2*z,ry+2*z,1.05);
-    g.fillStyle='rgba(255,226,170,0.22)';
-    g.beginPath(); g.ellipse(rx-0.35*z,ry-0.45*z,0.45*z,0.32*z,-0.5,0,TAU); g.fill();
+    const rg=g.createRadialGradient(rx-0.4*z,ry-0.45*z,0.2*z,rx,ry,1.35*z);
+    rg.addColorStop(0,'#c4aa8c');
+    rg.addColorStop(0.45,'#6a5644');
+    rg.addColorStop(1,'#241c14');
+    g.beginPath(); g.arc(rx,ry,1.25*z,0,TAU);
+    g.fillStyle=rg; g.fill();
   }
-  g.beginPath(); g.ellipse(0,1.4*z,5.4*z,3.4*z,0,0,TAU);
-  sc(g,'#4a3a28',-4*z,6*z,1.5,0.08);
-  g.beginPath(); g.rect(-3.4*z,-2.2*z,6.8*z,4.6*z);
-  sc(g,'#5a4630',-3*z,4*z,1.25);
   g.save();
   g.rotate(thrown?-1.08:0.58);
+  const arm=g.createLinearGradient(-3*z,0,3*z,0);
+  arm.addColorStop(0,'#1a1410');
+  arm.addColorStop(0.36,'#8a7058');
+  arm.addColorStop(0.62,'#4a3c30');
+  arm.addColorStop(1,'#120e0a');
   g.beginPath();
-  g.moveTo(-2.8*z,3*z); g.lineTo(-1.55*z,-27*z); g.lineTo(1.55*z,-27*z); g.lineTo(2.8*z,3*z);
+  g.moveTo(-2.6*z,3*z); g.lineTo(-1.45*z,-26*z); g.lineTo(1.55*z,-26*z); g.lineTo(2.7*z,3*z);
   g.closePath();
-  sc(g,'#6e5430',-27*z,4*z,1.45);
-  g.strokeStyle='rgba(230,200,140,0.24)'; g.lineWidth=1.05*z;
-  g.beginPath(); g.moveTo(-0.7*z,1*z); g.lineTo(-0.25*z,-25*z); g.stroke();
-  g.strokeStyle='rgba(20,12,8,0.28)'; g.lineWidth=0.8*z;
-  g.beginPath(); g.moveTo(0.9*z,1*z); g.lineTo(0.45*z,-25*z); g.stroke();
+  g.fillStyle=arm; g.fill();
+  g.strokeStyle='rgba(214,186,148,0.32)'; g.lineWidth=0.65*z;
+  g.beginPath(); g.moveTo(-0.7*z,1*z); g.lineTo(-0.3*z,-24*z); g.stroke();
   for(let i=0;i<2;i++){
-    const by=(-9-i*10)*z;
-    g.beginPath(); g.rect(-2.35*z,by,4.7*z,2.15*z);
-    sc(g,'#8a6a3a',by,by+2.15*z,1.15);
+    const by=(-8-i*9)*z;
+    const bg=g.createLinearGradient(-2.4*z,by,2.4*z,by);
+    bg.addColorStop(0,'#2a2218');
+    bg.addColorStop(0.4,'#a08060');
+    bg.addColorStop(1,'#1a140e');
+    g.beginPath(); g.rect(-2.2*z,by,4.4*z,1.7*z);
+    g.fillStyle=bg; g.fill();
   }
-  const kc=thrown?'#d01828':'#c9a070';
-  g.beginPath(); g.arc(0,-31*z,6.3*z,0,TAU);
-  sc(g,kc,-38*z,-24*z,1.5,thrown?0.16:0.10);
-  facetPoly(g,[-3.4*z,-34.6*z, 0,-38.2*z, 3.4*z,-34.6*z], thrown?'rgba(255,90,100,0.28)':'rgba(255,236,198,0.22)');
-  facetPoly(g,[-5.2*z,-31*z, -3.4*z,-34.6*z, 0,-31*z], thrown?'rgba(90,8,12,0.22)':'rgba(90,60,28,0.18)');
-  g.fillStyle=thrown?'rgba(255,80,90,0.58)':'rgba(255,236,198,0.42)';
-  g.beginPath(); g.ellipse(-1.9*z,-33.4*z,2.7*z,1.65*z,-0.48,0,TAU); g.fill();
+  const ring=g.createLinearGradient(-8*z,-40*z,7*z,-24*z);
+  ring.addColorStop(0,'#d4bc9c');
+  ring.addColorStop(0.32,'#7a624c');
+  ring.addColorStop(0.68,'#2c241c');
+  ring.addColorStop(1,'#100c0a');
+  g.fillStyle=ring;
+  g.beginPath();
+  g.ellipse(0,-32*z,7.2*z,5.8*z,-0.4,0,TAU);
+  g.ellipse(0,-32*z,3.3*z,2.5*z,-0.4,0,TAU);
+  g.fill('evenodd');
   if(thrown){
-    g.fillStyle='rgba(255,60,70,0.22)';
-    g.beginPath(); g.arc(0,-31*z,8.2*z,0,TAU); g.fill();
+    g.fillStyle='rgba(160,28,36,0.42)';
+    g.beginPath(); g.ellipse(-1.4*z,-34.2*z,1.15*z,0.55*z,-0.5,0,TAU); g.fill();
   }
   g.restore();
   g.restore();
