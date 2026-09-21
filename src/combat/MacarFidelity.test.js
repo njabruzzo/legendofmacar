@@ -63,8 +63,9 @@ assert(/function armLivingMacarWindup\(/.test(html)
   && /armLivingMacarWindup\(p\)/.test(html),
   'Attack press and standing auto-melee arm the min-read windup');
 assert(/e\.atk=e\.atkMax\*\(1-u\)/.test(html)
+  && /MacarStrikeQA\.holdT/.test(html)
   && !/e\.atk=e\.atkMax\*0\.60/.test(html),
-  'MacarStrikeQA.hold freezes at HIT_HOLD_T (contact), not t=0.40 windup-as-carry');
+  'MacarStrikeQA.hold freezes at holdT (windup or contact), not a single t=0.40');
 
 const worldArt=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\};/);
 assert(!!worldArt && /macar_atk_contact/.test(worldArt[0]) && /macar_w1/.test(worldArt[0]),

@@ -1745,7 +1745,7 @@ function livingMacarImg(key){
 }
 const MacarStrikeQA={
   lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
-  atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false,
+  atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false, holdT:0,
   swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0
 };
 function macarStrikeHoldProgress(e){
@@ -1780,6 +1780,7 @@ function macarStrikeHoldAt(t){
   p.swung=u>=MACAR_MAUL_CONTACT_T?1:0;
   if(typeof armLivingMacarStrike==='function') armLivingMacarStrike(p);
   MacarStrikeQA.hold=true;
+  MacarStrikeQA.holdT=u;
   return true;
 }
 function macarStrikeHoldMid(){ return macarStrikeHoldAt(MACAR_MAUL_HIT_HOLD_T); }
@@ -11083,7 +11084,8 @@ function update(dt){
       else {
         if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold
           && e.atkKind!=='bow'){
-          const u=typeof MACAR_MAUL_HIT_HOLD_T==='number'?MACAR_MAUL_HIT_HOLD_T:0.62;
+          const u=(typeof MacarStrikeQA.holdT==='number')?MacarStrikeQA.holdT
+            :(typeof MACAR_MAUL_HIT_HOLD_T==='number'?MACAR_MAUL_HIT_HOLD_T:0.62);
           e.atk=e.atkMax*(1-u);
         } else {
           e.atk-=dt;
