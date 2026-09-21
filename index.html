@@ -5361,6 +5361,8 @@ function applyPlaySave(play){
     if(e && typeof restorePartyHaste==='function') restorePartyHaste(e, sv);
   });
   pinFallenKin();
+  if(G.lvl&&G.lvl.flags&&G.lvl.flags.copperTooth) G.lvl.flags.electrumTooth=1;
+  if(typeof hasElectrumToothInPack==='function') hasElectrumToothInPack();
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
@@ -10092,7 +10094,7 @@ function buildTeethCrownRoom(L, sec){
     G.props.push({x:altar.x,y:altar.y-0.12,k:'bonecrown',s:0.92,seed:881});
   }
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:882,
-    toothKind:'copper', emptySocket:!!L.flags.copperTooth});
+    toothKind:'electrum', emptySocket:!!(L.flags.electrumTooth||L.flags.copperTooth)});
   if(!L.flags.teethRisen){
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
@@ -10104,12 +10106,12 @@ function buildTeethCrownRoom(L, sec){
   say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
-/* HOUSE: Grond tooth hunt (Sage; Nick's 10s; Nick Copper name).
+/* HOUSE: Grond tooth hunt (Sage 10s raid; Nick Electrum rename).
    Quest unique, not combat magic, no sell, Macar pack only.
-   Ids now: grond_tooth_copper, grond_tooth_bronze.
+   Ids now: grond_tooth_electrum (replaces copper), grond_tooth_bronze.
    Stub later: grond_tooth_03 … 10 — do not invent yet.
    Smash-on-Anvil is dialogue-only (no systems).
-   Ch1 face: Pry once (`L.flags.copperTooth`) → Copper Tooth. Face stays;
+   Ch1 face: Pry once (`L.flags.electrumTooth`) → Electrum Tooth. Face stays;
    empty socket after. Works whether or not the crown fight is done. No XP.
    Ch2: new SEARCH secret (not warrens, not bronze-door treasure). Entry
    starts the 10.0s raid (not the pry). Leave with bronze = inert + safe.
@@ -10124,17 +10126,10 @@ function makeGrondTooth(kind){
       d:'A bronze fang pried from a demonic dwarven face. No curse. Smash-on-Anvil later.'
     };
   }
-  if(kind==='electrum'){
-    return {
-      id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
-      noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-      d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
-    };
-  }
   return {
-    id:'grond_tooth_copper', n:"Grond's Copper Tooth", k:'misc', cat:'Quest',
-    noSell:1, quest:1, noAuto:1, grondTooth:'copper', spr:'icon_pack',
-    d:'A fang that looks silver, pried from a demonic dwarven face. Smash-on-Anvil later.'
+    id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
+    noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
+    d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
   };
 }
 function nearestDemonFace(p, r){
@@ -10149,7 +10144,8 @@ function nearestDemonFace(p, r){
 }
 function pryGrondTooth(face, kind){
   const L=G.lvl;
-  kind=kind||(face&&face.toothKind)||'copper';
+  kind=kind||(face&&face.toothKind)||'electrum';
+  if(kind==='copper') kind='electrum';
   if(!face||face.gone) return {ok:0, reason:'gone'};
   if(kind==='bronze'){
     if(L&&L.flags&&(L.flags.bronzeSecured||L.flags.bronzeTooth)) return {ok:0, reason:'taken'};
@@ -10163,26 +10159,15 @@ function pryGrondTooth(face, kind){
     hint('Ten seconds. Get out with the tooth.',3.8);
     return {ok:1, item:it};
   }
-  if(kind==='electrum'){
-    if(L&&L.flags&&L.flags.electrumTooth) return {ok:0, reason:'taken'};
-    const it=makeGrondTooth('electrum');
-    if(typeof stowPackItem==='function') stowPackItem(it);
-    if(L&&L.flags) L.flags.electrumTooth=1;
-    face.emptySocket=1;
-    burst(face.x, face.y, '#c8d4c0', 12, 2.2);
-    say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
-    hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
-    if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
-    return {ok:1, item:it};
-  }
-  if(L&&L.flags&&L.flags.copperTooth) return {ok:0, reason:'taken'};
-  const it=makeGrondTooth('copper');
+  if(L&&L.flags&&(L.flags.electrumTooth||L.flags.copperTooth)) return {ok:0, reason:'taken'};
+  const it=makeGrondTooth('electrum');
   if(typeof stowPackItem==='function') stowPackItem(it);
-  if(L&&L.flags) L.flags.copperTooth=1;
+  if(L&&L.flags) L.flags.electrumTooth=1;
   face.emptySocket=1;
-  burst(face.x, face.y, '#d8e0e4', 12, 2.2);
-  say('Macar pries Grond\'s Copper Tooth from the stone jaw. It looks like silver.','#d8e0e4');
-  hint('The face stays. One tooth, one shot.',3.2);
+  burst(face.x, face.y, '#c8d4c0', 12, 2.2);
+  say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
+  hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   return {ok:1, item:it};
 }
 function tryTalporTurnThrall(){
@@ -10337,13 +10322,28 @@ function buildHourglassRoom(L, sec){
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
   hint('Ten seconds. Pry the bronze tooth and leave.',5.0);
 }
-/* HOUSE: Electrum Tooth curse — active only while the tooth is in Macar's
-   pack (not worn). 1e rates: 50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep.
-   enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0; −1 / 30s
-   when ep is 0 or the tooth leaves the pack. Mordain smash / Remove Curse later. */
+/* HOUSE: Electrum Tooth curse (Nick first pass; Sage may refine).
+   Active only while grond_tooth_electrum is in Macar's pack (not worn).
+   On gain + every later coin gain: convert all coin → EP at 1e rates
+   (50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep; keep sub-ep dust in cp/sp).
+   Weight: enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0;
+   −1 / 30s when ep is 0 or the tooth leaves the pack.
+   MV (Macar sp only): <50 ×1, 50–149 ×0.75, 150–299 ×0.5, 300+ ×0.25.
+   Pack: Drop electrum 10 / 100 / All as a floor pile. Bronze tooth does
+   not curse. Mordain smash / Remove Curse later. */
 function hasElectrumToothInPack(){
   const pk=G.packs&&G.packs.macar;
-  return !!(pk&&(pk.magic||[]).some(it=>it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')));
+  if(!pk||!pk.magic) return false;
+  let hit=0;
+  pk.magic.forEach(it=>{
+    if(!it) return;
+    if(it.id==='grond_tooth_copper'||it.grondTooth==='copper'){
+      it.id='grond_tooth_electrum'; it.n="Grond's Electrum Tooth"; it.grondTooth='electrum';
+      it.d='A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.';
+    }
+    if(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum') hit=1;
+  });
+  return !!hit;
 }
 function convertCoinsToElectrum(){
   if(!hasElectrumToothInPack()) return 0;
@@ -11649,9 +11649,9 @@ function update(dt){
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
       if(face && !face.emptySocket){
-        const kind=face.toothKind||'copper';
+        const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
         const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth)
-          :(kind==='electrum')?L.flags.electrumTooth:L.flags.copperTooth);
+          :(L.flags.electrumTooth||L.flags.copperTooth));
         if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
       }
     }
