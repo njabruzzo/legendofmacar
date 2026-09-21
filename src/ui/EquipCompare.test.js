@@ -70,7 +70,7 @@ assert(SR.has('EquipCompare') && SR.get('EquipCompare')===EC,
 assert(SR.SHIPPED.indexOf('EquipCompare')>=0, 'EquipCompare is a shipped optional module');
 assert(SR.SHIPPED.indexOf('DerivedStats')>=0, 'DerivedStats is a shipped optional module');
 assert(!/type\s*=\s*["']module["']/.test(html), 'index.html still has no type=module');
-assert(/ASSET_VER='106'/.test(html), 'ASSET_VER is 106');
+assert(/ASSET_VER='107'/.test(html), 'ASSET_VER is 107');
 assert(!/ASSET_VER='100'/.test(html) && !/ASSET_VER='101'/.test(html) && !/ASSET_VER='102'/.test(html), 'ASSET_VER is not leftover 100/101/102');
 assert(/src="src\/combat\/DerivedStats\.js"/.test(html),
   'DerivedStats is a classic sync tag');

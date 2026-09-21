@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=105">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=107">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='106';
+const ASSET_VER='107';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -568,8 +568,9 @@ const SPRITE_FILES={
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
   title_splash:'assets/ui/title_splash.jpg',
+  /* SIGNED ruby-door hall (Nick pass). Screen 1 stays title_splash.
+     If this JPG fails to decode, the menu falls back to the prop hall. */
   title_menu:'assets/ui/title_menu.jpg',
-  title_splash_2:'assets/ui/title_menu.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
@@ -735,7 +736,7 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','title_menu','title_splash_2','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
+  const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
@@ -2268,12 +2269,17 @@ function actorDrawDepth(o){
 function rubyDoorH(L){
   return wallFaceH(L)*1.28;
 }
+function rubyDoorImg(){
+  return (SPR.rubydoor&&SPR.rubydoor.width)?SPR.rubydoor:null;
+}
 function rubyDoorHalf(){
-  const img=SPR.rubydoor_face||SPR.rubydoor;
+  const img=rubyDoorImg();
   const H=rubyDoorH();
-  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.95;
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  return clamp(H*aspect/(2*perTile), 1.08, 1.38);
+  /* Signed prop_rubydoor is nearly square (642×679). The old 1.38 cap
+     pinched that sheet. 1.75 keeps the painted aspect off the dwarf face. */
+  return clamp(H*aspect/(2*perTile), 1.08, 1.75);
 }
 /** World Y of the iso plane that matches a north-wall masonry face (oS inset). */
 function rubyDoorPlaneY(p){
@@ -2885,7 +2891,7 @@ function propSpriteKey(p){
   if(k==='rubble') return p.spr||'rubble';
   if(k==='cavein') return 'cavein';
   if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
-  if(k==='rubydoor') return SPR.rubydoor_face?'rubydoor_face':'rubydoor';
+  if(k==='rubydoor') return 'rubydoor';
   if(k==='dwarfface') return 'dwarfface';
   if(k==='demonface') return SPR.demon_dwarfface?'demon_dwarfface':(SPR.demonface?'demonface':null);
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
@@ -2902,6 +2908,8 @@ function propAnimImg(p){
   const k=propSpriteKey(p);
   if(p.k==='winduptoy' && G.lvl && G.lvl.flags && G.lvl.flags.toyWound && SPR.winduptoy_wound)
     return SPR.winduptoy_wound;
+  /* Signed ruby door stays the idle sheet. The old face crop and _atk frame do not cover it. */
+  if(p.k==='rubydoor') return SPR.rubydoor||null;
   if((p.sprung||0)>0 && SPR[k+'_atk']) return SPR[k+'_atk'];
   return SPR[k]||null;
 }
@@ -16596,13 +16604,78 @@ function enterTitleMenu(){
   G.scene='title_menu';
 }
 function titleMenuArt(){
-  const signed=SPR.title_menu;
-  if(signed&&signed.width) return signed;
-  const alt=SPR.title_splash_2;
-  if(alt&&alt.width) return alt;
-  const plate=SPR.chapters_plate;
-  if(plate&&plate.width) return plate;
-  return SPR.title_splash||null;
+  /* Disney ruby-door hall plate only. Never the party splash or the cave-in. */
+  const scene=SPR.title_menu;
+  if(scene&&scene.width) return scene;
+  return null;
+}
+/* Interim second-screen plate: Chapter I ruby door, flanking pillars, lanterns.
+   Replaced the moment assets/ui/title_menu.jpg decodes. */
+function drawRubyHallPlate(g, x, y, w, h){
+  if(!(w>2&&h>2)) return false;
+  g.save();
+  g.beginPath();
+  g.rect(x, y, w, h);
+  g.clip();
+  const wall=g.createLinearGradient(0, y, 0, y+h);
+  wall.addColorStop(0, '#120e0c');
+  wall.addColorStop(0.42, '#2a1d16');
+  wall.addColorStop(0.72, '#1a120e');
+  wall.addColorStop(1, '#070504');
+  g.fillStyle=wall;
+  g.fillRect(x, y, w, h);
+  const floorY=y+h*0.62;
+  const floor=g.createLinearGradient(0, floorY, 0, y+h);
+  floor.addColorStop(0, 'rgba(42,28,18,0)');
+  floor.addColorStop(0.35, 'rgba(48,32,20,0.55)');
+  floor.addColorStop(1, 'rgba(8,5,3,0.95)');
+  g.fillStyle=floor;
+  g.fillRect(x, floorY, w, h*0.38);
+  g.strokeStyle='rgba(90,62,36,0.35)';
+  g.lineWidth=1;
+  for(let i=0;i<5;i++){
+    const yy=floorY+h*0.06*i;
+    g.beginPath(); g.moveTo(x+w*0.08, yy); g.lineTo(x+w*0.92, yy+h*0.01); g.stroke();
+  }
+  const glow=g.createRadialGradient(x+w*0.5, y+h*0.46, h*0.02, x+w*0.5, y+h*0.48, h*0.42);
+  glow.addColorStop(0, 'rgba(255,40,48,0.55)');
+  glow.addColorStop(0.35, 'rgba(160,16,28,0.22)');
+  glow.addColorStop(1, 'rgba(255,40,48,0)');
+  g.fillStyle=glow;
+  g.fillRect(x, y, w, h);
+  function blit(img, cx, foot, maxH, maxW){
+    if(!img||!img.width||!img.height) return;
+    let sc=maxH/img.height;
+    if(maxW && img.width*sc>maxW) sc=maxW/img.width;
+    const iw=img.width*sc, ih=img.height*sc;
+    drawPhoto(g, img, cx-iw/2, foot-ih, iw, ih);
+  }
+  const door=SPR.rubydoor||SPR.rubydoor_face;
+  const foot=y+h*0.98;
+  blit(SPR.pillar, x+w*0.14, foot, h*0.72, w*0.20);
+  blit(SPR.pillar, x+w*0.86, foot, h*0.72, w*0.20);
+  blit(door, x+w*0.50, foot, h*0.92, w*0.50);
+  const lamp=g.createRadialGradient(x+w*0.22, y+h*0.22, 2, x+w*0.22, y+h*0.28, h*0.18);
+  lamp.addColorStop(0, 'rgba(255,176,70,0.50)');
+  lamp.addColorStop(1, 'rgba(255,140,40,0)');
+  g.fillStyle=lamp;
+  g.fillRect(x, y, w, h);
+  const lampR=g.createRadialGradient(x+w*0.78, y+h*0.22, 2, x+w*0.78, y+h*0.28, h*0.18);
+  lampR.addColorStop(0, 'rgba(255,176,70,0.50)');
+  lampR.addColorStop(1, 'rgba(255,140,40,0)');
+  g.fillStyle=lampR;
+  g.fillRect(x, y, w, h);
+  blit(SPR.lantern, x+w*0.24, y+h*0.40, h*0.26, w*0.14);
+  blit(SPR.lantern, x+w*0.76, y+h*0.40, h*0.26, w*0.14);
+  blit(SPR.rubypillar, x+w*0.72, foot, h*0.28, w*0.16);
+  const vig=g.createLinearGradient(0, y, 0, y+h*0.22);
+  vig.addColorStop(0, 'rgba(6,4,3,0.55)');
+  vig.addColorStop(1, 'rgba(6,4,3,0)');
+  g.fillStyle=vig;
+  g.fillRect(x, y, w, h*0.22);
+  g.restore();
+  drawArtFrame(g, x, y, w, h, 10);
+  return true;
 }
 function titleMenuSafe(inset){
   inset=inset||{t:0,r:0,b:0,l:0};
@@ -16727,11 +16800,9 @@ function drawTitleMenu(g){
   const artW=PORT?maxW:Math.min(VW-pad.l-pad.r, Math.max(maxW, VW*0.92));
   const artX=(VW-artW)/2;
   if(artH>=36){
-    if(!drawTitleMenuBillboard(g, titleMenuArt(), artX, artTop, artW, artH) && SPLASH_STATE==='fail'){
-      g.save(); g.beginPath(); g.rect(artX, artTop, artW, artH); g.clip();
-      drawTitleCavern(g);
-      g.restore();
-      drawArtFrame(g, artX, artTop, artW, artH, 10);
+    const signed=titleMenuArt();
+    if(!drawTitleMenuBillboard(g, signed, artX, artTop, artW, artH)){
+      drawRubyHallPlate(g, artX, artTop, artW, artH);
     }
   }
   g.globalAlpha=1;
