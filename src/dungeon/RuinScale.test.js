@@ -33,7 +33,7 @@ assert(/footprints=\[/.test(html) && /\[6,8,12,10\]/.test(html) && /\[20,54,24,1
   'ancient building footprints cover north, south, east, and the new deep streets');
 
 const ch1=html.slice(html.indexOf('if(n===1){'), html.indexOf('if(n===2){'));
-assert(/L\.w=114; L\.h=90/.test(ch1), 'chapter I mine is a larger hall field');
+assert(/L\.w=132; L\.h=90/.test(ch1), 'chapter I mine is a larger hall field');
 assert(/rect\(g,14,14,18,16,0\)/.test(ch1) && /rect\(g,24,7,28,28,0\)/.test(ch1),
   'chapter I start rooms stay on the old tiles');
 assert(/L\.rubyDoor=\{x:36\.5,y:7\.28\}/.test(ch1) && /k:'lift'/.test(ch1),

@@ -110,7 +110,7 @@
     if (it.slot && SLOT_KEYS.indexOf(it.slot) >= 0) return it.slot;
     var n = String(it.n || '') + ' ' + String(it.cat || '') + ' ' + String(it.k || '');
     if (/quiver/i.test(n)) return 'quiver';
-    if (/helm|helmet/i.test(n)) return 'helmet';
+    if (/helm|helmet|crown/i.test(n)) return 'helmet';
     if (/necklace|amulet|medallion|periapt|pendant|torc/i.test(n)) return 'necklace';
     if (/bracer/i.test(n)) return 'bracers';
     if (/glove|gauntlet/i.test(n)) return 'gloves';

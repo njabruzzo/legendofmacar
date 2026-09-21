@@ -37,7 +37,7 @@ assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
 assert(/caveDisk\(g,122,30/.test(html) && /caveDisk\(g,40,98/.test(html),
   'chapter II grows farther east and south dens');
 assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'south stair stays on the old descent tile');
-assert(/L\.w=114; L\.h=90/.test(html) && /L\.w=132; L\.h=106/.test(html) && /L\.w=108; L\.h=98/.test(html),
+assert(/L\.w=132; L\.h=90/.test(html) && /L\.w=132; L\.h=106/.test(html) && /L\.w=108; L\.h=98/.test(html),
   'chapters I, IV, and V are also larger halls');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

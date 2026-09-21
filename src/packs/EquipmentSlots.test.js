@@ -22,6 +22,7 @@ assert(Eq.ARMOR_AC.plate === 3, '1e plate is AC 3');
 assert(Eq.ARMOR_AC.studded === 7 && Eq.ARMOR_AC.scale === 6 && Eq.ARMOR_AC.splint === 4, '1e mid-weight armor table');
 
 assert(Eq.itemSlot({n:'Iron Helm', k:'armor'}) === 'helmet', 'helm → helmet');
+assert(Eq.itemSlot({n:'Bone Crown', k:'misc'}) === 'helmet', 'bone crown → helmet');
 assert(Eq.itemSlot({n:'Necklace of Adaptation', k:'misc'}) === 'necklace', 'necklace');
 assert(Eq.itemSlot({n:'Leather Armor', k:'armor', cat:'Armor/Shield'}) === 'chest', 'leather → chest');
 assert(!Eq.isShield({n:'Leather Armor', cat:'Armor/Shield'}), 'Armor/Shield category is not a shield');
