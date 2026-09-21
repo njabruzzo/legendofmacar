@@ -61,6 +61,25 @@ assert(/kind:'warrens'/.test(ch2) && /kind:'treasure'/.test(ch2),
   'warrens and bronze-door treasure stay');
 assert(/HOURGLASS_RAID_S=10/.test(html), 'raid is Nick\'s 10.0s');
 assert(/HOUSE: Electrum Tooth curse/.test(html), 'HOUSE comment records 1e convert law');
+assert(/Dust rule:/.test(html) && /Math\.round/.test(html) && /No remainder/.test(html),
+  'HOUSE dust rule rounds the whole purse and leaves no remainder piles');
+assert(/G\.equipped/.test(extractFn('hasElectrumToothInPack')),
+  'tooth detection scans worn equipment slots');
+assert(/Object\.keys\(pk\)/.test(extractFn('hasElectrumToothInPack')),
+  'tooth detection scans every Macar bag, not only magic');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('pryGrondTooth')), 'pry converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('addCoin')), 'addCoin converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('gainCoin')), 'gainCoin converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('syncPackTotals')), 'pack sync converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('drawPack')), 'backpack coin bar converts before paint');
+assert(/toothCursed/.test(extractFn('drawPack')) && /cn\.k==='ep'/.test(extractFn('drawPack')),
+  'cursed coin bar shows EP only');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('loadSavedGame')), 'load save converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('applyPlaySave')), 'apply-play load converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('equipPackItem')), 'equip converts the purse');
+assert(/convertCoinsToElectrum\(\)/.test(extractFn('unequipPackSlot')), 'unequip converts the purse');
+assert(/Math\.round/.test(extractFn('convertCoinsToElectrum')) && !/sp%5/.test(extractFn('convertCoinsToElectrum')),
+  'convert uses Math.round and does not keep a silver remainder');
 assert(/Drop electrum/.test(html) && /10 \/ 100 \/ All/.test(html),
   'pack can drop electrum 10 / 100 / All');
 const saveSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
@@ -126,10 +145,24 @@ assert(ctx.G.lvl.flags.crownDestroyed===1, 'crown fight flags do not block the E
 
 ctx.G.coin={cp:120, sp:12, ep:0, gp:3, pp:1};
 ctx.convertCoinsToElectrum();
-assert(ctx.G.coin.pp===0 && ctx.G.coin.gp===0, 'pp and gp zero out into EP');
-assert(ctx.G.coin.ep===10+6+2+2, '1e rates: 50cp=1, 5sp=1, 1gp=2, 1pp=10');
-assert(ctx.G.coin.cp===20 && ctx.G.coin.sp===2, 'sub-ep dust stays in cp/sp');
+assert(ctx.G.coin.cp===0 && ctx.G.coin.sp===0 && ctx.G.coin.gp===0 && ctx.G.coin.pp===0,
+  'all metals zero into EP');
+assert(ctx.G.coin.ep===21, '1e rates, Math.round of the sum: 120cp+12sp+3gp+1pp → 21 EP');
 
+ctx.G.coin={cp:15, sp:2, ep:205, gp:0, pp:0};
+ctx.convertCoinsToElectrum();
+assert(ctx.G.coin.cp===0 && ctx.G.coin.sp===0 && ctx.G.coin.gp===0 && ctx.G.coin.pp===0,
+  'screenshot purse is EP-only');
+assert(ctx.G.coin.ep===206, '15cp + 2sp + 205ep rounds to 206 EP');
+
+ctx.G.coin={cp:1, sp:0, ep:0, gp:0, pp:0};
+ctx.convertCoinsToElectrum();
+assert(ctx.G.coin.ep===0 && ctx.G.coin.cp===0 && ctx.G.coin.sp===0 && ctx.G.coin.gp===0 && ctx.G.coin.pp===0,
+  'sub-half dust rounds away and leaves no remainder pile');
+ctx.G.coin={cp:25, sp:0, ep:0, gp:0, pp:0};
+assert(ctx.convertCoinsToElectrum()===1 && ctx.G.coin.cp===0, '25cp rounds to 1 EP');
+
+ctx.G.coin.ep=20;
 ctx.G.curseStrain=0;
 assert(ctx.electrumEnc()===20, 'enc is ep + strain*10');
 assert(ctx.electrumMoveMul()===1, 'enc < 50 is full speed');
@@ -153,12 +186,24 @@ ctx.G.coin.ep=0;
 ctx.tickElectrumCurse(30);
 assert(ctx.G.curseStrain===1, 'strain −1 / 30s when ep is 0');
 ctx.G.packs.macar.magic=[];
+ctx.G.equipped={};
+ctx.G.packs.macar.gems=[];
 ctx.tickElectrumCurse(30);
-assert(ctx.G.curseStrain===0, 'strain decays when the tooth leaves the pack');
+assert(ctx.G.curseStrain===0, 'strain decays when the tooth leaves Macar');
 assert(ctx.convertCoinsToElectrum()===0, 'curse suspends without the tooth');
 ctx.G.packs.macar.magic=[];
 ctx.G.equipped={helmet:{id:'grond_tooth_electrum', grondTooth:'electrum'}};
-assert(!ctx.hasElectrumToothInPack(), 'worn/equipped tooth does not curse');
+assert(ctx.hasElectrumToothInPack(), 'worn/equipped tooth still curses');
+ctx.G.coin={cp:50, sp:5, ep:0, gp:0, pp:0};
+assert(ctx.convertCoinsToElectrum()===2 && ctx.G.coin.cp===0 && ctx.G.coin.sp===0 && ctx.G.coin.gp===0 && ctx.G.coin.pp===0 && ctx.G.coin.ep===2,
+  'equipped tooth converts the whole purse to EP');
+ctx.G.equipped={primary:{id:'grond_tooth_electrum', n:"Macar's Electrum Tooth", grondTooth:'electrum'}};
+assert(ctx.hasElectrumToothInPack(), 'tooth in a body slot still curses');
+ctx.G.equipped={};
+ctx.G.packs.macar.magic=[];
+ctx.G.packs.macar.gems=[{id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", grondTooth:'electrum'}];
+assert(ctx.hasElectrumToothInPack(), 'tooth in another Macar bag still curses');
+ctx.G.packs.macar.gems=[];
 ctx.G.equipped={};
 ctx.G.packs.macar.magic=[{id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", grondTooth:'electrum'}];
 ctx.G.coin.ep=40;
@@ -166,8 +211,10 @@ ctx.G.curseStrain=3; ctx.G.curseGrowT=0; ctx.G.curseDecayT=0;
 ctx.tickElectrumCurse(30);
 assert(ctx.G.curseStrain===5, 'strain does not fall while cursed and ep>0');
 ctx.G.packs.macar.magic=[{id:'grond_tooth_bronze', n:"Grond's Bronze Tooth", grondTooth:'bronze'}];
+ctx.G.equipped={};
+ctx.G.packs.macar.gems=[];
 ctx.G.coin={cp:50,sp:0,ep:0,gp:0,pp:0};
-assert(ctx.convertCoinsToElectrum()===0, 'bronze tooth does not convert coin');
+assert(ctx.convertCoinsToElectrum()===0 && ctx.G.coin.cp===50, 'bronze tooth does not convert coin');
 
 ctx.G.lvl={n:2, flags:{hourglassRoom:1, hourglassBounds:{x0:130,y0:24,x1:142,y1:36}}, w:144, h:118};
 ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:136, y:30, hp:80, maxhp:80, dead:0},

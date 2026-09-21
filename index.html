@@ -5441,7 +5441,7 @@ function applyPlaySave(play){
   });
   pinFallenKin();
   if(G.lvl&&G.lvl.flags&&G.lvl.flags.copperTooth) G.lvl.flags.electrumTooth=1;
-  if(typeof hasElectrumToothInPack==='function') hasElectrumToothInPack();
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
@@ -5456,6 +5456,7 @@ function loadSavedGame(){
   ensurePacks();
   if(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ensureShape) G.equipped=EquipmentSlots.ensureShape(G.equipped||{});
   if(typeof applyEquipped==='function') applyEquipped();
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(snap.scene==='camp'){
     G.scene='camp'; G.paused=false; G.lvl=null;
     say('The camp fire is as you left it.','#c9b895');
@@ -7819,6 +7820,7 @@ function equipPackItem(it, opts){
     if(looseWep && looseWep!==it && !wornSlotOf(looseWep)) stowPackItem(looseWep);
     if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
+    if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
     if(!opts.silent){
       if(out.slot==='primary' && out.prev && out.prev.id==='macar_hammer')
         say('Macar stows his hammer and takes '+it.n+'.','#ffd27a');
@@ -7831,14 +7833,18 @@ function equipPackItem(it, opts){
     G.equipped.weapon=it; G.equipped.primary=it;
     restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
-    applyEquipped(); return 'primary';
+    applyEquipped();
+    if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+    return 'primary';
   }
   if(isEquipArmor(it)){
     const prev=G.equipped.armor||G.equipped.chest;
     G.equipped.armor=it; G.equipped.chest=it;
     restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
-    applyEquipped(); return 'chest';
+    applyEquipped();
+    if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+    return 'chest';
   }
   return null;
 }
@@ -7862,6 +7868,7 @@ function unequipPackSlot(slot, opts){
   if(out.item) stowPackItem(out.item);
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(out.item && out.item.boneCrown){
     G.campDoff=0;
     if(typeof collapseCrownThrall==='function') collapseCrownThrall();
@@ -7986,6 +7993,7 @@ function syncPackTotals(){
   G.bombs=partyCount('bombs');
   G.burps=partyCount('burps');
   G.ales=healCharges();
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
 }
 function monsterHD(e){
   if(e.hd) return e.hd;
@@ -10433,7 +10441,7 @@ function makeGrondTooth(kind){
   return {
     id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
     noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-    d:'A silvery-electrum fang. In Macar\'s pack (not worn) all coin becomes electrum and grows heavy.'
+    d:'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum and grows heavy.'
   };
 }
 function nearestDemonFace(p, r){
@@ -10470,7 +10478,7 @@ function pryGrondTooth(face, kind){
   face.emptySocket=1;
   burst(face.x, face.y, '#c8d4c0', 12, 2.2);
   say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
-  hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
+  hint('Coin turns to electrum while Macar carries this tooth.',4.2);
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   return {ok:1, item:it};
 }
@@ -10626,31 +10634,48 @@ function buildHourglassRoom(L, sec){
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
   hint('Ten seconds. Pry the bronze tooth and leave.',5.0);
 }
-/* HOUSE: Electrum Tooth curse (Sage). Active only while
-   grond_tooth_electrum is in Macar's pack (not worn). Remove from pack
-   → curse suspends (no convert, strain decays).
-   On gain tooth + every later coin gain: convert all coin → EP at 1e
-   rates (50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep). Zero gp/pp; keep sub-ep
-   dust in cp/sp. No new non-EP while cursed.
+/* HOUSE: Electrum Tooth curse (Sage / Nick). Active while Macar carries
+   grond_tooth_electrum — pack.magic, any other Macar bag, or any worn
+   equipment slot. Take it off Macar entirely → curse suspends (no convert,
+   strain decays).
+   Convert on pry, addCoin/gainCoin, pack open / syncPackTotals / backpack
+   coin bar, load, and equip/unequip. 1e rates: 50cp=1ep, 5sp=1ep, 1gp=2ep,
+   1pp=10ep.
+   Dust rule: sum exact fractions (cp/50 + sp/5 + gp*2 + pp*10 + ep) as
+   hundredths, Math.round to a whole EP, then zero cp/sp/gp/pp. No remainder
+   piles. 15cp+2sp+205ep → 205.7 → 206 EP. Sub-half dust rounds away.
    enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0 (does
-   not fall then). Strain −1 / 30s (floor 0) if ep===0 or tooth off pack.
+   not fall then). Strain −1 / 30s (floor 0) if ep===0 or the tooth is gone.
    MV (Macar sp only): <50 ×1, 50–149 ×0.75, 150–299 ×0.5, 300+ ×0.25.
-   Pack: Drop electrum 10 / 100 / All as {coins:{ep:n}}. Bronze does not
-   curse. Mordain smash / Remove Curse later (stub). */
+   Pack: Drop electrum 10 / 100 / All as {coins:{ep:n}}. While cursed the
+   coin bar shows EP only. Bronze does not curse. Mordain smash / Remove
+   Curse later (stub). */
 function hasElectrumToothInPack(){
+  function tooth(it){
+    return !!(it && (it.id==='grond_tooth_electrum' || it.grondTooth==='electrum'));
+  }
+  function bag(arr){
+    return !!(arr && typeof arr.some==='function' && arr.some(tooth));
+  }
   const pk=G.packs&&G.packs.macar;
-  return !!(pk&&(pk.magic||[]).some(it=>it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')));
+  if(pk){
+    const keys=Object.keys(pk);
+    for(let i=0;i<keys.length;i++) if(bag(pk[keys[i]])) return true;
+  }
+  const eq=G.equipped||{};
+  const slots=Object.keys(eq);
+  for(let i=0;i<slots.length;i++) if(tooth(eq[slots[i]])) return true;
+  return false;
 }
 function convertCoinsToElectrum(){
   if(!hasElectrumToothInPack()) return 0;
   if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
   const c=G.coin;
-  let ep=c.ep||0;
-  ep += Math.floor((c.pp||0)*10); c.pp=0;
-  ep += Math.floor((c.gp||0)*2); c.gp=0;
-  ep += Math.floor((c.sp||0)/5); c.sp=(c.sp||0)%5;
-  ep += Math.floor((c.cp||0)/50); c.cp=(c.cp||0)%50;
-  c.ep=ep;
+  /* HOUSE dust: hundredths of an EP, then Math.round. Zero non-EP. */
+  const cp=Math.max(0, +c.cp||0), sp=Math.max(0, +c.sp||0);
+  const gp=Math.max(0, +c.gp||0), pp=Math.max(0, +c.pp||0), held=Math.max(0, +c.ep||0);
+  const ep=Math.round((cp*2 + sp*20 + gp*200 + pp*1000 + held*100)/100);
+  c.cp=0; c.sp=0; c.gp=0; c.pp=0; c.ep=ep;
   return ep;
 }
 function electrumEnc(){
@@ -17469,8 +17494,11 @@ function drawPack(g){
     :(npcPack?'Tap to share with MACAR. Borrowed kit returns after camp.'
     :(G.packFrom==='play'?'Body slots on the left. Gear below can be donned.':'Set potions and herbs aside for the next descent.'))), 10*s+headH+10*s, headY+40*s);
 
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   const coin=G.coin||{};
-  const coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
+  const toothCursed=typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack();
+  let coins=[{k:'cp',n:'CP',c:'#c47a3a'},{k:'sp',n:'SP',c:'#c8ccd0'},{k:'ep',n:'EP',c:'#6ec8b0'},{k:'gp',n:'GP',c:'#e8c25a'},{k:'pp',n:'PP',c:'#ececf4'}];
+  if(toothCursed) coins=coins.filter(cn=>cn.k==='ep');
   const coinY=headY+headH+6*s, coinH=PORT?22*s:24*s, coinW=(VW-20*s)/coins.length;
   coins.forEach((cn,i)=>{
     const x=10*s+i*coinW+2*s, w=coinW-4*s, have=coin[cn.k]||0;
