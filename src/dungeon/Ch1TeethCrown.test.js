@@ -53,8 +53,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='106'/.test(html) && !/ASSET_VER='107'/.test(html),
-  'ASSET_VER is 106 — Disney SIGNED demon face bound');
+assert(/ASSET_VER='107'/.test(html) && !/ASSET_VER='108'/.test(html),
+  'ASSET_VER is 107 — signed title hall and ruby door after the demon-face bind');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)

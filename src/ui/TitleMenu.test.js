@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Helm second-screen title menu: title / quote / billboard / thumb stack.
+ * Two-screen title: classic title_splash, then a ruby-door hall menu.
  * Run: node src/ui/TitleMenu.test.js
  */
 const fs=require('fs');
@@ -14,26 +14,42 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/ASSET_VER='106'/.test(html) && !/ASSET_VER='107'/.test(html),
-  'ASSET_VER is 106 — title_menu stays a hook, SIGNED demon face bound');
+assert(/ASSET_VER='107'/.test(html) && !/ASSET_VER='108'/.test(html),
+  'ASSET_VER is 107 — signed title_menu.jpg is in-repo and cache-busted past main 106');
 assert(/title_menu:'assets\/ui\/title_menu\.jpg'/.test(html),
   'SPRITE_FILES hooks title_menu to assets/ui/title_menu.jpg');
-assert(/title_splash_2:'assets\/ui\/title_menu\.jpg'/.test(html),
-  'title_splash_2 aliases the same Disney bind path');
-assert(/href="assets\/ui\/title_menu\.jpg\?v=105"/.test(html),
+assert(!/title_splash_2:/.test(html),
+  'title_splash_2 alias is gone');
+assert(/href="assets\/ui\/title_menu\.jpg\?v=107"/.test(html),
   'title_menu is in the document preload list');
-assert(/const first=\['title_splash','title_menu'/.test(html),
-  'title_menu is in the first sprite queue');
-assert(!fs.existsSync(path.join(root,'assets/ui/title_menu.jpg')),
-  'Disney plate is not bound yet — placeholder is the runtime fallback');
+assert(/const first=\['title_splash','title_menu','rubydoor','dwarfface'/.test(html),
+  'title_menu, the signed ruby door, and the dwarf face lead the sprite queue');
+assert(/SIGNED ruby-door hall/.test(html),
+  'title_menu.jpg comment names the signed ruby-door hall plate');
+const menuJpg=path.join(root,'assets/ui/title_menu.jpg');
+const splashJpg=path.join(root,'assets/ui/title_splash.jpg');
+const caveJpg=path.join(root,'assets/ui/intro_cavein.jpg');
+assert(fs.existsSync(menuJpg) && fs.statSync(menuJpg).size>150000,
+  'SIGNED title_menu.jpg is in-repo');
+assert(!fs.readFileSync(menuJpg).equals(fs.readFileSync(splashJpg)) &&
+  !fs.readFileSync(menuJpg).equals(fs.readFileSync(caveJpg)),
+  'second-screen plate is neither the party splash nor the cave-in');
+assert(!/intro_cavein/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0]),
+  'menu art does not fall back to the cave-in plate');
 
 assert(/function enterTitleMenu\(\)\{/.test(html) && /G\.scene='title_menu'/.test(html),
   'enterTitleMenu promotes splash → title_menu');
 assert(/function titleMenuArt\(\)\{/.test(html), 'titleMenuArt helper exists');
-assert(/SPR\.title_menu/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0]) &&
-  /SPR\.chapters_plate/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0]) &&
-  /SPR\.title_splash/.test(html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0]),
-  'unsigned title_menu falls back to chapters_plate then title_splash');
+const artFn=html.match(/function titleMenuArt\(\)\{[\s\S]*?\n\}/)[0];
+assert(/SPR\.title_menu/.test(artFn) && /return null/.test(artFn),
+  'unsigned title_menu does not substitute another plate');
+assert(!/SPR\.title_splash/.test(artFn) && !/title_splash_2/.test(artFn) && !/chapters_plate/.test(artFn) && !/intro_cavein/.test(artFn),
+  'second screen does not fall back to the splash, chapters plate, or cave-in');
+const hallFn=html.match(/function drawRubyHallPlate\(g, x, y, w, h\)\{[\s\S]*?\nfunction titleMenuSafe/)[0];
+assert(/SPR\.rubydoor\|\|SPR\.rubydoor_face/.test(hallFn) && /SPR\.pillar/.test(hallFn) && /SPR\.lantern/.test(hallFn),
+  'fallback billboard prefers the signed ruby door, then pillars and lanterns');
+assert(!/title_splash/.test(hallFn) && !/intro_cavein/.test(hallFn),
+  'ruby hall plate does not paint the splash or the cave-in');
 assert(/function titleMenuBtnH\(s, port\)\{/.test(html) &&
   /Math\.max\(port\?48:44, \(port\?50:46\)\*s\)/.test(html),
   'menu buttons floor at 48px phone / 44px laptop');
@@ -50,6 +66,24 @@ assert(/function drawTitleMenuBillboard\(/.test(html) &&
 assert(/if\(G\.scene==='title'\) drawTitle\(g\);/.test(html) &&
   /if\(G\.scene==='title_menu'\) drawTitleMenu\(g\);/.test(html),
   'render dispatches splash and menu as two scenes');
+assert(/rubydoor:'assets\/props\/prop_rubydoor\.png'/.test(html),
+  'SPRITE_FILES.rubydoor is assets/props/prop_rubydoor.png');
+assert(/dwarfface:'assets\/props\/prop_dwarfface\.png'/.test(html),
+  'SPRITE_FILES.dwarfface is assets/props/prop_dwarfface.png');
+assert(/if\(k==='rubydoor'\) return 'rubydoor';/.test(html),
+  'live k:rubydoor draws SPR.rubydoor, never the old face crop');
+assert(/if\(p\.k==='rubydoor'\) return SPR\.rubydoor/.test(html),
+  'ruby door animation stays on the signed idle sheet');
+assert(/if\(p\.k==='dwarfface'\)\{/.test(html) && /k:'dwarfface'/.test(html),
+  'Ch1 still draws the dwarf face on the north wall');
+{
+  const door=fs.readFileSync(path.join(root,'assets/props/prop_rubydoor.png'));
+  assert(door.readUInt32BE(16)===642 && door.readUInt32BE(20)===679,
+    'prop_rubydoor.png is the signed 642×679 sheet');
+  const face=fs.readFileSync(path.join(root,'assets/props/prop_dwarfface.png'));
+  assert(face.readUInt32BE(16)===810 && face.readUInt32BE(20)===1110,
+    'prop_dwarfface.png is still the live 810×1110 carving');
+}
 
 const splash=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawTitleMenu/)[0];
 assert(/menuBtn\(g,'Continue'/.test(splash) && /enterTitleMenu\(\)/.test(splash),
@@ -58,10 +92,14 @@ assert(!/Enter the Deep/.test(splash) && !/menuBtn\(g,'Chapters'/.test(splash),
   'splash does not host the play / chapters / credits stack');
 assert(/drawSplashCover\(g, splash/.test(splash) && /drawLetterbox/.test(splash),
   'splash still covers and letterboxes the party plate');
+assert(/SPR\.title_splash/.test(splash) && !/title_menu/.test(splash) && !/titleMenuArt/.test(splash),
+  'first screen paints title_splash and does not borrow the level-scene plate');
 
 const menu=html.match(/function drawTitleMenu\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
-assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuBillboard/.test(menu),
-  'menu paints a reserved billboard, not a full-bleed cover under the pills');
+assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuBillboard/.test(menu) && /drawRubyHallPlate/.test(menu),
+  'signed plate wins; otherwise the ruby-door hall fills the billboard');
+assert(!/drawTitleCavern/.test(menu) && !/intro_cavein/.test(menu) && !/title_splash/.test(menu),
+  'menu billboard is not the cavern fallback, the cave-in, or the party splash');
 assert(!/drawSplashCover/.test(menu), 'menu art is not a cover crop under the buttons');
 assert(!/UIBTN|stickHome|drawHUD|icon_pack/.test(menu),
   'menu has no HUD chrome, stick, or inventory');
@@ -138,24 +176,20 @@ checkStack('desktop 1440x900', 1440, 900, false, {});
 checkStack('phone with home inset', 375, 667, true, {b:34,t:44,l:0,r:0});
 
 function titleMenuArt(SPR){
-  const signed=SPR.title_menu;
-  if(signed&&signed.width) return signed;
-  const alt=SPR.title_splash_2;
-  if(alt&&alt.width) return alt;
-  const plate=SPR.chapters_plate;
-  if(plate&&plate.width) return plate;
-  return SPR.title_splash||null;
+  const scene=SPR.title_menu;
+  if(scene&&scene.width) return scene;
+  return null;
 }
 {
-  const plate={width:4, id:'plate'};
+  const cave={width:4, id:'cave'};
   const splash={width:4, id:'splash'};
   const signed={width:4, id:'signed'};
-  assert(titleMenuArt({title_menu:signed, chapters_plate:plate, title_splash:splash})===signed,
-    'signed title_menu wins over fallbacks');
-  assert(titleMenuArt({chapters_plate:plate, title_splash:splash})===plate,
-    'chapters_plate is the unsigned fallback');
-  assert(titleMenuArt({title_splash:splash})===splash,
-    'title_splash is the last fallback');
+  assert(titleMenuArt({title_menu:signed, intro_cavein:cave, title_splash:splash})===signed,
+    'SIGNED title_menu wins');
+  assert(titleMenuArt({intro_cavein:cave, title_splash:splash})===null,
+    'cave-in and splash are not the menu plate');
+  assert(titleMenuArt({})===null,
+    'missing title_menu leaves the ruby-hall painter in charge');
 }
 
 function enterTitleMenu(G){ G.scene='title_menu'; }
