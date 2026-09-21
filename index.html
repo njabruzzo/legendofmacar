@@ -6552,21 +6552,139 @@ function isToyTalkKey(key){
 function windupToyProp(){
   return (G.props||[]).find(pr=>pr&&pr.k==='winduptoy'&&!pr.gone)||null;
 }
-/* Talk-end restarts a 5s scamper (new octant). Mid-tree startTalk cancels. */
+/* Talk-end restarts a 5s scamper into open floor, away from Macar.
+   Mid-tree startTalk cancels. A wall does not burn the whole run in place. */
+function toyScamperOpen(toy, dx, dy){
+  const r=0.18, dummy={x:toy.x,y:toy.y,r:r};
+  const probes=[0.5,1.1,1.9,3.0,4.5,6.5,9,12];
+  let reach=0;
+  for(let i=0;i<probes.length;i++){
+    if(!canBe(toy.x+dx*probes[i], toy.y+dy*probes[i], r, dummy)) break;
+    reach=probes[i];
+  }
+  const samples=reach>3.2?[Math.min(reach,3.5), Math.min(reach,8.5)]:[Math.max(reach,0.35)];
+  const rings=[1.0,2.2,4.0,6.5,9.5,12];
+  let clear=0;
+  for(let s=0;s<samples.length;s++){
+    const cx=toy.x+dx*samples[s], cy=toy.y+dy*samples[s];
+    let rad=0;
+    for(let i=0;i<rings.length;i++){
+      let ok=0;
+      for(let k=0;k<8;k++){
+        const a=k*Math.PI/4;
+        if(canBe(cx+Math.cos(a)*rings[i], cy+Math.sin(a)*rings[i], r, dummy)) ok++;
+      }
+      if(ok===8) rad=rings[i];
+      else { rad+=rings[i]*(ok/8)*0.35; break; }
+    }
+    clear+=rad;
+  }
+  return reach*1.2+clear*2.5;
+}
+function toyScamperAway(toy, dx, dy){
+  if(typeof player!=='function') return 0;
+  const p=player(); if(!p) return 0;
+  const vx=toy.x-(p.x||0), vy=toy.y-(p.y||0);
+  const len=Math.hypot(vx,vy);
+  if(len<0.35) return 0;
+  return (dx*vx+dy*vy)/len;
+}
+function pickToyScamperDir(toy, avoidDx, avoidDy){
+  let bestX=1, bestY=0, bestS=-1e9;
+  const avoid=!!(avoidDx||avoidDy);
+  for(let i=0;i<16;i++){
+    const a=i*Math.PI*2/16, dx=Math.cos(a), dy=Math.sin(a);
+    const open=toyScamperOpen(toy, dx, dy);
+    let score=open+toyScamperAway(toy, dx, dy)*1.65;
+    if(avoid && dx*(avoidDx||0)+dy*(avoidDy||0)>0.75 && open<8) score-=7;
+    if(score>bestS){ bestS=score; bestX=dx; bestY=dy; }
+  }
+  return {dx:bestX, dy:bestY};
+}
 function kickToyScamper(){
   const toy=windupToyProp(); if(!toy) return;
-  const oct=(Math.random()*8)|0, a=oct*Math.PI/4;
-  toy.scampDx=Math.cos(a); toy.scampDy=Math.sin(a);
+  const d=pickToyScamperDir(toy, 0, 0);
+  toy.scampDx=d.dx; toy.scampDy=d.dy;
+  if(d.dx<0) toy.scampFace=-1; else if(d.dx>0) toy.scampFace=1;
   toy.scampT=TOY_SCAMPER_SECS;
+  toy.scampStuck=0;
+}
+function stepToyScamper(toy, dt){
+  const r=0.18, ox=toy.x, oy=toy.y;
+  const nx=toy.x+toy.scampDx*TOY_SCAMPER_SP*dt, ny=toy.y+toy.scampDy*TOY_SCAMPER_SP*dt;
+  const dummy={x:toy.x,y:toy.y,r:r};
+  if(canBe(nx,toy.y,r,dummy)) toy.x=nx;
+  if(canBe(toy.x,ny,r,dummy)) toy.y=ny;
+  const want=TOY_SCAMPER_SP*dt;
+  if(want<=1e-8) return 1;
+  return ((toy.x-ox)*toy.scampDx+(toy.y-oy)*toy.scampDy)/want;
+}
+function toyFlankBlocked(toy){
+  const r=0.18, dummy={x:toy.x,y:toy.y,r:r};
+  const px=-toy.scampDy, py=toy.scampDx;
+  return !canBe(toy.x+px*0.7, toy.y+py*0.7, r, dummy)
+    || !canBe(toy.x-px*0.7, toy.y-py*0.7, r, dummy);
 }
 function tickToyScamper(dt){
   const toy=windupToyProp(); if(!toy||!(toy.scampT>0)) return;
   toy.scampT=Math.max(0, toy.scampT-dt);
-  if(toy.scampT<=0){ toy.scampDx=0; toy.scampDy=0; return; }
-  const r=0.18, nx=toy.x+toy.scampDx*TOY_SCAMPER_SP*dt, ny=toy.y+toy.scampDy*TOY_SCAMPER_SP*dt;
-  const dummy={x:toy.x,y:toy.y,r:r};
-  if(canBe(nx,toy.y,r,dummy)) toy.x=nx;
-  if(canBe(toy.x,ny,r,dummy)) toy.y=ny;
+  if(toy.scampT<=0){ toy.scampDx=0; toy.scampDy=0; toy.scampStuck=0; return; }
+  const along=stepToyScamper(toy, dt);
+  const hug=toyFlankBlocked(toy);
+  if(along<0.62 || hug){
+    toy.scampStuck=(toy.scampStuck||0)+dt;
+    if(toy.scampStuck>=0.16){
+      const blocked=along<0.62;
+      const d=pickToyScamperDir(toy, blocked?toy.scampDx:0, blocked?toy.scampDy:0);
+      const align=d.dx*toy.scampDx+d.dy*toy.scampDy;
+      toy.scampStuck=0;
+      if(blocked || align<0.84){
+        toy.scampDx=d.dx; toy.scampDy=d.dy;
+        if(blocked) stepToyScamper(toy, dt);
+      }
+    }
+  } else toy.scampStuck=0;
+  if(toy.scampDx<0) toy.scampFace=-1;
+  else if(toy.scampDx>0) toy.scampFace=1;
+}
+/* Painted idle/wound sheets only — bob, lean, flip, and a faster key rock while scampering. */
+function drawWindupToyProp(g,p,z){
+  const ts=p.s||1;
+  const wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
+  const run=p.scampT>0;
+  const face=(run?p.scampDx:p.scampFace)<0?-1:1;
+  const H=propSpriteH(p,z);
+  const t=G.elapsed||0;
+  const phase=t*(run?14:2.4)+(p.seed||0);
+  const hop=run?Math.abs(Math.sin(phase)):0;
+  const bob=run?-hop*H*0.11:(wound?Math.sin(t*2.4)*H*0.015:0);
+  const lean=run?Math.sin(phase)*0.16:0;
+  const key=wound?(run?Math.sin(t*26)*0.10:Math.sin(t*3.4)*0.04):0;
+  const stretch=run?(0.92+0.12*hop):1;
+  softShadow(g,1*z,2*z,(14-hop*5)*z*ts,(5.4-hop*1.6)*z*ts,.42);
+  g.save();
+  g.scale(face,1);
+  g.rotate(lean+key);
+  g.translate(run?Math.sin(phase)*H*0.04:0, bob);
+  g.scale(1/stretch, stretch);
+  const img=propAnimImg(p);
+  if(img&&img.width) drawBillboard(g,img,H);
+  else {
+    g.beginPath(); g.ellipse(0,-3*z*ts,9*z*ts,4.2*z*ts,0,0,TAU);
+    sc(g,'#b8883a',-10*z*ts,2*z*ts,1.4);
+    g.beginPath(); g.ellipse(0,-8*z*ts,6.2*z*ts,5*z*ts,0,0,TAU);
+    sc(g,'#d4a04a',-14*z*ts,-2*z*ts,1.3);
+    g.fillStyle='#5a3e18';
+    g.beginPath(); g.arc(-2.2*z*ts,-9*z*ts,1.1*z*ts,0,TAU); g.fill();
+    g.beginPath(); g.arc(2.4*z*ts,-9*z*ts,1.1*z*ts,0,TAU); g.fill();
+    g.strokeStyle='#8a6230'; g.lineWidth=1.6*z*ts; g.lineCap='round';
+    g.beginPath(); g.moveTo(-5*z*ts,1*z*ts); g.lineTo(-8*z*ts,6*z*ts);
+    g.moveTo(5*z*ts,1*z*ts); g.lineTo(8*z*ts,6*z*ts); g.stroke();
+    g.strokeStyle='#e8c878'; g.lineWidth=1.8*z*ts;
+    g.beginPath(); g.moveTo(5.5*z*ts,-10*z*ts); g.lineTo(9*z*ts,-16*z*ts);
+    g.arc(10.4*z*ts,-17.2*z*ts,2.2*z*ts,Math.PI*0.2,Math.PI*1.5); g.stroke();
+  }
+  g.restore();
 }
 function settleToyTalk(){
   if(!G.toyTalkEnded) return;
@@ -13313,6 +13431,10 @@ function drawProp(g,p,pal){
     }
     g.restore(); return;
   }
+  if(p.k==='winduptoy'){
+    drawWindupToyProp(g,p,z);
+    g.restore(); return;
+  }
   const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
     if(p.k==='stairs') drawStairWell(g,z,p);
@@ -13497,24 +13619,6 @@ function drawProp(g,p,pal){
     g.beginPath(); g.rect(-18*z,-11*z,36*z,12*z); sc(g,'#6d573e',-11*z,1*z,2);
     if(ch1PillarHasRuby(p)) drawCh1PillarRuby(g,s,z,p);
     if(ch1CenterPillar(p)) paintCh1LiftLever(g,z);
-    break; }
-  case 'winduptoy':{
-    const ts=p.s||1, wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
-    const tick=wound?Math.sin(G.elapsed*8+p.x)*2*z*ts:0;
-    softShadow(g,1*z,2*z,12*z*ts,5*z*ts,.4);
-    g.beginPath(); g.ellipse(tick,-3*z*ts,9*z*ts,4.2*z*ts,0,0,TAU);
-    sc(g,'#b8883a',-10*z*ts,2*z*ts,1.4);
-    g.beginPath(); g.ellipse(tick,-8*z*ts,6.2*z*ts,5*z*ts,0,0,TAU);
-    sc(g,'#d4a04a',-14*z*ts,-2*z*ts,1.3);
-    g.fillStyle='#5a3e18';
-    g.beginPath(); g.arc(tick-2.2*z*ts,-9*z*ts,1.1*z*ts,0,TAU); g.fill();
-    g.beginPath(); g.arc(tick+2.4*z*ts,-9*z*ts,1.1*z*ts,0,TAU); g.fill();
-    g.strokeStyle='#8a6230'; g.lineWidth=1.6*z*ts; g.lineCap='round';
-    g.beginPath(); g.moveTo(tick-5*z*ts,1*z*ts); g.lineTo(tick-8*z*ts,6*z*ts);
-    g.moveTo(tick+5*z*ts,1*z*ts); g.lineTo(tick+8*z*ts,6*z*ts); g.stroke();
-    g.strokeStyle='#e8c878'; g.lineWidth=1.8*z*ts;
-    g.beginPath(); g.moveTo(tick+5.5*z*ts,-10*z*ts); g.lineTo(tick+9*z*ts,-16*z*ts);
-    g.arc(tick+10.4*z*ts,-17.2*z*ts,2.2*z*ts,Math.PI*0.2,Math.PI*1.5); g.stroke();
     break; }
   case 'bones':{ softShadow(g,0,0,20*z,9*z,.35);
     g.strokeStyle='#cdc3a6'; g.lineWidth=3.4*z; g.lineCap='round';
