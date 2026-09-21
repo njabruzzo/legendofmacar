@@ -1946,10 +1946,15 @@ function livingMacarAnimKey(e){
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
 /* Crown-to-boots fraction of a sheet. The column is the densest lower
-   body (legs and torso), not the overhead maul: a wide stance puts the
-   helmet between the boots, and a contact maul sits beside that column.
-   Stop at a real gap so the weapon above the helmet is not the crown.
-   Returns 0 when the column misses (caller keeps the idle plant). */
+   body (legs and torso), not the overhead maul. Contact's helm sits left
+   of that leg column on the 893-wide sheet: a 3.5% window stopped in the
+   beard (~0.75 of the canvas), idle/live grew dest H ~1.31×, and the
+   dwarf read larger than idle. 12% of width reaches that helm (~0.88)
+   and still misses the windup maul (that climb jumps the crown to ~y=47).
+   The sole is the column's own foot. Windup's maul tip hangs below the
+   boots and outside the column; using the sheet's lowest pixel counted
+   that tip as body. Gaps in the lower 58% are the spread stance, not the
+   weapon. Returns 0 when the column misses (caller keeps the idle plant). */
 function livingStatureFromRGBA(d, w, h){
   if(!d||!(w>0)||!(h>0)) return 0;
   let top=h, bot=-1;
@@ -1983,20 +1988,22 @@ function livingStatureFromRGBA(d, w, h){
     const v=n?s/n:0;
     if(v>best){ best=v; bx=x; }
   }
-  const half=Math.max(3, Math.round(w*0.035));
+  const half=Math.max(3, Math.round(w*0.12));
   const x0=Math.max(0, bx-half), x1=Math.min(w-1, bx+half);
   const gapLim=Math.max(2, Math.round(h*0.012));
-  let crown=bot, gaps=0, seen=false;
+  const legCut=top+Math.floor((bot-top+1)*0.42);
+  let crown=0, foot=-1, gaps=0, seen=false;
   for(let y=bot;y>=top;y--){
     let hit=false;
     for(let x=x0;x<=x1;x++){
       const p=(y*w+x)*4;
       if(d[p+3]>30 && (d[p]|d[p+1]|d[p+2])!==0){ hit=true; break; }
     }
-    if(hit){ crown=y; gaps=0; seen=true; }
-    else if(seen){ gaps++; if(gaps>gapLim) break; }
+    if(hit){ if(foot<0) foot=y; crown=y; gaps=0; seen=true; }
+    else if(seen){ gaps++; if(y<legCut && gaps>gapLim) break; }
   }
-  const frac=(bot-crown+1)/h;
+  if(foot<0) return 0;
+  const frac=(foot-crown+1)/h;
   if(!(frac>0.55) || frac>0.995) return 0;
   return frac;
 }
@@ -2027,11 +2034,10 @@ function livingSheetStature(img){
 }
 /* Idle / walk / cleaver / xbow share one canvas height, so they keep the
    idle plant (free-arm maul length stays put). Windup and contact are
-   540-tall sheets whose crown-to-boots body is only ~0.74 of the canvas
-   (idle is ~0.98 of 512). Mapping that whole canvas onto the idle dest
-   height drew the body about three-quarters as tall and, on the 893-wide
-   contact sheet, read as a different form. destH * bodyFrac is the
-   crown-to-boots world height — grow dest H until that matches idle.
+   540-tall. Windup's helm-to-boot body is ~0.71 of that canvas (idle is
+   ~0.98 of 512), so dest H grows until crown-to-boots matches. Contact's
+   helm is ~0.88 of 540 — a beard-column reading of ~0.75 grew dest H past
+   idle and the strike read larger. destH * bodyFrac is that world height.
    Width still follows sheet aspect, so the maul may overhang. */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
@@ -2066,10 +2072,11 @@ function drawLivingMacar(g,e){
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const plantFit=livingMacarPlantFit(e, blitKey||key, img);
   const H=entSpriteH(e,z)*plantFit;
-  /* Uniform scale. Dest H tracks crown-to-boots, not the raw canvas, so a
-     540 attack sheet can be taller than idle while the body stays put.
-     W/H is still sheet aspect × foot widen: the maul overhangs, and the
-     893-wide contact sheet is not squashed into the idle width. */
+  /* Uniform scale. Dest H tracks crown-to-boots, not the raw canvas.
+     Contact's helm is most of the 540 sheet, so dest H stays near idle;
+     windup's shorter body grows dest H until the helm matches. W/H is
+     still sheet aspect × foot widen: the maul overhangs, and the 893-wide
+     contact sheet is not squashed into the idle width. */
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
   MacarStrikeQA.plantFit=plantFit;
   MacarStrikeQA.blitH=H;

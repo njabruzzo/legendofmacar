@@ -616,10 +616,13 @@ const atkBody=sheetStature('dwarf_macar_atk.png');
 const hitBody=sheetStature('dwarf_macar_atk_contact.png');
 assert(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
-assert(atkBody>0.68 && atkBody<0.80,
-  'windup crown-to-boots is shorter than the 540 canvas (frac '+atkBody.toFixed(3)+')');
-assert(hitBody>0.68 && hitBody<0.80,
-  'contact crown-to-boots is shorter than the 540 canvas (frac '+hitBody.toFixed(3)+')');
+assert(atkBody>0.66 && atkBody<0.78,
+  'windup crown stops at the helm, not the overhead maul (frac '+atkBody.toFixed(3)+')');
+assert(hitBody>0.84 && hitBody<0.93,
+  'contact crown is the helm, not the beard under a narrow column (frac '+hitBody.toFixed(3)+')');
+assert(hitBody>atkBody+0.08,
+  'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
+  +' contact '+hitBody.toFixed(3)+')');
 fitSPR.macar._stature=idleBody;
 fitSPR.macar_w1._stature=idleBody;
 fitSPR.macar_w2._stature=idleBody;
@@ -635,8 +638,12 @@ assert(Math.abs(w1Fig-idleFig)/idleFig<0.02,
 assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
   'crown-to-boots figure height matches idle vs atk vs contact (idle '
   +idleFig.toFixed(3)+' wind '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
-assert(blitHOf('macar_atk')>blitHOf('macar')*1.2 && blitHOf('macar_atk_contact')>blitHOf('macar')*1.2,
-  'attack dest H grows so the shorter painted body matches idle stature');
+const windScale=blitHOf('macar_atk')/blitHOf('macar');
+const hitScale=blitHOf('macar_atk_contact')/blitHOf('macar');
+assert(windScale>1.20 && windScale<1.55,
+  'windup dest H grows for the shorter helm-to-boot body (scale '+windScale.toFixed(3)+')');
+assert(hitScale>1.02 && hitScale<1.22,
+  'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
 const widthRatio=893/470;
 assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
   'contact body scale is not the 893 sheet width');
