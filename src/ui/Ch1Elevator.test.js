@@ -53,8 +53,12 @@ assert(/rear=\[\[-7\.6,-1\.6\]/.test(html) && /front=\[\[-6\.2,1\.4\]/.test(html
   'the pedestal ruby sits in claw prongs on the cap');
 assert(/function drawCh1LiftLever\(g,z,ready\)\{/.test(html),
   'the Ch1 lift always paints a readable lever');
-assert(/G\.lvl\.n===1\) drawCh1LiftLever/.test(html), 'the lever overlay is Chapter I only');
+assert(/function paintCh1LiftLever\(g,z\)\{/.test(html) && /G\.lvl\.n===1\) drawCh1LiftLever/.test(html),
+  'the lever overlay is Chapter I only');
+assert(/if\(ch1CenterPillar\(p\)\) paintCh1LiftLever/.test(html),
+  'the lever also paints on the center pillar so the shaft does not bury it');
 const lever=html.match(/function drawCh1LiftLever\(g,z,ready\)\{[\s\S]*?\nfunction drawFacetGem/)[0];
+assert(/g\.translate\(24\*z,8\*z\)/.test(lever), 'the lever sits on the SE rim beside the pillar');
 assert(/rivets=\[\[-6\.2,-3\.2\]/.test(lever), 'the lever mounts on a riveted iron plate');
 assert(/g\.rotate\(thrown\?-1\.08:0\.58\)/.test(lever), 'the lever still throws when elevReady');
 assert(/moveTo\(-2\.8\*z,3\*z\).*lineTo\(-1\.55\*z,-27\*z\)/.test(lever),

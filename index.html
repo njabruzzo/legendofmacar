@@ -11940,10 +11940,14 @@ function drawCh1PillarRuby(g,s,z,p){
     ray(s.x,s.y+gy-12*z,48*z,'#ff4058',0.58);
   }
 }
+function paintCh1LiftLever(g,z){
+  if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,G.lvl.flags&&G.lvl.flags.elevReady);
+}
 function drawCh1LiftLever(g,z,ready){
   const thrown=!!ready;
   g.save();
-  g.translate(16*z,-11*z);
+  /* SE of the center pillar so the forged plate is not buried in the shaft. */
+  g.translate(24*z,8*z);
   facetPoly(g,[-10*z,5*z, -8.2*z,-6.4*z, 9.4*z,-7.2*z, 11.2*z,5.6*z],'#2e2820');
   sc(g,'#3a3228',-8*z,7*z,1.55);
   g.fillStyle='rgba(0,0,0,0.28)';
@@ -12140,9 +12144,10 @@ function drawProp(g,p,pal){
       const on=G.lvl&&(G.lvl.flags.elevReady||G.lvl.n===2);
       if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
         ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
-      if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,G.lvl.flags&&G.lvl.flags.elevReady);
+      paintCh1LiftLever(g,z);
     }else if(k==='pillar'){
       if(ch1PillarHasRuby(p)) drawCh1PillarRuby(g,s,z,p);
+      if(ch1CenterPillar(p)) paintCh1LiftLever(g,z);
     }else if(k==='rubypillar'){
       const b=.55+Math.sin(G.elapsed*3.2+p.x)*.25;
       emit(s.x,s.y-52*z,52*z,'#ff2a3c',0.95+b*0.2);
@@ -12275,6 +12280,7 @@ function drawProp(g,p,pal){
     g.beginPath(); g.rect(-19*z,-108*z,38*z,13*z); sc(g,'#6d573e',-108*z,-95*z,2);
     g.beginPath(); g.rect(-18*z,-11*z,36*z,12*z); sc(g,'#6d573e',-11*z,1*z,2);
     if(ch1PillarHasRuby(p)) drawCh1PillarRuby(g,s,z,p);
+    if(ch1CenterPillar(p)) paintCh1LiftLever(g,z);
     break; }
   case 'winduptoy':{
     const ts=p.s||1, wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
@@ -12368,7 +12374,7 @@ function drawProp(g,p,pal){
       g.beginPath(); g.moveTo(Math.cos(a)*42*z,Math.sin(a)*21*z); g.lineTo(Math.cos(a)*42*z,Math.sin(a)*21*z-100*z); g.stroke(); }
     if(on){ const b=.5+Math.sin(G.elapsed*4)*.25; emit(s.x,s.y-6*z,110*z,'#ffc061',b);
       ray(s.x,s.y-90*z,90*z,'#ffcf7a',0.7); }
-    if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,on);
+    paintCh1LiftLever(g,z);
     break; }
   case 'rubypillar':{ softShadow(g,0,2*z,20*z,10*z,.55);
     g.beginPath(); g.rect(-11*z,-52*z,22*z,52*z); sc(g,'#5d4a35',-52*z,0,2);
