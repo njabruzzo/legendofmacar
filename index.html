@@ -9905,10 +9905,13 @@ function releaseThrall(e){
   if(!e||!e.thrall) return;
   if(G.thrallId===e.id) G.thrallId=null;
   e.thrall=0;
+  e.animatedOnce=1;
+  e.corpse=1;
   say('The dead fall still. The crown\'s slot is empty.','#c9b895');
 }
 function isAnimateDeadEligible(e){
   if(!e||!(e.dead||e.corpse)||e.thrall) return false;
+  if(e.animatedOnce) return false;
   if(e.col||e.hero||e.ghost) return false;
   const hay=((e.kind||'')+' '+(e.name||'')+' '+(e.sprite||'')).toLowerCase();
   if(/rat|beetle|spider|slime|ooze|jelly|pudding|worm|cube|elemental|xorn|piercer|centipede|fung|myconid|shrieker|tooth/.test(hay)) return false;
@@ -9932,19 +9935,28 @@ function collapseCrownThrall(){
   const t=livingThrall();
   if(!t){ G.thrallId=null; return; }
   t.dead=1; t.corpse=1; t.hp=0; t.team='foe'; t.thrall=0; t.ally=0;
+  t.animatedOnce=1; t.thrallStay=0;
   G.thrallId=null;
   burst(t.x, t.y, '#9a8a78', 12, 2.2);
   say('The commanded dead collapses.','#c9b895');
 }
+function setThrallStay(on){
+  const t=livingThrall();
+  if(!t) return {ok:0};
+  t.thrallStay=on?1:0;
+  say(on?'The dead holds. Stay.':'The dead follows Macar.', '#e8d0b8');
+  return {ok:1, stay:!!on};
+}
 /* HOUSE: Bone Crown animate dead — one thrall at a time. Macar commands
-   that thrall (follow/fight as party). The slot frees when the thrall dies.
-   PHB shape, house cap (Sage): once per corpse; skeleton from bones or
-   zombie from flesh; no spell slot / no XP; duration until destroyed,
-   turned, or the crown is removed. Nick numbers stand. */
+   that thrall (follow / fight nearest foe / stay). The slot frees when
+   the thrall dies, is turned, or the crown leaves. Once per corpse.
+   PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
+   no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   if(!body || !(body.dead||body.corpse)) return {ok:0, reason:'no-body'};
   if(body.col||body.hero||body.ghost) return {ok:0, reason:'kin'};
+  if(body.animatedOnce) return {ok:0, reason:'spent'};
   if(!isAnimateDeadEligible(body)) return {ok:0, reason:'ineligible'};
   if(livingThrall()){
     say('The crown already commands one dead.','#c9b895');
@@ -9955,6 +9967,7 @@ function tryAnimateDead(actor, body){
   body.hp=body.maxhp||body.hp||8;
   body.team='party'; body.ally=1; body.thrall=1; body.npc=0;
   body.aggro=8; body.engaged=0; body.stun=0.2;
+  body.animatedOnce=1; body.thrallStay=0;
   body.name=bones?'Skeleton':'Zombie';
   body.kind='undead';
   G.thrallId=body.id;
@@ -10145,6 +10158,7 @@ function tryTalporTurnThrall(){
   const t=typeof livingThrall==='function'?livingThrall():null;
   if(!tal||!t) return {ok:0, reason:'no'};
   t.dead=1; t.corpse=1; t.hp=0; t.team='foe'; t.thrall=0; t.ally=0;
+  t.animatedOnce=1; t.thrallStay=0;
   G.thrallId=null;
   burst(t.x, t.y, '#d0d4e8', 14, 2.4);
   say('TALPOR turns the crown\'s dead. That evil is not his to claim.','#d0d4e8');
@@ -11565,6 +11579,12 @@ function update(dt){
       const body=nearestAnimatableCorpse(p,1.95);
       if(body) interact('Animate the dead',()=>tryAnimateDead(p,body));
     }
+    if(!PROMPT && typeof livingThrall==='function' && typeof setThrallStay==='function'){
+      const pet=livingThrall();
+      if(pet && dist(p,pet)<3.2){
+        interact(pet.thrallStay?'Thrall: follow':'Thrall: stay',()=>setThrallStay(!pet.thrallStay));
+      }
+    }
     if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof smashWornBoneCrown==='function'){
       interact('Attack the bone crown',()=>smashWornBoneCrown());
     }
@@ -11719,7 +11739,10 @@ function update(dt){
       const idx=kin.indexOf(e);
       const fight=kinCanAutoFight(e)&&foeInTheFight();
       const foe=fight?nearestFoe(e, e.ranged?9:6.2):null;
-      if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
+      if(e.thrall && e.thrallStay){
+        if(fight&&foe&&dist(e,foe)<=(e.range||1)+0.35){ tgt=foe; want=e.range; e.aim=foe; }
+        else { e.moving=0; e.ix=0; e.iy=0; e.aim=null; continue; }
+      } else if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
         e.aim=null;
         /* One-follower Follow default (pordoom / first living kin). No plates.

@@ -36,7 +36,7 @@
     'ranged','dead','corpse','looted','crushed','ghost','prone','hidden','boss','glow','aggro',
     'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
-    'id','sid','treasure','tt','hd','interactSleeper','thrall'
+    'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay'
   ];
 
   var PROP_COPY = [

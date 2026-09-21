@@ -45,8 +45,10 @@ assert(/BONE_CROWN_DESTROY_XP=5000/.test(html), 'destroy awards 5000 XP');
 assert(/FANGED_SKELETON_HORDE=8/.test(html), 'teeth rise as a horde');
 assert(/HOUSE: Bone Crown animate dead/.test(html),
   'HOUSE comment records one-thrall animate-dead law');
-assert(/one thrall at a time/.test(html) && /slot frees when the thrall dies/.test(html),
-  'HOUSE law is one thrall, command, slot frees on death');
+assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
+  'HOUSE law is one thrall, once per corpse');
+assert(/follow \/ fight nearest foe \/ stay/.test(html),
+  'thrall commands are follow, fight nearest foe, stay');
 assert(/ASSET_VER='102'/.test(html) && !/ASSET_VER='103'/.test(html),
   'ASSET_VER stays 102 — no new SIGNED binds');
 assert(/SPR\.demon_dwarfface\|\|SPR\.demonface\|\|SPR\.dwarfface/.test(html),
@@ -70,9 +72,14 @@ assert(/tryStrikeBoneCrown/.test(extractFn('meleeSwing')),
 const fang=html.match(/fangedSkeleton:\{[^}]+\}/)[0];
 assert(/hd:2/.test(fang), 'fanged skeleton is 2 HD');
 assert(/ac:7/.test(fang), 'fanged skeleton AC 7');
+assert(/mv:12/.test(fang) && /at:1/.test(fang), 'fanged skeleton MV 12, AT 1');
+assert(/tt:'Nil'/.test(fang), 'fanged skeleton tt is Nil (coins-always still applies)');
 assert(/dmg:4\.5/.test(fang) && /dice:'1d6\+1'/.test(fang),
   'fanged skeleton damage is d6+1');
 assert(/n:'Fanged Skeleton'/.test(fang), 'Nick name is Fanged Skeleton');
+assert(/k:'undead'/.test(fang), 'fanged skeleton is undead');
+assert(/awardPartyXp\(monsterXpValue\(e\)/.test(html),
+  'kills use monsterXpValue (2 HD table)');
 
 let eid=1;
 const ctx={
@@ -105,7 +112,7 @@ ctx.beginFight=function(){};
 [
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
-  'collapseCrownThrall','tryAnimateDead','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
+  'collapseCrownThrall','setThrallStay','tryAnimateDead','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
   'destroyBoneCrown','tryStrikeBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -159,6 +166,8 @@ const raised=ctx.tryAnimateDead(ctx.G.ents[0], body);
 assert(raised.ok===1 && body.thrall===1 && body.team==='party', 'crown raises one thrall');
 assert(raised.form==='zombie', 'flesh corpse rises as a zombie');
 assert(ctx.G.thrallId===40 && ctx.livingThrall()===body, 'thrall occupies the one slot');
+assert(ctx.setThrallStay(1).stay===true && body.thrallStay===1, 'thrall can stay');
+assert(ctx.setThrallStay(0).stay===false && !body.thrallStay, 'thrall can follow again');
 const body2={id:41, name:'Orc', kind:'orc', team:'foe', dead:1, corpse:1, x:126, y:21, hp:0, maxhp:42};
 ctx.G.ents.push(body2);
 const blocked=ctx.tryAnimateDead(ctx.G.ents[0], body2);
@@ -166,6 +175,8 @@ assert(blocked.ok===0 && blocked.reason==='slot-full', 'second animate is refuse
 body.dead=1; body.hp=0;
 ctx.releaseThrall(body);
 assert(ctx.livingThrall()===null && ctx.G.thrallId==null, 'thrall death frees the slot');
+assert(ctx.tryAnimateDead(ctx.G.ents[0], body).reason==='spent',
+  'the same corpse cannot be raised twice');
 const again=ctx.tryAnimateDead(ctx.G.ents[0], body2);
 assert(again.ok===1 && ctx.G.thrallId===41, 'a new corpse can be raised after the slot frees');
 assert(ctx.tryAnimateDead(ctx.G.ents[0], {id:9, hero:1, col:{key:'macar'}, dead:1, corpse:1}).reason==='kin',
