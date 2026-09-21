@@ -8,6 +8,7 @@ const fs=require('fs');
 const path=require('path');
 const zlib=require('zlib');
 const vm=require('vm');
+const {readRgba}=require('../qa/pngRgba');
 
 const root=path.join(__dirname,'../..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
@@ -545,8 +546,16 @@ assert(/#0a0706/.test(titleFn) && /splash\.height\*0\.14/.test(titleFn),
   'new top strip is filled from dark cave, not empty black');
 
 const plantSrc=extractFn('livingMacarPlantFit');
-assert(/return heroFigureFit\(e, idle\)/.test(plantSrc) && !/frameH\/idleH/.test(plantSrc),
-  'livingMacarPlantFit returns idle fit and does not scale by frameH/idleH');
+assert(/const idleFit=heroFigureFit\(e, idle\)/.test(plantSrc)
+  && /idleFit\*\(idleBody\/liveBody\)/.test(plantSrc)
+  && /livingSheetStature\(idle\)/.test(plantSrc)
+  && /livingSheetStature\(live\)/.test(plantSrc)
+  && !/frameH\/idleH/.test(plantSrc),
+  'livingMacarPlantFit locks crown-to-boots via stature, not frameH/idleH');
+assert(/function livingStatureFromRGBA\(/.test(html)
+  && /livingStatureFromRGBA\(d, w, h\)/.test(extractFn('measureLivingStature'))
+  && /img\._stature>0/.test(extractFn('livingSheetStature')),
+  'attack stature is measured from the sheet and cached');
 const b={ok:true, y0:0.016, y1:0.990, personY0:0.016};
 const fitSPR={
   macar:{width:470, height:512, _b:b},
@@ -568,7 +577,9 @@ const fitCtx={
 };
 vm.createContext(fitCtx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;'
-  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit'), fitCtx);
+  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')
+  +extractFn('livingStatureFromRGBA')+extractFn('measureLivingStature')
+  +extractFn('livingSheetStature')+extractFn('livingMacarPlantFit'), fitCtx);
 const fitMac={hero:1, dead:0, ghost:0};
 function blitHOf(key){
   return 78*fitCtx.livingMacarPlantFit(fitMac, key, fitSPR[key]);
@@ -592,6 +603,43 @@ fitCtx._idle='macar_xbow';
 assert(Math.abs(blitHOf('macar_xbow_atk')-blitHOf('macar_xbow'))/blitHOf('macar_xbow')<0.02
   && blitHOf('macar_xbow_atk')<=blitHOf('macar_xbow')+1e-6,
   'xbow strike blitH matches xbow idle');
+fitCtx._idle='macar';
+
+/* Real sheets: windup and contact paint a shorter body in a 540 canvas.
+   Figure height (dest H × body fraction) matches idle; canvas blitH may grow. */
+function sheetStature(file){
+  const rgba=readRgba(path.join(root,'assets/creatures',file));
+  return fitCtx.livingStatureFromRGBA(rgba.data, rgba.w, rgba.h);
+}
+const idleBody=sheetStature('dwarf_macar.png');
+const atkBody=sheetStature('dwarf_macar_atk.png');
+const hitBody=sheetStature('dwarf_macar_atk_contact.png');
+assert(idleBody>0.94 && idleBody<0.995,
+  'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
+assert(atkBody>0.68 && atkBody<0.80,
+  'windup crown-to-boots is shorter than the 540 canvas (frac '+atkBody.toFixed(3)+')');
+assert(hitBody>0.68 && hitBody<0.80,
+  'contact crown-to-boots is shorter than the 540 canvas (frac '+hitBody.toFixed(3)+')');
+fitSPR.macar._stature=idleBody;
+fitSPR.macar_w1._stature=idleBody;
+fitSPR.macar_w2._stature=idleBody;
+fitSPR.macar_atk._stature=atkBody;
+fitSPR.macar_atk_contact._stature=hitBody;
+function figureHOf(key){ return blitHOf(key)*fitSPR[key]._stature; }
+const idleFig=figureHOf('macar');
+const w1Fig=figureHOf('macar_w1');
+const atkFig=figureHOf('macar_atk');
+const hitFig=figureHOf('macar_atk_contact');
+assert(Math.abs(w1Fig-idleFig)/idleFig<0.02,
+  'walk keeps the idle figure height (idle '+idleFig.toFixed(3)+' w1 '+w1Fig.toFixed(3)+')');
+assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
+  'crown-to-boots figure height matches idle vs atk vs contact (idle '
+  +idleFig.toFixed(3)+' wind '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
+assert(blitHOf('macar_atk')>blitHOf('macar')*1.2 && blitHOf('macar_atk_contact')>blitHOf('macar')*1.2,
+  'attack dest H grows so the shorter painted body matches idle stature');
+const widthRatio=893/470;
+assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
+  'contact body scale is not the 893 sheet width');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nliving Macar QA checks passed');

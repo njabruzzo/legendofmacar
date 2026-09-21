@@ -44,9 +44,10 @@ assert(/MACAR_FOOT_WIDEN=1\.24/.test(html), 'extra mass is a width scale');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar'))
   && /entSpriteH\(e,z\)\*plantFit/.test(extractFn('drawLivingMacar')),
   'dungeon height stays kin entSpriteH times the idle plant');
-assert(/return heroFigureFit\(e, idle\)/.test(extractFn('livingMacarPlantFit'))
+assert(/const idleFit=heroFigureFit\(e, idle\)/.test(extractFn('livingMacarPlantFit'))
+  && /idleFit\*\(idleBody\/liveBody\)/.test(extractFn('livingMacarPlantFit'))
   && !/frameH\/idleH/.test(extractFn('livingMacarPlantFit')),
-  'plantFit ignores frame canvas height so 540 cannot grow blitH');
+  'plantFit locks crown-to-boots, not frameH/idleH canvas height');
 assert(/\*MACAR_FOOT_WIDEN/.test(extractFn('drawLivingMacar')),
   'living Macar blit applies the width scale');
 assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar')),
@@ -273,7 +274,9 @@ const fitCtx={
 };
 vm.createContext(fitCtx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;'
-  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit'), fitCtx);
+  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')
+  +extractFn('livingStatureFromRGBA')+extractFn('measureLivingStature')
+  +extractFn('livingSheetStature')+extractFn('livingMacarPlantFit'), fitCtx);
 const fitMac={hero:1, dead:0, ghost:0};
 function blitHOf(key){
   return 78*fitCtx.livingMacarPlantFit(fitMac, key, fitSPR[key]);
@@ -299,6 +302,32 @@ const xbowBH=blitHOf('macar_xbow');
 const xbowAtkBH=blitHOf('macar_xbow_atk');
 assert(Math.abs(xbowAtkBH-xbowBH)/xbowBH<0.02 && xbowAtkBH<=xbowBH+1e-6,
   'xbow strike blitH matches xbow idle');
+
+/* Same body fraction on a taller canvas must not grow the dwarf.
+   A shorter crown-to-boots fraction (real windup / contact) grows dest H
+   until the body matches idle. */
+fitCtx._idle='macar';
+fitSPR.macar._stature=0.977;
+fitSPR.macar_atk._stature=0.977;
+fitSPR.macar_atk_contact._stature=0.977;
+assert(Math.abs(blitHOf('macar_atk')-idleBH)/idleBH<0.02
+  && Math.abs(blitHOf('macar_atk_contact')-idleBH)/idleBH<0.02,
+  'a 540 canvas with idle body fraction does not change blitH');
+fitSPR.macar_atk._stature=0.737;
+fitSPR.macar_atk_contact._stature=0.746;
+function figureHOf(key){
+  return blitHOf(key)*fitSPR[key]._stature;
+}
+const idleFig=figureHOf('macar');
+const atkFig=figureHOf('macar_atk');
+const hitFig=figureHOf('macar_atk_contact');
+assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
+  'crown-to-boots figure height matches across idle/atk/contact (idle '
+  +idleFig.toFixed(3)+' atk '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
+assert(blitHOf('macar_atk')>idleBH*1.2 && blitHOf('macar_atk_contact')>idleBH*1.2,
+  'shorter attack body grows dest H so stature can match');
+assert((blitHOf('macar_atk_contact')/idleBH) < (893/470)*0.75,
+  'contact stature scale is not the 893-wide sheet');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar dungeon blit / leftover-art checks passed');

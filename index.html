@@ -1808,7 +1808,7 @@ const MacarStrikeQA={
   lastKey:null, blitKey:null, holdProgress:0, pose:false, recover:false,
   atk:0, atkMax:0, lastStrikeKey:null, lastStrikeT:0, hold:false, holdT:0,
   swung:false, strikeHold:0, bowPoseT:0, bowPoseUntil:0,
-  plantFit:0, blitH:0, sheetW:0, sheetH:0
+  plantFit:0, blitH:0, figureH:0, sheetW:0, sheetH:0
 };
 function macarStrikeHoldProgress(e){
   if(!e) return 0;
@@ -1945,18 +1945,107 @@ function livingMacarAnimKey(e){
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
-/* Living Macar destination height is the equipped idle plant for idle,
-   walk, windup, contact, and axe/xbow strikes. Ignore the live sheet's
-   canvas height: idleFit*(frameH/idleH) grew dest H when the attack
-   canvas was 540 vs idle 512, so the dwarf jumped taller. Width still
-   follows sheet aspect at this locked H — a maul may overhang, but the
-   body is not scaled up to the full contact width. */
+/* Crown-to-boots fraction of a sheet. The column is the densest lower
+   body (legs and torso), not the overhead maul: a wide stance puts the
+   helmet between the boots, and a contact maul sits beside that column.
+   Stop at a real gap so the weapon above the helmet is not the crown.
+   Returns 0 when the column misses (caller keeps the idle plant). */
+function livingStatureFromRGBA(d, w, h){
+  if(!d||!(w>0)||!(h>0)) return 0;
+  let top=h, bot=-1;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const p=(y*w+x)*4;
+      if(d[p+3]>30 && (d[p]|d[p+1]|d[p+2])!==0){
+        if(y<top) top=y;
+        if(y>bot) bot=y;
+      }
+    }
+  }
+  if(bot<=top) return 0;
+  const yCut=top+Math.floor((bot-top+1)*0.30);
+  const col=new Array(w).fill(0);
+  for(let y=yCut;y<=bot;y++){
+    for(let x=0;x<w;x++){
+      const p=(y*w+x)*4;
+      if(d[p+3]>30 && (d[p]|d[p+1]|d[p+2])!==0) col[x]++;
+    }
+  }
+  const rad=Math.max(2, Math.round(w*0.012));
+  let bx=0, best=-1;
+  for(let x=0;x<w;x++){
+    let s=0, n=0;
+    for(let k=-rad;k<=rad;k++){
+      const i=x+k;
+      if(i<0||i>=w) continue;
+      s+=col[i]; n++;
+    }
+    const v=n?s/n:0;
+    if(v>best){ best=v; bx=x; }
+  }
+  const half=Math.max(3, Math.round(w*0.035));
+  const x0=Math.max(0, bx-half), x1=Math.min(w-1, bx+half);
+  const gapLim=Math.max(2, Math.round(h*0.012));
+  let crown=bot, gaps=0, seen=false;
+  for(let y=bot;y>=top;y--){
+    let hit=false;
+    for(let x=x0;x<=x1;x++){
+      const p=(y*w+x)*4;
+      if(d[p+3]>30 && (d[p]|d[p+1]|d[p+2])!==0){ hit=true; break; }
+    }
+    if(hit){ crown=y; gaps=0; seen=true; }
+    else if(seen){ gaps++; if(gaps>gapLim) break; }
+  }
+  const frac=(bot-crown+1)/h;
+  if(!(frac>0.55) || frac>0.995) return 0;
+  return frac;
+}
+function measureLivingStature(img){
+  if(!img||!img.width||!img.height||typeof document==='undefined') return 0;
+  const MAX=480;
+  const sc=Math.min(1, MAX/Math.max(img.width, img.height));
+  const w=Math.max(1, Math.round(img.width*sc)), h=Math.max(1, Math.round(img.height*sc));
+  try{
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.imageSmoothingEnabled=false;
+    x.drawImage(img,0,0,w,h);
+    const d=x.getImageData(0,0,w,h).data;
+    return livingStatureFromRGBA(d, w, h);
+  }catch(_){ return 0; }
+}
+const LIVING_STATURE=(typeof WeakMap==='function')?new WeakMap():null;
+function livingSheetStature(img){
+  if(!img||!img.width||!img.height) return 0;
+  if(img._stature>0) return img._stature;
+  const cache=(typeof LIVING_STATURE!=='undefined')?LIVING_STATURE:null;
+  if(cache&&cache.has(img)) return cache.get(img);
+  const frac=measureLivingStature(img)||0;
+  if(frac>0.55 && cache) cache.set(img, frac);
+  return frac;
+}
+/* Idle / walk / cleaver / xbow share one canvas height, so they keep the
+   idle plant (free-arm maul length stays put). Windup and contact are
+   540-tall sheets whose crown-to-boots body is only ~0.74 of the canvas
+   (idle is ~0.98 of 512). Mapping that whole canvas onto the idle dest
+   height drew the body about three-quarters as tall and, on the 893-wide
+   contact sheet, read as a different form. destH * bodyFrac is the
+   crown-to-boots world height — grow dest H until that matches idle.
+   Width still follows sheet aspect, so the maul may overhang. */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
   const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
-  return heroFigureFit(e, idle);
+  const idleFit=heroFigureFit(e, idle);
+  const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
+  const idleH=idle.height||0, liveH=live.height||0;
+  if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
+  const idleBody=livingSheetStature(idle);
+  const liveBody=livingSheetStature(live);
+  if(!(idleBody>0.55) || !(liveBody>0.55)) return idleFit;
+  return idleFit*(idleBody/liveBody);
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1977,13 +2066,16 @@ function drawLivingMacar(g,e){
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const plantFit=livingMacarPlantFit(e, blitKey||key, img);
   const H=entSpriteH(e,z)*plantFit;
-  /* Uniform scale at the locked dest H. W/H is sheet aspect × foot widen,
-     so contact's wide maul may overhang. Do not grow H to preserve pixels
-     (540 canvas) and do not squash the 893-wide sheet into the idle width
-     (that fattens or smears the body). */
+  /* Uniform scale. Dest H tracks crown-to-boots, not the raw canvas, so a
+     540 attack sheet can be taller than idle while the body stays put.
+     W/H is still sheet aspect × foot widen: the maul overhangs, and the
+     893-wide contact sheet is not squashed into the idle width. */
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
   MacarStrikeQA.plantFit=plantFit;
   MacarStrikeQA.blitH=H;
+  const statureSheet=(blitKey&&SPR[blitKey]&&SPR[blitKey].height)?SPR[blitKey]:img;
+  const stature=livingSheetStature(statureSheet);
+  MacarStrikeQA.figureH=(stature>0.55)?H*stature:0;
   MacarStrikeQA.sheetW=img.width;
   MacarStrikeQA.sheetH=img.height;
   const b=spriteBounds(img);

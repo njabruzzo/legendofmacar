@@ -31,10 +31,12 @@ assert(/ignoreGapUntil/.test(extractFn('spriteBounds'))
   && /\*0\.42\)/.test(extractFn('spriteBounds')),
   'spread-stance crown walk ignores the inter-boot gap so the helmet is the crown');
 const plantSrc=extractFn('livingMacarPlantFit');
-assert(/return heroFigureFit\(e, idle\)/.test(plantSrc)
+assert(/const idleFit=heroFigureFit\(e, idle\)/.test(plantSrc)
+  && /idleFit\*\(idleBody\/liveBody\)/.test(plantSrc)
+  && /Math\.abs\(liveH-idleH\)<8/.test(plantSrc)
   && !/frameH\/idleH/.test(plantSrc)
   && !/idleH\/frameH/.test(plantSrc),
-  'dest H is the equipped idle plant — a 540 canvas cannot scale blitH');
+  'same-canvas poses keep the idle plant; a different canvas locks crown-to-boots');
 assert(/function bootPlantFrac\(/.test(html) && /bootCx:bootCx/.test(html),
   'spriteBounds records a boot cluster separate from the maul-averaged foot');
 assert(/function livingMacarPlantX\(/.test(html)
@@ -112,7 +114,9 @@ const ctx={
 };
 vm.createContext(ctx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;', ctx);
-vm.runInContext(extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit')
+vm.runInContext(extractFn('figurePersonFrac')+extractFn('heroFigureFit')
+  +extractFn('livingStatureFromRGBA')+extractFn('measureLivingStature')+extractFn('livingSheetStature')
+  +extractFn('livingMacarPlantFit')
   +extractFn('bootPlantFrac')+extractFn('livingMacarPlantX'), ctx);
 
 const mac={hero:1, dead:0, ghost:0};
@@ -161,48 +165,63 @@ assert(windB.personY0<0.45,
 assert(hitB.personY0<0.45,
   'contact crown is the helmet, not the boots (personY0='+hitB.personY0.toFixed(3)+')');
 
+function pngStature(file){
+  const rgba=readRgba(path.join(creatures,file));
+  return ctx.livingStatureFromRGBA(rgba.data, rgba.w, rgba.h);
+}
+const idleBody=pngStature('dwarf_macar.png');
+const windBody=pngStature('dwarf_macar_atk.png');
+const hitBody=pngStature('dwarf_macar_atk_contact.png');
+SPR.macar._stature=idleBody;
+SPR.macar_atk._stature=windBody;
+SPR.macar_atk_contact._stature=hitBody;
+assert(idleBody>0.94 && idleBody<0.995
+  && windBody>0.68 && windBody<0.80
+  && hitBody>0.68 && hitBody<0.80,
+  'measured crown-to-boots is full on idle and short on attack (idle '
+  +idleBody.toFixed(3)+' wind '+windBody.toFixed(3)+' hit '+hitBody.toFixed(3)+')');
 const windPlant=ctx.livingMacarPlantFit(mac, 'macar_atk', SPR.macar_atk);
 const hitPlant=ctx.livingMacarPlantFit(mac, 'macar_atk_contact', SPR.macar_atk_contact);
 const unlockedWind=ctx.heroFigureFit(mac, SPR.macar_atk);
-const unlockedHit=ctx.heroFigureFit(mac, SPR.macar_atk_contact);
 const entH=78;
 function blitH(fit){ return entH*fit; }
+function figureH(fit, frac){ return entH*fit*frac; }
 const idleBlith=blitH(idleFit);
 const w1Blith=blitH(w1Fit);
 const w2Blith=blitH(w2Fit);
 const windBlith=blitH(windPlant);
 const hitBlith=blitH(hitPlant);
-assert(Math.abs(windPlant-idleFit)<1e-9 && Math.abs(hitPlant-idleFit)<1e-9,
-  'windup/contact plant is the idle plant, not frameH/idleH (idle '
-  +idleFit.toFixed(3)+' wind '+windPlant.toFixed(3)+' hit '+hitPlant.toFixed(3)+')');
+const idleFig=figureH(idleFit, idleBody);
+const windFig=figureH(windPlant, windBody);
+const hitFig=figureH(hitPlant, hitBody);
 assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
-  && Math.abs(w2Blith-idleBlith)/idleBlith<0.02
-  && Math.abs(windBlith-idleBlith)/idleBlith<0.02
-  && Math.abs(hitBlith-idleBlith)/idleBlith<0.02,
-  'idle/w1/w2/atk/contact blitH match (idle '+idleBlith.toFixed(3)
-  +' w1 '+w1Blith.toFixed(3)+' w2 '+w2Blith.toFixed(3)
-  +' wind '+windBlith.toFixed(3)+' hit '+hitBlith.toFixed(3)+')');
-assert(windB.h>macarB.h && windBlith<=idleBlith+1e-6 && hitBlith<=idleBlith+1e-6,
-  'frameH '+windB.h+' cannot increase blitH vs idle '+macarB.h
-  +' (wind '+windBlith.toFixed(3)+' hit '+hitBlith.toFixed(3)
-  +' idle '+idleBlith.toFixed(3)+')');
+  && Math.abs(w2Blith-idleBlith)/idleBlith<0.02,
+  'walk blitH stays on the idle plant (idle '+idleBlith.toFixed(3)
+  +' w1 '+w1Blith.toFixed(3)+' w2 '+w2Blith.toFixed(3)+')');
+assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
+  'crown-to-boots figure height matches idle vs windup vs contact (idle '
+  +idleFig.toFixed(3)+' wind '+windFig.toFixed(3)+' hit '+hitFig.toFixed(3)+')');
+assert(windB.h>macarB.h && windBlith>idleBlith*1.2 && hitBlith>idleBlith*1.2,
+  'a shorter body in the 540 canvas grows dest H (wind '+windBlith.toFixed(3)
+  +' hit '+hitBlith.toFixed(3)+' idle '+idleBlith.toFixed(3)+')');
 const grown=idleFit*(windB.h/macarB.h);
-assert(blitH(grown)>idleBlith*1.04,
-  'the old frameH/idleH ratio would have grown blitH (old '+blitH(grown).toFixed(3)
-  +' vs locked '+idleBlith.toFixed(3)+')');
+assert(Math.abs(blitH(grown)-windBlith)/windBlith>0.08,
+  'stature lock is not the old frameH/idleH canvas ratio (old '+blitH(grown).toFixed(3)
+  +' vs body lock '+windBlith.toFixed(3)+')');
 assert(Math.abs(unlockedWind-idleFit)>0.10,
-  'without the lock, windup figure frac would change dest H (unlocked '
+  'foot-column figure frac is not the body stature (unlocked '
   +unlockedWind.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
 const idlePx=idleBlith/macarB.h;
 const hitPx=hitBlith/hitB.h;
-assert(hitPx<=idlePx+1e-9,
-  'contact pixels are not enlarged (px '+hitPx.toFixed(5)+' vs idle '+idlePx.toFixed(5)+')');
+assert(hitPx>idlePx,
+  'contact pixels scale up so the shorter painted body matches (px '
+  +hitPx.toFixed(5)+' vs idle '+idlePx.toFixed(5)+')');
 const widthRatio=hitB.w/macarB.w;
 assert(hitPx<idlePx*widthRatio*0.7,
   'contact body scale is not the 893 sheet width (px ratio '
   +(hitPx/idlePx).toFixed(3)+' vs width ratio '+widthRatio.toFixed(3)+')');
-assert(windB.h!==macarB.h || hitB.w!==macarB.w,
-  'strike canvases may differ; the lock is dest H, not 470×512');
+assert(windB.h!==macarB.h && hitB.w!==macarB.w,
+  'strike canvases differ; the lock is crown-to-boots, not 470×512');
 assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
   'contact billboard may widen for maul overhang (aspect*fit idle '
   +((macarB.w/macarB.h)*idleFit).toFixed(3)+' hit '
