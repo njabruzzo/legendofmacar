@@ -2764,8 +2764,8 @@ function propSpriteH(p,z){
   if(k==='rubydoor') return rubyDoorH();
   if(k==='dwarfface') return dwarfFaceH();
   if(k==='demonface') return dwarfFaceH()*1.08;
-  if(k==='bonecrown') return 28*z*(p.s||1);
-  if(k==='tooth') return 16*z*(p.s||1);
+  if(k==='bonecrown') return 36*z*(p.s||1);
+  if(k==='tooth') return 22*z*(p.s||1);
   if(k==='hourglass') return 118*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
@@ -12696,26 +12696,28 @@ function drawTeethTile(g,x,y){
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
   g.save();
   g.translate(s.x,s.y);
-  const n=risen?12:28;
+  g.fillStyle=risen?'rgba(42,24,18,0.38)':'rgba(90,22,18,0.22)';
+  g.beginPath(); g.ellipse(0, 2*z, TW*0.42, TH*0.36, 0, 0, TAU); g.fill();
+  const n=risen?14:32;
   const imgs=risen?[]:[SPR.tooth,SPR.tooth_2,SPR.tooth_3].filter(im=>im&&im.width);
   for(let i=0;i<n;i++){
     const px=(h2(x*13+i,y*9)-0.5)*TW*0.90;
     const py=(h2(x*5+i,y*17)-0.5)*TH*0.84;
     const ang=(h2(i,x+y*3)-0.5)*(risen?1.25:0.95);
-    const sc=risen?(0.38+h2(i,7)*0.32):(0.42+h2(i,3)*0.78);
-    const hero=!risen && imgs.length && i<5;
+    const sc=risen?(0.72+h2(i,7)*0.38):(0.88+h2(i,3)*0.55);
+    const hero=!risen && imgs.length && i<8;
     g.save();
     g.translate(px, py);
     g.rotate(ang);
     if(hero){
       const img=imgs[(i+((x*3+y)|0))%imgs.length];
-      const h=(7.4+h2(i,x)*4.6)*z*sc;
+      const h=(12.5+h2(i,x)*6.2)*z*sc;
       const w=h*(img.width/Math.max(1,img.height));
-      g.globalAlpha=0.94;
+      g.globalAlpha=0.96;
       g.drawImage(img, -w/2, -h*0.88, w, h);
       g.globalAlpha=1;
     } else {
-      drawProceduralFang(g, 0, 0, (risen?4.0:6.6+h2(i,x+y)*4.8)*z*sc, x*31+y*17+i, risen?1:0);
+      drawProceduralFang(g, 0, 0, (risen?6.4:11.2+h2(i,x+y)*6.8)*z*sc, x*31+y*17+i, risen?1:0);
     }
     g.restore();
   }
@@ -12728,7 +12730,7 @@ function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
   g.save();
   if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
   if(img){
-    const h=Math.max(12, H*0.16), w=h*(img.width/Math.max(1,img.height));
+    const h=Math.max(14, H*0.20), w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
   } else {
     g.translate(cx, cy);
@@ -12739,7 +12741,7 @@ function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
 function drawBoneCrownProp(g,p,z){
   const img=crownSprite();
   if(img){
-    const H=28*z*(p.s||1);
+    const H=36*z*(p.s||1);
     const W=H*(img.width/Math.max(1,img.height));
     g.drawImage(img, -W/2, -H*0.92, W, H);
     return;
@@ -12824,7 +12826,7 @@ function drawToothProp(g,p,z){
   const img=toothSprite(p);
   const sc=p.s||1;
   if(img){
-    const h=18*z*sc, w=h*(img.width/Math.max(1,img.height));
+    const h=24*z*sc, w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, -w/2, -h*0.92, w, h);
     return;
   }
