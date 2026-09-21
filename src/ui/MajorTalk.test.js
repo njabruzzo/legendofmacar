@@ -22,7 +22,8 @@ assert(/src\/ui\/MajorTalk\.js/.test(html), 'index.html loads MajorTalk');
 const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
 assert(!!talk, 'NPC_TALK block found');
 
-['toy_find','toy_wind','toy_grond','toy_teeth','goblin_mercy','web_skeleton','web_skeleton_more',
+['toy_find','toy_wind','toy_grond','toy_teeth','toy_ruby','toy_froren','toy_mordain','toy_anvil',
+ 'goblin_mercy','web_skeleton','web_skeleton_more',
  'shaman_hail','shaman_bargain','shaman_chant','shaman_blood','goblin_yield'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is untouched in NPC_TALK');
 });

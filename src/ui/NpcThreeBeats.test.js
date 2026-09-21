@@ -27,14 +27,15 @@ assert(/function startTalk\(key\)\{/.test(html) && /function pickTalk\(i\)\{/.te
   'talk engine is not rewritten');
 
 const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
-['toy_find','toy_wind','toy_grond','toy_teeth','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
+['toy_find','toy_wind','toy_grond','toy_teeth','toy_ruby','toy_froren','toy_mordain','toy_anvil',
+ 'goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
 assert(/who:'A TOY'/.test(talk) && /Cold brass\. Ten empty sockets\. A key in its back\. It ticks once: "Wind me, thick-skull\. Or stay blind\."/.test(talk),
   'toy_find Quill line');
 assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
-assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click: "A soft fool\. Not Grond\."'/.test(talk),
-  'who-made-you names a soft fool, not Grond');
+assert(/t:'Who made you\?'/.test(talk) && /then:\(\)=>startTalk\('toy_froren'\)/.test(talk),
+  'who-made-you opens toy_froren');
 assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talk),
   'Wind it opens toy_wind and marks wound');
 assert(/who:'THE TOY'/.test(talk) && /Tick-tock, Macar/.test(talk) &&
@@ -54,6 +55,10 @@ assert(/Grond\. Deep hunger\. Pretty name/.test(talk) &&
 assert(/Ten teeth torn/.test(talk) && /Mordain\\'s holy hammer/.test(talk) &&
   /Anvil of Truth/.test(talk) && /Ten teeth\. Mordain\\'s hammer/.test(talk),
   'toy_teeth pins ten teeth, Mordain hammer, Anvil of Truth');
+assert(/Heart of it all\. Not a door/.test(talk) && /Soft Froren\. Tinker/.test(talk),
+  'toy_ruby and toy_froren packs are present');
+assert(/Mordain\\'s holy hammer\. Not for ore/.test(talk) && /Anvil of Truth\. Soft Froren\\'s stand/.test(talk),
+  'toy_mordain and toy_anvil packs are present');
 assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
   'toy_wind has no later-chapter compass');
 assert(/who:'GOBLIN'/.test(talk) && /Wait—wait! Nice goblin\. Friend\. No more knife\. Mercy, dwarf\./.test(talk),
