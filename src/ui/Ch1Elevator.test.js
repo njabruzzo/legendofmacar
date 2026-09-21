@@ -44,9 +44,25 @@ assert(/then:\(\)=>wakeRubyDoor\(\)/.test(html), 'ruby_door talk still wakes onl
 
 assert(/if\(ch1PillarHasRuby\(p\)\) drawCh1PillarRuby/.test(html),
   'the center pillar draws a red ruby only after flags.touched');
+assert(/function drawCutRuby\(g,x,y,w,h,on,z\)\{/.test(html),
+  'the pedestal ruby is a cut-stone draw, not a single blob');
+assert(/function drawCh1PillarRuby\(g,s,z,p\)\{/.test(html.match(/function drawCh1PillarRuby\(g,s,z,p\)\{[\s\S]*?\nfunction drawCh1LiftLever/)[0]) &&
+  /drawCutRuby\(g,0,gy-8\*z,17\*z,21\*z,1,z\)/.test(html),
+  'the seated ruby uses drawCutRuby in an iron bezel');
+assert(/rear=\[\[-7\.6,-1\.6\]/.test(html) && /front=\[\[-6\.2,1\.4\]/.test(html),
+  'the pedestal ruby sits in claw prongs on the cap');
 assert(/function drawCh1LiftLever\(g,z,ready\)\{/.test(html),
   'the Ch1 lift always paints a readable lever');
 assert(/G\.lvl\.n===1\) drawCh1LiftLever/.test(html), 'the lever overlay is Chapter I only');
+const lever=html.match(/function drawCh1LiftLever\(g,z,ready\)\{[\s\S]*?\nfunction drawFacetGem/)[0];
+assert(/rivets=\[\[-6\.2,-3\.2\]/.test(lever), 'the lever mounts on a riveted iron plate');
+assert(/g\.rotate\(thrown\?-1\.08:0\.58\)/.test(lever), 'the lever still throws when elevReady');
+assert(/moveTo\(-2\.8\*z,3\*z\).*lineTo\(-1\.55\*z,-27\*z\)/.test(lever),
+  'the lever arm is a tapered forged shaft');
+assert(/kc=thrown\?'#d01828':'#c9a070'/.test(lever),
+  'the knob stays bronze until thrown, then ruby-lit');
+assert(/function drawFacetGem\(g,x,y,w,h,on,z\)\{/.test(html),
+  'door and loot gems keep the shared drawFacetGem fallback');
 
 assert(/interact\('Pull the lever'/.test(ch1) && /L\.flags\.cleared && !L\.flags\.elevReady/.test(ch1),
   'Pull the lever is gated on guardians cleared, not door touch');
