@@ -67,13 +67,14 @@ assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever
   'rest lever png is on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever_thrown.png')),
   'thrown lever png is on disk');
-assert(/TODO: Disney SIGNED replaces assets\/props\/prop_ch1_lift_lever\.png/.test(html),
-  'Disney SIGNED bind stays a TODO until those sheets land');
-assert(/TODO: Disney SIGNED bind — assets\/props\/prop_ch1_pillar_ruby\.png/.test(html)
-  && /SPR\.ch1_pillar_ruby/.test(html),
-  'pillar ruby blits a SIGNED sheet when it lands and keeps the cut gem until then');
-assert(!/SPRITE_FILES\.ch1_pillar_ruby=/.test(html),
-  'the ruby file is not fetched until the SIGNED sheet exists');
+assert(/Disney SIGNED rest \/ thrown/.test(html),
+  'lever sheets are the Disney SIGNED bind, with a procedural fallback');
+assert(/SPRITE_FILES\.ch1_pillar_ruby='assets\/props\/prop_ch1_pillar_ruby\.png'/.test(html),
+  'pillar ruby is registered in SPRITE_FILES');
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_pillar_ruby.png')),
+  'signed pillar ruby png is on disk');
+assert(/SPR\.ch1_pillar_ruby/.test(html) && /signedRuby&&signedRuby\.width/.test(html),
+  'pillar ruby blits the Disney SIGNED sheet and keeps the cut gem if it misses');
 const lever=html.match(/function drawCh1LiftLever\(g,z,ready\)\{[\s\S]*?\nfunction drawFacetGem/)[0];
 assert(/g\.translate\(26\*z,10\*z\)/.test(lever) && /g\.scale\(1\.35,1\.35\)/.test(lever),
   'the lever sits on the SE rim beside the pillar at a readable scale');

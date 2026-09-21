@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='103';
+const ASSET_VER='104';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -640,11 +640,11 @@ SPRITE_FILES.fx_bomb='assets/fx/fx_bomb.png';
 SPRITE_FILES.secret_wall_n='assets/tiles/secret_wall_n.png';
 SPRITE_FILES.secret_wall_e='assets/tiles/secret_wall_e.png';
 SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
-/* Ch1 lift lever. Painted-mini NMM iron, registered after prop derivation
-   so we do not invent a missing _atk fetch. TODO: Disney SIGNED replaces
-   these files; do not point them at a walk cycle. */
+/* Disney SIGNED Ch1 lift lever + pillar ruby. After prop derivation so
+   we do not invent a missing _atk fetch. */
 SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
 SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
+SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
@@ -13289,11 +13289,11 @@ function drawCutRuby(g,x,y,w,h,on,z){
   return pulse;
 }
 function drawCh1PillarRuby(g,s,z,p){
-  /* TODO: Disney SIGNED bind — assets/props/prop_ch1_pillar_ruby.png */
+  /* Disney SIGNED sheet. Cut-gem draw remains if the image has not loaded. */
   const signedRuby=SPR.ch1_pillar_ruby;
   if(signedRuby&&signedRuby.width){
     const gy0=pillarRubyLocalY(z,p);
-    const Hr=34*z, Wr=Hr*(signedRuby.width/Math.max(1,signedRuby.height));
+    const Hr=42*z, Wr=Hr*(signedRuby.width/Math.max(1,signedRuby.height));
     g.drawImage(signedRuby,-Wr/2,gy0-Hr*0.78,Wr,Hr);
     if(s){
       const b0=.55+Math.sin((G.elapsed||0)*3.2+(p&&p.x||0))*.25;
@@ -13331,8 +13331,7 @@ function drawCh1PillarRuby(g,s,z,p){
   }
 }
 function ch1LiftLeverSheet(ready){
-  /* TODO: Disney SIGNED replaces assets/props/prop_ch1_lift_lever.png
-     and assets/props/prop_ch1_lift_lever_thrown.png. */
+  /* Disney SIGNED rest / thrown. Procedural iron remains if a sheet misses. */
   if(ready){
     const thrownSheet=SPR.ch1_lift_lever_thrown;
     if(thrownSheet&&thrownSheet.width) return thrownSheet;
