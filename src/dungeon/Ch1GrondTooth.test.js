@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Grond tooth hunt: Ch1 electrum pry, Ch2 bronze + 10s hourglass,
- * electrum curse convert / weight / drop.
+ * Grond tooth hunt: Ch1 Copper Tooth pry, Ch2 bronze + 10s hourglass.
+ * Electrum curse helpers stay stubbed for later rename.
  * Run: node src/dungeon/Ch1GrondTooth.test.js
  */
 const fs=require('fs');
@@ -31,9 +31,13 @@ const ch2=html.match(/if\(n===2\)\{[\s\S]*?if\(n===3\)\{/)[0];
 assert(/kind:'teeth'/.test(ch1) && /k:'demonface'/.test(html),
   'Ch1 teeth chapel still plants the demonic face');
 assert(/Pry the tooth/.test(html), 'face pry prompt exists');
-assert(/grond_tooth_electrum/.test(html) && /Grond's Electrum Tooth/.test(html),
-  'Ch1 tooth is electrum, not copper');
-assert(!/grond_tooth_copper/.test(html), 'copper naming is gone');
+assert(/grond_tooth_copper/.test(html) && /Grond's Copper Tooth/.test(html),
+  'Ch1 tooth is Grond\'s Copper Tooth');
+assert(/toothKind:'copper'/.test(html) && /flags\.copperTooth/.test(html),
+  'Ch1 face plants copper and one-shots via copperTooth');
+assert(/looks like silver/.test(html), 'Copper Tooth looks silver');
+assert(/grond_tooth_bronze/.test(html) && /Grond's Bronze Tooth/.test(html),
+  'Ch2 tooth is Grond\'s Bronze Tooth');
 assert(/kind:'hourglass'/.test(ch2) && /face:'w'/.test(ch2),
   'Ch2 hourglass secret is an east-wall west face');
 assert(/x:126\.85,y:30\.05/.test(ch2) && /i:127,j:28,w:1,h:3/.test(ch2),
@@ -46,6 +50,11 @@ assert(/HOURGLASS_RAID_S=10/.test(html), 'raid is Nick\'s 10.0s');
 assert(/HOUSE: Electrum Tooth curse/.test(html), 'HOUSE comment records 1e convert law');
 assert(/Drop electrum/.test(html) && /Drop All/.test(html),
   'pack can drop electrum 10 / 100 / All');
+const saveSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
+assert(/emptySocket/.test(saveSrc) && /toothKind/.test(saveSrc),
+  'SAVE copies emptySocket + toothKind on the face');
+assert(/flags: clone\(L\.flags/.test(saveSrc) && /packs: clone\(G\.packs/.test(saveSrc),
+  'SAVE keeps copperTooth / bronzeTooth flags and the pack item');
 assert(/G\.scene='dead'/.test(extractFn('killMacarHourglass')),
   'hourglass burst kills Macar via the dead scene');
 assert(/e\.hero \|\| inHourglassRoom/.test(extractFn('killMacarHourglass')),
@@ -81,23 +90,25 @@ vm.createContext(ctx);
   'electrumEnc','electrumMoveMul','tickElectrumCurse','dropElectrum','askDropElectrum'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
-const el=ctx.makeGrondTooth('electrum');
-assert(el.id==='grond_tooth_electrum' && /Electrum/.test(el.n), 'electrum item id and name');
-assert(el.noSell===1 && el.quest===1, 'electrum tooth is quest-unique, not sold');
+const cu=ctx.makeGrondTooth('copper');
+assert(cu.id==='grond_tooth_copper' && /Copper/.test(cu.n), 'copper item id and name');
+assert(cu.noSell===1 && cu.quest===1, 'copper tooth is quest-unique, not sold');
+assert(/silver/i.test(cu.d), 'copper tooth description looks silver');
 const br=ctx.makeGrondTooth('bronze');
 assert(br.id==='grond_tooth_bronze' && /Bronze/.test(br.n), 'bronze item id and name');
 
 ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:127.2, y:21.4, hp:80, maxhp:80}];
 ctx.G.lvl={n:1, flags:{}, w:132, h:90};
-const face={x:127.4,y:21.4,k:'demonface',toothKind:'electrum',emptySocket:0};
+const face={x:127.4,y:21.4,k:'demonface',toothKind:'copper',emptySocket:0};
 ctx.G.props=[face];
-const pry=ctx.pryGrondTooth(face, 'electrum');
-assert(pry.ok===1 && face.emptySocket===1, 'Ch1 pry loots the electrum tooth once');
-assert(ctx.G.lvl.flags.electrumTooth===1, 'electrumTooth flag is one-shot');
-assert(ctx.G.packs.macar.magic[0].id==='grond_tooth_electrum', 'electrum tooth is in Macar\'s pack');
-assert(ctx.pryGrondTooth(face, 'electrum').reason==='taken', 'second pry is refused');
+const pry=ctx.pryGrondTooth(face, 'copper');
+assert(pry.ok===1 && face.emptySocket===1, 'Ch1 pry loots the Copper Tooth once');
+assert(ctx.G.lvl.flags.copperTooth===1, 'copperTooth flag is one-shot');
+assert(ctx.G.packs.macar.magic[0].id==='grond_tooth_copper', 'Copper Tooth is in Macar\'s pack');
+assert(ctx.pryGrondTooth(face, 'copper').reason==='taken', 'second pry is refused');
 assert(!ctx.xpAwards, 'tooth pry awards no XP');
 
+ctx.G.packs.macar.magic=[ctx.makeGrondTooth('electrum')];
 ctx.G.coin={cp:120, sp:12, ep:0, gp:3, pp:1};
 ctx.convertCoinsToElectrum();
 assert(ctx.G.coin.pp===0 && ctx.G.coin.gp===0, 'pp and gp zero out into EP');

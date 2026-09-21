@@ -10091,7 +10091,7 @@ function buildTeethCrownRoom(L, sec){
     G.props.push({x:altar.x,y:altar.y-0.12,k:'bonecrown',s:0.92,seed:881});
   }
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:882,
-    toothKind:'electrum', emptySocket:!!L.flags.electrumTooth});
+    toothKind:'copper', emptySocket:!!L.flags.copperTooth});
   if(!L.flags.teethRisen){
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
@@ -10103,6 +10103,11 @@ function buildTeethCrownRoom(L, sec){
   say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
+/* HOUSE: Grond tooth hunt — Ch1 Copper Tooth (looks silver; Nick's name).
+   Quest unique, no sell, no XP. One-shot pry (`L.flags.copperTooth`) from
+   the demonic face; face stays, empty socket after. Works whether or not
+   the crown fight is done. Smash-on-Anvil is dialogue-only later.
+   Ch2 Bronze Tooth is `grond_tooth_bronze` / `L.flags.bronzeTooth`. */
 function makeGrondTooth(kind){
   if(kind==='bronze'){
     return {
@@ -10111,10 +10116,17 @@ function makeGrondTooth(kind){
       d:'A bronze fang pried from a demonic dwarven face. No curse. Smash-on-Anvil later.'
     };
   }
+  if(kind==='electrum'){
+    return {
+      id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
+      noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
+      d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
+    };
+  }
   return {
-    id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
-    noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-    d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
+    id:'grond_tooth_copper', n:"Grond's Copper Tooth", k:'misc', cat:'Quest',
+    noSell:1, quest:1, noAuto:1, grondTooth:'copper', spr:'icon_pack',
+    d:'A fang that looks silver, pried from a demonic dwarven face. Smash-on-Anvil later.'
   };
 }
 function nearestDemonFace(p, r){
@@ -10129,7 +10141,7 @@ function nearestDemonFace(p, r){
 }
 function pryGrondTooth(face, kind){
   const L=G.lvl;
-  kind=kind||(face&&face.toothKind)||'electrum';
+  kind=kind||(face&&face.toothKind)||'copper';
   if(!face||face.gone) return {ok:0, reason:'gone'};
   if(kind==='bronze'){
     if(L&&L.flags&&(L.flags.bronzeSecured||L.flags.bronzeTooth)) return {ok:0, reason:'taken'};
@@ -10142,15 +10154,26 @@ function pryGrondTooth(face, kind){
     hint('Ten seconds. Get out with the tooth.',3.8);
     return {ok:1, item:it};
   }
-  if(L&&L.flags&&L.flags.electrumTooth) return {ok:0, reason:'taken'};
-  const it=makeGrondTooth('electrum');
+  if(kind==='electrum'){
+    if(L&&L.flags&&L.flags.electrumTooth) return {ok:0, reason:'taken'};
+    const it=makeGrondTooth('electrum');
+    if(typeof stowPackItem==='function') stowPackItem(it);
+    if(L&&L.flags) L.flags.electrumTooth=1;
+    face.emptySocket=1;
+    burst(face.x, face.y, '#c8d4c0', 12, 2.2);
+    say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
+    hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
+    if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+    return {ok:1, item:it};
+  }
+  if(L&&L.flags&&L.flags.copperTooth) return {ok:0, reason:'taken'};
+  const it=makeGrondTooth('copper');
   if(typeof stowPackItem==='function') stowPackItem(it);
-  if(L&&L.flags) L.flags.electrumTooth=1;
+  if(L&&L.flags) L.flags.copperTooth=1;
   face.emptySocket=1;
-  burst(face.x, face.y, '#c8d4c0', 12, 2.2);
-  say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
-  hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
-  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+  burst(face.x, face.y, '#d8e0e4', 12, 2.2);
+  say('Macar pries Grond\'s Copper Tooth from the stone jaw. It looks like silver.','#d8e0e4');
+  hint('The face stays. One tooth, one shot.',3.2);
   return {ok:1, item:it};
 }
 function tryTalporTurnThrall(){
@@ -11591,8 +11614,9 @@ function update(dt){
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
       if(face && !face.emptySocket){
-        const kind=face.toothKind||'electrum';
-        const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth):L.flags.electrumTooth);
+        const kind=face.toothKind||'copper';
+        const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth)
+          :(kind==='electrum')?L.flags.electrumTooth:L.flags.copperTooth);
         if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
       }
     }
@@ -12733,6 +12757,23 @@ function drawDemonDwarfFace(g,p){
     g.strokeStyle='rgba(40,20,16,0.7)';
     g.lineWidth=1.2*ZOOM;
     g.stroke();
+    g.restore();
+  } else {
+    /* Placeholder fang until Disney SIGNED. Copper looks silver (Nick). */
+    const s=w2s(p.x, p.y);
+    const bronze=p.toothKind==='bronze';
+    const ox=s.x+(p.wall==='e'?8:4)*ZOOM, oy=s.y-H*0.26;
+    g.save();
+    g.fillStyle=bronze?'#c48a3a':'#d8e0e4';
+    g.strokeStyle=bronze?'#7a4e18':'#8a9498';
+    g.lineWidth=1.1*ZOOM;
+    g.beginPath();
+    g.moveTo(ox-3.4*ZOOM, oy-6*ZOOM);
+    g.lineTo(ox+3.4*ZOOM, oy-6*ZOOM);
+    g.lineTo(ox+1.1*ZOOM, oy+8.2*ZOOM);
+    g.lineTo(ox-1.1*ZOOM, oy+8.2*ZOOM);
+    g.closePath();
+    g.fill(); g.stroke();
     g.restore();
   }
   g.restore();
