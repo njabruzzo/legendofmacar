@@ -31,10 +31,15 @@ assert(/ignoreGapUntil/.test(extractFn('spriteBounds'))
   && /\*0\.42\)/.test(extractFn('spriteBounds')),
   'spread-stance crown walk ignores the inter-boot gap so the helmet is the crown');
 const plantSrc=extractFn('livingMacarPlantFit');
-assert(/idleFit\*\(frameH\/idleH\)/.test(plantSrc)
-  && /heroFigureFit\(e, idle\)/.test(plantSrc)
-  && !/_w\[12\]\$/.test(plantSrc),
-  'walk and strike lock pixel scale to the equipped idle plant');
+assert(/return heroFigureFit\(e, idle\)/.test(plantSrc)
+  && !/frameH\/idleH/.test(plantSrc)
+  && !/idleH\/frameH/.test(plantSrc),
+  'dest H is the equipped idle plant — a 540 canvas cannot scale blitH');
+assert(/function bootPlantFrac\(/.test(html) && /bootCx:bootCx/.test(html),
+  'spriteBounds records a boot cluster separate from the maul-averaged foot');
+assert(/function livingMacarPlantX\(/.test(html)
+  && /livingMacarPlantX\(footCx, bootCx, idleFoot\)/.test(extractFn('drawLivingMacar')),
+  'living blit picks the foot sample closer to the idle plant');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar')),
   'after-grain blit uses the plant lock, not the bake-canvas frameFit');
 assert(/liveKey\?livingMacarPlantFit\(e,liveKey,img\):frameFit\(e,img\)/.test(html),
@@ -99,12 +104,16 @@ const ctx={
   MACAR_IDLE_FRAC:0.986,
   clamp:(v,a,b)=>v<a?a:v>b?b:v,
   spriteBounds:(img)=>img&&img._b,
-  livingMacarIdleKey(){ return ctx._axe?'macar_axe':'macar'; },
+  livingMacarIdleKey(){
+    if(ctx._xbow) return 'macar_xbow';
+    return ctx._axe?'macar_axe':'macar';
+  },
   frameFit(e,img){ return ctx.heroFigureFit(e,img); }
 };
 vm.createContext(ctx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;', ctx);
-vm.runInContext(extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit'), ctx);
+vm.runInContext(extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit')
+  +extractFn('bootPlantFrac')+extractFn('livingMacarPlantX'), ctx);
 
 const mac={hero:1, dead:0, ghost:0};
 ctx._axe=false;
@@ -156,32 +165,110 @@ const windPlant=ctx.livingMacarPlantFit(mac, 'macar_atk', SPR.macar_atk);
 const hitPlant=ctx.livingMacarPlantFit(mac, 'macar_atk_contact', SPR.macar_atk_contact);
 const unlockedWind=ctx.heroFigureFit(mac, SPR.macar_atk);
 const unlockedHit=ctx.heroFigureFit(mac, SPR.macar_atk_contact);
-assert(Math.abs(windPlant-idleFit*(windB.h/macarB.h))<1e-9
-  && Math.abs(hitPlant-idleFit*(hitB.h/macarB.h))<1e-9,
-  'windup/contact plant is idle pixel-scale (idle '
+const entH=78;
+function blitH(fit){ return entH*fit; }
+const idleBlith=blitH(idleFit);
+const w1Blith=blitH(w1Fit);
+const w2Blith=blitH(w2Fit);
+const windBlith=blitH(windPlant);
+const hitBlith=blitH(hitPlant);
+assert(Math.abs(windPlant-idleFit)<1e-9 && Math.abs(hitPlant-idleFit)<1e-9,
+  'windup/contact plant is the idle plant, not frameH/idleH (idle '
   +idleFit.toFixed(3)+' wind '+windPlant.toFixed(3)+' hit '+hitPlant.toFixed(3)+')');
+assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
+  && Math.abs(w2Blith-idleBlith)/idleBlith<0.02
+  && Math.abs(windBlith-idleBlith)/idleBlith<0.02
+  && Math.abs(hitBlith-idleBlith)/idleBlith<0.02,
+  'idle/w1/w2/atk/contact blitH match (idle '+idleBlith.toFixed(3)
+  +' w1 '+w1Blith.toFixed(3)+' w2 '+w2Blith.toFixed(3)
+  +' wind '+windBlith.toFixed(3)+' hit '+hitBlith.toFixed(3)+')');
+assert(windB.h>macarB.h && windBlith<=idleBlith+1e-6 && hitBlith<=idleBlith+1e-6,
+  'frameH '+windB.h+' cannot increase blitH vs idle '+macarB.h
+  +' (wind '+windBlith.toFixed(3)+' hit '+hitBlith.toFixed(3)
+  +' idle '+idleBlith.toFixed(3)+')');
+const grown=idleFit*(windB.h/macarB.h);
+assert(blitH(grown)>idleBlith*1.04,
+  'the old frameH/idleH ratio would have grown blitH (old '+blitH(grown).toFixed(3)
+  +' vs locked '+idleBlith.toFixed(3)+')');
 assert(Math.abs(unlockedWind-idleFit)>0.10,
   'without the lock, windup figure frac would change dest H (unlocked '
   +unlockedWind.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
-
-function contentScreen(b, fit){
-  return Math.max(0, (b.y1||1)-(b.y0||0))*fit;
-}
-const idlePersonH=contentScreen(macarB, idleFit);
-const windPersonH=contentScreen(windB, windPlant);
-const hitPersonH=contentScreen(hitB, hitPlant);
-assert(Math.abs(windPersonH-idlePersonH)/idlePersonH<0.02
-  && Math.abs(hitPersonH-idlePersonH)/idlePersonH<0.02,
-  'on-screen content/person H matches idle through windup/contact (idle '
-  +idlePersonH.toFixed(3)+', wind '+windPersonH.toFixed(3)+', hit '
-  +hitPersonH.toFixed(3)+') — painted box*plant, not canvas '
-  +macarB.h+'/'+windB.h+'/'+hitB.h);
+const idlePx=idleBlith/macarB.h;
+const hitPx=hitBlith/hitB.h;
+assert(hitPx<=idlePx+1e-9,
+  'contact pixels are not enlarged (px '+hitPx.toFixed(5)+' vs idle '+idlePx.toFixed(5)+')');
+const widthRatio=hitB.w/macarB.w;
+assert(hitPx<idlePx*widthRatio*0.7,
+  'contact body scale is not the 893 sheet width (px ratio '
+  +(hitPx/idlePx).toFixed(3)+' vs width ratio '+widthRatio.toFixed(3)+')');
 assert(windB.h!==macarB.h || hitB.w!==macarB.w,
-  'strike canvases may differ; the lock is person H, not 470×512');
+  'strike canvases may differ; the lock is dest H, not 470×512');
 assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
   'contact billboard may widen for maul overhang (aspect*fit idle '
   +((macarB.w/macarB.h)*idleFit).toFixed(3)+' hit '
   +((hitB.w/hitB.h)*hitPlant).toFixed(3)+')');
+
+ctx._axe=true;
+const axeIdleBlith=blitH(ctx.livingMacarPlantFit(mac, 'macar_axe', SPR.macar_axe));
+const axeTall={width:axeB.w, height:540, _b:axeB};
+const axeTallBlith=blitH(ctx.livingMacarPlantFit(mac, 'macar_axe_atk', axeTall));
+assert(Math.abs(axeTallBlith-axeIdleBlith)/axeIdleBlith<0.02
+  && axeTallBlith<=axeIdleBlith+1e-6,
+  'axe strike blitH matches axe idle even when the sheet is 540 (axe '
+  +axeIdleBlith.toFixed(3)+' strike '+axeTallBlith.toFixed(3)+')');
+ctx._axe=false;
+
+const xbowB=sheetBounds('dwarf_macar_xbow.png');
+const xbowAtkB=sheetBounds('dwarf_macar_xbow_atk.png');
+SPR.macar_xbow={width:xbowB.w, height:xbowB.h, _b:xbowB};
+SPR.macar_xbow_atk={width:xbowAtkB.w, height:xbowAtkB.h, _b:xbowAtkB};
+ctx._xbow=true;
+const xbowIdleBlith=blitH(ctx.livingMacarPlantFit(mac, 'macar_xbow', SPR.macar_xbow));
+const xbowAtkBlith=blitH(ctx.livingMacarPlantFit(mac, 'macar_xbow_atk', SPR.macar_xbow_atk));
+const xbowTall={width:xbowAtkB.w, height:540, _b:xbowAtkB};
+const xbowTallBlith=blitH(ctx.livingMacarPlantFit(mac, 'macar_xbow_atk', xbowTall));
+assert(Math.abs(xbowAtkBlith-xbowIdleBlith)/xbowIdleBlith<0.02
+  && Math.abs(xbowTallBlith-xbowIdleBlith)/xbowIdleBlith<0.02
+  && xbowTallBlith<=xbowIdleBlith+1e-6,
+  'xbow strike blitH matches xbow idle (idle '+xbowIdleBlith.toFixed(3)
+  +' atk '+xbowAtkBlith.toFixed(3)+' tall '+xbowTallBlith.toFixed(3)+')');
+ctx._xbow=false;
+
+assert(Math.abs(ctx.livingMacarPlantX(0.346, 0.556, 0.497)-0.556)<1e-9,
+  'contact prefers the boot cluster over the maul-averaged foot');
+assert(Math.abs(ctx.livingMacarPlantX(0.555, 0.773, 0.497)-0.555)<1e-9,
+  'windup keeps the plant that is already closer to idle');
+
+function footHists(file){
+  const {w,h,data}=readRgba(path.join(creatures,file));
+  let top=h, bot=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const p=(y*w+x)*4;
+    if(data[p+3]<=30 || (data[p]|data[p+1]|data[p+2])===0) continue;
+    if(y<top) top=y; if(y>bot) bot=y;
+  }
+  const cut=top+Math.floor((bot-top+1)*0.82);
+  const midY=top+Math.floor((bot-top+1)*0.55);
+  const foot=new Array(w).fill(0), upper=new Array(w).fill(0);
+  let footX=0, footN=0;
+  for(let y=top;y<=bot;y++) for(let x=0;x<w;x++){
+    const p=(y*w+x)*4;
+    if(data[p+3]<=30 || (data[p]|data[p+1]|data[p+2])===0) continue;
+    if(y>=cut){ foot[x]++; footX+=x; footN++; }
+    if(y<=midY) upper[x]++;
+  }
+  const avg=footN?footX/footN/w:0.5;
+  return {w, avg, boot:ctx.bootPlantFrac(foot, upper, w, avg)};
+}
+const contactFeet=footHists('dwarf_macar_atk_contact.png');
+assert(contactFeet.avg<0.42 && contactFeet.boot>0.48 && contactFeet.boot<0.70,
+  'contact boot cluster is the body, not the maul average (avg '
+  +contactFeet.avg.toFixed(3)+' boot '+contactFeet.boot.toFixed(3)+')');
+const idleFeet=footHists('dwarf_macar.png');
+assert(Math.abs(ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg)-contactFeet.boot)<1e-9,
+  'contact plants on boots so the maul overhangs (idle foot '
+  +idleFeet.avg.toFixed(3)+' contact foot '+contactFeet.avg.toFixed(3)
+  +' boot '+contactFeet.boot.toFixed(3)+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar weapon length-lock checks passed');

@@ -544,5 +544,54 @@ assert(/function layoutHighPlate\(/.test(html) && /ceilK: port\?0\.048:0\.038/.t
 assert(/#0a0706/.test(titleFn) && /splash\.height\*0\.14/.test(titleFn),
   'new top strip is filled from dark cave, not empty black');
 
+const plantSrc=extractFn('livingMacarPlantFit');
+assert(/return heroFigureFit\(e, idle\)/.test(plantSrc) && !/frameH\/idleH/.test(plantSrc),
+  'livingMacarPlantFit returns idle fit and does not scale by frameH/idleH');
+const b={ok:true, y0:0.016, y1:0.990, personY0:0.016};
+const fitSPR={
+  macar:{width:470, height:512, _b:b},
+  macar_w1:{width:470, height:512, _b:b},
+  macar_w2:{width:470, height:512, _b:b},
+  macar_atk:{width:470, height:540, _b:b},
+  macar_atk_contact:{width:893, height:540, _b:b},
+  macar_axe:{width:470, height:512, _b:b},
+  macar_axe_atk:{width:470, height:540, _b:b},
+  macar_xbow:{width:470, height:512, _b:b},
+  macar_xbow_atk:{width:893, height:540, _b:b}
+};
+const fitCtx={
+  SPR:fitSPR,
+  clamp:(v,a,b2)=>v<a?a:v>b2?b2:v,
+  spriteBounds:(img)=>img&&img._b,
+  livingMacarIdleKey(){ return fitCtx._idle||'macar'; },
+  frameFit(e,img){ return fitCtx.heroFigureFit(e,img); }
+};
+vm.createContext(fitCtx);
+vm.runInContext('const MACAR_IDLE_FRAC=0.986;'
+  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit'), fitCtx);
+const fitMac={hero:1, dead:0, ghost:0};
+function blitHOf(key){
+  return 78*fitCtx.livingMacarPlantFit(fitMac, key, fitSPR[key]);
+}
+const idleBH=blitHOf('macar');
+const w1BH=blitHOf('macar_w1');
+const w2BH=blitHOf('macar_w2');
+const atkBH=blitHOf('macar_atk');
+const hitBH=blitHOf('macar_atk_contact');
+assert(Math.abs(w1BH-idleBH)/idleBH<0.02 && Math.abs(w2BH-idleBH)/idleBH<0.02
+  && Math.abs(atkBH-idleBH)/idleBH<0.02 && Math.abs(hitBH-idleBH)/idleBH<0.02,
+  'idle/w1/w2/atk/contact blitH stay within 2% (idle '+idleBH.toFixed(3)
+  +' wind '+atkBH.toFixed(3)+' contact '+hitBH.toFixed(3)+')');
+assert(atkBH<=idleBH+1e-6 && hitBH<=idleBH+1e-6,
+  'frameH 540 cannot increase blitH vs idle 512');
+fitCtx._idle='macar_axe';
+assert(Math.abs(blitHOf('macar_axe_atk')-blitHOf('macar_axe'))/blitHOf('macar_axe')<0.02
+  && blitHOf('macar_axe_atk')<=blitHOf('macar_axe')+1e-6,
+  'axe strike blitH matches axe idle');
+fitCtx._idle='macar_xbow';
+assert(Math.abs(blitHOf('macar_xbow_atk')-blitHOf('macar_xbow'))/blitHOf('macar_xbow')<0.02
+  && blitHOf('macar_xbow_atk')<=blitHOf('macar_xbow')+1e-6,
+  'xbow strike blitH matches xbow idle');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nliving Macar QA checks passed');
