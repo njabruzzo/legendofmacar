@@ -905,6 +905,43 @@ const FRAME_FIT={
 const MACAR_IDLE_FRAC=0.986;
 const SPRMETA=(typeof WeakMap==='function')?new WeakMap():null;
 function stampMetrics(img,v){ if(SPRMETA) SPRMETA.set(img,v); else img.__spm=v; return v; }
+/* Bottom-band columns split by a gap. Prefer the cluster under the upper
+   body so a low maul head is not the foot. One cluster keeps fallback. */
+function bootPlantFrac(footHist, upperHist, w, fallback){
+  const clusters=[];
+  let s=-1;
+  for(let x=0;x<=w;x++){
+    const on=x<w && footHist[x]>1;
+    if(on && s<0) s=x;
+    if(!on && s>=0){
+      let m=0, c=0;
+      for(let i=s;i<x;i++){ m+=footHist[i]*i; c+=footHist[i]; }
+      clusters.push({x0:s, x1:x-1, cx:c?m/c:(s+x-1)/2});
+      s=-1;
+    }
+  }
+  if(clusters.length<=1) return fallback;
+  let best=null, bestScore=-1;
+  for(let k=0;k<clusters.length;k++){
+    const cl=clusters[k];
+    let score=0;
+    const pad=Math.max(2, Math.round((cl.x1-cl.x0+1)*0.35));
+    const a=Math.max(0, cl.x0-pad), b=Math.min(w-1, cl.x1+pad);
+    for(let x=a;x<=b;x++) score+=upperHist[x]||0;
+    if(score>bestScore){ bestScore=score; best=cl; }
+  }
+  if(!best || bestScore<=0) return fallback;
+  return best.cx/w;
+}
+/* Pick the foot sample closer to the equipped idle plant. Contact's
+   maul-averaged footCx sits between the weapon and the boots; the boot
+   cluster keeps the dwarf on the tile and lets the maul overhang. */
+function livingMacarPlantX(foot, boot, idleFoot){
+  const f=(foot!=null)?foot:0.5;
+  const b=(boot!=null)?boot:f;
+  const i=(idleFoot!=null)?idleFoot:f;
+  return Math.abs(b-i)<Math.abs(f-i)?b:f;
+}
 /* Opaque bounds as fractions of the frame, so the feet land on the floor and
    the figure sits on what is painted rather than on the canvas edge.
    personY0 is helmet-to-boot, walking up from the feet so a maul beside or
@@ -976,11 +1013,21 @@ function spriteBounds(img){
     if(R>G+5 && mx<130 && sat>0.12) hairN++;
   }
   const crownId=cn?{ok:true, metal:metal/cn, warm:warm/cn, hair:hairN/cn, n:cn}:{ok:false};
+  const footHist=[], upperHist=[];
+  for(let x=0;x<w;x++){ footHist[x]=0; upperHist[x]=0; }
+  const midY=top+Math.floor((bot-top+1)*0.55);
+  for(let y=top;y<=bot;y++) for(let x=0;x<w;x++){
+    if(d[(y*w+x)*4+3]<=30) continue;
+    if(y>=cut) footHist[x]++;
+    if(y<=midY) upperHist[x]++;
+  }
+  const bootCx=bootPlantFrac(footHist, upperHist, w, fcx/w);
   return stampMetrics(img,{
     ok:true,
     botY:(bot+1)/h,
     cx:((lo+hi+1)/2)/w,
     footCx:fcx/w,
+    bootCx:bootCx,
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h,
     personY0:crown/h,
     crown:crownId
@@ -1893,20 +1940,18 @@ function livingMacarAnimKey(e){
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
-/* Living Macar dest scale is the equipped idle plant, never the live
-   sheet's figure frac. Walk / carry / windup / contact share that plant
-   so a taller 540 canvas or a wide contact overhang cannot change dwarf
-   stature. Pixel scale stays idleH-locked: destH/frameH = idleDest/idleH.
-   Width may still grow from sheet aspect (weapon overhang only). */
+/* Living Macar destination height is the equipped idle plant for idle,
+   walk, windup, contact, and axe/xbow strikes. Ignore the live sheet's
+   canvas height: idleFit*(frameH/idleH) grew dest H when the attack
+   canvas was 540 vs idle 512, so the dwarf jumped taller. Width still
+   follows sheet aspect at this locked H — a maul may overhang, but the
+   body is not scaled up to the full contact width. */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
   const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
-  const idleFit=heroFigureFit(e, idle);
-  const idleH=Math.max(1, idle.height||0);
-  const frameH=Math.max(1, (img&&img.height)||idleH);
-  return idleFit*(frameH/idleH);
+  return heroFigureFit(e, idle);
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -1927,18 +1972,25 @@ function drawLivingMacar(g,e){
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const plantFit=livingMacarPlantFit(e, blitKey||key, img);
   const H=entSpriteH(e,z)*plantFit;
-  /* Width follows sheet aspect only — no strike fatten. Contact 893
-     overhang may widen; windup 470 stays idle-wide. Stature is H. */
+  /* Uniform scale at the locked dest H. W/H is sheet aspect × foot widen,
+     so contact's wide maul may overhang. Do not grow H to preserve pixels
+     (540 canvas) and do not squash the 893-wide sheet into the idle width
+     (that fattens or smears the body). */
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
   MacarStrikeQA.plantFit=plantFit;
   MacarStrikeQA.blitH=H;
   MacarStrikeQA.sheetW=img.width;
   MacarStrikeQA.sheetH=img.height;
   const b=spriteBounds(img);
-  /* Plant on the feet, not the opaque-box center. Mid-swing spans the
-     full canvas (maul to the edge); box-cx slides the dwarf off the tile
-     and hides the maul head under the old swipe. */
-  const plant=(b&&b.ok)?(b.footCx!=null?b.footCx:b.cx):0.5;
+  const idleSheet=SPR[livingMacarIdleKey()]||SPR.macar;
+  const ib=spriteBounds(idleSheet);
+  /* Plant on the feet, not the opaque-box center. A low maul pulls the
+     averaged footCx off the boots; if the boot cluster is closer to the
+     idle plant, use it so the body stays and the maul overhangs. */
+  const footCx=(b&&b.ok&&b.footCx!=null)?b.footCx:0.5;
+  const bootCx=(b&&b.ok&&b.bootCx!=null)?b.bootCx:footCx;
+  const idleFoot=(ib&&ib.ok&&ib.footCx!=null)?ib.footCx:footCx;
+  const plant=livingMacarPlantX(footCx, bootCx, idleFoot);
   const cx=flip?1-plant:plant;
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;

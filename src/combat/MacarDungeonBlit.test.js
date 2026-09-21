@@ -43,7 +43,10 @@ assert(/!out\|\|!out\.width\|\|!out\.height/.test(extractFn('blitLivingMacar')),
 assert(/MACAR_FOOT_WIDEN=1\.24/.test(html), 'extra mass is a width scale');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar'))
   && /entSpriteH\(e,z\)\*plantFit/.test(extractFn('drawLivingMacar')),
-  'dungeon height stays kin entSpriteH — plant locks to idle pixel scale');
+  'dungeon height stays kin entSpriteH times the idle plant');
+assert(/return heroFigureFit\(e, idle\)/.test(extractFn('livingMacarPlantFit'))
+  && !/frameH\/idleH/.test(extractFn('livingMacarPlantFit')),
+  'plantFit ignores frame canvas height so 540 cannot grow blitH');
 assert(/\*MACAR_FOOT_WIDEN/.test(extractFn('drawLivingMacar')),
   'living Macar blit applies the width scale');
 assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar')),
@@ -248,6 +251,54 @@ ctx.punchBlackExportSlab(slab, 4, 4);
 assert(slab[3]===0 && slab[4*4+3]===0, 'edge-connected near-black slab is punched');
 assert(slab[5*4]===80 && slab[5*4+3]===255, 'interior figure pixel survives the slab flood');
 assert(slab[6*4]===22 && slab[6*4+3]===255, 'dark painted chroma (boot/hair AA) is not slab-eaten');
+
+const b={ok:true, y0:0.016, y1:0.990, personY0:0.016};
+const fitSPR={
+  macar:{width:470, height:512, _b:b},
+  macar_w1:{width:470, height:512, _b:b},
+  macar_w2:{width:470, height:512, _b:b},
+  macar_atk:{width:470, height:540, _b:b},
+  macar_atk_contact:{width:893, height:540, _b:b},
+  macar_axe:{width:470, height:512, _b:b},
+  macar_axe_atk:{width:470, height:540, _b:b},
+  macar_xbow:{width:470, height:512, _b:b},
+  macar_xbow_atk:{width:893, height:540, _b:b}
+};
+const fitCtx={
+  SPR:fitSPR,
+  clamp:(v,a,b2)=>v<a?a:v>b2?b2:v,
+  spriteBounds:(img)=>img&&img._b,
+  livingMacarIdleKey(){ return fitCtx._idle||'macar'; },
+  frameFit(e,img){ return fitCtx.heroFigureFit(e,img); }
+};
+vm.createContext(fitCtx);
+vm.runInContext('const MACAR_IDLE_FRAC=0.986;'
+  +extractFn('figurePersonFrac')+extractFn('heroFigureFit')+extractFn('livingMacarPlantFit'), fitCtx);
+const fitMac={hero:1, dead:0, ghost:0};
+function blitHOf(key){
+  return 78*fitCtx.livingMacarPlantFit(fitMac, key, fitSPR[key]);
+}
+const idleBH=blitHOf('macar');
+const w1BH=blitHOf('macar_w1');
+const w2BH=blitHOf('macar_w2');
+const atkBH=blitHOf('macar_atk');
+const hitBH=blitHOf('macar_atk_contact');
+assert(Math.abs(w1BH-idleBH)/idleBH<0.02 && Math.abs(w2BH-idleBH)/idleBH<0.02
+  && Math.abs(atkBH-idleBH)/idleBH<0.02 && Math.abs(hitBH-idleBH)/idleBH<0.02,
+  'idle/w1/w2/atk/contact blitH match (idle '+idleBH.toFixed(3)
+  +' atk '+atkBH.toFixed(3)+' contact '+hitBH.toFixed(3)+')');
+assert(atkBH<=idleBH+1e-6 && hitBH<=idleBH+1e-6,
+  'frameH 540 cannot increase blitH vs idle 512');
+fitCtx._idle='macar_axe';
+const axeBH=blitHOf('macar_axe');
+const axeAtkBH=blitHOf('macar_axe_atk');
+assert(Math.abs(axeAtkBH-axeBH)/axeBH<0.02 && axeAtkBH<=axeBH+1e-6,
+  'axe strike blitH matches axe idle');
+fitCtx._idle='macar_xbow';
+const xbowBH=blitHOf('macar_xbow');
+const xbowAtkBH=blitHOf('macar_xbow_atk');
+assert(Math.abs(xbowAtkBH-xbowBH)/xbowBH<0.02 && xbowAtkBH<=xbowBH+1e-6,
+  'xbow strike blitH matches xbow idle');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar dungeon blit / leftover-art checks passed');
