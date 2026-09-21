@@ -38,8 +38,8 @@ assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
 assert(/const GHOST_ALPHA_CAP=224/.test(html) && /const GHOST_ALPHA_LIFT=1\.28;/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.66;/.test(html) && /const GHOST_COOL_LIFT=0\.72;/.test(html)
-  && /const GHOST_SHADE_KEEP=0\.62;/.test(html),
+  && /const GHOST_WHITE_LIFT=0\.76;/.test(html) && /const GHOST_COOL_LIFT=0\.40;/.test(html)
+  && /const GHOST_SHADE_KEEP=0\.50;/.test(html),
   'lift is spectral white — cool mix, shade kept, cap under 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'pixel lift is a dedicated ghost pipe');
@@ -64,8 +64,8 @@ const ctx={};
 vm.createContext(ctx);
 vm.runInContext(
   'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=224,GHOST_ALPHA_LIFT=1.28,'
-  +'GHOST_WHITE_LIFT=0.66,GHOST_COOL_LIFT=0.72,'
-  +'GHOST_SHADE_KEEP=0.62,GHOST_SHADE_PIVOT=82;'
+  +'GHOST_WHITE_LIFT=0.76,GHOST_COOL_LIFT=0.40,'
+  +'GHOST_SHADE_KEEP=0.50,GHOST_SHADE_PIVOT=82;'
   +extractFn('liftGhostAlpha'),
   ctx
 );
@@ -87,8 +87,8 @@ const mid168=new Uint8ClampedArray([82,78,89,168]);
 const out168=liftCopy(mid168);
 assert(out168[3]===215 && out168[3]<255,
   'α168 lifts to 215 and does not punch opaque');
-assert(out168[0]>=200 && out168[1]>=210 && out168[2]>=220 && out168[2]>out168[0]+8,
-  'α168 gray-blue becomes spectral white (b ahead of r)');
+assert(out168[0]>=210 && out168[1]>=210 && out168[2]>=210 && out168[2]>=out168[0],
+  'α168 gray-blue becomes spectral white (got '+out168[0]+','+out168[1]+','+out168[2]+')');
 
 const shadow=new Uint8ClampedArray([49,40,59,168]);
 const outShadow=liftCopy(shadow);
@@ -102,8 +102,9 @@ assert(yOf(outShadow)>170,
 
 const warm=new Uint8ClampedArray([120,90,60,168]);
 const outWarm=liftCopy(warm);
-assert(outWarm[2]>outWarm[0]+8 && outWarm[0]>200,
-  'a warm dust pixel is cooled into white');
+assert(outWarm[0]>210 && outWarm[1]>210 && outWarm[2]>210
+  && (outWarm[0]-outWarm[2])<16,
+  'a warm dust pixel is lifted into white (got '+outWarm[0]+','+outWarm[1]+','+outWarm[2]+')');
 
 const chalk=new Uint8ClampedArray([220,220,220,168]);
 const outChalk=liftCopy(chalk);

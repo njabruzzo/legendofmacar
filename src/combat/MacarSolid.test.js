@@ -141,8 +141,8 @@ assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.tes
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
   && /const GHOST_DRAW_ALPHA=1;/.test(html)
   && /const GHOST_ALPHA_CAP=224/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.66;/.test(html)
-  && /const GHOST_COOL_LIFT=0\.72;/.test(html),
+  && /const GHOST_WHITE_LIFT=0\.76;/.test(html)
+  && /const GHOST_COOL_LIFT=0\.40;/.test(html),
   'kin ghosts lift to spectral white without punching to 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');

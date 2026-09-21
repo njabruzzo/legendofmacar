@@ -1441,16 +1441,16 @@ const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=224;
 const GHOST_ALPHA_LIFT=1.28;
-const GHOST_WHITE_LIFT=0.66;
-const GHOST_COOL_LIFT=0.72;
-const GHOST_SHADE_KEEP=0.62;
+const GHOST_WHITE_LIFT=0.76;
+const GHOST_COOL_LIFT=0.40;
+const GHOST_SHADE_KEEP=0.50;
 const GHOST_SHADE_PIVOT=82;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
   const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT;
   const WHITE=GHOST_WHITE_LIFT, COOL=GHOST_COOL_LIFT, SHADE=GHOST_SHADE_KEEP, PIVOT=GHOST_SHADE_PIVOT;
-  const moonR=220, moonG=244, moonB=255;
+  const moonR=246, moonG=251, moonB=255;
   for(let p=0;p<d.length;p+=4){
     const a=d[p+3];
     if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
