@@ -30,12 +30,18 @@ assert(/function livingMacarPlantFit\(/.test(html), 'livingMacarPlantFit exists'
 assert(/ignoreGapUntil/.test(extractFn('spriteBounds'))
   && /\*0\.42\)/.test(extractFn('spriteBounds')),
   'spread-stance crown walk ignores the inter-boot gap so the helmet is the crown');
-assert(/_w\[12\]\$/.test(extractFn('livingMacarPlantFit')),
-  'walk keys lock to the live idle plant');
+const plantSrc=extractFn('livingMacarPlantFit');
+assert(/idleFit\*\(frameH\/idleH\)/.test(plantSrc)
+  && /heroFigureFit\(e, idle\)/.test(plantSrc)
+  && !/_w\[12\]\$/.test(plantSrc),
+  'walk and strike lock pixel scale to the equipped idle plant');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar')),
   'after-grain blit uses the plant lock, not the bake-canvas frameFit');
 assert(/liveKey\?livingMacarPlantFit\(e,liveKey,img\):frameFit\(e,img\)/.test(html),
   'billboard safety net uses the same plant lock');
+assert(/\*MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
+  && !/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
+  'strike width is sheet aspect + foot widen, not a 1.16 body fatten');
 
 function sheetBounds(file){
   const {w,h,data}=readRgba(path.join(creatures,file));
@@ -143,18 +149,39 @@ SPR.macar_atk={width:windB.w, height:windB.h, _b:windB};
 SPR.macar_atk_contact={width:hitB.w, height:hitB.h, _b:hitB};
 assert(windB.personY0<0.45,
   'windup crown is the helmet, not the boots (personY0='+windB.personY0.toFixed(3)+')');
-const windFit=ctx.heroFigureFit(mac, SPR.macar_atk);
-const windPerson=Math.max(windB.y1-windB.personY0, windB.y1-windB.y0);
-const windScreen=(windB.y1-windB.y0)*windB.h*windFit/windB.h;
-const idlePersonScreen=(macarB.y1-macarB.y0)*macarB.h*idleFit/macarB.h;
-assert(windFit>1.15,
-  'windup scales up so helmet-to-boot matches idle (fit '+windFit.toFixed(3)+')');
-assert(Math.abs(windPerson*windFit - (macarB.y1-macarB.personY0)*idleFit)/idleFit<0.20
-  || Math.abs((windB.y1-windB.personY0)*windFit - (macarB.y1-macarB.personY0)*idleFit)<0.12,
-  'windup person frac*fit is near idle (wind personY0='+windB.personY0.toFixed(3)
-  +' fit='+windFit.toFixed(3)+')');
 assert(hitB.personY0<0.45,
   'contact crown is the helmet, not the boots (personY0='+hitB.personY0.toFixed(3)+')');
+
+const windPlant=ctx.livingMacarPlantFit(mac, 'macar_atk', SPR.macar_atk);
+const hitPlant=ctx.livingMacarPlantFit(mac, 'macar_atk_contact', SPR.macar_atk_contact);
+const unlockedWind=ctx.heroFigureFit(mac, SPR.macar_atk);
+const unlockedHit=ctx.heroFigureFit(mac, SPR.macar_atk_contact);
+assert(Math.abs(windPlant-idleFit*(windB.h/macarB.h))<1e-9
+  && Math.abs(hitPlant-idleFit*(hitB.h/macarB.h))<1e-9,
+  'windup/contact plant is idle pixel-scale (idle '
+  +idleFit.toFixed(3)+' wind '+windPlant.toFixed(3)+' hit '+hitPlant.toFixed(3)+')');
+assert(Math.abs(unlockedWind-idleFit)>0.10,
+  'without the lock, windup figure frac would change dest H (unlocked '
+  +unlockedWind.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
+
+function contentScreen(b, fit){
+  return Math.max(0, (b.y1||1)-(b.y0||0))*fit;
+}
+const idlePersonH=contentScreen(macarB, idleFit);
+const windPersonH=contentScreen(windB, windPlant);
+const hitPersonH=contentScreen(hitB, hitPlant);
+assert(Math.abs(windPersonH-idlePersonH)/idlePersonH<0.02
+  && Math.abs(hitPersonH-idlePersonH)/idlePersonH<0.02,
+  'on-screen content/person H matches idle through windup/contact (idle '
+  +idlePersonH.toFixed(3)+', wind '+windPersonH.toFixed(3)+', hit '
+  +hitPersonH.toFixed(3)+') — painted box*plant, not canvas '
+  +macarB.h+'/'+windB.h+'/'+hitB.h);
+assert(windB.h!==macarB.h || hitB.w!==macarB.w,
+  'strike canvases may differ; the lock is person H, not 470×512');
+assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
+  'contact billboard may widen for maul overhang (aspect*fit idle '
+  +((macarB.w/macarB.h)*idleFit).toFixed(3)+' hit '
+  +((hitB.w/hitB.h)*hitPlant).toFixed(3)+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar weapon length-lock checks passed');

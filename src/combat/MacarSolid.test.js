@@ -59,8 +59,9 @@ assert(/footCx/.test(extractFn('drawLivingMacar')) && /footCx:fcx\/w/.test(html)
   'living Macar plants on footCx so a full-width mid-swing does not slide off the tile');
 assert(/function wantsLivingMacarStrike\(/.test(html) && /MACAR_STRIKE_HOLD=0\.12/.test(html),
   'living strike hold is a short leftover; recover returns idle carry');
-assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
-  'mid-swing blit is a bit wider so the maul head reads at dungeon scale');
+assert(/\*MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
+  && !/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
+  'mid-swing width is sheet aspect only — no 1.16 body scale jump');
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');

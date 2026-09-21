@@ -64,6 +64,7 @@ assert(/function livingMacarBlitKey\(/.test(html)
   'ready atk blit key skips pickReadyPartyKey idle plant');
 assert(/window\.MacarStrikeQA=MacarStrikeQA/.test(html)
   && /lastKey:null/.test(html) && /holdProgress:0/.test(html)
+  && /plantFit:0/.test(html) && /blitH:0/.test(html)
   && /holdT:0/.test(html)
   && /strikeHold:0/.test(html) && /swung:false/.test(html),
   'MacarStrikeQA exposes lastKey / holdProgress / strikeHold for live proof');
