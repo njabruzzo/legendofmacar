@@ -61,6 +61,9 @@ assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(
   'openSecret branches to the teeth chapel');
 assert(/Take the bone crown/.test(html) && /Animate the dead/.test(html),
   'TAKE and animate-dead prompts exist');
+assert(/Attack the bone crown/.test(html), 'ATTACK crown prompt exists');
+assert(/crownTouched/.test(html) && /teethRisen/.test(html) && /crownDestroyed/.test(html),
+  'Sage one-shot flags are crownTouched / teethRisen / crownDestroyed');
 assert(/tryStrikeBoneCrown/.test(extractFn('meleeSwing')),
   'ATTACK can smash the crown');
 
@@ -94,13 +97,17 @@ const ctx={
   h2(){ return 0.4; },
   corridor(){},
   carvePath(){},
-  rect(){}
+  rect(){},
+  player(){ return (ctx.G.ents||[]).find(e=>e&&e.hero)||ctx.G.ents[0]; }
 };
 vm.createContext(ctx);
+ctx.beginFight=function(){};
 [
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
-  'livingThrall','releaseThrall','nearestAnimatableCorpse','tryAnimateDead','riseTeethHorde',
-  'takeBoneCrown','destroyBoneCrown','tryStrikeBoneCrown','buildTeethCrownRoom'
+  'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
+  'collapseCrownThrall','tryAnimateDead','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
+  'destroyBoneCrown','tryStrikeBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
+  'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
 const crownItem=ctx.makeBoneCrownItem();
@@ -114,6 +121,7 @@ ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124,
 const take=ctx.takeBoneCrown(altarCrown);
 assert(take.ok===1 && take.worn===1, 'TAKE seats the crown');
 assert(altarCrown.gone===1 && ctx.G.lvl.flags.crownTaken===1, 'taken crown is spent');
+assert(ctx.G.lvl.flags.crownTouched===1, 'TAKE sets crownTouched');
 assert(ctx.G.equipped.helmet && ctx.G.equipped.helmet.boneCrown, 'crown is on Macar\'s head');
 assert(ctx.G.lvl.flags.teethRisen===1, 'TAKE raises the teeth horde');
 assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
@@ -142,12 +150,17 @@ assert(sk.hd===2 && sk.ac===7 && sk.dmg===4.5 && sk.dice==='1d6+1',
 
 ctx.G.thrallId=null;
 ctx.G.equipped={helmet:crownItem};
-const body={id:40, name:'Cave Beetle', team:'foe', dead:1, corpse:1, x:125, y:21, hp:0, maxhp:40};
+const beetle={id:39, name:'Cave Beetle', kind:'beetle', team:'foe', dead:1, corpse:1, x:125, y:21, hp:0, maxhp:40};
+assert(ctx.isAnimateDeadEligible(beetle)===false, 'beetle corpses are not humanoid bones');
+assert(ctx.tryAnimateDead(ctx.G.ents[0], beetle).reason==='ineligible', 'beetle is refused');
+const body={id:40, name:'Goblin', kind:'goblin', team:'foe', dead:1, corpse:1, x:125, y:21, hp:0, maxhp:22};
 ctx.G.ents=[ctx.G.ents[0], body];
 const raised=ctx.tryAnimateDead(ctx.G.ents[0], body);
 assert(raised.ok===1 && body.thrall===1 && body.team==='party', 'crown raises one thrall');
+assert(raised.form==='zombie', 'flesh corpse rises as a zombie');
 assert(ctx.G.thrallId===40 && ctx.livingThrall()===body, 'thrall occupies the one slot');
-const body2={id:41, name:'Cave Rat', team:'foe', dead:1, corpse:1, x:126, y:21, hp:0, maxhp:8};
+const body2={id:41, name:'Orc', kind:'orc', team:'foe', dead:1, corpse:1, x:126, y:21, hp:0, maxhp:42};
+ctx.G.ents.push(body2);
 const blocked=ctx.tryAnimateDead(ctx.G.ents[0], body2);
 assert(blocked.ok===0 && blocked.reason==='slot-full', 'second animate is refused');
 body.dead=1; body.hp=0;
@@ -157,6 +170,36 @@ const again=ctx.tryAnimateDead(ctx.G.ents[0], body2);
 assert(again.ok===1 && ctx.G.thrallId===41, 'a new corpse can be raised after the slot frees');
 assert(ctx.tryAnimateDead(ctx.G.ents[0], {id:9, hero:1, col:{key:'macar'}, dead:1, corpse:1}).reason==='kin',
   'kin corpses are not animated');
+
+ctx.G.equipped={helmet:crownItem};
+ctx.G.thrallId=41;
+const pet={id:41, name:'Orc', kind:'orc', team:'party', dead:0, thrall:1, x:126, y:21, hp:42, maxhp:42};
+ctx.G.ents=[
+  {id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124, y:21, hp:80, maxhp:80},
+  pet,
+  {id:7, col:{key:'talpor'}, name:'TALPOR', team:'party', x:126, y:21, dead:0}
+];
+const turned=ctx.tryTalporTurnThrall();
+assert(turned.ok===1 && ctx.G.thrallId==null && pet.dead===1, 'Talpor can turn Macar\'s own crown pet');
+
+ctx.G.equipped={helmet:crownItem};
+ctx.G.lvl.flags={crownXp:1};
+ctx.xpAwards=[];
+const smashWorn=ctx.smashWornBoneCrown();
+assert(smashWorn.ok===1, 'worn crown can be shattered');
+assert(ctx.xpAwards.length===0, 'destroy XP awards only once');
+assert(ctx.G.equipped.helmet==null, 'smash clears the worn helm');
+
+ctx.G.equipped={helmet:crownItem};
+ctx.G.thrallId=null;
+const skel={id:50, name:'Fanged Skeleton', kind:'undead', team:'foe', dead:1, corpse:1, x:125, y:21, hp:0, maxhp:16};
+ctx.G.ents=[ctx.G.ents[0], skel];
+const boneRaise=ctx.tryAnimateDead(ctx.G.ents[0], skel);
+assert(boneRaise.ok===1 && boneRaise.form==='skeleton', 'bone corpse rises as a skeleton');
+ctx.G.packs={macar:{magic:[]}};
+const doff=ctx.doffBoneCrownAtCamp();
+assert(doff.ok===1 && ctx.G.equipped.helmet==null, 'camp doffs the crown in one turn');
+assert(ctx.G.thrallId==null, 'doff collapses the commanded dead');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');

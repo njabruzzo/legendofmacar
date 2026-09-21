@@ -68,7 +68,7 @@
 
   var PROTECTED_KINDS = {
     rubydoor: 1, dwarfface: 1, lift: 1, rubypillar: 1,
-    secret_door: 1, rubywall: 1, demonface: 1, bonecrown: 1
+    secret_door: 1, rubywall: 1, demonface: 1, bonecrown: 1, hourglass: 1
   };
 
   function use() {

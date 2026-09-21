@@ -2721,6 +2721,7 @@ function propSpriteKey(p){
   if(k==='dwarfface') return 'dwarfface';
   if(k==='demonface') return (SPR.demon_dwarfface||SPR.demonface)?'demon_dwarfface':'dwarfface';
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
+  if(k==='hourglass') return SPR.hourglass_flaming?'hourglass_flaming':(SPR.hourglass_signed?'hourglass_signed':(SPR.hourglass?'hourglass':null));
   if(k==='bronzedoor') return 'bronzedoor';
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
@@ -2747,6 +2748,7 @@ function propSpriteH(p,z){
   if(k==='demonface') return dwarfFaceH()*1.08;
   if(k==='bonecrown') return 28*z*(p.s||1);
   if(k==='tooth') return 16*z*(p.s||1);
+  if(k==='hourglass') return 118*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='ruin_house') return 128*z*(p.s||1);
@@ -3987,6 +3989,10 @@ function makeChapter(n){
     for(let ii=39;ii<=41;ii++){ if(g[40]) g[40][ii]=1; if(g[39]) g[39][ii]=1; }
     addSecretDoor(L,{x:64.5,y:20.1,i:63,j:20,w:3,h:1,kind:'treasure',face:'n',
       hint:'Near the bronze door the rock sits too square. SEARCH the grey face.'});
+    /* Far-east den (caveDisk 122,30). East wall / west face — not the
+       warrens, not the bronze-door treasure, never a south wall. */
+    addSecretDoor(L,{x:126.85,y:30.05,i:127,j:28,w:1,h:3,kind:'hourglass',face:'w',
+      hint:'The far east wall of this den is too even — a colder, greyer face. SEARCH it.'});
     L.warrenSeed=(G._forceSeeds&&G._forceSeeds.warrenSeed)||((Math.random()*1e9)|0)+1;
     L.objs=[{t:'Stand in the four-way cavern',d:0},{t:'Break the goblin band',d:0},
             {t:'Untie Noz, or ring the bronze bell',d:0},{t:'Trade with Noz behind the door',d:0},
@@ -4742,6 +4748,7 @@ function campRest(){
   G.flash={c:'#ffb45c',a:.18};
   say('Macar decides to camp to rest and heal.','#ffe08a');
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
+  G.campDoff=1;
   writeGameSave(true);
   hint((healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.')+' The book is marked.',5);
 }
@@ -6249,6 +6256,7 @@ function packRowToPile(r, taken){
 }
 function dropPackRow(r){
   if(!r) return;
+  if(r.kind==='drop-ep'){ askDropElectrum(); return; }
   if(G.packWho && G.packWho!=='macar' && !isGhostPack()){
     say('Drop kit from MACAR\'s pack.','#c9b895');
     return;
@@ -6961,16 +6969,19 @@ function wearingElvenkind(e){
 }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
 function wornMoveMul(e){
+  let mul=1;
   if(typeof DerivedStats!=='undefined' && DerivedStats.wornMoveMul)
-    return DerivedStats.wornMoveMul(e, G.equipped||{});
-  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return 1;
-  const it=(G.equipped||{}).boots;
-  if(!it) return 1;
-  const n=String(it.n||'');
-  if(/boots of speed/i.test(n)) return 2;
-  /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
-  if(/striding and springing/i.test(n)) return 1.5;
-  return 1;
+    mul=DerivedStats.wornMoveMul(e, G.equipped||{});
+  else if(e&&(e.hero||(e.col&&e.col.key==='macar'))){
+    const it=(G.equipped||{}).boots;
+    const n=String((it&&it.n)||'');
+    if(/boots of speed/i.test(n)) mul=2;
+    /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
+    else if(/striding and springing/i.test(n)) mul=1.5;
+  }
+  if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof electrumMoveMul==='function')
+    mul*=electrumMoveMul();
+  return mul;
 }
 function wornPrimaryWeapon(e){
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return null;
@@ -7529,6 +7540,12 @@ function equipPackItem(it, opts){
 function unequipPackSlot(slot, opts){
   opts=opts||{};
   ensureEquippedShape();
+  const worn=G.equipped&&G.equipped[slot];
+  if(worn&&worn.boneCrown&&!opts.camp&&!G.sleepShow&&!G.campDoff){
+    say('The bone crown comes off only at camp, or by shattering it.','#c9b895');
+    hint('Camp to doff (1 turn), or Attack the crown to smash it.',3.4);
+    return null;
+  }
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
   if(!ES||!ES.unequip) return null;
   const out=ES.unequip(G.equipped, slot);
@@ -7540,6 +7557,10 @@ function unequipPackSlot(slot, opts){
   if(out.item) stowPackItem(out.item);
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
+  if(out.item && out.item.boneCrown){
+    G.campDoff=0;
+    if(typeof collapseCrownThrall==='function') collapseCrownThrall();
+  }
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
   return out.item||null;
 }
@@ -9168,6 +9189,7 @@ function rngAmt(a,b){ return a+ri(0,Math.max(0,b-a)); }
 function addCoin(k,n){
   if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
   G.coin[k]=(G.coin[k]||0)+n;
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
 }
 function convertHoard(coins, gems, jew, magN, magKind, where, quiet){
   const notes=[];
@@ -9843,6 +9865,7 @@ function buildSecretTreasureRoom(L, sec){
 }
 const BONE_CROWN_DESTROY_XP=5000;
 const FANGED_SKELETON_HORDE=8;
+const HOURGLASS_RAID_S=10;
 function teethBounds(L){
   L=L||G.lvl;
   return (L&&(L.teethBounds||(L.flags&&L.flags.teethBounds)))||null;
@@ -9852,17 +9875,17 @@ function isTeethFloor(L,x,y){
   if(!b) return false;
   return x>=b.x0 && x<b.x1 && y>=b.y0 && y<b.y1;
 }
-function makeBoneCrownItem(){
-  return {
-    id:'bone_crown', n:'Bone Crown', k:'misc', cat:'Helm', slot:'helmet',
-    boneCrown:1, animateDead:1, spr:'icon_helm',
-    d:'A crown of fused teeth. Wear it to command one dead.'
-  };
-}
 function wearingBoneCrown(eq){
   eq=eq||(typeof G!=='undefined'?G.equipped:null)||{};
   const h=eq.helmet;
   return !!(h && (h.boneCrown || h.animateDead || /bone crown/i.test(h.n||'')));
+}
+function makeBoneCrownItem(){
+  return {
+    id:'bone_crown', n:'Bone Crown', k:'misc', cat:'Helm', slot:'helmet',
+    boneCrown:1, animateDead:1, spr:'icon_helm', plus:0, acBonus:0,
+    d:'A crown of fused teeth. Wear it to command one dead. No Armor Class.'
+  };
 }
 function nearestBoneCrown(p, r){
   if(!p) return null;
@@ -9884,49 +9907,75 @@ function releaseThrall(e){
   e.thrall=0;
   say('The dead fall still. The crown\'s slot is empty.','#c9b895');
 }
+function isAnimateDeadEligible(e){
+  if(!e||!(e.dead||e.corpse)||e.thrall) return false;
+  if(e.col||e.hero||e.ghost) return false;
+  const hay=((e.kind||'')+' '+(e.name||'')+' '+(e.sprite||'')).toLowerCase();
+  if(/rat|beetle|spider|slime|ooze|jelly|pudding|worm|cube|elemental|xorn|piercer|centipede|fung|myconid|shrieker|tooth/.test(hay)) return false;
+  return /goblin|orc|kobold|dwarf|drow|duergar|gnome|human|hobgoblin|bugbear|gnoll|ogre|troll|undead|skeleton|zombie|wight|ghoul|grimlock|troglodyte|kuotoa|quaggoth|pech|ixzan/.test(hay);
+}
+function corpseIsBones(e){
+  const hay=((e.kind||'')+' '+(e.name||'')+' '+(e.sprite||'')).toLowerCase();
+  return /skeleton|bone|undead|wight|lich|skull/.test(hay);
+}
 function nearestAnimatableCorpse(p, r){
   if(!p) return null;
   let best=null, bd=r==null?1.95:r;
   (G.ents||[]).forEach(e=>{
-    if(!e||!(e.dead||e.corpse)||e.thrall) return;
-    if(e.col||e.hero||e.ghost) return;
+    if(!isAnimateDeadEligible(e)) return;
     const d=dist(p,e);
     if(d<bd){ bd=d; best=e; }
   });
   return best;
 }
+function collapseCrownThrall(){
+  const t=livingThrall();
+  if(!t){ G.thrallId=null; return; }
+  t.dead=1; t.corpse=1; t.hp=0; t.team='foe'; t.thrall=0; t.ally=0;
+  G.thrallId=null;
+  burst(t.x, t.y, '#9a8a78', 12, 2.2);
+  say('The commanded dead collapses.','#c9b895');
+}
 /* HOUSE: Bone Crown animate dead — one thrall at a time. Macar commands
    that thrall (follow/fight as party). The slot frees when the thrall dies.
-   Nick product text; no Sage 1e reply in-repo. */
+   PHB shape, house cap (Sage): once per corpse; skeleton from bones or
+   zombie from flesh; no spell slot / no XP; duration until destroyed,
+   turned, or the crown is removed. Nick numbers stand. */
 function tryAnimateDead(actor, body){
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   if(!body || !(body.dead||body.corpse)) return {ok:0, reason:'no-body'};
   if(body.col||body.hero||body.ghost) return {ok:0, reason:'kin'};
+  if(!isAnimateDeadEligible(body)) return {ok:0, reason:'ineligible'};
   if(livingThrall()){
     say('The crown already commands one dead.','#c9b895');
     return {ok:0, reason:'slot-full'};
   }
+  const bones=corpseIsBones(body);
   body.dead=0; body.corpse=0; body.prone=0; body.looted=1;
   body.hp=body.maxhp||body.hp||8;
   body.team='party'; body.ally=1; body.thrall=1; body.npc=0;
   body.aggro=8; body.engaged=0; body.stun=0.2;
+  body.name=bones?'Skeleton':'Zombie';
+  body.kind='undead';
   G.thrallId=body.id;
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
-  say((body.name||'The dead')+' rises and waits on Macar\'s word.','#e8d0b8');
-  hint('One thrall. The slot frees when it falls.',3.6);
-  return {ok:1, thrall:body};
+  say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
+  hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
+  return {ok:1, thrall:body, form:bones?'skeleton':'zombie'};
 }
 function riseTeethHorde(where){
   const L=G.lvl;
   if(!L||L.flags.teethRisen) return 0;
   L.flags.teethRisen=1;
   (G.props||[]).forEach(p=>{ if(p&&p.k==='tooth') p.gone=1; });
+  const p=typeof player==='function'?player():null;
   const b=teethBounds(L)||{x0:116,y0:16,x1:128,y1:28};
-  const cx=where&&where.x!=null?where.x:(b.x0+b.x1)*0.5;
-  const cy=where&&where.y!=null?where.y:(b.y0+b.y1)*0.5;
+  const cx=(p&&p.x!=null)?p.x:(where&&where.x!=null?where.x:(b.x0+b.x1)*0.5);
+  const cy=(p&&p.y!=null)?p.y:(where&&where.y!=null?where.y:(b.y0+b.y1)*0.5);
   const n=FANGED_SKELETON_HORDE;
   const make=FOE.fangedSkeleton;
   if(typeof make!=='function') return 0;
+  let last=null;
   for(let i=0;i<n;i++){
     const a=(i/n)*Math.PI*2;
     const rad=1.35+(i%3)*0.42;
@@ -9935,17 +9984,19 @@ function riseTeethHorde(where){
     e.y=cy+Math.sin(a)*rad*0.82;
     e.aggro=9; e.engaged=1;
     G.ents.push(e);
+    last=e;
     burst(e.x,e.y,'#e8d0b8',8,2.1);
   }
   shake(14);
   say('The teeth stand up. A horde of fanged skeletons.','#ff6a5a');
   hint('The floor has risen. Fight or run.',4.2);
+  if(typeof beginFight==='function') beginFight(last);
   return n;
 }
 function takeBoneCrown(crown){
   if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
   crown.gone=1; crown.taken=1;
-  const L=G.lvl; if(L&&L.flags) L.flags.crownTaken=1;
+  const L=G.lvl; if(L&&L.flags){ L.flags.crownTaken=1; L.flags.crownTouched=1; }
   const it=makeBoneCrownItem();
   if(typeof stowPackItem==='function') stowPackItem(it);
   if(typeof equipPackItem==='function') equipPackItem(it, {silent:true});
@@ -9959,24 +10010,50 @@ function takeBoneCrown(crown){
   riseTeethHorde(crown);
   return {ok:1, worn:1};
 }
+function awardCrownDestroyXp(where){
+  const L=G.lvl;
+  if(L&&L.flags&&L.flags.crownXp) return 0;
+  if(L&&L.flags) L.flags.crownXp=1;
+  awardPartyXp(BONE_CROWN_DESTROY_XP, 'Bone Crown destroyed', where);
+  if(where&&where.x!=null) ftext(where.x, where.y-0.4, '+'+BONE_CROWN_DESTROY_XP+' xp', '#c9e8a8');
+  return BONE_CROWN_DESTROY_XP;
+}
 function destroyBoneCrown(crown){
-  if(!crown||crown.gone||crown.destroyed) return {ok:0, reason:'gone'};
-  crown.gone=1; crown.destroyed=1;
+  if(crown&&(crown.gone||crown.destroyed)&&!crown.worn) return {ok:0, reason:'gone'};
+  if(crown){ crown.gone=1; crown.destroyed=1; }
   const L=G.lvl; if(L&&L.flags) L.flags.crownDestroyed=1;
-  burst(crown.x, crown.y, '#c9b895', 22, 3.0);
+  if(wearingBoneCrown()){
+    const eq=G.equipped||{};
+    if(eq.helmet&&eq.helmet.boneCrown) eq.helmet=null;
+  }
+  const where=crown||player()||{x:0,y:0};
+  burst(where.x, where.y, '#c9b895', 22, 3.0);
   shake(12);
   say('Macar shatters the bone crown.','#ffe08a');
-  awardPartyXp(BONE_CROWN_DESTROY_XP, 'Bone Crown destroyed', crown);
-  ftext(crown.x, crown.y-0.4, '+'+BONE_CROWN_DESTROY_XP+' xp', '#c9e8a8');
-  riseTeethHorde(crown);
-  return {ok:1, xp:BONE_CROWN_DESTROY_XP};
+  const xp=awardCrownDestroyXp(where);
+  collapseCrownThrall();
+  riseTeethHorde(where);
+  return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
 function tryStrikeBoneCrown(e, reach){
   if(!e||!e.hero) return 0;
   const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
-  if(!crown) return 0;
-  destroyBoneCrown(crown);
-  return 1;
+  if(crown){ destroyBoneCrown(crown); return 1; }
+  return 0;
+}
+function smashWornBoneCrown(){
+  if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
+  return destroyBoneCrown({worn:1, x:(player()||{}).x, y:(player()||{}).y});
+}
+function doffBoneCrownAtCamp(){
+  if(!wearingBoneCrown()) return {ok:0};
+  const eq=G.equipped||{};
+  const it=eq.helmet;
+  eq.helmet=null;
+  if(it&&typeof stowPackItem==='function') stowPackItem(it);
+  collapseCrownThrall();
+  say('Macar sets the bone crown aside. One turn at camp.','#c9b895');
+  return {ok:1};
 }
 function buildTeethCrownRoom(L, sec){
   if(!L||!sec) return;
@@ -9997,10 +10074,11 @@ function buildTeethCrownRoom(L, sec){
   const altar={x:125.15,y:21.35};
   const face={x:127.42,y:21.45};
   G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.08,teethAltar:1,seed:880});
-  if(!L.flags.crownTaken && !L.flags.crownDestroyed){
+  if(!L.flags.crownTaken && !L.flags.crownTouched && !L.flags.crownDestroyed){
     G.props.push({x:altar.x,y:altar.y-0.12,k:'bonecrown',s:0.92,seed:881});
   }
-  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:882});
+  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:882,
+    toothKind:'electrum', emptySocket:!!L.flags.electrumTooth});
   if(!L.flags.teethRisen){
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
@@ -10011,6 +10089,260 @@ function buildTeethCrownRoom(L, sec){
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
   say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
+}
+function makeGrondTooth(kind){
+  if(kind==='bronze'){
+    return {
+      id:'grond_tooth_bronze', n:"Grond's Bronze Tooth", k:'misc', cat:'Quest',
+      noSell:1, quest:1, noAuto:1, grondTooth:'bronze', spr:'icon_pack',
+      d:'A bronze fang pried from a demonic dwarven face. No curse. Smash-on-Anvil later.'
+    };
+  }
+  return {
+    id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
+    noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
+    d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
+  };
+}
+function nearestDemonFace(p, r){
+  if(!p) return null;
+  let best=null, bd=r==null?2.05:r;
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.k!=='demonface') return;
+    const d=dist(p,pr);
+    if(d<bd){ bd=d; best=pr; }
+  });
+  return best;
+}
+function pryGrondTooth(face, kind){
+  const L=G.lvl;
+  kind=kind||(face&&face.toothKind)||'electrum';
+  if(!face||face.gone) return {ok:0, reason:'gone'};
+  if(kind==='bronze'){
+    if(L&&L.flags&&(L.flags.bronzeSecured||L.flags.bronzeTooth)) return {ok:0, reason:'taken'};
+    const it=makeGrondTooth('bronze');
+    if(typeof stowPackItem==='function') stowPackItem(it);
+    if(L&&L.flags) L.flags.bronzeTooth=1;
+    face.emptySocket=1;
+    burst(face.x, face.y, '#c48a3a', 12, 2.2);
+    say('Macar pries Grond\'s Bronze Tooth from the stone jaw.','#d4a04a');
+    hint('Ten seconds. Get out with the tooth.',3.8);
+    return {ok:1, item:it};
+  }
+  if(L&&L.flags&&L.flags.electrumTooth) return {ok:0, reason:'taken'};
+  const it=makeGrondTooth('electrum');
+  if(typeof stowPackItem==='function') stowPackItem(it);
+  if(L&&L.flags) L.flags.electrumTooth=1;
+  face.emptySocket=1;
+  burst(face.x, face.y, '#c8d4c0', 12, 2.2);
+  say('Macar pries Grond\'s Electrum Tooth. It looks like silver.','#c8d4c0');
+  hint('Coin turns to electrum while this tooth sits in the pack.',4.2);
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+  return {ok:1, item:it};
+}
+function tryTalporTurnThrall(){
+  const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
+  const t=typeof livingThrall==='function'?livingThrall():null;
+  if(!tal||!t) return {ok:0, reason:'no'};
+  t.dead=1; t.corpse=1; t.hp=0; t.team='foe'; t.thrall=0; t.ally=0;
+  G.thrallId=null;
+  burst(t.x, t.y, '#d0d4e8', 14, 2.4);
+  say('TALPOR turns the crown\'s dead. That evil is not his to claim.','#d0d4e8');
+  hint('The crown\'s slot is empty.',3.2);
+  return {ok:1};
+}
+function hourglassBounds(L){
+  L=L||G.lvl;
+  return (L&&(L.hourglassBounds||(L.flags&&L.flags.hourglassBounds)))||null;
+}
+function inHourglassRoom(e, L){
+  const b=hourglassBounds(L);
+  if(!b||!e) return false;
+  return e.x>=b.x0 && e.x<b.x1 && e.y>=b.y0 && e.y<b.y1;
+}
+function revertUnsecuredBronzeTooth(){
+  const L=G.lvl;
+  if(!L||!L.flags||L.flags.bronzeSecured) return;
+  L.flags.bronzeTooth=0;
+  const pk=G.packs&&G.packs.macar;
+  if(pk&&pk.magic){
+    pk.magic=pk.magic.filter(it=>!(it&&(it.id==='grond_tooth_bronze'||it.grondTooth==='bronze')));
+  }
+  (G.props||[]).forEach(p=>{
+    if(p&&p.k==='demonface'&&p.toothKind==='bronze') p.emptySocket=0;
+  });
+}
+function burstHourglass(){
+  const L=G.lvl;
+  const b=hourglassBounds(L);
+  const hg=(G.props||[]).find(p=>p&&p.k==='hourglass'&&!p.gone);
+  const x=hg?hg.x:(b?(b.x0+b.x1)*0.5:0);
+  const y=hg?hg.y:(b?(b.y0+b.y1)*0.5:0);
+  if(hg) hg.burst=1;
+  burst(x, y, '#ff3a20', 36, 4.2);
+  burst(x, y, '#ffb45c', 22, 3.2);
+  shake(22);
+  G.flash={c:'#ff2a18',a:.72};
+}
+function killMacarHourglass(){
+  const L=G.lvl;
+  burstHourglass();
+  (G.ents||[]).forEach(e=>{
+    if(!e||e.dead||e.team!=='party') return;
+    if(e.hero || inHourglassRoom(e, L)){
+      e.dead=1; e.hp=0; e.corpse=1;
+    }
+  });
+  revertUnsecuredBronzeTooth();
+  if(L&&L.flags){ L.flags.hourglassRaid=0; L.flags.hourglassT=0; }
+  G.hourglassT=0;
+  say('Flaming sand bursts from the glass. Macar is gone.','#ff6a5a');
+  G.scene='dead';
+  if(typeof sfx!=='undefined'&&sfx&&sfx.stopBed) sfx.stopBed();
+}
+function cancelHourglassRaid(ok){
+  const L=G.lvl; if(!L||!L.flags) return;
+  L.flags.hourglassRaid=0;
+  G.hourglassT=0;
+  L.flags.hourglassT=0;
+  if(ok){
+    L.flags.hourglassInert=1;
+    L.flags.bronzeSecured=1;
+    say('The hourglass goes still. The sand is spent.','#d4a04a');
+    hint('The bronze tooth is yours. The glass is inert.',4.0);
+  } else {
+    revertUnsecuredBronzeTooth();
+    say('The hourglass resets. The sand climbs back.','#c9b895');
+  }
+}
+function tickHourglassRaid(dt){
+  const L=G.lvl;
+  if(!L||L.n!==2||!L.flags||!L.flags.hourglassRoom||L.flags.hourglassInert) return;
+  const p=typeof player==='function'?player():null;
+  if(!p||p.dead) return;
+  const inside=inHourglassRoom(p, L);
+  if(inside && !L.flags.hourglassRaid){
+    L.flags.hourglassRaid=1;
+    G.hourglassT=HOURGLASS_RAID_S;
+    L.flags.hourglassT=G.hourglassT;
+    say('The hourglass turns. Ten seconds of flaming sand.','#ff6a5a');
+    hint('Pry the bronze tooth and get out.',3.6);
+  }
+  if(!L.flags.hourglassRaid) return;
+  if(!inside){
+    cancelHourglassRaid(!!L.flags.bronzeTooth);
+    return;
+  }
+  G.hourglassT=(G.hourglassT==null?HOURGLASS_RAID_S:G.hourglassT)-dt;
+  L.flags.hourglassT=G.hourglassT;
+  if(G.hourglassT<=0){
+    G.hourglassT=0;
+    killMacarHourglass();
+  }
+}
+function buildHourglassRoom(L, sec){
+  if(!L||!sec) return;
+  const already=!!(L.flags&&L.flags.hourglassRoom);
+  const g=L.grid;
+  const sx=sec.x||sec.i, sy=sec.y||sec.j;
+  const x0=130, y0=24, rw=12, rh=12;
+  if(typeof corridor==='function') corridor(g, (sx+0.4)|0, (sy+1.1)|0, 132, 30, 3, 0);
+  if(typeof carvePath==='function') carvePath(g, [[sx+0.4,sy+1.1],[132,30],[136,30]], 2.15, 0);
+  rect(g, x0, y0, rw, rh, 0);
+  L.hourglassBounds={x0:x0,y0:y0,x1:x0+rw,y1:y0+rh};
+  L.flags=L.flags||{};
+  L.flags.hourglassRoom=1;
+  L.flags.hourglassBounds=L.hourglassBounds;
+  if(already) return;
+  G.props=G.props||[];
+  L.lights=L.lights||[];
+  const glass={x:138.2,y:30.1};
+  const face={x:141.35,y:30.15};
+  G.props.push({x:glass.x,y:glass.y,k:'hourglass',s:1.35,seed:990});
+  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:991,
+    toothKind:'bronze', emptySocket:!!(L.flags.bronzeSecured||L.flags.bronzeTooth)});
+  L.lights.push({x:glass.x,y:glass.y,c:'#ff3a20',r:6.4,f:1.15});
+  say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
+  hint('Ten seconds. Pry the bronze tooth and leave.',5.0);
+}
+/* HOUSE: Electrum Tooth curse — active only while the tooth is in Macar's
+   pack (not worn). 1e rates: 50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep.
+   enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0; −1 / 30s
+   when ep is 0 or the tooth leaves the pack. Mordain smash / Remove Curse later. */
+function hasElectrumToothInPack(){
+  const pk=G.packs&&G.packs.macar;
+  return !!(pk&&(pk.magic||[]).some(it=>it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')));
+}
+function convertCoinsToElectrum(){
+  if(!hasElectrumToothInPack()) return 0;
+  if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
+  const c=G.coin;
+  let ep=c.ep||0;
+  ep += Math.floor((c.pp||0)*10); c.pp=0;
+  ep += Math.floor((c.gp||0)*2); c.gp=0;
+  ep += Math.floor((c.sp||0)/5); c.sp=(c.sp||0)%5;
+  ep += Math.floor((c.cp||0)/50); c.cp=(c.cp||0)%50;
+  c.ep=ep;
+  return ep;
+}
+function electrumEnc(){
+  const ep=(G.coin&&G.coin.ep)||0;
+  return ep + (G.curseStrain||0)*10;
+}
+function electrumMoveMul(){
+  if(!hasElectrumToothInPack()) return 1;
+  const enc=electrumEnc();
+  if(enc<50) return 1;
+  if(enc<150) return 0.75;
+  if(enc<300) return 0.5;
+  return 0.25;
+}
+function tickElectrumCurse(dt){
+  const cursed=hasElectrumToothInPack();
+  G.curseStrain=G.curseStrain||0;
+  const ep=(G.coin&&G.coin.ep)||0;
+  if(cursed && ep>0){
+    G.curseGrowT=(G.curseGrowT||0)+dt;
+    G.curseDecayT=0;
+    while(G.curseGrowT>=15){
+      G.curseGrowT-=15;
+      G.curseStrain+=1;
+    }
+  } else {
+    G.curseGrowT=0;
+    G.curseDecayT=(G.curseDecayT||0)+dt;
+    while(G.curseDecayT>=30 && G.curseStrain>0){
+      G.curseDecayT-=30;
+      G.curseStrain-=1;
+    }
+  }
+}
+function dropElectrum(n){
+  if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0};
+  const have=G.coin.ep||0;
+  n=Math.min(Math.max(0, n|0), have);
+  if(n<=0) return 0;
+  G.coin.ep=have-n;
+  const p=typeof player==='function'?player():null;
+  const x=(p?p.x:0)+0.55, y=(p?p.y:0)+0.32;
+  if(typeof spawnLoot==='function') spawnLoot(x, y, {kind:'coins', coins:{ep:n}, glow:'#6ec8b0', label:n+' electrum'});
+  say('Macar drops '+n+' electrum. The pack lightens.','#6ec8b0');
+  return n;
+}
+function askDropElectrum(){
+  const have=(G.coin&&G.coin.ep)||0;
+  if(have<=0){ say('No electrum to drop.','#9a8a78'); return; }
+  const n10=Math.min(10, have), n100=Math.min(100, have);
+  startTalkObj({
+    key:'drop_ep',
+    who:'MACAR',
+    line:'Drop how much electrum? The curse keeps the rest heavy.',
+    choices:[
+      {t:'Drop '+n10, then:()=>dropElectrum(n10)},
+      {t:'Drop '+n100, then:()=>dropElectrum(n100)},
+      {t:'Drop All ('+have+')', then:()=>dropElectrum(have)}
+    ]
+  });
 }
 function dressRuinBuildings(L){
   const g=L.grid; if(!g) return;
@@ -10111,6 +10443,11 @@ function openSecret(sec){
   if(sec.kind==='teeth'){
     buildTeethCrownRoom(L, sec);
     bumpTopology('openSecret-teeth');
+    return;
+  }
+  if(sec.kind==='hourglass'){
+    buildHourglassRoom(L, sec);
+    bumpTopology('openSecret-hourglass');
     return;
   }
   if(sec.path) carvePath(g, sec.path, 2.1, 0);
@@ -10352,6 +10689,7 @@ function intentHost(){
 function gainCoin(k,n){
   G.coin=G.coin||{};
   G.coin[k]=(G.coin[k]||0)+(n||0);
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
 }
 function alertNearby(x,y,r){
   r=r==null?6.5:r;
@@ -11219,9 +11557,29 @@ function update(dt){
       const crown=nearestBoneCrown(p,1.75);
       if(crown) interact('Take the bone crown',()=>takeBoneCrown(crown));
     }
+    if(!PROMPT && typeof nearestBoneCrown==='function'){
+      const smash=nearestBoneCrown(p,1.75);
+      if(smash) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
+    }
     if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown()){
       const body=nearestAnimatableCorpse(p,1.95);
       if(body) interact('Animate the dead',()=>tryAnimateDead(p,body));
+    }
+    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof smashWornBoneCrown==='function'){
+      interact('Attack the bone crown',()=>smashWornBoneCrown());
+    }
+    if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
+      const face=nearestDemonFace(p,2.05);
+      if(face && !face.emptySocket){
+        const kind=face.toothKind||'electrum';
+        const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth):L.flags.electrumTooth);
+        if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
+      }
+    }
+    if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
+      const t=livingThrall();
+      const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
+      if(t&&tal&&dist(p,tal)<3.4&&dist(p,t)<2.6) interact('Talpor turns the dead',()=>tryTalporTurnThrall());
     }
     for(const pr of G.props){
       if(pr.sprung>0) pr.sprung=Math.max(0,pr.sprung-dt);
@@ -11472,6 +11830,8 @@ function update(dt){
   updateBombs(dt);
   if(G.songBuff>0 && p){ const rg=G.songBuff*0.5*dt;
     G.ents.forEach(e=>{ if(e.team==='party'&&!e.dead) e.hp=Math.min(e.maxhp,e.hp+rg); }); }
+  if(typeof tickHourglassRaid==='function') tickHourglassRaid(dt);
+  if(typeof tickElectrumCurse==='function') tickElectrumCurse(dt);
   if(L.tick) L.tick(dt);
   endFightIfClear();
   if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12));
@@ -12201,6 +12561,80 @@ function drawBoneCrownProp(g,p,z){
   g.fillStyle='rgba(120,24,20,0.28)';
   g.beginPath(); g.ellipse(0, 1.2*z, 10*z, 2.4*z, 0, 0, TAU); g.fill();
 }
+function drawHourglassProp(g,p,z){
+  const img=SPR.hourglass_flaming||SPR.hourglass_signed||SPR.hourglass||null;
+  const sc=p.s||1;
+  const s=w2s(p.x,p.y);
+  if(img&&img.width){
+    const H=118*z*sc;
+    const W=H*(img.width/Math.max(1,img.height));
+    g.drawImage(img, -W/2, -H*0.96, W, H);
+  } else {
+    const H=110*z*sc, W=38*z*sc;
+    g.strokeStyle='#3a2418';
+    g.lineWidth=2.2*z;
+    g.fillStyle='#6a4a2c';
+    g.beginPath(); g.rect(-W*0.62, -H*0.98, W*1.24, 8*z); g.fill(); g.stroke();
+    g.beginPath(); g.rect(-W*0.62, 2*z, W*1.24, 8*z); g.fill(); g.stroke();
+    g.strokeStyle='#c8d4e0';
+    g.lineWidth=1.8*z;
+    g.beginPath();
+    g.moveTo(-W*0.42, -H*0.9);
+    g.lineTo(-6*z, -H*0.48);
+    g.lineTo(-W*0.42, 4*z);
+    g.moveTo(W*0.42, -H*0.9);
+    g.lineTo(6*z, -H*0.48);
+    g.lineTo(W*0.42, 4*z);
+    g.stroke();
+    const L=G.lvl, raid=L&&L.flags&&L.flags.hourglassRaid, inert=L&&L.flags&&L.flags.hourglassInert;
+    const t=G.hourglassT==null?HOURGLASS_RAID_S:G.hourglassT;
+    const frac=inert?0:clamp(t/HOURGLASS_RAID_S, 0, 1);
+    const sand=p.burst?0:frac;
+    g.fillStyle=inert?'#5a4030':'#c81824';
+    g.globalAlpha=0.88;
+    g.beginPath();
+    g.moveTo(-W*0.34, -H*0.86);
+    g.lineTo(W*0.34, -H*0.86);
+    g.lineTo(4*z, -H*(0.50+0.28*(1-sand)));
+    g.lineTo(-4*z, -H*(0.50+0.28*(1-sand)));
+    g.closePath();
+    g.fill();
+    g.beginPath();
+    g.moveTo(-W*0.36, 2*z);
+    g.lineTo(W*0.36, 2*z);
+    g.lineTo(W*0.18, -H*0.22*(1-sand));
+    g.lineTo(-W*0.18, -H*0.22*(1-sand));
+    g.closePath();
+    g.fill();
+    g.globalAlpha=1;
+    if(!inert && (raid||p.burst)){
+      const fl=1+Math.sin(G.elapsed*11)*0.22;
+      emit(s.x, s.y-H*0.55, 28*z*fl, '#ff3a20', 0.85);
+    }
+  }
+  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.hourglassInert)){
+    const fl=1+Math.sin(G.elapsed*8+p.x)*0.2;
+    emit(s.x, s.y-72*z, 46*z*fl, '#ff3a20', 0.7);
+    ray(s.x, s.y-80*z, 54*z, '#ff6a3a', 0.4);
+    if(QUALITY && Math.random()<0.2) G.parts.push({x:p.x,y:p.y,z:0.7,vx:rnd(.2,-.2),vy:rnd(.2,-.2),vz:rnd(2.4,1.1),
+      life:rnd(1.2,.5),max:1.2,c:'#ff5a28',s:rnd(2.2,1),amb:1});
+  }
+}
+function drawHourglassHud(g,s){
+  const L=G.lvl;
+  if(!L||!L.flags||!L.flags.hourglassRaid||L.flags.hourglassInert) return;
+  const t=Math.max(0, G.hourglassT==null?HOURGLASS_RAID_S:G.hourglassT);
+  const inset=UI.pad||{t:0};
+  const w=PORT?168*s:196*s, h=PORT?36*s:40*s;
+  const x=VW/2-w/2, y=Math.max(8*s, (inset.t||0)+8*s);
+  plate(g,x,y,w,h,6,.9);
+  g.strokeStyle='rgba(255,58,32,0.75)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke();
+  g.textAlign='center';
+  g.font='800 '+(PORT?13*s:15*s)+'px '+FONT_UI;
+  g.fillStyle='#ff6a5a';
+  g.fillText('SAND  '+t.toFixed(1)+'s', x+w/2, y+h*0.66);
+  g.textAlign='left';
+}
 function drawToothProp(g,p,z){
   const sc=p.s||1;
   const h=18*z*sc, w=6.4*z*sc;
@@ -12264,6 +12698,18 @@ function drawDemonDwarfFace(g,p){
     g.moveTo(-5*ZOOM, 28*ZOOM); g.lineTo(-1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
     g.moveTo(5*ZOOM, 28*ZOOM); g.lineTo(1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
     g.fill();
+    g.restore();
+  }
+  if(p.emptySocket){
+    const s=w2s(p.x, p.y);
+    g.save();
+    g.fillStyle='rgba(8,4,4,0.82)';
+    g.beginPath();
+    g.ellipse(s.x+(p.wall==='e'?8:4)*ZOOM, s.y-H*0.28, 5.2*ZOOM, 7.4*ZOOM, 0, 0, TAU);
+    g.fill();
+    g.strokeStyle='rgba(40,20,16,0.7)';
+    g.lineWidth=1.2*ZOOM;
+    g.stroke();
     g.restore();
   }
   g.restore();
@@ -12667,6 +13113,9 @@ function drawProp(g,p,pal){
     break;
   case 'tooth':
     drawToothProp(g,p,z);
+    break;
+  case 'hourglass':
+    drawHourglassProp(g,p,z);
     break;
   case 'stairs':
     drawStairWell(g,z,p);
@@ -14649,6 +15098,7 @@ function drawHUD(g){
   drawObjectives(g,s);
   drawGuideArrow(g,s);
   drawOre(g,s);
+  if(typeof drawHourglassHud==='function') drawHourglassHud(g,s);
   drawStickBase(g,s);
   drawButtons(g,s);
   drawThrowBtn(g,s);
@@ -16094,6 +16544,12 @@ function collectPackRows(pk, who){
   });
   Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),
     info:lend+((HERBS.find(h=>h.n===n)||{}).d||''),tag:'Herb'}));
+  if((!who || who==='macar') && typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack() && ((G.coin&&G.coin.ep)||0)>0){
+    const ep=(G.coin.ep||0);
+    rows.unshift({kind:'drop-ep', t:'Drop electrum  \u00d7'+ep,
+      info:'Shed cursed weight. Choices: 10 / 100 / All.',
+      tag:'Coin'});
+  }
   return rows;
 }
 function shareCountWithMacar(from, field, n){
@@ -16237,6 +16693,9 @@ function usePackRow(r){
   } else if(r.kind==='gem'){
     const gm=(bag.gems||[])[r.i];
     if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');
+  } else if(r.kind==='drop-ep'){
+    askDropElectrum();
+    return;
   } else if(r.kind==='note'){
     const nt=(bag.notes||[])[r.i];
     if(nt) say(nt.n+(nt.d?(' — '+nt.d):''),'#c9b895');
@@ -16432,6 +16891,9 @@ function drawPack(g){
     g.font='800 '+(8*s)+'px '+FONT_UI; g.fillStyle=cn.c;
     g.fillText(have+' '+cn.n, x+w/2, coinY+coinH*0.66);
     g.textAlign='left';
+    if(cn.k==='ep' && have && typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()){
+      menuHits.push({x,y:coinY,w,h:coinH,fn:()=>askDropElectrum()});
+    }
   });
 
   const tabY=coinY+coinH+8*s, tabH=PORT?46*s:50*s, tabW=(VW-20*s)/ROSTER.length;

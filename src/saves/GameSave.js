@@ -36,14 +36,15 @@
     'ranged','dead','corpse','looted','crushed','ghost','prone','hidden','boss','glow','aggro',
     'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
-    'id','sid','treasure','tt','hd','interactSleeper'
+    'id','sid','treasure','tt','hd','interactSleeper','thrall'
   ];
 
   var PROP_COPY = [
     'x','y','k','s','spr','seed','gone','taken','pin','cover','webRock','label','n',
     'dress','plant','craft','lairDen','station','stone',
     'trap','fallen','backwall','scatter',
-    'interact','room','hinted','read'
+    'interact','room','hinted','read',
+    'wall','teethAltar','emptySocket','toothKind','hourglass'
   ];
 
   var ENT_BOOL = {
@@ -450,6 +451,10 @@
       gear: clone(G.gear || {}),
       bombs: G.bombs || 0,
       ales: G.ales || 0,
+      curseStrain: G.curseStrain || 0,
+      curseGrowT: G.curseGrowT || 0,
+      curseDecayT: G.curseDecayT || 0,
+      hourglassT: G.hourglassT || 0,
       play: play
     };
   }
@@ -478,6 +483,10 @@
     if (snap.gear) G.gear = clone(snap.gear);
     if (snap.bombs != null) G.bombs = snap.bombs;
     if (snap.ales != null) G.ales = snap.ales;
+    G.curseStrain = snap.curseStrain || 0;
+    G.curseGrowT = snap.curseGrowT || 0;
+    G.curseDecayT = snap.curseDecayT || 0;
+    G.hourglassT = snap.hourglassT || 0;
     return snap;
   }
 
