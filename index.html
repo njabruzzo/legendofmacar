@@ -3198,6 +3198,8 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const WINDUP_TOY={x:28.85,y:26.55};
+const TOY_SCAMPER_SECS=5;
+const TOY_SCAMPER_SP=2.8;
 const WEB_TALK_SPOT={x:11.5,y:29.7};
 const WEB_CORNER_ROCK={x:8.15,y:28.55};
 const CRUSH_SPOTS={
@@ -5575,8 +5577,10 @@ const NPC_TALK={
     line:'Cold brass. Ten empty sockets. A key in its back. It ticks once: "Wind me, thick-skull. Or stay blind."',
     choices:[
       {t:'Wind it.', say:'MACAR: "Walk."', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
-      {t:'Who made you?', reply:'A dry click: "A soft fool. Not Grond."'},
-      {t:'Put it down.'}
+      {t:'Who made you?', then:()=>startTalk('toy_froren')},
+      {t:'What are those holes?', reply:'THE TOY: "Sockets. Toothless. Stolen. Ten bites gone through the stone. Wind me if you want the bone."'},
+      {t:'Shake it.', reply:'A dry rattle: "Empty. Like your purse. Like your nerve. Wind me, coward, or I stay mute forever."'},
+      {t:'Put it down.', reply:'THE TOY: "Sockets bare. Key cold. Go dig for crowns. Die old."'}
     ]
   },
   toy_wind:{
@@ -5586,6 +5590,8 @@ const NPC_TALK={
       {t:'What do you remember?', reply:'THE TOY: "Kin under the fall. Red door warm to a dwarf\'s palm. North wears a false grey face— SEARCH that lie. Soft Froren\'s anvil stands. He wound joy. You wind loot."'},
       {t:'Who is Grond?', then:()=>startTalk('toy_grond')},
       {t:'Where are your teeth?', then:()=>startTalk('toy_teeth')},
+      {t:'Why insult me?', reply:'THE TOY: "Because you smell of want. Gold. Rank. The same stink that broke the rank. I bite soft fools. You brought the bite to me."'},
+      {t:'The ruby?', then:()=>startTalk('toy_ruby')},
       {t:'Put it down.', reply:'THE TOY: "Go clutch the heart. Leave the sockets bare. Ten teeth wait. I don\'t care."'}
     ]
   },
@@ -5593,8 +5599,11 @@ const NPC_TALK={
     who:'THE TOY',
     line:'Grond. Deep hunger. Pretty name. Dwarves knelt for crowns and flame. Soft hearts broke. Hard hearts stayed. Chaos wore their beards and prayed.',
     choices:[
-      {t:'And the ruby?', reply:'THE TOY: "Heart of it all. Not a door. Not a wall. The lust that called Grond down the hall."'},
+      {t:'Who worshiped him?', reply:'THE TOY: "Your kin. Not all. Enough. The greedy. The crowned. The ones who called downfall \'enough.\'"'},
+      {t:'Why chaos?', reply:'THE TOY: "Worship buys an open door. Grond walks in. Order walks no more. Halls crack. Oaths thin. Chaos wears the old king\'s skin."'},
+      {t:'And the ruby?', then:()=>startTalk('toy_ruby')},
       {t:'How do we end it?', then:()=>startTalk('toy_teeth')},
+      {t:'Was Froren of Grond?', then:()=>startTalk('toy_froren')},
       {t:'Enough.', reply:'THE TOY: "Enough is a word soft fools keep. Wind me again when you cannot sleep."'}
     ]
   },
@@ -5604,7 +5613,50 @@ const NPC_TALK={
     choices:[
       {t:'Say that again.', reply:'THE TOY: "Ten teeth. Mordain\'s hammer. Anvil of Truth. Smash. Or stay thick. Your choice, dwarf."'},
       {t:'Where do I look?', reply:'THE TOY: "Everywhere the dark grows bold. No map from me. That tale\'s old. Follow greed. Follow power. Follow what the ruby calls a flower."'},
+      {t:'Mordain\'s hammer?', then:()=>startTalk('toy_mordain')},
+      {t:'The Anvil of Truth?', then:()=>startTalk('toy_anvil')},
+      {t:'Why ten?', reply:'THE TOY: "Ten bites. Ten sins. Ten locks on what greed begins. One short and the lie still grins."'},
       {t:'Put it down.', reply:'THE TOY: "Sockets wait. Teeth do not. Tick."'}
+    ]
+  },
+  toy_ruby:{
+    who:'THE TOY',
+    line:'Heart of it all. Not a door. Not a wall. The lust that called Grond down the hall. Warm to a palm that still wants more. Cold to a palm that learned the score.',
+    choices:[
+      {t:'Is it under the red door?', reply:'THE TOY: "Doors lie. Heat lies. The heart does not. Dig for crowns and you dig for rot."'},
+      {t:'Tie it to Grond.', reply:'THE TOY: "Grond fed on want. The ruby is want made bright. Same hunger. Same night."'},
+      {t:'How do teeth stop it?', then:()=>startTalk('toy_teeth')},
+      {t:'Enough.', reply:'THE TOY: "Go. Clutch. Crack. Or don\'t. Tick-tock."'}
+    ]
+  },
+  toy_froren:{
+    who:'THE TOY',
+    line:'Soft Froren. Tinker. Fool with joy in his hands. He wound me for children, not for kings\' demands. Not Grond\'s. Never Grond\'s. He left an anvil where soft truth still stands.',
+    choices:[
+      {t:'Where is he now?', reply:'THE TOY: "Gone under the fall, or worse. Joy does not last when greed rehearses."'},
+      {t:'His anvil?', then:()=>startTalk('toy_anvil')},
+      {t:'Did he hide the teeth?', reply:'THE TOY: "He hid joy. Others tore teeth. Different work. Different grief."'},
+      {t:'Back.', then:()=>startTalk('toy_wind')}
+    ]
+  },
+  toy_mordain:{
+    who:'THE TOY',
+    line:'Mordain\'s holy hammer. Not for ore. Not for doors. For lies that wear a crown of wars. Swing true on Truth\'s cold face. Smash the teeth. End the chase.',
+    choices:[
+      {t:'Who was Mordain?', reply:'THE TOY: "A name the stone still fears to waste. Ask the anvil. Ask the faith you misplaced."'},
+      {t:'Where is the hammer?', reply:'THE TOY: "Where holy things go when halls go wrong. No compass. Only a song: follow what still refuses the throng."'},
+      {t:'And the anvil?', then:()=>startTalk('toy_anvil')},
+      {t:'Enough.', reply:'THE TOY: "Hammer waits. Teeth wait. You waste."'}
+    ]
+  },
+  toy_anvil:{
+    who:'THE TOY',
+    line:'Anvil of Truth. Soft Froren\'s stand. Cold iron that will not bend for a crowned hand. Lay the teeth. Raise the hammer. Strike. Let greed learn what soft fools demand.',
+    choices:[
+      {t:'Is it in the start hall?', reply:'THE TOY: "An anvil stands where joy once stood. Whether Truth still wears that wood— prove it. I tick. I don\'t."'},
+      {t:'Why smash there?', reply:'THE TOY: "Because lies ring false on honest steel. Teeth of greed break when Truth makes them kneel."'},
+      {t:'Back to the teeth.', then:()=>startTalk('toy_teeth')},
+      {t:'Put it down.', reply:'THE TOY: "Truth does not chase. You do. Tick."'}
     ]
   },
   goblin_mercy:{
@@ -5749,6 +5801,7 @@ function startTalkObj(pack){
 }
 function startTalk(key){
   const pack=NPC_TALK[key]; if(!pack) return;
+  if(isToyTalkKey(key)) G.toyTalkEnded=null;
   startTalkObj(Object.assign({key}, pack));
 }
 function isMajorTalkKey(key){
@@ -5810,6 +5863,7 @@ function dismissTalkWalkOff(){
   if(key==='goblin_yield') goblinHonestYield();
   if(isMajorTalkKey(key)) majorTalkFight();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
+  settleToyTalk();
 }
 function packMercyGoblin(){
   return (G.ents||[]).find(e=>e&&e.id===G.mercyGoblinId);
@@ -6484,7 +6538,39 @@ function dropInDwarfMouth(r){
   }
   say('The stone jaws taste it and spit it back. Not a guardian ruby.','#c9b895');
 }
-function closeTalk(){ G.talk=null; }
+function isToyTalkKey(key){
+  return key==='toy_find'||key==='toy_wind'||key==='toy_grond'||key==='toy_teeth'
+    ||key==='toy_ruby'||key==='toy_froren'||key==='toy_mordain'||key==='toy_anvil';
+}
+function windupToyProp(){
+  return (G.props||[]).find(pr=>pr&&pr.k==='winduptoy'&&!pr.gone)||null;
+}
+/* Talk-end restarts a 5s scamper (new octant). Mid-tree startTalk cancels. */
+function kickToyScamper(){
+  const toy=windupToyProp(); if(!toy) return;
+  const oct=(Math.random()*8)|0, a=oct*Math.PI/4;
+  toy.scampDx=Math.cos(a); toy.scampDy=Math.sin(a);
+  toy.scampT=TOY_SCAMPER_SECS;
+}
+function tickToyScamper(dt){
+  const toy=windupToyProp(); if(!toy||!(toy.scampT>0)) return;
+  toy.scampT=Math.max(0, toy.scampT-dt);
+  if(toy.scampT<=0){ toy.scampDx=0; toy.scampDy=0; return; }
+  const r=0.18, nx=toy.x+toy.scampDx*TOY_SCAMPER_SP*dt, ny=toy.y+toy.scampDy*TOY_SCAMPER_SP*dt;
+  const dummy={x:toy.x,y:toy.y,r:r};
+  if(canBe(nx,toy.y,r,dummy)) toy.x=nx;
+  if(canBe(toy.x,ny,r,dummy)) toy.y=ny;
+}
+function settleToyTalk(){
+  if(!G.toyTalkEnded) return;
+  G.toyTalkEnded=null;
+  kickToyScamper();
+}
+function closeTalk(){
+  const key=G.talk&&G.talk.key;
+  G.talk=null;
+  if(isToyTalkKey(key)) G.toyTalkEnded=key;
+}
 function pickTalk(i){
   const talk=G.talk; if(!talk||!talk.choices||!talk.choices[i]) return;
   const c=talk.choices[i];
@@ -6493,6 +6579,7 @@ function pickTalk(i){
   closeTalk();
   if(typeof c.then==='function') c.then();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
+  settleToyTalk();
 }
 function beginUiLayer(g){
   g.setTransform(DPR,0,0,DPR,0,0);
@@ -6522,7 +6609,8 @@ function drawTalk(g){
   const s=UIS;
   const inset=UI.pad||{t:0};
   g.fillStyle='rgba(4,3,2,0.62)'; g.fillRect(0,0,VW,VH);
-  const w=Math.min(520*s, VW*0.86), h=Math.min(280*s, VH*0.50);
+  const n=(talk.choices||[]).length;
+  const w=Math.min(520*s, VW*0.86), h=Math.min(Math.max(280*s, 170*s+n*36*s), VH*0.86);
   const x=VW/2-w/2, y=Math.max(10*s, (inset.t||0)+10*s);
   g.fillStyle='#0a0705';
   roundPath(g,x,y,w,h,8); g.fill();
@@ -11197,7 +11285,7 @@ window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); IN.keys[k]=1;
   if(G.scene==='credits' && e.key==='Escape'){ leaveCredits(); return; }
   if(G.scene==='pack' && e.key==='Escape'){
-    if(G.talk){ closeTalk(); return; }
+    if(G.talk){ closeTalk(); settleToyTalk(); return; }
     G.faceOffer=0; G.packSel=null;
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
     return;
@@ -11486,12 +11574,14 @@ function update(dt){
     }
     return;
   }
+  settleToyTalk();
   G.elapsed+=dt;
   G.dayClock=(G.dayClock||0)+dt;
   if(G.dayClock>=GHOST_DAY_SECS){
     G.dayClock=0; G.day=(G.day||1)+1; tryPordoomGifts();
   }
   const L=G.lvl; if(!L) return;
+  tickToyScamper(dt);
   PROMPT=null;
   runSystems(dt, { ents:G.ents, abilities:ABIL, cds:cds });
   if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
