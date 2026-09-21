@@ -304,8 +304,9 @@ assert(Math.abs(xbowAtkBH-xbowBH)/xbowBH<0.02 && xbowAtkBH<=xbowBH+1e-6,
   'xbow strike blitH matches xbow idle');
 
 /* Same body fraction on a taller canvas must not grow the dwarf.
-   A shorter crown-to-boots fraction (real windup / contact) grows dest H
-   until the body matches idle. */
+   An injected short fraction (the old beard-column miss) grows dest H
+   until that fraction matches idle. Real contact helm is higher — see
+   LivingMacarQA — and must not take this 1.2× growth. */
 fitCtx._idle='macar';
 fitSPR.macar._stature=0.977;
 fitSPR.macar_atk._stature=0.977;

@@ -176,9 +176,10 @@ SPR.macar._stature=idleBody;
 SPR.macar_atk._stature=windBody;
 SPR.macar_atk_contact._stature=hitBody;
 assert(idleBody>0.94 && idleBody<0.995
-  && windBody>0.68 && windBody<0.80
-  && hitBody>0.68 && hitBody<0.80,
-  'measured crown-to-boots is full on idle and short on attack (idle '
+  && windBody>0.66 && windBody<0.78
+  && hitBody>0.84 && hitBody<0.93
+  && hitBody>windBody+0.08,
+  'idle fills the sheet, windup stops at the helm, contact includes the helm (idle '
   +idleBody.toFixed(3)+' wind '+windBody.toFixed(3)+' hit '+hitBody.toFixed(3)+')');
 const windPlant=ctx.livingMacarPlantFit(mac, 'macar_atk', SPR.macar_atk);
 const hitPlant=ctx.livingMacarPlantFit(mac, 'macar_atk_contact', SPR.macar_atk_contact);
@@ -201,9 +202,12 @@ assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
 assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
   'crown-to-boots figure height matches idle vs windup vs contact (idle '
   +idleFig.toFixed(3)+' wind '+windFig.toFixed(3)+' hit '+hitFig.toFixed(3)+')');
-assert(windB.h>macarB.h && windBlith>idleBlith*1.2 && hitBlith>idleBlith*1.2,
-  'a shorter body in the 540 canvas grows dest H (wind '+windBlith.toFixed(3)
-  +' hit '+hitBlith.toFixed(3)+' idle '+idleBlith.toFixed(3)+')');
+assert(windB.h>macarB.h && windBlith>idleBlith*1.2 && windBlith<idleBlith*1.55,
+  'windup dest H grows for the shorter helm-to-boot body (wind '+windBlith.toFixed(3)
+  +' idle '+idleBlith.toFixed(3)+')');
+assert(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
+  'contact dest H tracks the helm and does not overshoot idle (hit '+hitBlith.toFixed(3)
+  +' idle '+idleBlith.toFixed(3)+')');
 const grown=idleFit*(windB.h/macarB.h);
 assert(Math.abs(blitH(grown)-windBlith)/windBlith>0.08,
   'stature lock is not the old frameH/idleH canvas ratio (old '+blitH(grown).toFixed(3)
