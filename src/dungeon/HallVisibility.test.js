@@ -26,8 +26,8 @@ assert(/function isRubyNorthWall\(L,x,y\)/.test(html) && /L\.n===1 && y===6 && x
   'only the Chapter I ruby-chamber north face is raised');
 assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function rubyNorthWallH\(L\)/.test(html),
   'ruby north wall is taller than the door arch, halls stay 0.70');
-assert(/const faceH=isRubyNorthWall\(L,x,y\)\?rubyNorthWallH\(L\):H/.test(html),
-  'drawWallCell keeps hallWallH and only swaps the ruby north face');
+assert(/const faceH=isRubyNorthWall\(L,x,y\)\?rubyNorthWallH\(L\):\(isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H\)/.test(html),
+  'drawWallCell keeps hallWallH and only swaps the ruby and teeth north faces');
 
 assert(/push\(actorDrawDepth\(d\)/.test(html), 'decals sort past south/east walls');
 assert(/push\(actorDrawDepth\(p\)/.test(html), 'props sort past south/east walls');
