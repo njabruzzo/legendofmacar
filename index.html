@@ -493,7 +493,18 @@ const SPRITE_FILES={
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
   winduptoy:'assets/props/prop_winduptoy.png',
   winduptoy_wound:'assets/props/prop_winduptoy_wound.png',
-  brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
+  brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',
+  /* Ch1 ruby door matches the title-menu ruby-door-hall (assets/ui/title_menu.jpg):
+     knotwork arch, central hexagonal ruby. That billboard opens the right wall
+     onto the dwarven stone face and this same door. Canonical bind is
+     assets/props/prop_rubydoor.png. Optional face plate is a crop of that same
+     door, not a second design. rubydoor_signed (after derivation) is the accept
+     slot — absent until Disney's sheet lands — so this placeholder hero does
+     not hide the current face plate. No w1/w2: a walk cycle flickered the door.
+     On the bind, copy the hero onto prop_rubydoor.png and prop_rubydoor_signed.png,
+     regenerate _atk from the hero only if a sprung frame is still required, and
+     bump ASSET_VER. Touch, wakeRubyDoor, and the six guardians do not read the sheet. */
+  rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
   dwarfface:'assets/props/prop_dwarfface.png',
   craftstation:'assets/props/prop_craftstation.png',
@@ -562,6 +573,9 @@ const SPRITE_FILES={
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
   title_splash:'assets/ui/title_splash.jpg',
+  /* Second screen: ruby-door-hall billboard. Right wall opened onto the dwarven
+     stone face and the same door as the Ch1 ruby door. Hook stays
+     assets/ui/title_menu.jpg until that plate is uploaded; then bump ASSET_VER. */
   title_menu:'assets/ui/title_menu.jpg',
   title_splash_2:'assets/ui/title_menu.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
@@ -622,6 +636,11 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   SPRITE_FILES[k+'_w2']=stem+'_w2.png';
   SPRITE_FILES[k+'_atk']=stem+'_atk.png';
 });
+/* Title-menu ruby door accept slot. After _atk derivation so we do not invent
+   prop_rubydoor_signed_w1/_w2/_atk. Missing file never lands in SPR; the chamber
+   keeps the current face plate until Disney's matching hero is dropped here
+   and onto assets/props/prop_rubydoor.png. */
+SPRITE_FILES.rubydoor_signed='assets/props/prop_rubydoor_signed.png';
 /* Limner pack 74: painted FX + n/e/w secret masonry (never south). After
    walk/dead derivation so we do not invent missing _w1/_dead fetches. */
 SPRITE_FILES.fx_bolt='assets/fx/fx_bolt.png';
@@ -750,7 +769,7 @@ function loadSprites(done){
     'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
     'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
     'cavein',
-    'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
+    'rubydoor','rubydoor_signed','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
     'glowcap','cavefern','sporepuff','nightbloom','lichen'];
   const seen={};
@@ -2113,8 +2132,15 @@ function actorDrawDepth(o){
 function rubyDoorH(L){
   return wallFaceH(L)*1.28;
 }
+/* Signed title-menu door wins. Until that PNG lands, the face plate stays
+   so the placeholder hero (side masonry, round gem) does not replace it. */
+function rubyDoorSpriteKey(){
+  if(SPR.rubydoor_signed && SPR.rubydoor_signed.width) return 'rubydoor_signed';
+  if(SPR.rubydoor_face && SPR.rubydoor_face.width) return 'rubydoor_face';
+  return 'rubydoor';
+}
 function rubyDoorHalf(){
-  const img=SPR.rubydoor_face||SPR.rubydoor;
+  const img=SPR[rubyDoorSpriteKey()]||SPR.rubydoor_face||SPR.rubydoor;
   const H=rubyDoorH();
   const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
@@ -2729,8 +2755,8 @@ function propSpriteKey(p){
   if(k==='boulder') return p.spr||'boulder';
   if(k==='rubble') return p.spr||'rubble';
   if(k==='cavein') return 'cavein';
-  if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
-  if(k==='rubydoor') return SPR.rubydoor_face?'rubydoor_face':'rubydoor';
+  if(k==='rubywall') return SPR.rubywall?'rubywall':rubyDoorSpriteKey();
+  if(k==='rubydoor') return rubyDoorSpriteKey();
   if(k==='dwarfface') return 'dwarfface';
   if(k==='demonface') return (SPR.demon_dwarfface||SPR.demonface)?'demon_dwarfface':'dwarfface';
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
