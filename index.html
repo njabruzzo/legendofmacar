@@ -11914,26 +11914,26 @@ function drawCutRuby(g,x,y,w,h,on,z){
 function drawCh1PillarRuby(g,s,z,p){
   const gy=pillarRubyLocalY(z,p);
   const b=.55+Math.sin((G.elapsed||0)*3.2+(p&&p.x||0))*.25;
-  g.beginPath(); g.ellipse(0,gy+3.2*z,12.4*z,5.6*z,0,0,TAU);
+  g.beginPath(); g.ellipse(0,gy+4.4*z,16.5*z,7.2*z,0,0,TAU);
   g.fillStyle='rgba(8,6,4,0.42)'; g.fill();
-  g.beginPath(); g.ellipse(0,gy+1.6*z,11.2*z,5.0*z,0,0,TAU);
-  sc(g,'#2a221a',gy-3*z,gy+6*z,1.45);
-  g.beginPath(); g.ellipse(0,gy+0.6*z,7.6*z,3.3*z,0,0,TAU);
-  sc(g,'#16110d',gy-2*z,gy+4*z,1.2);
-  g.beginPath(); g.ellipse(0,gy+0.2*z,5.4*z,2.2*z,0,0,TAU);
+  g.beginPath(); g.ellipse(0,gy+2.2*z,15.2*z,6.6*z,0,0,TAU);
+  sc(g,'#2a221a',gy-4*z,gy+8*z,1.45);
+  g.beginPath(); g.ellipse(0,gy+0.8*z,10.2*z,4.4*z,0,0,TAU);
+  sc(g,'#16110d',gy-3*z,gy+5*z,1.2);
+  g.beginPath(); g.ellipse(0,gy+0.3*z,7.2*z,2.8*z,0,0,TAU);
   g.fillStyle='rgba(90,12,18,0.55)'; g.fill();
-  const rear=[[-7.6,-1.6],[-2.4,-3.8],[2.6,-3.6],[7.8,-1.4]];
+  const rear=[[-10.2,-2.0],[-3.2,-5.0],[3.4,-4.8],[10.4,-1.8]];
   for(let i=0;i<rear.length;i++){
     const px=rear[i][0]*z, py=gy+rear[i][1]*z;
-    facetPoly(g,[px-1.1*z,py+1.8*z, px,py-3.4*z, px+1.1*z,py+1.8*z],'#3a3228',OL,1.1*z);
+    facetPoly(g,[px-1.5*z,py+2.4*z, px,py-4.6*z, px+1.5*z,py+2.4*z],'#3a3228',OL,1.1*z);
   }
-  drawCutRuby(g,0,gy-8*z,17*z,21*z,1,z);
-  const front=[[-6.2,1.4],[6.4,1.5]];
+  drawCutRuby(g,0,gy-11*z,26*z,32*z,1,z);
+  const front=[[-8.4,1.8],[8.6,2.0]];
   for(let i=0;i<front.length;i++){
     const px=front[i][0]*z, py=gy+front[i][1]*z;
-    facetPoly(g,[px-1.25*z,py+1.2*z, px,py-4.2*z, px+1.25*z,py+1.2*z],'#4a4034',OL,1.15*z);
+    facetPoly(g,[px-1.7*z,py+1.6*z, px,py-5.6*z, px+1.7*z,py+1.6*z],'#4a4034',OL,1.15*z);
     g.fillStyle='rgba(220,190,140,0.22)';
-    g.beginPath(); g.ellipse(px-0.3*z,py-1.6*z,0.45*z,1.1*z,0,0,TAU); g.fill();
+    g.beginPath(); g.ellipse(px-0.4*z,py-2.1*z,0.6*z,1.45*z,0,0,TAU); g.fill();
   }
   if(s){
     emit(s.x,s.y+gy-8*z,56*z,'#ff2a3c',0.98+b*0.2);
@@ -11947,7 +11947,8 @@ function drawCh1LiftLever(g,z,ready){
   const thrown=!!ready;
   g.save();
   /* SE of the center pillar so the forged plate is not buried in the shaft. */
-  g.translate(24*z,8*z);
+  g.translate(26*z,10*z);
+  g.scale(1.35,1.35);
   facetPoly(g,[-10*z,5*z, -8.2*z,-6.4*z, 9.4*z,-7.2*z, 11.2*z,5.6*z],'#2e2820');
   sc(g,'#3a3228',-8*z,7*z,1.55);
   g.fillStyle='rgba(0,0,0,0.28)';

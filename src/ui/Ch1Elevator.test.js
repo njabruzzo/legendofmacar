@@ -47,9 +47,9 @@ assert(/if\(ch1PillarHasRuby\(p\)\) drawCh1PillarRuby/.test(html),
 assert(/function drawCutRuby\(g,x,y,w,h,on,z\)\{/.test(html),
   'the pedestal ruby is a cut-stone draw, not a single blob');
 assert(/function drawCh1PillarRuby\(g,s,z,p\)\{/.test(html.match(/function drawCh1PillarRuby\(g,s,z,p\)\{[\s\S]*?\nfunction drawCh1LiftLever/)[0]) &&
-  /drawCutRuby\(g,0,gy-8\*z,17\*z,21\*z,1,z\)/.test(html),
+  /drawCutRuby\(g,0,gy-11\*z,26\*z,32\*z,1,z\)/.test(html),
   'the seated ruby uses drawCutRuby in an iron bezel');
-assert(/rear=\[\[-7\.6,-1\.6\]/.test(html) && /front=\[\[-6\.2,1\.4\]/.test(html),
+assert(/rear=\[\[-10\.2,-2\.0\]/.test(html) && /front=\[\[-8\.4,1\.8\]/.test(html),
   'the pedestal ruby sits in claw prongs on the cap');
 assert(/function drawCh1LiftLever\(g,z,ready\)\{/.test(html),
   'the Ch1 lift always paints a readable lever');
@@ -58,7 +58,8 @@ assert(/function paintCh1LiftLever\(g,z\)\{/.test(html) && /G\.lvl\.n===1\) draw
 assert(/if\(ch1CenterPillar\(p\)\) paintCh1LiftLever/.test(html),
   'the lever also paints on the center pillar so the shaft does not bury it');
 const lever=html.match(/function drawCh1LiftLever\(g,z,ready\)\{[\s\S]*?\nfunction drawFacetGem/)[0];
-assert(/g\.translate\(24\*z,8\*z\)/.test(lever), 'the lever sits on the SE rim beside the pillar');
+assert(/g\.translate\(26\*z,10\*z\)/.test(lever) && /g\.scale\(1\.35,1\.35\)/.test(lever),
+  'the lever sits on the SE rim beside the pillar at a readable scale');
 assert(/rivets=\[\[-6\.2,-3\.2\]/.test(lever), 'the lever mounts on a riveted iron plate');
 assert(/g\.rotate\(thrown\?-1\.08:0\.58\)/.test(lever), 'the lever still throws when elevReady');
 assert(/moveTo\(-2\.8\*z,3\*z\).*lineTo\(-1\.55\*z,-27\*z\)/.test(lever),
