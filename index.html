@@ -920,6 +920,12 @@ function spriteBounds(img){
   }
     const fcx=footN?Math.round(footX/footN):Math.round((lo+hi)/2);
   const half=Math.max(6, Math.round((hi-lo+1)*0.16));
+  /* Spread-stance windup: the foot column dies in the gap between the
+     boots, then the full weapon box (overhead maul) is treated as the
+     person and dest H shrinks the body into a smear. Ignore gaps in the
+     lower 42% so the torso connects; honor gaps above that so the maul
+     is not the crown. */
+  const ignoreGapUntil=top+Math.floor((bot-top+1)*0.42);
   let crown=bot, gaps=0;
   for(let y=bot;y>=top;y--){
     let hit=false;
@@ -928,7 +934,7 @@ function spriteBounds(img){
       if(d[(y*w+x)*4+3]>30){ hit=true; break; }
     }
     if(hit){ crown=y; gaps=0; }
-    else { gaps++; if(gaps>2) break; }
+    else { gaps++; if(gaps>2 && y<ignoreGapUntil) break; }
   }
   let metal=0, warm=0, hairN=0, cn=0;
   const bw=hi-lo+1, bh=bot-top+1;

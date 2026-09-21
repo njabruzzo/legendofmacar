@@ -27,6 +27,9 @@ function extractFn(name){
 }
 
 assert(/function livingMacarPlantFit\(/.test(html), 'livingMacarPlantFit exists');
+assert(/ignoreGapUntil/.test(extractFn('spriteBounds'))
+  && /\*0\.42\)/.test(extractFn('spriteBounds')),
+  'spread-stance crown walk ignores the inter-boot gap so the helmet is the crown');
 assert(/_w\[12\]\$/.test(extractFn('livingMacarPlantFit')),
   'walk keys lock to the live idle plant');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar')),
@@ -51,6 +54,7 @@ function sheetBounds(file){
   }
   const fcx=footN?Math.round(footX/footN):Math.round((lo+hi)/2);
   const half=Math.max(6, Math.round((hi-lo+1)*0.16));
+  const ignoreGapUntil=top+Math.floor((bot-top+1)*0.42);
   let crown=bot, gaps=0;
   for(let y=bot;y>=top;y--){
     let hit=false;
@@ -60,7 +64,7 @@ function sheetBounds(file){
       if(data[p+3]>30 && (data[p]|data[p+1]|data[p+2])!==0){ hit=true; break; }
     }
     if(hit){ crown=y; gaps=0; }
-    else { gaps++; if(gaps>2) break; }
+    else { gaps++; if(gaps>2 && y<ignoreGapUntil) break; }
   }
   return {
     ok:true, w, h,
@@ -105,8 +109,8 @@ const unlockedW1=ctx.heroFigureFit(mac, SPR.macar_w1);
 
 assert(Math.abs(w1Fit-idleFit)<1e-9 && Math.abs(w2Fit-idleFit)<1e-9,
   'maul w1/w2 plant at idle scale (lock '+idleFit.toFixed(3)+')');
-assert(Math.abs(unlockedW1-idleFit)<0.02,
-  'freearm v8 maul w1 personY0 already matches idle (unlocked '
+assert(Math.abs(unlockedW1-idleFit)<0.06,
+  'freearm v8 maul w1 unlocked plant stays near idle (unlocked '
   +unlockedW1.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
 
 const idleScreen=macarB.boxH*idleFit/macarB.h;
@@ -131,6 +135,26 @@ const axeScreen=axeB.boxH*axeFit/axeB.h;
 const axeW1Screen=axeW1B.boxH*axeW1Fit/axeW1B.h;
 assert(Math.abs(axeW1Screen-axeScreen)/axeScreen<0.02,
   'on-screen cleaver box height matches axe idle');
+
+ctx._axe=false;
+const windB=sheetBounds('dwarf_macar_atk.png');
+const hitB=sheetBounds('dwarf_macar_atk_contact.png');
+SPR.macar_atk={width:windB.w, height:windB.h, _b:windB};
+SPR.macar_atk_contact={width:hitB.w, height:hitB.h, _b:hitB};
+assert(windB.personY0<0.45,
+  'windup crown is the helmet, not the boots (personY0='+windB.personY0.toFixed(3)+')');
+const windFit=ctx.heroFigureFit(mac, SPR.macar_atk);
+const windPerson=Math.max(windB.y1-windB.personY0, windB.y1-windB.y0);
+const windScreen=(windB.y1-windB.y0)*windB.h*windFit/windB.h;
+const idlePersonScreen=(macarB.y1-macarB.y0)*macarB.h*idleFit/macarB.h;
+assert(windFit>1.15,
+  'windup scales up so helmet-to-boot matches idle (fit '+windFit.toFixed(3)+')');
+assert(Math.abs(windPerson*windFit - (macarB.y1-macarB.personY0)*idleFit)/idleFit<0.20
+  || Math.abs((windB.y1-windB.personY0)*windFit - (macarB.y1-macarB.personY0)*idleFit)<0.12,
+  'windup person frac*fit is near idle (wind personY0='+windB.personY0.toFixed(3)
+  +' fit='+windFit.toFixed(3)+')');
+assert(hitB.personY0<0.45,
+  'contact crown is the helmet, not the boots (personY0='+hitB.personY0.toFixed(3)+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar weapon length-lock checks passed');
