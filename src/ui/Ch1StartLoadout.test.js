@@ -53,8 +53,8 @@ assert(/if\(r\.key==='macar'\) ensureMacarStartingGear\(pk\)/.test(html),
   'ensurePacks wears the starting kit on Macar');
 assert(/livingMacarIdleKey/.test(html) && /wieldsShadowCleaver/.test(html),
   'maul idle is the default; Cleaver is an equip swap');
-assert(/ASSET_VER='102'/.test(html),
-  'ASSET_VER is 102 — freearm v8 walk + Nick-read combat windup/contact');
+assert(/ASSET_VER='103'/.test(html),
+  'ASSET_VER is 103 — Disney SIGNED fidelity2x maul idle/walk/windup/contact');
 assert(/Interaction\.installChapterI/.test(html)
   && /if \(L\.n === 1 && i < 14\) return true/.test(fs.readFileSync(path.join(root,'src/systems/Interaction.js'),'utf8')),
   'later room interactions protect the west cave-in lip');

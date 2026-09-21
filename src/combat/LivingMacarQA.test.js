@@ -7,6 +7,7 @@
 const fs=require('fs');
 const path=require('path');
 const zlib=require('zlib');
+const crypto=require('crypto');
 const vm=require('vm');
 
 const root=path.join(__dirname,'../..');
@@ -123,10 +124,22 @@ BLIT_KEYS.forEach(k=>{
 });
 const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
-assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
-  'maul windup canvas is 470×540');
-assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
-  'maul contact canvas is 893×540 (GOLDEN overhang)');
+assert(windupHist.ok && windupHist.w===1825 && windupHist.h===1080,
+  'maul windup canvas is SIGNED 1825×1080');
+assert(contactHist.ok && contactHist.w===1825 && contactHist.h===1080,
+  'maul contact canvas is SIGNED 1825×1080');
+const SIGNED={
+  macar:'2dc1a023d05f4697b3b50c172804d593e6e2b043ed0dad6afd59cb67687b2449',
+  macar_w1:'beca3b6eafe187ea8068ed02b379e5317bca9d0baa92b7bacfd587f652451451',
+  macar_w2:'f99f91de1c729d7e14e417a5eb0f9897c09120996689710128679b5e478f74bb',
+  macar_atk:'4d6d014de99d730eee85a9043ccad82611002ef3dbaf6874b850764e84220841',
+  macar_atk_contact:'842084383d471090af286b6dd789720e29bf6b67e3cc03e3b970aeeace56afa1'
+};
+Object.keys(SIGNED).forEach(k=>{
+  const buf=fs.readFileSync(path.join(root,'assets/creatures', KEY_FILE[k]));
+  const hex=crypto.createHash('sha256').update(buf).digest('hex');
+  assert(hex===SIGNED[k], KEY_FILE[k]+' matches Disney SIGNED sha256');
+});
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');

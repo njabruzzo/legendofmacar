@@ -149,7 +149,7 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'attack pla
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar', 'recover plants idle until a matching atk sheet is ready');
 SPR.macar_atk={width:470, height:540};
 SPR.macar_atk_contact={width:893, height:540};
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'freearm windup 470x540 is used');
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'maul windup sheet is used');
 assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
   'Attack press t=0 already holds the windup sheet');
 assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk', 'blit key does not re-plant idle over ready atk');

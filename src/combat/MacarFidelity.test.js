@@ -25,8 +25,8 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='102'/.test(html) && !/ASSET_VER='103'/.test(html),
-  'ASSET_VER stays 102 — no painted-sheet swap');
+assert(/ASSET_VER='103'/.test(html) && !/ASSET_VER='102'/.test(html),
+  'ASSET_VER is 103 — Disney SIGNED fidelity2x bind');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
   'integer play DPR helper exists');

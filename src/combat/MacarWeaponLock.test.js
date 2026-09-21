@@ -160,9 +160,10 @@ assert(Math.abs(windPlant-idleFit*(windB.h/macarB.h))<1e-9
   && Math.abs(hitPlant-idleFit*(hitB.h/macarB.h))<1e-9,
   'windup/contact plant is idle pixel-scale (idle '
   +idleFit.toFixed(3)+' wind '+windPlant.toFixed(3)+' hit '+hitPlant.toFixed(3)+')');
-assert(Math.abs(unlockedWind-idleFit)>0.10,
-  'without the lock, windup figure frac would change dest H (unlocked '
-  +unlockedWind.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
+assert(Math.abs(unlockedWind-idleFit)<0.03 && Math.abs(unlockedHit-idleFit)<0.03,
+  'SIGNED hlock paint already matches idle person frac (unlocked wind '
+  +unlockedWind.toFixed(3)+' hit '+unlockedHit.toFixed(3)+' vs idle '
+  +idleFit.toFixed(3)+')');
 
 function contentScreen(b, fit){
   return Math.max(0, (b.y1||1)-(b.y0||0))*fit;
@@ -176,12 +177,11 @@ assert(Math.abs(windPersonH-idlePersonH)/idlePersonH<0.02
   +idlePersonH.toFixed(3)+', wind '+windPersonH.toFixed(3)+', hit '
   +hitPersonH.toFixed(3)+') — painted box*plant, not canvas '
   +macarB.h+'/'+windB.h+'/'+hitB.h);
-assert(windB.h!==macarB.h || hitB.w!==macarB.w,
-  'strike canvases may differ; the lock is person H, not 470×512');
-assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
-  'contact billboard may widen for maul overhang (aspect*fit idle '
-  +((macarB.w/macarB.h)*idleFit).toFixed(3)+' hit '
-  +((hitB.w/hitB.h)*hitPlant).toFixed(3)+')');
+assert(macarB.w===1825 && macarB.h===1080 && windB.w===1825 && windB.h===1080
+  && hitB.w===1825 && hitB.h===1080,
+  'SIGNED fidelity2x canvases are 1825×1080 (content_h lock, not 470/893)');
+assert(Math.abs(windPlant-idleFit)<1e-9 && Math.abs(hitPlant-idleFit)<1e-9,
+  'same canvas H keeps dest plantFit identical through the swing');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar weapon length-lock checks passed');
