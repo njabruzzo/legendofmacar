@@ -61,7 +61,7 @@ assert(/kind:'warrens'/.test(ch2) && /kind:'treasure'/.test(ch2),
   'warrens and bronze-door treasure stay');
 assert(/HOURGLASS_RAID_S=10/.test(html), 'raid is Nick\'s 10.0s');
 assert(/HOUSE: Electrum Tooth curse/.test(html), 'HOUSE comment records 1e convert law');
-assert(/Drop electrum/.test(html) && /Drop All/.test(html),
+assert(/Drop electrum/.test(html) && /10 \/ 100 \/ All/.test(html),
   'pack can drop electrum 10 / 100 / All');
 const saveSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
 assert(/emptySocket/.test(saveSrc) && /toothKind/.test(saveSrc),
@@ -156,9 +156,15 @@ ctx.G.packs.macar.magic=[];
 ctx.tickElectrumCurse(30);
 assert(ctx.G.curseStrain===0, 'strain decays when the tooth leaves the pack');
 assert(ctx.convertCoinsToElectrum()===0, 'curse suspends without the tooth');
-ctx.G.packs.macar.magic=[{id:'grond_tooth_copper', n:"Grond's Copper Tooth", grondTooth:'copper'}];
-assert(ctx.hasElectrumToothInPack()===true, 'old copper tooth migrates into the curse');
-assert(ctx.G.packs.macar.magic[0].id==='grond_tooth_electrum', 'migrated id is electrum');
+ctx.G.packs.macar.magic=[];
+ctx.G.equipped={helmet:{id:'grond_tooth_electrum', grondTooth:'electrum'}};
+assert(!ctx.hasElectrumToothInPack(), 'worn/equipped tooth does not curse');
+ctx.G.equipped={};
+ctx.G.packs.macar.magic=[{id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", grondTooth:'electrum'}];
+ctx.G.coin.ep=40;
+ctx.G.curseStrain=3; ctx.G.curseGrowT=0; ctx.G.curseDecayT=0;
+ctx.tickElectrumCurse(30);
+assert(ctx.G.curseStrain===5, 'strain does not fall while cursed and ep>0');
 ctx.G.packs.macar.magic=[{id:'grond_tooth_bronze', n:"Grond's Bronze Tooth", grondTooth:'bronze'}];
 ctx.G.coin={cp:50,sp:0,ep:0,gp:0,pp:0};
 assert(ctx.convertCoinsToElectrum()===0, 'bronze tooth does not convert coin');

@@ -10106,13 +10106,14 @@ function buildTeethCrownRoom(L, sec){
   say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
-/* HOUSE: Grond tooth hunt (Sage 10s raid; Nick Electrum rename).
+/* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
    Quest unique, not combat magic, no sell, Macar pack only.
-   Ids now: grond_tooth_electrum (replaces copper), grond_tooth_bronze.
+   Ids now: grond_tooth_electrum, grond_tooth_bronze.
    Stub later: grond_tooth_03 … 10 — do not invent yet.
    Smash-on-Anvil is dialogue-only (no systems).
-   Ch1 face: Pry once (`L.flags.electrumTooth`) → Electrum Tooth. Face stays;
-   empty socket after. Works whether or not the crown fight is done. No XP.
+   Ch1 face: Pry once (`L.flags.electrumTooth`) → Electrum Tooth
+   (silvery-electrum). Face stays; empty socket after.
+   Works whether or not the crown fight is done. No XP.
    Ch2: new SEARCH secret (not warrens, not bronze-door treasure). Entry
    starts the 10.0s raid (not the pry). Leave with bronze = inert + safe.
    Linger = Macar dead (kin inside die; kin outside live). Leave without
@@ -10129,7 +10130,7 @@ function makeGrondTooth(kind){
   return {
     id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
     noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-    d:'A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.'
+    d:'A silvery-electrum fang. In Macar\'s pack (not worn) all coin becomes electrum and grows heavy.'
   };
 }
 function nearestDemonFace(p, r){
@@ -10322,28 +10323,20 @@ function buildHourglassRoom(L, sec){
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
   hint('Ten seconds. Pry the bronze tooth and leave.',5.0);
 }
-/* HOUSE: Electrum Tooth curse (Nick first pass; Sage may refine).
-   Active only while grond_tooth_electrum is in Macar's pack (not worn).
-   On gain + every later coin gain: convert all coin → EP at 1e rates
-   (50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep; keep sub-ep dust in cp/sp).
-   Weight: enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0;
-   −1 / 30s when ep is 0 or the tooth leaves the pack.
+/* HOUSE: Electrum Tooth curse (Sage). Active only while
+   grond_tooth_electrum is in Macar's pack (not worn). Remove from pack
+   → curse suspends (no convert, strain decays).
+   On gain tooth + every later coin gain: convert all coin → EP at 1e
+   rates (50cp=1ep, 5sp=1ep, 1gp=2ep, 1pp=10ep). Zero gp/pp; keep sub-ep
+   dust in cp/sp. No new non-EP while cursed.
+   enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0 (does
+   not fall then). Strain −1 / 30s (floor 0) if ep===0 or tooth off pack.
    MV (Macar sp only): <50 ×1, 50–149 ×0.75, 150–299 ×0.5, 300+ ×0.25.
-   Pack: Drop electrum 10 / 100 / All as a floor pile. Bronze tooth does
-   not curse. Mordain smash / Remove Curse later. */
+   Pack: Drop electrum 10 / 100 / All as {coins:{ep:n}}. Bronze does not
+   curse. Mordain smash / Remove Curse later (stub). */
 function hasElectrumToothInPack(){
   const pk=G.packs&&G.packs.macar;
-  if(!pk||!pk.magic) return false;
-  let hit=0;
-  pk.magic.forEach(it=>{
-    if(!it) return;
-    if(it.id==='grond_tooth_copper'||it.grondTooth==='copper'){
-      it.id='grond_tooth_electrum'; it.n="Grond's Electrum Tooth"; it.grondTooth='electrum';
-      it.d='A silvery-electrum fang. While carried, all coin becomes electrum and grows heavy.';
-    }
-    if(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum') hit=1;
-  });
-  return !!hit;
+  return !!(pk&&(pk.magic||[]).some(it=>it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')));
 }
 function convertCoinsToElectrum(){
   if(!hasElectrumToothInPack()) return 0;
@@ -10410,9 +10403,9 @@ function askDropElectrum(){
     who:'MACAR',
     line:'Drop how much electrum? The curse keeps the rest heavy.',
     choices:[
-      {t:'Drop '+n10, then:()=>dropElectrum(n10)},
-      {t:'Drop '+n100, then:()=>dropElectrum(n100)},
-      {t:'Drop All ('+have+')', then:()=>dropElectrum(have)}
+      {t:'10', then:()=>dropElectrum(n10)},
+      {t:'100', then:()=>dropElectrum(n100)},
+      {t:'All', then:()=>dropElectrum(have)}
     ]
   });
 }
