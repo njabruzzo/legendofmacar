@@ -57,15 +57,36 @@ assert(/function paintCh1LiftLever\(g,z\)\{/.test(html) && /G\.lvl\.n===1\) draw
   'the lever overlay is Chapter I only');
 assert(/if\(ch1CenterPillar\(p\)\) paintCh1LiftLever/.test(html),
   'the lever also paints on the center pillar so the shaft does not bury it');
+assert(/function ch1LiftLeverSheet\(ready\)\{/.test(html),
+  'painted lever sheets are chosen before the procedural fallback');
+assert(/SPRITE_FILES\.ch1_lift_lever='assets\/props\/prop_ch1_lift_lever\.png'/.test(html),
+  'rest lever is registered in SPRITE_FILES');
+assert(/SPRITE_FILES\.ch1_lift_lever_thrown='assets\/props\/prop_ch1_lift_lever_thrown\.png'/.test(html),
+  'thrown lever is a separate painted sheet');
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever.png')),
+  'rest lever png is on disk');
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever_thrown.png')),
+  'thrown lever png is on disk');
+assert(/TODO: Disney SIGNED replaces assets\/props\/prop_ch1_lift_lever\.png/.test(html),
+  'Disney SIGNED bind stays a TODO until those sheets land');
+assert(/TODO: Disney SIGNED bind — assets\/props\/prop_ch1_pillar_ruby\.png/.test(html)
+  && /SPR\.ch1_pillar_ruby/.test(html),
+  'pillar ruby blits a SIGNED sheet when it lands and keeps the cut gem until then');
+assert(!/SPRITE_FILES\.ch1_pillar_ruby=/.test(html),
+  'the ruby file is not fetched until the SIGNED sheet exists');
 const lever=html.match(/function drawCh1LiftLever\(g,z,ready\)\{[\s\S]*?\nfunction drawFacetGem/)[0];
 assert(/g\.translate\(26\*z,10\*z\)/.test(lever) && /g\.scale\(1\.35,1\.35\)/.test(lever),
   'the lever sits on the SE rim beside the pillar at a readable scale');
-assert(/rivets=\[\[-6\.2,-3\.2\]/.test(lever), 'the lever mounts on a riveted iron plate');
-assert(/g\.rotate\(thrown\?-1\.08:0\.58\)/.test(lever), 'the lever still throws when elevReady');
-assert(/moveTo\(-2\.8\*z,3\*z\).*lineTo\(-1\.55\*z,-27\*z\)/.test(lever),
-  'the lever arm is a tapered forged shaft');
-assert(/kc=thrown\?'#d01828':'#c9a070'/.test(lever),
-  'the knob stays bronze until thrown, then ruby-lit');
+assert(/g\.drawImage\(img,-W\*0\.47,-H,W,H\)/.test(lever),
+  'a loaded sheet is blitted at the plate, not drawn as a UI knob');
+assert(/rivets=\[\[-6\.2,-3\.2\]/.test(lever), 'the fallback lever mounts on a riveted iron plate');
+assert(/g\.rotate\(thrown\?-1\.08:0\.58\)/.test(lever), 'the procedural lever still throws when elevReady');
+assert(/moveTo\(-2\.6\*z,3\*z\).*lineTo\(-1\.45\*z,-26\*z\)/.test(lever),
+  'the fallback arm is a tapered forged shaft');
+assert(/g\.fill\('evenodd'\)/.test(lever),
+  'the fallback grip is an open iron ring');
+assert(!/#c9a070/.test(lever) && !/#d01828/.test(lever),
+  'the fallback grip is not a tan or ruby UI ball');
 assert(/function drawFacetGem\(g,x,y,w,h,on,z\)\{/.test(html),
   'door and loot gems keep the shared drawFacetGem fallback');
 
