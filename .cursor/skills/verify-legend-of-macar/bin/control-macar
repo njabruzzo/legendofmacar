@@ -702,7 +702,8 @@ async function proveTitleNewGame() {
     const limit = Date.now() + 25000;
     while (Date.now() < limit) {
       s = await snapshot(cdp);
-      if (s.scene === 'title' && s.menus.some((m) => m.name === 'Continue')) break;
+      if (s.scene === 'title' && s.menus.some((m) => m.name === 'Continue') &&
+          !s.menus.some((m) => m.name === 'Back')) break;
       await new Promise((r) => setTimeout(r, 200));
     }
     const titleShot = await shot('title-visible');
@@ -724,7 +725,7 @@ async function proveTitleNewGame() {
       const menuLimit = Date.now() + 8000;
       while (Date.now() < menuLimit) {
         s = await snapshot(cdp);
-        if (s.scene === 'title_menu') break;
+        if (s.scene === 'title_menu' && (s.menus || []).some((m) => m.name === 'Enter the Deep' || m.name === 'New descent')) break;
         await new Promise((r) => setTimeout(r, 200));
       }
       const menuShot = await shot('title-menu-visible');
