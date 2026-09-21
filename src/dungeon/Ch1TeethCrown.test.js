@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Chapter I far-east teeth chapel: secret placement, bone crown take/destroy,
+ * Chapter I east-corridor north-wall teeth chapel: secret placement, bone crown take/destroy,
  * 5000 XP, fanged-skeleton stats, one-thrall animate dead.
  * Run: node src/dungeon/Ch1TeethCrown.test.js
  */
@@ -28,11 +28,15 @@ function extractFn(name){
 
 const ch1=html.match(/if\(n===1\)\{[\s\S]*?if\(n===2\)\{/)[0];
 assert(/L\.w=132/.test(ch1), 'Ch1 canvas grows east for the teeth chapel');
-assert(/kind:'teeth'/.test(ch1) && /face:'w'/.test(ch1),
-  'teeth secret is on the east-wall west face');
-assert(/i:111,j:19,w:1,h:3/.test(ch1),
-  'secret seals the far-east drift wall at a tunnel end');
-assert(/x:111\.15,y:20\.55/.test(ch1), 'SEARCH stand point is on the east wall');
+assert(/kind:'teeth'/.test(ch1) && /face:'n'/.test(ch1),
+  'teeth secret is on the north wall of the east corridor');
+assert(/i:105,j:15,w:3,h:1/.test(ch1),
+  'secret seals the north face of the east hall');
+assert(/x:106\.5,y:15\.05/.test(ch1), 'SEARCH stand point is on the north wall');
+assert(/north wall of the east corridor/.test(ch1),
+  'hint names the north wall of the east corridor');
+assert(!/far east wall of the drift/.test(ch1),
+  'hint no longer points at the far-east dead-end');
 assert(!/kind:'teeth'[\s\S]{0,180}face:'s'/.test(ch1),
   'teeth secret is not a south face');
 assert(/kind:'treasure'/.test(ch1) && /face:'n'/.test(ch1),
@@ -49,16 +53,35 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='102'/.test(html) && !/ASSET_VER='103'/.test(html),
-  'ASSET_VER stays 102 — no new SIGNED binds');
+assert(/ASSET_VER='103'/.test(html) && !/ASSET_VER='104'/.test(html),
+  'ASSET_VER is 103 — bone crown and tooth props bound');
+assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
+  'bone_crown is registered to the painted prop');
+assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
+  && /tooth_2:'assets\/props\/prop_tooth_2\.png'/.test(html)
+  && /tooth_3:'assets\/props\/prop_tooth_3\.png'/.test(html),
+  'tooth sprites are registered');
+['prop_bone_crown.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
+  assert(fs.existsSync(path.join(__dirname,'../../assets/props/'+n)), n+' on disk');
+});
+assert(/function drawProceduralFang\(/.test(html) && /function crownSprite\(/.test(html)
+  && /function toothSprite\(/.test(html),
+  'crown and tooth share a painted fallback path');
 assert(/SPR\.demon_dwarfface\|\|SPR\.demonface\|\|SPR\.dwarfface/.test(html),
   'demon face hooks Disney SIGNED, falls back to dwarfface');
-assert(/SPR\.bone_crown\|\|SPR\.bone_crown_signed/.test(html),
-  'bone crown hooks SIGNED sheet when it lands');
+assert(/SPR\.bone_crown\|\|SPR\.bone_crown_signed/.test(html)
+  || /function crownSprite\(/.test(html),
+  'bone crown hooks the painted sheet when it lands');
 assert(/k:'altar'/.test(extractFn('buildTeethCrownRoom')) && /k:'bonecrown'/.test(extractFn('buildTeethCrownRoom')),
   'chapel plants the existing altar and a bone crown');
 assert(/k:'demonface'/.test(extractFn('buildTeethCrownRoom')),
   'back wall gets a demonic dwarven face');
+assert(/const x0=101, y0=2, rw=12, rh=12/.test(extractFn('buildTeethCrownRoom')),
+  'chapel is carved north of the east-hall door');
+assert(/wall:'n'/.test(extractFn('buildTeethCrownRoom')),
+  'demon face sits on the chapel north wall');
+assert(!/x0=116, y0=16/.test(extractFn('buildTeethCrownRoom')),
+  'old east-of-door chapel coords are gone');
 assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(html),
   'openSecret branches to the teeth chapel');
 assert(/Take the bone crown/.test(html) && /Animate the dead/.test(html),
