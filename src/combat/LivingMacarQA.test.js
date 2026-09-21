@@ -133,14 +133,16 @@ assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
   'maul contact takes over at the hit (t≥0.45)');
 assert(/const MACAR_MAUL_WINDUP_T=0\.18/.test(html)
-  && /const MACAR_MAUL_HIT_HOLD_T=0\.62/.test(html)
+  && /const MACAR_MAUL_HIT_HOLD_T=0\.60/.test(html)
   && /const MACAR_MAUL_WINDUP_MIN_S=0\.28/.test(html),
   'QA windup / contact holds are distinct; first Attack keeps a readable windup beat');
 assert(/function armLivingMacarWindup\(/.test(html) && /function wantsMacarWindup\(/.test(html),
   'first Attack arms a min-read windup so a fat dt cannot skip to carry');
-assert(/macarStrikeHoldAt\(MACAR_MAUL_HIT_HOLD_T\)/.test(html)
-  && /macarStrikeHoldAt\(MACAR_MAUL_WINDUP_T\)/.test(html),
-  'holdMid freezes contact; holdWindup freezes the raise — not carry');
+assert(/p\.atk=p\.atkMax\*0\.40/.test(extractFn('macarStrikeHoldMid'))
+  && /mid-contact under countdown progress/.test(extractFn('macarStrikeHoldMid')),
+  'holdMid sets atk=atkMax*0.40 (t=0.60) — not atkMax*0.60 (t=0.40 windup)');
+assert(/macarStrikeHoldAt\(MACAR_MAUL_WINDUP_T\)/.test(html),
+  'holdWindup freezes the raise');
 const worldArt=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\};/);
 assert(!!worldArt && /macar_atk/.test(worldArt[0]) && /macar_atk_contact/.test(worldArt[0])
   && /macar_w1/.test(worldArt[0]) && /macar_w2/.test(worldArt[0]),
@@ -243,12 +245,14 @@ vm.runInContext(
   +'const MACAR_STRIKE_HOLD=0.12;'
   +'const MACAR_MAUL_CONTACT_T=0.45;'
   +'const MACAR_MAUL_WINDUP_T=0.18;'
-  +'const MACAR_MAUL_HIT_HOLD_T=0.62;'
+  +'const MACAR_MAUL_HIT_HOLD_T=0.60;'
   +'const MACAR_MAUL_WINDUP_MIN_S=0.28;'
   +extractFn('armLivingMacarStrike')
   +extractFn('armLivingMacarWindup')
   +extractFn('wantsMacarWindup')
   +extractFn('wantsLivingMacarStrike')
+  +extractFn('macarStrikeHoldAt')
+  +extractFn('macarStrikeHoldMid')
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey')
   +extractFn('faceVec')
@@ -288,9 +292,17 @@ assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
 const holdWind=macar({atk:0.82, atkMax:1});
 assert(ctx.livingMacarAnimKey(holdWind)==='macar_atk',
   'QA windup sample t=0.18 is macar_atk');
-const holdHit=macar({atk:0.38, atkMax:1});
+const holdHit=macar({atk:0.40, atkMax:1});
 assert(ctx.livingMacarAnimKey(holdHit)==='macar_atk_contact',
-  'QA contact hold t=0.62 is macar_atk_contact — not idle carry');
+  'QA contact hold t=0.60 is macar_atk_contact — not idle carry');
+ctx._player=macar({atk:0, atkMax:0.78});
+assert(ctx.macarStrikeHoldMid()===true
+  && Math.abs(ctx._player.atk-ctx._player.atkMax*0.40)<1e-9
+  && ctx.attackProgress(ctx._player)>=0.45
+  && Math.abs(ctx.attackProgress(ctx._player)-0.60)<1e-9
+  && ctx.livingMacarAnimKey(ctx._player)==='macar_atk_contact'
+  && ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
+  'holdMid() with CONTACT_T=0.45 blits macar_atk_contact (countdown t=0.60)');
 const fatDt=macar({atk:0.50, atkMax:1, macarWindupUntil:ctx._now+200});
 assert(ctx.wantsMacarWindup(fatDt)===true
   && ctx.livingMacarAnimKey(fatDt)==='macar_atk',

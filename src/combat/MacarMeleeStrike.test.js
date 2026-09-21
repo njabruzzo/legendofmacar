@@ -73,11 +73,12 @@ assert(/const MACAR_STRIKE_HOLD=0\.12/.test(html)
   && /wantsMeleeRecover\(e\)\) return false/.test(extractFn('wantsLivingMacarStrike')),
   'living Macar mid-swing is t 0–0.84; recover / timer-end return idle carry');
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html)
-  && /const MACAR_MAUL_HIT_HOLD_T=0\.62/.test(html)
+  && /const MACAR_MAUL_HIT_HOLD_T=0\.60/.test(html)
+  && /p\.atk=p\.atkMax\*0\.40/.test(extractFn('macarStrikeHoldMid'))
   && /function armLivingMacarWindup\(/.test(html)
   && /function wantsMacarWindup\(/.test(html)
   && /armLivingMacarWindup\(p\)/.test(html),
-  'Attack press arms a readable windup; QA hold freezes in contact (t=0.62)');
+  'Attack press arms a readable windup; holdMid is atkMax*0.40 (t=0.60 contact)');
 assert(/const MACAR_BOW_POSE_S=0\.40/.test(html) && /function wantsBowPose\(/.test(html)
   && /bowPoseUntil/.test(html) && /function expireBowPose\(/.test(html),
   'Shoot pose is render-time bowPoseUntil, then expire plants idle');
@@ -136,12 +137,14 @@ vm.runInContext(
   +'const MACAR_STRIKE_HOLD=0.12;'
   +'const MACAR_MAUL_CONTACT_T=0.45;'
   +'const MACAR_MAUL_WINDUP_T=0.18;'
-  +'const MACAR_MAUL_HIT_HOLD_T=0.62;'
+  +'const MACAR_MAUL_HIT_HOLD_T=0.60;'
   +'const MACAR_MAUL_WINDUP_MIN_S=0.28;'
   +extractFn('armLivingMacarStrike')
   +extractFn('armLivingMacarWindup')
   +extractFn('wantsMacarWindup')
   +extractFn('wantsLivingMacarStrike')
+  +extractFn('macarStrikeHoldAt')
+  +extractFn('macarStrikeHoldMid')
   +extractFn('livingMacarAnimKey'),
   ctx
 );
@@ -194,9 +197,15 @@ assert(maul.filter(s=>s.pose && s.t>=0.45).every(s=>s.key==='macar_atk_contact')
 const qaWind=macar({atk:1-0.18, atkMax:1});
 assert(ctx.livingMacarAnimKey(qaWind)==='macar_atk',
   'QA windup hold t=0.18 is the raise sheet');
-const qaHit=macar({atk:1-0.62, atkMax:1});
+const qaHit=macar({atk:1-0.60, atkMax:1});
 assert(ctx.wantsMeleePose(qaHit)===true && ctx.livingMacarAnimKey(qaHit)==='macar_atk_contact',
-  'QA contact hold t=0.62 is the overhang sheet, still in the strike window');
+  'QA contact hold t=0.60 is the overhang sheet, still in the strike window');
+ctx._player=macar({atk:0, atkMax:0.78});
+assert(ctx.macarStrikeHoldMid()===true
+  && Math.abs(ctx.attackProgress(ctx._player)-0.60)<1e-9
+  && ctx.attackProgress(ctx._player)>=0.45
+  && ctx.livingMacarAnimKey(ctx._player)==='macar_atk_contact',
+  'holdMid() with CONTACT_T=0.45 returns macar_atk_contact, not macar_atk');
 const minRead=macar({atk:1-0.50, atkMax:1, macarWindupUntil:ctx._now+180});
 assert(ctx.livingMacarAnimKey(minRead)==='macar_atk',
   'first-Attack min-read beat stays on windup even at t=0.50');

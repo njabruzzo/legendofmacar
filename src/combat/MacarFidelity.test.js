@@ -55,9 +55,10 @@ assert(/const MACAR_BLACK_SLAB_T=8/.test(html)
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
   'contact still takes over at the hit');
 assert(/const MACAR_MAUL_WINDUP_T=0\.18/.test(html)
-  && /const MACAR_MAUL_HIT_HOLD_T=0\.62/.test(html)
-  && /const MACAR_MAUL_WINDUP_MIN_S=0\.28/.test(html),
-  'windup sample, contact hold, and min-read beat are wired');
+  && /const MACAR_MAUL_HIT_HOLD_T=0\.60/.test(html)
+  && /const MACAR_MAUL_WINDUP_MIN_S=0\.28/.test(html)
+  && /p\.atk=p\.atkMax\*0\.40/.test(extractFn('macarStrikeHoldMid')),
+  'windup sample, holdMid atkMax*0.40 (t=0.60), and min-read beat are wired');
 assert(/function armLivingMacarWindup\(/.test(html)
   && /function wantsMacarWindup\(/.test(html)
   && /armLivingMacarWindup\(p\)/.test(html),
@@ -117,12 +118,14 @@ vm.runInContext(
   +'const MACAR_STRIKE_HOLD=0.12;'
   +'const MACAR_MAUL_CONTACT_T=0.45;'
   +'const MACAR_MAUL_WINDUP_T=0.18;'
-  +'const MACAR_MAUL_HIT_HOLD_T=0.62;'
+  +'const MACAR_MAUL_HIT_HOLD_T=0.60;'
   +'const MACAR_MAUL_WINDUP_MIN_S=0.28;'
   +extractFn('armLivingMacarStrike')
   +extractFn('armLivingMacarWindup')
   +extractFn('wantsMacarWindup')
   +extractFn('wantsLivingMacarStrike')
+  +extractFn('macarStrikeHoldAt')
+  +extractFn('macarStrikeHoldMid')
   +extractFn('livingMacarAnimKey'),
   ctx
 );
@@ -143,8 +146,14 @@ assert(ctx.livingMacarAnimKey(macar({atk:1-0.44, atkMax:1}))==='macar_atk',
   't=0.44 still windup — contact is the hit, not early');
 assert(ctx.livingMacarAnimKey(macar({atk:0.54, atkMax:1}))==='macar_atk_contact',
   't≈0.46 (the hit) is contact');
-assert(ctx.livingMacarAnimKey(macar({atk:1-0.62, atkMax:1}))==='macar_atk_contact',
-  't=0.62 QA hold is contact');
+assert(ctx.livingMacarAnimKey(macar({atk:1-0.60, atkMax:1}))==='macar_atk_contact',
+  't=0.60 QA hold is contact');
+ctx._player=macar({atk:0, atkMax:0.78});
+assert(ctx.macarStrikeHoldMid()===true
+  && Math.abs(ctx._player.atk-0.78*0.40)<1e-9
+  && ctx.attackProgress(ctx._player)>=0.45
+  && ctx.livingMacarAnimKey(ctx._player)==='macar_atk_contact',
+  'holdMid() hook blits macar_atk_contact when CONTACT_T is 0.45');
 assert(ctx.livingMacarAnimKey(macar({atk:1-0.84, atkMax:1}))==='macar',
   't=0.84 recover plants idle carry');
 assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk'
