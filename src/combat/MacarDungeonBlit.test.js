@@ -237,13 +237,16 @@ assert(d[0]===0 && d[3]===0, 'magenta pixel is punched to 0');
 assert(d[4]===0 && d[7]===0, 'a<=40 fringe is punched to 0');
 assert(d[11]===255, 'a>40 is forced opaque');
 assert(d[16]===0 && d[19]===0, 'black export matte is punched to 0');
-vm.runInContext('const MACAR_BLACK_SLAB_T=16;'+extractFn('punchBlackExportSlab'), ctx);
+assert(/const MACAR_BLACK_SLAB_T=8/.test(html), 'black-slab flood uses max-channel T=8, not sum≤16');
+vm.runInContext('const MACAR_BLACK_SLAB_T=8;'+extractFn('punchBlackExportSlab'), ctx);
 const slab=new Uint8ClampedArray(4*16);
 for(let i=0;i<16;i++){ slab[i*4]=4; slab[i*4+1]=4; slab[i*4+2]=4; slab[i*4+3]=255; }
 slab[5*4]=80; slab[5*4+1]=50; slab[5*4+2]=30; slab[5*4+3]=255;
+slab[6*4]=22; slab[6*4+1]=14; slab[6*4+2]=10; slab[6*4+3]=255;
 ctx.punchBlackExportSlab(slab, 4, 4);
 assert(slab[3]===0 && slab[4*4+3]===0, 'edge-connected near-black slab is punched');
 assert(slab[5*4]===80 && slab[5*4+3]===255, 'interior figure pixel survives the slab flood');
+assert(slab[6*4]===22 && slab[6*4+3]===255, 'dark painted chroma (boot/hair AA) is not slab-eaten');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar dungeon blit / leftover-art checks passed');

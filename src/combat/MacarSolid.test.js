@@ -64,8 +64,8 @@ assert(/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
 
 const bake=extractFn('blitLivingMacar');
 assert(/repairSpriteSheet\(img\)/.test(bake), 'living Macar bakes through repairSpriteSheet');
-assert(/const LO=64/.test(html) && /a<=LO/.test(html) && /d\[p\+3\]=0/.test(html),
-  'bake: low-alpha fringe is punched to 0');
+assert(/const LO=40/.test(extractFn('repairSpriteSheet')) && /a<=LO/.test(html) && /d\[p\+3\]=0/.test(html),
+  'bake: low-alpha fringe is punched at a≤40 (same as living punch — not 64)');
 assert(/a>=HI\?255/.test(html), 'bake: high-alpha silhouette is forced to 255');
 assert(/255\/a/.test(html), 'bake un-premultiplies RGB before lifting alpha');
 assert(/function punchLivingAlpha\(/.test(html) && /function isMagentaMatte\(/.test(html)

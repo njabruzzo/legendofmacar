@@ -132,9 +132,26 @@ assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   'combat soft rim and walk black slab rely on the existing living bake/punch');
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
   'maul contact takes over at the hit (t≥0.45)');
+assert(/const MACAR_MAUL_WINDUP_T=0\.18/.test(html)
+  && /const MACAR_MAUL_HIT_HOLD_T=0\.60/.test(html)
+  && /const MACAR_MAUL_WINDUP_MIN_S=0\.28/.test(html),
+  'QA windup / contact holds are distinct; first Attack keeps a readable windup beat');
+assert(/function armLivingMacarWindup\(/.test(html) && /function wantsMacarWindup\(/.test(html),
+  'first Attack arms a min-read windup so a fat dt cannot skip to carry');
+assert(/p\.atk=p\.atkMax\*0\.40/.test(extractFn('macarStrikeHoldMid'))
+  && /mid-contact under countdown progress/.test(extractFn('macarStrikeHoldMid')),
+  'holdMid sets atk=atkMax*0.40 (t=0.60) — not atkMax*0.60 (t=0.40 windup)');
+assert(/macarStrikeHoldAt\(MACAR_MAUL_WINDUP_T\)/.test(html),
+  'holdWindup freezes the raise');
+const worldArt=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\};/);
+assert(!!worldArt && /macar_atk/.test(worldArt[0]) && /macar_atk_contact/.test(worldArt[0])
+  && /macar_w1/.test(worldArt[0]) && /macar_w2/.test(worldArt[0]),
+  'first play frame waits on walk + windup + contact so Attack cannot plant idle carry');
 
 /* --- Source: living Macar is title idle + front w1/w2. Attack plants idle. --- */
 const liveKey=extractFn('livingMacarAnimKey');
+assert(/forceWindup/.test(liveKey) && /wantsMacarWindup/.test(liveKey),
+  'livingMacarAnimKey can hold windup past CONTACT_T for the min-read beat');
 assert(/macar_atk_contact/.test(liveKey) && /MACAR_MAUL_CONTACT_T/.test(liveKey),
   'livingMacarAnimKey binds windup then contact — never _atk_recover');
 assert(/macar_axe/.test(liveKey) && /livingMacarIdleKey/.test(liveKey),
@@ -227,8 +244,15 @@ vm.runInContext(
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
   +'const MACAR_MAUL_CONTACT_T=0.45;'
+  +'const MACAR_MAUL_WINDUP_T=0.18;'
+  +'const MACAR_MAUL_HIT_HOLD_T=0.60;'
+  +'const MACAR_MAUL_WINDUP_MIN_S=0.28;'
   +extractFn('armLivingMacarStrike')
+  +extractFn('armLivingMacarWindup')
+  +extractFn('wantsMacarWindup')
   +extractFn('wantsLivingMacarStrike')
+  +extractFn('macarStrikeHoldAt')
+  +extractFn('macarStrikeHoldMid')
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey')
   +extractFn('faceVec')
@@ -265,6 +289,27 @@ assert(ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
   'blit key holds macar_atk_contact when the sheet is ready');
 assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
   'Attack press t=0 already blits the windup sheet');
+const holdWind=macar({atk:0.82, atkMax:1});
+assert(ctx.livingMacarAnimKey(holdWind)==='macar_atk',
+  'QA windup sample t=0.18 is macar_atk');
+const holdHit=macar({atk:0.40, atkMax:1});
+assert(ctx.livingMacarAnimKey(holdHit)==='macar_atk_contact',
+  'QA contact hold t=0.60 is macar_atk_contact — not idle carry');
+ctx._player=macar({atk:0, atkMax:0.78});
+assert(ctx.macarStrikeHoldMid()===true
+  && Math.abs(ctx._player.atk-ctx._player.atkMax*0.40)<1e-9
+  && ctx.attackProgress(ctx._player)>=0.45
+  && Math.abs(ctx.attackProgress(ctx._player)-0.60)<1e-9
+  && ctx.livingMacarAnimKey(ctx._player)==='macar_atk_contact'
+  && ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
+  'holdMid() with CONTACT_T=0.45 blits macar_atk_contact (countdown t=0.60)');
+const fatDt=macar({atk:0.50, atkMax:1, macarWindupUntil:ctx._now+200});
+assert(ctx.wantsMacarWindup(fatDt)===true
+  && ctx.livingMacarAnimKey(fatDt)==='macar_atk',
+  'min-read windup keeps macar_atk even when t already passed the hit');
+const fatDone=macar({atk:0.50, atkMax:1, macarWindupUntil:ctx._now-1});
+assert(ctx.livingMacarAnimKey(fatDone)==='macar_atk_contact',
+  'expired min-read windup yields contact at the hit');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'maul recover plants idle when atk is ready — not the wind-up sheet');
 delete SPR.macar_atk;
