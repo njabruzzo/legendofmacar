@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Chapter I far-east teeth chapel: secret placement, bone crown take/destroy,
+ * Chapter I east-corridor north-wall teeth chapel: secret placement, bone crown take/destroy,
  * 5000 XP, fanged-skeleton stats, one-thrall animate dead.
  * Run: node src/dungeon/Ch1TeethCrown.test.js
  */
@@ -28,11 +28,15 @@ function extractFn(name){
 
 const ch1=html.match(/if\(n===1\)\{[\s\S]*?if\(n===2\)\{/)[0];
 assert(/L\.w=132/.test(ch1), 'Ch1 canvas grows east for the teeth chapel');
-assert(/kind:'teeth'/.test(ch1) && /face:'w'/.test(ch1),
-  'teeth secret is on the east-wall west face');
-assert(/i:111,j:19,w:1,h:3/.test(ch1),
-  'secret seals the far-east drift wall at a tunnel end');
-assert(/x:111\.15,y:20\.55/.test(ch1), 'SEARCH stand point is on the east wall');
+assert(/kind:'teeth'/.test(ch1) && /face:'n'/.test(ch1),
+  'teeth secret is on the north wall of the east corridor');
+assert(/i:105,j:15,w:3,h:1/.test(ch1),
+  'secret seals the north face of the east hall');
+assert(/x:106\.5,y:15\.05/.test(ch1), 'SEARCH stand point is on the north wall');
+assert(/north wall of the east corridor/.test(ch1),
+  'hint names the north wall of the east corridor');
+assert(!/far east wall of the drift/.test(ch1),
+  'hint no longer points at the far-east dead-end');
 assert(!/kind:'teeth'[\s\S]{0,180}face:'s'/.test(ch1),
   'teeth secret is not a south face');
 assert(/kind:'treasure'/.test(ch1) && /face:'n'/.test(ch1),
@@ -49,16 +53,52 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='102'/.test(html) && !/ASSET_VER='103'/.test(html),
-  'ASSET_VER stays 102 — no new SIGNED binds');
-assert(/SPR\.demon_dwarfface\|\|SPR\.demonface\|\|SPR\.dwarfface/.test(html),
-  'demon face hooks Disney SIGNED, falls back to dwarfface');
-assert(/SPR\.bone_crown\|\|SPR\.bone_crown_signed/.test(html),
-  'bone crown hooks SIGNED sheet when it lands');
+assert(/ASSET_VER='105'/.test(html) && !/ASSET_VER='106'/.test(html),
+  'ASSET_VER is 105 — Disney SIGNED demon face bound');
+assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
+  'bone_crown is registered to the painted prop');
+assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
+  && /tooth_2:'assets\/props\/prop_tooth_2\.png'/.test(html)
+  && /tooth_3:'assets\/props\/prop_tooth_3\.png'/.test(html),
+  'tooth sprites are registered');
+['prop_bone_crown.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
+  assert(fs.existsSync(path.join(__dirname,'../../assets/props/'+n)), n+' on disk');
+});
+assert(/function drawProceduralFang\(/.test(html) && /function crownSprite\(/.test(html)
+  && /function toothSprite\(/.test(html),
+  'crown and tooth share a painted fallback path');
+assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
+  && /demonface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html),
+  'demon_dwarfface and demonface are registered');
+{
+  const facePath=path.join(__dirname,'../../assets/props/prop_demon_dwarfface.png');
+  assert(fs.existsSync(facePath), 'prop_demon_dwarfface.png on disk');
+  const buf=fs.readFileSync(facePath);
+  assert(buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47, 'SIGNED face is a PNG');
+  const w=buf.readUInt32BE(16), h=buf.readUInt32BE(20);
+  assert(w===491 && h===717, 'SIGNED face is Nick\'s 491×717 sheet');
+}
+assert(!/TODO\(Disney SIGNED\)/.test(html),
+  'Disney SIGNED TODO is gone — signed sheet is the file on disk');
+assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
+  'socket overlay uses the same wall plane as the carving');
+assert(!/for\(const sgn of \[-1,1\]\)/.test(extractFn('drawDemonDwarfFace')),
+  'cute procedural horns are gone from the demon face');
+assert(!/SPR\.dwarfface/.test(extractFn('demonFaceImg')),
+  'demon face does not fall back to friendly dwarfface');
+assert(/SPR\.bone_crown\|\|SPR\.bone_crown_signed/.test(html)
+  || /function crownSprite\(/.test(html),
+  'bone crown hooks the painted sheet when it lands');
 assert(/k:'altar'/.test(extractFn('buildTeethCrownRoom')) && /k:'bonecrown'/.test(extractFn('buildTeethCrownRoom')),
   'chapel plants the existing altar and a bone crown');
 assert(/k:'demonface'/.test(extractFn('buildTeethCrownRoom')),
   'back wall gets a demonic dwarven face');
+assert(/const x0=101, y0=2, rw=12, rh=12/.test(extractFn('buildTeethCrownRoom')),
+  'chapel is carved north of the east-hall door');
+assert(/wall:'n'/.test(extractFn('buildTeethCrownRoom')),
+  'demon face sits on the chapel north wall');
+assert(!/x0=116, y0=16/.test(extractFn('buildTeethCrownRoom')),
+  'old east-of-door chapel coords are gone');
 assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(html),
   'openSecret branches to the teeth chapel');
 assert(/Take the bone crown/.test(html) && /Animate the dead/.test(html),
@@ -211,6 +251,72 @@ ctx.G.packs={macar:{magic:[]}};
 const doff=ctx.doffBoneCrownAtCamp();
 assert(doff.ok===1 && ctx.G.equipped.helmet==null, 'camp doffs the crown in one turn');
 assert(ctx.G.thrallId==null, 'doff collapses the commanded dead');
+
+/* Layout: north-wall seam + chapel carved north, reachable from the east hall. */
+function sliceBetween(a,b){
+  const start=html.indexOf(a);
+  const end=html.indexOf(b, start+a.length);
+  if(start<0||end<0) throw new Error('slice fail '+a);
+  return html.slice(start,end);
+}
+const hashes='function h2(x,y){ let n=(x|0)*374761393+(y|0)*668265263; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }\n'
+  +'function h3(x,y,s){ let n=(x|0)*374761393+(y|0)*668265263+(s|0)*1442695041; n=(n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967295; }\n';
+const gridSrc=sliceBetween('function newGrid(w,h,f){','function paintSeenWalls(L){')
+  + sliceBetween('function corridor(g,x1,y1,x2,y2,wd,t){','/* ==========================================================================');
+const layout={
+  G:{props:[], ents:[]}, Math, Object,
+  lines:[], hints:[],
+  say(t){ layout.lines.push(t); },
+  hint(t){ layout.hints.push(t); }
+};
+vm.createContext(layout);
+vm.runInContext(hashes+gridSrc, layout);
+['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','buildTeethCrownRoom']
+  .forEach(n=>vm.runInContext(extractFn(n)+';', layout));
+layout.G.props=[];
+const L=vm.runInContext(`
+  var L={n:1,w:132,h:90,flags:{},secrets:[],lights:[],grid:newGrid(132,90,1)};
+  corridor(L.grid,88,21,106,21,5,0);
+  rect(L.grid,102,15,10,14,0);
+  addSecretDoor(L,{x:106.5,y:15.05,i:105,j:15,w:3,h:1,kind:'teeth',face:'n',
+    hint:'The north wall of the east corridor is too even — a colder, greyer face. SEARCH it.'});
+  L;
+`, layout);
+assert(L.secrets[0].face==='n' && L.secrets[0].kind==='teeth', 'built secret is a north teeth face');
+assert(L.grid[15][105]===1 && L.grid[15][106]===1 && L.grid[15][107]===1,
+  'north seam cells are sealed wall');
+assert(L.grid[16][106]===0, 'player stand south of the north wall is floor');
+assert(L.grid[20][111]===0, 'far-east dead-end stays open floor — not the secret');
+assert(!(L.grid[19][111]===1 && L.grid[20][111]===1 && L.grid[21][111]===1),
+  'old east-wall three-high seal is gone');
+vm.runInContext('rect(L.grid,105,15,3,1,0); rect(L.grid,105,16,3,1,0);',
+  Object.assign(layout, {L}));
+layout.L=L;
+vm.runInContext('buildTeethCrownRoom(L, L.secrets[0]);', layout);
+assert(L.teethBounds && L.teethBounds.y0===2 && L.teethBounds.y1===14 && L.teethBounds.x0===101,
+  'chapel bounds sit north of the east hall');
+assert(L.grid[8][107]===0 && L.grid[4][107]===0 && L.grid[15][106]===0,
+  'door row and chapel floor are walkable');
+const altar=layout.G.props.find(p=>p&&p.k==='altar');
+const face=layout.G.props.find(p=>p&&p.k==='demonface');
+const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
+assert(altar && altar.y<10 && altar.x>104 && altar.x<110, 'altar is in the north chapel');
+assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
+assert(crown && Math.abs(crown.x-altar.x)<0.2, 'crown sits on the altar');
+function canWalk(g,x0,y0,x1,y1){
+  const q=[[x0|0,y0|0]], seen={};
+  while(q.length){
+    const [x,y]=q.pop(), k=x+','+y;
+    if(seen[k]) continue; seen[k]=1;
+    if(x===(x1|0) && y===(y1|0)) return true;
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+      const nx=x+dx, ny=y+dy;
+      if(g[ny] && g[ny][nx]===0) q.push([nx,ny]);
+    });
+  }
+  return false;
+}
+assert(canWalk(L.grid,106,16,107,4), 'east-hall floor walks north through the door into the chapel');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');

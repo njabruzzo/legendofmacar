@@ -39,8 +39,10 @@ const ch1=html.match(/if\(n===1\)\{[\s\S]*?if\(n===2\)\{/)[0];
 assert(/face:'n'/.test(ch1) && !/south wall of the new hall/.test(ch1),
   'ch1 stays on the north face and the hint no longer says south wall');
 assert(/kind:'treasure'/.test(ch1), 'ch1 still has a SEARCH treasure secret');
-assert(/kind:'teeth'/.test(ch1) && /face:'w'/.test(ch1),
-  'ch1 east teeth secret is a west face on the far-east wall');
+assert(/kind:'teeth'/.test(ch1) && /face:'n'/.test(ch1),
+  'ch1 east teeth secret is a north face on the east corridor');
+assert(/i:105,j:15,w:3,h:1/.test(ch1) && /x:106\.5,y:15\.05/.test(ch1),
+  'teeth SEARCH stand is on the north wall of rect 102,15');
 assert(!/face:'s'/.test(ch1), 'ch1 has no south-face secret');
 
 const ch2=html.match(/if\(n===2\)\{[\s\S]*?if\(n===3\)\{/)[0];
