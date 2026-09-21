@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=103">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=104">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='103';
+const ASSET_VER='104';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -496,6 +496,10 @@ const SPRITE_FILES={
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
   dwarfface:'assets/props/prop_dwarfface.png',
+  /* TODO(Disney SIGNED): swap prop_demon_dwarfface.png for the signed
+     demonic dwarven face. Keep keys demon_dwarfface + demonface. */
+  demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
+  demonface:'assets/props/prop_demon_dwarfface.png',
   craftstation:'assets/props/prop_craftstation.png',
   shadowcleaver:'assets/props/loot_shadowcleaver.png',
   dwarfkey:'assets/props/loot_dwarfkey.png',
@@ -2736,7 +2740,7 @@ function propSpriteKey(p){
   if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
   if(k==='rubydoor') return SPR.rubydoor_face?'rubydoor_face':'rubydoor';
   if(k==='dwarfface') return 'dwarfface';
-  if(k==='demonface') return (SPR.demon_dwarfface||SPR.demonface)?'demon_dwarfface':'dwarfface';
+  if(k==='demonface') return SPR.demon_dwarfface?'demon_dwarfface':(SPR.demonface?'demonface':null);
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
   if(k==='tooth') return (p.spr&&SPR[p.spr])?p.spr:(SPR.tooth?'tooth':(SPR.tooth_2?'tooth_2':(SPR.tooth_3?'tooth_3':null)));
   if(k==='hourglass') return SPR.hourglass_flaming?'hourglass_flaming':(SPR.hourglass_signed?'hourglass_signed':(SPR.hourglass?'hourglass':null));
@@ -12833,65 +12837,52 @@ function drawToothProp(g,p,z){
   drawProceduralFang(g, 0, 0, 18*z*sc, p.seed||0, 0);
 }
 function demonFaceImg(){
-  return SPR.demon_dwarfface||SPR.demonface||SPR.dwarfface||null;
+  /* TODO(Disney SIGNED): prefer SPR.demon_dwarfface_signed when that sheet
+     lands. Do not fall back to friendly dwarfface + procedural horns. */
+  return SPR.demon_dwarfface||SPR.demonface||null;
+}
+function demonFaceHalf(){
+  const img=demonFaceImg();
+  const H=dwarfFaceH()*1.08;
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  return clamp(H*aspect/(2*perTile), 0.70, 1.12);
+}
+function demonFacePlaneY(p){
+  if(!p||p.wall==='e') return p?p.y:0;
+  return rubyDoorPlaneY(p);
+}
+function demonFaceScreen(p){
+  return w2s(p.x, demonFacePlaneY(p));
 }
 function drawDemonDwarfFace(g,p){
   const img=demonFaceImg();
   const H=dwarfFaceH()*1.08;
-  const half=dwarfFaceHalf()*1.06;
+  const half=demonFaceHalf();
   g.save();
   if(p.wall==='e'){
     drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});
   } else {
-    const yPlane=rubyDoorPlaneY(p);
+    const yPlane=demonFacePlaneY(p);
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
   }
-  /* Grim wash — painted-mini, not cute. SIGNED sheet skips the extra horns. */
-  if(!(SPR.demon_dwarfface||SPR.demonface)){
-    const s=w2s(p.x, p.y);
-    g.save();
-    g.globalCompositeOperation='multiply';
-    g.fillStyle='rgba(70,18,16,0.42)';
-    g.beginPath();
-    g.ellipse(s.x, s.y-H*0.46, half*TW*0.42, H*0.38, 0, 0, TAU);
-    g.fill();
-    g.restore();
-    g.save();
-    g.translate(s.x, s.y-H*0.62);
-    g.fillStyle='#2a1610';
-    g.strokeStyle='#1a0c08';
-    g.lineWidth=1.4*ZOOM;
-    for(const sgn of [-1,1]){
-      g.beginPath();
-      g.moveTo(sgn*12*ZOOM, 8*ZOOM);
-      g.lineTo(sgn*22*ZOOM, -18*ZOOM);
-      g.lineTo(sgn*6*ZOOM, 10*ZOOM);
-      g.closePath();
-      g.fill(); g.stroke();
-    }
-    g.fillStyle='#efe4d0';
-    g.beginPath();
-    g.moveTo(-5*ZOOM, 28*ZOOM); g.lineTo(-1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
-    g.moveTo(5*ZOOM, 28*ZOOM); g.lineTo(1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
-    g.fill();
-    g.restore();
-  }
+  /* Electrum / bronze socket rides the same wall plane as the carving. */
+  const s=demonFaceScreen(p);
+  const ox=s.x+(p.wall==='e'?8:2)*ZOOM;
+  const oy=s.y-H*(p.wall==='e'?0.28:0.38);
   if(p.emptySocket){
-    const s=w2s(p.x, p.y);
     g.save();
     g.fillStyle='rgba(8,4,4,0.82)';
     g.beginPath();
-    g.ellipse(s.x+(p.wall==='e'?8:4)*ZOOM, s.y-H*0.28, 5.2*ZOOM, 7.4*ZOOM, 0, 0, TAU);
+    g.ellipse(ox, oy, 5.2*ZOOM, 7.4*ZOOM, 0, 0, TAU);
     g.fill();
     g.strokeStyle='rgba(40,20,16,0.7)';
     g.lineWidth=1.2*ZOOM;
     g.stroke();
     g.restore();
-  } else {
-    /* Placeholder fang until Disney SIGNED. Copper looks silver (Nick). */
-    const s=w2s(p.x, p.y);
+  } else if(!img || p.toothKind==='bronze'){
+    /* Sheet missing, or Ch2 bronze recolor. Never cute horns. */
     const bronze=p.toothKind==='bronze';
-    const ox=s.x+(p.wall==='e'?8:4)*ZOOM, oy=s.y-H*0.26;
     g.save();
     g.fillStyle=bronze?'#c48a3a':'#d8e0e4';
     g.strokeStyle=bronze?'#7a4e18':'#8a9498';

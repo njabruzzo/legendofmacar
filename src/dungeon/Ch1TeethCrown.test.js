@@ -53,8 +53,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='103'/.test(html) && !/ASSET_VER='104'/.test(html),
-  'ASSET_VER is 103 — bone crown and tooth props bound');
+assert(/ASSET_VER='104'/.test(html) && !/ASSET_VER='105'/.test(html),
+  'ASSET_VER is 104 — demon face sheet bound');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
@@ -67,8 +67,19 @@ assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
 assert(/function drawProceduralFang\(/.test(html) && /function crownSprite\(/.test(html)
   && /function toothSprite\(/.test(html),
   'crown and tooth share a painted fallback path');
-assert(/SPR\.demon_dwarfface\|\|SPR\.demonface\|\|SPR\.dwarfface/.test(html),
-  'demon face hooks Disney SIGNED, falls back to dwarfface');
+assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
+  && /demonface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html),
+  'demon_dwarfface and demonface are registered');
+assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_demon_dwarfface.png')),
+  'prop_demon_dwarfface.png on disk');
+assert(/TODO\(Disney SIGNED\):/.test(html),
+  'Disney SIGNED swap is marked, not treated as final');
+assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
+  'socket overlay uses the same wall plane as the carving');
+assert(!/for\(const sgn of \[-1,1\]\)/.test(extractFn('drawDemonDwarfFace')),
+  'cute procedural horns are gone from the demon face');
+assert(!/SPR\.dwarfface/.test(extractFn('demonFaceImg')),
+  'demon face does not fall back to friendly dwarfface');
 assert(/SPR\.bone_crown\|\|SPR\.bone_crown_signed/.test(html)
   || /function crownSprite\(/.test(html),
   'bone crown hooks the painted sheet when it lands');

@@ -14,13 +14,13 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/ASSET_VER='103'/.test(html) && !/ASSET_VER='104'/.test(html),
-  'ASSET_VER is 103 — title_menu stays a hook, crown/tooth props bound');
+assert(/ASSET_VER='104'/.test(html) && !/ASSET_VER='105'/.test(html),
+  'ASSET_VER is 104 — title_menu stays a hook, demon face bound');
 assert(/title_menu:'assets\/ui\/title_menu\.jpg'/.test(html),
   'SPRITE_FILES hooks title_menu to assets/ui/title_menu.jpg');
 assert(/title_splash_2:'assets\/ui\/title_menu\.jpg'/.test(html),
   'title_splash_2 aliases the same Disney bind path');
-assert(/href="assets\/ui\/title_menu\.jpg\?v=103"/.test(html),
+assert(/href="assets\/ui\/title_menu\.jpg\?v=104"/.test(html),
   'title_menu is in the document preload list');
 assert(/const first=\['title_splash','title_menu'/.test(html),
   'title_menu is in the first sprite queue');
