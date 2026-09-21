@@ -91,6 +91,12 @@ assert(/\(talk\.choices\|\|\[\]\)\.forEach/.test(html.match(/function drawTalk\(
   'drawTalk paints every choice');
 assert(/170\*s\+n\*36\*s/.test(html.match(/function drawTalk\(g\)\{[\s\S]*?\n\}/)[0]),
   'talk plate grows for many choices');
+assert(/const TOY_SCAMPER_SECS=5/.test(html) && /function kickToyScamper\(/.test(html),
+  'toy scamper is 5s on talk end');
+assert(/settleToyTalk\(\)/.test(html.match(/function pickTalk\(i\)\{[\s\S]*?\n\}/)[0]),
+  'pickTalk settles toy scamper after then()');
+assert(/if\(isToyTalkKey\(key\)\) G\.toyTalkEnded=null/.test(html.match(/function startTalk\(key\)\{[\s\S]*?\n\}/)[0]),
+  'startTalk into a toy pack cancels pending scamper');
 
 assert(/Run\. We hold\./.test(talk) && /Why keep a gnome\?/.test(talk) && /Stay with us\./.test(talk),
   'noz_untie choices');

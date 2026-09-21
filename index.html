@@ -3175,6 +3175,8 @@ function shake(v){ G.shake=Math.max(G.shake,v); }
 
 /* ---------------------------- roster ---------------------------- */
 const WINDUP_TOY={x:28.85,y:26.55};
+const TOY_SCAMPER_SECS=5;
+const TOY_SCAMPER_SP=2.8;
 const WEB_TALK_SPOT={x:11.5,y:29.7};
 const WEB_CORNER_ROCK={x:8.15,y:28.55};
 const CRUSH_SPOTS={
@@ -5761,6 +5763,7 @@ function startTalkObj(pack){
 }
 function startTalk(key){
   const pack=NPC_TALK[key]; if(!pack) return;
+  if(isToyTalkKey(key)) G.toyTalkEnded=null;
   startTalkObj(Object.assign({key}, pack));
 }
 function isMajorTalkKey(key){
@@ -5822,6 +5825,7 @@ function dismissTalkWalkOff(){
   if(key==='goblin_yield') goblinHonestYield();
   if(isMajorTalkKey(key)) majorTalkFight();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
+  settleToyTalk();
 }
 function packMercyGoblin(){
   return (G.ents||[]).find(e=>e&&e.id===G.mercyGoblinId);
@@ -6495,7 +6499,39 @@ function dropInDwarfMouth(r){
   }
   say('The stone jaws taste it and spit it back. Not a guardian ruby.','#c9b895');
 }
-function closeTalk(){ G.talk=null; }
+function isToyTalkKey(key){
+  return key==='toy_find'||key==='toy_wind'||key==='toy_grond'||key==='toy_teeth'
+    ||key==='toy_ruby'||key==='toy_froren'||key==='toy_mordain'||key==='toy_anvil';
+}
+function windupToyProp(){
+  return (G.props||[]).find(pr=>pr&&pr.k==='winduptoy'&&!pr.gone)||null;
+}
+/* Talk-end restarts a 5s scamper (new octant). Mid-tree startTalk cancels. */
+function kickToyScamper(){
+  const toy=windupToyProp(); if(!toy) return;
+  const oct=(Math.random()*8)|0, a=oct*Math.PI/4;
+  toy.scampDx=Math.cos(a); toy.scampDy=Math.sin(a);
+  toy.scampT=TOY_SCAMPER_SECS;
+}
+function tickToyScamper(dt){
+  const toy=windupToyProp(); if(!toy||!(toy.scampT>0)) return;
+  toy.scampT=Math.max(0, toy.scampT-dt);
+  if(toy.scampT<=0){ toy.scampDx=0; toy.scampDy=0; return; }
+  const r=0.18, nx=toy.x+toy.scampDx*TOY_SCAMPER_SP*dt, ny=toy.y+toy.scampDy*TOY_SCAMPER_SP*dt;
+  const dummy={x:toy.x,y:toy.y,r:r};
+  if(canBe(nx,toy.y,r,dummy)) toy.x=nx;
+  if(canBe(toy.x,ny,r,dummy)) toy.y=ny;
+}
+function settleToyTalk(){
+  if(!G.toyTalkEnded) return;
+  G.toyTalkEnded=null;
+  kickToyScamper();
+}
+function closeTalk(){
+  const key=G.talk&&G.talk.key;
+  G.talk=null;
+  if(isToyTalkKey(key)) G.toyTalkEnded=key;
+}
 function pickTalk(i){
   const talk=G.talk; if(!talk||!talk.choices||!talk.choices[i]) return;
   const c=talk.choices[i];
@@ -6504,6 +6540,7 @@ function pickTalk(i){
   closeTalk();
   if(typeof c.then==='function') c.then();
   if(typeof G.talkAfter==='function'){ const fn=G.talkAfter; G.talkAfter=null; fn(); }
+  settleToyTalk();
 }
 function beginUiLayer(g){
   g.setTransform(DPR,0,0,DPR,0,0);
@@ -10639,7 +10676,7 @@ window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(); IN.keys[k]=1;
   if(G.scene==='credits' && e.key==='Escape'){ leaveCredits(); return; }
   if(G.scene==='pack' && e.key==='Escape'){
-    if(G.talk){ closeTalk(); return; }
+    if(G.talk){ closeTalk(); settleToyTalk(); return; }
     G.faceOffer=0; G.packSel=null;
     G.scene=G.packFrom==='play'?'play':(G.packFrom||'camp');
     return;
@@ -10925,12 +10962,14 @@ function update(dt){
     }
     return;
   }
+  settleToyTalk();
   G.elapsed+=dt;
   G.dayClock=(G.dayClock||0)+dt;
   if(G.dayClock>=GHOST_DAY_SECS){
     G.dayClock=0; G.day=(G.day||1)+1; tryPordoomGifts();
   }
   const L=G.lvl; if(!L) return;
+  tickToyScamper(dt);
   PROMPT=null;
   runSystems(dt, { ents:G.ents, abilities:ABIL, cds:cds });
   if(G.hint){ G.hint.life-=dt; if(G.hint.life<=0) G.hint=null; }
