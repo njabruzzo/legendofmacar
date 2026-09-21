@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=102">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -439,9 +440,9 @@ const MUSIC_LABEL={
   packHorn:'Horn: War Horns \u2014 Eldritch Grim',
   bossHorn:'Horn: War Horns \u2014 Eldritch Grim'
 };
-function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
+function openCredits(from){ G.creditsFrom=from||'title_menu'; G.scene='credits'; }
 function leaveCredits(){
-  const from=G.creditsFrom||'title';
+  const from=G.creditsFrom||'title_menu';
   G.creditsFrom=null;
   if(from==='pause'){ G.scene='play'; G.paused=true; }
   else G.scene=from;
@@ -561,6 +562,8 @@ const SPRITE_FILES={
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
   title_splash:'assets/ui/title_splash.jpg',
+  title_menu:'assets/ui/title_menu.jpg',
+  title_splash_2:'assets/ui/title_menu.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
@@ -601,7 +604,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk|dead|sleep|back|wound)\.png$/.test(src)) return;
   if(/_(dead|sleep|back|wound)$/.test(k)) return;
-  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /_title$/.test(k)) return;
+  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /title_menu/.test(src) || /_title$/.test(k)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
   if(/_face\.png$/.test(src)) return;
@@ -721,7 +724,7 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
+  const first=['title_splash','title_menu','title_splash_2','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
@@ -12019,6 +12022,7 @@ function render(){
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
   if(G.sleepShow && G.scene==='play' && worldArtReady(G.ch)) drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
+  if(G.scene==='title_menu') drawTitleMenu(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
   if(G.scene==='intro') drawIntro(g);
@@ -15815,20 +15819,38 @@ function displayTitle(g,txt,y,size,col){
   g.fillStyle=gr; g.fillText(txt,VW/2,y); g.textAlign='left';
   return sz;
 }
-function menuBtn(g,label,cx,cy,w,h,fn,dim,icon){
+function menuBtn(g,label,cx,cy,w,h,fn,dim,icon,style){
   const s=UIS;
-  plate(g,cx-w/2,cy-h/2,w,h,6,dim?.5:.84);
-  if(!dim){ g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.9; roundPath(g,cx-w/2,cy-h/2,w,h,6); g.stroke(); }
+  const x=cx-w/2, y=cy-h/2;
+  const primary=style==='primary', secondary=style==='secondary';
+  const rad=primary||secondary?10:6;
+  if(primary){
+    plate(g,x,y,w,h,rad,dim?.5:.96);
+    const gr=g.createLinearGradient(x,y,x,y+h);
+    gr.addColorStop(0,'rgba(255,224,140,0.82)');
+    gr.addColorStop(0.5,'rgba(232,176,72,0.70)');
+    gr.addColorStop(1,'rgba(150,88,24,0.78)');
+    g.fillStyle=gr; roundPath(g,x,y,w,h,rad); g.fill();
+    if(!dim){ g.strokeStyle='#ffe08a'; g.lineWidth=2.4; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  } else if(secondary){
+    plate(g,x,y,w,h,rad,dim?.5:.50);
+    if(!dim){ g.strokeStyle='rgba(232,196,120,0.34)'; g.lineWidth=1.4; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  } else {
+    plate(g,x,y,w,h,rad,dim?.5:.84);
+    if(!dim){ g.strokeStyle='rgba(255,208,124,0.55)'; g.lineWidth=1.9; roundPath(g,x,y,w,h,rad); g.stroke(); }
+  }
   if(icon && icon.width){
     const ih=h*0.78, iw=ih;
     g.save();
     g.globalAlpha=dim?0.42:1;
-    drawPhoto(g, icon, cx-w/2+4*s, cy-ih/2, iw, ih);
+    drawPhoto(g, icon, x+4*s, cy-ih/2, iw, ih);
     g.restore();
   }
-  g.textAlign='center'; g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif';
-  g.fillStyle=dim?'rgba(150,130,100,0.5)':'#ffe9c0'; g.fillText(label,cx,cy+5.6*s); g.textAlign='left';
-  if(!dim) menuHits.push({x:cx-w/2,y:cy-h/2,w,h,fn});
+  const labelPx=(primary||secondary)?Math.max(16, 16*s):(16*s);
+  g.textAlign='center'; g.font='800 '+labelPx+'px "Trebuchet MS",sans-serif';
+  g.fillStyle=dim?'rgba(150,130,100,0.5)':(primary?'#fff6d4':(secondary?'#f3ddb0':'#ffe9c0'));
+  g.fillText(label,cx,cy+labelPx*0.35); g.textAlign='left';
+  if(!dim) menuHits.push({x,y,w,h,fn});
 }
 function drawSleepRest(g){
   const s=UIS, show=G.sleepShow; if(!show) return;
@@ -16105,6 +16127,51 @@ function drawArtRect(g, img, x, y, w, h, r){
   g.restore();
 }
 
+function enterTitleMenu(){
+  G.scene='title_menu';
+}
+function titleMenuArt(){
+  const signed=SPR.title_menu;
+  if(signed&&signed.width) return signed;
+  const alt=SPR.title_splash_2;
+  if(alt&&alt.width) return alt;
+  const plate=SPR.chapters_plate;
+  if(plate&&plate.width) return plate;
+  return SPR.title_splash||null;
+}
+function titleMenuSafe(inset){
+  inset=inset||{t:0,r:0,b:0,l:0};
+  return {
+    t:Math.max(16, inset.t||0),
+    r:Math.max(16, inset.r||0),
+    b:Math.max(24+(inset.b||0), 16),
+    l:Math.max(16, inset.l||0)
+  };
+}
+function titleMenuBtnH(s, port){
+  return Math.max(port?48:44, (port?50:46)*s);
+}
+function titleMenuGap(){ return 12; }
+function titleMenuPillW(vw, padL, padR){
+  return Math.min(360, Math.max(160, vw-padL-padR));
+}
+function titleSafeBottom(s, port){
+  const inset=(typeof safeInsets==='function')?safeInsets():{b:0};
+  return Math.max(port?28*s:24*s, (inset.b||0)+16);
+}
+function drawTitleMenuBillboard(g, img, x, y, w, h){
+  g.save();
+  g.fillStyle='#0a0706';
+  g.fillRect(x, y, w, h);
+  if(img&&img.width&&img.height&&w>2&&h>2){
+    const sc=Math.min(w/img.width, h/img.height);
+    const iw=img.width*sc, ih=img.height*sc;
+    drawPhoto(g, img, x+(w-iw)/2, y+(h-ih)/2, iw, ih);
+  }
+  g.restore();
+  drawArtFrame(g, x, y, w, h, 10);
+  return !!(img&&img.width);
+}
 function drawTitle(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
@@ -16139,12 +16206,14 @@ function drawTitle(g){
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const a=clamp((G.t-0.12)/1.1,0,1);
   const m=highPlateMetrics(s, PORT);
-  const btnFloor=VH-(PORT?118:108)*s-(PORT?58:56)*s;
+  const btnH=Math.max(PORT?44:48, (PORT?48:52)*s);
+  const safeB=titleSafeBottom(s, PORT);
+  const btnFloor=VH-safeB-btnH;
   const titleLay=layoutHighPlate(g, {
     s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:btnFloor-12*s,
     label:'B O O K   O N E', title:splashOk?'':'THE LEGEND OF MACAR',
     flavor:splashOk?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
-    music:musicIsPlaying()?musicNowLabel():'',
+    music:'',
     labSize:13*s, titleSize:(PORT?32:48)*s, flSize:(PORT?14:18)*s, musSize:(PORT?8:9)*s,
     labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
   });
@@ -16154,33 +16223,83 @@ function drawTitle(g){
     paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
   });
   g.globalAlpha=1;
-  const bw=Math.min(300*s, VW*.64);
+  const bw=Math.min(320*s, VW*.78);
+  menuBtn(g,'Continue', VW/2, VH-safeB-btnH/2, bw, btnH, ()=>enterTitleMenu());
+  g.textAlign='left';
+}
+
+function drawTitleMenu(g){
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
+  const inset=(typeof safeInsets==='function')?safeInsets():{t:0,r:0,b:0,l:0};
+  const pad=titleMenuSafe(inset);
+  const btnH=titleMenuBtnH(s, PORT);
+  const gap=titleMenuGap();
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
-  const baseY=VH-(PORT?118:108)*s;
+  const nBtns=G.wipeAsk?2:(hasSave?4:3);
+  const stackH=nBtns*btnH+(nBtns-1)*gap;
+  const stackTop=VH-pad.b-stackH;
+  const bw=titleMenuPillW(VW, pad.l, pad.r);
+  const maxW=VW-pad.l-pad.r;
+  const titleGap=Math.max(24, 28*s);
+  const wipeReserve=G.wipeAsk?40*s:0;
+  const titleLay=layoutHighPlate(g, {
+    s, maxW, ceil:pad.t, floor:stackTop-gap-wipeReserve,
+    label:'B O O K   O N E', title:'THE LEGEND OF MACAR',
+    flavor:'From simple beginnings Macar would rise to become a hero among dwarves.',
+    music:'',
+    labSize:Math.max(12, 13*s), titleSize:(PORT?30:26)*s,
+    flSize:Math.max(16, (PORT?15:14)*s), musSize:8*s,
+    labGap:8*s, titleGap:titleGap, titleGapMin:24, musGap:10*s
+  });
+  paintHighPlate(g, titleLay, {
+    alpha:1, maxW, ruleW:Math.min(200, maxW*0.42),
+    paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
+  });
+  const artTop=titleLay.bottom+12;
+  const artBot=stackTop-gap-wipeReserve;
+  const artH=Math.max(36, artBot-artTop);
+  const artW=PORT?maxW:Math.min(VW-pad.l-pad.r, Math.max(maxW, VW*0.92));
+  const artX=(VW-artW)/2;
+  if(artH>=36){
+    if(!drawTitleMenuBillboard(g, titleMenuArt(), artX, artTop, artW, artH) && SPLASH_STATE==='fail'){
+      g.save(); g.beginPath(); g.rect(artX, artTop, artW, artH); g.clip();
+      drawTitleCavern(g);
+      g.restore();
+      drawArtFrame(g, artX, artTop, artW, artH, 10);
+    }
+  }
+  g.globalAlpha=1;
+  let y=stackTop+btnH/2;
   if(G.wipeAsk){
     g.textAlign='center';
-    g.font='700 '+((PORT?12:14)*s)+'px '+FONT_UI;
+    g.font='700 '+Math.max(14, (PORT?12:14)*s)+'px '+FONT_UI;
     g.fillStyle='#ffe08a';
-    g.fillText('This burns the book. Start the descent over?', VW/2, baseY-52*s);
-    g.font='600 '+(11*s)+'px '+FONT_UI;
-    g.fillStyle='rgba(200,180,140,0.82)';
-    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, baseY-32*s);
+    g.fillText('This burns the book. Start the descent over?', VW/2, stackTop-22*s);
+    g.font='600 '+Math.max(12, 11*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(230,210,170,0.90)';
+    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-6*s);
     g.textAlign='left';
-    menuBtn(g,'Burn it', VW/2-Math.min(90*s,VW*.22)-6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{
+    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>{
       if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
       G.wipeAsk=0; startChapter(1);
-    });
-    menuBtn(g,'Keep the mark', VW/2+Math.min(90*s,VW*.22)+6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{ G.wipeAsk=0; });
+    }, false, null, 'primary');
+    y+=btnH+gap;
+    menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; }, false, null, 'secondary');
   } else if(hasSave){
-    menuBtn(g,'Continue', VW/2, baseY-40*s, bw, 46*s, ()=>loadSavedGame(), false, SPR.icon_save);
-    menuBtn(g,'New descent', VW/2, baseY, Math.min(230*s,VW*.55), 34*s, ()=>{ G.wipeAsk=1; });
+    menuBtn(g,'Continue', VW/2, y, bw, btnH, ()=>loadSavedGame(), false, SPR.icon_save, 'primary');
+    y+=btnH+gap;
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=1; }, false, null, 'secondary');
+    y+=btnH+gap;
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    y+=btnH+gap;
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   } else {
-    menuBtn(g,'Enter the Deep', VW/2, baseY-8*s, bw, 52*s, ()=>startChapter(1));
-  }
-  if(!G.wipeAsk){
-    const smallW=Math.min(176*s, VW*.42);
-    menuBtn(g,'Chapters', VW/2-smallW/2-7*s, VH-38*s, smallW, 38*s, ()=>{G.scene='chapters';});
-    menuBtn(g,'Credits', VW/2+smallW/2+7*s, VH-38*s, smallW, 38*s, ()=>openCredits('title'));
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>startChapter(1), false, null, 'primary');
+    y+=btnH+gap;
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    y+=btnH+gap;
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   }
   g.textAlign='left';
 }
@@ -16299,7 +16418,7 @@ function drawChapterSelect(g){
       g.textAlign='right'; g.fillText('sealed', x+cw-12*s, y+16*s); g.textAlign='left';
     }
   });
-  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>{G.scene='title';});
+  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>{G.scene='title_menu';});
   menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>openCredits('chapters'));
 }
 
@@ -17497,7 +17616,9 @@ function resolveTaps(){
       const r=TapGate.resolvePlayTap(UI.overlayHits, t);
       if(r&&r.consumed) continue;
     }
-    for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); break; }
+    let consumed=0;
+    for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); consumed=1; break; }
+    if(!consumed && G.scene==='title') enterTitleMenu();
   }
 }
 

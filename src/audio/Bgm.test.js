@@ -17,6 +17,7 @@ function assert(cond, msg) {
 
 /* ---------- wantedMusic / scene map ---------- */
 assert(Bgm.wanted({ scene: 'title' }) === 'title', 'title scene wants title');
+assert(Bgm.wanted({ scene: 'title_menu' }) === 'title', 'title menu keeps the title theme');
 assert(Bgm.wanted({ scene: 'credits' }) === 'title', 'credits keep the title theme');
 assert(Bgm.wanted({ scene: 'chapters' }) === 'chapter', 'chapter select is a distinct theme');
 assert(Bgm.wanted({ scene: 'intro', ch: 1 }) === 'chapter', 'intro splash uses the chapter theme');

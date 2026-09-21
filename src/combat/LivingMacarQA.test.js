@@ -534,7 +534,7 @@ assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar_atk_recover'
 delete SPR.macar_atk_recover;
 
 /* Title splash: image moves down, gold type stays high. */
-const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
+const titleFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawTitleMenu/)[0];
 assert(/zoom:1\.11/.test(titleFn), 'title splash scales ~1.11× to enlarge the tunnel');
 assert(/nudgeY:VH\*0\.16/.test(titleFn), 'title splash shifts down 16% of canvas height');
 assert(!/nudgeY:0/.test(titleFn) && !/ay:0\.56/.test(titleFn),

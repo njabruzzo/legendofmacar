@@ -37,7 +37,9 @@ assert(/layoutHighPlate\(g, \{/.test(titleFn) && /label:'B O O K   O N E'/.test(
   'title splash uses the high-stack helper');
 assert(/title:splashOk\?''/.test(titleFn) && /THE LEGEND OF MACAR/.test(titleFn),
   'ready splash skips canvas title; cavern fallback still paints THE LEGEND OF MACAR');
-assert(/btnFloor=VH-\(PORT\?118:108\)\*s/.test(titleFn), 'title buttons stay on the bottom band');
+assert(/titleSafeBottom/.test(titleFn) && /btnFloor=VH-safeB-btnH/.test(titleFn),
+  'title Continue sits on the safe bottom band');
+assert(/Math\.max\(PORT\?44:48/.test(titleFn), 'splash Continue is at least 44px on phone and 48px on laptop');
 assert(!/VH\*\(PORT\?0\.155:0\.162\)/.test(titleFn), 'old mid-high title Y is gone');
 assert(!/let qy=VH\*\(PORT\?0\.198:0\.188\)/.test(titleFn), 'quote is not a floating mid-dark percentage');
 assert(/midGap=16\*s/.test(html), 'chapter-select cards keep air between gold title and flavor');
@@ -54,14 +56,13 @@ assert(/label:'B O O K   O N E'/.test(titleFn) && !/label:splashOk/.test(titleFn
 assert(!/He went down a miner\. Something else came back up\./.test(html),
   'old miner-came-back quote is gone');
 assert(!/woulld/.test(html), 'title flavor uses would, not woulld');
-assert(/Enter the Deep/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
-  'Enter the Deep remains on the title');
-assert(/menuBtn\(g,'Chapters'/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]) &&
-  /menuBtn\(g,'Credits'/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
-  'Chapters and Credits remain on the title');
-assert(!/Click the ground to walk/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
+assert(/menuBtn\(g,'Continue'/.test(titleFn) && /enterTitleMenu\(\)/.test(titleFn),
+  'splash Continue opens the second title menu');
+assert(!/Enter the Deep/.test(titleFn) && !/menuBtn\(g,'Chapters'/.test(titleFn) && !/menuBtn\(g,'Credits'/.test(titleFn),
+  'splash is chrome-light: no Enter / Chapters / Credits');
+assert(!/Click the ground to walk/.test(titleFn),
   'title does not paint WASD control-hint clutter');
-assert(!/Click anywhere to hear the music/.test(html.match(/function drawTitle\(g\)\{[\s\S]*?\n\}/)[0]),
+assert(!/Click anywhere to hear the music/.test(titleFn),
   'title does not paint the click-for-music prompt over the layout');
 
 const cavern=html.match(/function drawTitleCavern\(g\)\{[\s\S]*?\n\}/)[0];

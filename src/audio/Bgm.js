@@ -42,7 +42,7 @@
   function wanted(G) {
     if (!G || !G.scene) return 'title';
     var sc = G.scene;
-    if (sc === 'title' || sc === 'credits') return 'title';
+    if (sc === 'title' || sc === 'title_menu' || sc === 'credits') return 'title';
     if (sc === 'chapters' || sc === 'intro' || sc === 'between' || sc === 'win' || sc === 'camp' || sc === 'dead' || sc === 'trade')
       return 'chapter';
     if (G.fightOn) return livingBoss(G) ? 'boss' : 'battle';

@@ -134,8 +134,8 @@ return p.then(ok=>{
   assert(/SystemsReady\.systemsHold\(\)/.test(enter),
     'tryEnterPlay waits on systemsHold (sync path is already ready)');
   assert(/G\.scene='play'/.test(enter), 'tryEnterPlay still promotes intro → play');
-  assert(/menuBtn\(g,'Enter the Deep'[\s\S]*startChapter\(1\)/.test(html),
-    'title Enter the Deep still starts Chapter I');
+  assert(/menuBtn\(g,'New descent'[\s\S]*startChapter\(1\)/.test(html),
+    'title New descent still starts Chapter I');
   assert(/function startChapter\(n\)\{/.test(html), 'startChapter is intact');
 
   const boot=html.slice(html.indexOf('resize();'), html.indexOf('requestAnimationFrame(loop);'));
