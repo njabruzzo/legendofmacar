@@ -79,6 +79,8 @@ Prefer, in order:
 ```bash
 control-macar browser open /
 control-macar browser wait --scene title
+control-macar browser click --name "Continue"
+control-macar browser wait --scene title_menu
 control-macar browser click --name "Enter the Deep"
 control-macar browser wait --scene intro
 control-macar browser click --name "Descend"
@@ -111,7 +113,8 @@ Standards:
 control-macar browser screenshot --path "$EVIDENCE/title-visible.png"
 control-macar browser snapshot --path "$EVIDENCE/title-visible.json" --aria
 control-macar browser console --path "$EVIDENCE/console.jsonl"
-control-macar check record --id title-visible --status pass --reason "Enter the Deep on title"
+control-macar check record --id title-visible --status pass --reason "Continue on splash"
+control-macar check record --id title-menu-visible --status pass --reason "Enter the Deep on title_menu"
 ```
 
 Skip only with an explicit **verified-unreachable** reason after you attempted the mapped entry and observed the unmet precondition (example: east-chamber foe before four Rouse). A skip without that prefix is a REJECT.
@@ -179,7 +182,7 @@ Never APPROVE because the game compiled, Chrome launched, or `npm test` passed. 
 
 Mapped required checks:
 
-- `title-new-game`: `doctor`, `title-visible`, `enter-the-deep`, `intro-visible`, `descend-to-play`, `play-hud`, `cleanup-intact`
+- `title-new-game`: `doctor`, `title-visible`, `title-menu-visible`, `enter-the-deep`, `intro-visible`, `descend-to-play`, `play-hud`, `cleanup-intact`
 - Other features: the labeled bullets in that feature's **Driving it with control-macar** section, plus `doctor` and `cleanup-intact`
 
 One-feature golden path (enough to prove this skill):

@@ -10,7 +10,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Run `control-macar doctor` and require the isolated origin, injected probe, and living Chrome pid.
 - Never drive `https://www.legendofmacar.com` from this skill. That origin holds the player's book.
 - Never drive an instance that was not started by this verification run.
-- Start title proofs from a blank book (`Enter the Deep`). If `Continue` is visible on an isolated origin, run `control-macar browser isolate-saves` and reload.
+- Start title proofs from a blank book (splash `Continue`, then `Enter the Deep` on `title_menu`). If `New descent` is visible on the menu, run `control-macar browser isolate-saves` and reload.
 
 ## Driving conventions
 
@@ -25,7 +25,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 - Capture the user action and the resulting state, not only the final screen.
 - UI proof includes a virtual ARIA snapshot and a screenshot with the app identity visible (title plate, chapter plate, or play HUD).
-- Save proof includes a second user-facing view: reload title and read `Continue`, plus the probe `hasSave` / `saveKeys` fields.
+- Save proof includes a second user-facing view: reload title, open the menu, and read save `Continue`, plus the probe `hasSave` / `saveKeys` fields.
 - Record the feature ID and entry point used with every artifact.
 - Report an unreachable path with the attempted command and the unmet precondition.
 - Do not report a skipped entry point as verified through a different path.
@@ -43,7 +43,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [Title, new game, continue](./title-new-game.md) covers the Book One splash, Enter the Deep, wipe-and-restart, and Continue from a marked book.
+- [Title, new game, continue](./title-new-game.md) covers the Book One splash, the second title menu, Enter the Deep, wipe-and-restart, and Continue from a marked book.
 - [Movement and HUD](./movement-hud.md) covers walking, the standing skill bar, Defend vs walk-right, and the collapsed combat log.
 - [Combat basics](./combat-basics.md) covers Attack, Defend-blocks-Attack, and the first-room quiet rule.
 - [Inventory and camp](./inventory-camp.md) covers PACK / Drop, in-seam camp rest, and the post-chapter CAMP plate.

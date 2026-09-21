@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=102">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -439,9 +440,9 @@ const MUSIC_LABEL={
   packHorn:'Horn: War Horns \u2014 Eldritch Grim',
   bossHorn:'Horn: War Horns \u2014 Eldritch Grim'
 };
-function openCredits(from){ G.creditsFrom=from||'title'; G.scene='credits'; }
+function openCredits(from){ G.creditsFrom=from||'title_menu'; G.scene='credits'; }
 function leaveCredits(){
-  const from=G.creditsFrom||'title';
+  const from=G.creditsFrom||'title_menu';
   G.creditsFrom=null;
   if(from==='pause'){ G.scene='play'; G.paused=true; }
   else G.scene=from;
@@ -561,6 +562,8 @@ const SPRITE_FILES={
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
   title_splash:'assets/ui/title_splash.jpg',
+  title_menu:'assets/ui/title_menu.jpg',
+  title_splash_2:'assets/ui/title_menu.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
@@ -601,7 +604,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk|dead|sleep|back|wound)\.png$/.test(src)) return;
   if(/_(dead|sleep|back|wound)$/.test(k)) return;
-  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /_title$/.test(k)) return;
+  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /title_menu/.test(src) || /_title$/.test(k)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
   if(/_face\.png$/.test(src)) return;
@@ -721,7 +724,7 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
+  const first=['title_splash','title_menu','title_splash_2','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
@@ -11351,6 +11354,7 @@ function render(){
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
   if(G.sleepShow && G.scene==='play' && worldArtReady(G.ch)) drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
+  if(G.scene==='title_menu') drawTitleMenu(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
   if(G.scene==='intro') drawIntro(g);
@@ -15162,6 +15166,25 @@ function drawArtRect(g, img, x, y, w, h, r){
   g.restore();
 }
 
+function enterTitleMenu(){
+  G.scene='title_menu';
+}
+function titleMenuArt(){
+  const signed=SPR.title_menu;
+  if(signed&&signed.width) return signed;
+  const alt=SPR.title_splash_2;
+  if(alt&&alt.width) return alt;
+  const plate=SPR.chapters_plate;
+  if(plate&&plate.width) return plate;
+  return SPR.title_splash||null;
+}
+function titleMenuBtnH(s, port){
+  return Math.max(port?44:48, (port?50:52)*s);
+}
+function titleSafeBottom(s, port){
+  const inset=(typeof safeInsets==='function')?safeInsets():{b:0};
+  return Math.max(port?28*s:24*s, (inset.b||0)+16);
+}
 function drawTitle(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
@@ -15196,12 +15219,14 @@ function drawTitle(g){
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const a=clamp((G.t-0.12)/1.1,0,1);
   const m=highPlateMetrics(s, PORT);
-  const btnFloor=VH-(PORT?118:108)*s-(PORT?58:56)*s;
+  const btnH=Math.max(PORT?44:48, (PORT?48:52)*s);
+  const safeB=titleSafeBottom(s, PORT);
+  const btnFloor=VH-safeB-btnH;
   const titleLay=layoutHighPlate(g, {
     s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:btnFloor-12*s,
     label:'B O O K   O N E', title:splashOk?'':'THE LEGEND OF MACAR',
     flavor:splashOk?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
-    music:musicIsPlaying()?musicNowLabel():'',
+    music:'',
     labSize:13*s, titleSize:(PORT?32:48)*s, flSize:(PORT?14:18)*s, musSize:(PORT?8:9)*s,
     labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
   });
@@ -15211,33 +15236,84 @@ function drawTitle(g){
     paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
   });
   g.globalAlpha=1;
-  const bw=Math.min(300*s, VW*.64);
+  const bw=Math.min(320*s, VW*.78);
+  menuBtn(g,'Continue', VW/2, VH-safeB-btnH/2, bw, btnH, ()=>enterTitleMenu());
+  g.textAlign='left';
+}
+
+function drawTitleMenu(g){
+  menuHits=[]; const s=UIS;
+  g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
+  const art=titleMenuArt();
+  const signed=!!(art&&SPR.title_menu&&art===SPR.title_menu);
+  if(!drawSplashCover(g, art, {zoom:1, ay:0.48, nudgeY:PORT?0:VH*0.02})){
+    if(SPLASH_STATE==='fail') drawTitleCavern(g);
+    else embers(g);
+  }
+  if(!PHONE_GFX){
+    const pulse=.55+Math.sin(G.t*2.1)*.45;
+    const rg=g.createRadialGradient(VW/2, VH*0.36, 10, VW/2, VH*0.40, Math.max(VW,VH)*0.50);
+    rg.addColorStop(0,'rgba(255,36,48,'+(0.06*pulse)+')');
+    rg.addColorStop(0.45,'rgba(140,16,24,0.03)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=rg; g.fillRect(0,0,VW,VH);
+  }
+  embers(g);
+  drawLetterbox(g, VH*0.20, VH*0.28, PHONE_GFX?0.80:0.70, 0.90);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
+  const btnH=titleMenuBtnH(s, PORT);
+  const gap=PORT?14*s:16*s;
+  const safeB=titleSafeBottom(s, PORT);
   const hasSave=typeof GameSave!=='undefined' && GameSave.has(localStorage);
-  const baseY=VH-(PORT?118:108)*s;
+  const nBtns=G.wipeAsk?2:(hasSave?4:3);
+  const stackH=nBtns*btnH+(nBtns-1)*gap;
+  const stackTop=VH-safeB-stackH;
+  const m=highPlateMetrics(s, PORT);
+  const titleLay=layoutHighPlate(g, {
+    s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:stackTop-16*s,
+    label:'B O O K   O N E', title:signed?'':'THE LEGEND OF MACAR',
+    flavor:signed?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
+    music:musicIsPlaying()?musicNowLabel():'',
+    labSize:13*s, titleSize:(PORT?28:42)*s, flSize:(PORT?13:16)*s, musSize:(PORT?8:9)*s,
+    labGap:m.labGap, titleGap:m.titleGap, titleGapMin:m.titleGapMin, musGap:m.musGap
+  });
+  drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(VW*0.92, 780*s), titleLay.h+40*s, 0.52);
+  paintHighPlate(g, titleLay, {
+    alpha:1, maxW:VW*0.86, ruleW:220*s, musicFill:'rgba(160,140,110,0.55)',
+    paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
+  });
+  g.globalAlpha=1;
+  const bw=Math.min(320*s, VW*.78);
+  let y=stackTop+btnH/2;
   if(G.wipeAsk){
     g.textAlign='center';
     g.font='700 '+((PORT?12:14)*s)+'px '+FONT_UI;
     g.fillStyle='#ffe08a';
-    g.fillText('This burns the book. Start the descent over?', VW/2, baseY-52*s);
+    g.fillText('This burns the book. Start the descent over?', VW/2, stackTop-36*s);
     g.font='600 '+(11*s)+'px '+FONT_UI;
     g.fillStyle='rgba(200,180,140,0.82)';
-    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, baseY-32*s);
+    g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-16*s);
     g.textAlign='left';
-    menuBtn(g,'Burn it', VW/2-Math.min(90*s,VW*.22)-6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{
+    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>{
       if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
       G.wipeAsk=0; startChapter(1);
     });
-    menuBtn(g,'Keep the mark', VW/2+Math.min(90*s,VW*.22)+6*s, baseY+4*s, Math.min(176*s,VW*.40), 44*s, ()=>{ G.wipeAsk=0; });
+    y+=btnH+gap;
+    menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; });
   } else if(hasSave){
-    menuBtn(g,'Continue', VW/2, baseY-40*s, bw, 46*s, ()=>loadSavedGame(), false, SPR.icon_save);
-    menuBtn(g,'New descent', VW/2, baseY, Math.min(230*s,VW*.55), 34*s, ()=>{ G.wipeAsk=1; });
+    menuBtn(g,'Continue', VW/2, y, bw, btnH, ()=>loadSavedGame(), false, SPR.icon_save);
+    y+=btnH+gap;
+    menuBtn(g,'New descent', VW/2, y, Math.min(260*s,VW*.70), btnH, ()=>{ G.wipeAsk=1; });
+    y+=btnH+gap;
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';});
+    y+=btnH+gap;
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'));
   } else {
-    menuBtn(g,'Enter the Deep', VW/2, baseY-8*s, bw, 52*s, ()=>startChapter(1));
-  }
-  if(!G.wipeAsk){
-    const smallW=Math.min(176*s, VW*.42);
-    menuBtn(g,'Chapters', VW/2-smallW/2-7*s, VH-38*s, smallW, 38*s, ()=>{G.scene='chapters';});
-    menuBtn(g,'Credits', VW/2+smallW/2+7*s, VH-38*s, smallW, 38*s, ()=>openCredits('title'));
+    menuBtn(g,'Enter the Deep', VW/2, y, bw, btnH, ()=>startChapter(1));
+    y+=btnH+gap;
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';});
+    y+=btnH+gap;
+    menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'));
   }
   g.textAlign='left';
 }
@@ -15356,7 +15432,7 @@ function drawChapterSelect(g){
       g.textAlign='right'; g.fillText('sealed', x+cw-12*s, y+16*s); g.textAlign='left';
     }
   });
-  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>{G.scene='title';});
+  menuBtn(g,'Back',VW/2-Math.min(90*s,VW*.24)-6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>{G.scene='title_menu';});
   menuBtn(g,'Credits',VW/2+Math.min(90*s,VW*.24)+6*s,VH-36*s,Math.min(180*s,VW*.42),40*s,()=>openCredits('chapters'));
 }
 
@@ -16542,7 +16618,9 @@ function resolveTaps(){
       const r=TapGate.resolvePlayTap(UI.overlayHits, t);
       if(r&&r.consumed) continue;
     }
-    for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); break; }
+    let consumed=0;
+    for(const h of menuHits) if(t.x>h.x&&t.x<h.x+h.w&&t.y>h.y&&t.y<h.y+h.h){ h.fn(); consumed=1; break; }
+    if(!consumed && G.scene==='title') enterTitleMenu();
   }
 }
 

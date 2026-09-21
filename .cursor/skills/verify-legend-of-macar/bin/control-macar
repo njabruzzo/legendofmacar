@@ -702,19 +702,44 @@ async function proveTitleNewGame() {
     const limit = Date.now() + 25000;
     while (Date.now() < limit) {
       s = await snapshot(cdp);
-      if (s.scene === 'title' && s.menus.some((m) => m.name === 'Enter the Deep' || m.name === 'Continue')) break;
+      if (s.scene === 'title' && s.menus.some((m) => m.name === 'Continue')) break;
       await new Promise((r) => setTimeout(r, 200));
     }
     const titleShot = await shot('title-visible');
     await snapWrite('title-visible');
-    const enter = (s.menus || []).some((m) => m.name === 'Enter the Deep');
-    const cont = (s.menus || []).some((m) => m.name === 'Continue');
-    if (s.scene !== 'title' || (!enter && !cont)) {
+    const splashCont = (s.menus || []).some((m) => m.name === 'Continue');
+    const splashEnter = (s.menus || []).some((m) => m.name === 'Enter the Deep');
+    if (s.scene !== 'title' || !splashCont) {
       recordCheck('title-visible', 'fail', 'title menus missing; got ' + JSON.stringify((s.menus || []).map((m) => m.name)));
-    } else if (cont && !enter) {
-      recordCheck('title-visible', 'fail', 'isolated origin still has a Continue slot; wipe saves and retry');
+    } else if (splashEnter) {
+      recordCheck('title-visible', 'fail', 'splash still hosts Enter the Deep');
     } else {
-      recordCheck('title-visible', 'pass', 'Enter the Deep on title; evidence ' + titleShot);
+      recordCheck('title-visible', 'pass', 'Continue on splash; evidence ' + titleShot);
+    }
+
+    const toMenu = await cdp.eval('window.__MACAR_VERIFY__.clickName("Continue")');
+    if (!toMenu || !toMenu.ok) {
+      recordCheck('title-menu-visible', 'fail', JSON.stringify(toMenu));
+    } else {
+      const menuLimit = Date.now() + 8000;
+      while (Date.now() < menuLimit) {
+        s = await snapshot(cdp);
+        if (s.scene === 'title_menu') break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      const menuShot = await shot('title-menu-visible');
+      await snapWrite('title-menu-visible');
+      const enter = (s.menus || []).some((m) => m.name === 'Enter the Deep');
+      const chapters = (s.menus || []).some((m) => m.name === 'Chapters');
+      const credits = (s.menus || []).some((m) => m.name === 'Credits');
+      const saveCont = (s.menus || []).some((m) => m.name === 'Continue');
+      if (s.scene !== 'title_menu' || !enter || !chapters || !credits) {
+        recordCheck('title-menu-visible', 'fail', 'scene=' + s.scene + ' menus=' + JSON.stringify((s.menus || []).map((m) => m.name)));
+      } else if (saveCont) {
+        recordCheck('title-menu-visible', 'fail', 'isolated origin still has a Continue slot; wipe saves and retry');
+      } else {
+        recordCheck('title-menu-visible', 'pass', 'Enter the Deep on title_menu; evidence ' + menuShot);
+      }
     }
 
     const click = await cdp.eval('window.__MACAR_VERIFY__.clickName("Enter the Deep")');
@@ -779,7 +804,7 @@ async function proveTitleNewGame() {
     const cons = path.join(evidenceDir(state), 'console.jsonl');
     if (fs.existsSync(CONSOLE_PATH)) fs.copyFileSync(CONSOLE_PATH, cons);
     else fs.writeFileSync(cons, '');
-    required.push('title-visible', 'enter-the-deep', 'intro-visible', 'descend-to-play', 'play-hud');
+    required.push('title-visible', 'title-menu-visible', 'enter-the-deep', 'intro-visible', 'descend-to-play', 'play-hud');
   } finally {
     cdp.close();
   }
@@ -805,7 +830,7 @@ async function main() {
   control-macar launch [--port 4174] [--headed] [--force]
   control-macar doctor [--suite]
   control-macar browser open [/]
-  control-macar browser wait --scene title|intro|play|pack|camp [--timeout 30]
+  control-macar browser wait --scene title|title_menu|intro|play|pack|camp [--timeout 30]
   control-macar browser click --name "Enter the Deep"
   control-macar browser click --hud-key pack
   control-macar browser press --key d [--hold-ms 800]
