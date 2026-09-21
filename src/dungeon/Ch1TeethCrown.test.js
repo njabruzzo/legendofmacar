@@ -120,6 +120,13 @@ assert(/function teethAltarSheetActive\(/.test(html)
   && /SPR\.altar_teeth/.test(html)
   && /if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
   'signed altar replaces the altar-plus-crown stack while the crown is seated');
+assert(/function solidTeethAltarImg\(/.test(html)
+  && /solidifyPunchedCutout\(img, 8\)/.test(html)
+  && /solidTeethAltarImg\(\)\|\|teethAltarSheetImg\(\)/.test(extractFn('drawProp')),
+  'teeth altar blits a solidified opaque sheet, not the punched stipple');
+assert(/function isTeethNwChapelWall\(/.test(html) && /x<105/.test(extractFn('isTeethNwChapelWall'))
+  && /isTeethNwChapelWall\(L,x,y\)\?teethChapelWallImg\(\):null/.test(html),
+  'chapel mural stays on the northwest wall, off the demon face');
 assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
   'only the teeth-chapel north row is the tall face wall');
 assert(/isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H/.test(html),
@@ -128,7 +135,9 @@ assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html),
   'fog punch grows with the tall chapel wall');
 {
   const room=extractFn('buildTeethCrownRoom');
-  assert(/k:'altar',s:1\.82,teethAltar:1/.test(room), 'teeth altar scale is 1.82');
+  assert(/k:'altar',s:1\.55,teethAltar:1/.test(room), 'teeth altar scale is 1.55 so it fits the northwest wall');
+  assert(/const altar=\{x:102\.25,y:4\.35\}/.test(room), 'altar stands on the northwest wall');
+  assert(/const face=\{x:107\.25,y:2\.48\}/.test(room), 'demon face stays centered on the north wall');
   assert(/k:'bonecrown',s:1\.70/.test(room), 'bone crown scale is 1.70');
   assert(/x:altar\.x,y:altar\.y,k:'bonecrown'/.test(room),
     'crown shares the altar foot so it can sit on the slab');
@@ -349,9 +358,11 @@ assert(L.grid[8][107]===0 && L.grid[4][107]===0 && L.grid[15][106]===0,
 const altar=layout.G.props.find(p=>p&&p.k==='altar');
 const face=layout.G.props.find(p=>p&&p.k==='demonface');
 const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
-assert(altar && altar.y<10 && altar.x>104 && altar.x<110, 'altar is in the north chapel');
+assert(altar && altar.x>=101.5 && altar.x<=104 && altar.y>=3.5 && altar.y<=5.5,
+  'altar sits on the northwest wall of the chapel');
 assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
-assert(crown && Math.abs(crown.x-altar.x)<0.2, 'crown sits on the altar');
+assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
+assert(crown && Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2, 'crown sits on the altar');
 function canWalk(g,x0,y0,x1,y1){
   const q=[[x0|0,y0|0]], seen={};
   while(q.length){

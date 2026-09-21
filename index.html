@@ -2267,6 +2267,11 @@ const WALL_TEETH_NORTH_SCALE=2.25;
 function isTeethNorthWall(L,x,y){
   return !!(L && L.n===1 && y===1 && x>=101 && x<113);
 }
+/* Chapel mural only on the northwest stretch. The demon face is centered
+   near x=107 and keeps plain masonry so the carving stays readable. */
+function isTeethNwChapelWall(L,x,y){
+  return isTeethNorthWall(L,x,y) && x<105;
+}
 function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
 /* Chapel north face. The signed sheet is masonry plus a wide empty margin
    (black on the opaque flatten). Crop to the stone and fill the margin so
@@ -10568,9 +10573,10 @@ function buildTeethCrownRoom(L, sec){
   if(already) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
-  const altar={x:107.15,y:4.35};
+  /* Northwest corner, clear of the north-wall face at x≈107. */
+  const altar={x:102.25,y:4.35};
   const face={x:107.25,y:2.48};
-  G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.82,teethAltar:1,seed:880});
+  G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.55,teethAltar:1,seed:880});
   if(!L.flags.crownTaken && !L.flags.crownTouched && !L.flags.crownDestroyed){
     /* Same foot as the altar. drawBoneCrownProp lifts it onto the slab. */
     G.props.push({x:altar.x,y:altar.y,k:'bonecrown',s:1.70,seed:881});
@@ -10586,7 +10592,7 @@ function buildTeethCrownRoom(L, sec){
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
-  say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
+  say('A hidden chapel of teeth. An altar waits on the northwest wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
@@ -12603,7 +12609,7 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
-      const chapel=isTeethNorthWall(L,x,y)?teethChapelWallImg():null;
+      const chapel=isTeethNwChapelWall(L,x,y)?teethChapelWallImg():null;
       if(oS) drawMasonryFace(g, sf==='n'?secN:(chapel||faceL), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
       if(oE) drawMasonryFace(g, sf==='e'?secE:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
@@ -13229,6 +13235,94 @@ function teethAltarSheetImg(){
   const img=SPR.altar_teeth;
   return (img&&img.width)?img:null;
 }
+/* prop_altar_teeth.png is a binary punch: stone pixels are a=255, but the
+   stone body is a stipple, so the floor shows through. Close those holes
+   and copy the nearest painted color so the altar and its bone crown
+   blit solid. Exterior cutout stays clear. Cached once. */
+let TEETH_ALTAR_SOLID=null;
+function binDilate(src, w, h, r){
+  const mid=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){
+    const row=y*w;
+    for(let x=0;x<w;x++){
+      const a=x>r?x-r:0, b=x+r<w?x+r:w-1;
+      let m=0;
+      for(let k=a;k<=b;k++){ if(src[row+k]){ m=1; break; } }
+      mid[row+x]=m;
+    }
+  }
+  const out=new Uint8Array(w*h);
+  for(let x=0;x<w;x++){
+    for(let y=0;y<h;y++){
+      const a=y>r?y-r:0, b=y+r<h?y+r:h-1;
+      let m=0;
+      for(let k=a;k<=b;k++){ if(mid[k*w+x]){ m=1; break; } }
+      out[y*w+x]=m;
+    }
+  }
+  return out;
+}
+function binErode(src, w, h, r){
+  const inv=new Uint8Array(src.length);
+  for(let i=0;i<src.length;i++) inv[i]=src[i]?0:1;
+  const d=binDilate(inv, w, h, r);
+  const out=new Uint8Array(src.length);
+  for(let i=0;i<src.length;i++) out[i]=d[i]?0:1;
+  return out;
+}
+function solidifyPunchedCutout(img, rad){
+  try{
+    const w=img.width|0, h=img.height|0;
+    if(!w||!h) return null;
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d', {willReadFrequently:true});
+    x.drawImage(img,0,0);
+    const data=x.getImageData(0,0,w,h);
+    const d=data.data, n=w*h;
+    const mask=new Uint8Array(n);
+    for(let i=0;i<n;i++) if(d[i*4+3]>128) mask[i]=1;
+    const closed=binErode(binDilate(mask,w,h,rad), w, h, rad);
+    const cr=new Uint8Array(n), cg=new Uint8Array(n), cb=new Uint8Array(n);
+    const seen=new Uint8Array(n);
+    const q=new Int32Array(n);
+    let qs=0, qe=0;
+    for(let i=0;i<n;i++){
+      if(!mask[i]) continue;
+      const o=i*4;
+      cr[i]=d[o]; cg[i]=d[o+1]; cb[i]=d[o+2];
+      seen[i]=1; q[qe++]=i;
+    }
+    while(qs<qe){
+      const i=q[qs++], px=i%w, py=(i/w)|0;
+      const r0=cr[i], g0=cg[i], b0=cb[i];
+      const step=ni=>{
+        if(seen[ni]||!closed[ni]) return;
+        seen[ni]=1; cr[ni]=r0; cg[ni]=g0; cb[ni]=b0; q[qe++]=ni;
+      };
+      if(px>0) step(i-1);
+      if(px+1<w) step(i+1);
+      if(py>0) step(i-w);
+      if(py+1<h) step(i+w);
+    }
+    for(let i=0;i<n;i++){
+      const o=i*4;
+      if(mask[i]){ d[o+3]=255; continue; }
+      if(closed[i]){
+        d[o]=cr[i]; d[o+1]=cg[i]; d[o+2]=cb[i]; d[o+3]=255;
+      } else d[o+3]=0;
+    }
+    x.putImageData(data,0,0);
+    return c;
+  }catch(e){ return null; }
+}
+function solidTeethAltarImg(){
+  if(TEETH_ALTAR_SOLID&&TEETH_ALTAR_SOLID.width) return TEETH_ALTAR_SOLID;
+  const img=teethAltarSheetImg();
+  if(!img) return null;
+  TEETH_ALTAR_SOLID=solidifyPunchedCutout(img, 8)||img;
+  return TEETH_ALTAR_SOLID;
+}
 /* Signed altar includes the bone crown. Use that one billboard while the
    crown is still seated. After TAKE / ATTACK, fall back to the generic altar. */
 function teethAltarSheetActive(){
@@ -13784,10 +13878,12 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   if(p.k==='altar' && p.teethAltar && teethAltarSheetActive()){
-    const sheet=teethAltarSheetImg();
+    const sheet=solidTeethAltarImg()||teethAltarSheetImg();
     const H=teethAltarSheetH(p,z);
     const sca=p.s||1;
     softShadow(g,2*z,1*z,22*z*sca,9*z*sca,.45);
+    g.globalAlpha=1;
+    g.globalCompositeOperation='source-over';
     drawBillboard(g, sheet, H);
     const b=.4+Math.sin(G.elapsed*1.8)*.2;
     emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
