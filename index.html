@@ -5361,6 +5361,7 @@ function applyPlaySave(play){
     if(e && typeof restorePartyHaste==='function') restorePartyHaste(e, sv);
   });
   pinFallenKin();
+  if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
@@ -10103,11 +10104,18 @@ function buildTeethCrownRoom(L, sec){
   say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
-/* HOUSE: Grond tooth hunt — Ch1 Copper Tooth (looks silver; Nick's name).
-   Quest unique, no sell, no XP. One-shot pry (`L.flags.copperTooth`) from
-   the demonic face; face stays, empty socket after. Works whether or not
-   the crown fight is done. Smash-on-Anvil is dialogue-only later.
-   Ch2 Bronze Tooth is `grond_tooth_bronze` / `L.flags.bronzeTooth`. */
+/* HOUSE: Grond tooth hunt (Sage; Nick's 10s; Nick Copper name).
+   Quest unique, not combat magic, no sell, Macar pack only.
+   Ids now: grond_tooth_copper, grond_tooth_bronze.
+   Stub later: grond_tooth_03 … 10 — do not invent yet.
+   Smash-on-Anvil is dialogue-only (no systems).
+   Ch1 face: Pry once (`L.flags.copperTooth`) → Copper Tooth. Face stays;
+   empty socket after. Works whether or not the crown fight is done. No XP.
+   Ch2: new SEARCH secret (not warrens, not bronze-door treasure). Entry
+   starts the 10.0s raid (not the pry). Leave with bronze = inert + safe.
+   Linger = Macar dead (kin inside die; kin outside live). Leave without
+   the tooth / die / reload without bronzeSecured = hourglass reset,
+   tooth still in the face. */
 function makeGrondTooth(kind){
   if(kind==='bronze'){
     return {
@@ -10151,6 +10159,7 @@ function pryGrondTooth(face, kind){
     face.emptySocket=1;
     burst(face.x, face.y, '#c48a3a', 12, 2.2);
     say('Macar pries Grond\'s Bronze Tooth from the stone jaw.','#d4a04a');
+    /* Raid starts on room enter, not on this pry. */
     hint('Ten seconds. Get out with the tooth.',3.8);
     return {ok:1, item:it};
   }
@@ -10197,6 +10206,10 @@ function inHourglassRoom(e, L){
   if(!b||!e) return false;
   return e.x>=b.x0 && e.x<b.x1 && e.y>=b.y0 && e.y<b.y1;
 }
+function hasBronzeToothInPack(){
+  const pk=G.packs&&G.packs.macar;
+  return !!(pk&&(pk.magic||[]).some(it=>it&&(it.id==='grond_tooth_bronze'||it.grondTooth==='bronze')));
+}
 function revertUnsecuredBronzeTooth(){
   const L=G.lvl;
   if(!L||!L.flags||L.flags.bronzeSecured) return;
@@ -10208,6 +10221,22 @@ function revertUnsecuredBronzeTooth(){
   (G.props||[]).forEach(p=>{
     if(p&&p.k==='demonface'&&p.toothKind==='bronze') p.emptySocket=0;
   });
+}
+function resetUnsecuredHourglass(){
+  const L=G.lvl;
+  if(!L||!L.flags) return;
+  if(L.flags.bronzeSecured){
+    L.flags.hourglassRaid=0;
+    L.flags.hourglassInert=1;
+    G.hourglassT=0;
+    return;
+  }
+  revertUnsecuredBronzeTooth();
+  L.flags.hourglassRaid=0;
+  L.flags.hourglassInert=0;
+  L.flags.hourglassT=0;
+  G.hourglassT=typeof HOURGLASS_RAID_S==='number'?HOURGLASS_RAID_S:10;
+  (G.props||[]).forEach(p=>{ if(p&&p.k==='hourglass') p.burst=0; });
 }
 function burstHourglass(){
   const L=G.lvl;
@@ -10256,7 +10285,10 @@ function tickHourglassRaid(dt){
   const L=G.lvl;
   if(!L||L.n!==2||!L.flags||!L.flags.hourglassRoom||L.flags.hourglassInert) return;
   const p=typeof player==='function'?player():null;
-  if(!p||p.dead) return;
+  if(!p||p.dead){
+    if(!L.flags.bronzeSecured && typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
+    return;
+  }
   const inside=inHourglassRoom(p, L);
   if(inside && !L.flags.hourglassRaid){
     L.flags.hourglassRaid=1;
@@ -10267,7 +10299,8 @@ function tickHourglassRaid(dt){
   }
   if(!L.flags.hourglassRaid) return;
   if(!inside){
-    cancelHourglassRaid(!!L.flags.bronzeTooth);
+    const kept=!!(L.flags.bronzeTooth && (typeof hasBronzeToothInPack!=='function'||hasBronzeToothInPack()));
+    cancelHourglassRaid(kept);
     return;
   }
   G.hourglassT=(G.hourglassT==null?HOURGLASS_RAID_S:G.hourglassT)-dt;
@@ -10290,14 +10323,16 @@ function buildHourglassRoom(L, sec){
   L.flags=L.flags||{};
   L.flags.hourglassRoom=1;
   L.flags.hourglassBounds=L.hourglassBounds;
-  if(already) return;
+  if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
+  const haveGlass=(G.props||[]).some(p=>p&&p.k==='hourglass'&&!p.gone);
+  if(already && haveGlass) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
   const glass={x:138.2,y:30.1};
   const face={x:141.35,y:30.15};
   G.props.push({x:glass.x,y:glass.y,k:'hourglass',s:1.35,seed:990});
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:991,
-    toothKind:'bronze', emptySocket:!!(L.flags.bronzeSecured||L.flags.bronzeTooth)});
+    toothKind:'bronze', emptySocket:!!L.flags.bronzeSecured});
   L.lights.push({x:glass.x,y:glass.y,c:'#ff3a20',r:6.4,f:1.15});
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
   hint('Ten seconds. Pry the bronze tooth and leave.',5.0);

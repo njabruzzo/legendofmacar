@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Grond tooth hunt: Ch1 Copper Tooth pry, Ch2 bronze + 10s hourglass.
- * Electrum curse helpers stay stubbed for later rename.
+ * Sage tooth-hunt house law: Ch1 Copper Tooth, Ch2 bronze + 10s hourglass.
+ * Smash-on-Anvil stays dialogue-only. Tooth 03…10 are not invented.
  * Run: node src/dungeon/Ch1GrondTooth.test.js
  */
 const fs=require('fs');
@@ -38,6 +38,18 @@ assert(/toothKind:'copper'/.test(html) && /flags\.copperTooth/.test(html),
 assert(/looks like silver/.test(html), 'Copper Tooth looks silver');
 assert(/grond_tooth_bronze/.test(html) && /Grond's Bronze Tooth/.test(html),
   'Ch2 tooth is Grond\'s Bronze Tooth');
+const laterTeeth=['grond_tooth_03','grond_tooth_04','grond_tooth_05','grond_tooth_06',
+  'grond_tooth_07','grond_tooth_08','grond_tooth_09','grond_tooth_10'];
+assert(laterTeeth.every(id=>html.indexOf("id:'"+id+"'")<0),
+  'tooth 03…10 are stub-only later — not invented');
+assert(/Smash-on-Anvil is dialogue-only/.test(html),
+  'Smash-on-Anvil stays dialogue-only');
+assert(!/function smashOnAnvil/.test(html) && !/function smashGrond/.test(html),
+  'no Smash-on-Anvil system is wired');
+assert(!/hourglassRaid\s*=\s*1/.test(extractFn('pryGrondTooth')),
+  'pry does not start the hourglass raid');
+assert(/Works whether or not the crown fight is done/.test(html),
+  'Ch1 pry is independent of the crown fight');
 assert(/kind:'hourglass'/.test(ch2) && /face:'w'/.test(ch2),
   'Ch2 hourglass secret is an east-wall west face');
 assert(/x:126\.85,y:30\.05/.test(ch2) && /i:127,j:28,w:1,h:3/.test(ch2),
@@ -85,7 +97,8 @@ const ctx={
 vm.createContext(ctx);
 [
   'makeGrondTooth','nearestDemonFace','pryGrondTooth','hourglassBounds','inHourglassRoom',
-  'revertUnsecuredBronzeTooth','burstHourglass','killMacarHourglass','cancelHourglassRaid',
+  'hasBronzeToothInPack','revertUnsecuredBronzeTooth','resetUnsecuredHourglass',
+  'burstHourglass','killMacarHourglass','cancelHourglassRaid',
   'tickHourglassRaid','buildHourglassRoom','hasElectrumToothInPack','convertCoinsToElectrum',
   'electrumEnc','electrumMoveMul','tickElectrumCurse','dropElectrum','askDropElectrum'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -98,7 +111,7 @@ const br=ctx.makeGrondTooth('bronze');
 assert(br.id==='grond_tooth_bronze' && /Bronze/.test(br.n), 'bronze item id and name');
 
 ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:127.2, y:21.4, hp:80, maxhp:80}];
-ctx.G.lvl={n:1, flags:{}, w:132, h:90};
+ctx.G.lvl={n:1, flags:{crownTouched:1, teethRisen:1, crownDestroyed:1}, w:132, h:90};
 const face={x:127.4,y:21.4,k:'demonface',toothKind:'copper',emptySocket:0};
 ctx.G.props=[face];
 const pry=ctx.pryGrondTooth(face, 'copper');
@@ -107,6 +120,7 @@ assert(ctx.G.lvl.flags.copperTooth===1, 'copperTooth flag is one-shot');
 assert(ctx.G.packs.macar.magic[0].id==='grond_tooth_copper', 'Copper Tooth is in Macar\'s pack');
 assert(ctx.pryGrondTooth(face, 'copper').reason==='taken', 'second pry is refused');
 assert(!ctx.xpAwards, 'tooth pry awards no XP');
+assert(ctx.G.lvl.flags.crownDestroyed===1, 'crown fight flags do not block the Copper pry');
 
 ctx.G.packs.macar.magic=[ctx.makeGrondTooth('electrum')];
 ctx.G.coin={cp:120, sp:12, ep:0, gp:3, pp:1};
@@ -183,12 +197,27 @@ assert(!ctx.G.lvl.flags.hourglassRaid && !ctx.G.lvl.flags.hourglassInert,
   'leave without the tooth cancels and resets the glass');
 
 const bronzeFace={x:141,y:30,k:'demonface',toothKind:'bronze',emptySocket:0};
-ctx.G.lvl.flags={};
+ctx.G.lvl.flags={hourglassRoom:1, hourglassBounds:{x0:130,y0:24,x1:142,y1:36}};
 ctx.G.props=[bronzeFace];
 ctx.G.packs.macar.magic=[];
+ctx.G.hourglassT=10;
 const pryB=ctx.pryGrondTooth(bronzeFace, 'bronze');
 assert(pryB.ok===1 && ctx.G.lvl.flags.bronzeTooth===1, 'Ch2 face pries the bronze tooth once');
 assert(ctx.G.packs.macar.magic[0].id==='grond_tooth_bronze', 'bronze tooth is in Macar\'s pack');
+assert(!ctx.G.lvl.flags.hourglassRaid, 'pry alone does not start the 10s raid');
+
+ctx.G.lvl.flags={hourglassRoom:1, hourglassBounds:{x0:130,y0:24,x1:142,y1:36},
+  bronzeTooth:1, hourglassRaid:1, hourglassT:3.2};
+ctx.G.hourglassT=3.2;
+ctx.G.packs.macar.magic=[{id:'grond_tooth_bronze', n:"Grond's Bronze Tooth"}];
+bronzeFace.emptySocket=1;
+ctx.G.props=[bronzeFace, {x:138,y:30,k:'hourglass',burst:1}];
+ctx.resetUnsecuredHourglass();
+assert(ctx.G.lvl.flags.bronzeTooth!==1 && bronzeFace.emptySocket===0,
+  'reload without bronzeSecured puts the tooth back in the face');
+assert(!ctx.hasBronzeToothInPack(), 'unsecured bronze is stripped from the pack');
+assert(!ctx.G.lvl.flags.hourglassRaid && ctx.G.hourglassT===10,
+  'reload without bronzeSecured resets the 10s glass');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
-console.log('\ngrond tooth / hourglass / electrum curse checks passed');
+console.log('\nSage tooth-hunt / hourglass checks passed');
