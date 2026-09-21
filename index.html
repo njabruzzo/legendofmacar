@@ -1924,6 +1924,9 @@ function drawLivingMacar(g,e){
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
+  }
   g.restore();
 }
 function drawDeadBillboard(g,e,img,z){
@@ -2716,6 +2719,8 @@ function propSpriteKey(p){
   if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
   if(k==='rubydoor') return SPR.rubydoor_face?'rubydoor_face':'rubydoor';
   if(k==='dwarfface') return 'dwarfface';
+  if(k==='demonface') return (SPR.demon_dwarfface||SPR.demonface)?'demon_dwarfface':'dwarfface';
+  if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
   if(k==='bronzedoor') return 'bronzedoor';
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
@@ -2739,6 +2744,9 @@ function propSpriteH(p,z){
   if(k==='rubywall') return 108*z*(p.s||1);
   if(k==='rubydoor') return rubyDoorH();
   if(k==='dwarfface') return dwarfFaceH();
+  if(k==='demonface') return dwarfFaceH()*1.08;
+  if(k==='bonecrown') return 28*z*(p.s||1);
+  if(k==='tooth') return 16*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar'||k==='throne') return 100*z;
   if(k==='ruin_house') return 128*z*(p.s||1);
@@ -3482,7 +3490,9 @@ const BESTIARY={
   rat:{n:'Cave Rat',spr:'rat',hp:4,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8a6a4a',sc:.72,r:.28,sa:'Poison',poison:1},
   centipede:{n:'Giant Centipede',spr:'centipede',hp:2,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:.7,r:.26,sa:'Poison',poison:1},
   beetle:{n:'Fire Beetle',spr:'beetle',hp:10,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.0,sa:'Poison',poison:1},
-  spider:{n:'Cave Spider',spr:'spider',hp:9,ac:8,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1,slowPoison:1}
+  spider:{n:'Cave Spider',spr:'spider',hp:9,ac:8,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1,slowPoison:1},
+  /* Nick: fanged skeleton 2 HD, d6+1, AC 7. hp is 1e (2×8). */
+  fangedSkeleton:{n:'Fanged Skeleton',spr:'undead',hp:16,ac:7,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#e8d0b8',sc:0.96,r:.34,hd:2,dice:'1d6+1',k:'undead'}
 };
 function applyBestiary(){
   Object.keys(BESTIARY).forEach(k=>{
@@ -3728,7 +3738,7 @@ function makeChapter(n){
 
   if(n===1){
     L.title='Chapter I'; L.sub='The Rubble and the Ruby'; L.pal=PAL.mine;
-    L.w=114; L.h=90; const g=newGrid(L.w,L.h,1); L.grid=g;
+    L.w=132; L.h=90; const g=newGrid(L.w,L.h,1); L.grid=g;
     rect(g,14,14,18,16,0); rect(g,24,7,28,28,0);
     rect(g,48,16,5,12,3); rect(g,34,17,9,9,3);
     // Wider first mine: extra halls east and south. Ruby door, lift, and
@@ -3748,6 +3758,11 @@ function makeChapter(n){
     L.secrets=[];
     addSecretDoor(L,{x:36.5,y:35.05,i:35,j:35,w:3,h:1,kind:'treasure',face:'n',
       hint:'The north wall of the new hall is too even — a colder, greyer face. SEARCH it.'});
+    /* Far-east drift dead-end (rect 102,15,10×14). East wall / west face —
+       the player walks east and sees the west face of the sealed cells.
+       Secrets never sit on a south wall. */
+    addSecretDoor(L,{x:111.15,y:20.55,i:111,j:19,w:1,h:3,kind:'teeth',face:'w',
+      hint:'The far east wall of the drift is too even — a colder, greyer face. SEARCH it.'});
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
@@ -9598,6 +9613,7 @@ function damage(e,amt,col,src){
   }
   if(e.hp>0 && e.team==='foe') maybeGoblinMercy(e);
   if(e.hp<=0){ e.dead=1; e.deadT=0;
+    if(e.thrall && typeof releaseThrall==='function') releaseThrall(e);
     if(e.team==='foe'){ G.kills++;
       if(G.fightOn) G.fightGotKill=1;
       awardPartyXp(monsterXpValue(e), e.name||'Foe', e);
@@ -9668,6 +9684,7 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
     L.plug.hp-=rock; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
+  if(e.hero && typeof tryStrikeBoneCrown==='function' && tryStrikeBoneCrown(e, reach)) hit=1;
   if(hit){ shake(4); G.hitstop=Math.max(G.hitstop,.035); }
   return hit;
 }
@@ -9824,6 +9841,177 @@ function buildSecretTreasureRoom(L, sec){
   hint('Secret hoard. Type '+letter+' from the Dungeon Masters Guide.',4.4);
   L.flags.secretHoard=letter;
 }
+const BONE_CROWN_DESTROY_XP=5000;
+const FANGED_SKELETON_HORDE=8;
+function teethBounds(L){
+  L=L||G.lvl;
+  return (L&&(L.teethBounds||(L.flags&&L.flags.teethBounds)))||null;
+}
+function isTeethFloor(L,x,y){
+  const b=teethBounds(L);
+  if(!b) return false;
+  return x>=b.x0 && x<b.x1 && y>=b.y0 && y<b.y1;
+}
+function makeBoneCrownItem(){
+  return {
+    id:'bone_crown', n:'Bone Crown', k:'misc', cat:'Helm', slot:'helmet',
+    boneCrown:1, animateDead:1, spr:'icon_helm',
+    d:'A crown of fused teeth. Wear it to command one dead.'
+  };
+}
+function wearingBoneCrown(eq){
+  eq=eq||(typeof G!=='undefined'?G.equipped:null)||{};
+  const h=eq.helmet;
+  return !!(h && (h.boneCrown || h.animateDead || /bone crown/i.test(h.n||'')));
+}
+function nearestBoneCrown(p, r){
+  if(!p) return null;
+  let best=null, bd=r==null?1.75:r;
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.taken||pr.k!=='bonecrown') return;
+    const d=dist(p,pr);
+    if(d<bd){ bd=d; best=pr; }
+  });
+  return best;
+}
+function livingThrall(){
+  if(G.thrallId==null) return null;
+  return (G.ents||[]).find(e=>e&&e.id===G.thrallId&&e.thrall&&!e.dead)||null;
+}
+function releaseThrall(e){
+  if(!e||!e.thrall) return;
+  if(G.thrallId===e.id) G.thrallId=null;
+  e.thrall=0;
+  say('The dead fall still. The crown\'s slot is empty.','#c9b895');
+}
+function nearestAnimatableCorpse(p, r){
+  if(!p) return null;
+  let best=null, bd=r==null?1.95:r;
+  (G.ents||[]).forEach(e=>{
+    if(!e||!(e.dead||e.corpse)||e.thrall) return;
+    if(e.col||e.hero||e.ghost) return;
+    const d=dist(p,e);
+    if(d<bd){ bd=d; best=e; }
+  });
+  return best;
+}
+/* HOUSE: Bone Crown animate dead — one thrall at a time. Macar commands
+   that thrall (follow/fight as party). The slot frees when the thrall dies.
+   Nick product text; no Sage 1e reply in-repo. */
+function tryAnimateDead(actor, body){
+  if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
+  if(!body || !(body.dead||body.corpse)) return {ok:0, reason:'no-body'};
+  if(body.col||body.hero||body.ghost) return {ok:0, reason:'kin'};
+  if(livingThrall()){
+    say('The crown already commands one dead.','#c9b895');
+    return {ok:0, reason:'slot-full'};
+  }
+  body.dead=0; body.corpse=0; body.prone=0; body.looted=1;
+  body.hp=body.maxhp||body.hp||8;
+  body.team='party'; body.ally=1; body.thrall=1; body.npc=0;
+  body.aggro=8; body.engaged=0; body.stun=0.2;
+  G.thrallId=body.id;
+  burst(body.x, body.y, '#e8d0b8', 16, 2.8);
+  say((body.name||'The dead')+' rises and waits on Macar\'s word.','#e8d0b8');
+  hint('One thrall. The slot frees when it falls.',3.6);
+  return {ok:1, thrall:body};
+}
+function riseTeethHorde(where){
+  const L=G.lvl;
+  if(!L||L.flags.teethRisen) return 0;
+  L.flags.teethRisen=1;
+  (G.props||[]).forEach(p=>{ if(p&&p.k==='tooth') p.gone=1; });
+  const b=teethBounds(L)||{x0:116,y0:16,x1:128,y1:28};
+  const cx=where&&where.x!=null?where.x:(b.x0+b.x1)*0.5;
+  const cy=where&&where.y!=null?where.y:(b.y0+b.y1)*0.5;
+  const n=FANGED_SKELETON_HORDE;
+  const make=FOE.fangedSkeleton;
+  if(typeof make!=='function') return 0;
+  for(let i=0;i<n;i++){
+    const a=(i/n)*Math.PI*2;
+    const rad=1.35+(i%3)*0.42;
+    const e=make();
+    e.x=cx+Math.cos(a)*rad;
+    e.y=cy+Math.sin(a)*rad*0.82;
+    e.aggro=9; e.engaged=1;
+    G.ents.push(e);
+    burst(e.x,e.y,'#e8d0b8',8,2.1);
+  }
+  shake(14);
+  say('The teeth stand up. A horde of fanged skeletons.','#ff6a5a');
+  hint('The floor has risen. Fight or run.',4.2);
+  return n;
+}
+function takeBoneCrown(crown){
+  if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
+  crown.gone=1; crown.taken=1;
+  const L=G.lvl; if(L&&L.flags) L.flags.crownTaken=1;
+  const it=makeBoneCrownItem();
+  if(typeof stowPackItem==='function') stowPackItem(it);
+  if(typeof equipPackItem==='function') equipPackItem(it, {silent:true});
+  else {
+    G.equipped=G.equipped||{};
+    G.equipped.helmet=it;
+  }
+  burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
+  say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
+  hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
+  riseTeethHorde(crown);
+  return {ok:1, worn:1};
+}
+function destroyBoneCrown(crown){
+  if(!crown||crown.gone||crown.destroyed) return {ok:0, reason:'gone'};
+  crown.gone=1; crown.destroyed=1;
+  const L=G.lvl; if(L&&L.flags) L.flags.crownDestroyed=1;
+  burst(crown.x, crown.y, '#c9b895', 22, 3.0);
+  shake(12);
+  say('Macar shatters the bone crown.','#ffe08a');
+  awardPartyXp(BONE_CROWN_DESTROY_XP, 'Bone Crown destroyed', crown);
+  ftext(crown.x, crown.y-0.4, '+'+BONE_CROWN_DESTROY_XP+' xp', '#c9e8a8');
+  riseTeethHorde(crown);
+  return {ok:1, xp:BONE_CROWN_DESTROY_XP};
+}
+function tryStrikeBoneCrown(e, reach){
+  if(!e||!e.hero) return 0;
+  const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
+  if(!crown) return 0;
+  destroyBoneCrown(crown);
+  return 1;
+}
+function buildTeethCrownRoom(L, sec){
+  if(!L||!sec) return;
+  const already=!!(L.flags&&L.flags.teethRoom);
+  const g=L.grid;
+  const sx=sec.x||sec.i, sy=sec.y||sec.j;
+  const x0=116, y0=16, rw=12, rh=12;
+  if(typeof corridor==='function') corridor(g, (sx+0.4)|0, (sy+1.1)|0, 118, 21, 3, 0);
+  if(typeof carvePath==='function') carvePath(g, [[sx+0.4,sy+1.1],[118,21],[122,21]], 2.15, 0);
+  rect(g, x0, y0, rw, rh, 0);
+  L.teethBounds={x0:x0,y0:y0,x1:x0+rw,y1:y0+rh};
+  L.flags=L.flags||{};
+  L.flags.teethRoom=1;
+  L.flags.teethBounds=L.teethBounds;
+  if(already) return;
+  G.props=G.props||[];
+  L.lights=L.lights||[];
+  const altar={x:125.15,y:21.35};
+  const face={x:127.42,y:21.45};
+  G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.08,teethAltar:1,seed:880});
+  if(!L.flags.crownTaken && !L.flags.crownDestroyed){
+    G.props.push({x:altar.x,y:altar.y-0.12,k:'bonecrown',s:0.92,seed:881});
+  }
+  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:882});
+  if(!L.flags.teethRisen){
+    for(let i=0;i<48;i++){
+      const tx=x0+1.1+h2(i,3)*9.6;
+      const ty=y0+1.1+h2(i,7)*9.4;
+      G.props.push({x:tx,y:ty,k:'tooth',s:0.55+h2(i,11)*0.38,seed:900+i});
+    }
+  }
+  L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
+  say('A hidden chapel of teeth. An altar waits at the far wall.','#e8d0b8');
+  hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
+}
 function dressRuinBuildings(L){
   const g=L.grid; if(!g) return;
   G.props=G.props||[];
@@ -9918,6 +10106,11 @@ function openSecret(sec){
   if(sec.kind==='treasure'){
     buildSecretTreasureRoom(L, sec);
     bumpTopology('openSecret-treasure');
+    return;
+  }
+  if(sec.kind==='teeth'){
+    buildTeethCrownRoom(L, sec);
+    bumpTopology('openSecret-teeth');
     return;
   }
   if(sec.path) carvePath(g, sec.path, 2.1, 0);
@@ -10669,7 +10862,10 @@ function fire(key){
     p.dest=null; p.moving=0; p.ix=0; p.iy=0;
     p.atkKind='melee';
     const foe=nearestFoe(p, p.range+2.8)||(p.aim&&!p.aim.dead?p.aim:null);
-    if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
+    const crown=typeof nearestBoneCrown==='function'?nearestBoneCrown(p, p.range+1.15):null;
+    if(crown && (!foe || dist(p,crown)<=dist(p,foe)+0.2)){
+      faceToward(p, crown.x, crown.y);
+    } else if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
@@ -11018,6 +11214,14 @@ function update(dt){
     if(!PROMPT && G.secretSearch && L.secrets){
       const sec=L.secrets.find(s=>!s.open && Math.hypot(p.x-(s.x||s.i),p.y-(s.y||s.j))<1.9);
       if(sec) interact('Search the wall',()=>tryFindSecret(p,'focus'));
+    }
+    if(!PROMPT && typeof nearestBoneCrown==='function'){
+      const crown=nearestBoneCrown(p,1.75);
+      if(crown) interact('Take the bone crown',()=>takeBoneCrown(crown));
+    }
+    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown()){
+      const body=nearestAnimatableCorpse(p,1.95);
+      if(body) interact('Animate the dead',()=>tryAnimateDead(p,body));
     }
     for(const pr of G.props){
       if(pr.sprung>0) pr.sprung=Math.max(0,pr.sprung-dt);
@@ -11437,6 +11641,7 @@ function drawWorld(g,L){
     if(fl){
       g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
     }
+    if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
   }
 
   function drawWallCell(x,y){
@@ -11906,6 +12111,163 @@ function drawFallenBeam(g,p,z){
     g.restore();
   }
 }
+function drawTeethTile(g,x,y){
+  const s=w2s(x+0.5,y+0.5), z=ZOOM;
+  const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
+  g.save();
+  g.translate(s.x,s.y);
+  const n=risen?7:14;
+  for(let i=0;i<n;i++){
+    const px=(h2(x*13+i,y*9)-0.5)*TW*0.86;
+    const py=(h2(x*5+i,y*17)-0.5)*TH*0.78;
+    const h=(risen?3.2:5.6+h2(i,x+y)*3.8)*z;
+    const w=(1.6+h2(i+3,y)*1.4)*z;
+    g.beginPath();
+    g.moveTo(px, py+h*0.18);
+    g.lineTo(px+w, py+h*0.08);
+    g.lineTo(px+w*0.15, py-h);
+    g.closePath();
+    g.fillStyle=risen?'#6a5848':'#efe4d0';
+    g.fill();
+    g.strokeStyle='rgba(28,16,12,0.55)';
+    g.lineWidth=0.7*z;
+    g.stroke();
+    if(!risen){
+      g.fillStyle='rgba(90,20,18,0.35)';
+      g.beginPath();
+      g.moveTo(px+w*0.12, py-h*0.12);
+      g.lineTo(px+w*0.55, py-h*0.02);
+      g.lineTo(px+w*0.18, py-h*0.72);
+      g.closePath();
+      g.fill();
+    }
+  }
+  g.restore();
+}
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
+  const img=SPR.bone_crown||SPR.bone_crown_signed||null;
+  const cx=dx+W*0.5;
+  const cy=dy+H*0.15;
+  g.save();
+  if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
+  if(img&&img.width){
+    const h=Math.max(12, H*0.16), w=h*(img.width/Math.max(1,img.height));
+    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
+  } else {
+    g.translate(cx, cy);
+    g.fillStyle='#f0e6d2';
+    g.strokeStyle='#3a2a1c';
+    g.lineWidth=1.1*z;
+    g.beginPath();
+    g.ellipse(0, 2.2*z, 11.4*z, 4.2*z, 0, 0, TAU);
+    g.fill(); g.stroke();
+    for(let i=-2;i<=2;i++){
+      const hx=i*4.4*z, hh=(i===0?10.5:7.2)*z;
+      g.beginPath();
+      g.moveTo(hx-2.1*z, 1.4*z);
+      g.lineTo(hx+2.1*z, 1.4*z);
+      g.lineTo(hx+0.2*z, -hh);
+      g.closePath();
+      g.fillStyle=i===0?'#fff6e8':'#e8d8c0';
+      g.fill(); g.stroke();
+    }
+  }
+  g.restore();
+}
+function drawBoneCrownProp(g,p,z){
+  const img=SPR.bone_crown||SPR.bone_crown_signed||null;
+  if(img&&img.width){
+    const H=28*z*(p.s||1);
+    const W=H*(img.width/Math.max(1,img.height));
+    g.drawImage(img, -W/2, -H*0.92, W, H);
+    return;
+  }
+  g.fillStyle='#efe4d0';
+  g.strokeStyle='#2a1c12';
+  g.lineWidth=1.2*z;
+  g.beginPath();
+  g.ellipse(0, 2*z, 16*z, 5.4*z, 0, 0, TAU);
+  g.fill(); g.stroke();
+  for(let i=-3;i<=3;i++){
+    const hx=i*4.6*z, hh=(i===0?18:11+Math.abs(i)*1.2)*z;
+    g.beginPath();
+    g.moveTo(hx-2.4*z, 1.6*z);
+    g.lineTo(hx+2.4*z, 1.6*z);
+    g.lineTo(hx, -hh);
+    g.closePath();
+    g.fillStyle=i===0?'#fff8ea':'#e6d4b8';
+    g.fill(); g.stroke();
+  }
+  g.fillStyle='rgba(120,24,20,0.28)';
+  g.beginPath(); g.ellipse(0, 1.2*z, 10*z, 2.4*z, 0, 0, TAU); g.fill();
+}
+function drawToothProp(g,p,z){
+  const sc=p.s||1;
+  const h=18*z*sc, w=6.4*z*sc;
+  g.beginPath();
+  g.moveTo(-w*0.55, h*0.22);
+  g.lineTo(w*0.7, h*0.08);
+  g.lineTo(w*0.08, -h);
+  g.closePath();
+  g.fillStyle='#efe4d0';
+  g.fill();
+  g.strokeStyle='#2c1c14';
+  g.lineWidth=1.1*z;
+  g.stroke();
+  g.fillStyle='rgba(80,16,14,0.32)';
+  g.beginPath();
+  g.moveTo(-w*0.1, h*0.04);
+  g.lineTo(w*0.35, 0);
+  g.lineTo(w*0.05, -h*0.62);
+  g.closePath();
+  g.fill();
+}
+function demonFaceImg(){
+  return SPR.demon_dwarfface||SPR.demonface||SPR.dwarfface||null;
+}
+function drawDemonDwarfFace(g,p){
+  const img=demonFaceImg();
+  const H=dwarfFaceH()*1.08;
+  const half=dwarfFaceHalf()*1.06;
+  g.save();
+  if(p.wall==='e'){
+    drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});
+  } else {
+    const yPlane=rubyDoorPlaneY(p);
+    drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
+  }
+  /* Grim wash — painted-mini, not cute. SIGNED sheet skips the extra horns. */
+  if(!(SPR.demon_dwarfface||SPR.demonface)){
+    const s=w2s(p.x, p.y);
+    g.save();
+    g.globalCompositeOperation='multiply';
+    g.fillStyle='rgba(70,18,16,0.42)';
+    g.beginPath();
+    g.ellipse(s.x, s.y-H*0.46, half*TW*0.42, H*0.38, 0, 0, TAU);
+    g.fill();
+    g.restore();
+    g.save();
+    g.translate(s.x, s.y-H*0.62);
+    g.fillStyle='#2a1610';
+    g.strokeStyle='#1a0c08';
+    g.lineWidth=1.4*ZOOM;
+    for(const sgn of [-1,1]){
+      g.beginPath();
+      g.moveTo(sgn*12*ZOOM, 8*ZOOM);
+      g.lineTo(sgn*22*ZOOM, -18*ZOOM);
+      g.lineTo(sgn*6*ZOOM, 10*ZOOM);
+      g.closePath();
+      g.fill(); g.stroke();
+    }
+    g.fillStyle='#efe4d0';
+    g.beginPath();
+    g.moveTo(-5*ZOOM, 28*ZOOM); g.lineTo(-1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
+    g.moveTo(5*ZOOM, 28*ZOOM); g.lineTo(1.2*ZOOM, 38*ZOOM); g.lineTo(0, 26*ZOOM);
+    g.fill();
+    g.restore();
+  }
+  g.restore();
+}
 function drawFloorDust(g,p,z){
   const sc=p.s||1, seed=p.seed||0;
   const rx=28*z*sc, ry=14*z*sc;
@@ -12206,6 +12568,10 @@ function drawProp(g,p,pal){
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
     return;
   }
+  if(p.k==='demonface'){
+    drawDemonDwarfFace(g,p);
+    return;
+  }
   if(timberOnDwarfMouthLane(p) || billboardCoversDwarfMouth(p)) return;
   g.save(); g.translate(s.x,s.y);
   if(p.k==='dust'){
@@ -12296,6 +12662,12 @@ function drawProp(g,p,pal){
     g.restore(); return;
   }
   switch(p.k){
+  case 'bonecrown':
+    drawBoneCrownProp(g,p,z);
+    break;
+  case 'tooth':
+    drawToothProp(g,p,z);
+    break;
   case 'stairs':
     drawStairWell(g,z,p);
     break;
