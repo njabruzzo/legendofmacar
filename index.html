@@ -102,8 +102,21 @@ let LAST_LAYOUT={w:0,h:0,dpr:0};
 
 /* DPR must stay a whole number. At 1.25 every drawImage lands on a fractional
    device pixel, so smoothed edges bleed and produce shimmering hairline seams
-   that read as flashing lines. Integer scale = clean edges, and it's faster. */
-function gfxDprCap(){ return (DIAG.dpr2 && !PHONE_GFX) ? 2 : 1; }
+   that read as flashing lines. Integer scale = clean edges, and it's faster.
+   Desktop 1× on a 2× display was the living-Macar mush: 78*ZOOM CSS px baked
+   at 1× then bilinear-upscaled by the compositor. Match device (cap 2).
+   Phones stay 1× — non-integer / 2× offscreen still scanlines there. */
+function gfxDprCap(){
+  if(PHONE_GFX) return 1;
+  return 2;
+}
+function pickPlayDpr(){
+  const cap=gfxDprCap();
+  const raw=window.devicePixelRatio||1;
+  if(DIAG.dpr2 && !PHONE_GFX) return Math.min(2, cap);
+  if(cap>=2 && raw>=1.5) return 2;
+  return 1;
+}
 /* Assigning canvas.width to the same value still clears the bitmap on
    Chromium. Only write when the size actually changed. */
 function setCanvasSize(c, w, h){
@@ -193,7 +206,7 @@ function cycleGfx(){
    is a multi-frame hitch. When only the height moved by a bar-sized amount we take
    a soft path: keep ZOOM/TW/TH frozen, keep the tile cache, just re-fit the canvas. */
 function resize(force){
-  const nDPR = Math.min(window.devicePixelRatio||1, gfxDprCap());
+  const nDPR = pickPlayDpr();
   const vs=viewSize();
   const nVW  = vs.w, nVH = vs.h;
   if(!force && LAST_LAYOUT.w===nVW && LAST_LAYOUT.h===nVH && LAST_LAYOUT.dpr===nDPR) return;
@@ -692,12 +705,13 @@ const ICON_SPR={
    generated TEX diamonds / unscaled kin, then pops to the painted sheets. */
 const WORLD_ART_KEYS={
   1:['floor_mine','wall_worked','wall_face','wall_face_shade','macar',
+     'macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
      'rubble','rubble2','boulder','boulder2','lantern'],
-  2:['floor_mine','wall_cave','wall_cave_face','macar'],
-  3:['floor_ruin','wall_worked','wall_face','macar'],
-  4:['floor_ruin','wall_worked','wall_face','macar'],
-  5:['floor_hall','wall_worked','wall_face','macar']
+  2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
+  3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
+  4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
+  5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact']
 };
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 function worldArtReady(n){
@@ -1076,18 +1090,23 @@ function punchLivingMacarCanvas(c){
 }
 /* Freearm v8 walk hlock fills the canvas with a near-black slab (not only
    exact RGB 0). Flood from the frame edge so the figure's enclosed dark
-   pockets stay. Combat sheets are already punched — this is a no-op there. */
-const MACAR_BLACK_SLAB_T=16;
+   pockets stay. Combat sheets are already punched — this is a no-op there.
+   Use max-channel, not sum: sum<=16 ate dark boot/hair AA that still
+   carried painted chroma (the low-def mush). */
+const MACAR_BLACK_SLAB_T=8;
 function punchBlackExportSlab(d, w, h){
   if(!d||!(w>0)||!(h>0)) return d;
-  const T=typeof MACAR_BLACK_SLAB_T==='number'?MACAR_BLACK_SLAB_T:16;
+  const T=typeof MACAR_BLACK_SLAB_T==='number'?MACAR_BLACK_SLAB_T:8;
   const n=w*h;
   const seen=new Uint8Array(n);
   const q=new Int32Array(n);
   let qs=0, qe=0;
   const matte=i=>{
     const p=i<<2;
-    return d[p+3]<=40 || (d[p]+d[p+1]+d[p+2])<=T;
+    if(d[p+3]<=40) return true;
+    const r=d[p], g2=d[p+1], b=d[p+2];
+    const mx=r>g2?(r>b?r:b):(g2>b?g2:b);
+    return mx<=T && (r+g2+b)<=T*2;
   };
   const push=i=>{
     if(i<0||i>=n||seen[i]||!matte(i)) return;
@@ -1135,17 +1154,20 @@ function repairSpriteSheet(img){
   x.clearRect(0,0,W,H);
   x.drawImage(img,0,0);
   const idat=x.getImageData(0,0,W,H), d=idat.data;
-  const LO=64, HI=160;
+  /* Match punchLivingAlpha. LO=64 was punching painted rim (a=41–64) and
+     the later speckle knit grew a smeared halo — the low-def Macar. */
+  const LO=40, HI=160;
   const known=new Uint8Array(N), core=new Uint8Array(N);
-  let area=0, lumSum=0, lumN=0;
+  let area=0, lumSum=0, lumN=0, mid=0;
   for(let i=0,p=0;i<N;i++,p+=4){
     const a=d[p+3];
     if(a<=LO || isMagentaMatte(d[p],d[p+1],d[p+2]) || isBlackMatte(d[p],d[p+1],d[p+2])){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
     if(a<255){
+      mid++;
       /* getImageData is already straight alpha, so this only lifts the dark
          matte the sheets were exported over. Capped — an uncapped 255/a on a
          faint edge pixel blows it to white. */
-      const s=Math.min(1.5, 255/a);
+      const s=Math.min(1.25, 255/a);
       d[p]=Math.min(255,(d[p]*s+0.5)|0);
       d[p+1]=Math.min(255,(d[p+1]*s+0.5)|0);
       d[p+2]=Math.min(255,(d[p+2]*s+0.5)|0);
@@ -1196,12 +1218,12 @@ function repairSpriteSheet(img){
       if(n<cap) for(let t=0;t<n;t++) sil[pocket[t]]=1;
     }
   }
-  /* 2. Knit thin speckle: a transparent pixel joins the figure only when
-     most of its 5x5 neighbourhood is already figure. Three passes, so this
-     can never reach more than a few pixels from real paint. */
-  {
+  /* 2. Knit thin speckle only on shredded / mid-alpha sheets. Hard-alpha
+     walk/carry is already Cel-cleared — six 5×5 grow passes plus the
+     nearest-fill blur painted a mushy halo and killed beard/mail detail. */
+  if(mid>0){
     const cur=new Uint8Array(N);
-    for(let pass=0;pass<6;pass++){
+    for(let pass=0;pass<3;pass++){
       cur.set(sil);
       let grew=0;
       for(let y=2;y<H-2;y++) for(let xx=2;xx<W-2;xx++){
@@ -1212,7 +1234,7 @@ function repairSpriteSheet(img){
           const row=i+dy*W;
           for(let dx=-2;dx<=2;dx++) if(cur[row+dx]) n++;
         }
-        if(n>=15){ sil[i]=1; grew++; }
+        if(n>=18){ sil[i]=1; grew++; }
       }
       if(!grew) break;
     }
@@ -1747,19 +1769,24 @@ function noteMacarStrikeQA(e, key, blitKey){
     MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
   }
 }
-function macarStrikeHoldMid(){
+function macarStrikeHoldAt(t){
   const p=(typeof player==='function')?player():null;
   if(!p||p.dead||p.ghost) return false;
   p.atkKind='melee';
   p.moving=0; p.ix=0; p.iy=0;
   if(!(p.atkMax>0)) p.atkMax=0.78;
-  p.atk=p.atkMax*0.60;
-  p.swung=1;
+  const u=clamp(typeof t==='number'?t:MACAR_MAUL_HIT_HOLD_T, 0, 0.83);
+  p.atk=p.atkMax*(1-u);
+  p.swung=u>=MACAR_MAUL_CONTACT_T?1:0;
   if(typeof armLivingMacarStrike==='function') armLivingMacarStrike(p);
   MacarStrikeQA.hold=true;
   return true;
 }
+function macarStrikeHoldMid(){ return macarStrikeHoldAt(MACAR_MAUL_HIT_HOLD_T); }
+function macarStrikeHoldWindup(){ return macarStrikeHoldAt(MACAR_MAUL_WINDUP_T); }
 MacarStrikeQA.holdMid=macarStrikeHoldMid;
+MacarStrikeQA.holdWindup=macarStrikeHoldWindup;
+MacarStrikeQA.holdAt=macarStrikeHoldAt;
 if(typeof window!=='undefined') window.MacarStrikeQA=MacarStrikeQA;
 /* First sheet in the list that is actually decoded. */
 function macarFirstReady(list){
@@ -1789,7 +1816,8 @@ function macarPose(e){
       return {key:plan.sideAtk, flip:flip};
     }
     const t=(typeof attackProgress==='function')?attackProgress(e):0;
-    const k=macarFirstReady((t>=MACAR_MAUL_CONTACT_T)?['macar_atk_contact', plan.atk]:[plan.atk]);
+    const forceWindup=(typeof wantsMacarWindup==='function')&&wantsMacarWindup(e);
+    const k=macarFirstReady((!forceWindup && t>=MACAR_MAUL_CONTACT_T)?['macar_atk_contact', plan.atk]:[plan.atk]);
     if(k) return {key:k, flip:(oct==='e'||oct==='w')?flip:false};
   }
 
@@ -1829,7 +1857,8 @@ function livingMacarAnimKey(e){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(idle==='macar'){
       const t=(typeof attackProgress==='function')?attackProgress(e):0;
-      if(t>=MACAR_MAUL_CONTACT_T && matchingPartyAtkReady('macar_atk_contact', idle))
+      const forceWindup=(typeof wantsMacarWindup==='function')&&wantsMacarWindup(e);
+      if(!forceWindup && t>=MACAR_MAUL_CONTACT_T && matchingPartyAtkReady('macar_atk_contact', idle))
         return 'macar_atk_contact';
     }
     if(matchingPartyAtkReady(atk, idle)) return atk;
@@ -2574,12 +2603,31 @@ function expireBowPose(e){
 /* Hit lands at t≈0.45; living pose ends at 0.84. Maul windup (macar_atk)
    shows early; contact (macar_atk_contact) takes over at the hit. HOLD is
    a last-resort leftover if the timer dies mid-pose; recover and timer-end
-   clear it so idle carry returns immediately. Kin / ghosts are unchanged. */
+   clear it so idle carry returns immediately. Kin / ghosts are unchanged.
+   WINDUP_T / HIT_HOLD_T are the QA freeze samples. WINDUP_MIN_S keeps the
+   first Attack press on windup for a readable beat even when a fat dt
+   would skip past CONTACT_T — that was the carry-pose miss. */
 const MACAR_MAUL_CONTACT_T=0.45;
+const MACAR_MAUL_WINDUP_T=0.18;
+const MACAR_MAUL_HIT_HOLD_T=0.62;
+const MACAR_MAUL_WINDUP_MIN_S=0.28;
 const MACAR_STRIKE_HOLD=0.12;
 function armLivingMacarStrike(e){
   if(!e||!e.hero||e.ghost) return;
   e.macarStrikeHold=Math.max(e.macarStrikeHold||0, MACAR_STRIKE_HOLD);
+}
+function armLivingMacarWindup(e){
+  if(!e||!e.hero||e.ghost) return;
+  const s=typeof MACAR_MAUL_WINDUP_MIN_S==='number'?MACAR_MAUL_WINDUP_MIN_S:0.28;
+  e.macarWindupUntil=nowMs()+s*1000;
+}
+function wantsMacarWindup(e){
+  if(!e||!e.hero||e.dead||e.ghost) return false;
+  if(e.atkKind==='bow') return false;
+  if(!(e.macarWindupUntil>0)) return false;
+  if(nowMs()>=e.macarWindupUntil) return false;
+  const t=(typeof attackProgress==='function')?attackProgress(e):0;
+  return t>=0 && t<0.84;
 }
 function wantsLivingMacarStrike(e){
   if(!e||!e.hero||e.dead||e.ghost) return false;
@@ -10617,6 +10665,7 @@ function fire(key){
       p._attack={fdx:p.fdx,fdy:p.fdy};
       if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
       else p.swung=1;
+      armLivingMacarWindup(p);
       armLivingMacarStrike(p);
     }
     return;
@@ -10626,6 +10675,7 @@ function fire(key){
     p.defending=!p.defending;
     if(p.defending){
       p.atk=0; p.swung=0; p._attack=null; p.aim=null; p.dest=null; G.aim=null;
+      p.macarStrikeHold=0; p.macarWindupUntil=0;
       p.fdx=-0.72; p.fdy=-0.72;
       G.ents.forEach(e=>{
         if(e.team!=='party'||e.dead||e===p) return;
@@ -10889,7 +10939,8 @@ function update(dt){
         ensureShadowCleaverWielded();
         faceToward(p, t.x, t.y);
         p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t;
-        p._attack={fdx:p.fdx,fdy:p.fdy}; }
+        p._attack={fdx:p.fdx,fdy:p.fdy};
+        if(typeof armLivingMacarWindup==='function') armLivingMacarWindup(p); }
       if(!t) p.aim=null;
     } else if(p.defending) p.aim=null;
 
@@ -11028,11 +11079,12 @@ function update(dt){
     if(e.buff>0) e.buff-=dt;
     skillSystem.tickAttack(e, dt);
     if(e.atk>0){
-        if(e.defending){ e.atk=0; e.swung=0; e._attack=null; e.macarStrikeHold=0; }
+        if(e.defending){ e.atk=0; e.swung=0; e._attack=null; e.macarStrikeHold=0; e.macarWindupUntil=0; }
       else {
         if(e.hero && !e.ghost && typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold
           && e.atkKind!=='bow'){
-          e.atk=e.atkMax*0.60;
+          const u=typeof MACAR_MAUL_HIT_HOLD_T==='number'?MACAR_MAUL_HIT_HOLD_T:0.62;
+          e.atk=e.atkMax*(1-u);
         } else {
           e.atk-=dt;
         }
@@ -11051,10 +11103,10 @@ function update(dt){
           } else if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
-        if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost) e.macarStrikeHold=0; }
+        if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost){ e.macarStrikeHold=0; e.macarWindupUntil=0; } }
       }
     }
-    if(e.hero && !e.ghost && wantsMeleeRecover(e)) e.macarStrikeHold=0;
+    if(e.hero && !e.ghost && wantsMeleeRecover(e)){ e.macarStrikeHold=0; e.macarWindupUntil=0; }
     if(e.hero && !e.ghost && (e.macarStrikeHold||0)>0){
       if(!(typeof MacarStrikeQA!=='undefined' && MacarStrikeQA.hold))
         e.macarStrikeHold=Math.max(0, e.macarStrikeHold-dt);

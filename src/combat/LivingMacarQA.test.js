@@ -132,9 +132,24 @@ assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   'combat soft rim and walk black slab rely on the existing living bake/punch');
 assert(/const MACAR_MAUL_CONTACT_T=0\.45/.test(html),
   'maul contact takes over at the hit (t≥0.45)');
+assert(/const MACAR_MAUL_WINDUP_T=0\.18/.test(html)
+  && /const MACAR_MAUL_HIT_HOLD_T=0\.62/.test(html)
+  && /const MACAR_MAUL_WINDUP_MIN_S=0\.28/.test(html),
+  'QA windup / contact holds are distinct; first Attack keeps a readable windup beat');
+assert(/function armLivingMacarWindup\(/.test(html) && /function wantsMacarWindup\(/.test(html),
+  'first Attack arms a min-read windup so a fat dt cannot skip to carry');
+assert(/macarStrikeHoldAt\(MACAR_MAUL_HIT_HOLD_T\)/.test(html)
+  && /macarStrikeHoldAt\(MACAR_MAUL_WINDUP_T\)/.test(html),
+  'holdMid freezes contact; holdWindup freezes the raise — not carry');
+const worldArt=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\};/);
+assert(!!worldArt && /macar_atk/.test(worldArt[0]) && /macar_atk_contact/.test(worldArt[0])
+  && /macar_w1/.test(worldArt[0]) && /macar_w2/.test(worldArt[0]),
+  'first play frame waits on walk + windup + contact so Attack cannot plant idle carry');
 
 /* --- Source: living Macar is title idle + front w1/w2. Attack plants idle. --- */
 const liveKey=extractFn('livingMacarAnimKey');
+assert(/forceWindup/.test(liveKey) && /wantsMacarWindup/.test(liveKey),
+  'livingMacarAnimKey can hold windup past CONTACT_T for the min-read beat');
 assert(/macar_atk_contact/.test(liveKey) && /MACAR_MAUL_CONTACT_T/.test(liveKey),
   'livingMacarAnimKey binds windup then contact — never _atk_recover');
 assert(/macar_axe/.test(liveKey) && /livingMacarIdleKey/.test(liveKey),
@@ -227,7 +242,12 @@ vm.runInContext(
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
   +'const MACAR_MAUL_CONTACT_T=0.45;'
+  +'const MACAR_MAUL_WINDUP_T=0.18;'
+  +'const MACAR_MAUL_HIT_HOLD_T=0.62;'
+  +'const MACAR_MAUL_WINDUP_MIN_S=0.28;'
   +extractFn('armLivingMacarStrike')
+  +extractFn('armLivingMacarWindup')
+  +extractFn('wantsMacarWindup')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey')
@@ -265,6 +285,19 @@ assert(ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
   'blit key holds macar_atk_contact when the sheet is ready');
 assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
   'Attack press t=0 already blits the windup sheet');
+const holdWind=macar({atk:0.82, atkMax:1});
+assert(ctx.livingMacarAnimKey(holdWind)==='macar_atk',
+  'QA windup sample t=0.18 is macar_atk');
+const holdHit=macar({atk:0.38, atkMax:1});
+assert(ctx.livingMacarAnimKey(holdHit)==='macar_atk_contact',
+  'QA contact hold t=0.62 is macar_atk_contact — not idle carry');
+const fatDt=macar({atk:0.50, atkMax:1, macarWindupUntil:ctx._now+200});
+assert(ctx.wantsMacarWindup(fatDt)===true
+  && ctx.livingMacarAnimKey(fatDt)==='macar_atk',
+  'min-read windup keeps macar_atk even when t already passed the hit');
+const fatDone=macar({atk:0.50, atkMax:1, macarWindupUntil:ctx._now-1});
+assert(ctx.livingMacarAnimKey(fatDone)==='macar_atk_contact',
+  'expired min-read windup yields contact at the hit');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'maul recover plants idle when atk is ready — not the wind-up sheet');
 delete SPR.macar_atk;
