@@ -371,7 +371,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='101';
+const ASSET_VER='102';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -663,12 +663,14 @@ Object.keys(SPRITE_FILES).forEach(k=>{
    + Limner SIGNED crossbow carry/atk. Drop compass / helmeted combat /
    sleep / title / w3 leftovers. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
-  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver + crossbow carry/atk — registered after the strip so they survive. */
+/* Nick-read + Cel PASS: maul contact is a second strike sheet (not recover). */
+SPRITE_FILES.macar_atk_contact='assets/creatures/dwarf_macar_atk_contact.png';
 SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
 SPRITE_FILES.macar_axe_w1='assets/creatures/dwarf_macar_axe_w1.png';
 SPRITE_FILES.macar_axe_w2='assets/creatures/dwarf_macar_axe_w2.png';
@@ -707,7 +709,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -772,7 +774,7 @@ function loadSprites(done){
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
-  ['macar','macar_w1','macar_w2','macar_atk','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+  ['macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
    'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','pordoom_atk','pordoom_atk_recover','pordoom_ghost','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover',
     'fendur','fendur_w1','fendur_w2','fendur_w3','fendur_atk','fendur_atk_recover','fendur_ghost','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover',
@@ -918,6 +920,12 @@ function spriteBounds(img){
   }
     const fcx=footN?Math.round(footX/footN):Math.round((lo+hi)/2);
   const half=Math.max(6, Math.round((hi-lo+1)*0.16));
+  /* Spread-stance windup: the foot column dies in the gap between the
+     boots, then the full weapon box (overhead maul) is treated as the
+     person and dest H shrinks the body into a smear. Ignore gaps in the
+     lower 42% so the torso connects; honor gaps above that so the maul
+     is not the crown. */
+  const ignoreGapUntil=top+Math.floor((bot-top+1)*0.42);
   let crown=bot, gaps=0;
   for(let y=bot;y>=top;y--){
     let hit=false;
@@ -926,7 +934,7 @@ function spriteBounds(img){
       if(d[(y*w+x)*4+3]>30){ hit=true; break; }
     }
     if(hit){ crown=y; gaps=0; }
-    else { gaps++; if(gaps>2) break; }
+    else { gaps++; if(gaps>2 && y<ignoreGapUntil) break; }
   }
   let metal=0, warm=0, hairN=0, cn=0;
   const bw=hi-lo+1, bh=bot-top+1;
@@ -1030,13 +1038,19 @@ function isMagentaMatte(r,g,b){
   return (r>=90 && b>=90 && g<=Math.min(r,b)-18)
     || (r>=70 && b>=110 && g<=80 && b>g+25);
 }
+/* Freearm v8 walk hlock ships a black export slab (RGB 0, a=255). Same
+   punch as magenta — not a new painted pass. Exact 0,0,0 only. */
+function isBlackMatte(r,g,b){
+  return (r|g|b)===0;
+}
 /* Living-Macar / living-kin binary alpha. a≤40 punched. a>40 un-premultiply
-   RGB then a=255. Magenta matte is treated as a≤40 so it cannot fringe. */
+   RGB then a=255. Magenta / black export matte is treated as a≤40 so it
+   cannot fringe or slab. */
 function punchLivingAlpha(d, n){
   const LO=40;
   for(let i=0,p=0;i<n;i++,p+=4){
     const r=d[p], g2=d[p+1], b=d[p+2], a=d[p+3];
-    if(a<=LO || isMagentaMatte(r,g2,b)){
+    if(a<=LO || isMagentaMatte(r,g2,b) || isBlackMatte(r,g2,b)){
       d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0;
       continue;
     }
@@ -1055,9 +1069,45 @@ function punchLivingMacarCanvas(c){
     const x=c.getContext('2d',{willReadFrequently:true});
     const idat=x.getImageData(0,0,c.width,c.height);
     punchLivingAlpha(idat.data, c.width*c.height);
+    punchBlackExportSlab(idat.data, c.width, c.height);
     x.putImageData(idat,0,0);
   }catch(_){}
   return c;
+}
+/* Freearm v8 walk hlock fills the canvas with a near-black slab (not only
+   exact RGB 0). Flood from the frame edge so the figure's enclosed dark
+   pockets stay. Combat sheets are already punched — this is a no-op there. */
+const MACAR_BLACK_SLAB_T=16;
+function punchBlackExportSlab(d, w, h){
+  if(!d||!(w>0)||!(h>0)) return d;
+  const T=typeof MACAR_BLACK_SLAB_T==='number'?MACAR_BLACK_SLAB_T:16;
+  const n=w*h;
+  const seen=new Uint8Array(n);
+  const q=new Int32Array(n);
+  let qs=0, qe=0;
+  const matte=i=>{
+    const p=i<<2;
+    return d[p+3]<=40 || (d[p]+d[p+1]+d[p+2])<=T;
+  };
+  const push=i=>{
+    if(i<0||i>=n||seen[i]||!matte(i)) return;
+    seen[i]=1; q[qe++]=i;
+  };
+  for(let x=0;x<w;x++){ push(x); push((h-1)*w+x); }
+  for(let y=1;y<h-1;y++){ push(y*w); push(y*w+w-1); }
+  while(qs<qe){
+    const i=q[qs++], x=i%w;
+    if(x) push(i-1);
+    if(x+1<w) push(i+1);
+    if(i>=w) push(i-w);
+    if(i+w<n) push(i+w);
+  }
+  for(let i=0;i<n;i++){
+    if(!seen[i]) continue;
+    const p=i<<2;
+    d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0;
+  }
+  return d;
 }
 
 /* ==========================================================================
@@ -1090,7 +1140,7 @@ function repairSpriteSheet(img){
   let area=0, lumSum=0, lumN=0;
   for(let i=0,p=0;i<N;i++,p+=4){
     const a=d[p+3];
-    if(a<=LO || isMagentaMatte(d[p],d[p+1],d[p+2])){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    if(a<=LO || isMagentaMatte(d[p],d[p+1],d[p+2]) || isBlackMatte(d[p],d[p+1],d[p+2])){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
     if(a<255){
       /* getImageData is already straight alpha, so this only lifts the dark
          matte the sheets were exported over. Capped — an uncapped 255/a on a
@@ -1271,6 +1321,7 @@ function blitLivingMacar(img){
     /* A ready mid-swing sheet must not plant idle. That was the cocked-shoulder
        FAIL: livingMacarAnimKey returned macar_atk, bake missed, idle blitted. */
     const keepAtk=(typeof SPR!=='undefined')&&((SPR.macar_atk&&img===SPR.macar_atk)
+      ||(SPR.macar_atk_contact&&img===SPR.macar_atk_contact)
       ||(SPR.macar_axe_atk&&img===SPR.macar_axe_atk)
       ||(SPR.macar_xbow_atk&&img===SPR.macar_xbow_atk));
     if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
@@ -1450,9 +1501,9 @@ const MACAR_PLAN={
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Title-law Macar: maul idle + front w1/w2 + maul atk + Cleaver + crossbow. */
+/* Title-law Macar: maul idle + front w1/w2 + maul windup/contact + Cleaver + crossbow. */
 const LIVING_MACAR_KEYS={
-  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
+  macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
@@ -1525,11 +1576,13 @@ function partySheetMatchesIdle(img, idle, key){
   return false;
 }
 function matchingPartyAtkReady(key, idleKey){
-  /* Equipped idle + its own _atk / _atk_recover. Skip crown/family so a
+  /* Equipped idle + its own _atk / contact / recover. Skip crown/family so a
      Limner-parked crown (or a different crop) cannot plant idle while the
-     swing timer still runs. Fit still rejects slivers. */
+     swing timer still runs. Fit still rejects slivers. Contact is wider
+     (GOLDEN overhang) — still the idle's own strike sheet, never recover. */
   if(!key || !idleKey) return false;
-  if(key!==idleKey+'_atk' && key!==idleKey+'_atk_recover') return false;
+  if(key!==idleKey+'_atk' && key!==idleKey+'_atk_recover'
+     && key!==idleKey+'_atk_contact' && key!==idleKey+'_atk_windup') return false;
   if(typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width)) return false;
   const img=SPR[key];
   const idle=(SPR[idleKey]&&SPR[idleKey].width)?SPR[idleKey]:null;
@@ -1689,7 +1742,7 @@ function noteMacarStrikeQA(e, key, blitKey){
   MacarStrikeQA.strikeHold=+(e&&e.macarStrikeHold||0);
   MacarStrikeQA.bowPoseT=+(e&&e.bowPoseT||0);
   MacarStrikeQA.bowPoseUntil=+(e&&e.bowPoseUntil||0);
-  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk')){
+  if(MacarStrikeQA.pose && (key==='macar_atk'||key==='macar_atk_contact'||key==='macar_axe_atk'||key==='macar_xbow_atk')){
     MacarStrikeQA.lastStrikeKey=key;
     MacarStrikeQA.lastStrikeT=MacarStrikeQA.holdProgress;
   }
@@ -1730,12 +1783,13 @@ function macarPose(e){
   const flip=wantsSpriteFlip(e);
 
   if(wantsMeleePose(e)){
-    /* Strike window only. Recover plants idle — the atk sheet is a wind-up
-       / bring-back, so holding it through follow-through never reads as a swing. */
+    /* Strike window only. Recover plants idle — windup is early-swing,
+       contact is the hit. Do not map either onto _atk_recover. */
     if((oct==='e'||oct==='w') && plan.sideAtk && sprReady(plan.sideAtk)){
       return {key:plan.sideAtk, flip:flip};
     }
-    const k=macarFirstReady([plan.atk]);
+    const t=(typeof attackProgress==='function')?attackProgress(e):0;
+    const k=macarFirstReady((t>=MACAR_MAUL_CONTACT_T)?['macar_atk_contact', plan.atk]:[plan.atk]);
     if(k) return {key:k, flip:(oct==='e'||oct==='w')?flip:false};
   }
 
@@ -1756,11 +1810,12 @@ function macarPose(e){
   return idle?{key:idle, flip:flip}:none;
 }
 /* Living Macar only. Idle / front w1-w2 (maul) or axe / xbow carry plant.
-   Strike window uses matching atk for the equipped idle. Recover plants
-   idle (or a real _atk_recover if Limner signs one). Recover and timer-end
-   clear strikeHold so idle carry returns as soon as t≥0.84. Same FACE,
-   opposite FOOT. Shoot pose is render-time wall clock (bowPoseUntil),
-   not update(dt). */
+   Maul strike: windup (macar_atk) early, contact at the hit (t≥0.45).
+   Axe / xbow keep a single matching _atk. Recover plants idle (or a real
+   _atk_recover if Limner signs one) — never the windup sheet. Recover and
+   timer-end clear strikeHold so idle carry returns as soon as t≥0.84.
+   Same FACE, opposite FOOT. Shoot pose is render-time wall clock
+   (bowPoseUntil), not update(dt). */
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
@@ -1772,6 +1827,11 @@ function livingMacarAnimKey(e){
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
+    if(idle==='macar'){
+      const t=(typeof attackProgress==='function')?attackProgress(e):0;
+      if(t>=MACAR_MAUL_CONTACT_T && matchingPartyAtkReady('macar_atk_contact', idle))
+        return 'macar_atk_contact';
+    }
     if(matchingPartyAtkReady(atk, idle)) return atk;
     return pickReadyPartyKey(atk, idle) || idle;
   }
@@ -1813,8 +1873,8 @@ function drawLivingMacar(g,e){
   g.translate(s.x, s.y-bob0);
   softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   const H=entSpriteH(e,z)*livingMacarPlantFit(e, blitKey||key, img);
-  const strike=key==='macar_atk'||key==='macar_axe_atk'||key==='macar_xbow_atk'
-    ||blitKey==='macar_atk'||blitKey==='macar_axe_atk'||blitKey==='macar_xbow_atk';
+  const strike=key==='macar_atk'||key==='macar_atk_contact'||key==='macar_axe_atk'||key==='macar_xbow_atk'
+    ||blitKey==='macar_atk'||blitKey==='macar_atk_contact'||blitKey==='macar_axe_atk'||blitKey==='macar_xbow_atk';
   const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN*(strike?1.16:1);
   const b=spriteBounds(img);
   /* Plant on the feet, not the opaque-box center. Mid-swing spans the
@@ -2511,10 +2571,11 @@ function expireBowPose(e){
   e.atkKind='melee';
   e.swung=0;
 }
-/* Hit lands at t≈0.45; living pose ends at 0.84. Mid-swing stays up for
-   the strike window (t 0–0.84). HOLD is a last-resort leftover if the
-   timer dies mid-pose; recover and timer-end clear it so idle carry
-   returns immediately. Kin / ghosts are unchanged. */
+/* Hit lands at t≈0.45; living pose ends at 0.84. Maul windup (macar_atk)
+   shows early; contact (macar_atk_contact) takes over at the hit. HOLD is
+   a last-resort leftover if the timer dies mid-pose; recover and timer-end
+   clear it so idle carry returns immediately. Kin / ghosts are unchanged. */
+const MACAR_MAUL_CONTACT_T=0.45;
 const MACAR_STRIKE_HOLD=0.12;
 function armLivingMacarStrike(e){
   if(!e||!e.hero||e.ghost) return;

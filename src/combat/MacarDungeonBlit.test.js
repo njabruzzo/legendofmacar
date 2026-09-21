@@ -26,11 +26,13 @@ function extractFn(name){
 
 assert(/function isMagentaMatte\(/.test(html) && /function punchLivingAlpha\(/.test(html),
   'magenta punch helpers exist');
-assert(/const LO=40/.test(html) && /a<=LO \|\| isMagentaMatte/.test(html),
-  'a<=40 or magenta matte punches to 0');
+assert(/const LO=40/.test(html) && /a<=LO \|\| isMagentaMatte/.test(html)
+  && /isBlackMatte/.test(html),
+  'a<=40 or magenta / black export matte punches to 0');
 assert(/function punchLivingMacarCanvas\(/.test(html)
-  && /punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar')),
-  'living Macar bake runs the magenta / binary-alpha punch');
+  && /punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
+  && /punchBlackExportSlab\(idat\.data, c\.width, c\.height\)/.test(extractFn('punchLivingMacarCanvas')),
+  'living Macar bake runs the magenta / binary-alpha punch and black-slab flood');
 assert(/imageSmoothingEnabled=false/.test(extractFn('blitFacing')),
   'party blit can disable bilinear smoothing');
 assert(/imageSmoothingEnabled=false/.test(extractFn('flippedSprite'))
@@ -49,11 +51,13 @@ assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
 assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0])
   && /macar_w2:1/.test(keysDecl[0]) && /macar_atk:1/.test(keysDecl[0])
+  && /macar_atk_contact:1/.test(keysDecl[0])
   && /macar_axe:1/.test(keysDecl[0]) && /macar_axe_atk:1/.test(keysDecl[0])
   && /macar_xbow:1/.test(keysDecl[0]) && /macar_xbow_atk:1/.test(keysDecl[0]),
-  'whitelist is maul set + Shadow Cleaver + crossbow carry/atk');
+  'whitelist is maul set + contact + Shadow Cleaver + crossbow carry/atk');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
+ 'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
@@ -69,10 +73,11 @@ const start=html.indexOf('const SPRITE_FILES={');
 const end=html.indexOf('const ICON_SPR={');
 const registry=new Function(html.slice(start, end)+'\nreturn SPRITE_FILES;')();
 assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.macar_atk
+  && registry.macar_atk_contact
   && registry.macar_axe && registry.macar_axe_w1 && registry.macar_axe_w2 && registry.macar_axe_atk
-  && registry.macar_xbow && registry.macar_xbow_w1 && registry.macar_xbow_w2 && registry.macar_xbow_atk, 'live Macar + axe + xbow keys stay registered');
+  && registry.macar_xbow && registry.macar_xbow_w1 && registry.macar_xbow_w2 && registry.macar_xbow_atk, 'live Macar + contact + axe + xbow keys stay registered');
 Object.keys(registry).forEach(k=>{
-  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk'
+  if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
@@ -119,6 +124,7 @@ vm.runInContext(
   +extractFn('wantsBowPose')
   +extractFn('expireBowPose')
   +'const MACAR_STRIKE_HOLD=0.12;'
+  +'const MACAR_MAUL_CONTACT_T=0.45;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
   +extractFn('livingMacarAnimKey'),
@@ -140,16 +146,20 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_w1', 'ready
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.62}))==='macar_w2', 'ready w2 is used');
 assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar', 'attack plants idle until a matching atk sheet is ready');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar', 'recover plants idle until a matching atk sheet is ready');
-SPR.macar_atk={width:470, height:512};
-assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'title-law 470x512 atk is used');
+SPR.macar_atk={width:470, height:540};
+SPR.macar_atk_contact={width:893, height:540};
+assert(ctx.livingMacarAnimKey(macar({atk:0.7, atkMax:1}))==='macar_atk', 'freearm windup 470x540 is used');
 assert(ctx.livingMacarAnimKey(macar({atk:1, atkMax:1}))==='macar_atk',
-  'Attack press t=0 already holds the mid-swing sheet');
+  'Attack press t=0 already holds the windup sheet');
 assert(ctx.livingMacarBlitKey('macar_atk')==='macar_atk', 'blit key does not re-plant idle over ready atk');
-assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk',
-  'late swing t≈0.68 still holds the mid-swing sheet');
+assert(ctx.livingMacarAnimKey(macar({atk:0.32, atkMax:1}))==='macar_atk_contact',
+  'late swing t≈0.68 holds the contact sheet');
+assert(ctx.livingMacarBlitKey('macar_atk_contact')==='macar_atk_contact',
+  'blit key does not re-plant idle over ready contact');
 assert(ctx.livingMacarAnimKey(macar({atk:0.10, atkMax:1}))==='macar',
   'recover plants idle even when the wind-up atk sheet is ready');
 delete SPR.macar_atk;
+delete SPR.macar_atk_contact;
 
 SPR.macar_axe={width:470, height:512};
 SPR.macar_axe_atk={width:470, height:512};
@@ -220,12 +230,20 @@ assert(ctx.pickReadyPartyKey('pordoom_w1', 'pordoom')==='pordoom',
   'kin sliver walk falls back to that kin idle, never a wrong sheet');
 
 assert(ctx.isMagentaMatte?true:typeof ctx.isMagentaMatte==='undefined', 'magenta helper is extractable');
-vm.runInContext(extractFn('isMagentaMatte')+extractFn('punchLivingAlpha'), ctx);
-const d=new Uint8ClampedArray([255,0,255,255, 80,50,30,30, 40,30,20,80, 10,200,10,200]);
-ctx.punchLivingAlpha(d, 4);
+vm.runInContext(extractFn('isMagentaMatte')+extractFn('isBlackMatte')+extractFn('punchLivingAlpha'), ctx);
+const d=new Uint8ClampedArray([255,0,255,255, 80,50,30,30, 40,30,20,80, 10,200,10,200, 0,0,0,255]);
+ctx.punchLivingAlpha(d, 5);
 assert(d[0]===0 && d[3]===0, 'magenta pixel is punched to 0');
 assert(d[4]===0 && d[7]===0, 'a<=40 fringe is punched to 0');
 assert(d[11]===255, 'a>40 is forced opaque');
+assert(d[16]===0 && d[19]===0, 'black export matte is punched to 0');
+vm.runInContext('const MACAR_BLACK_SLAB_T=16;'+extractFn('punchBlackExportSlab'), ctx);
+const slab=new Uint8ClampedArray(4*16);
+for(let i=0;i<16;i++){ slab[i*4]=4; slab[i*4+1]=4; slab[i*4+2]=4; slab[i*4+3]=255; }
+slab[5*4]=80; slab[5*4+1]=50; slab[5*4+2]=30; slab[5*4+3]=255;
+ctx.punchBlackExportSlab(slab, 4, 4);
+assert(slab[3]===0 && slab[4*4+3]===0, 'edge-connected near-black slab is punched');
+assert(slab[5*4]===80 && slab[5*4+3]===255, 'interior figure pixel survives the slab flood');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar dungeon blit / leftover-art checks passed');
