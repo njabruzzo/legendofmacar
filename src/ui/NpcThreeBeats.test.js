@@ -27,24 +27,33 @@ assert(/function startTalk\(key\)\{/.test(html) && /function pickTalk\(i\)\{/.te
   'talk engine is not rewritten');
 
 const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
-['toy_find','toy_wind','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
+['toy_find','toy_wind','toy_grond','toy_teeth','goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
-assert(/who:'A TOY'/.test(talk) && /Cold brass\. A key in its back\. It ticks once, mean: "Wind me, dwarf\. Or stay thick\."/.test(talk),
+assert(/who:'A TOY'/.test(talk) && /Cold brass\. Ten empty sockets\. A key in its back\. It ticks once: "Wind me, thick-skull\. Or stay blind\."/.test(talk),
   'toy_find Quill line');
 assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
-assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click\. A whisper: "A fool who wound greed\."'/.test(talk),
-  'who-made-you whispers greed until wound');
+assert(/t:'Who made you\?'/.test(talk) && /reply:'A dry click: "A soft fool\. Not Grond\."'/.test(talk),
+  'who-made-you names a soft fool, not Grond');
 assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talk),
   'Wind it opens toy_wind and marks wound');
-assert(/who:'THE TOY'/.test(talk) && /Tick-tock, thick-skull Macar/.test(talk) &&
+assert(/who:'THE TOY'/.test(talk) && /Tick-tock, Macar/.test(talk) &&
+  /Your kin kissed Grond and called it law/.test(talk) &&
   /The secret of the ruby lies in the heart of it all/.test(talk),
-  'toy_wind opening pins the ruby-heart phrase');
-assert(/Your kin still sleep under the fall/.test(talk) && /red door warms to a dwarf/.test(talk) &&
-  /false grey face/.test(talk) && /SEARCH that lie/.test(talk) && /Froren\\'s anvil stands/.test(talk),
+  'toy_wind opening pins Grond and the ruby-heart phrase');
+assert(/Kin under the fall/.test(talk) && /Red door warm to a dwarf/.test(talk) &&
+  /false grey face/.test(talk) && /SEARCH that lie/.test(talk) && /Soft Froren\\'s anvil stands/.test(talk),
   'toy_wind clues are cave-in, ruby door, north seam SEARCH, hall anvil');
-assert(/Kind hands\. Soft heart\. Dead soft/.test(talk), 'Who was Froren lament');
-assert(/Go clutch your ruby\. Heart of it all/.test(talk), 'toy_wind put-down still names the ruby heart');
+assert(/then:\(\)=>startTalk\('toy_grond'\)/.test(talk), 'Who is Grond opens toy_grond');
+assert(/then:\(\)=>startTalk\('toy_teeth'\)/.test(talk), 'teeth / end-it open toy_teeth');
+assert(/Go clutch the heart\. Leave the sockets bare\. Ten teeth wait/.test(talk),
+  'toy_wind put-down names the heart and ten teeth');
+assert(/Grond\. Deep hunger\. Pretty name/.test(talk) &&
+  /The lust that called Grond down the hall/.test(talk),
+  'toy_grond pins Grond as hunger and ruby-lust');
+assert(/Ten teeth torn/.test(talk) && /Mordain\\'s holy hammer/.test(talk) &&
+  /Anvil of Truth/.test(talk) && /Ten teeth\. Mordain\\'s hammer/.test(talk),
+  'toy_teeth pins ten teeth, Mordain hammer, Anvil of Truth');
 assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
   'toy_wind has no later-chapter compass');
 assert(/who:'GOBLIN'/.test(talk) && /Wait—wait! Nice goblin\. Friend\. No more knife\. Mercy, dwarf\./.test(talk),

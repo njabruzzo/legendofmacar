@@ -24,9 +24,20 @@ assert(!!talk, 'NPC_TALK block found');
 
 ['noz_untie','noz_bell','noz_trade_again','dwarf_face','ruby_door',
  'rise_pordum','rise_fendur','rise_orbo','rise_talpor',
- 'camp_pordum','camp_fendur','camp_orbo','camp_talpor'].forEach(k=>{
+ 'camp_pordum','camp_fendur','camp_orbo','camp_talpor',
+ 'toy_find','toy_wind','toy_grond','toy_teeth'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
+assert(/Ten empty sockets/.test(talk) && /A soft fool\. Not Grond/.test(talk),
+  'toy_find names empty sockets and Grond');
+assert(/Your kin kissed Grond/.test(talk) && /then:\(\)=>startTalk\('toy_grond'\)/.test(talk),
+  'toy_wind names Grond and opens toy_grond');
+assert(/then:\(\)=>startTalk\('toy_teeth'\)/.test(talk),
+  'toy_wind / toy_grond wire toy_teeth');
+assert(/Grond\. Deep hunger/.test(talk) && /The lust that called Grond down the hall/.test(talk),
+  'toy_grond pins Grond hunger and ruby-lust');
+assert(/Ten teeth torn/.test(talk) && /Mordain\\'s holy hammer/.test(talk) && /Anvil of Truth/.test(talk),
+  'toy_teeth pins ten teeth, Mordain hammer, Anvil of Truth');
 
 assert(/Run\. We hold\./.test(talk) && /Why keep a gnome\?/.test(talk) && /Stay with us\./.test(talk),
   'noz_untie choices');
