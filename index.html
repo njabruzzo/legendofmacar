@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='107';
+const ASSET_VER='108';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -646,6 +646,12 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
 SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
 SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
 SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
+/* Disney SIGNED teeth-chapel v3. After walk/atk derivation so the altar
+   sheet does not spawn a missing _atk and the tiles do not spawn _w1. */
+SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
+SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
+SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
+SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_atk_recover']='assets/creatures/dwarf_'+k+'_atk_recover.png';
@@ -2257,11 +2263,60 @@ function rubyNorthWallH(L){ return wallFaceH(L)*WALL_RUBY_NORTH_SCALE; }
 /* Teeth chapel north face only (room carved at y=2). Halls stay
    WALL_HALL_SCALE. The demonic face is taller than a hall wall, so this
    row has to rise until the carving sits in masonry, not the black void. */
-const WALL_TEETH_NORTH_SCALE=1.64;
+const WALL_TEETH_NORTH_SCALE=2.25;
 function isTeethNorthWall(L,x,y){
   return !!(L && L.n===1 && y===1 && x>=101 && x<113);
 }
 function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
+/* Chapel north face. The signed sheet is masonry plus a wide empty margin
+   (black on the opaque flatten). Crop to the stone and fill the margin so
+   the live quad is wall mass, not a black void beside the demon face. */
+let TEETH_CHAPEL_WALL=null;
+function teethChapelWallImg(){
+  if(TEETH_CHAPEL_WALL&&TEETH_CHAPEL_WALL.width) return TEETH_CHAPEL_WALL;
+  const op=SPR.wall_teeth_chapel_opaque;
+  const tr=SPR.wall_teeth_chapel;
+  const img=(op&&op.width)?op:((tr&&tr.width)?tr:null);
+  if(!img) return null;
+  TEETH_CHAPEL_WALL=solidChapelMasonry(img)||img;
+  return TEETH_CHAPEL_WALL;
+}
+function solidChapelMasonry(img){
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d');
+    x.drawImage(img,0,0);
+    const data=x.getImageData(0,0,c.width,c.height);
+    const d=data.data, w=c.width, h=c.height;
+    let minx=w, miny=h, maxx=-1, maxy=-1, sr=0, sg=0, sb=0, n=0;
+    const stone=i=>d[i+3]>=20 && !(d[i]<16&&d[i+1]<16&&d[i+2]<16);
+    for(let y=0;y<h;y+=2) for(let xx=0;xx<w;xx+=2){
+      const i=(y*w+xx)*4;
+      if(!stone(i)) continue;
+      if(xx<minx) minx=xx; if(xx>maxx) maxx=xx;
+      if(y<miny) miny=y; if(y>maxy) maxy=y;
+      sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; n++;
+    }
+    if(maxx<minx||!n) return img;
+    const bw=maxx-minx+1, bh=maxy-miny+1;
+    const out=document.createElement('canvas');
+    out.width=bw; out.height=bh;
+    const g=out.getContext('2d');
+    g.fillStyle='rgb('+((sr/n)|0)+','+((sg/n)|0)+','+((sb/n)|0)+')';
+    g.fillRect(0,0,bw,bh);
+    const src=x.getImageData(minx,miny,bw,bh);
+    const sd=src.data;
+    for(let i=0;i<sd.length;i+=4){
+      if(sd[i+3]<20 || (sd[i]<16&&sd[i+1]<16&&sd[i+2]<16)) sd[i+3]=0;
+    }
+    const hold=document.createElement('canvas');
+    hold.width=bw; hold.height=bh;
+    hold.getContext('2d').putImageData(src,0,0);
+    g.drawImage(hold,0,0);
+    return out;
+  }catch(e){ return img; }
+}
 function wallHidesFloor(L,x,y){
   if(!L||!L.grid) return false;
   const ix=x|0, iy=y|0;
@@ -2939,7 +2994,7 @@ function propSpriteH(p,z){
   if(k==='dwarfface') return dwarfFaceH();
   if(k==='demonface') return dwarfFaceH()*1.08;
   if(k==='bonecrown') return 36*z*(p.s||1);
-  if(k==='tooth') return 18*z*(p.s||1);
+  if(k==='tooth') return 10*z*(p.s||1);
   if(k==='hourglass') return 118*z*(p.s||1);
   if(k==='pillar'||k==='names') return 108*z;
   if(k==='altar') return 100*z*(p.s||1);
@@ -10527,7 +10582,7 @@ function buildTeethCrownRoom(L, sec){
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
       const ty=y0+1.1+h2(i,7)*9.4;
-      G.props.push({x:tx,y:ty,k:'tooth',spr:sprs[i%3],s:0.42+h2(i,11)*0.16,seed:900+i});
+      G.props.push({x:tx,y:ty,k:'tooth',spr:sprs[i%3],s:0.22+h2(i,11)*0.08,seed:900+i});
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
@@ -12548,7 +12603,8 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
-      if(oS) drawMasonryFace(g, sf==='n'?secN:faceL, x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      const chapel=isTeethNorthWall(L,x,y)?teethChapelWallImg():null;
+      if(oS) drawMasonryFace(g, sf==='n'?secN:(chapel||faceL), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
       if(oE) drawMasonryFace(g, sf==='e'?secE:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
       if(oW) drawMasonryFace(g, sf==='w'?secW:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
@@ -13102,8 +13158,23 @@ function drawBoneCrownShape(g, z, scale){
   });
 }
 function drawTeethTile(g,x,y){
-  const s=w2s(x+0.5,y+0.5), z=ZOOM;
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
+  const field=SPR.teeth_floor;
+  if(field&&field.width&&!risen){
+    const s=w2s(x,y);
+    g.save();
+    g.beginPath();
+    g.moveTo(s.x, s.y-TH/2);
+    g.lineTo(s.x+TW/2, s.y);
+    g.lineTo(s.x, s.y+TH/2);
+    g.lineTo(s.x-TW/2, s.y);
+    g.closePath();
+    g.clip();
+    g.drawImage(field, s.x-TW/2, s.y-TH/2, TW, TH);
+    g.restore();
+    return;
+  }
+  const s=w2s(x+0.5,y+0.5), z=ZOOM;
   g.save();
   g.translate(s.x,s.y);
   g.fillStyle=risen?'rgba(42,24,18,0.38)':'rgba(90,22,18,0.22)';
@@ -13149,6 +13220,22 @@ function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
   g.restore();
 }
 /* Local Y of the altar slab lip (above the red pool), in the crown's foot space. */
+function teethCrownStillSeated(){
+  const f=G.lvl&&G.lvl.flags;
+  if(!f) return true;
+  return !(f.crownTaken||f.crownDestroyed||f.crownTouched);
+}
+function teethAltarSheetImg(){
+  const img=SPR.altar_teeth;
+  return (img&&img.width)?img:null;
+}
+/* Signed altar includes the bone crown. Use that one billboard while the
+   crown is still seated. After TAKE / ATTACK, fall back to the generic altar. */
+function teethAltarSheetActive(){
+  if(!teethCrownStillSeated()||!teethAltarSheetImg()) return false;
+  return (G.props||[]).some(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
+}
+function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 function boneCrownSeatY(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const H=100*z*((a&&a.s)||1);
@@ -13248,7 +13335,7 @@ function drawToothProp(g,p,z){
   const img=toothSprite(p);
   const sc=p.s||1;
   if(img){
-    const h=18*z*sc, w=h*(img.width/Math.max(1,img.height));
+    const h=10*z*sc, w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, -w/2, -h*0.92, w, h);
     return;
   }
@@ -13661,6 +13748,7 @@ function drawProp(g,p,pal){
     return;
   }
   if(p.k==='bonecrown'){
+    if(teethAltarSheetActive()) return;
     g.save(); g.translate(s.x,s.y);
     drawBoneCrownProp(g,p,z);
     g.restore();
@@ -13693,6 +13781,16 @@ function drawProp(g,p,pal){
   }
   if(p.k==='winduptoy'){
     drawWindupToyProp(g,p,z);
+    g.restore(); return;
+  }
+  if(p.k==='altar' && p.teethAltar && teethAltarSheetActive()){
+    const sheet=teethAltarSheetImg();
+    const H=teethAltarSheetH(p,z);
+    const sca=p.s||1;
+    softShadow(g,2*z,1*z,22*z*sca,9*z*sca,.45);
+    drawBillboard(g, sheet, H);
+    const b=.4+Math.sin(G.elapsed*1.8)*.2;
+    emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;
   }
   const img=(p.k==='stone')?null:propAnimImg(p);
