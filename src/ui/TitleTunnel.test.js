@@ -74,7 +74,7 @@ assert(/blitLivingMacar\(SPR\[livingMacarIdleKey\(\)\]\|\|SPR\.macar\)/.test(cav
 assert(/zoom:1\.11/.test(titleFn) && /nudgeY:VH\*0\.16/.test(titleFn),
   'title splash is shifted down and scaled so gold type sits on cave, not hats');
 
-assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(html),
+assert(/Your brothers died in the cave-in\. The tunnel behind you is gone\. You are alone in the dark\./.test(html),
   'Chapter I copy is the exact cave-in message');
 assert(!/Walk to each of them and Rouse them/.test(html), 'no Rouse tutorial on the entrance card');
 assert(!/ruby door waits on this room/.test(html), 'no ruby-door tutorial on the entrance card');

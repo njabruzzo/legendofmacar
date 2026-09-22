@@ -37,8 +37,12 @@ const wake=html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0];
 assert(/L\.flags\.touched=1/.test(wake) && /FOE\.statue\(\)/.test(wake),
   'door touch still sets touched and wakes the six guardians');
 assert(/ensureCh1CenterPillar\(\)/.test(wake), 'door touch keeps a center pillar to hang the ruby on');
-assert(/A red ruby seats itself on the pillar in the middle of the chamber/.test(wake),
+assert(/QUILL_CH1_SAY\.rubypillar_appears/.test(wake),
   'door touch tells the player the center pillar gained a ruby');
+assert(/Stone rises in the middle of the chamber\. A ruby waits on it, dark and waiting\. An iron lever stands ready beside it\./.test(html),
+  'rubypillar_appears names the lever beside the pillar');
+assert(!/A red ruby seats itself on the pillar/.test(html),
+  'stock ruby-seats say is replaced by rubypillar_appears');
 assert(/then pull the elevator lever/.test(wake), 'wake hint still sends the player to the lever after the fight');
 assert(/then:\(\)=>wakeRubyDoor\(\)/.test(html), 'ruby_door talk still wakes only on Lay a hand');
 
@@ -91,11 +95,37 @@ assert(!/#c9a070/.test(lever) && !/#d01828/.test(lever),
 assert(/function drawFacetGem\(g,x,y,w,h,on,z\)\{/.test(html),
   'door and loot gems keep the shared drawFacetGem fallback');
 
-assert(/interact\('Pull the lever'/.test(ch1) && /L\.flags\.cleared && !L\.flags\.elevReady/.test(ch1),
+assert(/interact\('Pull the lever',\(\)=>startTalk\('ch1_lift_pull'\)/.test(ch1),
+  'Pull the lever opens the lever talk and does not descend inline');
+assert(/interact\('Touch the ruby pillar',\(\)=>startTalk\('rubypillar_touch'\)/.test(ch1),
+  'Touch the ruby pillar after the lever opens the descent talk');
+assert(/interact\('Touch the ruby pillar',\(\)=>startTalk\('rubypillar_touch_locked'\)/.test(ch1),
+  'Touch the ruby pillar before the lever opens the locked talk');
+assert(/startTalk\('ch1_lift_pull_spent'\)/.test(ch1),
+  'a thrown lever opens the spent talk');
+assert(/!L\.flags\.cleared\) return null/.test(html.match(/function ch1ElevatorPrompt\(p\)\{[\s\S]*?\n\}/)[0]),
   'Pull the lever is gated on guardians cleared, not door touch');
-assert(/L\.flags\.elevReady=1/.test(ch1), 'the lever still sets elevReady');
+const throwFn=html.match(/function throwCh1LiftLever\(\)\{[\s\S]*?\n\}/)[0];
+assert(/L\.flags\.leverThrown=1/.test(throwFn) && !/elevReady\s*=/.test(throwFn),
+  'Throw it sets leverThrown and does not set elevReady');
+const descentFn=html.match(/function beginCh1ElevatorDescent\(\)\{[\s\S]*?\n\}/)[0];
+assert(/if\(!L\.flags\.leverThrown\) return false/.test(descentFn) && /L\.flags\.elevReady=1/.test(descentFn)
+  && /L\.flags\.elevatorGone=1/.test(descentFn),
+  'descent sets the house ride flag and elevatorGone only after the lever is thrown');
+assert(/QUILL_CH1_SAY\.elevator_descent/.test(descentFn),
+  'successful descent says elevator_descent');
+assert(/QUILL_CH1_SAY\.rubydoor_cleared/.test(ch1),
+  'the last guardian says rubydoor_cleared');
+assert(!/The elevator lever is free/.test(html), 'stock lever-is-free say is gone');
+assert(!/begins its descent into the depths/.test(html), 'stock descent say is replaced');
+assert(/The ruby flares\. Far below, iron groans\. The elevator begins its descent into the dark\./.test(html),
+  'elevator_descent is Quill\'s line');
 assert(/interact\('Ride the elevator down',\(\)=>\{L\.objs\[3\]\.d=1; endChapter\(\);\}/.test(ch1),
   'ride still ends the chapter after elevReady');
+assert(/ch1LeverShownThrown\(\)/.test(html.match(/function paintCh1LiftLever\(g,z\)\{[\s\S]*?\n\}/)[0]),
+  'the thrown sheet follows the lever flag, and elevReady still counts as thrown');
+assert(/flags: clone\(L\.flags \|\| \{\}\)/.test(fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8')),
+  'leverThrown on L.flags persists with the level');
 assert(/function endChapter\(\)\{ G\.cleared\[G\.ch\]=1/.test(html), 'endChapter is unchanged');
 
 assert(/ensureCh1CenterPillar\(\)/.test(html.match(/function applyPlaySave\(play\)\{[\s\S]*?\n\}/)[0]),
@@ -133,6 +163,57 @@ ctx.G.ents=[
 assert(ctx.rubyGuardiansLeft()===true, 'a living statue still blocks cleared');
 ctx.G.ents[0].dead=1;
 assert(ctx.rubyGuardiansLeft()===false, 'optional rats do not keep the elevator locked');
+
+/* ---- Nick lock: lever, then pillar. Either one alone does not descend. ---- */
+function extractFn(name){
+  const start=html.indexOf('function '+name+'(');
+  if(start<0) throw new Error('missing '+name);
+  let i=html.indexOf('{', start), depth=0;
+  for(;i<html.length;i++){
+    if(html[i]==='{') depth++;
+    else if(html[i]==='}'){ depth--; if(depth===0) return html.slice(start, i+1); }
+  }
+  throw new Error('unclosed '+name);
+}
+const DESCENT='The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.';
+const BITE='The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.';
+const LOCKED='Cold. Dead weight. Something iron nearby still holds the dark shut.';
+const seq={
+  G:{lvl:{n:1,flags:{cleared:1,touched:1},lights:[],objs:[{},{},{},{d:0}]}},
+  said:[], hints:[],
+  say(t){ seq.said.push(t); },
+  hint(t){ seq.hints.push(t); },
+  shake(){},
+  QUILL_CH1_SAY:{elevator_descent:DESCENT, leverThrown:BITE, rubypillar_touch_locked:LOCKED},
+  dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+};
+vm.createContext(seq);
+['ch1HubAnchor','ch1LeverAnchor','throwCh1LiftLever','beginCh1ElevatorDescent','touchCh1RubyPillar','ch1ElevatorPrompt'].forEach(n=>{
+  vm.runInContext(extractFn(n)+'\nthis.'+n+'='+n+';', seq);
+});
+const atPillar={x:36.5,y:21.5};
+const atLever={x:37.15,y:22.05};
+assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar_locked', 'standing on the pillar offers the locked touch before the lever');
+assert(seq.touchCh1RubyPillar()===false && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.leverThrown,
+  'pillar-first does not descend');
+assert(seq.said.indexOf(LOCKED)>=0 && seq.said.indexOf(DESCENT)<0,
+  'pillar-first says the locked line and not elevator_descent');
+assert(seq.ch1ElevatorPrompt(atLever).action==='lever', 'standing on the lever offers Pull');
+assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.elevatorGone,
+  'lever-only sets leverThrown and does not descend');
+assert(seq.said.indexOf(BITE)>=0 && seq.said.indexOf(DESCENT)<0,
+  'lever-only says the bite-home line and not elevator_descent');
+assert(seq.ch1ElevatorPrompt(atLever).action==='lever_spent', 'a thrown lever offers the spent talk');
+assert(seq.throwCh1LiftLever()===false, 'the lever cannot be thrown twice');
+assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'after the throw the pillar is the armed touch');
+assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1 && seq.G.lvl.flags.elevatorGone===1,
+  'lever then pillar descends');
+assert(seq.said[seq.said.length-1]===DESCENT, 'successful descent says elevator_descent');
+assert(seq.touchCh1RubyPillar()===false, 'a second touch does not descend again');
+seq.G.lvl.flags={touched:1,leverThrown:0,cleared:0};
+seq.G.lvl.lights=[];
+assert(seq.ch1ElevatorPrompt(atPillar)===null && seq.throwCh1LiftLever()===false,
+  'before the guardians fall, neither the prompt nor the throw descends');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nChapter I elevator checks passed');

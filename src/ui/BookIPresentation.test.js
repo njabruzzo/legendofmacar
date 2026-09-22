@@ -16,7 +16,7 @@ function assert(cond, msg){
 const intro=html.match(/const CH_INTRO=\{[\s\S]*?\n\};/);
 assert(!!intro, 'CH_INTRO copy table exists');
 const block=intro?intro[0]:'';
-assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(block),
+assert(/Your brothers died in the cave-in\. The tunnel behind you is gone\. You are alone in the dark\./.test(block),
   'Chapter I entrance copy is the cave-in sentence');
 assert(!/Walk to each of them and Rouse them/.test(block), 'Chapter I card does not lecture Rouse');
 assert(!/ruby door waits/.test(block), 'Chapter I card is not a ruby-door tutorial');
