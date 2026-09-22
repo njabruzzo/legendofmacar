@@ -53,17 +53,29 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='110'/.test(html) && !/ASSET_VER='111'/.test(html),
-  'ASSET_VER is 110 — freearm v11 front-carry walk; chapel sheet unchanged');
+assert(/ASSET_VER='111'/.test(html) && !/ASSET_VER='112'/.test(html),
+  'ASSET_VER is 111 — teeth chapel altar v11 crown-fit');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
+assert(/SPRITE_FILES\.bone_crown_scene='assets\/props\/prop_bone_crown_scene\.png'/.test(html),
+  'scene crown is registered for the altar diorama');
 assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
   && /tooth_2:'assets\/props\/prop_tooth_2\.png'/.test(html)
   && /tooth_3:'assets\/props\/prop_tooth_3\.png'/.test(html),
   'tooth sprites are registered');
-['prop_bone_crown.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
+['prop_bone_crown.png','prop_bone_crown_scene.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/props/'+n)), n+' on disk');
 });
+{
+  const crownPath=path.join(__dirname,'../../assets/props/prop_bone_crown.png');
+  const cbuf=fs.readFileSync(crownPath);
+  assert(cbuf.readUInt32BE(16)===682 && cbuf.readUInt32BE(20)===414,
+    'TAKE crown is Nick\'s 682×414 sheet');
+  const scenePath=path.join(__dirname,'../../assets/props/prop_bone_crown_scene.png');
+  const sbuf=fs.readFileSync(scenePath);
+  assert(sbuf.readUInt32BE(16)===109 && sbuf.readUInt32BE(20)===66,
+    'altar scene crown is the 109×66 Macar-head fit');
+}
 assert(/function drawProceduralFang\(/.test(html) && /function crownSprite\(/.test(html)
   && /function toothSprite\(/.test(html),
   'crown and tooth share a painted fallback path');
@@ -76,8 +88,10 @@ assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
   const buf=fs.readFileSync(facePath);
   assert(buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47, 'SIGNED face is a PNG');
   const w=buf.readUInt32BE(16), h=buf.readUInt32BE(20);
-  assert(w===491 && h===717, 'SIGNED face is Nick\'s 491×717 sheet');
+  assert(w===457 && h===274, 'SIGNED face is Nick\'s 457×274 sheet');
 }
+assert(/return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
+  'v11 face quad keeps the wide 457×274 aspect');
 assert(!/TODO\(Disney SIGNED\)/.test(html),
   'Disney SIGNED TODO is gone — signed sheet is the file on disk');
 assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
@@ -102,15 +116,22 @@ assert(/WALL_TEETH_NORTH_SCALE=2\.25/.test(html) && /function teethNorthWallH\(L
 assert(/SPRITE_FILES\.teeth_floor='assets\/tiles\/teeth_floor\.png'/.test(html),
   'tiny fang field is registered');
 assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
-  'signed altar-with-crown sheet is registered');
+  'chapel platform sheet is registered');
 assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
   && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),
   'chapel north masonry sheets are registered');
 ['teeth_floor.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
 });
-assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png')),
-  'prop_altar_teeth.png on disk');
+{
+  const altar=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar.png'));
+  const teeth=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png'));
+  assert(altar.readUInt32BE(16)===1075 && altar.readUInt32BE(20)===718,
+    'prop_altar.png is the v11 platform');
+  assert(teeth.readUInt32BE(16)===1075 && teeth.readUInt32BE(20)===718,
+    'chapel slab sheet is the same v11 platform');
+  assert(altar.equals(teeth), 'chapel slab and prop_altar.png are the same opaque platform');
+}
 assert(/SPR\.teeth_floor/.test(extractFn('drawTeethTile')),
   'floor teeth use the signed fang field when it is present');
 assert(/SPR\.wall_teeth_chapel_opaque/.test(extractFn('teethChapelWallImg'))
@@ -118,8 +139,11 @@ assert(/SPR\.wall_teeth_chapel_opaque/.test(extractFn('teethChapelWallImg'))
   'chapel north face prefers the opaque masonry sheet');
 assert(/function teethAltarSheetActive\(/.test(html)
   && /SPR\.altar_teeth/.test(html)
-  && /if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
-  'signed altar replaces the altar-plus-crown stack while the crown is seated');
+  && /function sceneCrownSprite\(/.test(html)
+  && /sceneCrownSprite\(/.test(extractFn('drawBoneCrownProp'))
+  && /crownSprite\(/.test(extractFn('drawWornBoneCrown'))
+  && !/if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
+  'v11 platform is the altar; the scene crown draws on the slab; wear uses the full crown');
 assert(/function solidTeethAltarImg\(/.test(html)
   && /solidifyPunchedCutout\(img, 8\)/.test(html)
   && /solidTeethAltarImg\(\)\|\|teethAltarSheetImg\(\)/.test(extractFn('drawProp')),

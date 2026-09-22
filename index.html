@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=110">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=111">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -387,7 +387,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='110';
+const ASSET_VER='111';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -648,10 +648,13 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
 SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
 SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
 SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
-/* Disney SIGNED teeth-chapel v3. After walk/atk derivation so the altar
-   sheet does not spawn a missing _atk and the tiles do not spawn _w1. */
+/* Disney SIGNED teeth-chapel v11. After walk/atk derivation so the altar
+   sheet does not spawn a missing _atk and the tiles do not spawn _w1.
+   Platform is the opaque slab (same pixels as prop_altar.png). The crown
+   on that slab is the Macar-head scene sheet, not the full TAKE crown. */
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
+SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
 SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
@@ -13757,6 +13760,12 @@ function crownSprite(){
   if(b&&b.width) return b;
   return null;
 }
+/* Altar diorama only. Full prop_bone_crown stays on crownSprite for TAKE / wear. */
+function sceneCrownSprite(){
+  const img=SPR.bone_crown_scene;
+  if(img&&img.width) return img;
+  return crownSprite();
+}
 function toothSprite(p){
   const keys=p&&p.spr?[p.spr,'tooth','tooth_2','tooth_3']:['tooth','tooth_2','tooth_3'];
   for(let i=0;i<keys.length;i++){
@@ -13929,10 +13938,10 @@ function teethAltarSheetImg(){
   const img=SPR.altar_teeth;
   return (img&&img.width)?img:null;
 }
-/* prop_altar_teeth.png is a binary punch: stone pixels are a=255, but the
-   stone body is a stipple, so the floor shows through. Close those holes
-   and copy the nearest painted color so the altar and its bone crown
-   blit solid. Exterior cutout stays clear. Cached once. */
+/* Older altar sheets were a binary punch: stone pixels a=255, but the
+   body was a stipple, so the floor showed through. Close those holes and
+   copy the nearest painted color. v11's platform is already solid; the
+   close is a no-op on it. Exterior cutout stays clear. Cached once. */
 let TEETH_ALTAR_SOLID=null;
 function binDilate(src, w, h, r){
   const mid=new Uint8Array(w*h);
@@ -14017,25 +14026,39 @@ function solidTeethAltarImg(){
   TEETH_ALTAR_SOLID=solidifyPunchedCutout(img, 8)||img;
   return TEETH_ALTAR_SOLID;
 }
-/* Signed altar includes the bone crown. Use that one billboard while the
-   crown is still seated. After TAKE / ATTACK, fall back to the generic altar. */
+/* v11 platform is the chapel slab whether or not the crown is still on it.
+   The scene crown is a separate billboard, so TAKE does not swap sheets. */
 function teethAltarSheetActive(){
-  if(!teethCrownStillSeated()||!teethAltarSheetImg()) return false;
+  if(!teethAltarSheetImg()) return false;
   return (G.props||[]).some(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
 }
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
+/* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
+const TEETH_CROWN_ON_ALTAR=66/718;
+/* Slab lip on that platform, fraction down from the top of the sheet. */
+const TEETH_ALTAR_SLAB=0.157;
+function boneCrownHeadH(z){
+  const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
+  const altarH=a?teethAltarSheetH(a,z):100*z;
+  return Math.max(14, altarH*TEETH_CROWN_ON_ALTAR);
+}
 function boneCrownSeatY(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
-  const H=100*z*((a&&a.s)||1);
+  if(a){
+    const H=teethAltarSheetH(a,z);
+    return -H*(1-TEETH_ALTAR_SLAB);
+  }
+  const H=100*z;
   const m=typeof tilesetPropMetric==='function'?tilesetPropMetric('altar'):null;
   const foot=m?((m.h-m.oy)/Math.max(1,m.h)):0.149;
   return (-1+foot+0.20)*H;
 }
 function drawBoneCrownProp(g,p,z){
-  const img=crownSprite();
+  if(!teethCrownStillSeated()) return;
+  const img=sceneCrownSprite();
   const seat=boneCrownSeatY(z);
   if(img){
-    const H=36*z*(p.s||1);
+    const H=boneCrownHeadH(z);
     const W=H*(img.width/Math.max(1,img.height));
     g.drawImage(img, -W/2, seat-H, W, H);
     return;
@@ -14137,7 +14160,10 @@ function demonFaceHalf(){
   const H=dwarfFaceH()*1.08;
   const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  return clamp(H*aspect/(2*perTile), 0.70, 1.12);
+  /* v11 face is 457×274 (wide head), not the old 491×717 portrait.
+     The quad keeps that aspect so the carving is not squeezed, and the
+     cap still leaves it on the north wall beside the northwest altar. */
+  return clamp(H*aspect/(2*perTile), 0.70, 1.90);
 }
 function demonFacePlaneY(p){
   if(!p||p.wall==='e') return p?p.y:0;
@@ -14537,7 +14563,6 @@ function drawProp(g,p,pal){
     return;
   }
   if(p.k==='bonecrown'){
-    if(teethAltarSheetActive()) return;
     g.save(); g.translate(s.x,s.y);
     drawBoneCrownProp(g,p,z);
     g.restore();
