@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=111">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=112">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -387,7 +387,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='111';
+const ASSET_VER='112';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1428,13 +1428,18 @@ function blitLivingMacar(img){
 }
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
-   Macar, so their living frames take the same repair. Ghost sheets are a
-   signed α168 gray-blue — lift them to spectral white. Never punch to 255
-   (west-flip solid flash) and never a flat chalk-gray wash. */
+   Macar, so their living frames take the same repair. Ghost walk/atk/back
+   are still a signed α168 gray-blue — lift those to spectral white.
+   Nick-GOOD idle is already icy blue-white; the lift chalks that kit and
+   caps its alpha. Never punch a ghost to 255 (west-flip solid flash). */
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
-  if(e.ghost) return liftGhostSpirit(img);
+  if(e.ghost){
+    if(img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost)
+      return img;
+    return liftGhostSpirit(img);
+  }
   return blitLivingMacar(img)||img;
 }
 /* CAP stays under 255 so a west flip (punch=false) cannot go solid.
@@ -1841,8 +1846,9 @@ function livingColorStats(data){
   }
   if(!n) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
   const cyanR=cyan/n, warmR=warm/n;
-  /* Signed α168 cool idles sit ~warm 0.07–0.16. Cyan/teal mono unsigned
-     sheets are warm≈0 / cyan≈0.99 — keep those rejected. */
+  /* α168 walk/atk/back sit ~warm 0.07–0.16. Cyan/teal mono unsigned
+     sheets are warm≈0 / cyan≈0.99 — keep those rejected. Nick spectral
+     idle is icy cyan too; sheetLivingColors binds that key before this gate. */
   return {ok:true, living:warmR>=0.07 && cyanR<0.38, cyanR, warmR, n};
 }
 function sampleLivingColors(img){
@@ -1863,6 +1869,12 @@ function sampleLivingColors(img){
 }
 function sheetLivingColors(img, key){
   if(!img) return false;
+  /* Nick-GOOD idle (Pordoom, Fendur, Orbo, Talpor) is icy cyan on purpose.
+     Accept that key before the warm gate, which still rejects unsigned
+     compass / w3 / back-walk cyan. */
+  if(/^(?:pordoom|fendur|orbo|talpor)_ghost$/.test(key||'')){
+    img._live=true; return true;
+  }
   if(img._live!=null) return !!img._live;
   if(!img.width) return false;
   const sampled=sampleLivingColors(img);

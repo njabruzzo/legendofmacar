@@ -1,6 +1,7 @@
 'use strict';
 /**
- * Ghost kin lift from the signed α168 gray-blue stamp to spectral white.
+ * Ghost walk/atk lift from the signed α168 gray-blue stamp to spectral white.
+ * Nick-GOOD idle is already icy blue-white and is not lifted.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
  * A thin cool line traces the silhouette and the main luminance ridge
  * (face, beard, helm, weapon) without punching the spirit opaque.
@@ -48,8 +49,9 @@ assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.te
   'pixel lift is a dedicated ghost pipe with a feature-edge pass');
 assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
   'liftGhostSpirit inks key-feature edges after the white lift');
-assert(/if\(e\.ghost\) return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'party ghosts bake through liftGhostSpirit');
+assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('solidDwarfSprite'))
+  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
+  'Nick spectral idle blits as painted; other ghost stamps still lift');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
@@ -174,7 +176,7 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
 }
 
 {
-  const {w,h,data}=readRgba(path.join(creatures,'dwarf_pordoom_ghost.png'));
+  const {w,h,data}=readRgba(path.join(creatures,'dwarf_pordoom_ghost_w1.png'));
   const src=new Uint8ClampedArray(data);
   const dst=new Uint8ClampedArray(data);
   ctx.liftGhostAlpha(dst);
@@ -193,9 +195,9 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
   }
   const frac=ink/opaque;
   assert(a255===0 && frac>0.04 && frac<0.32,
-    'pordoom ghost lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
+    'pordoom ghost w1 lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
   assert(cool===ink && (yInk/ink)+14<(yFill/(opaque-ink)),
-    'pordoom feature lines read darker and cool against the spectral fill');
+    'pordoom w1 feature lines read darker and cool against the spectral fill');
 }
 
 const oldChalk=228*0.96/255;
@@ -203,11 +205,11 @@ const newEff=215/255;
 assert(newEff>0.80 && newEff<oldChalk,
   'spirit alpha sits above baked α168 and under the old chalk multiply');
 
-const BIND=['','_w1','_w2','_atk','_atk_recover'];
+const MOTION=['_w1','_w2','_atk','_atk_recover'];
 const KIN=['pordoom','fendur','orbo','talpor'];
 KIN.forEach(k=>{
-  BIND.forEach(suf=>{
-    const f='dwarf_'+k+'_ghost'+(suf||'')+'.png';
+  MOTION.forEach(suf=>{
+    const f='dwarf_'+k+'_ghost'+suf+'.png';
     const {data}=readRgba(path.join(creatures,f));
     let n=0, sum=0, a255=0;
     for(let i=3;i<data.length;i+=4){
@@ -224,15 +226,34 @@ KIN.forEach(k=>{
 
 const crypto=require('crypto');
 const IDLE_SHA={
-  'dwarf_fendur_ghost.png':'1c6f22bd',
-  'dwarf_orbo_ghost.png':'2056057d',
-  'dwarf_pordoom_ghost.png':'84878c34',
-  'dwarf_talpor_ghost.png':'24e13ec6'
+  'dwarf_fendur_ghost.png':'efbc2623',
+  'dwarf_orbo_ghost.png':'a077fef6',
+  'dwarf_pordoom_ghost.png':'6ef58ed6',
+  'dwarf_talpor_ghost.png':'95971520'
+};
+const IDLE_DIM={
+  'dwarf_fendur_ghost.png':[470,512],
+  'dwarf_orbo_ghost.png':[480,512],
+  'dwarf_pordoom_ghost.png':[470,512],
+  'dwarf_talpor_ghost.png':[504,512]
 };
 Object.keys(IDLE_SHA).forEach(f=>{
-  const buf=fs.readFileSync(path.join(creatures,f));
+  const full=path.join(creatures,f);
+  const buf=fs.readFileSync(full);
   const sha=crypto.createHash('sha256').update(buf).digest('hex');
-  assert(sha.indexOf(IDLE_SHA[f])===0, f+' idle sha is Limner SIGNED '+IDLE_SHA[f]);
+  assert(sha.indexOf(IDLE_SHA[f])===0, f+' idle sha is Nick-GOOD spectral '+IDLE_SHA[f]);
+  const {w,h,data}=readRgba(full);
+  assert(w===IDLE_DIM[f][0] && h===IDLE_DIM[f][1], f+' keeps Nick canvas '+w+'x'+h);
+  let clear=0, n=0, cool=0;
+  for(let i=0;i<data.length;i+=4){
+    const a=data[i+3];
+    if(a===0){ clear++; continue; }
+    if(a<=40) continue;
+    n++;
+    if(data[i+2]>data[i]) cool++;
+  }
+  assert(clear>8000 && n>1000 && cool/n>0.85,
+    f+' keeps alpha and icy blue paint (clear '+clear+', cool '+((cool/n)*100).toFixed(1)+'%)');
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

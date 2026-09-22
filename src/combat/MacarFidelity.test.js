@@ -25,8 +25,8 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='111'/.test(html) && !/ASSET_VER='112'/.test(html),
-  'ASSET_VER is 111 — teeth chapel altar v11 crown-fit');
+assert(/ASSET_VER='112'/.test(html) && !/ASSET_VER='113'/.test(html),
+  'ASSET_VER is 112 — ghost spectral idle v1 (Nick Good)');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
   'integer play DPR helper exists');
