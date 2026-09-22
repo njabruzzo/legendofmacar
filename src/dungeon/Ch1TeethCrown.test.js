@@ -378,5 +378,92 @@ function canWalk(g,x0,y0,x1,y1){
 }
 assert(canWalk(L.grid,106,16,107,4), 'east-hall floor walks north through the door into the chapel');
 
+const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
+function npcPack(key){
+  const m=talk.match(new RegExp(key+':\\{[\\s\\S]*?\\n  \\},'));
+  assert(!!m, key+' is in NPC_TALK');
+  return m?m[0]:'';
+}
+const enterPack=npcPack('teeth_chapel_enter');
+const facePack=npcPack('teeth_chapel_face');
+const crownPack=npcPack('teeth_chapel_crown');
+const ENTER_LINE='The air is musty and stinks like a charnel house. Teeth cover the floor. Ahead stands an altar slick with blood, a bone crown on top. A demon dwarf face stares from the wall. Demon motifs crawl the chamber.';
+const FACE_LINE='A demon dwarf face is set into the north wall. Its mouth is packed with electrum teeth—pale gold-silver, cold and bright against the stone.';
+const CROWN_LINE='A bone crown rests on the bloody altar. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';
+assert(enterPack.indexOf(ENTER_LINE)>=0, 'enter box is Nick\'s chapel line');
+assert(facePack.indexOf(FACE_LINE)>=0, 'face examine is Nick\'s north-wall line');
+assert(crownPack.indexOf(CROWN_LINE)>=0, 'crown examine is Nick\'s altar line');
+assert(!/electrum/i.test(enterPack), 'enter box does not name electrum');
+assert(!/\b(north|south|east|west|northwest|northeast|southwest|southeast)\b/i.test(enterPack),
+  'enter box does not name a compass direction');
+assert(/maybeTeethChapelEnter\(p\)/.test(ch1), 'Ch1 tick fires the enter box');
+assert(/maybeTeethChapelLooks\(p\)/.test(html), 'look-at uses the interact prompt');
+assert(/teethChapelLookHit\(w\)/.test(html), 'tapping the face or crown looks');
+assert(/Look at the demon face/.test(html) && /Look at the bone crown/.test(html),
+  'look prompts name the face and the crown');
+assert(/Take the bone crown/.test(html) && /Pry the tooth/.test(html),
+  'take and pry prompts stay beside the looks');
+assert(!/A hidden chapel of teeth/.test(html), 'old northwest chapel say is gone');
+
+const box={
+  G:{talk:null, fightOn:0, props:[], lvl:{n:1, flags:{}, teethBounds:{x0:101,y0:2,x1:113,y1:14}}},
+  talks:[], PROMPT:null, NPC_TALK:{
+    teeth_chapel_enter:{line:ENTER_LINE},
+    teeth_chapel_face:{line:FACE_LINE},
+    teeth_chapel_crown:{line:CROWN_LINE}
+  },
+  Math, Object,
+  startTalk(key){ box.talks.push(key); box.G.talk={key, line:box.NPC_TALK[key]&&box.NPC_TALK[key].line}; },
+  interact(label,fn){ box.PROMPT={label,fn}; },
+  dist(a,b){ return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)); }
+};
+vm.createContext(box);
+[
+  'teethBounds','isTeethFloor','maybeTeethChapelEnter','nearestBoneCrown',
+  'chapelNorthFace','chapelFaceToothTaken','maybeTeethChapelLooks',
+  'teethChapelLookHit','teethChapelLookReach','teethChapelLookStand','openTeethChapelLook'
+].forEach(n=>vm.runInContext(extractFn(n)+';', box));
+const inside={x:107,y:8,dead:0};
+assert(box.maybeTeethChapelEnter(inside)===true, 'stepping onto the chapel floor opens the enter box');
+assert(box.talks[0]==='teeth_chapel_enter' && box.G.talk.line===ENTER_LINE, 'enter box key and line');
+assert(box.G.lvl.flags.teethChapelEnter===1, 'enter flag is once per chapter');
+box.G.talk=null;
+assert(box.maybeTeethChapelEnter(inside)===false && box.talks.length===1, 'a second step does not reopen the box');
+box.G.lvl.flags.teethChapelEnter=0;
+assert(box.maybeTeethChapelEnter({x:106.5,y:16})===false && box.talks.length===1,
+  'the east hall outside the chapel does not open the box');
+box.G.fightOn=1;
+assert(box.maybeTeethChapelEnter(inside)===false && !box.G.lvl.flags.teethChapelEnter,
+  'a fight defers the enter box and does not spend the flag');
+box.G.fightOn=0;
+
+box.G.props=[{x:102.25,y:4.35,k:'bonecrown',gone:0},{x:107.25,y:2.48,k:'demonface',wall:'n',toothKind:'electrum',gone:0}];
+const nearCrown={x:104.4,y:4.35};
+assert(box.maybeTeethChapelLooks(nearCrown)===true && box.PROMPT.label==='Look at the bone crown',
+  'outside take range the crown look prompt shows');
+box.PROMPT.fn();
+assert(box.talks[box.talks.length-1]==='teeth_chapel_crown', 'crown look opens teeth_chapel_crown');
+box.G.talk=null; box.PROMPT=null;
+assert(box.maybeTeethChapelLooks({x:102.6,y:4.35})===false,
+  'inside take range the look prompt yields to Take');
+box.G.props=[{x:107.25,y:2.48,k:'demonface',wall:'n',toothKind:'electrum',gone:0}];
+assert(box.maybeTeethChapelLooks({x:107.25,y:5.0})===true && box.PROMPT.label==='Look at the demon face',
+  'outside pry range the north-face look prompt shows');
+box.G.talk=null; box.PROMPT=null;
+assert(box.maybeTeethChapelLooks({x:107.25,y:3.4})===false,
+  'inside pry range the look prompt yields to Pry');
+box.G.lvl.flags.electrumTooth=1;
+box.G.props[0].emptySocket=1;
+assert(box.maybeTeethChapelLooks({x:107.25,y:3.4})===true && box.PROMPT.label==='Look at the demon face',
+  'after the tooth is gone the face can still be looked at');
+box.PROMPT=null; box.G.talk=null;
+box.G.props=[{x:141,y:30,k:'demonface',wall:'e',toothKind:'bronze',gone:0}];
+assert(box.maybeTeethChapelLooks({x:139,y:30})===false, 'the bronze east face is not the chapel examine');
+box.G.props=[{x:102.25,y:4.35,k:'bonecrown',gone:0}];
+const crownTap=box.teethChapelLookHit({x:102.4,y:4.5});
+assert(crownTap && crownTap.key==='teeth_chapel_crown', 'a tap on the altar crown looks at the crown');
+assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_LINE,
+  'opening the crown look shows Nick\'s line');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');

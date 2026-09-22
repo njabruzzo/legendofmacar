@@ -4102,6 +4102,7 @@ function makeChapter(n){
     };
     L.tick=()=>{
       const p=player(); if(!p) return;
+      if(typeof maybeTeethChapelEnter==='function') maybeTeethChapelEnter(p);
       if(!L.flags.southStore && p.y>48){
         L.flags.southStore=1;
         spawnLairGroup(30,56,{pack:[['rat',4]],spread:1.4,aggro:2.8});
@@ -6040,6 +6041,30 @@ const NPC_TALK={
     choices:[
       {t:'Then I go under.', say:'MACAR: "Then I go under."', then:()=>{ majorTalkFight(); }},
       {t:'Steel.', then:()=>{ majorTalkFight(); }}
+    ]
+  },
+  /* Quill Ch1 teeth chapel. Enter is once per chapter (L.flags), same as
+     other dungeon area beats. Look-at uses the interact prompt, same as
+     the dwarf face and the ruby door. */
+  teeth_chapel_enter:{
+    who:'THE CHAPEL',
+    line:'The air is musty and stinks like a charnel house. Teeth cover the floor. Ahead stands an altar slick with blood, a bone crown on top. A demon dwarf face stares from the wall. Demon motifs crawl the chamber.',
+    choices:[
+      {t:'Continue.'}
+    ]
+  },
+  teeth_chapel_face:{
+    who:'DEMON FACE',
+    line:'A demon dwarf face is set into the north wall. Its mouth is packed with electrum teeth—pale gold-silver, cold and bright against the stone.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  teeth_chapel_crown:{
+    who:'BONE CROWN',
+    line:'A bone crown rests on the bloody altar. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.',
+    choices:[
+      {t:'Leave it.'}
     ]
   },
 };
@@ -10600,7 +10625,6 @@ function buildTeethCrownRoom(L, sec){
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
-  say('A hidden chapel of teeth. An altar waits on the northwest wall.','#e8d0b8');
   hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
 }
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
@@ -10639,6 +10663,84 @@ function nearestDemonFace(p, r){
     if(d<bd){ bd=d; best=pr; }
   });
   return best;
+}
+/* HOUSE: dungeon area beats fire once per chapter via L.flags.
+   teeth_chapel_enter matches that — the box opens the first time Macar
+   stands on the chapel floor, then the flag is saved with the level. */
+function maybeTeethChapelEnter(p){
+  const L=G.lvl;
+  if(!p||p.dead||!L||L.n!==1||G.talk||G.fightOn) return false;
+  if(L.flags&&L.flags.teethChapelEnter) return false;
+  if(!isTeethFloor(L, p.x, p.y)) return false;
+  L.flags=L.flags||{};
+  L.flags.teethChapelEnter=1;
+  startTalk('teeth_chapel_enter');
+  return true;
+}
+function chapelNorthFace(p, r){
+  if(!p) return null;
+  let best=null, bd=r==null?3.4:r;
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.k!=='demonface'||pr.wall!=='n') return;
+    const d=dist(p,pr);
+    if(d<bd){ bd=d; best=pr; }
+  });
+  return best;
+}
+function chapelFaceToothTaken(face){
+  if(!face||face.emptySocket) return true;
+  const f=G.lvl&&G.lvl.flags;
+  if(!f) return false;
+  const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
+  if(kind==='bronze') return !!(f.bronzeSecured||f.bronzeTooth);
+  return !!(f.electrumTooth||f.copperTooth);
+}
+function maybeTeethChapelLooks(p){
+  if(!p||G.talk||PROMPT) return false;
+  const hits=[];
+  const crown=typeof nearestBoneCrown==='function'?nearestBoneCrown(p, 3.25):null;
+  if(crown){
+    const d=dist(p,crown);
+    if(!(d<1.75)) hits.push({d, label:'Look at the bone crown', key:'teeth_chapel_crown'});
+  }
+  const face=chapelNorthFace(p, 3.4);
+  if(face){
+    const d=dist(p,face);
+    const pryOpen=!face.emptySocket && !chapelFaceToothTaken(face);
+    if(!(d<2.05 && pryOpen)) hits.push({d, label:'Look at the demon face', key:'teeth_chapel_face'});
+  }
+  if(!hits.length) return false;
+  hits.sort((a,b)=>a.d-b.d);
+  const hit=hits[0];
+  interact(hit.label,()=>startTalk(hit.key));
+  return true;
+}
+function teethChapelLookHit(w){
+  if(!w) return null;
+  let best=null, bd=9;
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.taken) return;
+    let key='', rad=0;
+    if(pr.k==='bonecrown'){ key='teeth_chapel_crown'; rad=1.05; }
+    else if(pr.k==='demonface'&&pr.wall==='n'){ key='teeth_chapel_face'; rad=1.35; }
+    else return;
+    const d=Math.hypot((w.x||0)-pr.x,(w.y||0)-pr.y);
+    if(d<=rad && d<bd){ bd=d; best={key, x:pr.x, y:pr.y}; }
+  });
+  return best;
+}
+function teethChapelLookReach(key){
+  return key==='teeth_chapel_face'?2.4:2.05;
+}
+function teethChapelLookStand(hit){
+  if(!hit) return null;
+  if(hit.key==='teeth_chapel_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
+  return {x:hit.x, y:hit.y+0.65, look:hit.key};
+}
+function openTeethChapelLook(key){
+  if(!key||G.talk||!NPC_TALK[key]) return false;
+  startTalk(key);
+  return true;
 }
 function pryGrondTooth(face, kind){
   const L=G.lvl;
@@ -12029,11 +12131,12 @@ function update(dt){
     }
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
-      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?1.12:0.26;
+      const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?1.12:(p.dest.look?0.42:0.26);
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
-        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(p.dest.look && typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
@@ -12164,6 +12267,7 @@ function update(dt){
         if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
       }
     }
+    if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
     if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
       const t=livingThrall();
       const tal=(G.ents||[]).find(e=>e&&e.col&&e.col.key==='talpor'&&!e.dead);
@@ -18382,6 +18486,12 @@ function resolveTaps(){
         continue;
       }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
+      const lookHit=typeof teethChapelLookHit==='function'?teethChapelLookHit(w):null;
+      if(lookHit){
+        if(dist(p,lookHit)<=teethChapelLookReach(lookHit.key)) openTeethChapelLook(lookHit.key);
+        else { p.dest=teethChapelLookStand(lookHit); p.stuck=0; p.lastD=undefined; }
+        continue;
+      }
       const dst=nearestWalk(w.x,w.y,p);
       if(dst){ p.dest={x:dst.x,y:dst.y}; p.stuck=0; p.lastD=undefined; }
       continue;
