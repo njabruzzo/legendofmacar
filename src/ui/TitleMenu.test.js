@@ -101,6 +101,20 @@ assert(/if\(p\.k==='dwarfface'\)\{/.test(html) && /k:'dwarfface'/.test(html),
   const door=fs.readFileSync(path.join(root,'assets/props/prop_rubydoor.png'));
   assert(door.readUInt32BE(16)===642 && door.readUInt32BE(20)===679,
     'prop_rubydoor.png is the signed 642×679 sheet');
+}
+{
+  assert(/function solidRubyDoorSheet\(\)/.test(html),
+    'signed ruby door mattes lattice alpha before the wall blit');
+  const live=html.match(/if\(p\.k==='rubydoor'\)\{[\s\S]*?return;\s*\}/)[0];
+  assert(/solidRubyDoorSheet\(\)/.test(live) && /stroke:0/.test(live),
+    'live door draws the opaque matte and does not box the arch');
+  assert(!/ray\(sx\.x,sx\.y-H/.test(live),
+    'no god-ray wash down the carved door');
+  const fb=html.match(/case 'rubydoor':[\s\S]*?break;/)[0];
+  assert(!/drawFacetGem|drawCarvedArch/.test(fb),
+    'rubydoor fallback is not the crystal lattice or facet gem');
+  assert(!/pr\.k==='rubywall'\|\|pr\.k==='rubydoor'/.test(html),
+    'the wide red light no longer washes the carved door');
   const face=fs.readFileSync(path.join(root,'assets/props/prop_dwarfface.png'));
   assert(face.readUInt32BE(16)===810 && face.readUInt32BE(20)===1110,
     'prop_dwarfface.png is still the live 810×1110 carving');

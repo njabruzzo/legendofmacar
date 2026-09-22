@@ -32,7 +32,7 @@ assert(!/\{x:44\.5,y:12\.5,k:'pillar'\}/.test(html), 'pillar is off the face lan
 assert(/\{x:39\.6,y:17\.2,k:'lantern'\}/.test(html), 'T-post stays in the hall, south of the mouth');
 assert(/\{x:47\.2,y:17\.4,k:'pillar'\}/.test(html), 'pillar stays in the hall, off the mouth');
 assert(/\{x:43\.2,y:7\.28,k:'dwarfface'\}/.test(html), 'face still hangs on the north wall');
-assert(/drawIsoPlaneImg\(g, img, p\.x-half, yPlane, p\.x\+half, yPlane, H\)/.test(html),
+assert(/if\(p\.k==='dwarfface'\)\{[\s\S]*?drawIsoPlaneImg\(g, img, p\.x-half, yPlane, p\.x\+half, yPlane, H, \{stroke:0\}\)[\s\S]*?return;/.test(html),
   'face stays a wall-plane bas-relief');
 
 assert(!/emit\(sx\.x,sx\.y-H\*0\.38,16\*z,'#c9b895'/.test(html),
