@@ -37,8 +37,13 @@ assert(/e\.crushed&&e\.corpse&&!e\.ghost/.test(html),
 assert(/z\.crushed&&z\.corpse&&!z\.ghost/.test(html),
   'east chamber opens after all four rise');
 
-assert(/Your dwarf brothers were killed in the cave-in\. The tunnel behind you collapsed\. You are alone\./.test(html),
+assert(/Your brothers died in the cave-in\. The tunnel behind you is gone\. You are alone in the dark\./.test(html),
   'entrance copy says the brothers died and Macar is alone');
+const riseFn=html.match(/function makeGhostAlly\(e\)\{[\s\S]*?\n\}/)[0];
+assert(/QUILL_CH1_SAY\.cavein_wake/.test(riseFn) && riseFn.indexOf('cavein_wake')<riseFn.indexOf('startTalk(riseKey)'),
+  'cavein_wake is said before the rise talk');
+assert(/Stone lets go\. Cold light\. A brother stands who should not\./.test(html),
+  'cavein_wake is Quill\'s line');
 assert(!/Walk to each of them and Rouse them/.test(html), 'intro card does not lecture Rouse');
 assert(!/Pordum, Fendur, Orbo and Talpor lie west\. Walk to each and Rouse them/.test(html),
   'after Descend, the first-room hint does not lecture Rouse');

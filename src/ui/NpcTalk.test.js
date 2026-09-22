@@ -22,7 +22,9 @@ assert(/function startTalkObj\(pack\)\{/.test(html), 'startTalkObj still builds 
 const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
 assert(!!talk, 'NPC_TALK block found');
 
-['noz_untie','noz_bell','noz_trade_again','dwarf_face','ruby_door',
+['noz_untie','noz_bell','noz_trade_again','dwarf_face','ruby_door','ruby_door_look',
+ 'rubypillar_look','rubypillar_touch','ch1_lift_lever_look','ch1_lift_lever_thrown_look',
+ 'ch1_lift_pull','cavein_behind_look',
  'rise_pordum','rise_fendur','rise_orbo','rise_talpor',
  'camp_pordum','camp_fendur','camp_orbo','camp_talpor',
  'toy_find','toy_wind','toy_grond','toy_teeth',
@@ -114,21 +116,46 @@ assert(/The jaws wait\. Drop it in\?/.test(html) && /key:'face_drop'/.test(html)
   'face_drop keeps startTalkObj and then');
 assert(/then:\(\)=>dropInDwarfMouth\(r\)/.test(html), 'face_drop still drops');
 
-assert(/who:'THE DOOR'/.test(talk) && /Lay a hand on it\./.test(talk) && /Not yet\./.test(talk),
+const doorPack=talkPack('ruby_door');
+assert(/who:'THE DOOR'/.test(doorPack) && /The ruby is warm\. It knows this name\. It wants a hand\./.test(doorPack),
   'ruby_door talk');
+assert(/Lay a hand on it\./.test(doorPack) && /Step back\./.test(doorPack) && /Leave it\./.test(doorPack),
+  'ruby_door choices are Lay a hand, Step back, Leave it');
+assert(/THE DOOR: \(silent heat\. The stone does not cool\.\)/.test(doorPack),
+  'Step back is the door\'s silent heat');
+assert(!/Not yet\./.test(doorPack), 'Not yet is not on the ruby door');
 assert(/interact\('Touch the ruby door',\(\)=>startTalk\('ruby_door'\)\)/.test(html),
   'Ch I ruby door opens talk instead of instant wake');
-assert(/function wakeRubyDoor\(\)\{/.test(html) && /then:\(\)=>wakeRubyDoor\(\)/.test(talk),
+assert(/function wakeRubyDoor\(\)\{/.test(html) && /then:\(\)=>wakeRubyDoor\(\)/.test(doorPack),
   'wake lives in ruby_door choice 1');
 assert(/L\.flags\.touched=1/.test(html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0]),
-  'Not yet does not set touched — only wakeRubyDoor does');
+  'Step back does not set touched — only wakeRubyDoor does');
 assert(/FOE\.statue\(\)/.test(html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0]),
   'wake still spawns the six guardians');
-assert(/A red ruby seats itself on the pillar in the middle of the chamber/.test(
+assert(/QUILL_CH1_SAY\.rubypillar_appears/.test(
   html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0]),
   'wake seats a ruby on the center pillar at door touch, not after cleared');
-assert(/interact\('Pull the lever'/.test(html) && /L\.flags\.elevReady=1/.test(html),
-  'elevator activate is still a Ch1 interact that sets elevReady');
+assert(/A ruby is set in the door\. Warm to a dwarf palm\. It knows this name\. It wants a hand\./.test(talkPack('ruby_door_look')),
+  'ruby_door_look is Quill\'s examine');
+assert(/A ruby on a new pillar\. Cooler than the door\. It does not know a name yet\. It waits for weight — or a hand\./.test(talkPack('rubypillar_look')),
+  'rubypillar_look is Quill\'s examine');
+assert(/who:'THE PILLAR'/.test(talkPack('rubypillar_touch')) && /Touch it\./.test(talkPack('rubypillar_touch'))
+  && /then:\(\)=>touchCh1RubyPillar\(\)/.test(talkPack('rubypillar_touch')),
+  'rubypillar_touch is the pillar talk');
+assert(/who:'THE LEVER'/.test(talkPack('ch1_lift_pull')) && /Throw it\./.test(talkPack('ch1_lift_pull'))
+  && /then:\(\)=>throwCh1LiftLever\(\)/.test(talkPack('ch1_lift_pull')) && /Leave it\./.test(talkPack('ch1_lift_pull')),
+  'ch1_lift_pull throws the lever and does not descend inline');
+assert(/A weathered iron lever by the pillar\. Dark knob\. Not candy\. Built to throw once and mean it\./.test(talkPack('ch1_lift_lever_look')),
+  'upright lever examine');
+assert(/The lever lies thrown\. The throw is spent\. Whatever it called, it already answered\./.test(talkPack('ch1_lift_lever_thrown_look')),
+  'thrown lever examine');
+assert(/The tunnel behind you is dead stone\. Your brothers went under it\. The dark ahead does not care\./.test(talkPack('cavein_behind_look')),
+  'cave-in behind examine');
+assert(/interact\('Pull the lever'/.test(html) && /L\.flags\.leverThrown=1/.test(html),
+  'Throw it persists leverThrown on the level flags');
+assert(/Look at the ruby door/.test(html) && /Look at the ruby pillar/.test(html)
+  && /Look at the lever/.test(html) && /Look at the cave-in/.test(html),
+  'Ch1 examines use look prompts');
 
 assert(/startTalk\(riseKey\)/.test(html) && /talkKinKey\(k\)/.test(html),
   'makeGhostAlly starts rise talk after the raise');

@@ -4338,22 +4338,17 @@ function makeChapter(n){
       ensureCh1CenterPillar();
       if(L.flags.touched && !L.flags.cleared && !rubyGuardiansLeft()){
         L.flags.cleared=1; L.objs[2].d=1; shake(26); G.flash={c:'#ff3a30',a:.6};
-        say('The last guardian falls. Every ruby in the chamber cracks.','#ff8a5a');
-        say('The elevator lever is free.','#ffd27a');
+        say(QUILL_CH1_SAY.rubydoor_cleared,'#ff8a5a');
         hint('Pull the lever on the elevator.',6);
       }
-      if(L.flags.cleared && !L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3){
-        interact('Pull the lever',()=>{
-          L.flags.elevReady=1; shake(20); G.flash={c:'#ff2030',a:.5};
-          say('The ruby flares. The elevator groans and begins its descent into the depths.','#ffd27a');
-          L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
-          hint('Ride the elevator down.',5);
-        });
-      }
-      if(L.flags.elevReady && dist(p,{x:36.5,y:21.5})<2.3) interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
+      const elev=ch1ElevatorPrompt(p);
+      if(elev&&elev.action==='ride') interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
+      else if(elev&&elev.action==='lever') interact('Pull the lever',()=>startTalk('ch1_lift_pull'));
+      else if(elev&&elev.action==='pillar') interact('Touch the ruby pillar',()=>startTalk('rubypillar_touch'));
       if(nearDwarfFace(p,2.3)){
         interact('Touch the dwarf mouth',()=>startTalk('dwarf_face'));
       }
+      if(!PROMPT) maybeCh1QuillLooks(p);
     };
   }
 
@@ -5295,6 +5290,7 @@ function makeGhostAlly(e){
   restoreGhostKit(e);
   burst(e.x,e.y,'#7ad8ff',22,3.4);
   ftext(e.x,e.y,'rises','#7ad8ff');
+  say(QUILL_CH1_SAY.cavein_wake,'#d5e6f5');
   const riseKey='rise_'+talkKinKey(k);
   if(NPC_TALK[riseKey]) startTalk(riseKey);
   else say(GHOST_RISE[k]||(e.name+': "Get your grubby hands off me, Macar."'),'#80d0ff');
@@ -5471,7 +5467,7 @@ const CH_META={1:{t:'The Beginning',s:'The tunnel is gone. The dark remains.'},2
   3:{t:'The Ruin',s:'Picks still ring. The crew never came up.'},4:{t:'The Dead City',s:'Old dwarf-cut halls. The dark is wet and listening.'},
   5:{t:'The Holy Sacrifice',s:'Two went in. One came back.'}};
 const CH_INTRO={
-  1:{fl:'Your dwarf brothers were killed in the cave-in. The tunnel behind you collapsed. You are alone.',
+  1:{fl:'Your brothers died in the cave-in. The tunnel behind you is gone. You are alone in the dark.',
      ask:''},
   2:{fl:'The rock splits, and the dark does not choose for you.',
      ask:''},
@@ -5863,6 +5859,13 @@ function ensureCh1CenterPillar(){
 function rubyGuardiansLeft(){
   return (G.ents||[]).some(e=>e && e.team==='foe' && !e.dead && !e.npc && (e.rubyDrop || e.kind==='statue'));
 }
+/* Quill Ch1 say keys. Examine / talk packs live in NPC_TALK. */
+const QUILL_CH1_SAY={
+  rubydoor_cleared:'The last guardian falls. Every ruby in the chamber cracks cold.',
+  rubypillar_appears:'Stone rises in the middle of the chamber. A ruby waits on it, dark and waiting.',
+  elevator_descent:'The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.',
+  cavein_wake:'Stone lets go. Cold light. A brother stands who should not.'
+};
 function wakeRubyDoor(){
   const L=G.lvl; if(!L||L.n!==1||!L.flags||L.flags.touched) return;
   L.flags.touched=1; if(L.objs&&L.objs[1]) L.objs[1].d=1;
@@ -5873,10 +5876,140 @@ function wakeRubyDoor(){
     const e=FOE.statue(); e.x=s[0]; e.y=s[1]; e.stun=.5+i*.15; e.rubyDrop=1; G.ents.push(e); burst(s[0],s[1],'#c9c2b4',24);
   });
   say('The guardians wake from the stone around the door.','#d8cbb0');
-  say('A red ruby seats itself on the pillar in the middle of the chamber.','#ff8a5a');
+  /* Ruby seats on the center pillar here. Not a late rubypillar spawn. */
+  say(QUILL_CH1_SAY.rubypillar_appears,'#ff8a5a');
   if(!(L.lights||[]).some(q=>q && q.x===36.5 && q.y===21.5 && q.c==='#ff2f3a'))
     L.lights.push({x:36.5,y:21.5,c:'#ff2f3a',r:5.2,f:1.15});
   hint('Six guardians. Slay them, then pull the elevator lever.',6);
+}
+/* Nick 2026-09-22: throw the lift lever, then touch the ruby pillar.
+   The lever alone does not descend. The pillar does not descend until
+   the lever has been thrown this chapter. leverThrown lives on L.flags. */
+function ch1HubAnchor(){ return {x:36.5,y:21.5}; }
+function ch1LeverAnchor(){ return {x:37.15,y:22.05}; }
+function ch1LeverShownThrown(){
+  const f=G.lvl&&G.lvl.flags;
+  return !!(f&&(f.leverThrown||f.elevReady));
+}
+function throwCh1LiftLever(){
+  const L=G.lvl;
+  if(!L||L.n!==1||!L.flags||!L.flags.cleared) return false;
+  if(L.flags.leverThrown||L.flags.elevReady) return false;
+  L.flags.leverThrown=1;
+  shake(10);
+  return true;
+}
+function beginCh1ElevatorDescent(){
+  const L=G.lvl;
+  if(!L||L.n!==1||!L.flags||L.flags.elevReady) return false;
+  if(!L.flags.leverThrown) return false;
+  L.flags.elevReady=1;
+  shake(20); G.flash={c:'#ff2030',a:.5};
+  say(QUILL_CH1_SAY.elevator_descent,'#ffd27a');
+  L.lights=L.lights||[];
+  L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
+  hint('Ride the elevator down.',5);
+  return true;
+}
+function touchCh1RubyPillar(){
+  const L=G.lvl;
+  if(!L||L.n!==1||!L.flags||L.flags.elevReady||!L.flags.cleared) return false;
+  if(!L.flags.leverThrown){
+    hint('Pull the lever on the elevator.',4.5);
+    return false;
+  }
+  return beginCh1ElevatorDescent();
+}
+function ch1ElevatorPrompt(p){
+  const L=G.lvl;
+  if(!p||!L||L.n!==1||!L.flags||!L.flags.cleared) return null;
+  const hub=ch1HubAnchor(), lever=ch1LeverAnchor();
+  const dHub=dist(p,hub), dLev=dist(p,lever);
+  if(dHub>=2.3 && dLev>=2.3) return null;
+  if(L.flags.elevReady) return dHub<2.3?{action:'ride'}:null;
+  const canLever=!L.flags.leverThrown && dLev<2.15;
+  const canPillar=!!L.flags.touched && dHub<2.3;
+  if(L.flags.leverThrown) return canPillar?{action:'pillar'}:null;
+  if(canLever && canPillar) return (dLev+0.12<dHub)?{action:'lever'}:{action:'pillar'};
+  if(canLever) return {action:'lever'};
+  if(canPillar) return {action:'pillar'};
+  return null;
+}
+function nearestStartCaveIn(p, r){
+  if(!p) return null;
+  let best=null, bd=r==null?2.15:r;
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.k!=='cavein'||!pr.backwall) return;
+    const d=dist(p,pr);
+    if(d<bd){ bd=d; best=pr; }
+  });
+  return best;
+}
+function maybeCh1QuillLooks(p){
+  if(!p||G.talk||PROMPT) return false;
+  const L=G.lvl;
+  if(!L||L.n!==1||!L.flags) return false;
+  const hits=[];
+  if(!L.flags.touched){
+    const door=L.rubyDoor||{x:36.5,y:7.28};
+    const stand={x:door.x,y:door.y+1.15};
+    const d=dist(p,stand);
+    if(d>=2.6 && d<3.7) hits.push({d, label:'Look at the ruby door', key:'ruby_door_look'});
+  }
+  if(!ch1ElevatorPrompt(p)){
+    const thrown=ch1LeverShownThrown();
+    const ld=dist(p,ch1LeverAnchor());
+    if(ld<3.35) hits.push({d:ld, label:thrown?'Look at the thrown lever':'Look at the lever',
+      key:thrown?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look'});
+    if(L.flags.touched){
+      const pd=dist(p,ch1HubAnchor());
+      if(pd<3.35) hits.push({d:pd, label:'Look at the ruby pillar', key:'rubypillar_look'});
+    }
+  }
+  const cave=nearestStartCaveIn(p, 2.15);
+  if(cave) hits.push({d:dist(p,cave), label:'Look at the cave-in', key:'cavein_behind_look'});
+  if(!hits.length) return false;
+  hits.sort((a,b)=>a.d-b.d);
+  interact(hits[0].label,()=>startTalk(hits[0].key));
+  return true;
+}
+function ch1QuillLookHit(w){
+  if(!w||!G.lvl||G.lvl.n!==1) return null;
+  const L=G.lvl;
+  let best=null, bd=9;
+  function consider(key,x,y,rad){
+    const d=Math.hypot((w.x||0)-x,(w.y||0)-y);
+    if(d<=rad && d<bd){ bd=d; best={key,x,y}; }
+  }
+  if(!L.flags.touched){
+    const door=L.rubyDoor||{x:36.5,y:7.28};
+    consider('ruby_door_look', door.x, door.y, 1.15);
+  }
+  if(L.flags.touched) consider('rubypillar_look', 36.5, 21.5, 0.85);
+  consider(ch1LeverShownThrown()?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look', 37.15, 22.05, 0.72);
+  (G.props||[]).forEach(pr=>{
+    if(!pr||pr.gone||pr.k!=='cavein'||!pr.backwall) return;
+    consider('cavein_behind_look', pr.x, pr.y, 0.9);
+  });
+  return best;
+}
+function ch1QuillLookReach(key){
+  if(key==='cavein_behind_look') return 2.2;
+  if(key==='ruby_door_look') return 2.7;
+  return 2.4;
+}
+function ch1QuillLookStand(hit){
+  if(!hit) return null;
+  if(hit.key==='ruby_door_look') return {x:hit.x, y:(hit.y||0)+1.15, look:hit.key};
+  if(hit.key==='cavein_behind_look') return {x:(hit.x||0)+1.2, y:hit.y, look:hit.key};
+  if(hit.key==='ch1_lift_lever_look'||hit.key==='ch1_lift_lever_thrown_look')
+    return {x:hit.x-0.35, y:hit.y-0.15, look:hit.key};
+  return {x:hit.x, y:(hit.y||0)+0.75, look:hit.key};
+}
+function openCh1QuillLook(key){
+  if(!key||G.talk||!NPC_TALK[key]) return false;
+  startTalk(key);
+  return true;
 }
 const NPC_TALK={
   noz_untie:{
@@ -5925,7 +6058,55 @@ const NPC_TALK={
     line:'The ruby is warm. It knows this name. It wants a hand.',
     choices:[
       {t:'Lay a hand on it.', say:'MACAR: "I am here."', then:()=>wakeRubyDoor()},
-      {t:'Not yet.'}
+      {t:'Step back.', reply:'THE DOOR: (silent heat. The stone does not cool.)'},
+      {t:'Leave it.'}
+    ]
+  },
+  ruby_door_look:{
+    line:'A ruby is set in the door. Warm to a dwarf palm. It knows this name. It wants a hand.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  rubypillar_look:{
+    line:'A ruby on a new pillar. Cooler than the door. It does not know a name yet. It waits for weight — or a hand.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  rubypillar_touch:{
+    who:'THE PILLAR',
+    line:'The ruby sits quiet. Touch it and something below will answer.',
+    choices:[
+      {t:'Touch it.', then:()=>touchCh1RubyPillar()},
+      {t:'Not yet.'},
+      {t:'Leave it.'}
+    ]
+  },
+  ch1_lift_lever_look:{
+    line:'A weathered iron lever by the pillar. Dark knob. Not candy. Built to throw once and mean it.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  ch1_lift_lever_thrown_look:{
+    line:'The lever lies thrown. The throw is spent. Whatever it called, it already answered.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  ch1_lift_pull:{
+    who:'THE LEVER',
+    line:'Cold iron. One throw left in the arm.',
+    choices:[
+      {t:'Throw it.', then:()=>throwCh1LiftLever()},
+      {t:'Leave it.'}
+    ]
+  },
+  cavein_behind_look:{
+    line:'The tunnel behind you is dead stone. Your brothers went under it. The dark ahead does not care.',
+    choices:[
+      {t:'Leave it.'}
     ]
   },
   rise_pordum:{
@@ -13966,7 +14147,7 @@ function ch1LiftLeverSheet(ready){
   return (img&&img.width)?img:null;
 }
 function paintCh1LiftLever(g,z){
-  if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,G.lvl.flags&&G.lvl.flags.elevReady);
+  if(G.lvl&&G.lvl.n===1) drawCh1LiftLever(g,z,ch1LeverShownThrown());
 }
 function drawCh1LiftLever(g,z,ready){
   const thrown=!!ready;
@@ -18663,9 +18844,19 @@ function resolveTaps(){
       }
       if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
       const lookHit=typeof teethChapelLookHit==='function'?teethChapelLookHit(w):null;
-      if(lookHit){
-        if(dist(p,lookHit)<=teethChapelLookReach(lookHit.key)) openTeethChapelLook(lookHit.key);
-        else { p.dest=teethChapelLookStand(lookHit); p.stuck=0; p.lastD=undefined; }
+      const quillLook=typeof ch1QuillLookHit==='function'?ch1QuillLookHit(w):null;
+      const lookPick=!lookHit?quillLook:!quillLook?lookHit
+        :(Math.hypot((w.x||0)-quillLook.x,(w.y||0)-quillLook.y)<Math.hypot((w.x||0)-lookHit.x,(w.y||0)-lookHit.y)?quillLook:lookHit);
+      if(lookPick){
+        const chapel=lookPick===lookHit;
+        const reach=chapel?teethChapelLookReach(lookPick.key):ch1QuillLookReach(lookPick.key);
+        if(dist(p,lookPick)<=reach){
+          if(chapel) openTeethChapelLook(lookPick.key);
+          else openCh1QuillLook(lookPick.key);
+        } else {
+          p.dest=chapel?teethChapelLookStand(lookPick):ch1QuillLookStand(lookPick);
+          p.stuck=0; p.lastD=undefined;
+        }
         continue;
       }
       const dst=nearestWalk(w.x,w.y,p);
