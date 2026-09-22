@@ -2454,6 +2454,10 @@ function wallHidesFloor(L,x,y){
   return !!(south||east||se||sw);
 }
 function actorDrawDepth(o){
+  /* The signed sheet is wider than one north-wall cell. Sorting on the
+     door's own x+y lets the next east face (drawn later on that diagonal)
+     paint a hard vertical cut through the right outer arch. */
+  if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
   const d=(o.x+o.y);
   if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
   /* Hall faces are ~4 iso-depth tall. +1 left the dwarf in the south
@@ -2538,6 +2542,18 @@ function rubyDoorPlaneY(p){
     }
   }
   return Math.floor(p.y)-0.42;
+}
+/* Depth key of the east wall cell whose south face covers the door's right
+   edge. The face sits on the walk-tile line (one inset south of the door
+   plane), so it lands further left on screen than the sheet's right edge.
+   Walls on a diagonal draw before props in that same bucket. */
+function rubyDoorDrawDepth(p){
+  const yPlane=rubyDoorPlaneY(p);
+  const wallY=Math.floor(yPlane);
+  const faceY=wallY+1;
+  const xRight=p.x+rubyDoorHalf();
+  const wx=Math.floor(xRight-yPlane+faceY-1e-4);
+  return (wx+wallY)|0;
 }
 function dwarfFaceH(L){
   return wallFaceH(L)*0.72;
