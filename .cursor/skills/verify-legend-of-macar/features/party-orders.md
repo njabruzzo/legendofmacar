@@ -1,6 +1,6 @@
 # Party orders
 
-In play, Macar can tell the up kin to Hold, Regroup, or Focus from plates under the portrait stack or from the keys H, Y, and Z. The same order again returns them to follow.
+In play, Macar can tell living kin to Hold, Regroup, or Focus from plates under the portrait stack or from the keys H, Y, and Z. The same order again returns them to follow. Ghosts ignore the orders and keep auto-follow.
 
 ## Sub-features
 
@@ -32,7 +32,9 @@ Preconditions:
 
 ## Gotchas
 
-- Crushed kin at the Chapter I start are not up yet. The plates still issue the order; kin take it after they rise.
+- Ghosts ignore Hold, Regroup, and Focus and keep auto-follow. Chapter I kin after Rouse are ghosts, so the plates still issue the order and the hint still names it, but those ghosts do not obey.
+- Focus with no living foe does not arm. The hint still names Focus and the prior order stays.
+- Regroup paths toward Macar, then the order clears and follow resumes.
 - `h` is Hold. It is not a walk key.
 - Issuing the active order again clears it. A second `h` reads as follow, not a second Hold.
 - Rally stays off the bar. These three plates are not Rally.

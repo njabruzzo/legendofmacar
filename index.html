@@ -48,7 +48,8 @@
      then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E),
      then Interaction + Discovery (Batch F / MAC-09), then DerivedStats +
      EquipCompare (Batch G kit compare), then PartyOrders
-     (Hold / Regroup / Focus). Rollback with ?orders=0.
+     (Hold / Regroup / Focus; living kin only, ghosts keep auto-follow).
+     Rollback with ?orders=0.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
@@ -11482,7 +11483,19 @@ function partyOrderHost(){
   return {
     leader:p,
     ents:G.ents||[],
+    dist:dist,
     partyForm:partyForm,
+    known:function(foe){
+      if(!foe || foe.dead || foe.fleeTo || foe.hidden || foe.ghost) return false;
+      if(tileVisible(foe.x, foe.y)) return true;
+      if(p && dist(p, foe)<=1.15) return true;
+      if(G.fightOn){
+        for(const k of (G.ents||[])){
+          if(k.team==='party' && !k.dead && dist(k, foe)<8) return true;
+        }
+      }
+      return false;
+    },
     formIndex:function(e){
       const kin=(G.ents||[]).filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
@@ -11490,12 +11503,26 @@ function partyOrderHost(){
     }
   };
 }
-/* Hold: plant. Do not step toward a foe. Strike only what is already in reach.
-   Not Macar's shield — defending stays the V key. */
+/* Hold is melee reach only (1.5). A ranged kin does not loose while holding. */
+function partyHoldMelee(e){
+  return typeof PartyOrders!=='undefined' && PartyOrders.use()
+    && PartyOrders.order()==='hold' && PartyOrders.commands(e);
+}
+/* Hold: plant. Do not step toward a foe. Strike only what is already in
+   melee reach. Not Macar's shield — defending stays the V key. */
 function holdKin(e){
   e.moving=0; e.ix=0; e.iy=0; e.dest=null;
-  const reach=(e.range||1)+0.35;
-  const foe=nearestFoe(e, reach);
+  const reach=1.5;
+  let foe=null, bd=reach, attacker=null;
+  const ents=(typeof G!=='undefined' && G.ents)||[];
+  for(const o of ents){
+    if(!o || o.team!=='foe' || o.dead || o.npc || o.ghost) continue;
+    const d=dist(e,o);
+    if(d>reach) continue;
+    if(o.aim===e) attacker=o;
+    if(d<=bd){ bd=d; foe=o; }
+  }
+  if(attacker) foe=attacker;
   if(foe){
     e.aim=foe;
     faceToward(e, foe.x, foe.y);
@@ -11519,6 +11546,10 @@ function issuePartyOrder(p, verb){
     hint('No such order.', 1.6);
     return;
   }
+  if(res.noop){
+    hint('Focus needs one living foe. The kin keep their order.', 2.8);
+    return;
+  }
   if(!res.order){
     if(p) ftext(p.x, p.y-0.5, 'FOLLOW', '#e8d9b8');
     say('MACAR: "As you were."','#e8d9b8');
@@ -11528,20 +11559,16 @@ function issuePartyOrder(p, verb){
   if(verb==='hold'){
     if(p) ftext(p.x, p.y-0.5, 'HOLD', '#cfe3ff');
     say('MACAR: "Hold."','#cfe3ff');
-    hint('Hold. The kin stop and brace. H again to follow.', 3.4);
+    hint('Hold. Living kin stand. They strike only in melee. H again to follow.', 3.4);
   } else if(verb==='regroup'){
     if(p) ftext(p.x, p.y-0.5, 'REGROUP', '#ffe08a');
     say('MACAR: "On me."','#ffe08a');
-    hint('Regroup. The kin form up on Macar. Y again to follow.', 3.4);
+    hint('Regroup. Living kin path to Macar, then follow.', 3.4);
   } else if(res.foe){
     const who=res.foe.name||'the foe';
     if(p) ftext(p.x, p.y-0.5, 'FOCUS', '#ffb45c');
     say('MACAR: "That one — '+who+'."','#ffb45c');
     hint('Focus '+who+'. Z again to follow.', 3.4);
-  } else {
-    if(p) ftext(p.x, p.y-0.5, 'FOCUS', '#ffb45c');
-    say('MACAR: "Mark a foe."','#ffb45c');
-    hint('Focus armed. Tap a foe, or swing. Z again to follow.', 3.4);
   }
 }
 
@@ -12665,7 +12692,7 @@ function update(dt){
               if(e._webFlip && !(t.webbed>0)) shoot(e,t.x,t.y,0,'web','#e8e0d0',6.5);
               else meleeSwing(e,1.9,e.range+.35,e.dmg*bo);
             }
-          } else if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
+          } else if(e.ranged && !partyHoldMelee(e)){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
         if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost){ e.macarStrikeHold=0; e.macarWindupUntil=0; } }
@@ -12683,6 +12710,8 @@ function update(dt){
     if(e.hidden){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.sleeping||e.crushed||e.tied){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.fleeTo){
+      if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
+        PartyOrders.noteMoraleFlee(e);
       const t=e.fleeTo, d=dist(e,t);
       e.fleeStuck=(e.fleeStuck||0)+dt;
       if(d>0.55 && e.fleeStuck<3.2){
@@ -12721,23 +12750,25 @@ function update(dt){
         ghostSapperBomb(e, dt);
         continue;
       } else if(po && po.handled && po.verb==='focus' && po.foe){
-        tgt=po.foe; want=(po.want!=null)?po.want:(e.ranged?e.range*.7:e.range); e.aim=po.foe;
-      } else if(po && po.handled && po.verb==='focus'){
-        e.aim=null; e.moving=0; e.ix=0; e.iy=0;
-        ghostSapperBomb(e, dt);
-        continue;
-      } else if(po && po.handled && po.verb==='regroup' && p){
-        e.aim=null;
-        if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
-          const nr=Navigation.tickFollower(e, p, dt, navHost());
-          if(nr && nr.handled){
-            if(p){ e.fdx=p.fdx; e.fdy=p.fdy; }
-            ghostSapperBomb(e, dt);
-            continue;
-          }
+        if(po.blocker){
+          tgt=po.blocker; want=1.15; e.aim=po.blocker;
+        } else {
+          tgt=po.foe; want=(po.want!=null)?po.want:(e.ranged?e.range*.7:e.range); e.aim=po.foe;
         }
-        tgt=po.goal||partyForm(idx<0?1:idx+1, p);
-        want=.38; form=1;
+      } else if(po && po.handled && po.verb==='regroup' && p){
+        if(po.finishMelee && po.foe){
+          e.aim=po.foe; e.moving=0; e.ix=0; e.iy=0;
+          ghostSapperBomb(e, dt);
+          continue;
+        }
+        if(po.arrived){
+          e.aim=null; e.moving=0; e.ix=0; e.iy=0;
+          ghostSapperBomb(e, dt);
+          continue;
+        }
+        e.aim=null;
+        tgt=po.goal;
+        want=.38;
       } else if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
         e.aim=null;
@@ -12800,6 +12831,8 @@ function update(dt){
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
   }
+  if(typeof PartyOrders!=='undefined' && PartyOrders.use && PartyOrders.settle)
+    PartyOrders.settle(partyOrderHost());
   if(p){
     const threat=foeInTheFight();
     for(const e of G.ents){

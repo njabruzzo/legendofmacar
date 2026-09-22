@@ -19,8 +19,9 @@
  * Rollback: Navigation.FLAG=false or load with ?nav=0 (legacy trail/form).
  *
  * Follow is the implicit default for ONE living kin (pordoom / first
- * living roster kin) when PartyOrders has no order set. Hold / Regroup /
- * Focus live on PartyOrders; a null order does not intercept this pilot.
+ * living roster kin, ghosts included) when PartyOrders has no order.
+ * Ghosts ignore PartyOrders and stay on this pilot. Hold / Regroup /
+ * Focus command living kin only; a null order does not intercept Follow.
  *
  * Noz / fleeTo / story-controlled entities stay on the host flee path.
  * Internal roster key is pordoom (display PORDUM).

@@ -48,4 +48,4 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Combat basics](./combat-basics.md) covers Attack, Defend-blocks-Attack, and the first-room quiet rule.
 - [Inventory and camp](./inventory-camp.md) covers PACK / Drop, in-seam camp rest, and the post-chapter CAMP plate.
 - [Search and craft](./search-craft.md) covers both SEARCH verbs and Craft at or away from the station.
-- [Party orders](./party-orders.md) covers Hold, Regroup, and Focus for the up kin.
+- [Party orders](./party-orders.md) covers Hold, Regroup, and Focus for living kin. Ghosts keep auto-follow.
