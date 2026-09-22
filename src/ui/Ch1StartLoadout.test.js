@@ -53,8 +53,8 @@ assert(/if\(r\.key==='macar'\) ensureMacarStartingGear\(pk\)/.test(html),
   'ensurePacks wears the starting kit on Macar');
 assert(/livingMacarIdleKey/.test(html) && /wieldsShadowCleaver/.test(html),
   'maul idle is the default; Cleaver is an equip swap');
-assert(/ASSET_VER='108'/.test(html),
-  'ASSET_VER is 108 — chapel v3 after the title hall, lever, and attack-sheet binds');
+assert(/ASSET_VER='109'/.test(html),
+  'ASSET_VER is 109 — full-bleed title menu v5');
 assert(/Interaction\.installChapterI/.test(html)
   && /if \(L\.n === 1 && i < 14\) return true/.test(fs.readFileSync(path.join(root,'src/systems/Interaction.js'),'utf8')),
   'later room interactions protect the west cave-in lip');
