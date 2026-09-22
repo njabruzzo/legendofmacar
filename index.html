@@ -4344,7 +4344,9 @@ function makeChapter(n){
       const elev=ch1ElevatorPrompt(p);
       if(elev&&elev.action==='ride') interact('Ride the elevator down',()=>{L.objs[3].d=1; endChapter();});
       else if(elev&&elev.action==='lever') interact('Pull the lever',()=>startTalk('ch1_lift_pull'));
+      else if(elev&&elev.action==='lever_spent') interact('Pull the lever',()=>startTalk('ch1_lift_pull_spent'));
       else if(elev&&elev.action==='pillar') interact('Touch the ruby pillar',()=>startTalk('rubypillar_touch'));
+      else if(elev&&elev.action==='pillar_locked') interact('Touch the ruby pillar',()=>startTalk('rubypillar_touch_locked'));
       if(nearDwarfFace(p,2.3)){
         interact('Touch the dwarf mouth',()=>startTalk('dwarf_face'));
       }
@@ -5862,7 +5864,9 @@ function rubyGuardiansLeft(){
 /* Quill Ch1 say keys. Examine / talk packs live in NPC_TALK. */
 const QUILL_CH1_SAY={
   rubydoor_cleared:'The last guardian falls. Every ruby in the chamber cracks cold.',
-  rubypillar_appears:'Stone rises in the middle of the chamber. A ruby waits on it, dark and waiting.',
+  rubypillar_appears:'Stone rises in the middle of the chamber. A ruby waits on it, dark and waiting. An iron lever stands ready beside it.',
+  leverThrown:'The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.',
+  rubypillar_touch_locked:'Cold. Dead weight. Something iron nearby still holds the dark shut.',
   elevator_descent:'The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.',
   cavein_wake:'Stone lets go. Cold light. A brother stands who should not.'
 };
@@ -5897,13 +5901,16 @@ function throwCh1LiftLever(){
   if(L.flags.leverThrown||L.flags.elevReady) return false;
   L.flags.leverThrown=1;
   shake(10);
+  say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
   return true;
 }
 function beginCh1ElevatorDescent(){
   const L=G.lvl;
   if(!L||L.n!==1||!L.flags||L.flags.elevReady) return false;
   if(!L.flags.leverThrown) return false;
+  /* elevReady is the house ride flag. elevatorGone is Quill's name for the same moment. */
   L.flags.elevReady=1;
+  L.flags.elevatorGone=1;
   shake(20); G.flash={c:'#ff2030',a:.5};
   say(QUILL_CH1_SAY.elevator_descent,'#ffd27a');
   L.lights=L.lights||[];
@@ -5915,10 +5922,16 @@ function touchCh1RubyPillar(){
   const L=G.lvl;
   if(!L||L.n!==1||!L.flags||L.flags.elevReady||!L.flags.cleared) return false;
   if(!L.flags.leverThrown){
-    hint('Pull the lever on the elevator.',4.5);
+    say(QUILL_CH1_SAY.rubypillar_touch_locked,'#9ab0c4');
     return false;
   }
   return beginCh1ElevatorDescent();
+}
+function ch1PillarLookKey(){
+  const f=G.lvl&&G.lvl.flags;
+  if(!f||f.elevReady) return '';
+  if(f.leverThrown) return 'rubypillar_look_armed';
+  return 'rubypillar_look';
 }
 function ch1ElevatorPrompt(p){
   const L=G.lvl;
@@ -5927,12 +5940,17 @@ function ch1ElevatorPrompt(p){
   const dHub=dist(p,hub), dLev=dist(p,lever);
   if(dHub>=2.3 && dLev>=2.3) return null;
   if(L.flags.elevReady) return dHub<2.3?{action:'ride'}:null;
-  const canLever=!L.flags.leverThrown && dLev<2.15;
-  const canPillar=!!L.flags.touched && dHub<2.3;
-  if(L.flags.leverThrown) return canPillar?{action:'pillar'}:null;
-  if(canLever && canPillar) return (dLev+0.12<dHub)?{action:'lever'}:{action:'pillar'};
-  if(canLever) return {action:'lever'};
-  if(canPillar) return {action:'pillar'};
+  const nearLever=dLev<2.15;
+  const nearPillar=!!L.flags.touched && dHub<2.3;
+  const leverCloser=dLev+0.12<dHub;
+  if(L.flags.leverThrown){
+    if(nearLever && (!nearPillar || leverCloser)) return {action:'lever_spent'};
+    if(nearPillar) return {action:'pillar'};
+    return null;
+  }
+  if(nearLever && nearPillar) return leverCloser?{action:'lever'}:{action:'pillar_locked'};
+  if(nearLever) return {action:'lever'};
+  if(nearPillar) return {action:'pillar_locked'};
   return null;
 }
 function nearestStartCaveIn(p, r){
@@ -5962,8 +5980,9 @@ function maybeCh1QuillLooks(p){
     if(ld<3.35) hits.push({d:ld, label:thrown?'Look at the thrown lever':'Look at the lever',
       key:thrown?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look'});
     if(L.flags.touched){
+      const pk=ch1PillarLookKey();
       const pd=dist(p,ch1HubAnchor());
-      if(pd<3.35) hits.push({d:pd, label:'Look at the ruby pillar', key:'rubypillar_look'});
+      if(pk && pd<3.35) hits.push({d:pd, label:'Look at the ruby pillar', key:pk});
     }
   }
   const cave=nearestStartCaveIn(p, 2.15);
@@ -5985,7 +6004,10 @@ function ch1QuillLookHit(w){
     const door=L.rubyDoor||{x:36.5,y:7.28};
     consider('ruby_door_look', door.x, door.y, 1.15);
   }
-  if(L.flags.touched) consider('rubypillar_look', 36.5, 21.5, 0.85);
+  if(L.flags.touched){
+    const pk=ch1PillarLookKey();
+    if(pk) consider(pk, 36.5, 21.5, 0.85);
+  }
   consider(ch1LeverShownThrown()?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look', 37.15, 22.05, 0.72);
   (G.props||[]).forEach(pr=>{
     if(!pr||pr.gone||pr.k!=='cavein'||!pr.backwall) return;
@@ -6069,14 +6091,28 @@ const NPC_TALK={
     ]
   },
   rubypillar_look:{
-    line:'A ruby on a new pillar. Cooler than the door. It does not know a name yet. It waits for weight — or a hand.',
+    line:'A ruby on a new pillar. Cooler than the door. It does not know a name yet. It waits — for the lever, then a hand.',
     choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  rubypillar_look_armed:{
+    line:'The ruby is brighter now. The lever has spoken. It wants a hand.',
+    choices:[
+      {t:'Leave it.'}
+    ]
+  },
+  rubypillar_touch_locked:{
+    who:'THE PILLAR',
+    line:'The ruby sits quiet. Cool. It will not answer yet.',
+    choices:[
+      {t:'Touch it.', reply:'Cold. Dead weight. Something iron nearby still holds the dark shut.'},
       {t:'Leave it.'}
     ]
   },
   rubypillar_touch:{
     who:'THE PILLAR',
-    line:'The ruby sits quiet. Touch it and something below will answer.',
+    line:'The ruby burns. The lever has already spoken. Touch it and the dark below will answer.',
     choices:[
       {t:'Touch it.', then:()=>touchCh1RubyPillar()},
       {t:'Not yet.'},
@@ -6090,7 +6126,7 @@ const NPC_TALK={
     ]
   },
   ch1_lift_lever_thrown_look:{
-    line:'The lever lies thrown. The throw is spent. Whatever it called, it already answered.',
+    line:"The lever lies thrown. The throw is spent. The pillar's ruby is listening now.",
     choices:[
       {t:'Leave it.'}
     ]
@@ -6100,6 +6136,13 @@ const NPC_TALK={
     line:'Cold iron. One throw left in the arm.',
     choices:[
       {t:'Throw it.', then:()=>throwCh1LiftLever()},
+      {t:'Leave it.'}
+    ]
+  },
+  ch1_lift_pull_spent:{
+    who:'THE LEVER',
+    line:'Spent. The arm will not rise for you again.',
+    choices:[
       {t:'Leave it.'}
     ]
   },

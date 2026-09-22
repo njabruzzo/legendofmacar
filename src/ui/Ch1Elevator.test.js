@@ -39,8 +39,8 @@ assert(/L\.flags\.touched=1/.test(wake) && /FOE\.statue\(\)/.test(wake),
 assert(/ensureCh1CenterPillar\(\)/.test(wake), 'door touch keeps a center pillar to hang the ruby on');
 assert(/QUILL_CH1_SAY\.rubypillar_appears/.test(wake),
   'door touch tells the player the center pillar gained a ruby');
-assert(/Stone rises in the middle of the chamber\. A ruby waits on it, dark and waiting\./.test(html),
-  'rubypillar_appears is Quill\'s line');
+assert(/Stone rises in the middle of the chamber\. A ruby waits on it, dark and waiting\. An iron lever stands ready beside it\./.test(html),
+  'rubypillar_appears names the lever beside the pillar');
 assert(!/A red ruby seats itself on the pillar/.test(html),
   'stock ruby-seats say is replaced by rubypillar_appears');
 assert(/then pull the elevator lever/.test(wake), 'wake hint still sends the player to the lever after the fight');
@@ -98,15 +98,20 @@ assert(/function drawFacetGem\(g,x,y,w,h,on,z\)\{/.test(html),
 assert(/interact\('Pull the lever',\(\)=>startTalk\('ch1_lift_pull'\)/.test(ch1),
   'Pull the lever opens the lever talk and does not descend inline');
 assert(/interact\('Touch the ruby pillar',\(\)=>startTalk\('rubypillar_touch'\)/.test(ch1),
-  'Touch the ruby pillar opens the pillar talk');
+  'Touch the ruby pillar after the lever opens the descent talk');
+assert(/interact\('Touch the ruby pillar',\(\)=>startTalk\('rubypillar_touch_locked'\)/.test(ch1),
+  'Touch the ruby pillar before the lever opens the locked talk');
+assert(/startTalk\('ch1_lift_pull_spent'\)/.test(ch1),
+  'a thrown lever opens the spent talk');
 assert(/!L\.flags\.cleared\) return null/.test(html.match(/function ch1ElevatorPrompt\(p\)\{[\s\S]*?\n\}/)[0]),
   'Pull the lever is gated on guardians cleared, not door touch');
 const throwFn=html.match(/function throwCh1LiftLever\(\)\{[\s\S]*?\n\}/)[0];
 assert(/L\.flags\.leverThrown=1/.test(throwFn) && !/elevReady\s*=/.test(throwFn),
   'Throw it sets leverThrown and does not set elevReady');
 const descentFn=html.match(/function beginCh1ElevatorDescent\(\)\{[\s\S]*?\n\}/)[0];
-assert(/if\(!L\.flags\.leverThrown\) return false/.test(descentFn) && /L\.flags\.elevReady=1/.test(descentFn),
-  'descent sets elevReady only after the lever is thrown');
+assert(/if\(!L\.flags\.leverThrown\) return false/.test(descentFn) && /L\.flags\.elevReady=1/.test(descentFn)
+  && /L\.flags\.elevatorGone=1/.test(descentFn),
+  'descent sets the house ride flag and elevatorGone only after the lever is thrown');
 assert(/QUILL_CH1_SAY\.elevator_descent/.test(descentFn),
   'successful descent says elevator_descent');
 assert(/QUILL_CH1_SAY\.rubydoor_cleared/.test(ch1),
@@ -171,13 +176,15 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 const DESCENT='The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.';
+const BITE='The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.';
+const LOCKED='Cold. Dead weight. Something iron nearby still holds the dark shut.';
 const seq={
   G:{lvl:{n:1,flags:{cleared:1,touched:1},lights:[],objs:[{},{},{},{d:0}]}},
   said:[], hints:[],
   say(t){ seq.said.push(t); },
   hint(t){ seq.hints.push(t); },
   shake(){},
-  QUILL_CH1_SAY:{elevator_descent:DESCENT},
+  QUILL_CH1_SAY:{elevator_descent:DESCENT, leverThrown:BITE, rubypillar_touch_locked:LOCKED},
   dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
 };
 vm.createContext(seq);
@@ -186,17 +193,20 @@ vm.createContext(seq);
 });
 const atPillar={x:36.5,y:21.5};
 const atLever={x:37.15,y:22.05};
-assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'standing on the pillar offers Touch before the lever');
+assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar_locked', 'standing on the pillar offers the locked touch before the lever');
 assert(seq.touchCh1RubyPillar()===false && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.leverThrown,
   'pillar-first does not descend');
-assert(seq.said.indexOf(DESCENT)<0, 'pillar-first does not say elevator_descent');
+assert(seq.said.indexOf(LOCKED)>=0 && seq.said.indexOf(DESCENT)<0,
+  'pillar-first says the locked line and not elevator_descent');
 assert(seq.ch1ElevatorPrompt(atLever).action==='lever', 'standing on the lever offers Pull');
-assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && !seq.G.lvl.flags.elevReady,
+assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.elevatorGone,
   'lever-only sets leverThrown and does not descend');
-assert(seq.said.indexOf(DESCENT)<0, 'lever-only does not say elevator_descent');
+assert(seq.said.indexOf(BITE)>=0 && seq.said.indexOf(DESCENT)<0,
+  'lever-only says the bite-home line and not elevator_descent');
+assert(seq.ch1ElevatorPrompt(atLever).action==='lever_spent', 'a thrown lever offers the spent talk');
 assert(seq.throwCh1LiftLever()===false, 'the lever cannot be thrown twice');
-assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'after the throw the pillar is still the touch');
-assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1,
+assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'after the throw the pillar is the armed touch');
+assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1 && seq.G.lvl.flags.elevatorGone===1,
   'lever then pillar descends');
 assert(seq.said[seq.said.length-1]===DESCENT, 'successful descent says elevator_descent');
 assert(seq.touchCh1RubyPillar()===false, 'a second touch does not descend again');
