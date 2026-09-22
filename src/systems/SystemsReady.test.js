@@ -29,8 +29,9 @@ assert(SR.SHIPPED.indexOf('Interaction')>=0, 'Interaction is the shipped Batch F
 assert(SR.SHIPPED.indexOf('Discovery')>=0, 'Discovery is the shipped Batch F journal slot');
 assert(SR.SHIPPED.indexOf('DerivedStats')>=0, 'DerivedStats is the shipped Batch G calc slot');
 assert(SR.SHIPPED.indexOf('EquipCompare')>=0, 'EquipCompare is the shipped Batch G panel slot');
-assert(SR.UPCOMING.indexOf('PartyOrders')>=0 && SR.UPCOMING.indexOf('Navigation')<0,
-  'PartyOrders stays upcoming; Navigation is no longer a stub slot');
+assert(SR.SHIPPED.indexOf('PartyOrders')>=0 && SR.UPCOMING.indexOf('PartyOrders')<0,
+  'PartyOrders is shipped optional; it is not an upcoming stub');
+assert(SR.UPCOMING.indexOf('Navigation')<0, 'Navigation is no longer a stub slot');
 assert(!/type\s*=\s*["']module["']/.test(html),
   'index.html has no type=module (deferred modules race the first frame)');
 assert(!/webpack|esbuild|rollup|vite|parcel/i.test(src),
@@ -58,9 +59,10 @@ const navI=head.indexOf('src="src/systems/Navigation.js"');
 const intentI=head.indexOf('src="src/systems/EnemyIntent.js"');
 const ixI=head.indexOf('src="src/systems/Interaction.js"');
 const discI=head.indexOf('src="src/systems/Discovery.js"');
+const poI=head.indexOf('src="src/systems/PartyOrders.js"');
 const inlineI=html.indexOf('<script>\n"use strict";');
-assert(sysI>=0 && sysI<teI && teI<tapI && tapI<dsI && dsI<ecI && ecI<rotI && rotI<navI && navI<intentI && intentI<ixI && ixI<discI && discI<inlineI,
-  'load order: SystemsReady → TimedEffects → TapGate → DerivedStats → EquipCompare → rot-path → Navigation → EnemyIntent → Interaction → Discovery → inline');
+assert(sysI>=0 && sysI<teI && teI<tapI && tapI<dsI && dsI<ecI && ecI<rotI && rotI<navI && navI<intentI && intentI<ixI && ixI<discI && discI<poI && poI<inlineI,
+  'load order: SystemsReady → TimedEffects → TapGate → DerivedStats → EquipCompare → rot-path → Navigation → EnemyIntent → Interaction → Discovery → PartyOrders → inline');
 
 assert(/src="src\/systems\/Navigation\.js"/.test(html) &&
   /src="src\/vendor\/rotjs\/rot-path\.js"/.test(html),
@@ -70,10 +72,10 @@ assert(/src="src\/systems\/EnemyIntent\.js"/.test(html),
 assert(/src="src\/systems\/Interaction\.js"/.test(html) &&
   /src="src\/systems\/Discovery\.js"/.test(html),
   'Batch F Interaction + Discovery are classic sync tags');
-assert(!/src="src\/systems\/PartyOrders\.js"/.test(html),
-  'PartyOrders is not shipped (no order-menu plates)');
-assert(/Future: PartyOrders\.js/.test(html) || /future: PartyOrders\.js/.test(html),
-  'index.html documents the remaining PartyOrders sync include slot');
+assert(/src="src\/systems\/PartyOrders\.js"/.test(html),
+  'PartyOrders is a classic sync tag (Hold / Regroup / Focus)');
+assert(/Hold \/ Regroup \/ Focus/.test(html),
+  'index.html documents the PartyOrders include');
 assert(/EnemyIntent \(Batch E\)/.test(html) || /src\/systems\/EnemyIntent\.js/.test(html),
   'index.html documents the Batch E EnemyIntent include');
 
@@ -97,7 +99,9 @@ assert(SR.playReady()===true && SR.systemsHold()===false,
 SR.reset();
 SR.declare('TimedEffects', {});
 assert(SR.UPCOMING.every(n=>!SR.has(n)),
-  'upcoming PartyOrders is not required to start play');
+  'upcoming modules are not required to start play');
+assert(!SR.REQUIRED || SR.REQUIRED.indexOf('PartyOrders')<0,
+  'PartyOrders is not required to start play');
 assert(SR.playReady()===true,
   'playReady does not require Navigation or EnemyIntent (optional shipped)');
 

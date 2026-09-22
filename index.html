@@ -47,8 +47,9 @@
      SystemsReady first so declare() is live, then TimedEffects, then TapGate,
      then rot-path + Navigation (MAC-07 Batch D), then EnemyIntent (Batch E),
      then Interaction + Discovery (Batch F / MAC-09), then DerivedStats +
-     EquipCompare (Batch G kit compare).
-     Future: PartyOrders.js.
+     EquipCompare (Batch G kit compare), then PartyOrders
+     (Hold / Regroup / Focus; living kin only, ghosts keep auto-follow).
+     Rollback with ?orders=0.
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
@@ -61,6 +62,7 @@
 <script src="src/systems/EnemyIntent.js"></script>
 <script src="src/systems/Interaction.js"></script>
 <script src="src/systems/Discovery.js"></script>
+<script src="src/systems/PartyOrders.js"></script>
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
@@ -5493,6 +5495,7 @@ function startChapter(n){
     Navigation.invalidate({levelId:String(n)+':'+String(n)+':0', topologyRev:0, reason:'chapter'});
   ABIL.forEach(a=>cds[a.key]=0); if(skillSystem) skillSystem.reset(); G.hint=null; G.talk=null; G.inspect=null; PROMPT=null; G.hurt=0; G.decals=[];
   G.thrown=[]; G.aim=null; G.sang=false; G.fightOn=0; G.fightWasBoss=0; G.fightBossDead=0; G.fightGotKill=0; G.trail=[];
+  if(typeof PartyOrders!=='undefined' && PartyOrders.clear) PartyOrders.clear();
   if(sfx&&sfx.stopBed) sfx.stopBed();
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
@@ -5571,6 +5574,7 @@ function startChapter(n){
   }
   if(typeof Interaction!=='undefined' && Interaction.installChapterI)
     Interaction.installChapterI(G.lvl, G, interactHost());
+  if(typeof layoutUI==='function') layoutUI();
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
 }
 function pinFallenKin(){
@@ -11698,6 +11702,99 @@ function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
 function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='party'||o.dead) continue; if(hurt&&o.hp>=o.maxhp*.7) continue;
     const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
+function partyOrderHost(){
+  const p=player();
+  return {
+    leader:p,
+    ents:G.ents||[],
+    dist:dist,
+    partyForm:partyForm,
+    known:function(foe){
+      if(!foe || foe.dead || foe.fleeTo || foe.hidden || foe.ghost) return false;
+      if(tileVisible(foe.x, foe.y)) return true;
+      if(p && dist(p, foe)<=1.15) return true;
+      if(G.fightOn){
+        for(const k of (G.ents||[])){
+          if(k.team==='party' && !k.dead && dist(k, foe)<8) return true;
+        }
+      }
+      return false;
+    },
+    formIndex:function(e){
+      const kin=(G.ents||[]).filter(x=>x.team==='party'&&!x.dead&&!x.hero);
+      const idx=kin.indexOf(e);
+      return idx<0?1:idx+1;
+    }
+  };
+}
+/* Hold is melee reach only (1.5). A ranged kin does not loose while holding. */
+function partyHoldMelee(e){
+  return typeof PartyOrders!=='undefined' && PartyOrders.use()
+    && PartyOrders.order()==='hold' && PartyOrders.commands(e);
+}
+/* Hold: plant. Do not step toward a foe. Strike only what is already in
+   melee reach. Not Macar's shield — defending stays the V key. */
+function holdKin(e){
+  e.moving=0; e.ix=0; e.iy=0; e.dest=null;
+  const reach=1.5;
+  let foe=null, bd=reach, attacker=null;
+  const ents=(typeof G!=='undefined' && G.ents)||[];
+  for(const o of ents){
+    if(!o || o.team!=='foe' || o.dead || o.npc || o.ghost) continue;
+    const d=dist(e,o);
+    if(d>reach) continue;
+    if(o.aim===e) attacker=o;
+    if(d<=bd){ bd=d; foe=o; }
+  }
+  if(attacker) foe=attacker;
+  if(foe){
+    e.aim=foe;
+    faceToward(e, foe.x, foe.y);
+    if(!e.defending && (e.ct||0)<=0 && (e.atk||0)<=0){
+      e.atk=e.atkMax;
+      e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd);
+      e.swung=0;
+    }
+  } else if(!(e.atk>0)){
+    e.aim=null;
+  }
+}
+function issuePartyOrder(p, verb){
+  if(typeof PartyOrders==='undefined' || !PartyOrders.use()){
+    hint('The kin keep their own counsel.', 2.2);
+    return;
+  }
+  const res=PartyOrders.issue(verb, partyOrderHost());
+  const label=verb==='hold'?'Hold':verb==='regroup'?'Regroup':'Focus';
+  if(!res || !res.ok){
+    hint('No such order.', 1.6);
+    return;
+  }
+  if(res.noop){
+    hint('Focus needs one living foe. The kin keep their order.', 2.8);
+    return;
+  }
+  if(!res.order){
+    if(p) ftext(p.x, p.y-0.5, 'FOLLOW', '#e8d9b8');
+    say('MACAR: "As you were."','#e8d9b8');
+    hint(label+' lifted. The kin follow again.', 2.6);
+    return;
+  }
+  if(verb==='hold'){
+    if(p) ftext(p.x, p.y-0.5, 'HOLD', '#cfe3ff');
+    say('MACAR: "Hold."','#cfe3ff');
+    hint('Hold. Living kin stand. They strike only in melee. H again to follow.', 3.4);
+  } else if(verb==='regroup'){
+    if(p) ftext(p.x, p.y-0.5, 'REGROUP', '#ffe08a');
+    say('MACAR: "On me."','#ffe08a');
+    hint('Regroup. Living kin path to Macar, then follow.', 3.4);
+  } else if(res.foe){
+    const who=res.foe.name||'the foe';
+    if(p) ftext(p.x, p.y-0.5, 'FOCUS', '#ffb45c');
+    say('MACAR: "That one — '+who+'."','#ffb45c');
+    hint('Focus '+who+'. Z again to follow.', 3.4);
+  }
+}
 
 /* ---------------------------- movement ---------------------------- */
 function walk(x,y,e){ const L=G.lvl; if(!L) return false;
@@ -11947,6 +12044,49 @@ function layoutSpecialtyCluster(ax, belowY, belowR, specSlot, specGap){
     plates:plates.map(p=>({x:p.x,y:p.y,r:slot/2,kind:p.kind,key:p.key}))
   };
 }
+function partyOrderAnchor(){
+  const s=UIS;
+  const inset=UI.pad||{l:0,t:0};
+  const x=Math.max(8*s, (inset.l||0)+8);
+  const y0=Math.max(8*s, (inset.t||0)+8);
+  const gap=3*s;
+  const shown=(G.ents||[]).filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||e.crushed)).length;
+  const n=Math.max(1, shown||1);
+  const avail=Math.max(160, VH-(PORT?130*s:110*s));
+  const h=Math.min(PORT?46*s:50*s, (avail-y0)/n-gap);
+  return {x:x, bottom:y0+n*(h+gap)};
+}
+function layoutPartyOrders(){
+  const s=UIS;
+  const mobile=PORT || IS_TOUCH;
+  const anchor=partyOrderAnchor();
+  const slot=mobile?HUD_TAP:Math.max(44, Math.min(52, 46*s));
+  const gap=mobile?8:16*s;
+  const r=slot/2;
+  const orders=[
+    {key:'hold', ico:'hold', label:'Hold'},
+    {key:'regroup', ico:'regroup', label:'Regroup'},
+    {key:'focus', ico:'focus', label:'Focus'}
+  ];
+  const rowW=orders.length*slot+(orders.length-1)*gap;
+  let x0=anchor.x;
+  if(x0+rowW>VW-8) x0=Math.max(8, VW-8-rowW);
+  const labelLift=22*s;
+  let y=anchor.bottom+labelLift+r+4*s;
+  if(UI.hudTop && y+r>UI.hudTop-6) y=Math.max(r+8, UI.hudTop-6-r);
+  const btns=orders.map((b,i)=>({
+    x:x0+r+i*(slot+gap), y:y, r:r, key:b.key, ico:b.ico, label:b.label, slot:1, order:1
+  }));
+  if(UI.stickHome){
+    const sh=UI.stickHome;
+    const hit=btns.some(b=>Math.hypot(b.x-sh.x, b.y-sh.y)<b.r+sh.r+6);
+    if(hit){
+      const shift=(sh.x+sh.r+10)-x0;
+      if(shift>0) btns.forEach(b=>{ b.x+=shift; });
+    }
+  }
+  btns.forEach(b=>UIBTN.push(b));
+}
 function layoutUI(){
   UIBTN.length=0;
   const s=UIS;
@@ -12053,6 +12193,7 @@ function layoutUI(){
     UI.hudTop=Math.min(topY, (UI.specialty&&UI.specialty.top)||defendY) - Math.max(slot,cSlot)/2 - 18;
     UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: Math.max(18, 16*s), key:'pause'});
     UI.stickHome={ x: stickX, y: stickY, r: stickR };
+    layoutPartyOrders();
     return;
   }
 
@@ -12096,6 +12237,7 @@ function layoutUI(){
   UI.hudTop = Math.min(topY - slot/2, (UI.specialty&&UI.specialty.top)||topY) - 18*s;
   UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: 16*s, key:'pause'});
   UI.stickHome={ x: stickX, y: midY, r: stickR };
+  layoutPartyOrders();
 }
 function btnAt(x,y){
   for(const b of UIBTN){
@@ -12214,6 +12356,9 @@ window.addEventListener('keydown',e=>{
   if(k==='t') fire('secret');
   if(k==='g') fire('shovel');
   if(k==='k') fire('craft');
+  if(k==='h') fire('hold');
+  if(k==='y') fire('regroup');
+  if(k==='z') fire('focus');
   if(e.key==='6') fire('spec1');
   if(e.key==='7') fire('spec2');
   if(e.key==='8') fire('spec3');
@@ -12275,6 +12420,10 @@ function fire(key){
   const p=player(); if(!p) return;
   if(key==='spec1'||key==='spec2'||key==='spec3'||key==='spec4'){
     armSpecialty(+key.slice(4));
+    return;
+  }
+  if(key==='hold'||key==='regroup'||key==='focus'){
+    issuePartyOrder(p, key);
     return;
   }
   if(key==='attack'||key==='swing'){
@@ -12767,7 +12916,7 @@ function update(dt){
               if(e._webFlip && !(t.webbed>0)) shoot(e,t.x,t.y,0,'web','#e8e0d0',6.5);
               else meleeSwing(e,1.9,e.range+.35,e.dmg*bo);
             }
-          } else if(e.ranged){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
+          } else if(e.ranged && !partyHoldMelee(e)){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
         if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost){ e.macarStrikeHold=0; e.macarWindupUntil=0; } }
@@ -12785,6 +12934,8 @@ function update(dt){
     if(e.hidden){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.sleeping||e.crushed||e.tied){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.fleeTo){
+      if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
+        PartyOrders.noteMoraleFlee(e);
       const t=e.fleeTo, d=dist(e,t);
       e.fleeStuck=(e.fleeStuck||0)+dt;
       if(d>0.55 && e.fleeStuck<3.2){
@@ -12813,13 +12964,39 @@ function update(dt){
       const idx=kin.indexOf(e);
       const fight=kinCanAutoFight(e)&&foeInTheFight();
       const foe=fight?nearestFoe(e, e.ranged?9:6.2):null;
+      const po=(typeof PartyOrders!=='undefined' && PartyOrders.use())
+        ? PartyOrders.decide(e, p, partyOrderHost()) : null;
       if(e.thrall && e.thrallStay){
         if(fight&&foe&&dist(e,foe)<=(e.range||1)+0.35){ tgt=foe; want=e.range; e.aim=foe; }
         else { e.moving=0; e.ix=0; e.iy=0; e.aim=null; continue; }
+      } else if(po && po.handled && po.verb==='hold'){
+        holdKin(e);
+        ghostSapperBomb(e, dt);
+        continue;
+      } else if(po && po.handled && po.verb==='focus' && po.foe){
+        if(po.blocker){
+          tgt=po.blocker; want=1.15; e.aim=po.blocker;
+        } else {
+          tgt=po.foe; want=(po.want!=null)?po.want:(e.ranged?e.range*.7:e.range); e.aim=po.foe;
+        }
+      } else if(po && po.handled && po.verb==='regroup' && p){
+        if(po.finishMelee && po.foe){
+          e.aim=po.foe; e.moving=0; e.ix=0; e.iy=0;
+          ghostSapperBomb(e, dt);
+          continue;
+        }
+        if(po.arrived){
+          e.aim=null; e.moving=0; e.ix=0; e.iy=0;
+          ghostSapperBomb(e, dt);
+          continue;
+        }
+        e.aim=null;
+        tgt=po.goal;
+        want=.38;
       } else if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
         e.aim=null;
-        /* One-follower Follow default (pordoom / first living kin). No plates.
+        /* One-follower Follow default (pordoom / first living kin). No order set.
            Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
         if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
           const nr=Navigation.tickFollower(e, p, dt, navHost());
@@ -12878,11 +13055,14 @@ function update(dt){
     } else { e.moving=0; e.ix=0; e.iy=0; }
     ghostSapperBomb(e, dt);
   }
+  if(typeof PartyOrders!=='undefined' && PartyOrders.use && PartyOrders.settle)
+    PartyOrders.settle(partyOrderHost());
   if(p){
     const threat=foeInTheFight();
     for(const e of G.ents){
       if(e.team!=='party'||e.hero||e.dead||e.crushed||e.sleeping||e.tied) continue;
       if(e.defending||(e.atk>0)) continue;
+      if(typeof PartyOrders!=='undefined' && PartyOrders.use() && PartyOrders.order() && PartyOrders.commands(e)) continue;
       if(threat && kinCanAutoFight(e)) continue;
       if(!p.moving && (p.aim||p.atk>0)) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
@@ -16490,6 +16670,30 @@ function drawPortraitStack(g,s){
     g.fillStyle=gr; g.fillRect(bx,by,bw*(e.dead&&e.ghost?0:f),bh);
     g.strokeStyle='rgba(220,190,130,0.4)'; g.lineWidth=1; g.strokeRect(bx,by,bw,bh);
   });
+  placePartyOrderRow(x, y+party.length*(h+gap));
+}
+function placePartyOrderRow(originX, stackBottom){
+  const s=UIS;
+  const mobile=PORT || IS_TOUCH;
+  const btns=['hold','regroup','focus'].map(k=>UIBTN.find(b=>b.order&&b.key===k)).filter(Boolean);
+  if(btns.length!==3) return;
+  const slot=btns[0].r*2;
+  const gap=mobile?8:16*s;
+  const r=btns[0].r;
+  const labelLift=22*s;
+  let y=stackBottom+labelLift+r+4*s;
+  if(UI.hudTop && y+r>UI.hudTop-6) y=Math.max(r+8, UI.hudTop-6-r);
+  let x0=originX;
+  const rowW=btns.length*slot+(btns.length-1)*gap;
+  if(x0+rowW>VW-8) x0=Math.max(8, VW-8-rowW);
+  if(UI.stickHome){
+    const sh=UI.stickHome;
+    if(Math.hypot((x0+r)-sh.x, y-sh.y)<r+sh.r+6){
+      const shift=(sh.x+sh.r+10)-x0;
+      if(shift>0) x0+=shift;
+    }
+  }
+  btns.forEach((b,i)=>{ b.x=x0+r+i*(slot+gap); b.y=y; });
 }
 
 let MINI=null, MINI_KEY='';
@@ -16828,6 +17032,19 @@ function icon(g,kind,x,y,s,col){
     g.beginPath(); g.moveTo(0,8*s); g.quadraticCurveTo(-7*s,-2*s,0,-12*s); g.quadraticCurveTo(7*s,-2*s,0,8*s); g.fill();
     g.fillStyle='#ffe08a';
     g.beginPath(); g.moveTo(0,6*s); g.quadraticCurveTo(-3.2*s,-1*s,0,-8*s); g.quadraticCurveTo(3.2*s,-1*s,0,6*s); g.fill(); }
+  if(kind==='hold'){
+    g.beginPath(); g.moveTo(-8*s,8*s); g.lineTo(8*s,8*s); g.stroke();
+    g.beginPath(); g.moveTo(0,8*s); g.lineTo(0,-8*s); g.stroke();
+    g.beginPath(); g.moveTo(-7*s,-2*s); g.lineTo(0,-10*s); g.lineTo(7*s,-2*s); g.stroke(); }
+  if(kind==='regroup'){
+    g.beginPath(); g.moveTo(-10*s,-2*s); g.lineTo(-2*s,-2*s); g.lineTo(-4*s,-6*s); g.moveTo(-2*s,-2*s); g.lineTo(-4*s,2*s); g.stroke();
+    g.beginPath(); g.moveTo(10*s,4*s); g.lineTo(2*s,4*s); g.lineTo(4*s,0); g.moveTo(2*s,4*s); g.lineTo(4*s,8*s); g.stroke();
+    g.beginPath(); g.arc(0,1*s,2.2*s,0,TAU); g.fill(); }
+  if(kind==='focus'){
+    g.beginPath(); g.arc(0,0,7*s,0,TAU); g.stroke();
+    g.beginPath(); g.moveTo(0,-11*s); g.lineTo(0,-4*s); g.moveTo(0,4*s); g.lineTo(0,11*s); g.stroke();
+    g.beginPath(); g.moveTo(-11*s,0); g.lineTo(-4*s,0); g.moveTo(4*s,0); g.lineTo(11*s,0); g.stroke();
+    g.beginPath(); g.arc(0,0,1.8*s,0,TAU); g.fill(); }
   if(kind==='craft'){
     g.fillStyle='#4a4038';
     g.fillRect(-10*s,8*s,20*s,4*s);
@@ -16869,7 +17086,8 @@ function drawSlot(g,b,s){
   carveFrame(g,x,y,w,h,5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
   const specLit=b.spec && player() && player().specialty===b.spec;
-  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')||specLit){
+  const orderLit=!!(b.order && typeof PartyOrders!=='undefined' && PartyOrders.order && PartyOrders.order()===b.key);
+  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')||specLit||orderLit){
     g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
@@ -18804,7 +19022,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
   g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  const keys='V Defend  ·  1 Attack  ·  6–9 Specialty  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft';
+  const keys='V Defend  ·  1 Attack  ·  6–9 Specialty  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  H Hold  ·  Y Regroup  ·  Z Focus';
   const maxW=VW*0.92; let ky=VH*.255;
   const words=keys.split('  ·  '); let line='';
   words.forEach((w,i)=>{
@@ -18885,7 +19103,11 @@ function resolveTaps(){
         else { p.dest={x:body.x,y:body.y,corpse:body.id}; p.stuck=0; p.lastD=undefined; }
         continue;
       }
-      if(foe){ p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined; continue; }
+      if(foe){
+        p.dest={x:foe.x,y:foe.y,foe:foe.id}; p.stuck=0; p.lastD=undefined;
+        if(typeof PartyOrders!=='undefined' && PartyOrders.noteTap) PartyOrders.noteTap(foe);
+        continue;
+      }
       const lookHit=typeof teethChapelLookHit==='function'?teethChapelLookHit(w):null;
       const quillLook=typeof ch1QuillLookHit==='function'?ch1QuillLookHit(w):null;
       const lookPick=!lookHit?quillLook:!quillLook?lookHit
