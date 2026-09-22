@@ -12,7 +12,7 @@
  *   <script src="src/systems/EnemyIntent.js"></script>
  *   <script src="src/systems/Interaction.js"></script>
  *   <script src="src/systems/Discovery.js"></script>
- *   <!-- future: PartyOrders.js — same sync tags -->
+ *   <script src="src/systems/PartyOrders.js"></script>
  *   <script> /* play loop * /
  *
  * Classic tags block HTML parse, so declare() runs before loop() is defined.
@@ -27,7 +27,8 @@
  * pursuer), Interaction + Discovery (Batch F / MAC-09), DerivedStats +
  * EquipCompare (Batch G kit compare). Play starts without the optional
  * modules (legacy trail / chase / no room events / no compare plate).
- * Upcoming: PartyOrders.
+ * PartyOrders (Hold / Regroup / Focus) is shipped optional. Play starts
+ * without it (legacy auto follow / fight). No upcoming stub.
  */
 (function (root) {
   'use strict';
@@ -35,8 +36,8 @@
   var declared = Object.create(null);
   var pending = 0;
   var REQUIRED = ['TimedEffects'];
-  var SHIPPED = ['Navigation', 'EnemyIntent', 'Interaction', 'Discovery', 'DerivedStats', 'EquipCompare'];
-  var UPCOMING = ['PartyOrders'];
+  var SHIPPED = ['Navigation', 'EnemyIntent', 'Interaction', 'Discovery', 'DerivedStats', 'EquipCompare', 'PartyOrders'];
+  var UPCOMING = [];
 
   function declare(name, api) {
     if (!name) return null;

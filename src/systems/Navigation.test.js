@@ -82,8 +82,8 @@ const navI=head.indexOf('src="src/systems/Navigation.js"');
 const inlineI=html.indexOf('<script>\n"use strict";');
 assert(tapI>=0 && tapI<rotI && rotI<navI && navI<inlineI,
   'load order: TapGate → rot-path → Navigation → inline play loop');
-assert(!/src="src\/systems\/PartyOrders\.js"/.test(html),
-  'PartyOrders / full order menu is not shipped');
+assert(/src="src\/systems\/PartyOrders\.js"/.test(html),
+  'PartyOrders ships beside Navigation; a null order leaves Follow alone');
 assert(/One-follower Follow default/.test(html) && /ghostSapperBomb\(e, dt\)/.test(html),
   'host wires the pordoom pilot and still runs ghostSapperBomb');
 assert(/function bumpTopology\(/.test(html) && /function navLevelId\(/.test(html),
