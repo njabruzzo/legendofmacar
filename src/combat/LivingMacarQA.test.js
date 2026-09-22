@@ -98,9 +98,11 @@ const KEY_FILE={
   macar_xbow_w2:'dwarf_macar_xbow_w2.png',
   macar_xbow_atk:'dwarf_macar_xbow_atk.png'
 };
-/* Walk / carry stay hard-alpha on disk. Maul combat (Cel soft-note) has a
-   semi-opaque rim — punchLivingMacarCanvas bakes 0/255 at blit time. */
-const HARD_ALPHA_KEYS=['macar','macar_w1','macar_w2','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
+/* Axe and xbow carry stay hard-alpha on disk. Maul freearm v11 (front
+   two-hand carry) keeps a thin AA rim on the signed 1100×920 sheets — not a
+   cel wash. Maul combat (Cel soft-note) has a semi-opaque rim.
+   punchLivingMacarCanvas bakes 0/255 at blit time. */
+const HARD_ALPHA_KEYS=['macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk',
   'macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk'];
 
 const keysDecl=html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\};/);
@@ -121,6 +123,14 @@ BLIT_KEYS.forEach(k=>{
     assert(hist.ok && hist.mid===0,
       KEY_FILE[k]+' alpha is 0/255 only'+(hist.ok?' (mid='+hist.mid+')':' ('+hist.err+')'));
   }
+});
+['macar','macar_w1','macar_w2'].forEach(k=>{
+  const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE[k]));
+  assert(hist.ok && hist.w===1100 && hist.h===920,
+    KEY_FILE[k]+' is the signed 1100×920 front-carry canvas');
+  assert(hist.ok && hist.mid>0 && hist.a255>0 && hist.mid<hist.a255*0.06,
+    KEY_FILE[k]+' keeps a thin AA rim, not a cel wash'
+    +(hist.ok?' (mid='+hist.mid+' opaque='+hist.a255+')':''));
 });
 const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
