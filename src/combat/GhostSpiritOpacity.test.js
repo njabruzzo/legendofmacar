@@ -2,6 +2,8 @@
 /**
  * Ghost kin lift from the signed α168 gray-blue stamp to spectral white.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
+ * A thin cool line traces the silhouette and the main luminance ridge
+ * (face, beard, helm, weapon) without punching the spirit opaque.
  * Never punch mid-alpha to 255, never lighter-on-hit.
  * Run: node src/combat/GhostSpiritOpacity.test.js
  */
@@ -39,10 +41,13 @@ assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
 assert(/const GHOST_ALPHA_CAP=224/.test(html) && /const GHOST_ALPHA_LIFT=1\.28;/.test(html)
   && /const GHOST_WHITE_LIFT=0\.76;/.test(html) && /const GHOST_COOL_LIFT=0\.40;/.test(html)
-  && /const GHOST_SHADE_KEEP=0\.50;/.test(html),
+  && /const GHOST_SHADE_KEEP=0\.62;/.test(html),
   'lift is spectral white — cool mix, shade kept, cap under 255');
-assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
-  'pixel lift is a dedicated ghost pipe');
+assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html)
+  && /function inkGhostFeatureEdges\(/.test(html),
+  'pixel lift is a dedicated ghost pipe with a feature-edge pass');
+assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
+  'liftGhostSpirit inks key-feature edges after the white lift');
 assert(/if\(e\.ghost\) return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'party ghosts bake through liftGhostSpirit');
 assert(/const punch=!e\.ghost/.test(html)
@@ -65,8 +70,12 @@ vm.createContext(ctx);
 vm.runInContext(
   'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=224,GHOST_ALPHA_LIFT=1.28,'
   +'GHOST_WHITE_LIFT=0.76,GHOST_COOL_LIFT=0.40,'
-  +'GHOST_SHADE_KEEP=0.50,GHOST_SHADE_PIVOT=82;'
-  +extractFn('liftGhostAlpha'),
+  +'GHOST_SHADE_KEEP=0.62,GHOST_SHADE_PIVOT=82,'
+  +'GHOST_EDGE_BLUR=10,GHOST_EDGE_CUT=0.50,'
+  +'GHOST_SIL_BLUR=6,GHOST_SIL_CUT=0.45,GHOST_EDGE_DILATE=1;'
+  +extractFn('liftGhostAlpha')
+  +extractFn('ghostBoxBlur')
+  +extractFn('inkGhostFeatureEdges'),
   ctx
 );
 
@@ -123,6 +132,71 @@ assert(out255[3]===224, 'a source a=255 is capped — west flip cannot go solid'
 const fringe=new Uint8ClampedArray([40,30,20,30, 10,10,10,40]);
 const outFringe=liftCopy(fringe);
 assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifted)');
+
+/* A dark half beside a light half: the ridge between them is a thin cool
+   line. The middle of each half stays spectral fill, and alpha stays capped. */
+{
+  const W=64, H=64;
+  const src=new Uint8ClampedArray(W*H*4);
+  for(let y=8;y<56;y++) for(let x=8;x<56;x++){
+    const p=(y*W+x)*4;
+    const light=x>=32;
+    src[p]=light?150:48; src[p+1]=light?140:42; src[p+2]=light?170:60; src[p+3]=168;
+  }
+  const dst=new Uint8ClampedArray(src);
+  ctx.liftGhostAlpha(dst);
+  const fill=dst.slice();
+  ctx.inkGhostFeatureEdges(dst, src, W, H);
+  const at=(x,y)=>((y*W+x)*4);
+  const lum=p=>(dst[p]*30+dst[p+1]*59+dst[p+2]*11)/100;
+  const interior=at(18,32);
+  assert(dst[interior]===fill[interior] && dst[interior+3]===fill[interior+3] && dst[interior+3]<255,
+    'the middle of a flat fold is untouched spectral fill');
+  let ridge=0, ink=0, opaque=0, cool=0, darker=0, a255=0;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    const p=at(x,y);
+    if(dst[p+3]===0) continue;
+    opaque++;
+    if(dst[p+3]===255) a255++;
+    const changed=dst[p]!==fill[p] || dst[p+1]!==fill[p+1] || dst[p+2]!==fill[p+2];
+    if(!changed) continue;
+    ink++;
+    if(dst[p+2]>=dst[p]) cool++;
+    if(lum(p)+12< (fill[p]*30+fill[p+1]*59+fill[p+2]*11)/100) darker++;
+    if(x>=30 && x<=34) ridge++;
+  }
+  assert(a255===0, 'feature lines do not punch the spirit to opaque');
+  assert(ridge>8, 'the light/dark ridge is outlined (got '+ridge+' px)');
+  assert(ink>ridge && ink<opaque*0.45,
+    'the line is thin — ink is '+ink+' of '+opaque+' opaque px');
+  assert(cool===ink && darker>ink*0.8,
+    'every feature line is cooler and darker than the white fill');
+}
+
+{
+  const {w,h,data}=readRgba(path.join(creatures,'dwarf_pordoom_ghost.png'));
+  const src=new Uint8ClampedArray(data);
+  const dst=new Uint8ClampedArray(data);
+  ctx.liftGhostAlpha(dst);
+  const fill=dst.slice();
+  ctx.inkGhostFeatureEdges(dst, src, w, h);
+  let opaque=0, ink=0, cool=0, a255=0, yFill=0, yInk=0;
+  for(let i=0,p=0;i<w*h;i++,p+=4){
+    if(dst[p+3]===0) continue;
+    opaque++;
+    if(dst[p+3]===255) a255++;
+    const changed=dst[p]!==fill[p] || dst[p+1]!==fill[p+1] || dst[p+2]!==fill[p+2];
+    if(!changed){ yFill+=fill[p]*0.3+fill[p+1]*0.59+fill[p+2]*0.11; continue; }
+    ink++;
+    yInk+=dst[p]*0.3+dst[p+1]*0.59+dst[p+2]*0.11;
+    if(dst[p+2]>=dst[p]) cool++;
+  }
+  const frac=ink/opaque;
+  assert(a255===0 && frac>0.04 && frac<0.32,
+    'pordoom ghost lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
+  assert(cool===ink && (yInk/ink)+14<(yFill/(opaque-ink)),
+    'pordoom feature lines read darker and cool against the spectral fill');
+}
 
 const oldChalk=228*0.96/255;
 const newEff=215/255;

@@ -1436,15 +1436,23 @@ function solidDwarfSprite(e,img){
    WHITE lifts gray dust toward white. COOL then pulls that white cool
    (spectral, not warm parchment). SHADE puts the original luminance
    folds back so the kit does not flatten to paper. Alpha rises only
-   enough that the cave floor cannot stain the spirit yellow. */
+   enough that the cave floor cannot stain the spirit yellow.
+   EDGE then draws a thin cool line on the silhouette and on the ridge
+   where a blurred luminance band changes — nose, beard, helm, plate,
+   blade — so the white fill still shows a figure. */
 const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=224;
 const GHOST_ALPHA_LIFT=1.28;
 const GHOST_WHITE_LIFT=0.76;
 const GHOST_COOL_LIFT=0.40;
-const GHOST_SHADE_KEEP=0.50;
+const GHOST_SHADE_KEEP=0.62;
 const GHOST_SHADE_PIVOT=82;
+const GHOST_EDGE_BLUR=10;
+const GHOST_EDGE_CUT=0.50;
+const GHOST_SIL_BLUR=6;
+const GHOST_SIL_CUT=0.45;
+const GHOST_EDGE_DILATE=1;
 const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
@@ -1472,6 +1480,109 @@ function liftGhostAlpha(d){
   }
   return d;
 }
+/* Separable box blur. masked=1 averages only occupied samples so a
+   beard edge is not pulled toward the empty margin. */
+function ghostBoxBlur(src, w, h, r, masked, on){
+  const tmp=new Float32Array(w*h), out=new Float32Array(w*h), cnt=masked?new Float32Array(w*h):null;
+  const win=r*2+1;
+  for(let y=0;y<h;y++){
+    let sum=0, c=0;
+    for(let x=-r;x<=r;x++){
+      const xx=x<0?0:x, i=y*w+xx;
+      if(!masked||on[i]){ sum+=src[i]; c++; }
+    }
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      tmp[i]=masked?sum:(sum/win); if(cnt) cnt[i]=c;
+      const xo=x-r, xi=x+r+1;
+      if(xo>=0){ const j=y*w+xo; if(!masked||on[j]){ sum-=src[j]; c--; } }
+      if(xi<w){ const j=y*w+xi; if(!masked||on[j]){ sum+=src[j]; c++; } }
+    }
+  }
+  for(let x=0;x<w;x++){
+    let sum=0, c=0;
+    for(let y=-r;y<=r;y++){
+      const yy=y<0?0:y;
+      sum+=tmp[yy*w+x]; if(cnt) c+=cnt[yy*w+x];
+    }
+    for(let y=0;y<h;y++){
+      const i=y*w+x;
+      if(masked) out[i]=c?sum/c:0;
+      else out[i]=sum/win;
+      const yo=y-r, yi=y+r+1;
+      if(yo>=0){ sum-=tmp[yo*w+x]; if(cnt) c-=cnt[yo*w+x]; }
+      if(yi<h){ sum+=tmp[yi*w+x]; if(cnt) c+=cnt[yi*w+x]; }
+    }
+  }
+  return out;
+}
+/* Thin cool line on key features. dst is the lifted spirit; src is the
+   signed sheet the lift started from. Alpha is left alone. */
+function inkGhostFeatureEdges(dst, src, w, h){
+  if(!dst||!src||w<3||h<3) return dst;
+  const N=w*h, LO=GHOST_ALPHA_LO;
+  const on=new Uint8Array(N), y=new Float32Array(N);
+  let opaque=0;
+  for(let i=0,p=0;i<N;i++,p+=4){
+    if(src[p+3]<=LO) continue;
+    on[i]=1; opaque++;
+    y[i]=(src[p]*30+src[p+1]*59+src[p+2]*11)/100;
+  }
+  if(opaque<32) return dst;
+  const edge=new Uint8Array(N);
+  const blur=ghostBoxBlur(y, w, h, GHOST_EDGE_BLUR, 1, on);
+  const vals=new Float32Array(opaque);
+  for(let i=0,n=0;i<N;i++) if(on[i]) vals[n++]=blur[i];
+  // Numeric sort. Default sort is lexicographic and would mis-cut the bands.
+  vals.sort(function(a,b){ return a-b; });
+  const cut=vals[Math.min(opaque-1, (opaque*GHOST_EDGE_CUT)|0)];
+  const band=new Int16Array(N);
+  band.fill(-1);
+  for(let i=0;i<N;i++) if(on[i]) band[i]=blur[i]>=cut?1:0;
+  for(let yy=1;yy<h-1;yy++) for(let xx=1;xx<w-1;xx++){
+    const i=yy*w+xx, b=band[i];
+    if(b<0) continue;
+    const right=band[i+1], down=band[i+w];
+    if((right>=0 && right>b) || (down>=0 && down>b)) edge[i]=1;
+  }
+  const occ=new Float32Array(N);
+  for(let i=0;i<N;i++) occ[i]=on[i]?1:0;
+  const sm=ghostBoxBlur(occ, w, h, GHOST_SIL_BLUR, 0, null);
+  /* The smoothed rim often sits just outside the opaque paint. Snap that
+     contour onto the figure so helm and weapon keep a 1px outline. */
+  for(let yy=1;yy<h-1;yy++) for(let xx=1;xx<w-1;xx++){
+    const i=yy*w+xx;
+    if(sm[i]<GHOST_SIL_CUT) continue;
+    if(sm[i-1]>=GHOST_SIL_CUT && sm[i+1]>=GHOST_SIL_CUT
+      && sm[i-w]>=GHOST_SIL_CUT && sm[i+w]>=GHOST_SIL_CUT) continue;
+    if(on[i]){ edge[i]=1; continue; }
+    if(on[i-1]) edge[i-1]=1;
+    if(on[i+1]) edge[i+1]=1;
+    if(on[i-w]) edge[i-w]=1;
+    if(on[i+w]) edge[i+w]=1;
+  }
+  if(GHOST_EDGE_DILATE>0){
+    const srcE=edge.slice(), rad=GHOST_EDGE_DILATE;
+    for(let yy=rad;yy<h-rad;yy++) for(let xx=rad;xx<w-rad;xx++){
+      const i=yy*w+xx;
+      if(!on[i]||srcE[i]) continue;
+      let hit=0;
+      for(let dy=-rad;dy<=rad && !hit;dy++) for(let dx=-rad;dx<=rad;dx++){
+        if(srcE[i+dy*w+dx]) hit=1;
+      }
+      if(hit) edge[i]=1;
+    }
+  }
+  for(let i=0,p=0;i<N;i++,p+=4){
+    if(!edge[i]||dst[p+3]===0) continue;
+    let r=dst[p]-48, g=dst[p+1]-32, b=dst[p+2]-10;
+    if(r<128) r=128; if(g<150) g=150; if(b<176) b=176;
+    if(r>206) r=206; if(g>220) g=220; if(b>238) b=238;
+    if(b<g+8) b=g+8;
+    dst[p]=r; dst[p+1]=g; dst[p+2]=b;
+  }
+  return dst;
+}
 function liftGhostSpirit(img){
   if(!img||!img.width) return img;
   if(GHOST_SPIRIT&&GHOST_SPIRIT.has(img)) return GHOST_SPIRIT.get(img);
@@ -1486,7 +1597,9 @@ function liftGhostSpirit(img){
     x.globalCompositeOperation='source-over';
     x.drawImage(img,0,0);
     const id=x.getImageData(0,0,c.width,c.height);
+    const src=new Uint8ClampedArray(id.data);
     liftGhostAlpha(id.data);
+    inkGhostFeatureEdges(id.data, src, c.width, c.height);
     x.putImageData(id,0,0);
     out=c;
   }catch(_){ out=img; }
@@ -15883,9 +15996,11 @@ function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
 function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
 function face(g,cx,cy,rr,c,dead,ghost){
-  const img=(ghost&&c&&SPR[c.key+'_ghost'])
-    ||(c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR[livingMacarIdleKey()]||SPR.macar):null)
-    ||(c&&c.key!=='macar'?SPR[c.key]:null);
+  const ghostSheet=ghost&&c&&SPR[c.key+'_ghost'];
+  const img=ghostSheet
+    ? liftGhostSpirit(ghostSheet)
+    : ((c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR[livingMacarIdleKey()]||SPR.macar):null)
+      ||(c&&c.key!=='macar'?SPR[c.key]:null));
   g.save();
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.clip();
   g.fillStyle=dead?'#1a120c':'#2a1c14'; g.fillRect(cx-rr,cy-rr,rr*2,rr*2);
