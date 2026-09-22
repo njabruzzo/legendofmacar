@@ -1,9 +1,10 @@
 'use strict';
 /**
- * Ghost idle fronts/backs are color-true. Priority-16 front motion
- * (w1/w2/atk/atk_recover ×4 kin) is living-color bind-ready.
- * Remaining cyan/teal angled/compass/w3/back_w sheets stay on disk
- * for Limner redo — never paint them; plant signed idle instead.
+ * Ghost idle fronts are Nick-GOOD icy spectral. Idle backs stay
+ * color-true. Priority-16 front motion (w1/w2/atk/atk_recover ×4 kin)
+ * is living-color bind-ready. Remaining cyan/teal angled/compass/w3/back_w
+ * sheets stay on disk for Limner redo — never paint them; plant the
+ * signed spectral idle instead.
  * Run: node src/combat/GhostLivingBind.test.js
  */
 const fs=require('fs');
@@ -44,6 +45,12 @@ assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
   'unsigned ghost keys are compass / w3 / back_w only — not front w1/w2/atk');
 assert(/Do not cache a guess/.test(html) && /if\(ghostKeyLooksUnsigned\(key\)\) return false/.test(extractFn('sheetLivingColors')),
   'failed living-color sample does not stamp _live=false on bind-ready front motion');
+assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\$/.test(extractFn('sheetLivingColors'))
+  && /img\._live=true; return true;/.test(extractFn('sheetLivingColors')),
+  'Nick spectral idle binds before the cyan warm-gate');
+assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('solidDwarfSprite'))
+  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
+  'spectral idle blits as painted; walk/atk/back still lift');
 assert(/punch!==false/.test(extractFn('flippedSprite'))
   && /Ghost sheets[\s\S]*solid/.test(extractFn('flippedSprite')),
   'ghost flips skip the living a=255 punch');
@@ -69,7 +76,9 @@ const replaceList=[];
 KIN.forEach(k=>{
   const idle=readRgba(path.join(creatures,'dwarf_'+k+'_ghost.png'));
   const back=readRgba(path.join(creatures,'dwarf_'+k+'_ghost_back.png'));
-  assert(ctx.livingColorStats(idle.data).living, k+' ghost idle is living-color — keep');
+  const idleSt=ctx.livingColorStats(idle.data);
+  assert(!idleSt.living && idleSt.cyanR>=0.70 && idleSt.warmR<0.02,
+    k+' ghost idle is Nick spectral (icy cyan, not the warm α168 gate)');
   assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color — keep');
   assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost') && !ctx.ghostKeyLooksUnsigned(k+'_ghost_back'),
     k+' idle front/back are the signed ghost identity');

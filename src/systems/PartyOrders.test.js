@@ -278,7 +278,7 @@ assert(rooted.moving===0 && rooted.atk===0 && rooted.x===3 && !rooted.aim,
 
 /* ---- host wiring ---- */
 assert(/src="src\/systems\/PartyOrders\.js"/.test(html), 'index includes PartyOrders.js');
-assert(/ASSET_VER='111'/.test(html) && !/ASSET_VER='112'/.test(html), 'ASSET_VER is 111 — teeth chapel altar v11 crown-fit');
+assert(/ASSET_VER='112'/.test(html) && !/ASSET_VER='113'/.test(html), 'ASSET_VER is 112 — ghost spectral idle v1 (Nick Good)');
 assert(/\{key:'hold', ico:'hold', label:'Hold'\}/.test(html)
   && /\{key:'regroup', ico:'regroup', label:'Regroup'\}/.test(html)
   && /\{key:'focus', ico:'focus', label:'Focus'\}/.test(html),

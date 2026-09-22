@@ -32,7 +32,7 @@ assert(/function screenCardinal\(e\)\{/.test(html) && /wantsSpriteFlip/.test(htm
   'ghost kin use the same screen cardinals as Macar');
 assert(/function ghostAnimKey\(/.test(html) && /function livingColorStats\(/.test(html)
   && /function pickReadyGhostKey\(/.test(html),
-  'ghost bind prefers living-color idle and plants idle when walk/atk fail');
+  'ghost bind keeps spectral idle and plants it when walk/atk fail');
 assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
   'unsigned flag does not include living-color front w1/w2/atk');
 assert(/punch!==false/.test(html) && /const punch=!e\.ghost/.test(html),
