@@ -25,8 +25,8 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='109'/.test(html) && !/ASSET_VER='110'/.test(html),
-  'ASSET_VER is 109 — full-bleed title menu v5, no Macar sheet swap');
+assert(/ASSET_VER='110'/.test(html) && !/ASSET_VER='111'/.test(html),
+  'ASSET_VER is 110 — freearm v11 front-carry walk');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
   'integer play DPR helper exists');

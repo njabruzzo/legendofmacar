@@ -23,7 +23,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='109'/.test(html), 'ASSET_VER is 109');
+assert(/ASSET_VER='110'/.test(html), 'ASSET_VER is 110');
 assert(/function wornMoveMul\(/.test(html) && /function moveStep\(/.test(html),
   'wornMoveMul and moveStep exist (extract of move())');
 assert(/function wearingElvenkind\(/.test(html), 'shared wearingElvenkind helper exists');
