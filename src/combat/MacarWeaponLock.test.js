@@ -202,8 +202,8 @@ assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
 assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
   'crown-to-boots figure height matches idle vs windup vs contact (idle '
   +idleFig.toFixed(3)+' wind '+windFig.toFixed(3)+' hit '+hitFig.toFixed(3)+')');
-assert(windB.h>macarB.h && windBlith>idleBlith*1.2 && windBlith<idleBlith*1.55,
-  'windup dest H grows for the shorter helm-to-boot body (wind '+windBlith.toFixed(3)
+assert(macarB.h>windB.h && windBlith>idleBlith*1.2 && windBlith<idleBlith*1.55,
+  'windup dest H grows for the shorter helm-to-boot body on the taller freearm canvas (wind '+windBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
 assert(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
   'contact dest H tracks the helm and does not overshoot idle (hit '+hitBlith.toFixed(3)
@@ -221,9 +221,14 @@ assert(hitPx>idlePx,
   'contact pixels scale up so the shorter painted body matches (px '
   +hitPx.toFixed(5)+' vs idle '+idlePx.toFixed(5)+')');
 const widthRatio=hitB.w/macarB.w;
-assert(hitPx<idlePx*widthRatio*0.7,
-  'contact body scale is not the 893 sheet width (px ratio '
-  +(hitPx/idlePx).toFixed(3)+' vs width ratio '+widthRatio.toFixed(3)+')');
+const pxRatio=hitPx/idlePx;
+const staturePx=(idleBody/hitBody)*(macarB.h/hitB.h);
+assert(Math.abs(pxRatio-staturePx)<0.02,
+  'contact pixels follow stature and canvas height (px '+pxRatio.toFixed(3)
+  +' vs '+staturePx.toFixed(3)+')');
+assert(Math.abs(pxRatio-widthRatio)>0.25,
+  'contact body scale is not the sheet-width ratio (px '+pxRatio.toFixed(3)
+  +' vs width '+widthRatio.toFixed(3)+')');
 assert(windB.h!==macarB.h && hitB.w!==macarB.w,
   'strike canvases differ; the lock is crown-to-boots, not 470×512');
 assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
