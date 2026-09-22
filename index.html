@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=107">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=109">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -385,7 +385,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='108';
+const ASSET_VER='109';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -568,8 +568,8 @@ const SPRITE_FILES={
   icon_boots:'assets/ui/icon_boots.png',
   icon_quiver:'assets/ui/icon_quiver.png',
   title_splash:'assets/ui/title_splash.jpg',
-  /* SIGNED ruby-door hall (Nick pass). Screen 1 stays title_splash.
-     If this JPG fails to decode, the menu falls back to the prop hall. */
+  /* SIGNED ruby-door hall v5 (Nick pass), 1920×1080, full-canvas cover.
+     Screen 1 stays title_splash. If this JPG fails, the prop hall fills the canvas. */
   title_menu:'assets/ui/title_menu.jpg',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
@@ -16912,7 +16912,6 @@ function drawRubyHallPlate(g, x, y, w, h){
   g.fillStyle=vig;
   g.fillRect(x, y, w, h*0.22);
   g.restore();
-  drawArtFrame(g, x, y, w, h, 10);
   return true;
 }
 function titleMenuSafe(inset){
@@ -16935,18 +16934,19 @@ function titleSafeBottom(s, port){
   const inset=(typeof safeInsets==='function')?safeInsets():{b:0};
   return Math.max(port?28*s:24*s, (inset.b||0)+16);
 }
-function drawTitleMenuBillboard(g, img, x, y, w, h){
-  g.save();
-  g.fillStyle='#0a0706';
-  g.fillRect(x, y, w, h);
-  if(img&&img.width&&img.height&&w>2&&h>2){
-    const sc=Math.min(w/img.width, h/img.height);
-    const iw=img.width*sc, ih=img.height*sc;
-    drawPhoto(g, img, x+(w-iw)/2, y+(h-ih)/2, iw, ih);
-  }
-  g.restore();
-  drawArtFrame(g, x, y, w, h, 10);
-  return !!(img&&img.width);
+/* Cover the whole canvas. Crop the overflow. Never frame or letterbox. */
+function drawTitleMenuCover(g, img){
+  if(!(img&&img.width&&img.height)||!(VW>2&&VH>2)) return false;
+  const sc=Math.max(VW/img.width, VH/img.height);
+  const iw=img.width*sc, ih=img.height*sc;
+  const prev=g.imageSmoothingEnabled;
+  const prevQ=g.imageSmoothingQuality;
+  g.imageSmoothingEnabled=true;
+  if(g.imageSmoothingQuality) g.imageSmoothingQuality='high';
+  g.drawImage(img, (VW-iw)/2, (VH-ih)/2, iw, ih);
+  g.imageSmoothingEnabled=prev;
+  if(prevQ) g.imageSmoothingQuality=prevQ;
+  return true;
 }
 function drawTitle(g){
   menuHits=[]; const s=UIS;
@@ -17007,6 +17007,10 @@ function drawTitle(g){
 function drawTitleMenu(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
+  /* Signed hall covers the canvas. Prop hall only if the JPG has not decoded. */
+  if(!drawTitleMenuCover(g, titleMenuArt())){
+    drawRubyHallPlate(g, 0, 0, VW, VH);
+  }
   const inset=(typeof safeInsets==='function')?safeInsets():{t:0,r:0,b:0,l:0};
   const pad=titleMenuSafe(inset);
   const btnH=titleMenuBtnH(s, PORT);
@@ -17028,21 +17032,19 @@ function drawTitleMenu(g){
     flSize:Math.max(16, (PORT?15:14)*s), musSize:8*s,
     labGap:8*s, titleGap:titleGap, titleGapMin:24, musGap:10*s
   });
+  /* Local veil so the gold title reads on the stone. Not a letterbox bar. */
+  drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(maxW, 780*s), titleLay.h+28*s, 0.42);
   paintHighPlate(g, titleLay, {
     alpha:1, maxW, ruleW:Math.min(200, maxW*0.42),
     paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
   });
-  const artTop=titleLay.bottom+12;
-  const artBot=stackTop-gap-wipeReserve;
-  const artH=Math.max(36, artBot-artTop);
-  const artW=PORT?maxW:Math.min(VW-pad.l-pad.r, Math.max(maxW, VW*0.92));
-  const artX=(VW-artW)/2;
-  if(artH>=36){
-    const signed=titleMenuArt();
-    if(!drawTitleMenuBillboard(g, signed, artX, artTop, artW, artH)){
-      drawRubyHallPlate(g, artX, artTop, artW, artH);
-    }
-  }
+  const scrimTop=Math.max(0, stackTop-(G.wipeAsk?52:16)*s);
+  const scrim=g.createLinearGradient(0, scrimTop, 0, VH);
+  scrim.addColorStop(0, 'rgba(0,0,0,0)');
+  scrim.addColorStop(0.42, 'rgba(0,0,0,0.22)');
+  scrim.addColorStop(1, 'rgba(0,0,0,0.48)');
+  g.fillStyle=scrim;
+  g.fillRect(0, scrimTop, VW, VH-scrimTop);
   g.globalAlpha=1;
   let y=stackTop+btnH/2;
   if(G.wipeAsk){

@@ -14,14 +14,14 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/ASSET_VER='108'/.test(html) && !/ASSET_VER='109'/.test(html),
-  'ASSET_VER is 108 — signed title_menu stays cache-busted, chapel v3 bound');
+assert(/ASSET_VER='109'/.test(html) && !/ASSET_VER='110'/.test(html),
+  'ASSET_VER is 109 — signed full-bleed title_menu v5');
 assert(/title_menu:'assets\/ui\/title_menu\.jpg'/.test(html),
   'SPRITE_FILES hooks title_menu to assets/ui/title_menu.jpg');
 assert(!/title_splash_2:/.test(html),
   'title_splash_2 alias is gone');
-assert(/href="assets\/ui\/title_menu\.jpg\?v=107"/.test(html),
-  'title_menu is in the document preload list');
+assert(/href="assets\/ui\/title_menu\.jpg\?v=109"/.test(html),
+  'title_menu preload matches ASSET_VER 109');
 assert(/const first=\['title_splash','title_menu','rubydoor','dwarfface'/.test(html),
   'title_menu, the signed ruby door, and the dwarf face lead the sprite queue');
 assert(/SIGNED ruby-door hall/.test(html),
@@ -31,6 +31,25 @@ const splashJpg=path.join(root,'assets/ui/title_splash.jpg');
 const caveJpg=path.join(root,'assets/ui/intro_cavein.jpg');
 assert(fs.existsSync(menuJpg) && fs.statSync(menuJpg).size>150000,
   'SIGNED title_menu.jpg is in-repo');
+function jpegSize(buf){
+  let i=2;
+  while(i<buf.length-9){
+    if(buf[i]!==0xFF){ i++; continue; }
+    const mark=buf[i+1];
+    if(mark===0xD8||mark===0xD9){ i+=2; continue; }
+    if(mark===0x01||(mark>=0xD0&&mark<=0xD7)){ i+=2; continue; }
+    const len=buf.readUInt16BE(i+2);
+    if(mark===0xC0||mark===0xC1||mark===0xC2){
+      return {h:buf.readUInt16BE(i+5), w:buf.readUInt16BE(i+7)};
+    }
+    if(len<2) break;
+    i+=2+len;
+  }
+  return null;
+}
+const menuDim=jpegSize(fs.readFileSync(menuJpg));
+assert(menuDim&&menuDim.w===1920&&menuDim.h===1080,
+  'SIGNED title_menu.jpg is the 1920×1080 v5 plate');
 assert(!fs.readFileSync(menuJpg).equals(fs.readFileSync(splashJpg)) &&
   !fs.readFileSync(menuJpg).equals(fs.readFileSync(caveJpg)),
   'second-screen plate is neither the party splash nor the cave-in');
@@ -59,9 +78,11 @@ assert(/function titleMenuSafe\(inset\)\{/.test(html) &&
 assert(/function titleMenuGap\(\)\{ return 12; \}/.test(html), 'stack gap is at least 12');
 assert(/function titleMenuPillW\(vw, padL, padR\)\{/.test(html) && /Math\.min\(360/.test(html),
   'pills are full-width up to ~360');
-assert(/function drawTitleMenuBillboard\(/.test(html) &&
-  /Math\.min\(w\/img\.width, h\/img\.height\)/.test(html),
-  'billboard contains (scale-to-fit) and never squashes');
+assert(/function drawTitleMenuCover\(/.test(html) &&
+  /Math\.max\(VW\/img\.width, VH\/img\.height\)/.test(html),
+  'menu plate cover-bleeds the canvas and never letterboxes');
+assert(!/function drawTitleMenuBillboard\(/.test(html),
+  'contain-fit framed billboard is gone');
 
 assert(/if\(G\.scene==='title'\) drawTitle\(g\);/.test(html) &&
   /if\(G\.scene==='title_menu'\) drawTitleMenu\(g\);/.test(html),
@@ -96,11 +117,14 @@ assert(/SPR\.title_splash/.test(splash) && !/title_menu/.test(splash) && !/title
   'first screen paints title_splash and does not borrow the level-scene plate');
 
 const menu=html.match(/function drawTitleMenu\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
-assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuBillboard/.test(menu) && /drawRubyHallPlate/.test(menu),
-  'signed plate wins; otherwise the ruby-door hall fills the billboard');
+assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuCover/.test(menu) &&
+  /drawRubyHallPlate\(g, 0, 0, VW, VH\)/.test(menu),
+  'signed plate cover-bleeds; otherwise the ruby hall fills the canvas');
 assert(!/drawTitleCavern/.test(menu) && !/intro_cavein/.test(menu) && !/title_splash/.test(menu),
-  'menu billboard is not the cavern fallback, the cave-in, or the party splash');
-assert(!/drawSplashCover/.test(menu), 'menu art is not a cover crop under the buttons');
+  'menu plate is not the cavern fallback, the cave-in, or the party splash');
+assert(!/drawSplashCover/.test(menu), 'menu does not reuse the splash cover zoom');
+assert(!/drawArtFrame/.test(menu) && !/drawLetterbox/.test(menu),
+  'menu has no gold frame and no black letterbox');
 assert(!/UIBTN|stickHome|drawHUD|icon_pack/.test(menu),
   'menu has no HUD chrome, stick, or inventory');
 assert(/title:'THE LEGEND OF MACAR'/.test(menu) && /titleGapMin:24/.test(menu),
@@ -151,9 +175,6 @@ function checkStack(name, vw, vh, port, inset){
   const bw=titleMenuPillW(vw, pad.l, pad.r);
   const titleGap=Math.max(24, 28*s);
   const titleBottom=pad.t+Math.max(12,13*s)+8*s+(port?30:26)*s+titleGap+Math.max(16,(port?15:14)*s)*2;
-  const artTop=titleBottom+12;
-  const artBot=stackTop-gap;
-  const artH=artBot-artTop;
   const startFloor=port?48:44;
   assert(pad.t>=16 && pad.l>=16 && pad.r>=16, name+': pad ≥16 on the sides and top');
   assert(pad.b>=24, name+': home-indicator bottom is ≥24 ('+pad.b+')');
@@ -161,8 +182,6 @@ function checkStack(name, vw, vh, port, inset){
   assert(gap>=12, name+': stack gap is ≥12');
   assert(bw<=360 && bw>=vw-pad.l-pad.r-0.01 || bw===360, name+': pill width is full-band or 360 ('+bw.toFixed(1)+')');
   assert(stackTop>titleBottom, name+': thumb stack stays under the title band');
-  assert(artH>=36, name+': billboard has a reserved middle band ('+artH.toFixed(1)+')');
-  assert(artBot<=stackTop-gap+0.01, name+': art ends above the pills (no cover-up)');
   assert(titleGap>=24, name+': ≥24px air before the quote ('+titleGap.toFixed(1)+')');
   assert(titleBottom<vh*0.42, name+': title+quote stay in the top band (bottom='+titleBottom.toFixed(1)+')');
   const lastBottom=stackTop+stackH;
