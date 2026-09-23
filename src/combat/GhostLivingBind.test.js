@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Ghost idle fronts are Nick-GOOD icy spectral. Idle backs stay
- * color-true. Priority-16 front motion (w1/w2/atk/atk_recover ×4 kin)
- * is living-color bind-ready. Remaining cyan/teal angled/compass/w3/back_w
+ * Ghost idle fronts and front walk w1/w2 are Nick-GOOD icy spectral
+ * (soft-eye walk v7). Idle backs stay color-true. Atk / atk_recover
+ * stay living-color α168. Remaining cyan/teal angled/compass/w3/back_w
  * sheets stay on disk for Limner redo — never paint them; plant the
  * signed spectral idle instead.
  * Run: node src/combat/GhostLivingBind.test.js
@@ -16,7 +16,8 @@ const root=path.join(__dirname,'../..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const creatures=path.join(root,'assets/creatures');
 const KIN=['pordoom','fendur','orbo','talpor'];
-const BIND_READY_SUF=['_w1','_w2','_atk','_atk_recover'];
+const SPECTRAL_WALK=['_w1','_w2'];
+const LIVING_SUF=['_atk','_atk_recover'];
 const UNSIGNED_SUF=[
   '_w3',
   '_back_w1','_back_w2',
@@ -45,12 +46,20 @@ assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
   'unsigned ghost keys are compass / w3 / back_w only — not front w1/w2/atk');
 assert(/Do not cache a guess/.test(html) && /if\(ghostKeyLooksUnsigned\(key\)\) return false/.test(extractFn('sheetLivingColors')),
   'failed living-color sample does not stamp _live=false on bind-ready front motion');
-assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\$/.test(extractFn('sheetLivingColors'))
+assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\(\?:_w\[12\]\)\?\$/.test(extractFn('sheetLivingColors'))
   && /img\._live=true; return true;/.test(extractFn('sheetLivingColors')),
-  'Nick spectral idle binds before the cyan warm-gate');
-assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('solidDwarfSprite'))
+  'Nick spectral idle and front walk bind before the cyan warm-gate');
+assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'spectral idle blits as painted; walk/atk/back still lift');
+  'spectral idle and front walk blit as painted; atk/back still lift');
+assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && /pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
+  && /talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
+  && !/ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
+  && !/ghost_back/.test(extractFn('nickSpectralGhostSheet')),
+  'painted spectral list is idle plus front w1/w2 only');
+assert(/_ghost_w\[12\]\$/.test(extractFn('partyGhostKeyReady')),
+  'front ghost walk skips the idle crop match so stride overhang stays bound');
 assert(/punch!==false/.test(extractFn('flippedSprite'))
   && /Ghost sheets[\s\S]*solid/.test(extractFn('flippedSprite')),
   'ghost flips skip the living a=255 punch');
@@ -82,11 +91,19 @@ KIN.forEach(k=>{
   assert(ctx.livingColorStats(back.data).living, k+' ghost back is living-color — keep');
   assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost') && !ctx.ghostKeyLooksUnsigned(k+'_ghost_back'),
     k+' idle front/back are the signed ghost identity');
-  BIND_READY_SUF.forEach(suf=>{
+  SPECTRAL_WALK.concat(LIVING_SUF).forEach(suf=>{
     assert(!ctx.ghostKeyLooksUnsigned(k+'_ghost'+suf),
       k+' ghost'+suf+' is bind-ready, not unsigned');
   });
-  BIND_READY_SUF.forEach(suf=>{
+  SPECTRAL_WALK.forEach(suf=>{
+    const file='dwarf_'+k+'_ghost'+suf+'.png';
+    const full=path.join(creatures, file);
+    assert(fs.existsSync(full), file+' on disk');
+    const st=ctx.livingColorStats(readRgba(full).data);
+    assert(!st.living && st.cyanR>=0.70 && st.warmR<0.02,
+      file+' is Nick spectral walk (icy cyan, not the warm α168 gate)');
+  });
+  LIVING_SUF.forEach(suf=>{
     const file='dwarf_'+k+'_ghost'+suf+'.png';
     const full=path.join(creatures, file);
     assert(fs.existsSync(full), file+' on disk');
@@ -105,8 +122,8 @@ KIN.forEach(k=>{
 });
 assert(replaceList.length===KIN.length*UNSIGNED_SUF.length,
   'Limner replace list is every remaining unsigned ghost walk/atk/compass sheet');
-assert(KIN.length*BIND_READY_SUF.length===16,
-  'Priority-16 front motion sheets are living bind-ready');
+assert(KIN.length*(SPECTRAL_WALK.length+LIVING_SUF.length)===16,
+  'front motion is 8 spectral walks plus 8 living atk sheets');
 
 const SPR={};
 function ready(k, live){
@@ -200,9 +217,9 @@ function live(k, extra){
 KIN.forEach(k=>{
   assert(run.entAnimKey(ghost(k))===k+'_ghost', k+' idle ghost uses the color-true front');
   assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost_w1',
-    k+' ghost walk binds living-color w1');
+    k+' ghost walk binds spectral w1');
   assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))===k+'_ghost_w2',
-    k+' ghost late gait binds living-color w2');
+    k+' ghost late gait binds spectral w2');
   assert(run.entAnimKey(ghost(k,{atk:0.7, atkMax:1}))===k+'_ghost_atk',
     k+' ghost strike binds living-color atk');
   assert(run.entAnimKey(ghost(k,{atk:0.20, atkMax:1}))===k+'_ghost_atk_recover',
@@ -215,8 +232,13 @@ KIN.forEach(k=>{
     k+' ghost east prefers front walk / idle — cyan e_w stays unbound');
   SPR[k+'_ghost_w1']._live=false;
   SPR[k+'_ghost_w2']._live=false;
+  assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost_w1',
+    k+' spectral walk binds even if a stale _live=false was cached');
+  const heldW1=SPR[k+'_ghost_w1'], heldW2=SPR[k+'_ghost_w2'];
+  delete SPR[k+'_ghost_w1']; delete SPR[k+'_ghost_w2'];
   assert(run.entAnimKey(ghost(k,{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))===k+'_ghost',
-    k+' ghost walk plants idle when front w1 fails color');
+    k+' ghost walk plants idle when front sheets are missing');
+  SPR[k+'_ghost_w1']=heldW1; SPR[k+'_ghost_w2']=heldW2;
   SPR[k+'_ghost_w1']._live=true;
   SPR[k+'_ghost_w2']._live=true;
   const east=live(k,{moving:1, gait:0.12, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7});
@@ -232,9 +254,16 @@ assert(run.entAnimKey({
   moving:1, gait:0.12, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7
 })==='macar_w1', 'living Macar walk stays on the title-law maul pair');
 
+const walkImg={width:470, height:512};
+assert(run.sheetLivingColors(walkImg, 'pordoom_ghost_w1')===true,
+  'spectral front w1 binds before the warm gate');
+assert(walkImg._live===true, 'spectral front w1 stamps _live');
+const walk2={width:692, height:512, _live:false};
+assert(run.sheetLivingColors(walk2, 'pordoom_ghost_w2')===true && walk2._live===true,
+  'stale _live=false on spectral w2 is cleared by the key bypass');
 const unsamp={width:120, height:120};
-assert(run.sheetLivingColors(unsamp, 'pordoom_ghost_w1')===true,
-  'failed sample allows Priority-16 front w1 (does not plant idle)');
+assert(run.sheetLivingColors(unsamp, 'pordoom_ghost_atk')===true,
+  'failed sample allows living-color front atk (does not plant idle)');
 assert(unsamp._live==null, 'failed sample does not cache _live');
 assert(run.sheetLivingColors({width:120, height:120}, 'pordoom_ghost_e_w1')===false,
   'failed sample still refuses unsigned cyan e_w');
@@ -253,6 +282,31 @@ assert(run.entAnimKey(ghost('pordoom',{atk:0.20, atkMax:1}))==='pordoom_ghost_at
 ready('pordoom_ghost', true);
 ready('pordoom_ghost_atk', true);
 ready('pordoom_ghost_atk_recover', true);
+
+function sized(key, w, h){
+  SPR[key]={width:w, height:h, _live:true};
+}
+sized('pordoom_ghost', 470, 512);
+sized('pordoom_ghost_w1', 470, 512);
+sized('pordoom_ghost_w2', 692, 512);
+assert(run.entAnimKey(ghost('pordoom',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))==='pordoom_ghost_w1',
+  'pordoom spectral w1 binds at the signed 470×512 canvas');
+assert(run.entAnimKey(ghost('pordoom',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))==='pordoom_ghost_w2',
+  'pordoom spectral w2 binds even though 692×512 fails samePaintedFamily');
+sized('fendur_ghost', 470, 512);
+sized('fendur_ghost_w1', 593, 512);
+sized('fendur_ghost_w2', 527, 512);
+assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))==='fendur_ghost_w1',
+  'fendur spectral w1 binds at 593×512');
+assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))==='fendur_ghost_w2',
+  'fendur spectral w2 binds at 527×512');
+sized('talpor_ghost', 504, 512);
+sized('talpor_ghost_w1', 589, 512);
+sized('talpor_ghost_w2', 504, 512);
+assert(run.entAnimKey(ghost('talpor',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))==='talpor_ghost_w1',
+  'talpor spectral w1 binds even though 589×512 fails samePaintedFamily');
+assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_w2, SPR.pordoom_ghost, 'pordoom_ghost_w2')===false,
+  'wide spectral w2 still fails the generic crop match — the walk bypass is what binds it');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost living-color bind checks passed');

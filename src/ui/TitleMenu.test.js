@@ -14,14 +14,14 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/ASSET_VER='112'/.test(html) && !/ASSET_VER='113'/.test(html),
-  'ASSET_VER is 112 — ghost spectral idle v1 (Nick Good)');
+assert(/ASSET_VER='113'/.test(html) && !/ASSET_VER='114'/.test(html),
+  'ASSET_VER is 113 — ghost spectral walk v7 (Nick Good)');
 assert(/title_menu:'assets\/ui\/title_menu\.jpg'/.test(html),
   'SPRITE_FILES hooks title_menu to assets/ui/title_menu.jpg');
 assert(!/title_splash_2:/.test(html),
   'title_splash_2 alias is gone');
-assert(/href="assets\/ui\/title_menu\.jpg\?v=112"/.test(html),
-  'title_menu preload matches ASSET_VER 112');
+assert(/href="assets\/ui\/title_menu\.jpg\?v=113"/.test(html),
+  'title_menu preload matches ASSET_VER 113');
 assert(/const first=\['title_splash','title_menu','rubydoor','dwarfface'/.test(html),
   'title_menu, the signed ruby door, and the dwarf face lead the sprite queue');
 assert(/SIGNED ruby-door hall/.test(html),

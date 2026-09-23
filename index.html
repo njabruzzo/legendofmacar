@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=112">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=113">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -387,7 +387,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='112';
+const ASSET_VER='113';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1427,17 +1427,23 @@ function blitLivingMacar(img){
   return out;
 }
 function solidMacarSprite(img){ return blitLivingMacar(img); }
-/* Pordoom, Fendur, Orbo and Talpor are painted on the same punched sheets as
-   Macar, so their living frames take the same repair. Ghost walk/atk/back
-   are still a signed α168 gray-blue — lift those to spectral white.
-   Nick-GOOD idle is already icy blue-white; the lift chalks that kit and
-   caps its alpha. Never punch a ghost to 255 (west-flip solid flash). */
+/* Living kin take the Macar punch. Ghost atk and back are still a signed
+   α168 gray-blue — lift those to spectral white. Nick-GOOD idle and front
+   walk w1/w2 (soft-eye walk v7) are already icy blue-white; the lift chalks
+   that kit and caps its alpha. Never punch a ghost to 255. */
+function nickSpectralGhostSheet(img){
+  if(!img) return false;
+  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
+    ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
+    ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
+    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
+    ||img===SPR.talpor_ghost_w1||img===SPR.talpor_ghost_w2;
+}
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
   if(e.ghost){
-    if(img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost)
-      return img;
+    if(nickSpectralGhostSheet(img)) return img;
     return liftGhostSpirit(img);
   }
   return blitLivingMacar(img)||img;
@@ -1824,14 +1830,13 @@ function pickReadyPartyKey(key, idleKey){
   if(idleKey && SPR[idleKey] && SPR[idleKey].width) return idleKey;
   return (key && SPR[key] && SPR[key].width)?key:null;
 }
-/* Color-true ghost identity is idle front + idle back. Walk / atk / compass
-   ghost sheets on disk are cyan/teal mono with wrong kits (Limner redo).
-   Do not blit them as “correct.” Until new sheets pass color + kit vs idle,
-   plant the signed idle (front or back). livingColorStats + idle-kit match
-   will bind replacement walk/atk themselves when they land. */
+/* Nick spectral idle (front) plus living-color idle back are the ghost
+   identity. Front walk w1/w2 are Nick-GOOD spectral walk v7 — bind them by
+   key before the warm gate. Atk stays α168 and lifts. Compass / w3 /
+   back-walk stay cyan mono: plant the signed idle, never paint them. */
 function ghostKeyLooksUnsigned(key){
-  /* Compass / w3 / back-walk only. Front w1/w2/atk/atk_recover are Priority-16
-     living-color — do not treat them as unsigned or a failed sample plants idle. */
+  /* Compass / w3 / back-walk only. Front w1/w2/atk/atk_recover are bound
+     motion — do not treat them as unsigned or a failed sample plants idle. */
   return /_ghost_(?:e_|s_|nw_|ne_|se_|w3|back_w)/.test(key||'');
 }
 function livingColorStats(data){
@@ -1846,9 +1851,10 @@ function livingColorStats(data){
   }
   if(!n) return {ok:false, living:true, cyanR:0, warmR:0, n:0};
   const cyanR=cyan/n, warmR=warm/n;
-  /* α168 walk/atk/back sit ~warm 0.07–0.16. Cyan/teal mono unsigned
+  /* α168 atk/back sit ~warm 0.07–0.16. Cyan/teal mono unsigned
      sheets are warm≈0 / cyan≈0.99 — keep those rejected. Nick spectral
-     idle is icy cyan too; sheetLivingColors binds that key before this gate. */
+     idle and front walk are icy cyan too; sheetLivingColors binds those
+     keys before this gate. */
   return {ok:true, living:warmR>=0.07 && cyanR<0.38, cyanR, warmR, n};
 }
 function sampleLivingColors(img){
@@ -1869,10 +1875,10 @@ function sampleLivingColors(img){
 }
 function sheetLivingColors(img, key){
   if(!img) return false;
-  /* Nick-GOOD idle (Pordoom, Fendur, Orbo, Talpor) is icy cyan on purpose.
-     Accept that key before the warm gate, which still rejects unsigned
-     compass / w3 / back-walk cyan. */
-  if(/^(?:pordoom|fendur|orbo|talpor)_ghost$/.test(key||'')){
+  /* Nick-GOOD idle and front walk w1/w2 are icy cyan on purpose.
+     Accept those keys before the warm gate, which still rejects unsigned
+     compass / w3 / back-walk cyan and still samples α168 atk. */
+  if(/^(?:pordoom|fendur|orbo|talpor)_ghost(?:_w[12])?$/.test(key||'')){
     img._live=true; return true;
   }
   if(img._live!=null) return !!img._live;
@@ -1898,6 +1904,11 @@ function partyGhostKeyReady(key, idleKey){
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
+  /* Nick-GOOD front walk is this kin's own sheet. Stride and weapon
+     overhang (Pordoom w2 692, Fendur w1 593, Talpor w1 589) fail
+     samePaintedFamily against the idle canvas. Compass keys do not
+     end in _ghost_w1 / _ghost_w2. */
+  if(/_ghost_w[12]$/.test(key||'')) return true;
   if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
   return true;
 }
