@@ -12065,7 +12065,9 @@ function partyOrderAnchor(){
   const x=Math.max(8*s, (inset.l||0)+8);
   const y0=Math.max(8*s, (inset.t||0)+8);
   const gap=3*s;
-  const shown=(G.ents||[]).filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||e.crushed)).length;
+  const shown=typeof partyPortraitList==='function'
+    ? partyPortraitList().length
+    : (G.ents||[]).filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||e.crushed)).length;
   const n=Math.max(1, shown||1);
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
   const h=Math.min(PORT?46*s:50*s, (avail-y0)/n-gap);
@@ -12284,6 +12286,7 @@ function onDown(id,x,y,ptr){
   if(G.inspect){ G.inspect=null; return; }
   const ph=(UI.portraitHits||[]).find(z=>x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h);
   if(ph){
+    if(ph.key==='thrall') return;
     if(ph.key==='macar'){
       G.inspect=null;
       G.packWho='macar';
@@ -16661,17 +16664,56 @@ function drawHUD(g){
   drawThrowBtn(g,s);
 }
 
-function drawPortraitStack(g,s){
-  const party=ROSTER.map(r=>G.ents.find(e=>e.team==='party'&&e.col&&e.col.key===r.key))
+/* Crown animate-dead: Macar leads the left party strip, same card as the kin. */
+function animateDeadPartyOn(){
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()) return true;
+  if(typeof livingThrall==='function' && livingThrall()) return true;
+  return false;
+}
+function portraitIdentity(e){
+  if(e && e.col) return e.col;
+  const bones=/skeleton|bone|skull/i.test(((e&&e.name)||'')+' '+((e&&e.kind)||''));
+  return {
+    key:(e&&(e.sprite||e.kind))||'undead',
+    name:String((e&&e.name)||'DEAD').toUpperCase(),
+    skin:bones?'#d2c8b8':'#6d7a52',
+    beard:bones?'#a09888':'#3e4a30',
+    beardD:bones?'#5c564c':'#243018',
+    hair:bones?'#c4baa8':'#2c3820',
+    trim:'#d3ab4d',
+    metal:'#93805a',
+    cloth:'#6a5a40',
+    cap:null
+  };
+}
+function partyPortraitList(){
+  const roster=(typeof ROSTER!=='undefined'?ROSTER:[]);
+  const ents=G.ents||[];
+  const kin=roster.map(r=>ents.find(e=>e&&e.team==='party'&&e.col&&e.col.key===r.key))
     .filter(e=>e && (e.hero || e.ghost || e.crushed));
+  const macar=ents.find(e=>e&&e.team==='party'&&(e.hero||(e.col&&e.col.key==='macar')))||null;
+  const on=animateDeadPartyOn();
+  const out=[];
+  if(on && macar) out.push(macar);
+  kin.forEach(e=>{ if(out.indexOf(e)<0) out.push(e); });
+  if(on){
+    const thrall=typeof livingThrall==='function'?livingThrall():null;
+    if(thrall && out.indexOf(thrall)<0) out.push(thrall);
+  }
+  return out;
+}
+function drawPortraitStack(g,s){
+  const party=partyPortraitList();
   const inset=UI.pad||{l:0,t:0};
   const x=Math.max(8*s, inset.l+8), y=Math.max(8*s, inset.t+8), w=PORT?152*s:188*s, gap=3*s;
   const avail=Math.max(160, VH-(PORT?130*s:110*s));
   const h=Math.min(PORT?46*s:50*s, (avail-y)/Math.max(1,party.length)-gap);
   UI.portraitHits=[];
   party.forEach((e,i)=>{
+    const col=portraitIdentity(e);
+    const hitKey=(e.col&&e.col.key)||(e.thrall?'thrall':col.key);
     const yy=y+i*(h+gap);
-    UI.portraitHits.push({x,y:yy,w,h,key:e.col.key});
+    UI.portraitHits.push({x,y:yy,w,h,key:hitKey});
     carveFrame(g,x,yy,w,h,6,.88);
     if(e.hero){ g.strokeStyle='rgba(255,210,130,0.7)'; g.lineWidth=1.6; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke();
       g.font='800 '+(7.5*s)+'px '+FONT_UI;
@@ -16681,13 +16723,14 @@ function drawPortraitStack(g,s){
       g.textAlign='left';
     }
     if(e.ghost){ g.strokeStyle='rgba(120,210,255,0.75)'; g.lineWidth=1.5; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
-    if(G.inspect===e.col.key){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
+    if(G.inspect===hitKey){ g.strokeStyle='rgba(255,220,140,0.95)'; g.lineWidth=2; roundPath(g,x+1,yy+1,w-2,h-2,6); g.stroke(); }
     const rr=PORT?15*s:17*s, cx=x+rr+8*s, cy=yy+h/2;
-    face(g,cx,cy,rr,e.col,e.dead,e.ghost);
+    face(g,cx,cy,rr,col,e.dead,e.ghost);
     const tx=cx+rr+8*s;
     g.font='800 '+(PORT?11*s:12.5*s)+'px '+FONT_UI;
     g.fillStyle=e.dead?'#6b5b48':(e.ghost?'#cfefff':'#f2e0b6');
-    g.fillText(e.col.name+(e.ghost?'  GHOST':e.crushed?'  FALLEN':'')+'  '+clsLabel(e.cls)+e.lvl, tx, yy+16*s);
+    const rank=e.col?('  '+clsLabel(e.cls)+(e.lvl||'')):'';
+    g.fillText(col.name+(e.ghost?'  GHOST':e.crushed?'  FALLEN':'')+rank, tx, yy+16*s);
     g.font='700 '+(PORT?8*s:8.5*s)+'px '+FONT_UI;
     g.fillStyle='rgba(200,170,120,0.78)';
     const ab=entityAbil(e);
@@ -19086,6 +19129,7 @@ function drawPause(g){
 /* ---------------------------- tap resolution ---------------------------- */
 function applyPortraitTap(ph){
   if(!ph) return;
+  if(ph.key==='thrall') return;
   if(ph.key==='macar'){
     G.inspect=null;
     G.packWho='macar';
