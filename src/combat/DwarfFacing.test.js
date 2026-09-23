@@ -84,7 +84,6 @@ function wantsSpriteFlip(e, lead){
   const key=e.animKey||'macar_e_w1';
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
-  if(key.indexOf('_ne_')>=0) return false;
   const sx=moveHeadingSX(e, lead);
   if(e.hero && !e.ghost) return sx < -0.02;
   return sx < -0.02;
@@ -124,6 +123,10 @@ assert(!wantsSpriteFlip({k:'fendur_ghost', dead:1, moving:1, ix:-0.7, iy:0.7}), 
 
 const nwMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:-1, iy:0, fdx:-1, fdy:0};
 assert(wantsSpriteFlip(nwMacar), 'NW / W+A is screen-left — living Macar flips the right-facing sheet');
+const nwNe={k:'macar', hero:1, animKey:'macar_ne_w2', moving:1, ix:-1, iy:0, fdx:-1, fdy:0};
+const neHold={k:'macar', hero:1, animKey:'macar_ne_w2', moving:1, ix:0, iy:-1, fdx:0, fdy:-1};
+assert(wantsSpriteFlip(nwNe), 'NW mirrors the painted NE sheet');
+assert(!wantsSpriteFlip(neHold), 'NE keeps the painted NE sheet unflipped');
 const swMacar={k:'macar', hero:1, animKey:'macar_w1', moving:1, ix:0, iy:1, fdx:0, fdy:1};
 assert(wantsSpriteFlip(swMacar), 'SW / S+A is screen-left — living Macar flips the right-facing sheet');
 

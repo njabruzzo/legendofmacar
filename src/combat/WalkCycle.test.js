@@ -32,11 +32,11 @@ assert(/_w3\.png/.test(html) && /k\.replace\(\/_w1\$\/,'_w3'\)/.test(html),
 
 const liveKey=extractFn('livingMacarAnimKey');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
-assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'living Macar walk uses the front w1/w2 pair of the live idle');
+assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'south walk uses the front w1/w2 pair of the live idle');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'walk helper does not steal the matching melee atk bind');
-assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey),
-  'living Macar walk does not bind washed directional stems');
+assert(/macar_e_w3/.test(liveKey) && /macar_back_w1/.test(liveKey),
+  'living Macar walk binds compass sheets when the heading is not south');
 
 const angled=html.match(/function dwarfAngleKey\(e,k\)\{[\s\S]*?\nfunction wantsSpriteFlip/)[0];
 assert(/const moving=e\.moving && !e\.defending/.test(angled),
@@ -152,10 +152,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===false && !/_w3$/.test(s.key)),
-  'hold D: every gait frame is the front whitelist pair, unflipped, never w3');
-assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_w1'||s.key==='macar_w2') && s.flip===true && !/_w3$/.test(s.key)),
-  'hold A: every gait frame is the same front pair flipped for screen-left, never w3');
+assert(holdD.every(s=>s.oct==='e' && s.key==='macar_e_w3' && s.flip===false && !/^macar_w3$/.test(s.key)),
+  'hold D: every gait frame is the east sheet, unflipped');
+assert(holdA.every(s=>s.oct==='w' && s.key==='macar_e_w3' && s.flip===true && !/^macar_w3$/.test(s.key)),
+  'hold A: every gait frame is the same east sheet flipped for screen-left');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 

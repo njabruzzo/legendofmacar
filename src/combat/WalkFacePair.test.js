@@ -31,11 +31,14 @@ assert(/function wantsSpriteFlip\(e\)\{/.test(html) && /moveHeadingSX\(e\) < -0\
 assert(/const flip=wantsSpriteFlip\(e\)/.test(html) && /blitFacing\(g,img,dx,dy,W,H,flip/.test(html),
   'heading flip is applied once per pose on the blit');
 
-assert(/frames:\['macar_w1','macar_w2'\]/.test(html),
-  'MACAR_PLAN walks every octant on the title-law front pair');
+assert(/s:\s*\{flip:0, frames:\['macar_w1','macar_w2'\]\}/.test(html),
+  'MACAR_PLAN south walk stays the signed front pair');
+assert(/e:\s*\{flip:0, frames:\['macar_e_w3'\]\}/.test(html)
+  && /n:\s*\{flip:0, frames:\['macar_back_w1','macar_back_w2'\]\}/.test(html),
+  'MACAR_PLAN east and north use compass sheets');
 assert(!/macar_e_w1/.test(html.match(/const MACAR_PLAN=\{[\s\S]*?\};/)[0])
   && !/dwarf_macar_e_w1\.png/.test(html),
-  'engine does not bind deleted compass / e_w1 Macar art');
+  'engine does not bind deleted e_w1 Macar art');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
  'dwarf_macar_atk_contact.png',
