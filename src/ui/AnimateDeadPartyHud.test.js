@@ -33,8 +33,10 @@ assert(/e\.hero \|\| e\.ghost \|\| e\.crushed/.test(html),
 assert(/sheetHpNow\(e\)\+'\/'\+sheetHpMax\(e\)\+' hp/.test(html),
   'party cards share the kin health line');
 assert(/ph\.key==='thrall'/.test(html), 'thrall card does not open a kin sheet');
-const anchor=extractFn('partyOrderAnchor');
-assert(/partyPortraitList\(\)/.test(anchor), 'order plates sit under the same strip');
+const frame=extractFn('partyPortraitFrame');
+assert(/partyPortraitList\(\)/.test(frame), 'order plates sit under the same strip');
+assert(/partyPortraitFrame\(\)/.test(extractFn('partyOrderAnchor')), 'anchor uses that strip');
+assert(/partyPortraitFrame\(\)/.test(extractFn('drawPortraitStack')), 'cards and the order row share that strip');
 
 const ROSTER=[
   {key:'macar', name:'MACAR'},
