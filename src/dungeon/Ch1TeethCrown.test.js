@@ -53,8 +53,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='113'/.test(html) && !/ASSET_VER='114'/.test(html),
-  'ASSET_VER is 113 — ghost spectral walk v7 (Nick Good)');
+assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html),
+  'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/SPRITE_FILES\.bone_crown_scene='assets\/props\/prop_bone_crown_scene\.png'/.test(html),
