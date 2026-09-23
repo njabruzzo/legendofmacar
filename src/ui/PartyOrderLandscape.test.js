@@ -30,8 +30,8 @@ function extractFn(name){
 assert(/function placePartyOrderRow\(/.test(html), 'orders are seated by placePartyOrderRow');
 assert(/layoutPartyOrders\(\)\{[\s\S]*placePartyOrderRow\(/.test(html),
   'layoutUI → layoutPartyOrders → placePartyOrderRow');
-assert(/!PORT && IS_TOUCH/.test(extractFn('placePartyOrderRow')),
-  'phone landscape uses the landscape seat; portrait keeps the ceiling clamp');
+assert(/if\(!PORT\)\{[\s\S]*landscapePartyOrderSeat\(/.test(extractFn('placePartyOrderRow')),
+  'every landscape uses the landscape seat; portrait keeps the ceiling clamp');
 assert(!/label:'Rally'/.test(html) && !/key:'rally'/.test(extractFn('layoutPartyOrders')),
   'no Rally plate on the order row');
 assert(/ASSET_VER='114'/.test(html), 'ASSET_VER stays 114');
@@ -62,10 +62,11 @@ function gapCircleRect(c, rect){
 }
 function gapCircles(a,b){ return Math.hypot(a.x-b.x, a.y-b.y)-a.r-b.r; }
 
-function measure(vw, vh, inset, n){
+function measure(vw, vh, inset, n, touch){
   ctx.UIBTN.length=0;
   ctx.UI={};
   ctx.VW=vw; ctx.VH=vh;
+  ctx.IS_TOUCH=touch!==false;
   ctx.PORT=vh>vw;
   ctx.UIS=ctx.clamp(Math.min(vw,vh)/(ctx.PORT?430:700), 0.66, 1.30);
   ctx._inset=inset;
@@ -85,6 +86,10 @@ function measure(vw, vh, inset, n){
     }
     return m;
   }
+  const cardBottom=frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), 0);
+  const cardRight=frame.x+frame.w;
+  const fullyUnder=orders.every(o=>o.y-o.r>=cardBottom-0.05);
+  const fullyRight=orders.every(o=>o.x-o.r>=cardRight-0.05);
   return {
     orders, frame, slot:orders[0].r*2,
     y:orders[0].y,
@@ -94,12 +99,13 @@ function measure(vw, vh, inset, n){
     stick:minGap([stick], gapCircles),
     atk:minGap([attack], gapCircles),
     def:minGap([defend], gapCircles),
-    spec:minGap(specs, gapCircles)
+    spec:minGap(specs, gapCircles),
+    fullyUnder, fullyRight, cardBottom, cardRight
   };
 }
 
-function expectClear(name, vw, vh, inset, n){
-  const m=measure(vw, vh, inset, n);
+function expectClear(name, vw, vh, inset, n, touch){
+  const m=measure(vw, vh, inset, n, touch);
   const bits=[
     ['slot', m.slot, 44],
     ['portraits', m.port, 6],
@@ -114,6 +120,8 @@ function expectClear(name, vw, vh, inset, n){
   assert(m.left>=(inset.l||0)-0.05, name+' row clears the left safe area ('+m.left.toFixed(1)+' vs inset '+(inset.l||0)+')');
   assert(m.right<=vw-(inset.r||0)+0.05, name+' row clears the right safe area');
   assert(m.y+m.orders[0].r<=vh-(inset.b||0)+0.05, name+' row clears the bottom safe area');
+  assert(m.fullyUnder||m.fullyRight, name+' row is fully under the cards or fully to their right'
+    +' (under='+m.fullyUnder+' right='+m.fullyRight+' y='+m.y.toFixed(1)+' left='+m.left.toFixed(1)+' cardRight='+m.cardRight.toFixed(1)+')');
   console.log('table '+name.padEnd(22)
     +' port '+m.port.toFixed(1).padStart(6)
     +' stick '+m.stick.toFixed(1).padStart(6)
@@ -139,6 +147,17 @@ expectClear('736×414', 736, 414, none, 5);
 expectClear('896×414 notch', 896, 414, notch, 5);
 expectClear('844×390 six cards', 844, 390, none, 6);
 expectClear('667×375 notch six', 667, 375, notch, 6);
+
+/* DevTools device landscape can keep a mouse pointer (maxTouchPoints 0,
+   desktop UA). That path used the hudTop clamp and planted the circles
+   on the portrait stack. Same fail sizes, both pointer kinds. */
+expectClear('mouse 844×390', 844, 390, none, 5, false);
+expectClear('mouse 844×390 notch', 844, 390, notch, 5, false);
+expectClear('mouse 667×375', 667, 375, none, 5, false);
+expectClear('mouse 812×375 notch', 812, 375, notch, 5, false);
+expectClear('mouse 932×430', 932, 430, none, 5, false);
+expectClear('mouse 844×390 six', 844, 390, none, 6, false);
+expectClear('mouse 667×375 six', 667, 375, notch, 6, false);
 
 /* Portrait audit sizes stay on the old seat (ceiling clamp, not the landscape row). */
 const p390=measure(390, 844, {t:47,r:0,b:34,l:0}, 5);

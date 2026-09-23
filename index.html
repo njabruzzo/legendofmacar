@@ -16938,10 +16938,11 @@ function circleRectGap(c, rect){
 function rectsMeet(a, b, pad){
   return a.x<b.x+b.w+pad && a.x+a.w+pad>b.x && a.y<b.y+b.h+pad && a.y+a.h+pad>b.y;
 }
-/* Phone landscape: the hudTop ceiling is the right-hand specialty band.
+/* Landscape: the hudTop ceiling is the right-hand specialty band.
    Clamping the left order row up to it plants Hold / Regroup / Focus on the
-   portrait cards. Keep the row under the strip when that clears the thumb
-   HUD; otherwise seat it to the right of the cards. */
+   portrait cards. DevTools device landscape often still reports a mouse
+   pointer, so this is not touch-only. Keep the row under the strip when
+   that clears the HUD; otherwise seat it to the right of the cards. */
 function landscapePartyOrderSeat(originX, stackBottom, slot, gap, r, rowW){
   const s=UIS;
   const pad=6;
@@ -17017,7 +17018,7 @@ function placePartyOrderRow(originX, stackBottom){
       if(shift>0) x0+=shift;
     }
   }
-  if(!PORT && IS_TOUCH){
+  if(!PORT){
     const seat=landscapePartyOrderSeat(originX, stackBottom, slot, gap, r, rowW);
     if(seat){ x0=seat.x0; y=seat.y; }
   }
