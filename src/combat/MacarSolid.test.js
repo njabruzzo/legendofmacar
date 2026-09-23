@@ -87,9 +87,11 @@ assert(/walkCycleKey\(e, idle\)/.test(liveKey),
   'living Macar walk uses the live idle stem');
 assert(!/QUALITY/.test(liveKey), 'living Macar walk is not QUALITY-gated');
 assert(/e\.moving && !e\.defending/.test(liveKey), 'living Macar walk only while moving');
-assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
-  && !/macar_ne/.test(liveKey) && !/macar_se/.test(liveKey) && !/macar_title/.test(liveKey),
-  'living Macar does not bind washed directional / title stems');
+assert(/macar_e_w3/.test(liveKey) && /macar_back_w1/.test(liveKey)
+  && /macar_ne_w2/.test(liveKey) && /macar_se_w3/.test(liveKey),
+  'living Macar binds compass sheets from the move octant');
+assert(!/macar_title/.test(liveKey) && !/macar_e_w1/.test(liveKey),
+  'living Macar does not bind title or holed east w1');
 assert(/macar_axe/.test(liveKey) && /wieldsShadowCleaver/.test(html),
   'living Macar binds axe sheets when the cleaver is wielded');
 assert(/macar_xbow/.test(liveKey) && /wieldsCrossbow/.test(html),

@@ -90,10 +90,12 @@ assert(atkIdx>0 && backWalkIdx>atkIdx, 'kin attack sprite is chosen before the b
 assert(/p\.moving=0; p\.ix=0; p\.iy=0;/.test(html), 'Attack click stops walk so the swing can play');
 assert(!/dwarf_macar_atk_recover\.png/.test(html) && !/dwarf_macar_axe_atk_recover\.png/.test(html),
   'leftover Macar recover sheets are unwired');
-assert(!/dwarf_macar_back_w1\.png/.test(html), 'leftover Macar back walks are unwired');
-['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png','dwarf_macar_back_w1.png'].forEach(f=>{
+assert(/dwarf_macar_back_w1\.png/.test(html), 'Macar back walk is wired for north');
+['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png'].forEach(f=>{
   assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' leftover is gone');
 });
+assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_back_w1.png')),
+  'north back walk is on disk');
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('Attack matrix + swing pose tests passed');

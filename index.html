@@ -699,8 +699,9 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
 });
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
-   + Limner SIGNED crossbow carry/atk. Drop compass / helmeted combat /
-   sleep / title / w3 leftovers. Kin stay. */
+   + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
+   title / front-w3 leftovers. Compass walk sheets are registered after
+   this strip. Kin stay. */
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
@@ -718,6 +719,15 @@ SPRITE_FILES.macar_xbow='assets/creatures/dwarf_macar_xbow.png';
 SPRITE_FILES.macar_xbow_w1='assets/creatures/dwarf_macar_xbow_w1.png';
 SPRITE_FILES.macar_xbow_w2='assets/creatures/dwarf_macar_xbow_w2.png';
 SPRITE_FILES.macar_xbow_atk='assets/creatures/dwarf_macar_xbow_atk.png';
+/* Compass maul walks. Screen-left mirrors the screen-right sheet.
+   South stays the signed front pair. Registered after the strip and
+   after _w3 derivation so these do not spawn missing siblings. */
+SPRITE_FILES.macar_e_w3='assets/creatures/dwarf_macar_e_w3.png';
+SPRITE_FILES.macar_se_w3='assets/creatures/dwarf_macar_se_w3.png';
+SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
+SPRITE_FILES.macar_ne_w3='assets/creatures/dwarf_macar_ne_w3.png';
+SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
+SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -749,7 +759,9 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk','pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
+    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
+    'macar_e_w3','macar_se_w3','macar_ne_w2','macar_ne_w3','macar_back_w1','macar_back_w2',
+    'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
     'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
@@ -1709,29 +1721,31 @@ function drawEntBillboard(g,e,img,z,flip){
    Macar's sheet plan.
 
    Title-law identity is the live maul idle plus front w1/w2 + maul atk.
-   Shadow Cleaver carry/atk swap in via livingMacarIdleKey when equipped.
-   Crossbow carry/atk swap in the same way when the shooting loadout is on.
-   Compass / sleep / title leftovers stay gone — do not rebind them.
+   Shadow Cleaver and crossbow stay on their signed front walks.
+   Maul compass: _e_ screen-right, _se_ down-right, _ne_ up-right, _back_
+   away. Screen-left (w / sw / nw) mirrors that sheet. South keeps the
+   signed front pair. Sleep / title / front w3 stay unwired.
    ========================================================================== */
 const MACAR_PLAN={
   macar:{
-    e:  {flip:0, frames:['macar_w1','macar_w2']},
-    w:  {flip:1, frames:['macar_w1','macar_w2']},
-    se: {flip:0, frames:['macar_w1','macar_w2']},
-    sw: {flip:1, frames:['macar_w1','macar_w2']},
-    ne: {flip:0, frames:['macar_w1','macar_w2']},
-    nw: {flip:1, frames:['macar_w1','macar_w2']},
-    n:  {flip:0, frames:['macar_w1','macar_w2']},
+    e:  {flip:0, frames:['macar_e_w3']},
+    w:  {flip:1, frames:['macar_e_w3']},
+    se: {flip:0, frames:['macar_se_w3']},
+    sw: {flip:1, frames:['macar_se_w3']},
+    ne: {flip:0, frames:['macar_ne_w2','macar_ne_w3']},
+    nw: {flip:1, frames:['macar_ne_w2','macar_ne_w3']},
+    n:  {flip:0, frames:['macar_back_w1','macar_back_w2']},
     s:  {flip:0, frames:['macar_w1','macar_w2']},
-    idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
-          n:'macar', ne:'macar', nw:'macar'},
+    idle:{e:'macar_e_w3', w:'macar_e_w3', se:'macar_se_w3', sw:'macar_se_w3', s:'macar',
+          n:'macar_back_w1', ne:'macar_ne_w2', nw:'macar_ne_w2'},
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Title-law Macar: maul idle + front w1/w2 + maul windup/contact + Cleaver + crossbow. */
+/* Maul idle + front w1/w2 + compass walks + windup/contact + Cleaver + crossbow. */
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
-  macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1
+  macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
+  macar_e_w3:1, macar_se_w3:1, macar_ne_w2:1, macar_ne_w3:1, macar_back_w1:1, macar_back_w2:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1952,6 +1966,12 @@ function ghostAnimKey(e, k){
 function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
+  /* Compass crops are a different canvas than the 1100×920 front pair.
+     Skip the idle-family match or every turn plants the front sheet. */
+  if(isLivingMacarKey(key) && sprReady(key) && (
+      key==='macar_e_w3'||key==='macar_se_w3'||key==='macar_ne_w2'||key==='macar_ne_w3'
+      ||key==='macar_back_w1'||key==='macar_back_w2')
+     && partyFrameFitOk(SPR[key], null)) return key;
   return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
 }
@@ -2097,7 +2117,31 @@ function livingMacarAnimKey(e){
     if(matchingPartyAtkReady(rec, idle)) return rec;
     return idle;
   }
-  /* Cleaver / xbow walk uses matching w1/w2 when ready; else plant that idle. */
+  /* Maul compass from the move / last heading. South stays the signed
+     front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
+     crossbow have no compass sheets, so they keep their front walks.
+     No heading reads as south. */
+  if(idle==='macar' && typeof screenOctant==='function'){
+    const oct=screenOctant(e);
+    let frames=null;
+    if(oct==='n') frames=['macar_back_w1','macar_back_w2'];
+    else if(oct==='e'||oct==='w') frames=['macar_e_w3'];
+    else if(oct==='se'||oct==='sw') frames=['macar_se_w3'];
+    else if(oct==='ne'||oct==='nw') frames=['macar_ne_w2','macar_ne_w3'];
+    if(frames){
+      const ready=[];
+      for(let i=0;i<frames.length;i++){
+        if(isLivingMacarKey(frames[i]) && sprReady(frames[i])) ready.push(frames[i]);
+      }
+      if(ready.length){
+        if(!(e.moving && !e.defending) || ready.length===1) return ready[0];
+        const phase=(((e.gait||0)%1)+1)%1;
+        return ready[phase<0.5?0:1];
+      }
+    }
+  }
+  /* Cleaver / xbow walk uses matching w1/w2 when ready; else plant that idle.
+     South maul uses the front w1/w2 pair of the live idle. */
   const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
   return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
 }
@@ -3021,10 +3065,9 @@ function wantsSpriteFlip(e){
   const key=entAnimKey(e)||'';
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
-  if(key.indexOf('_ne_')>=0) return false;
-  // Title-law idle/w1/w2 travel SCREEN-RIGHT. Unflipped on D / gold-right.
-  // Flip ONLY for screen-left. Same FACE, opposite FOOT. Kin sheets also
-  // face right, so they share this sign — no invert leftover.
+  // Painted sheets travel SCREEN-RIGHT (east / se / ne / front). Flip ONLY
+  // for screen-left, so west mirrors east, SW mirrors SE, NW mirrors NE.
+  // A _ne_ early-out left NW on the unflipped up-right sheet.
   if(e.hero && !e.ghost) return moveHeadingSX(e) < -0.02;
   return moveHeadingSX(e) < -0.02;
 }

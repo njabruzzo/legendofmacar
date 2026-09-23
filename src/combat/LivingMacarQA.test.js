@@ -110,9 +110,13 @@ assert(!!keysDecl, 'LIVING_MACAR_KEYS is in index.html');
 BLIT_KEYS.forEach(k=>{
   assert(new RegExp(k+':1').test(keysDecl[0]), 'whitelist includes '+k);
 });
+assert(/macar_e_w3:1/.test(keysDecl[0]) && /macar_se_w3:1/.test(keysDecl[0])
+  && /macar_ne_w2:1/.test(keysDecl[0]) && /macar_ne_w3:1/.test(keysDecl[0])
+  && /macar_back_w1:1/.test(keysDecl[0]) && /macar_back_w2:1/.test(keysDecl[0]),
+  'whitelist binds maul compass walks (e / se / ne / back)');
 assert(!/macar_e_w1:1/.test(keysDecl[0]) && !/macar_w3:1/.test(keysDecl[0])
   && !/macar_back:1/.test(keysDecl[0]) && !/macar_title:1/.test(keysDecl[0]),
-  'whitelist does not bind directional / w3 / title stems');
+  'whitelist does not bind holed e_w1 / front w3 / title / back still');
 
 BLIT_KEYS.forEach(k=>{
   const file=path.join(root,'assets/creatures', KEY_FILE[k]);
@@ -173,10 +177,12 @@ assert(/wieldsShadowCleaver/.test(extractFn('livingMacarIdleKey')),
   'livingMacarIdleKey gates on wieldsShadowCleaver');
 assert(/wieldsCrossbow/.test(extractFn('livingMacarIdleKey')),
   'livingMacarIdleKey gates on wieldsCrossbow');
-assert(!/macar_e/.test(liveKey) && !/macar_s/.test(liveKey) && !/macar_back/.test(liveKey)
-  && !/macar_w3/.test(liveKey) && !/macar_title/.test(liveKey),
-  'livingMacarAnimKey never binds directional / w3 / title sheets');
-assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'walk uses the front w1/w2 pair of the live idle');
+assert(/macar_e_w3/.test(liveKey) && /macar_se_w3/.test(liveKey)
+  && /macar_ne_w2/.test(liveKey) && /macar_back_w1/.test(liveKey),
+  'livingMacarAnimKey binds compass sheets from the move octant');
+assert(!/macar_title/.test(liveKey) && !/macar_e_w1/.test(liveKey),
+  'livingMacarAnimKey does not bind title or holed east w1');
+assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'south walk uses the front w1/w2 pair of the live idle');
 assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(liveKey)
   || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)
   || /matchingPartyAtkReady\(atk, idle\)/.test(liveKey)),
@@ -224,6 +230,7 @@ const ctx={
   wieldsShadowCleaver(){ return !!ctx._axe; },
   wieldsCrossbow(){ return !!ctx._xbow; },
   MacarStrikeQA:{hold:false, blitKey:null, bowPoseT:0, bowPoseUntil:0},
+  TW:64, TH:32,
   _now:10000,
   performance:{now(){ return ctx._now; }},
   player(){ return ctx._player||null; },
@@ -267,6 +274,7 @@ vm.runInContext(
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey')
   +extractFn('faceVec')
+  +extractFn('screenOctant')
   +extractFn('moveHeadingSX')
   +extractFn('wantsSpriteFlip'),
   ctx
@@ -461,18 +469,36 @@ landed=0;
 for(let t=0;t<1.2;t+=0.05){ if(tickMelee(poseOnly, 0.05)==='hit') landed++; }
 assert(landed===0, 'pose-only cooldown swing never fires the hit tick');
 
-/* Fake east / west headings: title-law sheets travel screen-right.
-   D / gold-right stays unflipped; A / gold-left flips. Invert leftover
-   was the moonwalk. */
+/* Compass sheets travel screen-right. D stays unflipped; A flips the
+   same east sheet. South keeps the signed front pair. */
+['macar_e_w3','macar_se_w3','macar_ne_w2','macar_ne_w3','macar_back_w1','macar_back_w2'].forEach(k=>{
+  SPR[k]={width:8, height:32};
+});
 const eastWalk=macar({moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, gait:0.12});
 const westWalk=macar({moving:1, ix:-0.707, iy:0.707, fdx:-0.707, fdy:0.707, gait:0.12});
 assert(ctx.moveHeadingSX(eastWalk)>0.02, 'east heading has positive screen-x');
 assert(ctx.moveHeadingSX(westWalk)<-0.02, 'west heading has negative screen-x');
 assert(ctx.wantsSpriteFlip(eastWalk)===false, 'walk-right (D / gold-right) stays unflipped');
 assert(ctx.wantsSpriteFlip(westWalk)===true, 'walk-left (A / gold-left) flips the painted-right sheet');
-assert(ctx.livingMacarAnimKey(eastWalk)==='macar_w1'
-  && ctx.livingMacarAnimKey(westWalk)==='macar_w1',
-  'east and west walks share the same front sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(eastWalk)==='macar_e_w3'
+  && ctx.livingMacarAnimKey(westWalk)==='macar_e_w3',
+  'east and west walks share the east sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:1, iy:0, fdx:1, fdy:0, gait:0.12}))==='macar_se_w3',
+  'southeast uses the se sheet');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:1, fdx:0, fdy:1, gait:0.12}))==='macar_se_w3',
+  'southwest uses the se sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.12}))==='macar_ne_w2'
+  && ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.62}))==='macar_ne_w3',
+  'northeast cycles ne w2 / w3');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.12}))==='macar_ne_w2',
+  'northwest uses the ne sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.12}))==='macar_back_w1'
+  && ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.62}))==='macar_back_w2',
+  'north cycles the back walk');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0.707, iy:0.707, fdx:0.707, fdy:0.707, gait:0.12}))==='macar_w1',
+  'south keeps the signed front walk');
+assert(ctx.livingMacarAnimKey(macar({moving:0, ix:0, iy:0, fdx:0.707, fdy:-0.707}))==='macar_e_w3',
+  'idle keeps the last east facing');
 const eastIdle=macar({fdx:0.707, fdy:-0.707});
 const westIdle=macar({fdx:-0.707, fdy:0.707});
 assert(ctx.wantsSpriteFlip(eastIdle)===false, 'idle facing east is unflipped');
