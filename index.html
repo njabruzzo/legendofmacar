@@ -1733,7 +1733,8 @@ const MACAR_PLAN={
     se: {flip:0, frames:['macar_se_w3']},
     sw: {flip:1, frames:['macar_se_w3']},
     ne: {flip:0, frames:['macar_ne_w2','macar_ne_w3']},
-    nw: {flip:1, frames:['macar_ne_w2','macar_ne_w3']},
+    /* ne_w3 mirrored puts the torso on the SE sheet. NW stays on ne_w2. */
+    nw: {flip:1, frames:['macar_ne_w2']},
     n:  {flip:0, frames:['macar_back_w1','macar_back_w2']},
     s:  {flip:0, frames:['macar_w1','macar_w2']},
     idle:{e:'macar_e_w3', w:'macar_e_w3', se:'macar_se_w3', sw:'macar_se_w3', s:'macar',
@@ -2127,7 +2128,12 @@ function livingMacarAnimKey(e){
     if(oct==='n') frames=['macar_back_w1','macar_back_w2'];
     else if(oct==='e'||oct==='w') frames=['macar_e_w3'];
     else if(oct==='se'||oct==='sw') frames=['macar_se_w3'];
-    else if(oct==='ne'||oct==='nw') frames=['macar_ne_w2','macar_ne_w3'];
+    /* Both NE frames face up-right. The mirror of ne_w2 keeps that body
+       aimed up-left. The mirror of ne_w3 drops the torso onto the SE
+       sheet, so a mid-stride W+A read as lower-right. NW stays on ne_w2
+       for the whole gait; NE still alternates w2/w3. */
+    else if(oct==='ne') frames=['macar_ne_w2','macar_ne_w3'];
+    else if(oct==='nw') frames=['macar_ne_w2'];
     if(frames){
       const ready=[];
       for(let i=0;i<frames.length;i++){

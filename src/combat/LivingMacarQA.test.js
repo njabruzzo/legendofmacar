@@ -490,8 +490,9 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:1, fdx:0, fdy:1, gait:0.
 assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.12}))==='macar_ne_w2'
   && ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.62}))==='macar_ne_w3',
   'northeast cycles ne w2 / w3');
-assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.12}))==='macar_ne_w2',
-  'northwest uses the ne sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.12}))==='macar_ne_w2'
+  && ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.62}))==='macar_ne_w2',
+  'northwest stays on ne_w2 for the whole gait (ne_w3 mirrored reads southeast)');
 assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.12}))==='macar_back_w1'
   && ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.62}))==='macar_back_w2',
   'north cycles the back walk');
