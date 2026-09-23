@@ -11049,6 +11049,8 @@ function buildTeethCrownRoom(L, sec){
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:882,
     toothKind:'electrum', emptySocket:!!(L.flags.electrumTooth||L.flags.copperTooth)});
   if(!L.flags.teethRisen){
+    /* Specks only. The covered floor is teethCarpetStamp on each cell.
+       A tall tooth billboard here would rise over the north-wall face. */
     const sprs=['tooth','tooth_2','tooth_3'];
     for(let i=0;i<48;i++){
       const tx=x0+1.1+h2(i,3)*9.6;
@@ -13889,11 +13891,54 @@ function drawBoneCrownShape(g, z, scale){
     g.restore();
   });
 }
+/* Chapel floor before the horde rises. teeth_floor.png is a stone diamond
+   with a few fangs, so it reads sparse on its own. Stamp the three existing
+   tooth props across that field until the diamond reads covered. Flat on
+   the tile — not billboard props — so the pile cannot stand up over the
+   north-wall demon face or the northwest altar. Four variants so the
+   carpet does not repeat as one stamp. */
+const TEETH_CARPET_N=26;
+let TEETH_CARPETS=null;
+function teethCarpetStamp(x,y){
+  if(!TEETH_CARPETS){
+    const field=SPR.teeth_floor;
+    const fangs=[SPR.tooth,SPR.tooth_2,SPR.tooth_3].filter(im=>im&&im.width);
+    if(!(field&&field.width)||fangs.length<3) return null;
+    const W=256,H=128,n=TEETH_CARPET_N;
+    TEETH_CARPETS=[];
+    for(let v=0;v<4;v++){
+      const c=document.createElement('canvas');
+      c.width=W; c.height=H;
+      const cg=c.getContext('2d');
+      cg.drawImage(field,0,0,W,H);
+      for(let i=0;i<n;i++){
+        const img=fangs[(i+v*2)%fangs.length];
+        let px=(h2(v*19+i,3)-0.5)*2, py=(h2(v*7+i,11)-0.5)*2;
+        const m=Math.abs(px)+Math.abs(py);
+        if(m>1){ px/=m; py/=m; }
+        px*=0.92*(W/2); py*=0.92*(H/2);
+        const ang=(h2(i*5+v,9)-0.5)*2.8;
+        const fh=H*(0.30+h2(i,v+4)*0.62);
+        const fw=fh*(img.width/Math.max(1,img.height));
+        cg.save();
+        cg.translate(W/2+px, H/2+py);
+        cg.rotate(ang);
+        if(h2(i,v+8)>0.5) cg.scale(-1,1);
+        cg.drawImage(img,-fw/2,-fh*0.78,fw,fh);
+        cg.restore();
+      }
+      TEETH_CARPETS.push(c);
+    }
+  }
+  if(!TEETH_CARPETS||!TEETH_CARPETS.length) return null;
+  return TEETH_CARPETS[((x|0)*3+(y|0))&3];
+}
 function drawTeethTile(g,x,y){
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
   const field=SPR.teeth_floor;
   if(field&&field.width&&!risen){
     const s=w2s(x,y);
+    const stamp=teethCarpetStamp(x,y)||field;
     g.save();
     g.beginPath();
     g.moveTo(s.x, s.y-TH/2);
@@ -13902,7 +13947,7 @@ function drawTeethTile(g,x,y){
     g.lineTo(s.x-TW/2, s.y);
     g.closePath();
     g.clip();
-    g.drawImage(field, s.x-TW/2, s.y-TH/2, TW, TH);
+    g.drawImage(stamp, s.x-TW/2, s.y-TH/2, TW, TH);
     g.restore();
     return;
   }

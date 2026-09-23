@@ -134,6 +134,14 @@ assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.
 }
 assert(/SPR\.teeth_floor/.test(extractFn('drawTeethTile')),
   'floor teeth use the signed fang field when it is present');
+assert(/const TEETH_CARPET_N=26/.test(html) && /function teethCarpetStamp\(/.test(html),
+  'chapel floor builds a dense carpet from the existing fang stamps');
+assert(/SPR\.tooth,SPR\.tooth_2,SPR\.tooth_3/.test(extractFn('teethCarpetStamp')),
+  'carpet tiles the three existing tooth props, no new painted sheet');
+assert(/teethCarpetStamp\(x,y\)\|\|field/.test(extractFn('drawTeethTile')),
+  'each unrisen chapel cell blits the dense carpet over the fang field');
+assert(/for\(let i=0;i<n;i\+\+\)/.test(extractFn('teethCarpetStamp')),
+  'carpet stamps TEETH_CARPET_N fangs onto every variant');
 assert(/SPR\.wall_teeth_chapel_opaque/.test(extractFn('teethChapelWallImg'))
   && /chapel\|\|faceL/.test(html),
   'chapel north face prefers the opaque masonry sheet');
