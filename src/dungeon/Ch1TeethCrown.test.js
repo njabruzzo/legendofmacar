@@ -47,6 +47,16 @@ assert(/function takeBoneCrown\(/.test(html) && /function destroyBoneCrown\(/.te
   'take and destroy crown paths exist');
 assert(/BONE_CROWN_DESTROY_XP=5000/.test(html), 'destroy awards 5000 XP');
 assert(/FANGED_SKELETON_HORDE=8/.test(html), 'teeth rise as a horde');
+assert(/TEETH_HORDE_STIR=0\.8/.test(html), 'crown horde stirs for 0.8s');
+assert(/TEETH_HORDE_MIN_DIST=2\.8/.test(html), 'crown horde stands outside the melee pocket');
+assert(!/rad=1\.35\+\(i%3\)/.test(extractFn('riseTeethHorde')),
+  'horde no longer rings Macar inside melee range');
+assert(/e\.stun=TEETH_HORDE_STIR/.test(extractFn('riseTeethHorde')),
+  'each risen skeleton is pinned to the short stir after the fight opens');
+assert(/The floor has risen\. They stir\. Fight or run\./.test(extractFn('riseTeethHorde')),
+  'hint keeps fight-or-run and names the stir');
+assert(/The teeth stand up\. A horde of fanged skeletons\./.test(extractFn('riseTeethHorde')),
+  'horde say is unchanged');
 assert(/HOUSE: Bone Crown animate dead/.test(html),
   'HOUSE comment records one-thrall animate-dead law');
 assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
@@ -216,6 +226,9 @@ const ctx={
   G:{equipped:{}, ents:[], props:[], lvl:{n:1,flags:{},w:132,h:90,grid:null}, packs:{macar:{magic:[]}}},
   BONE_CROWN_DESTROY_XP:5000,
   FANGED_SKELETON_HORDE:8,
+  TEETH_HORDE_STIR:0.8,
+  TEETH_HORDE_MIN_DIST:2.8,
+  isWalkTile(t){ return t===0||t===3||t===4; },
   FOE:{fangedSkeleton(){ return {id:eid++, kind:'undead', name:'Fanged Skeleton', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; }},
   lines:[],
   hints:[],
@@ -242,7 +255,8 @@ ctx.beginFight=function(){};
 [
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
-  'collapseCrownThrall','setThrallStay','tryAnimateDead','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
+  'collapseCrownThrall','setThrallStay','tryAnimateDead',
+  'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
   'destroyBoneCrown','tryStrikeBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -280,6 +294,63 @@ assert(/Bone Crown destroyed/.test(ctx.xpAwards[0].why), 'XP reason names the cr
 assert(ctx.G.equipped.helmet==null, 'destroy does not wear the crown');
 assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
   'DESTROY still raises the same horde');
+
+/* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
+   Wall cells on the far edge must be skipped. beginFight may lengthen stun;
+   the stir is pinned back to the short beat. */
+ctx.G.lvl.flags={};
+ctx.G.lvl.teethBounds={x0:101,y0:2,x1:113,y1:14};
+{
+  const grid=[];
+  for(let y=0;y<20;y++){
+    const row=[];
+    for(let x=0;x<130;x++) row.push((x>=101 && x<113 && y>=2 && y<14)?0:1);
+    grid.push(row);
+  }
+  grid[13][112]=1;
+  grid[13][107]=1;
+  grid[8][107]=1;
+  ctx.G.lvl.grid=grid;
+  ctx.G.props=[
+    {k:'tooth', x:104, y:6, gone:0},
+    {k:'tooth', x:108, y:9, gone:0},
+    {k:'altar', x:102.25, y:4.35, gone:0}
+  ];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:102.4, y:4.6, hp:80, maxhp:80}];
+  ctx.lines=[]; ctx.hints=[];
+  ctx.beginFight=function(){
+    ctx.G.ents.forEach(e=>{ if(e&&e.name==='Fanged Skeleton') e.stun=3.4; });
+  };
+  const risen=ctx.riseTeethHorde({x:102.25,y:4.35});
+  const mac=ctx.G.ents[0];
+  const horde=ctx.G.ents.filter(e=>e.name==='Fanged Skeleton');
+  assert(risen===8 && horde.length===8, 'chapel still raises eight fanged skeletons');
+  const meleePocket=2.2;
+  horde.forEach((e,i)=>{
+    const d=Math.hypot(e.x-mac.x, e.y-mac.y);
+    assert(d>meleePocket, 'horde '+i+' stands outside the melee pocket ('+d.toFixed(2)+')');
+    assert(d+1e-9>=ctx.TEETH_HORDE_MIN_DIST, 'horde '+i+' is at least the stir spacing ('+d.toFixed(2)+')');
+    assert(e.stun===ctx.TEETH_HORDE_STIR, 'horde '+i+' stirs for '+e.stun+'s');
+    assert(e.stun>=0.6 && e.stun<=1.0, 'horde '+i+' stir stays inside 0.6–1.0s');
+    assert(e.aggro===9 && e.engaged===1, 'horde '+i+' is still an engaged threat after the stir');
+    assert(e.x>=101 && e.x<113 && e.y>=2 && e.y<14, 'horde '+i+' is clamped inside teeth bounds');
+    const ix=e.x|0, iy=e.y|0;
+    assert(grid[iy] && grid[iy][ix]===0, 'horde '+i+' stands on a walkable chapel tile');
+    assert(ix===101||ix===112||iy===2||iy===13, 'horde '+i+' stands on the room-edge ring');
+  });
+  let nearest=99;
+  for(let i=0;i<horde.length;i++) for(let j=i+1;j<horde.length;j++){
+    nearest=Math.min(nearest, Math.hypot(horde[i].x-horde[j].x, horde[i].y-horde[j].y));
+  }
+  assert(nearest>=1.5, 'room-edge horde does not stack on one tile ('+nearest.toFixed(2)+')');
+  assert(ctx.G.props.filter(p=>p.k==='tooth').every(p=>p.gone===1), 'risen horde still clears floor teeth');
+  assert(ctx.G.props.find(p=>p.k==='altar').gone!==1, 'the altar is not cleared with the floor teeth');
+  assert(ctx.lines.some(t=>t==='The teeth stand up. A horde of fanged skeletons.'), 'horde say stays');
+  assert(ctx.hints.some(t=>t==='The floor has risen. They stir. Fight or run.'),
+    'hint names the stir and still says fight or run');
+  ctx.G.lvl.grid=null;
+  ctx.beginFight=function(){};
+}
 
 const sk=ctx.FOE.fangedSkeleton();
 assert(sk.hd===2 && sk.ac===7 && sk.dmg===4.5 && sk.dice==='1d6+1',

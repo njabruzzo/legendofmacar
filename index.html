@@ -10868,6 +10868,9 @@ function buildSecretTreasureRoom(L, sec){
 }
 const BONE_CROWN_DESTROY_XP=5000;
 const FANGED_SKELETON_HORDE=8;
+/* Outside the old 1.35–2.2 melee pocket. Stir is a short step, not a surprise stack. */
+const TEETH_HORDE_STIR=0.8;
+const TEETH_HORDE_MIN_DIST=2.8;
 const HOURGLASS_RAID_S=10;
 function teethBounds(L){
   L=L||G.lvl;
@@ -10979,35 +10982,115 @@ function tryAnimateDead(actor, body){
   hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
   return {ok:1, thrall:body, form:bones?'skeleton':'zombie'};
 }
+function teethHordeBox(L){
+  return teethBounds(L)||{x0:101,y0:2,x1:113,y1:14};
+}
+function teethHordeWalkable(L, x, y){
+  const b=teethHordeBox(L);
+  if(!(x>=b.x0+0.35 && x<b.x1-0.35 && y>=b.y0+0.35 && y<b.y1-0.35)) return false;
+  const g=L&&L.grid;
+  if(!g) return true;
+  const ix=x|0, iy=y|0;
+  const row=g[iy];
+  if(!row || row[ix]==null) return false;
+  return typeof isWalkTile==='function'?isWalkTile(row[ix]):(row[ix]===0||row[ix]===3||row[ix]===4);
+}
+/* Room-edge ring inside the chapel, outside Macar's melee pocket.
+   Near-edge cells that would rise in his face are skipped; the rest
+   stay on walkable floor, one body to a tile. */
+function teethHordeSpots(L, origin, n){
+  const b=teethHordeBox(L);
+  const px=origin&&origin.x!=null?origin.x:(b.x0+b.x1)*0.5;
+  const py=origin&&origin.y!=null?origin.y:(b.y0+b.y1)*0.5;
+  const minDist=TEETH_HORDE_MIN_DIST;
+  const xa0=b.x0|0, ya0=b.y0|0, xb0=(b.x1|0)-1, yb0=(b.y1|0)-1;
+  const cands=[];
+  function consider(ix,iy,edge){
+    const x=ix+0.5, y=iy+0.5;
+    if(!teethHordeWalkable(L,x,y)) return;
+    const d=Math.hypot(x-px,y-py);
+    if(d<minDist) return;
+    cands.push({x:x,y:y,d:d,edge:edge});
+  }
+  for(let ring=0; ring<4; ring++){
+    const xa=xa0+ring, ya=ya0+ring, xb=xb0-ring, yb=yb0-ring;
+    if(xa>xb||ya>yb) break;
+    const edge=ring?0:1;
+    for(let x=xa;x<=xb;x++){
+      consider(x,ya,edge);
+      if(yb!==ya) consider(x,yb,edge);
+    }
+    for(let y=ya+1;y<=yb-1;y++){
+      consider(xa,y,edge);
+      if(xb!==xa) consider(xb,y,edge);
+    }
+  }
+  cands.sort(function(a,c){
+    return (c.edge-a.edge)||(c.d-a.d)||(a.x-c.x)||(a.y-c.y);
+  });
+  const picked=[];
+  const seps=[1.6,1.15,0.75];
+  for(let s=0;s<seps.length && picked.length<n;s++){
+    for(let i=0;i<cands.length && picked.length<n;i++){
+      const c=cands[i];
+      let clash=0;
+      for(let k=0;k<picked.length;k++){
+        if(picked[k].x===c.x && picked[k].y===c.y){ clash=1; break; }
+        if(Math.hypot(picked[k].x-c.x, picked[k].y-c.y)<seps[s]){ clash=1; break; }
+      }
+      if(!clash) picked.push(c);
+    }
+  }
+  if(picked.length<n){
+    for(let y=ya0;y<=yb0 && picked.length<n;y++){
+      for(let x=xa0;x<=xb0 && picked.length<n;x++){
+        const cx=x+0.5, cy=y+0.5;
+        if(!teethHordeWalkable(L,cx,cy)) continue;
+        const d=Math.hypot(cx-px,cy-py);
+        if(d<minDist) continue;
+        let clash=0;
+        for(let k=0;k<picked.length;k++){
+          if(picked[k].x===cx && picked[k].y===cy){ clash=1; break; }
+          if(Math.hypot(picked[k].x-cx, picked[k].y-cy)<0.75){ clash=1; break; }
+        }
+        if(!clash) picked.push({x:cx,y:cy,d:d,edge:0});
+      }
+    }
+  }
+  return picked.slice(0,n);
+}
 function riseTeethHorde(where){
   const L=G.lvl;
   if(!L||L.flags.teethRisen) return 0;
   L.flags.teethRisen=1;
   (G.props||[]).forEach(p=>{ if(p&&p.k==='tooth') p.gone=1; });
   const p=typeof player==='function'?player():null;
-  const b=teethBounds(L)||{x0:101,y0:2,x1:113,y1:14};
-  const cx=(p&&p.x!=null)?p.x:(where&&where.x!=null?where.x:(b.x0+b.x1)*0.5);
-  const cy=(p&&p.y!=null)?p.y:(where&&where.y!=null?where.y:(b.y0+b.y1)*0.5);
+  const origin=(p&&p.x!=null)?p:(where||{});
   const n=FANGED_SKELETON_HORDE;
   const make=FOE.fangedSkeleton;
   if(typeof make!=='function') return 0;
+  const spots=teethHordeSpots(L, origin, n);
+  const risen=[];
   let last=null;
-  for(let i=0;i<n;i++){
-    const a=(i/n)*Math.PI*2;
-    const rad=1.35+(i%3)*0.42;
+  for(let i=0;i<spots.length;i++){
     const e=make();
-    e.x=cx+Math.cos(a)*rad;
-    e.y=cy+Math.sin(a)*rad*0.82;
-    e.aggro=9; e.engaged=1;
+    e.x=spots[i].x; e.y=spots[i].y;
+    e.aggro=9; e.engaged=1; e.stun=TEETH_HORDE_STIR;
     G.ents.push(e);
+    risen.push(e);
     last=e;
     burst(e.x,e.y,'#e8d0b8',8,2.1);
   }
   shake(14);
   say('The teeth stand up. A horde of fanged skeletons.','#ff6a5a');
-  hint('The floor has risen. Fight or run.',4.2);
+  hint('The floor has risen. They stir. Fight or run.',4.2);
   if(typeof beginFight==='function') beginFight(last);
-  return n;
+  /* beginFight may stack surprise or initiative on top of the stir.
+     Pin it so the open stays a short beat and the eight still close. */
+  for(let i=0;i<risen.length;i++){
+    if(risen[i] && !risen[i].dead) risen[i].stun=TEETH_HORDE_STIR;
+  }
+  return risen.length;
 }
 function takeBoneCrown(crown){
   if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
