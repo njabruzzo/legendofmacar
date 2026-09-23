@@ -45,7 +45,7 @@ assert(!/else if\(okTex\)\{/.test(html),
   'generated TEX diamonds are not a first-frame floor/wall fallback');
 assert(/tile_floor_mine\.png\?v=60/.test(html) && /tile_wall_worked\.png\?v=60/.test(html),
   'mine floor and worked wall are preloaded before first present');
-assert(/ASSET_VER='112'/.test(html), 'asset cache-bust is 112 — ghost spectral idle v1 (Nick Good)');
+assert(/ASSET_VER='113'/.test(html), 'asset cache-bust is 113 — ghost spectral walk v7 (Nick Good)');
 assert(/function scatterBurialRubble\(/.test(html) && /fallen:1/.test(html) && /k:'dust'/.test(html),
   'cave-in entry scatters extra timber, stone, and dust around the burial');
 assert(!/s:0\.55,seed:s\.seed\+40/.test(html) && !/s:0\.48,seed:s\.seed\+51/.test(html),

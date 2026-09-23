@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Ghost walk/atk lift from the signed α168 gray-blue stamp to spectral white.
- * Nick-GOOD idle is already icy blue-white and is not lifted.
+ * Ghost atk lifts from the signed α168 gray-blue stamp to spectral white.
+ * Nick-GOOD idle and front walk w1/w2 are already icy blue-white and are not lifted.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
  * A thin cool line traces the silhouette and the main luminance ridge
  * (face, beard, helm, weapon) without punching the spirit opaque.
@@ -49,9 +49,12 @@ assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.te
   'pixel lift is a dedicated ghost pipe with a feature-edge pass');
 assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
   'liftGhostSpirit inks key-feature edges after the white lift');
-assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('solidDwarfSprite'))
+assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'Nick spectral idle blits as painted; other ghost stamps still lift');
+  'Nick spectral idle and front walk blit as painted; atk/back still lift');
+assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
+  && /img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet')),
+  'painted list is the four idles plus front w1/w2');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
@@ -176,7 +179,7 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
 }
 
 {
-  const {w,h,data}=readRgba(path.join(creatures,'dwarf_pordoom_ghost_w1.png'));
+  const {w,h,data}=readRgba(path.join(creatures,'dwarf_pordoom_ghost_atk.png'));
   const src=new Uint8ClampedArray(data);
   const dst=new Uint8ClampedArray(data);
   ctx.liftGhostAlpha(dst);
@@ -195,9 +198,9 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
   }
   const frac=ink/opaque;
   assert(a255===0 && frac>0.04 && frac<0.32,
-    'pordoom ghost w1 lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
+    'pordoom ghost atk lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
   assert(cool===ink && (yInk/ink)+14<(yFill/(opaque-ink)),
-    'pordoom w1 feature lines read darker and cool against the spectral fill');
+    'pordoom atk feature lines read darker and cool against the spectral fill');
 }
 
 const oldChalk=228*0.96/255;
@@ -205,10 +208,10 @@ const newEff=215/255;
 assert(newEff>0.80 && newEff<oldChalk,
   'spirit alpha sits above baked α168 and under the old chalk multiply');
 
-const MOTION=['_w1','_w2','_atk','_atk_recover'];
+const STAMP=['_atk','_atk_recover'];
 const KIN=['pordoom','fendur','orbo','talpor'];
 KIN.forEach(k=>{
-  MOTION.forEach(suf=>{
+  STAMP.forEach(suf=>{
     const f='dwarf_'+k+'_ghost'+suf+'.png';
     const {data}=readRgba(path.join(creatures,f));
     let n=0, sum=0, a255=0;
@@ -237,6 +240,26 @@ const IDLE_DIM={
   'dwarf_pordoom_ghost.png':[470,512],
   'dwarf_talpor_ghost.png':[504,512]
 };
+const WALK_SHA={
+  'dwarf_fendur_ghost_w1.png':'4e7b7e25',
+  'dwarf_fendur_ghost_w2.png':'74fee963',
+  'dwarf_orbo_ghost_w1.png':'2a5d1c8b',
+  'dwarf_orbo_ghost_w2.png':'db0716ea',
+  'dwarf_pordoom_ghost_w1.png':'e66b2a10',
+  'dwarf_pordoom_ghost_w2.png':'a243e040',
+  'dwarf_talpor_ghost_w1.png':'20180a39',
+  'dwarf_talpor_ghost_w2.png':'a901092a'
+};
+const WALK_DIM={
+  'dwarf_fendur_ghost_w1.png':[593,512],
+  'dwarf_fendur_ghost_w2.png':[527,512],
+  'dwarf_orbo_ghost_w1.png':[480,512],
+  'dwarf_orbo_ghost_w2.png':[480,512],
+  'dwarf_pordoom_ghost_w1.png':[470,512],
+  'dwarf_pordoom_ghost_w2.png':[692,512],
+  'dwarf_talpor_ghost_w1.png':[589,512],
+  'dwarf_talpor_ghost_w2.png':[504,512]
+};
 Object.keys(IDLE_SHA).forEach(f=>{
   const full=path.join(creatures,f);
   const buf=fs.readFileSync(full);
@@ -254,6 +277,25 @@ Object.keys(IDLE_SHA).forEach(f=>{
   }
   assert(clear>8000 && n>1000 && cool/n>0.85,
     f+' keeps alpha and icy blue paint (clear '+clear+', cool '+((cool/n)*100).toFixed(1)+'%)');
+});
+Object.keys(WALK_SHA).forEach(f=>{
+  const full=path.join(creatures,f);
+  const buf=fs.readFileSync(full);
+  const sha=crypto.createHash('sha256').update(buf).digest('hex');
+  assert(sha.indexOf(WALK_SHA[f])===0, f+' walk sha is Nick-GOOD spectral '+WALK_SHA[f]);
+  const {w,h,data}=readRgba(full);
+  assert(w===WALK_DIM[f][0] && h===WALK_DIM[f][1], f+' keeps Nick canvas '+w+'x'+h);
+  let clear=0, n=0, cool=0, a255=0;
+  for(let i=0;i<data.length;i+=4){
+    const a=data[i+3];
+    if(a===0){ clear++; continue; }
+    if(a===255) a255++;
+    if(a<=40) continue;
+    n++;
+    if(data[i+2]>data[i]) cool++;
+  }
+  assert(clear>8000 && n>1000 && a255>1000 && cool/n>0.85,
+    f+' is icy spectral walk, not an α168 stamp (clear '+clear+', a255 '+a255+', cool '+((cool/n)*100).toFixed(1)+'%)');
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

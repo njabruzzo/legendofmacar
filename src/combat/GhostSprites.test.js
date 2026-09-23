@@ -34,7 +34,7 @@ assert(/function ghostAnimKey\(/.test(html) && /function livingColorStats\(/.tes
   && /function pickReadyGhostKey\(/.test(html),
   'ghost bind keeps spectral idle and plants it when walk/atk fail');
 assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
-  'unsigned flag does not include living-color front w1/w2/atk');
+  'unsigned flag does not include front w1/w2/atk');
 assert(/punch!==false/.test(html) && /const punch=!e\.ghost/.test(html),
   'ghost west flip keeps mid-alpha (no living punch)');
 assert(/plant the signed idle/.test(html) && !/function ghostLiveTwin\(/.test(html),
