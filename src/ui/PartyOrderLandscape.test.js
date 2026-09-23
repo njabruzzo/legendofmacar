@@ -51,7 +51,7 @@ ctx.partyPortraitList=()=>Array.from({length:ctx._n},(_,i)=>({
   team:'party', col:{key:'k'+i}, hero:i===0
 }));
 vm.createContext(ctx);
-['partyPortraitFrame','partyOrderAnchor','layoutSpecialtyCluster','layoutPartyOrders','layoutUI',
+['partyPortraitFrame','partyOrderAnchor','shiftSpecialtyOffCards','layoutSpecialtyCluster','layoutPartyOrders','layoutUI',
  'circleRectGap','rectsMeet','landscapePartyOrderSeat','placePartyOrderRow']
   .forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
@@ -88,8 +88,14 @@ function measure(vw, vh, inset, n, touch){
   }
   const cardBottom=frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), 0);
   const cardRight=frame.x+frame.w;
-  const fullyUnder=orders.every(o=>o.y-o.r>=cardBottom-0.05);
-  const fullyRight=orders.every(o=>o.x-o.r>=cardRight-0.05);
+  const gutter=16;
+  const fullyUnder=orders.every(o=>o.y-o.r>=cardBottom+gutter-0.05);
+  const fullyRight=orders.every(o=>o.x-o.r>=cardRight+gutter-0.05);
+  let specGap=Infinity;
+  for(const sp of specs) for(const c of frame.cards){
+    const g=gapCircleRect(sp, c);
+    if(g<specGap) specGap=g;
+  }
   return {
     orders, frame, slot:orders[0].r*2,
     y:orders[0].y,
@@ -100,6 +106,7 @@ function measure(vw, vh, inset, n, touch){
     atk:minGap([attack], gapCircles),
     def:minGap([defend], gapCircles),
     spec:minGap(specs, gapCircles),
+    specCards:specGap,
     fullyUnder, fullyRight, cardBottom, cardRight
   };
 }
@@ -108,7 +115,7 @@ function expectClear(name, vw, vh, inset, n, touch){
   const m=measure(vw, vh, inset, n, touch);
   const bits=[
     ['slot', m.slot, 44],
-    ['portraits', m.port, 6],
+    ['portraits', m.port, 16],
     ['stick', m.stick, 6],
     ['Attack', m.atk, 6],
     ['Defend', m.def, 6],
@@ -122,6 +129,7 @@ function expectClear(name, vw, vh, inset, n, touch){
   assert(m.y+m.orders[0].r<=vh-(inset.b||0)+0.05, name+' row clears the bottom safe area');
   assert(m.fullyUnder||m.fullyRight, name+' row is fully under the cards or fully to their right'
     +' (under='+m.fullyUnder+' right='+m.fullyRight+' y='+m.y.toFixed(1)+' left='+m.left.toFixed(1)+' cardRight='+m.cardRight.toFixed(1)+')');
+  assert(m.specCards>=16-0.05, name+' specialty clears the portrait cards ('+m.specCards.toFixed(1)+'px)');
   console.log('table '+name.padEnd(22)
     +' port '+m.port.toFixed(1).padStart(6)
     +' stick '+m.stick.toFixed(1).padStart(6)
