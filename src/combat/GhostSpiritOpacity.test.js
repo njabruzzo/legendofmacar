@@ -232,13 +232,13 @@ const IDLE_SHA={
   'dwarf_fendur_ghost.png':'efbc2623',
   'dwarf_orbo_ghost.png':'a077fef6',
   'dwarf_pordoom_ghost.png':'6ef58ed6',
-  'dwarf_talpor_ghost.png':'95971520'
+  'dwarf_talpor_ghost.png':'c73fa0ad'
 };
 const IDLE_DIM={
   'dwarf_fendur_ghost.png':[470,512],
   'dwarf_orbo_ghost.png':[480,512],
   'dwarf_pordoom_ghost.png':[470,512],
-  'dwarf_talpor_ghost.png':[504,512]
+  'dwarf_talpor_ghost.png':[674,512]
 };
 const WALK_SHA={
   'dwarf_fendur_ghost_w1.png':'4e7b7e25',

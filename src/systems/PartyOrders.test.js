@@ -278,7 +278,7 @@ assert(rooted.moving===0 && rooted.atk===0 && rooted.x===3 && !rooted.aim,
 
 /* ---- host wiring ---- */
 assert(/src="src\/systems\/PartyOrders\.js"/.test(html), 'index includes PartyOrders.js');
-assert(/ASSET_VER='113'/.test(html) && !/ASSET_VER='114'/.test(html), 'ASSET_VER is 113 — ghost spectral walk v7 (Nick Good)');
+assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/\{key:'hold', ico:'hold', label:'Hold'\}/.test(html)
   && /\{key:'regroup', ico:'regroup', label:'Regroup'\}/.test(html)
   && /\{key:'focus', ico:'focus', label:'Focus'\}/.test(html),
