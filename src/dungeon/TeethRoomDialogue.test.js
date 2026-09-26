@@ -109,6 +109,9 @@ assert(pry.ok===1 && pry.item.id==='grond_tooth_electrum', 'pry returns the elec
 assert(ctx.G.packs.macar.magic.some(it=>it&&it.id==='grond_tooth_electrum'),
   'the electrum tooth is in Macar\'s pack');
 assert(ctx.G.lvl.flags.electrumTooth===1 && face.emptySocket===1, 'the socket is emptied once');
+assert(/const quest=r\.it && \(r\.it\.quest \|\| r\.it\.grondTooth \|\| r\.it\.cat==='Quest'\)/.test(html)
+  && /if\(quest && !G\.packSlotFilter\) return true/.test(html),
+  'the electrum tooth stays on the default Gear inventory list');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nteeth room dialogue checks passed');

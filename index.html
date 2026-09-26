@@ -19416,6 +19416,9 @@ function drawPack(g){
   let rows=collectPackRows(pk, G.packWho);
   if(G.packTab==='gear' || G.packSlotFilter){
     rows=rows.filter(r=>{
+      /* Quest fangs stay on the default Gear list. A slot filter still means armor. */
+      const quest=r.it && (r.it.quest || r.it.grondTooth || r.it.cat==='Quest');
+      if(quest && !G.packSlotFilter) return true;
       if(!isPackEquipable(r)) return false;
       if(G.packSlotFilter && r.slot && r.slot!==G.packSlotFilter) return false;
       return true;
