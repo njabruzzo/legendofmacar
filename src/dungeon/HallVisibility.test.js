@@ -26,8 +26,13 @@ assert(/function isRubyNorthWall\(L,x,y\)/.test(html) && /L\.n===1 && y===6 && x
   'only the Chapter I ruby-chamber north face is raised');
 assert(/WALL_RUBY_NORTH_SCALE=1\.58/.test(html) && /function rubyNorthWallH\(L\)/.test(html),
   'ruby north wall is taller than the door arch, halls stay 0.70');
-assert(/const faceH=isRubyNorthWall\(L,x,y\)\?rubyNorthWallH\(L\):\(isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H\)/.test(html),
-  'drawWallCell keeps hallWallH and only swaps the ruby and teeth north faces');
+assert(/const faceH=cellWallH\(L,x,y\)/.test(html)
+  && /function cellWallH\(L,x,y\)/.test(html)
+  && /function wallHeightOverride\(/.test(html)
+  && /if\(isRubyNorthWall\(L,x,y\)\) return rubyNorthWallH\(L\)/.test(html)
+  && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(html)
+  && /if\(isTeethFaceWall\(L,x,y\)\) return teethFaceWallH\(L\)/.test(html),
+  'drawWallCell asks cellWallH so ruby, teeth, and a per-tile override can raise one face');
 
 assert(/push\(actorDrawDepth\(d\)/.test(html), 'decals sort past south/east walls');
 assert(/push\(actorDrawDepth\(p\)/.test(html), 'props sort past south/east walls');
@@ -46,6 +51,12 @@ assert(/corridor\(g,16,44,28,44,6,0\)/.test(html), 'chapter V halls are 6 tiles 
 
 assert(/rect\(g,14,14,18,16,0\)/.test(html) && /rect\(g,24,7,28,28,0\)/.test(html),
   'chapter I start rooms stay isometric chambers (grid was never a 1-tile tunnel)');
+
+const shade=html.slice(html.indexOf('function drawMemoryShade'), html.indexOf('function drawBeyondMask'));
+assert(/!oS&&!oE&&!oN&&!oW\) continue/.test(shade)
+  && /isWalkTile\(L\.grid\[y\+1\]\[x\]\)/.test(shade)
+  && /isWalkTile\(L\.grid\[y\]\[x\+1\]\)/.test(shade),
+  'memory shade skips buried rock so its discs cannot cover a taller face in front');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nhall visibility checks passed');

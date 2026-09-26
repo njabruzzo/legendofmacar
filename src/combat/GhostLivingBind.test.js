@@ -54,12 +54,21 @@ assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSp
   'spectral idle and front walk blit as painted; atk/back still lift');
 assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
   && /pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_w/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
+  && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_back/.test(extractFn('nickSpectralGhostSheet')),
-  'painted spectral list is idle plus front w1/w2 only');
+  'approved Talpor idle blits as painted; walk, attack, and back still lift');
 assert(/_ghost_w\[12\]\$/.test(extractFn('partyGhostKeyReady')),
   'front ghost walk skips the idle crop match so stride overhang stays bound');
+assert(/talporInterimGhostKey\(key\)\) return true/.test(extractFn('partyGhostKeyReady'))
+  && /dwarf_talpor_ghost\.png/.test(extractFn('talporInterimGhostKey'))
+  && /dwarf_talpor_ghost_w1\.png/.test(extractFn('talporInterimGhostKey'))
+  && /dwarf_talpor_ghost_atk\.png/.test(extractFn('talporInterimGhostKey'))
+  && /dwarf_talpor_ghost_back\.png/.test(extractFn('talporInterimGhostKey')),
+  'Talpor idle, walk, attack, and back each keep one repaint slot and bind before the crop match');
 assert(/punch!==false/.test(extractFn('flippedSprite'))
   && /Ghost sheets[\s\S]*solid/.test(extractFn('flippedSprite')),
   'ghost flips skip the living a=255 punch');
@@ -124,6 +133,24 @@ assert(replaceList.length===KIN.length*UNSIGNED_SUF.length,
   'Limner replace list is every remaining unsigned ghost walk/atk/compass sheet');
 assert(KIN.length*(SPECTRAL_WALK.length+LIVING_SUF.length)===16,
   'front motion is 8 spectral walks plus 8 living atk sheets');
+function alphaFrac(file){
+  const {w,h,data}=readRgba(file);
+  let top=h, bot=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(data[(y*w+x)*4+3]<=30) continue;
+    if(y<top) top=y;
+    if(y>bot) bot=y;
+  }
+  return (bot+1-top)/h;
+}
+const stature={};
+KIN.forEach(k=>{ stature[k]=alphaFrac(path.join(creatures,'dwarf_'+k+'_ghost.png')); });
+const ghostRef=(stature.pordoom+stature.fendur+stature.orbo)/3;
+assert(Math.abs(stature.talpor-ghostRef)/ghostRef<0.02,
+  'Talpor idle content box matches the other ghosts\' stature');
+assert(/talporGhostStatureFit\(e\)/.test(extractFn('frameFit'))
+  && /ghostContentFrac/.test(html),
+  'Talpor stature is the other ghosts\' alpha box, applied on every frame');
 
 const SPR={};
 function ready(k, live){
@@ -164,13 +191,14 @@ vm.runInContext(
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
   +extractFn('matchingPartyAtkReady')
-  +extractFn('partyAnimKeyReady')
+  +extractFn('restoredMacarMotionKey')+extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('ghostKeyLooksUnsigned')
   +extractFn('livingColorStats')
   +extractFn('sampleLivingColors')
   +extractFn('sheetLivingColors')
   +extractFn('ghostIdleKey')
+  +extractFn('talporInterimGhostKey')
   +extractFn('partyGhostKeyReady')
   +extractFn('pickReadyGhostKey')
   +extractFn('walkCycleKey')
@@ -194,6 +222,7 @@ vm.runInContext(
   +extractFn('dwarfAngleKey')
   +extractFn('ghostAnimKey')
   +extractFn('entSpriteKey')
+  +extractFn('singlePoseLocked')
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey'),
   run
@@ -300,11 +329,22 @@ assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0
   'fendur spectral w1 binds at 593×512');
 assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))==='fendur_ghost_w2',
   'fendur spectral w2 binds at 527×512');
-sized('talpor_ghost', 504, 512);
+sized('talpor_ghost', 470, 512);
 sized('talpor_ghost_w1', 589, 512);
 sized('talpor_ghost_w2', 504, 512);
+sized('talpor_ghost_atk', 504, 512);
+sized('talpor_ghost_atk_recover', 504, 512);
+sized('talpor_ghost_back', 504, 512);
 assert(run.entAnimKey(ghost('talpor',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.12}))==='talpor_ghost_w1',
-  'talpor spectral w1 binds even though 589×512 fails samePaintedFamily');
+  'talpor walk binds at 589×512 so the spectral lift covers the teal stride');
+assert(run.entAnimKey(ghost('talpor',{atk:0.7, atkMax:1}))==='talpor_ghost_atk',
+  'talpor brown attack binds so the spectral lift covers the strike');
+assert(run.entAnimKey(ghost('talpor',{atk:0.20, atkMax:1}))==='talpor_ghost_atk_recover',
+  'talpor brown recover binds with the attack state');
+assert(run.entAnimKey(ghost('talpor',{fdx:-0.7, fdy:-0.7}))==='talpor_ghost_back',
+  'talpor brown back binds beside the 470 idle');
+assert(run.partySheetMatchesIdle(SPR.talpor_ghost_w1, SPR.talpor_ghost, 'talpor_ghost_w1')===false,
+  'talpor walk still fails the idle family match — the interim key is what binds it');
 assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_w2, SPR.pordoom_ghost, 'pordoom_ghost_w2')===false,
   'wide spectral w2 still fails the generic crop match — the walk bypass is what binds it');
 

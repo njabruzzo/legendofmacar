@@ -37,7 +37,7 @@ assert(SR.SHIPPED.indexOf('Interaction')>=0 && SR.SHIPPED.indexOf('Discovery')>=
 assert(/src="src\/systems\/Interaction\.js"/.test(html),
   'Interaction is a classic sync tag');
 assert(!/type\s*=\s*["']module["']/.test(html), 'index.html still has no type=module');
-assert(/ASSET_VER='114'/.test(html), 'ASSET_VER is 114');
+assert(/ASSET_VER='122'/.test(html), 'ASSET_VER is 117');
 assert(/function tryFindSecret\(p, mode\)\{/.test(html) &&
   /key==='search'/.test(html) && /key==='secret'/.test(html),
   'dual SEARCH (F herbs / T doors) is unchanged');
@@ -388,7 +388,7 @@ assert(/if\(typeof Interaction!=='undefined' && Interaction\.isProtectedCell/.te
 assert(/breakRock\(L,i,j\)/.test(html) && /function breakRock\(L,i,j\)\{/.test(html),
   'host breakRock remains the destruction path');
 assert(/function openSecret\(sec\)\{/.test(html), 'host openSecret remains the secret path');
-assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
+assert(/ASSET_VER='122'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\ninteraction checks passed');

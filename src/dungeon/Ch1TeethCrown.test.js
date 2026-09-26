@@ -63,8 +63,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html),
-  'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
+assert(/ASSET_VER='122'/.test(html) && !/ASSET_VER='115'/.test(html),
+  'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/SPRITE_FILES\.bone_crown_scene='assets\/props\/prop_bone_crown_scene\.png'/.test(html),
@@ -98,10 +98,29 @@ assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
   const buf=fs.readFileSync(facePath);
   assert(buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47, 'SIGNED face is a PNG');
   const w=buf.readUInt32BE(16), h=buf.readUInt32BE(20);
-  assert(w===457 && h===274, 'SIGNED face is Nick\'s 457×274 sheet');
+  assert(w===267 && h===434, 'approved demon face is the 267×434 plate');
 }
-assert(/return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
-  'v11 face quad keeps the wide 457×274 aspect');
+{
+  const emptyPath=path.join(__dirname,'../../assets/props/prop_demon_dwarfface_empty.png');
+  assert(fs.existsSync(emptyPath), 'empty-socket demon face is on disk');
+  const ebuf=fs.readFileSync(emptyPath);
+  assert(ebuf.readUInt32BE(16)===267 && ebuf.readUInt32BE(20)===434,
+    'empty socket is the same 267×434 plate');
+}
+assert(/demonFaceDrawH\(img, p\)/.test(extractFn('demonFaceHalf'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 2\.40\)/.test(extractFn('demonFaceHalf')),
+  'the chapel face quad uses the content-sized height and keeps the plate aspect');
+assert(/function vaultDemonFace\(/.test(html)
+  && /p\.wall==='e' \|\| p\.toothKind==='bronze'/.test(extractFn('vaultDemonFace'))
+  && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(extractFn('demonFaceDrawH'))
+  && /SPR\.demon_dwarfface_vault/.test(extractFn('demonFaceImg'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
+  'the hourglass vault face keeps main\'s height and wide-plate cap');
+{
+  const vault=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_demon_dwarfface_vault.png'));
+  assert(vault.readUInt32BE(16)===457 && vault.readUInt32BE(20)===274,
+    'vault plate is main\'s 457×274 sheet');
+}
 assert(!/TODO\(Disney SIGNED\)/.test(html),
   'Disney SIGNED TODO is gone — signed sheet is the file on disk');
 assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
@@ -125,14 +144,23 @@ assert(/WALL_TEETH_NORTH_SCALE=2\.25/.test(html) && /function teethNorthWallH\(L
   'chapel north wall is raised above hall height');
 assert(/SPRITE_FILES\.teeth_floor='assets\/tiles\/teeth_floor\.png'/.test(html),
   'tiny fang field is registered');
+assert(/SPRITE_FILES\.teeth_floor_atlas='assets\/tiles\/teeth_floor_atlas_8x8\.png'/.test(html),
+  'teeth floor atlas is the live chapel bind');
+assert(/const n=8, cw=atlas\.width\/n/.test(extractFn('drawTeethTile')),
+  'each chapel tile blits one cell of the 8×8 atlas');
 assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
   'chapel platform sheet is registered');
 assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
   && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),
   'chapel north masonry sheets are registered');
-['teeth_floor.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
+['teeth_floor.png','teeth_floor_atlas_8x8.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
 });
+{
+  const atlas=fs.readFileSync(path.join(__dirname,'../../assets/tiles/teeth_floor_atlas_8x8.png'));
+  assert(atlas.readUInt32BE(16)===1280 && atlas.readUInt32BE(20)===640,
+    'teeth floor atlas is 1280×640, eight by eight cells');
+}
 {
   const altar=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar.png'));
   const teeth=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png'));
@@ -171,10 +199,28 @@ assert(/function isTeethNwChapelWall\(/.test(html) && /x<105/.test(extractFn('is
   'chapel mural stays on the northwest wall, off the demon face');
 assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
   'only the teeth-chapel north row is the tall face wall');
-assert(/isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H/.test(html),
-  'drawWallCell uses the tall teeth face on that row');
-assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html),
-  'fog punch grows with the tall chapel wall');
+assert(/function cellWallH\(L,x,y\)/.test(html)
+  && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(extractFn('cellWallH'))
+  && /const faceH=cellWallH\(L,x,y\)/.test(html),
+  'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
+assert(/DEMON_FACE_PLATE=\{w:267,h:434,pad:16\}/.test(html)
+  && /DEMON_FACE_CONTENT_SCALE=2\.40/.test(html)
+  && /WALL_TEETH_FACE_SCALE=3\.15/.test(html)
+  && 3.15 > 2.40 / (399/434),
+  'the face wall covers the 267×434 plate, horns included, with margin');
+assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
+  && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
+  && /function wallHeightOverride\(/.test(html)
+  && /applyTeethFaceWallHeight\(L\)/.test(extractFn('buildTeethCrownRoom')),
+  'tiles behind the demon face override to a taller wall');
+assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html)
+  && /else if\(isTeethFaceWall\(L,x,y\)\) tall=teethFaceWallH\(L\)/.test(html),
+  'fog punch grows with the chapel wall, then the taller face segment');
+assert(/SPRITE_FILES\.demon_dwarfface_empty='assets\/props\/prop_demon_dwarfface_empty\.png'/.test(html)
+  && /hasElectrumToothInPack\(\)/.test(extractFn('demonFaceShowsEmpty'))
+  && /SPR\.demon_dwarfface_empty/.test(extractFn('demonFaceImg'))
+  && /emptySheet/.test(extractFn('drawDemonDwarfFace')),
+  'empty-socket face follows the electrum tooth and skips the ellipse when that plate is loaded');
 {
   const room=extractFn('buildTeethCrownRoom');
   assert(/k:'altar',s:1\.55,teethAltar:1/.test(room), 'teeth altar scale is 1.55 so it fits the northwest wall');
@@ -432,8 +478,9 @@ const layout={
 };
 vm.createContext(layout);
 vm.runInContext(hashes+gridSrc, layout);
-['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','buildTeethCrownRoom']
+['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','isTeethNorthWall','isTeethFaceWall','buildTeethCrownRoom']
   .forEach(n=>vm.runInContext(extractFn(n)+';', layout));
+vm.runInContext('const WALL_TEETH_FACE_SCALE=3.15;\n'+extractFn('applyTeethFaceWallHeight')+';', layout);
 layout.G.props=[];
 const L=vm.runInContext(`
   var L={n:1,w:132,h:90,flags:{},secrets:[],lights:[],grid:newGrid(132,90,1)};
@@ -464,6 +511,8 @@ const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
 assert(altar && altar.x>=101.5 && altar.x<=104 && altar.y>=3.5 && altar.y<=5.5,
   'altar sits on the northwest wall of the chapel');
 assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
+assert(L.wallH && L.wallH['107,1']===3.15 && L.wallH['104,1']==null && L.wallH['105,1']===3.15 && L.wallH['109,1']===3.15,
+  'the face segment stores a taller per-tile wall height; the mural tile does not');
 assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
 assert(crown && Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2, 'crown sits on the altar');
 function canWalk(g,x0,y0,x1,y1){
@@ -500,6 +549,9 @@ assert(!/electrum/i.test(enterPack), 'enter box does not name electrum');
 assert(!/\b(north|south|east|west|northwest|northeast|southwest|southeast)\b/i.test(enterPack),
   'enter box does not name a compass direction');
 assert(/maybeTeethChapelEnter\(p\)/.test(ch1), 'Ch1 tick fires the enter box');
+assert(/maybeCrownAltarHint\(p\)/.test(ch1), 'Ch1 tick fires the altar hint when the crown comes into view');
+assert(!/A bone crown on the altar/.test(extractFn('buildTeethCrownRoom')),
+  'opening the secret does not burn the crown hint while Macar is still in the hall');
 assert(/maybeTeethChapelLooks\(p\)/.test(html), 'look-at uses the interact prompt');
 assert(/teethChapelLookHit\(w\)/.test(html), 'tapping the face or crown looks');
 assert(/Look at the demon face/.test(html) && /Look at the bone crown/.test(html),
@@ -567,6 +619,34 @@ const crownTap=box.teethChapelLookHit({x:102.4,y:4.5});
 assert(crownTap && crownTap.key==='teeth_chapel_crown', 'a tap on the altar crown looks at the crown');
 assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_LINE,
   'opening the crown look shows Nick\'s line');
+
+{
+  const hintCtx={
+    G:{talk:null, props:[
+      {x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0},
+      {x:102.25,y:4.35,k:'bonecrown',gone:0}
+    ], lvl:{n:1, flags:{}}},
+    hints:[],
+    dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); },
+    tileVisible(){ return false; },
+    hint(t){ hintCtx.hints.push(t); }
+  };
+  vm.createContext(hintCtx);
+  vm.runInContext(extractFn('maybeCrownAltarHint')+'\nthis.maybeCrownAltarHint=maybeCrownAltarHint;', hintCtx);
+  const far={x:106,y:10,dead:0};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===0,
+    'an unseen altar out of reach does not toast the crown hint');
+  hintCtx.tileVisible=function(){ return true; };
+  assert(hintCtx.maybeCrownAltarHint(far)===true
+    && hintCtx.hints[0]==='A bone crown on the altar. Destroy the crown, or take it.',
+    'seeing the altar toasts Destroy the crown, or take it');
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the altar hint fires once');
+  hintCtx.G.lvl.flags.crownAltarHint=0;
+  hintCtx.G.talk={key:'teeth_chapel_enter'};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the chapel-enter dialogue holds the altar hint until it closes');
+}
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');

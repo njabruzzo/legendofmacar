@@ -53,8 +53,12 @@ assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSp
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'Nick spectral idle and front walk blit as painted; atk/back still lift');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet')),
-  'painted list is the four idles plus front w1/w2');
+  && /img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_w/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
+  && /assets\/creatures\/dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
+  'approved Talpor idle is on the painted skip list; walk, attack, and back still lift');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
@@ -232,13 +236,13 @@ const IDLE_SHA={
   'dwarf_fendur_ghost.png':'efbc2623',
   'dwarf_orbo_ghost.png':'a077fef6',
   'dwarf_pordoom_ghost.png':'6ef58ed6',
-  'dwarf_talpor_ghost.png':'c73fa0ad'
+  'dwarf_talpor_ghost.png':'c519730f'
 };
 const IDLE_DIM={
   'dwarf_fendur_ghost.png':[470,512],
   'dwarf_orbo_ghost.png':[480,512],
   'dwarf_pordoom_ghost.png':[470,512],
-  'dwarf_talpor_ghost.png':[674,512]
+  'dwarf_talpor_ghost.png':[470,512]
 };
 const WALK_SHA={
   'dwarf_fendur_ghost_w1.png':'4e7b7e25',

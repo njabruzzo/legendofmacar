@@ -31,8 +31,10 @@ assert(/return moveHeadingSX\(e\) < -0\.02/.test(html),
   'party kin still flip any screen-left heading, not only oct===w');
 assert(/return screenOctant\(e\)==='n'/.test(html),
   'full back view is screen-up only');
-assert(/Party kin share Macar heading/.test(html),
-  'followers face Macar while they trail, not their scramble vector');
+assert(/Every moving sprite faces its own travel/.test(html),
+  'moving sprites face their own travel in all 8 directions');
+assert(/Idle party kin share Macar heading/.test(html),
+  'a stopped follower still shares Macar heading');
 assert(/lead\.fdx!=null\?lead\.fdx/.test(html),
   'Macar heading uses fdx even when it is 0 (south/north)');
 assert(/e\.fdx=p\.fdx; e\.fdy=p\.fdy/.test(html),
@@ -58,12 +60,12 @@ function faceVec(e, lead){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)){
     const hx=lead.fdx!=null?lead.fdx:(lead.ix||0);
     const hy=lead.fdy!=null?lead.fdy:(lead.iy||0);
     if(hx||hy) return {dx:hx, dy:hy};
   }
-  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
 function screenOctant(e, lead){
@@ -132,8 +134,8 @@ assert(wantsSpriteFlip(swMacar), 'SW / S+A is screen-left — living Macar flips
 
 const ghostGoingRight={k:'pordoom_ghost', team:'party', ghost:1, moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, animKey:'pordoom_ghost_e_w1'};
 const macarGoingLeft={k:'macar', hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7};
-assert(wantsSpriteFlip(ghostGoingRight, macarGoingLeft),
-  'a lagging ghost still faces Macar left, not its scramble right');
+assert(!wantsSpriteFlip(ghostGoingRight, macarGoingLeft),
+  'a moving ghost faces its own screen-right travel, not Macar left');
 const ghostIdleScramble={k:'orbo_ghost', team:'party', ghost:1, moving:0, ix:0, iy:0, fdx:0.7, fdy:-0.7, animKey:'orbo_ghost_e_w1'};
 assert(wantsSpriteFlip(ghostIdleScramble, macarGoingLeft),
   'a stopped ghost still faces Macar, not the last scramble heading');

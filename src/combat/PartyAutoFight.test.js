@@ -53,8 +53,8 @@ assert(/o\.npc/.test(threat), 'neutral NPCs are not party threats');
 const face=extractFn('faceVec');
 assert(/kinCanAutoFight\(e\)/.test(face) && /e\.aim\.team==='foe'/.test(face),
   'closing kin face the foe, not Macar walk heading');
-assert(/Party kin share Macar heading while they follow/.test(html),
-  'out of combat they still form on Macar facing');
+assert(/Idle party kin share Macar heading/.test(html),
+  'out of combat a stopped follower still shares Macar facing');
 
 const ctx={
   G:{fightOn:0, ents:[]},

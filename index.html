@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=114">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=122">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=122">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -295,7 +295,8 @@ function walkCycleKey(e, stem){
   return w2||w1;
 }
 function partyForm(i,p){
-  const slots=[[-1.15,0.95],[-1.15,-0.95],[-2.15,0.55],[-2.15,-0.55]];
+  /* Two ranks behind Macar, wide enough that 78px billboards do not stack. */
+  const slots=[[-1.85,1.70],[-1.85,-1.70],[-3.35,1.85],[-3.35,-1.85]];
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
   return {x:p.x+fx*s[0]+rx*s[1], y:p.y+fy*s[0]+ry*s[1]};
 }
@@ -333,7 +334,7 @@ function recordTrail(p){
 function trailSlot(i){
   const t=G.trail||[];
   if(t.length<4) return null;
-  const need=1.2*(i+1);
+  const need=2.6*(i+1);
   let acc=0;
   for(let k=t.length-1;k>0;k--){
     acc+=Math.hypot(t[k].x-t[k-1].x, t[k].y-t[k-1].y);
@@ -387,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='114';
+const ASSET_VER='122';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -653,8 +654,12 @@ SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 /* Disney SIGNED teeth-chapel v11. After walk/atk derivation so the altar
    sheet does not spawn a missing _atk and the tiles do not spawn _w1.
    Platform is the opaque slab (same pixels as prop_altar.png). The crown
-   on that slab is the Macar-head scene sheet, not the full TAKE crown. */
+   on that slab is the Macar-head scene sheet, not the full TAKE crown.
+   Art-director drop-in for a new teeth floor: assets/tiles/teeth_floor_hq.png
+   Do not register that file until it exists. teeth_floor.png stays the
+   fallback field. The live chapel floor is the 8×8 atlas. */
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
+SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
@@ -700,6 +705,12 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const w3=k.replace(/_w1$/,'_w3');
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
 });
+/* After dead, walk, attack, and _w3 guessing. These files have no sibling
+   frames on disk. Register a frame here only when that file exists. */
+SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
+SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
+/* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
+SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -721,13 +732,17 @@ SPRITE_FILES.macar_xbow='assets/creatures/dwarf_macar_xbow.png';
 SPRITE_FILES.macar_xbow_w1='assets/creatures/dwarf_macar_xbow_w1.png';
 SPRITE_FILES.macar_xbow_w2='assets/creatures/dwarf_macar_xbow_w2.png';
 SPRITE_FILES.macar_xbow_atk='assets/creatures/dwarf_macar_xbow_atk.png';
-/* Compass maul walks. Screen-left mirrors the screen-right sheet.
-   South stays the signed front pair. Registered after the strip and
-   after _w3 derivation so these do not spawn missing siblings. */
-SPRITE_FILES.macar_e_w3='assets/creatures/dwarf_macar_e_w3.png';
-SPRITE_FILES.macar_se_w3='assets/creatures/dwarf_macar_se_w3.png';
+/* Original Macar compass walks (brown leather, fur, braided beard).
+   Registered after the macar strip and after _w3 derivation so a _w1
+   here does not rebind helmeted dwarf_macar_*_w3.png. Screen-left
+   mirrors the screen-right sheet. South stays the front w1/w2 pair.
+   Helmeted e_w3 / se_w3 / ne_w3 stay unwired. */
+SPRITE_FILES.macar_e_w1='assets/creatures/dwarf_macar_e_w1.png';
+SPRITE_FILES.macar_e_w2='assets/creatures/dwarf_macar_e_w2.png';
+SPRITE_FILES.macar_se_w1='assets/creatures/dwarf_macar_se_w1.png';
+SPRITE_FILES.macar_se_w2='assets/creatures/dwarf_macar_se_w2.png';
+SPRITE_FILES.macar_ne_w1='assets/creatures/dwarf_macar_ne_w1.png';
 SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
-SPRITE_FILES.macar_ne_w3='assets/creatures/dwarf_macar_ne_w3.png';
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 const ICON_SPR={
@@ -762,7 +777,8 @@ function loadSprites(done){
   const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
-    'macar_e_w3','macar_se_w3','macar_ne_w2','macar_ne_w3','macar_back_w1','macar_back_w2',
+    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+    'teeth_floor','teeth_floor_atlas','tooth','tooth_2','tooth_3',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
@@ -1108,10 +1124,31 @@ function namedFrameFit(e,img){
   }
   return 0;
 }
+function ghostContentFrac(img){
+  if(!img||!img.width||typeof spriteBounds!=='function') return 0;
+  const b=spriteBounds(img);
+  if(!b||!b.ok||b.y0==null||b.y1==null) return 0;
+  return b.y1-b.y0;
+}
+/* Talpor's standing sheet is sized by its alpha box against Pordoom,
+   Fendur, and Orbo, not by canvas width. Walk, attack, and back share
+   that same stature so the interim sheets do not pop. */
+function talporGhostStatureFit(e){
+  if(!e||!e.ghost||!e.col||e.col.key!=='talpor'||typeof SPR==='undefined') return 1;
+  const mine=ghostContentFrac(SPR.talpor_ghost);
+  let sum=0, n=0;
+  for(const img of [SPR.pordoom_ghost, SPR.fendur_ghost, SPR.orbo_ghost]){
+    const f=ghostContentFrac(img);
+    if(f){ sum+=f; n++; }
+  }
+  if(!mine||!n) return 1;
+  return (sum/n)/mine;
+}
 function frameFit(e,img){
   const named=namedFrameFit(e,img);
   if(named) return named;
-  if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img);
+  if(e&&e.singlePose&&!e.dead&&!e.crushed) return skeletalDwarfFit(e,img);
+  if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img)*talporGhostStatureFit(e);
   return 1;
 }
 function morphPass(src,dst,W,H,R,wantMax,vertical){
@@ -1447,11 +1484,14 @@ function solidMacarSprite(img){ return blitLivingMacar(img); }
    that kit and caps its alpha. Never punch a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
+  /* Pordoom, Fendur, and Orbo idle and front walk are already spectral.
+     Talpor's approved standing idle is too (assets/creatures/dwarf_talpor_ghost.png).
+     Walk, attack, and back stay off this list so the interim lift still
+     covers those three. Their drop-in names live on talporInterimGhostKey. */
   return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
-    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
-    ||img===SPR.talpor_ghost_w1||img===SPR.talpor_ghost_w2;
+    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2;
 }
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
@@ -1730,25 +1770,27 @@ function drawEntBillboard(g,e,img,z,flip){
    ========================================================================== */
 const MACAR_PLAN={
   macar:{
-    e:  {flip:0, frames:['macar_e_w3']},
-    w:  {flip:1, frames:['macar_e_w3']},
-    se: {flip:0, frames:['macar_se_w3']},
-    sw: {flip:1, frames:['macar_se_w3']},
-    ne: {flip:0, frames:['macar_ne_w2','macar_ne_w3']},
-    /* ne_w3 mirrored puts the torso on the SE sheet. NW stays on ne_w2. */
-    nw: {flip:1, frames:['macar_ne_w2']},
+    e:  {flip:0, frames:['macar_e_w1','macar_e_w2']},
+    w:  {flip:1, frames:['macar_e_w1','macar_e_w2']},
+    se: {flip:0, frames:['macar_se_w1','macar_se_w2']},
+    sw: {flip:1, frames:['macar_se_w1','macar_se_w2']},
+    ne: {flip:0, frames:['macar_ne_w1','macar_ne_w2']},
+    nw: {flip:1, frames:['macar_ne_w1','macar_ne_w2']},
     n:  {flip:0, frames:['macar_back_w1','macar_back_w2']},
     s:  {flip:0, frames:['macar_w1','macar_w2']},
-    idle:{e:'macar_e_w3', w:'macar_e_w3', se:'macar_se_w3', sw:'macar_se_w3', s:'macar',
-          n:'macar_back_w1', ne:'macar_ne_w2', nw:'macar_ne_w2'},
+    /* Standing idle is the front original. Walk sheets are only while moving
+       so idle / walk / attack do not pop to a side crop. */
+    idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
+          n:'macar', ne:'macar', nw:'macar'},
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Maul idle + front w1/w2 + compass walks + windup/contact + Cleaver + crossbow. */
+/* Maul idle + restored front/compass walks + windup/contact + Cleaver + crossbow.
+   Helmeted e_w3 / se_w3 / ne_w3 are not living keys. */
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
-  macar_e_w3:1, macar_se_w3:1, macar_ne_w2:1, macar_ne_w3:1, macar_back_w1:1, macar_back_w2:1
+  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1832,12 +1874,21 @@ function matchingPartyAtkReady(key, idleKey){
   const idle=(SPR[idleKey]&&SPR[idleKey].width)?SPR[idleKey]:null;
   return partyFrameFitOk(img, idle);
 }
+/* Restored original Macar motion is 470×512 (walk/atk) and 366–527 wide
+   compass/contact. Idle stays 1100×920. samePaintedFamily would plant idle
+   and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
+function restoredMacarMotionKey(key){
+  return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+    ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
+    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2';
+}
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
+  if(restoredMacarMotionKey(key)) return true;
   if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
   return true;
 }
@@ -1914,12 +1965,29 @@ function ghostIdleKey(k, back){
     return k+'_back';
   return k;
 }
+function talporInterimGhostKey(key){
+  /* Interim bind until Talpor is repainted. One file per state. The second
+     walk step and the attack recover frame share those states. Compass and
+     back-walk sheets stay unsigned and are not listed here. When a state
+     is painted spectral, add that key to nickSpectralGhostSheet.
+     idle   assets/creatures/dwarf_talpor_ghost.png
+     walk   assets/creatures/dwarf_talpor_ghost_w1.png
+     attack assets/creatures/dwarf_talpor_ghost_atk.png
+     back   assets/creatures/dwarf_talpor_ghost_back.png */
+  return key==='talpor_ghost'
+    ||key==='talpor_ghost_w1'||key==='talpor_ghost_w2'
+    ||key==='talpor_ghost_atk'||key==='talpor_ghost_atk_recover'
+    ||key==='talpor_ghost_back';
+}
 function partyGhostKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
-  if(!sheetLivingColors(img, key)) return false;
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
+  /* Brown back is narrower than idle, so the family match would plant
+     the teal idle and never lift the back sheet. */
+  if(talporInterimGhostKey(key)) return true;
+  if(!sheetLivingColors(img, key)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
   /* Nick-GOOD front walk is this kin's own sheet. Stride and weapon
      overhang (Pordoom w2 692, Fendur w1 593, Talpor w1 589) fail
@@ -1971,9 +2039,7 @@ function livingMacarBlitKey(key){
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
      Skip the idle-family match or every turn plants the front sheet. */
-  if(isLivingMacarKey(key) && sprReady(key) && (
-      key==='macar_e_w3'||key==='macar_se_w3'||key==='macar_ne_w2'||key==='macar_ne_w3'
-      ||key==='macar_back_w1'||key==='macar_back_w2')
+  if(isLivingMacarKey(key) && sprReady(key) && restoredMacarMotionKey(key)
      && partyFrameFitOk(SPR[key], null)) return key;
   return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
@@ -2120,22 +2186,17 @@ function livingMacarAnimKey(e){
     if(matchingPartyAtkReady(rec, idle)) return rec;
     return idle;
   }
-  /* Maul compass from the move / last heading. South stays the signed
-     front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
-     crossbow have no compass sheets, so they keep their front walks.
-     No heading reads as south. */
-  if(idle==='macar' && typeof screenOctant==='function'){
+  /* Original compass walks only while moving, so a standing Macar
+     stays the front idle (no size pop onto a side sheet). South stays
+     the front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
+     crossbow have no compass sheets, so they keep their front walks. */
+  if(idle==='macar' && e.moving && !e.defending && typeof screenOctant==='function'){
     const oct=screenOctant(e);
     let frames=null;
     if(oct==='n') frames=['macar_back_w1','macar_back_w2'];
-    else if(oct==='e'||oct==='w') frames=['macar_e_w3'];
-    else if(oct==='se'||oct==='sw') frames=['macar_se_w3'];
-    /* Both NE frames face up-right. The mirror of ne_w2 keeps that body
-       aimed up-left. The mirror of ne_w3 drops the torso onto the SE
-       sheet, so a mid-stride W+A read as lower-right. NW stays on ne_w2
-       for the whole gait; NE still alternates w2/w3. */
-    else if(oct==='ne') frames=['macar_ne_w2','macar_ne_w3'];
-    else if(oct==='nw') frames=['macar_ne_w2'];
+    else if(oct==='e'||oct==='w') frames=['macar_e_w1','macar_e_w2'];
+    else if(oct==='se'||oct==='sw') frames=['macar_se_w1','macar_se_w2'];
+    else if(oct==='ne'||oct==='nw') frames=['macar_ne_w1','macar_ne_w2'];
     if(frames){
       const ready=[];
       for(let i=0;i<frames.length;i++){
@@ -2474,6 +2535,42 @@ function isTeethNwChapelWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x<105;
 }
 function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
+/* Northeast stretch of the chapel north wall, the masonry behind the
+   demon face (mural stays west of x=105). Taller than the rest of that
+   row so a replacement face plate can rise inside the wall. L.wallH
+   stores a multiple of wallFaceH per tile; a set value wins, and the
+   predicate still applies when a save has no map. */
+/* Approved plate is 267×434. Alpha box is 235×399 (16px side pad, 19px top).
+   The portrait draws that content box at 2.40× wallFaceH, so the canvas
+   quad is about 2.61× wallFaceH. This segment is 3.15× wallFaceH, taller
+   than the canvas, so the horns sit on masonry with margin. */
+const DEMON_FACE_PLATE={w:267,h:434,pad:16};
+const WALL_TEETH_FACE_SCALE=3.15;
+const DEMON_FACE_CONTENT_SCALE=2.40;
+function isTeethFaceWall(L,x,y){
+  return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
+}
+function teethFaceWallH(L){ return wallFaceH(L)*WALL_TEETH_FACE_SCALE; }
+function wallHeightOverride(L,x,y){
+  if(!L||!L.wallH) return 0;
+  const v=L.wallH[x+','+y];
+  if(typeof v==='number' && v>0) return wallFaceH(L)*v;
+  if(v && typeof v.scale==='number' && v.scale>0) return wallFaceH(L)*v.scale;
+  return 0;
+}
+function applyTeethFaceWallHeight(L){
+  if(!L) return;
+  L.wallH=L.wallH||{};
+  for(let x=105;x<=109;x++) L.wallH[x+',1']=WALL_TEETH_FACE_SCALE;
+}
+function cellWallH(L,x,y){
+  const over=wallHeightOverride(L,x,y);
+  if(over) return over;
+  if(isTeethFaceWall(L,x,y)) return teethFaceWallH(L);
+  if(isRubyNorthWall(L,x,y)) return rubyNorthWallH(L);
+  if(isTeethNorthWall(L,x,y)) return teethNorthWallH(L);
+  return hallWallH(L);
+}
 /* Chapel north face. The signed sheet is masonry plus a wide empty margin
    (black on the opaque flatten). Crop to the stone and fill the margin so
    the live quad is wall mass, not a black void beside the demon face. */
@@ -2964,6 +3061,46 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
+/* One idle sheet slides and lunges until its own walk frame is registered
+   and ready. A ready walk leaves single-pose. */
+function singlePoseLocked(e){
+  if(!e||!e.singlePose||e.dead||e.crushed) return false;
+  const k=entSpriteKey(e);
+  if(k==='dwarf_skeleton_idle' && typeof sprReady==='function' && sprReady(k+'_w1')) return false;
+  return true;
+}
+function singlePoseOffset(e){
+  if(!singlePoseLocked(e)) return null;
+  const y=(typeof G!=='undefined' && e.moving)?Math.sin((G.elapsed||0)*7)*2:0;
+  let x=0;
+  if(e.atk>0 && e.atkMax>0){
+    const elapsedMs=(1-e.atk/e.atkMax)*e.atkMax*1000;
+    const leg=120;
+    let amp=0;
+    if(elapsedMs<leg) amp=6*(elapsedMs/leg);
+    else if(elapsedMs<leg*2) amp=6*(1-(elapsedMs-leg)/leg);
+    let sx=1;
+    const aim=e.aim;
+    if(aim && typeof w2s==='function'){
+      const d=w2s(aim.x, aim.y), me=w2s(e.x, e.y);
+      if(d && me) sx=d.x<me.x?-1:1;
+    } else if(typeof moveHeadingSX==='function' && moveHeadingSX(e)<0) sx=-1;
+    x=amp*sx;
+  }
+  return {x:x, y:y};
+}
+function ghostStatureFrac(){
+  const img=(typeof SPR!=='undefined') && (SPR.pordoom_ghost||SPR.talpor_ghost||SPR.fendur_ghost);
+  const b=img && typeof spriteBounds==='function'?spriteBounds(img):null;
+  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, 0.35, 1);
+  return 0.8;
+}
+function skeletalDwarfFit(e,img){
+  const b=img && typeof spriteBounds==='function'?spriteBounds(img):null;
+  if(!b||!b.ok||b.y0==null||b.y1==null) return 1;
+  const frac=clamp(b.y1-b.y0, 0.2, 1);
+  return ghostStatureFrac()/frac;
+}
 function faceToward(e,x,y){
   if(!e) return;
   const dx=x-e.x, dy=y-e.y;
@@ -2983,9 +3120,10 @@ function faceVec(e){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
-  // Party kin share Macar heading while they follow so trail-lag scramble
-  // does not mix left/right in the line — including when they stand still.
-  // In a fight they face the foe they are closing on, not Macar's walk.
+  /* Every moving sprite faces its own travel, all 8 screen octants. */
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
+  /* Idle party kin share Macar heading so a stopped line does not scramble.
+     In a fight they face the foe they are closing on, not Macar's walk. */
   const lead=e.hero?null:player();
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)
     && !(e.aim && !e.aim.dead && e.aim.team==='foe' && kinCanAutoFight(e))){
@@ -2993,7 +3131,6 @@ function faceVec(e){
     const hy=lead.fdy!=null?lead.fdy:(lead.iy||0);
     if(hx||hy) return {dx:hx, dy:hy};
   }
-  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
 function screenOctant(e){
@@ -3172,6 +3309,11 @@ function entAnimKey(e){
   if(e.hero && !e.dead && !e.ghost) return livingMacarAnimKey(e);
   const k=entSpriteKey(e);
   if(!k) return null;
+  if(singlePoseLocked(e)){
+    if(k==='dwarf_skeleton_idle' && (wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk'] && SPR[k+'_atk'].width)
+      return k+'_atk';
+    return k;
+  }
   let key=k;
   if(e.dead||e.crushed) key=SPR[k+'_dead']?k+'_dead':k;
   else if(e.kind==='dwarf' && e.ghost && !e.dead) key=ghostAnimKey(e, k)||k;
@@ -3209,7 +3351,7 @@ function entAnimImg(e){
   return key?(SPR[key]||null):null;
 }
 function entSpriteH(e,z){
-  if(e.kind==='dwarf') return 78*z;
+  if(e.kind==='dwarf'||e.singlePose) return 78*z;
   if(e.boss||e.kind==='king'||e.kind==='warden'||e.kind==='drake'||e.kind==='horror'||e.kind==='beholder'||
      e.kind==='aboleth'||e.kind==='elderbrain'||e.kind==='deathtyrant'||e.kind==='purpleworm'||e.kind==='neothelid'||
      e.kind==='deepdragon'||e.kind==='shadowdragon'||e.kind==='deepspawn'||e.kind==='firegiant'||e.kind==='fomorian'||
@@ -4014,7 +4156,10 @@ const BESTIARY={
   beetle:{n:'Fire Beetle',spr:'beetle',hp:10,ac:7,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#6a8a4a',sc:1.0,sa:'Poison',poison:1},
   spider:{n:'Cave Spider',spr:'spider',hp:9,ac:8,mv:12,at:1,dmg:2.5,tt:'Nil',dc:0,g:'#8f5bff',sc:.9,sa:'Poison',poison:1,slowPoison:1},
   /* Nick: fanged skeleton 2 HD, d6+1, AC 7. hp is 1e (2×8). */
-  fangedSkeleton:{n:'Fanged Skeleton',spr:'undead',hp:16,ac:7,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#e8d0b8',sc:0.96,r:.34,hd:2,dice:'1d6+1',k:'undead'}
+  fangedSkeleton:{n:'Fanged Skeleton',spr:'undead',hp:16,ac:7,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#e8d0b8',sc:0.96,r:.34,hd:2,dice:'1d6+1',k:'undead'},
+  /* Crown take/destroy. Idle sheet is dwarf_skeleton_idle; mon_undead.png
+     stands in until that file is on disk. singlePose is set at spawn. */
+  skeletalDwarf:{n:'Skeletal Dwarf',spr:'undead',hp:16,ac:7,mv:12,at:1,dmg:4.5,tt:'Nil',dc:0,g:'#d8d0c4',sc:1,r:.34,hd:2,dice:'1d6+1',k:'undead'}
 };
 function applyBestiary(){
   Object.keys(BESTIARY).forEach(k=>{
@@ -4360,6 +4505,7 @@ function makeChapter(n){
     L.tick=()=>{
       const p=player(); if(!p) return;
       if(typeof maybeTeethChapelEnter==='function') maybeTeethChapelEnter(p);
+      if(typeof maybeCrownAltarHint==='function') maybeCrownAltarHint(p);
       if(!L.flags.southStore && p.y>48){
         L.flags.southStore=1;
         spawnLairGroup(30,56,{pack:[['rat',4]],spread:1.4,aggro:2.8});
@@ -4790,16 +4936,7 @@ function makeChapter(n){
       if(!L.flags.ruinDeepSS&&p.x>70&&p.y>92){L.flags.ruinDeepSS=1;
         spawnLairGroup(88,102,{pack:[['basilisk',1],['cockatrice',1]],spread:1.4,aggro:3.4});
         say('Petrifiers nest in the south-south court. Gaze and spur.','#8a9a6a');}
-      if(L.flags.w1 && !G.fightOn){
-        L.wanderT=(L.wanderT||0)+(dt||0.016);
-        if(L.wanderT>20){
-          L.wanderT=0;
-          if(wanderCheckHits().hit){
-            const names=spawnWanderers(p);
-            if(names.length) say('Ruin-walkers: '+names.join(', ')+'.','#ff6a5a');
-          }
-        }
-      }
+      /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The warden falls. The road to the city is open.','#ffd27a');
         setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
@@ -5225,7 +5362,58 @@ function spawnWanderers(p){
   if(spawned.length) beginFight(G.ents[G.ents.length-1]);
   return spawned;
 }
+function logWanderCheck(chk, names){
+  const die=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.die)||6;
+  let line='Wandering check: rolled '+chk.roll+' on d'+die;
+  if(chk.hit && names && names.length) line+=', encounter: '+names.join(', ');
+  else line+=', no encounter';
+  if(typeof say==='function') say(line, chk.hit?'#ff6a5a':'#c9b895');
+  return line;
+}
+function advanceDungeonTurns(turns, mode){
+  turns=+turns||0;
+  if(!(turns>0) || typeof G==='undefined' || !G) return [];
+  const rules=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES)||{};
+  const noisy=mode==='noisy';
+  const rest=mode==='rest';
+  const every=rest?(rules.restEveryTurns||6)
+    :noisy?(rules.noisyEveryTurns||1)
+    :(rules.everyTurns||rules.checkEveryTurns||3);
+  const bank=rest?'restTurns':noisy?'noisyTurns':'dungeonTurns';
+  G[bank]=(G[bank]||0)+turns;
+  const logs=[];
+  let guard=0;
+  while(G[bank]+1e-9>=every && guard<24){
+    guard++;
+    G[bank]-=every;
+    const chk=wanderCheckHits();
+    let names=[];
+    if(chk.hit && typeof spawnWanderers==='function'){
+      const p=typeof player==='function'?player():null;
+      if(p) names=spawnWanderers(p)||[];
+    }
+    logs.push(logWanderCheck(chk, names));
+  }
+  if(G[bank]<0) G[bank]=0;
+  return logs;
+}
 function endSleepShow(){ G.sleepShow=null; }
+function restTurnsForHours(hours){
+  const min=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.turnMinutes)||10;
+  return (+hours||0)*(60/min);
+}
+/* One check per hour. A spawned encounter ends the watch; unspent hours
+   stay off the rest clock. */
+function campRestChecks(hours){
+  const logs=[];
+  const per=restTurnsForHours(1);
+  for(let h=0;h<(+hours||0);h++){
+    const batch=(typeof advanceDungeonTurns==='function')?advanceDungeonTurns(per,'rest'):[];
+    if(batch&&batch.length) logs.push.apply(logs, batch);
+    if(batch&&batch.some(line=>/, encounter:/.test(line))) break;
+  }
+  return logs;
+}
 function campRest(){
   const p=player(); if(!p) return;
   if(G.sleepShow) return;
@@ -5233,17 +5421,15 @@ function campRest(){
   G.searching=0; G.digging=0; G.dig=null; p.dest=null;
   const open=openPassagesAt(p.x,p.y);
   if(open){
-    const roll=ri(1,6);
-    say('Open passages. Wandering check: d6 = '+roll+'.','#c9b895');
-    if(roll===1){
-      const names=spawnWanderers(p);
-      if(names.length){
-        say('Steel in the dark: '+names.join(', ')+'. Sleep breaks.','#ff6a5a');
-        hint('Wandering monsters. The rest is interrupted.',4.2);
-        G.flash={c:'#3a1208',a:.55}; shake(10);
-        return;
-      }
-      say('A scrape in the dark, then nothing. The watch holds.','#c9b895');
+    say('Open passages. The watch checks once each hour.','#c9b895');
+    const logs=campRestChecks(8);
+    const hit=(logs||[]).find(line=>/, encounter:/.test(line));
+    if(hit){
+      const names=hit.split(', encounter: ')[1]||'something in the dark';
+      say('Steel in the dark: '+names+'. Sleep breaks.','#ff6a5a');
+      hint('Wandering monsters. The rest is interrupted.',4.2);
+      G.flash={c:'#3a1208',a:.55}; shake(10);
+      return;
     }
     say('The night passes. Nothing comes down the tunnel.','#c9b895');
   } else {
@@ -5586,7 +5772,7 @@ function startChapter(n){
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
-  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
+  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; G.noisyTurns=0; G.restTurns=0; }
   G.inspect=null; G.showObjs=0; G.showLog=0; G.miniBig=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
@@ -5638,7 +5824,9 @@ function startChapter(n){
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
-  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0; G._wantPlay=0;
+  /* Chapter intro (Descend) is not a player gate. New descent goes to play.
+     If world art is still decoding, render holds a full-bleed plate. */
+  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='play'; G.introT=99; G._wantPlay=1;
   rebuildVision();
   pinFallenKin();
   revealCrushTiles();
@@ -5653,6 +5841,7 @@ function startChapter(n){
     Interaction.installChapterI(G.lvl, G, interactHost());
   if(typeof layoutUI==='function') layoutUI();
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
+  if(typeof tryEnterPlay==='function') tryEnterPlay();
 }
 function pinFallenKin(){
   const L=G.lvl;
@@ -7006,12 +7195,67 @@ function wanderKindAllowed(k){
   if(ch===2 && gob && hd>7) return false;
   return hd>=lo && hd<=hi;
 }
+/* AD&D 1st Edition Dungeon Masters Guide. One turn is ten minutes.
+   Normal dungeon check: 1 on 1d6 every 3 turns (DMG p.98 example of play;
+   p.190 "check every three turns as normally"). Do not use the p.47
+   outdoor rates. Dungeon level does not change the chance, only which
+   monster table is rolled.
+   RULING: digging is noisy. While digging, check 1 in 6 every turn spent
+   digging (noise bump per In Search of the Unknown). DMG p.106 gives only
+   shift rates — dwarf 90/70/35 cubic feet per 8 hours — not a turn cost.
+   One dig attempt is 1 turn in loose earth or rubble, 3 in packed earth,
+   and 6 in soft rock. A cell with no terrain tag is loose.
+   RULING: herb Search is quiet. No DMG/PHB herb rule. One Search is one
+   10'×10' area, the same scale as a secret-door search, and costs 1 turn
+   on the normal every-3-turns clock. Quiet and noisy banks are separate
+   so a short herb still carries its remainder.
+   RULING (Sage, 1e DMG Keeping Track of Time; Nick may override):
+   camp rest rolls 1 in 6 once per hour, every 6 turns, half the dungeon
+   rate. An 8-hour rest is 8 checks. Rest time does not stack with dig
+   or herb-search time. Each clock counts only its own turns, and a
+   leftover carries to the next action on that same clock. */
+const ENCOUNTER_RULES={
+  turnMinutes:10,
+  chance:1/6,
+  die:6,
+  encounterOn:1,
+  everyTurns:3,
+  noisyEveryTurns:1,
+  restEveryTurns:6,
+  digTurns:{loose:1, packed:3, softRock:6},
+  herbTurnsPer10ft:1
+};
+function digTerrainAt(L,x,y){
+  const tag=L && L.digTerrain && L.digTerrain[x+','+y];
+  if(tag==='packed'||tag==='softRock'||tag==='loose') return tag;
+  return 'loose';
+}
+function digTerrainTurns(kind){
+  const t=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.digTurns)||{};
+  if(kind==='packed') return t.packed||3;
+  if(kind==='softRock') return t.softRock||6;
+  return t.loose||1;
+}
+function completeDigSquare(L){
+  const dig=G.dig;
+  if(!dig||!L) return 0;
+  const i=dig.i, j=dig.j;
+  const turns=digTerrainTurns(digTerrainAt(L, i, j));
+  breakRock(L, i, j);
+  if(G.digBoost>0) G.digBoost--;
+  say('A square foot of stone comes away.','#d8c49a');
+  G.dig=null;
+  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(turns, 'noisy');
+  return turns;
+}
 function wanderCheckHits(){
-  const roll=typeof ri==='function'?ri(1,6):1;
+  const die=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.die)||6;
+  const on=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.encounterOn)||1;
+  const roll=typeof ri==='function'?ri(1,die):1;
   const who=typeof player==='function'?player():null;
   if(typeof wearingElvenkind==='function' && wearingElvenkind(who))
     return {roll, hit:false, silent:1};
-  return {roll, hit:roll===1};
+  return {roll, hit:roll===on};
 }
 
 function markWebTalkSkeleton(){
@@ -10152,6 +10396,7 @@ function nearestPlant(e,r){
 }
 function forageHerbs(src){
   ensurePacks();
+  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(ENCOUNTER_RULES.herbTurnsPer10ft);
   const p=player();
   const patch=src&&isPlantKind(src.k)?src:null;
   const ch=forageChance()+(patch?25:0);
@@ -11097,6 +11342,38 @@ function riseTeethHorde(where){
   }
   return risen.length;
 }
+const SKELETAL_DWARF_N=4;
+function riseSkeletalDwarves(where){
+  const L=G.lvl;
+  if(!L||(L.flags&&L.flags.skeletalDwarves)) return 0;
+  L.flags=L.flags||{};
+  L.flags.skeletalDwarves=1;
+  const make=typeof FOE!=='undefined' && FOE.skeletalDwarf;
+  if(typeof make!=='function') return 0;
+  const p=typeof player==='function'?player():null;
+  const origin=(p&&p.x!=null)?p:(where||{});
+  const n=SKELETAL_DWARF_N;
+  const spots=(typeof teethHordeSpots==='function')?teethHordeSpots(L, origin, n):[];
+  const risen=[];
+  let last=null;
+  for(let i=0;i<spots.length;i++){
+    const e=make();
+    e.x=spots[i].x; e.y=spots[i].y;
+    e.name='Skeletal Dwarf';
+    e.singlePose=1;
+    if(typeof sprReady==='function' && sprReady('dwarf_skeleton_idle')) e.sprite='dwarf_skeleton_idle';
+    e.aggro=9; e.engaged=1; e.stun=0.4;
+    G.ents.push(e);
+    risen.push(e);
+    last=e;
+    burst(e.x,e.y,'#d8d0c4',8,2.1);
+  }
+  if(risen.length){
+    say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
+    if(typeof beginFight==='function') beginFight(last);
+  }
+  return risen.length;
+}
 function takeBoneCrown(crown){
   if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
   crown.gone=1; crown.taken=1;
@@ -11112,6 +11389,7 @@ function takeBoneCrown(crown){
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
   hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
   riseTeethHorde(crown);
+  if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
   return {ok:1, worn:1};
 }
 function awardCrownDestroyXp(where){
@@ -11137,10 +11415,12 @@ function destroyBoneCrown(crown){
   const xp=awardCrownDestroyXp(where);
   collapseCrownThrall();
   riseTeethHorde(where);
+  if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
 function tryStrikeBoneCrown(e, reach){
   if(!e||!e.hero) return 0;
+  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
   const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
   if(crown){ destroyBoneCrown(crown); return 1; }
   return 0;
@@ -11172,6 +11452,7 @@ function buildTeethCrownRoom(L, sec){
   L.flags=L.flags||{};
   L.flags.teethRoom=1;
   L.flags.teethBounds=L.teethBounds;
+  applyTeethFaceWallHeight(L);
   if(already) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
@@ -11196,7 +11477,26 @@ function buildTeethCrownRoom(L, sec){
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
-  hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
+}
+/* The room builder used to toast this at the secret, while Macar was still
+   in the hall, and a loaded save skips the builder entirely (teethRoom is
+   already set). Show it once, when the altar is in sight or Macar steps
+   into that corner, and not under the chapel-enter dialogue. */
+function maybeCrownAltarHint(p){
+  const L=G.lvl;
+  if(!p||p.dead||!L||L.n!==1||G.talk) return false;
+  if(L.flags&&L.flags.crownAltarHint) return false;
+  if(L.flags&&(L.flags.crownTaken||L.flags.crownDestroyed)) return false;
+  const altar=(G.props||[]).find(pr=>pr&&!pr.gone&&pr.teethAltar);
+  const crown=(G.props||[]).find(pr=>pr&&!pr.gone&&pr.k==='bonecrown');
+  if(!altar||!crown) return false;
+  const sees=typeof tileVisible==='function' && tileVisible(altar.x, altar.y);
+  const near=dist(p, altar)<3.8;
+  if(!sees && !near) return false;
+  L.flags=L.flags||{};
+  L.flags.crownAltarHint=1;
+  hint('A bone crown on the altar. Destroy the crown, or take it.',5.2);
+  return true;
 }
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
    Quest unique, not combat magic, no sell, Macar pack only.
@@ -11283,7 +11583,7 @@ function maybeTeethChapelLooks(p){
   if(!hits.length) return false;
   hits.sort((a,b)=>a.d-b.d);
   const hit=hits[0];
-  interact(hit.label,()=>startTalk(hit.key));
+  interact(hit.label,()=>openTeethChapelLook(hit.key));
   return true;
 }
 function teethChapelLookHit(w){
@@ -11308,10 +11608,73 @@ function teethChapelLookStand(hit){
   if(hit.key==='teeth_chapel_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
   return {x:hit.x, y:hit.y+0.65, look:hit.key};
 }
+function crownWasDropped(){
+  const f=G.lvl&&G.lvl.flags;
+  return !!(f&&f.crownDropped);
+}
+function teethCrownChoices(){
+  const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
+  const choices=[];
+  if(worn){
+    choices.push({t:'Drop the crown.', then:()=>{ if(typeof dropBoneCrown==='function') dropBoneCrown(); }});
+  } else {
+    /* Destroy leads on the first talk and again after a drop. */
+    choices.push({t:'Destroy the crown.', then:()=>{
+      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
+      if(c) destroyBoneCrown(c);
+    }});
+    choices.push({t:'Take the bone crown.', then:()=>{
+      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 6):null;
+      if(c) takeBoneCrown(c);
+    }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
+function teethFaceChoices(){
+  const face=typeof nearestDemonFace==='function'?nearestDemonFace(player(), 6):null;
+  const choices=[];
+  const taken=face?chapelFaceToothTaken(face):true;
+  if(face && !taken){
+    choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
 function openTeethChapelLook(key){
   if(!key||G.talk||!NPC_TALK[key]) return false;
   startTalk(key);
+  if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function')
+    G.talk.choices=teethCrownChoices();
+  else if(G.talk && key==='teeth_chapel_face' && typeof teethFaceChoices==='function')
+    G.talk.choices=teethFaceChoices();
   return true;
+}
+function dropBoneCrown(){
+  if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
+  const eq=G.equipped||{};
+  const it=eq.helmet;
+  eq.helmet=null;
+  const pk=G.packs&&G.packs.macar;
+  if(pk&&pk.magic){
+    pk.magic=pk.magic.filter(x=>!(x&&(x===it||x.boneCrown||x.id==='bone_crown')));
+  }
+  const L=G.lvl;
+  if(L&&L.flags){
+    L.flags.crownDropped=1;
+    L.flags.crownTaken=0;
+  }
+  const p=typeof player==='function'?player():null;
+  let crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown');
+  if(crown){
+    crown.gone=0; crown.taken=0; crown.destroyed=0;
+    if(p){ crown.x=p.x; crown.y=p.y+0.55; }
+  } else if(p){
+    G.props=G.props||[];
+    G.props.push({x:p.x, y:p.y+0.55, k:'bonecrown', s:1.70, seed:881});
+  }
+  say('Macar sets the bone crown down.','#c9b895');
+  return {ok:1};
 }
 function pryGrondTooth(face, kind){
   const L=G.lvl;
@@ -12938,7 +13301,12 @@ function update(dt){
     p.secretCd=Math.max(0,(p.secretCd||0)-dt);
     maybeHintSecret(L, p);
     tryFindSecret(p,'pass');
-    if(G.secretSearch && (p.secretCd||0)<=0){ p.secretCd=1.6; tryFindSecret(p,'search'); }
+    if(G.secretSearch && (p.secretCd||0)<=0){
+      p.secretCd=1.6;
+      /* Secret-door Search is the quiet one-area turn the herb ruling uses. */
+      if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(ENCOUNTER_RULES.herbTurnsPer10ft);
+      tryFindSecret(p,'search');
+    }
     if(G.digging){
       const t=digTarget(p);
       if(t){
@@ -12946,12 +13314,7 @@ function update(dt){
         else {
           const need=digNeedMinutes();
           G.dig.min+=dt;
-          if(G.dig.min>=need){
-            breakRock(L,G.dig.i,G.dig.j);
-            if(G.digBoost>0) G.digBoost--;
-            say('A square foot of stone comes away.','#d8c49a');
-            G.dig=null;
-          }
+          if(G.dig.min>=need) completeDigSquare(L);
         }
       }
     }
@@ -12994,11 +13357,12 @@ function update(dt){
     }
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const crown=nearestBoneCrown(p,1.75);
-      if(crown) interact('Take the bone crown',()=>takeBoneCrown(crown));
+      if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const smash=nearestBoneCrown(p,1.75);
-      if(smash) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
+      const dropped=G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped;
+      if(smash && dropped) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
     }
     if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown()){
       const body=nearestAnimatableCorpse(p,1.95);
@@ -13010,8 +13374,8 @@ function update(dt){
         interact(pet.thrallStay?'Thrall: follow':'Thrall: stay',()=>setThrallStay(!pet.thrallStay));
       }
     }
-    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof smashWornBoneCrown==='function'){
-      interact('Attack the bone crown',()=>smashWornBoneCrown());
+    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof dropBoneCrown==='function'){
+      interact('Drop the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
@@ -13019,7 +13383,7 @@ function update(dt){
         const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
         const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth)
           :(L.flags.electrumTooth||L.flags.copperTooth));
-        if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
+        if(!taken) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
       }
     }
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
@@ -13205,7 +13569,7 @@ function update(dt){
         if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
           const nr=Navigation.tickFollower(e, p, dt, navHost());
           if(nr && nr.handled){
-            if(p){ e.fdx=p.fdx; e.fdy=p.fdy; }
+            if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
             ghostSapperBomb(e, dt);
             continue;
           }
@@ -13243,9 +13607,11 @@ function update(dt){
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
-          if(dd<(e.r+o.r)*1.15&&dd>.001){ vx+=(e.x-o.x)/dd*.35; vy+=(e.y-o.y)/dd*.35; } }
+          const partyGap=form && o.team==='party' && e.team==='party';
+          const reach=(e.r+o.r)*(partyGap?3.2:1.15);
+          const push=partyGap?1.15:0.35;
+          if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; } }
         steerWalk(e, vx, vy, go, dt);
-        if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
@@ -13269,6 +13635,7 @@ function update(dt){
       if(typeof PartyOrders!=='undefined' && PartyOrders.use() && PartyOrders.order() && PartyOrders.commands(e)) continue;
       if(threat && kinCanAutoFight(e)) continue;
       if(!p.moving && (p.aim||p.atk>0)) continue;
+      if(e.moving) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
     }
   }
@@ -13399,12 +13766,11 @@ function render(){
   if(G.scene==='title_menu') drawTitleMenu(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
-  if(G.scene==='intro') drawIntro(g);
   if(G.scene==='play' && !worldArtReady(G.ch)){
-    /* Hold the title card (or a black frame) until Ch1 sprites are decoded.
-       Painting the world early is the old-graphics flash. */
-    if(L) drawIntro(g);
-    else { g.fillStyle='#050308'; g.fillRect(0,0,VW,VH); }
+    /* Full-bleed hold until Ch1 sprites decode. No Descend gate, no letterbox. */
+    g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+    const hold=(SPR.title_menu&&SPR.title_menu.width)?SPR.title_menu:SPR.title_splash;
+    if(hold&&hold.width) drawTitleMenuCover(g, hold);
   }
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='craft') drawCraft(g);
@@ -13497,7 +13863,7 @@ function drawWorld(g,L){
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
     const H=hallWallH(L);
-    const faceH=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(isTeethNorthWall(L,x,y)?teethNorthWallH(L):H);
+    const faceH=cellWallH(L,x,y);
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
@@ -13804,6 +14170,16 @@ function drawMemoryShade(g,L){
       g.lineTo(s.x, s.y+TH/2); g.lineTo(s.x-TW/2, s.y);
       g.closePath(); g.fill();
     } else if(t===1||t===2){
+      /* Only rock that actually draws a face. Buried cells behind the
+         chapel's tall north wall (and the vault's east wall) are often
+         seen but out of sight. A disc on that cell is not on its own
+         masonry — it lands on the portrait in front and reads as a row
+         of black blobs. Halls still shade; they have an open side. */
+      const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
+      const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
+      const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
+      const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
+      if(!oS&&!oE&&!oN&&!oW) continue;
       const H=useWallFaces(L)?wallFaceH(L):TH;
       g.beginPath();
       g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
@@ -13862,6 +14238,9 @@ function drawBeyondMask(g,L){
         if(oS||oE||oN||oW){
           let tall=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(useWallFaces(L)?wallFaceH(L):TH);
           if(isTeethNorthWall(L,x,y)) tall=teethNorthWallH(L);
+          const faceOver=wallHeightOverride(L,x,y);
+          if(faceOver) tall=faceOver;
+          else if(isTeethFaceWall(L,x,y)) tall=teethFaceWallH(L);
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -14110,8 +14489,33 @@ function teethCarpetStamp(x,y){
   return TEETH_CARPETS[((x|0)*3+(y|0))&3];
 }
 function drawTeethTile(g,x,y){
+  /* Approved 8×8 atlas. Each cell is one floor diamond (1280×640 → 160×80).
+     Same layout the chapel already clips to a tile, so a cell replaces the
+     stretched field. The fang carpet stays the fallback when this sheet
+     has not loaded. */
+  const atlas=SPR.teeth_floor_atlas;
+  if(atlas&&atlas.width){
+    const s=w2s(x,y);
+    const n=8, cw=atlas.width/n, ch=atlas.height/n;
+    const i=(h2(x,y)*(n*n))|0;
+    const col=i%n, row=(i/n)|0;
+    g.save();
+    g.beginPath();
+    g.moveTo(s.x, s.y-TH/2);
+    g.lineTo(s.x+TW/2, s.y);
+    g.lineTo(s.x, s.y+TH/2);
+    g.lineTo(s.x-TW/2, s.y);
+    g.closePath();
+    g.clip();
+    g.drawImage(atlas, col*cw, row*ch, cw, ch, s.x-TW/2, s.y-TH/2, TW, TH);
+    g.restore();
+    return;
+  }
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
   const field=SPR.teeth_floor;
+  /* teeth_floor.png is a dark field. Paint it, then the readable fang stamps.
+     Returning here hid the floor teeth. HQ replacement slot (unregistered
+     until the file lands): assets/tiles/teeth_floor_hq.png */
   if(field&&field.width&&!risen){
     const s=w2s(x,y);
     const stamp=teethCarpetStamp(x,y)||field;
@@ -14125,7 +14529,6 @@ function drawTeethTile(g,x,y){
     g.clip();
     g.drawImage(stamp, s.x-TW/2, s.y-TH/2, TW, TH);
     g.restore();
-    return;
   }
   const s=w2s(x+0.5,y+0.5), z=ZOOM;
   g.save();
@@ -14403,18 +14806,42 @@ function drawToothProp(g,p,z){
   }
   drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
 }
-function demonFaceImg(){
+function demonFaceShowsEmpty(p){
+  if(!p) return false;
+  const kind=p.toothKind==='copper'?'electrum':(p.toothKind||'electrum');
+  if(kind==='bronze') return !!p.emptySocket;
+  if(p.emptySocket) return true;
+  if(typeof chapelFaceToothTaken==='function' && chapelFaceToothTaken(p)) return true;
+  if(typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()) return true;
+  return false;
+}
+function vaultDemonFace(p){
+  return !!(p && (p.wall==='e' || p.toothKind==='bronze'));
+}
+function demonFaceImg(p){
+  /* Hourglass vault keeps main's wide plate. The v4 portrait and the
+     empty-socket sheet are the chapter 1 chapel face only. */
+  if(p && vaultDemonFace(p)) return SPR.demon_dwarfface_vault||null;
+  if(p && demonFaceShowsEmpty(p)){
+    const empty=SPR.demon_dwarfface_empty;
+    if(empty && empty.width) return empty;
+  }
   return SPR.demon_dwarfface||SPR.demonface||null;
 }
-function demonFaceHalf(){
-  const img=demonFaceImg();
-  const H=dwarfFaceH()*1.08;
-  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+function demonFaceHalf(p){
+  const img=demonFaceImg(p);
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  /* v11 face is 457×274 (wide head), not the old 491×717 portrait.
-     The quad keeps that aspect so the carving is not squeezed, and the
-     cap still leaves it on the north wall beside the northwest altar. */
-  return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  if(!p || vaultDemonFace(p)){
+    const H=dwarfFaceH()*1.08;
+    const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+    return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  }
+  /* Width uses the same screen height as the blit. A portrait plate is
+     sized from its content box in demonFaceDrawH; matching that height
+     here keeps the canvas aspect so the horns are not stretched. */
+  const H=demonFaceDrawH(img, p);
+  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+  return clamp(H*aspect/(2*perTile), 0.70, 2.40);
 }
 function demonFacePlaneY(p){
   if(!p||p.wall==='e') return p?p.y:0;
@@ -14423,10 +14850,63 @@ function demonFacePlaneY(p){
 function demonFaceScreen(p){
   return w2s(p.x, demonFacePlaneY(p));
 }
+function demonFaceDrawH(img, p){
+  if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
+  const b=img&&img.width&&typeof spriteBounds==='function'?spriteBounds(img):null;
+  const cw=(b&&b.ok&&b.x0!=null)?(b.x1-b.x0)*img.width:0;
+  const ch=(b&&b.ok&&b.y0!=null)?(b.y1-b.y0)*img.height:0;
+  if(!(ch>cw*1.05)) return dwarfFaceH()*1.08;
+  const frac=img.height?ch/img.height:1;
+  return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, frac);
+}
 function drawDemonDwarfFace(g,p){
-  const img=demonFaceImg();
-  const H=dwarfFaceH()*1.08;
-  const half=demonFaceHalf();
+  if(vaultDemonFace(p)){
+    /* Main's vault draw: dwarfFaceH()*1.08, wide-plate aspect, cap 1.90.
+       Bronze tooth is the painted triangle, not the chapel portrait. */
+    const img=demonFaceImg(p);
+    const H=dwarfFaceH()*1.08;
+    const half=demonFaceHalf(p);
+    g.save();
+    if(p.wall==='e'){
+      drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});
+    } else {
+      const yPlane=demonFacePlaneY(p);
+      drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
+    }
+    const s=demonFaceScreen(p);
+    const ox=s.x+(p.wall==='e'?8:2)*ZOOM;
+    const oy=s.y-H*(p.wall==='e'?0.28:0.38);
+    if(p.emptySocket){
+      g.save();
+      g.fillStyle='rgba(8,4,4,0.82)';
+      g.beginPath();
+      g.ellipse(ox, oy, 5.2*ZOOM, 7.4*ZOOM, 0, 0, TAU);
+      g.fill();
+      g.strokeStyle='rgba(40,20,16,0.7)';
+      g.lineWidth=1.2*ZOOM;
+      g.stroke();
+      g.restore();
+    } else if(!img || p.toothKind==='bronze'){
+      const bronze=p.toothKind==='bronze';
+      g.save();
+      g.fillStyle=bronze?'#c48a3a':'#d8e0e4';
+      g.strokeStyle=bronze?'#7a4e18':'#8a9498';
+      g.lineWidth=1.1*ZOOM;
+      g.beginPath();
+      g.moveTo(ox-3.4*ZOOM, oy-6*ZOOM);
+      g.lineTo(ox+3.4*ZOOM, oy-6*ZOOM);
+      g.lineTo(ox+1.1*ZOOM, oy+8.2*ZOOM);
+      g.lineTo(ox-1.1*ZOOM, oy+8.2*ZOOM);
+      g.closePath();
+      g.fill(); g.stroke();
+      g.restore();
+    }
+    g.restore();
+    return;
+  }
+  const img=demonFaceImg(p);
+  const H=demonFaceDrawH(img, p);
+  const half=demonFaceHalf(p);
   g.save();
   if(p.wall==='e'){
     drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});
@@ -14438,7 +14918,10 @@ function drawDemonDwarfFace(g,p){
   const s=demonFaceScreen(p);
   const ox=s.x+(p.wall==='e'?8:2)*ZOOM;
   const oy=s.y-H*(p.wall==='e'?0.28:0.38);
-  if(p.emptySocket){
+  const emptySheet=demonFaceShowsEmpty(p) && img && img===SPR.demon_dwarfface_empty && img.width;
+  if(emptySheet){
+    /* Drop-in plate already shows the empty socket. */
+  } else if(demonFaceShowsEmpty(p)){
     g.save();
     g.fillStyle='rgba(8,4,4,0.82)';
     g.beginPath();
@@ -15183,6 +15666,22 @@ function drawProp(g,p,pal){
   g.restore();
 }
 
+/* Ground coin pile. One swappable file: assets/props/loot_coins.png
+   (SPRITE_FILES.loot_coins). Drop the new painting on that path.
+   The gold disc is only the undecoded fallback, baked once into the slot. */
+let COIN_PILE_FALLBACK=null;
+function coinPileSprite(){
+  const img=typeof SPR!=='undefined' && SPR.loot_coins;
+  if(img && img.width) return img;
+  if(COIN_PILE_FALLBACK && COIN_PILE_FALLBACK.width) return COIN_PILE_FALLBACK;
+  const c=document.createElement('canvas');
+  c.width=64; c.height=40;
+  const x=c.getContext('2d');
+  x.fillStyle='#e0c169';
+  x.beginPath(); x.ellipse(32,22,26,16,0,0,TAU); x.fill();
+  COIN_PILE_FALLBACK=c;
+  return c;
+}
 function drawLoot(g,pile){
   const s=w2s(pile.x,pile.y), z=ZOOM;
   const pulse=.62+Math.sin(G.elapsed*4.2+(pile.x||0)*3)*.28;
@@ -15198,8 +15697,7 @@ function drawLoot(g,pile){
   else if(pile.kind==='jewels' || pile.jew || ((pile.items||[]).some(it=>/ring|amulet|jewel|necklace|torque/i.test(it.n||it.k||'')))){ img=SPR.loot_jewelry||SPR.loot_gems; h=44*z; }
   else if((pile.gems||((pile.items||[]).some(it=>it.k==='gem'))) && SPR.loot_gems){ img=SPR.loot_gems; h=46*z; }
   else if(SPR.loot_chest && pile.coins && ((pile.coins.gp||0)+(pile.coins.pp||0)>8)){ img=SPR.loot_chest; h=56*z; }
-  else if(SPR.loot_coins){ img=SPR.loot_coins; h=46*z; }
-  else img=SPR.sack;
+  else { img=coinPileSprite(); h=46*z; }
   if(img && img.width && drawBillboard(g, img, h)){
     const glow=pile.kind==='ruby'?'#ff2a3c':(pile.glow||'#ffd27a');
     emit(s.x,s.y-h*0.35,12*z*pulse,glow, pile.kind==='ruby'?0.85:0.75);
@@ -15211,8 +15709,7 @@ function drawLoot(g,pile){
     g.fillStyle=RESMETA.ironstone.c;
     g.beginPath(); g.moveTo(-6*z,-4*z); g.lineTo(0,-12*z); g.lineTo(7*z,-3*z); g.lineTo(3*z,4*z); g.lineTo(-5*z,3*z); g.closePath(); g.fill();
   } else {
-    g.fillStyle='#e0c169';
-    g.beginPath(); g.ellipse(0,0,10*z,6*z,0,0,TAU); g.fill();
+    drawBillboard(g, coinPileSprite(), 46*z);
   }
   g.restore();
 }
@@ -15305,7 +15802,8 @@ function drawEnt(g,e){
   /* Living Macar gold foot ellipse / QUALITY radial disc removed — fringe
      let that gold show through as a sparkle outline. Ghosts never got it. */
   const img=solidDwarfSprite(e, entAnimImg(e));
-  const bob0=(img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0;
+  const pose=singlePoseOffset(e);
+  const bob0=pose?0:((img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0);
   if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   } else {
@@ -15317,7 +15815,7 @@ function drawEnt(g,e){
   const squash=img?1:(1+sw*0.06);
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
   if(e.ghost && !e.dead) g.globalAlpha=GHOST_DRAW_ALPHA;
-  g.save(); g.translate(0,-bob0); g.scale(img?1:(flip?-1:1),1); g.scale(1/squash,squash);
+  g.save(); g.translate(pose?pose.x:0, -bob0+(pose?pose.y:0)); g.scale(img?1:(flip?-1:1),1); g.scale(1/squash,squash);
   if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
     /* prone corpse sprite */
   } else if(!(img && drawEntBillboard(g,e,img,z,flip))){
@@ -17338,7 +17836,7 @@ function drawLog(g,s){
     for(const wd of words){ const t=cur?cur+' '+wd:wd;
       if(g.measureText(t).width>w-22*s){ lines.push({t:cur,c:l.c,a:l.a,k:l.k}); cur=wd; } else cur=t; }
     if(cur) lines.push({t:cur,c:l.c,a:l.a,k:l.k}); }
-  lines.slice(-6).forEach((l,i)=>{
+  lines.slice(-10).forEach((l,i)=>{
     g.globalAlpha=l.a;
     const combat=l.t.indexOf('[COMBAT]')===0 || l.k==='combat';
     g.fillStyle=combat?'#ff6a5a':(l.t.indexOf('[LOG]')===0?'#ffb45c':l.c);
@@ -18887,6 +19385,15 @@ function collectPackRows(pk, who){
   });
   Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),
     info:lend+((HERBS.find(h=>h.n===n)||{}).d||''),tag:'Herb'}));
+  if((!who || who==='macar') && typeof G!=='undefined' && G.res){
+    const keys=(typeof RES!=='undefined')?RES:Object.keys(G.res);
+    keys.forEach(r=>{
+      const n=G.res[r]||0;
+      if(n>0) rows.push({kind:'res', field:r,
+        t:((typeof RESMETA!=='undefined' && RESMETA[r] && RESMETA[r].n)||r)+'  \u00d7'+n,
+        info:'Dig and craft stock. Stays with the pack.', tag:'Ore'});
+    });
+  }
   if((!who || who==='macar') && typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack() && ((G.coin&&G.coin.ep)||0)>0){
     const ep=(G.coin.ep||0);
     rows.unshift({kind:'drop-ep', t:'Drop electrum  \u00d7'+ep,
@@ -19319,6 +19826,10 @@ function drawPack(g){
   let rows=collectPackRows(pk, G.packWho);
   if(G.packTab==='gear' || G.packSlotFilter){
     rows=rows.filter(r=>{
+      /* Quest fangs stay on the default Gear list. A slot filter still means armor. */
+      const quest=r.it && (r.it.quest || r.it.grondTooth || r.it.cat==='Quest');
+      if(quest && !G.packSlotFilter) return true;
+      if(r.kind==='res' && !G.packSlotFilter) return true;
       if(!isPackEquipable(r)) return false;
       if(G.packSlotFilter && r.slot && r.slot!==G.packSlotFilter) return false;
       return true;

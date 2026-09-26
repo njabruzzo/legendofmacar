@@ -26,7 +26,7 @@ assert(!/UI\.hudTop/.test(log) && !/VH-\(PORT\?96:94\)/.test(log),
 assert(/open\?'▾':'▸'/.test(log) && /COMBAT LOG/.test(log),
   'collapsed chip shows COMBAT LOG with a disclosure mark');
 assert(/if\(!open\) return/.test(log), 'details are not painted while collapsed');
-assert(/lines\.slice\(-6\)/.test(log), 'expanded details still show the recent log lines');
+assert(/lines\.slice\(-10\)/.test(log), 'expanded details still show the recent log lines');
 assert(/fillStyle='#0a0705'/.test(log), 'expanded log is an opaque slab above masonry');
 
 assert(/G\.showLog=!G\.showLog/.test(html), 'clicking the chip toggles the log');
