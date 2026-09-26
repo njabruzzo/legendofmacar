@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=117">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=117">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=119">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=119">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -388,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='117';
+const ASSET_VER='119';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -504,9 +504,8 @@ const SPRITE_FILES={
   dwarfface:'assets/props/prop_dwarfface.png',
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
-  /* Empty-socket drop-in. Same plate as prop_demon_dwarfface.png, no tooth.
-     demonFaceImg uses it when the electrum tooth is in Macar's pack.
-     Until the file exists, the toothed sheet keeps the socket mark. */
+  /* Empty-socket plate. Same 267×434 canvas as prop_demon_dwarfface.png,
+     no tooth. demonFaceImg uses it once the electrum tooth is taken. */
   demon_dwarfface_empty:'assets/props/prop_demon_dwarfface_empty.png',
   craftstation:'assets/props/prop_craftstation.png',
   shadowcleaver:'assets/props/loot_shadowcleaver.png',
@@ -2521,9 +2520,10 @@ function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
    row so a replacement face plate can rise inside the wall. L.wallH
    stores a multiple of wallFaceH per tile; a set value wins, and the
    predicate still applies when a save has no map. */
-/* Approved plate is 267×434 with a 16px transparent pad (content 402px tall).
-   A portrait face draws its content at 2.40× wallFaceH. This segment is
-   3.15× wallFaceH so the horns stay on masonry, with margin above them. */
+/* Approved plate is 267×434. Alpha box is 235×399 (16px side pad, 19px top).
+   The portrait draws that content box at 2.40× wallFaceH, so the canvas
+   quad is about 2.61× wallFaceH. This segment is 3.15× wallFaceH, taller
+   than the canvas, so the horns sit on masonry with margin. */
 const DEMON_FACE_PLATE={w:267,h:434,pad:16};
 const WALL_TEETH_FACE_SCALE=3.15;
 const DEMON_FACE_CONTENT_SCALE=2.40;
@@ -14744,13 +14744,13 @@ function demonFaceImg(p){
 }
 function demonFaceHalf(){
   const img=demonFaceImg();
-  const H=dwarfFaceH()*1.08;
+  /* Width uses the same screen height as the blit. A portrait plate is
+     sized from its content box in demonFaceDrawH; matching that height
+     here keeps the canvas aspect so the horns are not stretched. */
+  const H=demonFaceDrawH(img);
   const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
   const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  /* v11 face is 457×274 (wide head), not the old 491×717 portrait.
-     The quad keeps that aspect so the carving is not squeezed, and the
-     cap still leaves it on the north wall beside the northwest altar. */
-  return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  return clamp(H*aspect/(2*perTile), 0.70, 2.40);
 }
 function demonFacePlaneY(p){
   if(!p||p.wall==='e') return p?p.y:0;

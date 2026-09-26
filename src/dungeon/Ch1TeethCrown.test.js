@@ -63,7 +63,7 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='118'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='119'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
@@ -98,10 +98,18 @@ assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
   const buf=fs.readFileSync(facePath);
   assert(buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47, 'SIGNED face is a PNG');
   const w=buf.readUInt32BE(16), h=buf.readUInt32BE(20);
-  assert(w===457 && h===274, 'SIGNED face is Nick\'s 457×274 sheet');
+  assert(w===267 && h===434, 'approved demon face is the 267×434 plate');
 }
-assert(/return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
-  'v11 face quad keeps the wide 457×274 aspect');
+{
+  const emptyPath=path.join(__dirname,'../../assets/props/prop_demon_dwarfface_empty.png');
+  assert(fs.existsSync(emptyPath), 'empty-socket demon face is on disk');
+  const ebuf=fs.readFileSync(emptyPath);
+  assert(ebuf.readUInt32BE(16)===267 && ebuf.readUInt32BE(20)===434,
+    'empty socket is the same 267×434 plate');
+}
+assert(/demonFaceDrawH\(img\)/.test(extractFn('demonFaceHalf'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 2\.40\)/.test(extractFn('demonFaceHalf')),
+  'the face quad uses the content-sized height and keeps the plate aspect');
 assert(!/TODO\(Disney SIGNED\)/.test(html),
   'Disney SIGNED TODO is gone — signed sheet is the file on disk');
 assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
@@ -175,10 +183,11 @@ assert(/function cellWallH\(L,x,y\)/.test(html)
   && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(extractFn('cellWallH'))
   && /const faceH=cellWallH\(L,x,y\)/.test(html),
   'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
-assert(/DEMON_FACE_PLATE=\{w:267,h:438,pad:16\}/.test(html)
+assert(/DEMON_FACE_PLATE=\{w:267,h:434,pad:16\}/.test(html)
   && /DEMON_FACE_CONTENT_SCALE=2\.40/.test(html)
-  && /WALL_TEETH_FACE_SCALE=3\.15/.test(html),
-  'the face wall covers a 267×438 plate, horns included, with margin');
+  && /WALL_TEETH_FACE_SCALE=3\.15/.test(html)
+  && 3.15 > 2.40 / (399/434),
+  'the face wall covers the 267×434 plate, horns included, with margin');
 assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
   && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
   && /function wallHeightOverride\(/.test(html)

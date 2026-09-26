@@ -1,8 +1,8 @@
 'use strict';
 /**
  * Crown take or destroy raises skeletal dwarves once.
- * Until dwarf_skeleton_idle.png is on disk they use mon_undead.png
- * and a single idle pose: slide, 2px bob, 6px lunge.
+ * dwarf_skeleton_idle.png is the approved single pose. Until it has
+ * loaded they use mon_undead.png. Slide, 2px bob, 6px lunge.
  * Run: node src/dungeon/SkeletalDwarf.test.js
  */
 const fs=require('fs');
@@ -32,8 +32,13 @@ assert(/dwarf_skeleton_idle_w1\.png/.test(html) && /_atk\.png/.test(html),
   'walk and attack frames are named as later drop-ins');
 assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/mon_undead.png')),
   'placeholder art is the existing undead sheet');
-assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_skeleton_idle.png')),
-  'approved idle file is not bound until it is in the repo');
+{
+  const idlePath=path.join(__dirname,'../../assets/creatures/dwarf_skeleton_idle.png');
+  assert(fs.existsSync(idlePath), 'approved skeletal dwarf idle is bound');
+  const ibuf=fs.readFileSync(idlePath);
+  assert(ibuf.readUInt32BE(16)===552 && ibuf.readUInt32BE(20)===542,
+    'skeletal dwarf idle is the 552×542 sheet');
+}
 assert(/skeletalDwarf:\{[\s\S]*?spr:'undead'/.test(html),
   'the bestiary row uses the undead sprite until the idle sheet loads');
 assert(/riseSkeletalDwarves\(crown\)/.test(extractFn('takeBoneCrown'))
@@ -120,6 +125,13 @@ ctx.SPR.pordoom_ghost={width:8, b:{ok:true, y0:0.1, y1:0.9}};
 const skelImg={width:8, b:{ok:true, y0:0.25, y1:0.75}};
 assert(Math.abs(ctx.skeletalDwarfFit({singlePose:1}, skelImg)-(0.8/0.5))<1e-6,
   'a shorter content box is scaled up to the ghost stature');
+ctx.G.lvl.flags.skeletalDwarves=0;
+ctx.G.ents.length=0;
+ctx.fights=0;
+ctx.SPR.dwarf_skeleton_idle={width:552, height:542};
+const bound=ctx.riseSkeletalDwarves({x:5,y:5});
+assert(bound===4 && ctx.G.ents.every(e=>e.singlePose===1 && e.sprite==='dwarf_skeleton_idle'),
+  'the approved idle fills the slot and stays a single pose');
 ctx.SPR.dwarf_skeleton_idle_w1={width:8};
 const painted={singlePose:1, sprite:'dwarf_skeleton_idle', kind:'undead', moving:1, dead:0};
 assert(ctx.singlePoseLocked(painted)===false, 'a ready walk frame leaves single-pose');
