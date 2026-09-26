@@ -63,7 +63,7 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='119'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='120'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
@@ -133,14 +133,23 @@ assert(/WALL_TEETH_NORTH_SCALE=2\.25/.test(html) && /function teethNorthWallH\(L
   'chapel north wall is raised above hall height');
 assert(/SPRITE_FILES\.teeth_floor='assets\/tiles\/teeth_floor\.png'/.test(html),
   'tiny fang field is registered');
+assert(/SPRITE_FILES\.teeth_floor_atlas='assets\/tiles\/teeth_floor_atlas_8x8\.png'/.test(html),
+  'teeth floor atlas is the live chapel bind');
+assert(/const n=8, cw=atlas\.width\/n/.test(extractFn('drawTeethTile')),
+  'each chapel tile blits one cell of the 8×8 atlas');
 assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
   'chapel platform sheet is registered');
 assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
   && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),
   'chapel north masonry sheets are registered');
-['teeth_floor.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
+['teeth_floor.png','teeth_floor_atlas_8x8.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
 });
+{
+  const atlas=fs.readFileSync(path.join(__dirname,'../../assets/tiles/teeth_floor_atlas_8x8.png'));
+  assert(atlas.readUInt32BE(16)===1280 && atlas.readUInt32BE(20)===640,
+    'teeth floor atlas is 1280×640, eight by eight cells');
+}
 {
   const altar=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar.png'));
   const teeth=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png'));

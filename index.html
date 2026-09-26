@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=119">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=119">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=120">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=120">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -388,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='119';
+const ASSET_VER='120';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -662,8 +662,10 @@ SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
    Platform is the opaque slab (same pixels as prop_altar.png). The crown
    on that slab is the Macar-head scene sheet, not the full TAKE crown.
    Art-director drop-in for a new teeth floor: assets/tiles/teeth_floor_hq.png
-   Do not register that file until it exists. teeth_floor.png is the live bind. */
+   Do not register that file until it exists. teeth_floor.png stays the
+   fallback field. The live chapel floor is the 8×8 atlas. */
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
+SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
@@ -776,7 +778,7 @@ function loadSprites(done){
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-    'teeth_floor','tooth','tooth_2','tooth_3',
+    'teeth_floor','teeth_floor_atlas','tooth','tooth_2','tooth_3',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
@@ -14428,6 +14430,28 @@ function teethCarpetStamp(x,y){
   return TEETH_CARPETS[((x|0)*3+(y|0))&3];
 }
 function drawTeethTile(g,x,y){
+  /* Approved 8×8 atlas. Each cell is one floor diamond (1280×640 → 160×80).
+     Same layout the chapel already clips to a tile, so a cell replaces the
+     stretched field. The fang carpet stays the fallback when this sheet
+     has not loaded. */
+  const atlas=SPR.teeth_floor_atlas;
+  if(atlas&&atlas.width){
+    const s=w2s(x,y);
+    const n=8, cw=atlas.width/n, ch=atlas.height/n;
+    const i=(h2(x,y)*(n*n))|0;
+    const col=i%n, row=(i/n)|0;
+    g.save();
+    g.beginPath();
+    g.moveTo(s.x, s.y-TH/2);
+    g.lineTo(s.x+TW/2, s.y);
+    g.lineTo(s.x, s.y+TH/2);
+    g.lineTo(s.x-TW/2, s.y);
+    g.closePath();
+    g.clip();
+    g.drawImage(atlas, col*cw, row*ch, cw, ch, s.x-TW/2, s.y-TH/2, TW, TH);
+    g.restore();
+    return;
+  }
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
   const field=SPR.teeth_floor;
   /* teeth_floor.png is a dark field. Paint it, then the readable fang stamps.
