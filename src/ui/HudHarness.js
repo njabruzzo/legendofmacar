@@ -28,17 +28,17 @@ function extractConsts(){
 }
 const hudBlock=html.match(/const HUDSKILLS=\[[\s\S]*?\];/)[0].replace(/^const /,'var ');
 
-const FNS=['btnBox','btnGap','circleRectGap','rectsMeet','partyPortraitFrame','partyOrderAnchor',
-  'layoutSpecialtyCluster','layoutPartyOrders','layoutUI','landscapePartyOrderSeat',
-  'placePartyOrderRow','btnAt'];
+const FNS=['btnBox','btnGap','circleRectGap','hudMobile','partyPortraitFrame',
+  'layoutSpecialtyCluster','miniRect','touchTabs','padRect','miniBigBox','touchPanelRect','layoutUI','btnAt'];
 
 const ctx={UIBTN:[], UI:{}, IS_TOUCH:true, PORT:false, VW:0, VH:0, UIS:1,
-  G:{ents:[], hudMore:0}, Math};
+  G:{ents:[], hudMore:0, miniBig:0}, Math};
 ctx.clamp=(v,a,b)=>v<a?a:v>b?b:v;
 ctx.safeInsets=()=>ctx._inset;
 ctx.partyPortraitList=()=>Array.from({length:ctx._n},(_,i)=>({team:'party', col:{key:'k'+i}, hero:i===0}));
 vm.createContext(ctx);
 vm.runInContext(hudBlock+'\n'+extractConsts(), ctx);
+vm.runInContext(html.match(/const PARTY_TOUCH_H=[^;]*;/)[0].replace(/^const /,'var '), ctx);
 FNS.forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
 function layout(o){
@@ -57,6 +57,10 @@ function layout(o){
     find:k=>btns.find(b=>b.key===k),
     chips:btns.filter(b=>b.chip),
     orders:btns.filter(b=>b.order),
+    mini:ctx.miniRect(),
+    tabs:ctx.touchTabs(),
+    bigMap:ctx.miniBigBox(),
+    panel:h=>ctx.touchPanelRect(h),
     UI:ctx.UI,
     frame:ctx.partyPortraitFrame(),
     btnAt:(x,y)=>ctx.btnAt(x,y),
