@@ -72,7 +72,8 @@ vm.createContext(ctx);
 [
   'wearingBoneCrown','nearestBoneCrown','nearestDemonFace','chapelFaceToothTaken',
   'makeGrondTooth','crownWasDropped','teethCrownChoices','teethFaceChoices',
-  'dropBoneCrown','pryGrondTooth'
+  'dropBoneCrown','pryGrondTooth','livingThrall','isAnimateDeadEligible',
+  'nearestAnimatableCorpse','primaryCrownPrompt'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
 ctx.G.props=[{x:10,y:10,k:'bonecrown',gone:0}];
@@ -95,6 +96,21 @@ assert(choices[0]==='Drop the crown.' && choices.indexOf('Destroy the crown.')<0
   'while the crown is worn the talk offers drop, not destroy');
 assert(ctx.dropBoneCrown().ok===1 && ctx.G.equipped.helmet==null && ctx.G.lvl.flags.crownDropped===1,
   'drop clears the helm and marks the crown dropped');
+
+ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+ctx.G.thrallId=41;
+ctx.G.ents=[
+  {hero:1, x:10, y:10},
+  {id:40, name:'Goblin', kind:'goblin', team:'foe', dead:1, corpse:1, x:10.4, y:10.2, hp:0, maxhp:22},
+  {id:41, name:'Orc', kind:'orc', team:'party', thrall:1, dead:0, thrallStay:0, x:11, y:10, hp:10, maxhp:10}
+];
+assert(ctx.nearestAnimatableCorpse(ctx.G.ents[0], 1.95)!=null, 'a corpse is in animate range');
+assert(ctx.livingThrall() && ctx.dist(ctx.G.ents[0], ctx.livingThrall())<3.2, 'a living thrall is in stay range');
+assert(ctx.primaryCrownPrompt(ctx.G.ents[0])==='Drop the bone crown',
+  'while the crown is worn, Drop wins over Animate the dead and Thrall: stay');
+assert(/primaryCrownPrompt\(p\)/.test(html)
+  && html.indexOf("crownLab==='Drop the bone crown'")<html.indexOf("crownLab==='Animate the dead'"),
+  'the action button asks primaryCrownPrompt and honors Drop first');
 assert(ctx.G.props.some(p=>p.k==='bonecrown' && !p.gone), 'drop puts the crown back in the room');
 
 const face={x:12,y:4,k:'demonface',toothKind:'electrum',emptySocket:0,gone:0};

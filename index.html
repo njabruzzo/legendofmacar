@@ -11650,6 +11650,22 @@ function openTeethChapelLook(key){
     G.talk.choices=teethFaceChoices();
   return true;
 }
+function primaryCrownPrompt(p){
+  const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
+  /* Drop owns the action button for as long as the crown is worn.
+     A nearby corpse ('Animate the dead') or a living thrall
+     ('Thrall: stay') used to claim it first, so Drop could not be
+     reached while standing among the bodies. */
+  if(worn && typeof dropBoneCrown==='function') return 'Drop the bone crown';
+  if(worn && typeof nearestAnimatableCorpse==='function'){
+    if(nearestAnimatableCorpse(p,1.95)) return 'Animate the dead';
+  }
+  if(typeof livingThrall==='function' && typeof setThrallStay==='function'){
+    const pet=livingThrall();
+    if(pet && p && dist(p,pet)<3.2) return pet.thrallStay?'Thrall: follow':'Thrall: stay';
+  }
+  return null;
+}
 function dropBoneCrown(){
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   const eq=G.equipped||{};
@@ -13370,18 +13386,16 @@ function update(dt){
       const dropped=G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped;
       if(smash && dropped) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
     }
-    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown()){
-      const body=nearestAnimatableCorpse(p,1.95);
-      if(body) interact('Animate the dead',()=>tryAnimateDead(p,body));
-    }
-    if(!PROMPT && typeof livingThrall==='function' && typeof setThrallStay==='function'){
-      const pet=livingThrall();
-      if(pet && dist(p,pet)<3.2){
-        interact(pet.thrallStay?'Thrall: follow':'Thrall: stay',()=>setThrallStay(!pet.thrallStay));
+    if(!PROMPT && typeof primaryCrownPrompt==='function'){
+      const crownLab=primaryCrownPrompt(p);
+      if(crownLab==='Drop the bone crown') interact(crownLab,()=>openTeethChapelLook('teeth_chapel_crown'));
+      else if(crownLab==='Animate the dead'){
+        const body=nearestAnimatableCorpse(p,1.95);
+        if(body) interact(crownLab,()=>tryAnimateDead(p,body));
+      } else if(crownLab){
+        const pet=livingThrall();
+        if(pet) interact(crownLab,()=>setThrallStay(!pet.thrallStay));
       }
-    }
-    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof dropBoneCrown==='function'){
-      interact('Drop the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
@@ -14842,11 +14856,12 @@ function demonFaceHalf(p){
     const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
     return clamp(H*aspect/(2*perTile), 0.70, 1.90);
   }
-  /* Width uses the same screen height as the blit. A portrait plate is
-     sized from its content box in demonFaceDrawH; matching that height
-     here keeps the canvas aspect so the horns are not stretched. */
+  /* Width uses the same screen height as the blit. Chapel height is a
+     fixed fraction of the wall (demonFaceDrawH); the plate aspect keeps
+     the horns from stretching, and it does not depend on a live box. */
   const H=demonFaceDrawH(img, p);
-  const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+  const plateAspect=DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h;
+  const aspect=(img&&img.width&&img.height>img.width)?img.width/Math.max(1,img.height):plateAspect;
   return clamp(H*aspect/(2*perTile), 0.70, 2.40);
 }
 function demonFacePlaneY(p){
@@ -14856,14 +14871,16 @@ function demonFacePlaneY(p){
 function demonFaceScreen(p){
   return w2s(p.x, demonFacePlaneY(p));
 }
+function chapelFaceContentFrac(){
+  /* Approved plate alpha box is 399 of 434. A live spriteBounds miss
+     (plate not decoded yet, or a box that failed the portrait test)
+     used to return dwarfFaceH()*1.08 — a small mask on the 3.15 wall.
+     This fraction is dimensionless, so face/wall is the same at every zoom. */
+  return 399/DEMON_FACE_PLATE.h;
+}
 function demonFaceDrawH(img, p){
   if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
-  const b=img&&img.width&&typeof spriteBounds==='function'?spriteBounds(img):null;
-  const cw=(b&&b.ok&&b.x0!=null)?(b.x1-b.x0)*img.width:0;
-  const ch=(b&&b.ok&&b.y0!=null)?(b.y1-b.y0)*img.height:0;
-  if(!(ch>cw*1.05)) return dwarfFaceH()*1.08;
-  const frac=img.height?ch/img.height:1;
-  return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, frac);
+  return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
 }
 function drawDemonDwarfFace(g,p){
   if(vaultDemonFace(p)){

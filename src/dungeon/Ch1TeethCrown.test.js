@@ -208,6 +208,11 @@ assert(/DEMON_FACE_PLATE=\{w:267,h:434,pad:16\}/.test(html)
   && /WALL_TEETH_FACE_SCALE=3\.15/.test(html)
   && 3.15 > 2.40 / (399/434),
   'the face wall covers the 267×434 plate, horns included, with margin');
+assert(/function chapelFaceContentFrac\(/.test(html)
+  && /return 399\/DEMON_FACE_PLATE\.h/.test(extractFn('chapelFaceContentFrac'))
+  && !/spriteBounds/.test(extractFn('demonFaceDrawH'))
+  && /chapelFaceContentFrac\(\)/.test(extractFn('demonFaceDrawH')),
+  'chapel face height uses the plate fraction, not a live content box');
 assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
   && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
   && /function wallHeightOverride\(/.test(html)
@@ -646,6 +651,46 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   hintCtx.G.talk={key:'teeth_chapel_enter'};
   assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
     'the chapel-enter dialogue holds the altar hint until it closes');
+}
+
+{
+  /* Face height / face-wall height at the tile heights resize() produces:
+     1280×720 → TH 58, 1024×570 → 46, ~740 wide → 40, phone 844×390 → 34.
+     The ratio must match with no image decoded, so a late plate cannot
+     collapse the chapel carving to the dwarf-face mask. */
+  const faceCtx={
+    G:{lvl:{n:1}},
+    TH:58,
+    TILESET:{srcH:96},
+    DEMON_FACE_PLATE:{w:267,h:434,pad:16},
+    DEMON_FACE_CONTENT_SCALE:2.40,
+    WALL_TEETH_FACE_SCALE:3.15,
+    tilesetPack(){ return {wall:{oy:287}}; }
+  };
+  vm.createContext(faceCtx);
+  ['wallFaceH','dwarfFaceH','vaultDemonFace','chapelFaceContentFrac','demonFaceDrawH','teethFaceWallH']
+    .forEach(n=>vm.runInContext(extractFn(n)+'\nthis.'+n+'='+n+';', faceCtx));
+  const chapel={wall:'n', toothKind:'electrum'};
+  const vault={wall:'e', toothKind:'bronze'};
+  const ratios=[];
+  [58,46,40,34].forEach(th=>{
+    faceCtx.TH=th;
+    const faceH=faceCtx.demonFaceDrawH(null, chapel);
+    const wallH=faceCtx.teethFaceWallH(faceCtx.G.lvl);
+    const ratio=faceH/wallH;
+    ratios.push(ratio);
+    assert(faceH>wallH*0.70, 'TH '+th+' chapel face is full on its wall ('+faceH.toFixed(1)+'/'+wallH.toFixed(1)+')');
+    assert(Math.abs(faceH - faceCtx.dwarfFaceH()*1.08)>1, 'TH '+th+' chapel face is not the dwarf-face mask');
+  });
+  ratios.forEach(r=>{
+    assert(Math.abs(r-ratios[0])<1e-9, 'face-to-wall ratio holds across zooms ('+r+' vs '+ratios[0]+')');
+  });
+  faceCtx.TH=46;
+  const vaultH=faceCtx.demonFaceDrawH({width:457,height:274}, vault);
+  assert(Math.abs(vaultH - faceCtx.dwarfFaceH()*1.08)<1e-6,
+    'vault face stays on dwarfFaceH()*1.08');
+  assert(vaultH/faceCtx.teethFaceWallH(faceCtx.G.lvl)<0.30,
+    'vault height is the small plate, not the chapel portrait scale');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
