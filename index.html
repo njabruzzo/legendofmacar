@@ -552,6 +552,7 @@ const SPRITE_FILES={
   icon_secret:'assets/ui/icon_secret.png',
   icon_climb:'assets/ui/icon_climb.png',
   icon_attack:'assets/ui/icon_attack.png',
+  icon_attack_wide:'assets/ui/icon_attack_wide.png',
   icon_defend:'assets/ui/icon_defend.png',
   icon_craft:'assets/ui/icon_craft.png',
   icon_specialty_i:'assets/ui/icon_specialty_i.png',
@@ -764,7 +765,7 @@ function loadSprites(done){
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_defend','icon_craft',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_attack_wide','icon_defend','icon_craft',
     'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_save',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
@@ -12184,6 +12185,8 @@ const HUD_DESK_SLOT_MAX=72;
 /* Attack is a slab this many slots wide; I–IV chips share its width. */
 const HUD_ATTACK_W=1.75;
 
+/* One title size for the whole HUD, set per layout. */
+function hudLabelPx(slot){ return Math.min(14, Math.max(11, slot*0.17)); }
 function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h); }
 function btnBox(b){
   const w=b.w||b.r*2, h=b.h||b.r*2;
@@ -12269,6 +12272,7 @@ function layoutUI(){
   const padT=Math.max(inset.t, 8);
   UI.pad={l:padL,r:padR,b:padB,t:padT};
   UI.more=null; UI.overflow=[]; UI.overflowBox=null; UI.barDividers=[];
+  UI.labelPx = mobile ? Math.max(10, (PORT?9.5:8.5)*s) : hudLabelPx(56);
   const find=k=>HUDSKILLS.find(b=>b.key===k);
 
   if(mobile){
@@ -12391,26 +12395,25 @@ function layoutUI(){
     const slot = Math.min(slotMax, Math.max(slotMin, (availW - nGaps*gap - (groups.length-1)*groupGap)/units));
     const atkW = slot*HUD_ATTACK_W;
     const barW = (nSlots-1)*slot + atkW + nGaps*gap + (groups.length-1)*groupGap;
-    /* Attack slab + chips fill exactly the height of a titled slot:
-       from the top of the title glyphs down to the bottom of the plate. */
-    const R = slot/2;
-    const labelPx = R>=28 ? Math.min(14, Math.max(11, R*0.34)) : (PORT?9.5:8.5)*s;
+    /* Every plate (Attack included) is one slot tall on one line, one
+       title size above. Specialty 1–4 hang under the Attack slab. */
+    const labelPx = hudLabelPx(slot);
     const bottom = VH - padB - Math.max(8, 10*s);
-    const y = bottom - slot/2;
-    const groupTop = y - slot/2 - 7*s - labelPx*0.74;
-    const groupH = bottom - groupTop;
-    const chipH = Math.max(18, Math.min(26, groupH*0.28));
+    const chipH = Math.max(20, Math.min(26, slot*0.34));
     const chipY = bottom - chipH/2;
-    const atkH = groupH - chipH - 4;
-    const atkY = groupTop + atkH/2;
+    const y = chipY - chipH/2 - 4 - slot/2;
+    const atkH = slot, atkY = y;
+    const groupTop = y - slot/2 - 7*s - labelPx;
     let x0 = Math.max(leftBound, VW/2 - barW/2);
     if(x0 + barW > VW - rightReserve) x0 = Math.max(leftBound, VW - rightReserve - barW);
     return {slot, atkW, barW, chipH, chipY, atkH, atkY, y, x0, top:groupTop - 2*s};
   }
   let L = fit(stickReserve);
+  UI.labelPx = hudLabelPx(L.slot);
   /* Short windows: the portrait column can reach the bar. Start past it. */
   if(frame.cards.length && cardBottom + 12 > L.top && L.x0 < cardRight + 18){
     L = fit(Math.max(stickReserve, cardRight + 18));
+    UI.labelPx = hudLabelPx(L.slot);
   }
 
   const slot=L.slot, y=L.y;
@@ -12425,7 +12428,7 @@ function layoutUI(){
       const wide = b.key==='attack';
       const w = wide ? L.atkW : slot;
       const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key]};
-      if(wide){ btn.w=w; btn.h=L.atkH; btn.y=L.atkY; btn.nolabel=1; UI.attack=btn; }
+      if(wide){ btn.w=w; btn.h=L.atkH; btn.y=L.atkY; UI.attack=btn; }
       if(b.key==='pack') UI.orb={r:slot/2, x:btn.x, y};
       UIBTN.push(btn);
       x += w + (i<gr.length-1 ? gap : 0);
@@ -17012,7 +17015,7 @@ function landscapePartyOrderSeat(originX, stackBottom, slot, gap, r, rowW){
   const cardTop=frame.y;
   const cardBottom=frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), stackBottom);
   const cardRight=frame.x+frame.w;
-  const labelPx=r>=28?Math.min(14, Math.max(11, r*0.34)):(8.5*s);
+  const labelPx=UI.labelPx||(r>=28?Math.min(14, Math.max(11, r*0.34)):(8.5*s));
   const labelHalf=Math.max(r, labelPx*2.4);
   const inset=UI.pad||{t:0,r:0,l:0,b:0};
   const miniSz=96*s;
@@ -17517,7 +17520,40 @@ function drawSlot(g,b,s){
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,wide?8:6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
   const simg=slotAnimImg(b);
-  if(simg){
+  const wideArt=wide && b.key==='attack' && ico==='attack' && SPR.icon_attack_wide && SPR.icon_attack_wide.width ? SPR.icon_attack_wide : null;
+  if(wideArt){
+    /* Horizontal maul, head to the right, striking. Cover-fit, then a live
+       impact flare on the head so the slab reads as a blow landing. */
+    const dw=w-6*s, dh=h-6*s, iw=wideArt.width, ih=wideArt.height;
+    const lit=(ready&&atForge)?1:0.42;
+    g.save();
+    roundPath(g,x+3*s,y+3*s,dw,dh,5); g.clip();
+    const sc=Math.max(dw/iw, dh/ih), rw=iw*sc, rh=ih*sc;
+    const ox=x+3*s+(dw-rw)/2, oy=y+3*s+(dh-rh)/2;
+    g.globalAlpha=A*lit;
+    g.drawImage(wideArt, ox, oy, rw, rh);
+    if(lit===1){
+      const hx=ox+rw*0.83, hy=oy+rh*0.47;
+      const beat=0.5+0.5*Math.sin(G.elapsed*5.2);
+      const rad=dh*(0.30+0.10*beat)+(b.hold?dh*0.18:0);
+      g.globalCompositeOperation='lighter';
+      const fl=g.createRadialGradient(hx,hy,0,hx,hy,rad);
+      fl.addColorStop(0,'rgba(255,240,200,'+(0.55+0.3*beat)+')');
+      fl.addColorStop(0.35,'rgba(255,170,70,'+(0.35+0.2*beat)+')');
+      fl.addColorStop(1,'rgba(255,120,30,0)');
+      g.fillStyle=fl; g.beginPath(); g.arc(hx,hy,rad,0,TAU); g.fill();
+      g.strokeStyle='rgba(255,220,150,'+(0.35+0.35*beat)+')'; g.lineWidth=Math.max(1,1.2*s);
+      for(let i=0;i<7;i++){
+        const a0=-1.1+i*0.37+Math.sin(G.elapsed*3+i)*0.08;
+        const r0=rad*0.35, r1=rad*(0.85+0.25*((i*37%10)/10))*(0.8+0.3*beat);
+        g.beginPath(); g.moveTo(hx+Math.cos(a0)*r0, hy+Math.sin(a0)*r0);
+        g.lineTo(hx+Math.cos(a0)*r1, hy+Math.sin(a0)*r1); g.stroke();
+      }
+      g.globalCompositeOperation='source-over';
+    }
+    g.restore();
+    g.globalAlpha=A;
+  } else if(simg){
     const iw=Math.max(1,simg.width), ih=Math.max(1,simg.height);
     const dw=w-6*s, dh=h-6*s;
     g.save();
@@ -17588,11 +17624,15 @@ function drawSlot(g,b,s){
     g.fillText(b.kc, kx+kw/2, ky+kh-3.2); g.textAlign='left';
   }
   if(b.label && R>=18 && !b.nolabel){
-    const labelPx=R>=28?Math.min(14, Math.max(11, R*0.34)):(PORT?9.5:8.5)*s;
+    /* One size, one case for every HUD title. Placed off the hit plate,
+       so quiet (smaller-drawn) buttons keep the same title line. */
+    const labelPx=UI.labelPx||(R>=28?Math.min(14, Math.max(11, R*0.34)):(PORT?9.5:8.5)*s);
+    const ty=b.y-(b.h||b.r*2)/2-7*s;
+    const txt=String(b.label).toUpperCase();
     g.font='800 '+labelPx+'px '+FONT_UI; g.textAlign='center';
     g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText(b.label, b.x, y-7*s);
-    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, y-7*s); g.textAlign='left'; }
+    g.strokeText(txt, b.x, ty);
+    g.fillStyle='#f2dfb6'; g.fillText(txt, b.x, ty); g.textAlign='left'; }
   g.globalAlpha=1;
 }
 
