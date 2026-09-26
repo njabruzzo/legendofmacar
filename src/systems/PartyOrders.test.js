@@ -279,17 +279,17 @@ assert(rooted.moving===0 && rooted.atk===0 && rooted.x===3 && !rooted.aim,
 /* ---- host wiring ---- */
 assert(/src="src\/systems\/PartyOrders\.js"/.test(html), 'index includes PartyOrders.js');
 assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
-assert(/\{key:'hold', ico:'hold', label:'Hold'\}/.test(html)
-  && /\{key:'regroup', ico:'regroup', label:'Regroup'\}/.test(html)
-  && /\{key:'focus', ico:'focus', label:'Focus'\}/.test(html),
-  'HUD plates read Hold, Regroup, and Focus');
-assert(/function layoutPartyOrders\(/.test(html), 'order plates are laid out for desktop and mobile');
-assert(/mobile\?HUD_TAP/.test(extractFn('layoutPartyOrders')), 'touch order plates use the 44px HUD_TAP floor');
-assert(/if\(k==='h'\) fire\('hold'\)/.test(html) && /if\(k==='y'\) fire\('regroup'\)/.test(html)
-  && /if\(k==='z'\) fire\('focus'\)/.test(html),
-  'H Hold, Y Regroup, Z Focus');
-assert(/H Hold  ·  Y Regroup  ·  Z Focus/.test(html), 'pause key list names the three orders');
-assert(/key==='hold'\|\|key==='regroup'\|\|key==='focus'/.test(html), 'fire() issues the three orders');
+/* 2026-09-26: the Hold / Regroup / Focus HUD was removed (mobile clutter).
+   The module stays for its logic tests; play switches it off. */
+assert(!/key:'hold'/.test(html) && !/key:'regroup'/.test(html) && !/key:'focus'/.test(html),
+  'no Hold, Regroup, or Focus plates on the HUD');
+assert(!/function layoutPartyOrders\(/.test(html) && !/function placePartyOrderRow\(/.test(html),
+  'order-row layout is gone');
+assert(!/fire\('hold'\)/.test(html) && !/fire\('regroup'\)/.test(html) && !/fire\('focus'\)/.test(html),
+  'H / Y / Z no longer issue orders');
+assert(!/H Hold/.test(html) && !/Y Regroup/.test(html) && !/Z Focus/.test(html), 'pause key list drops the orders');
+assert(!/function issuePartyOrder\(/.test(html), 'fire() has no order branch');
+assert(/PartyOrders\.FLAG=false/.test(html), 'play switches PartyOrders off so kin auto-follow');
 assert(/PartyOrders\.noteTap/.test(html), 'a tapped foe is remembered for Focus');
 assert(/PartyOrders\.settle\(/.test(html), 'the host settles Regroup and Focus each update');
 assert(/PartyOrders\.noteMoraleFlee/.test(html), 'morale flee notifies PartyOrders');
