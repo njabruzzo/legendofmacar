@@ -52,13 +52,15 @@ assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\(\?:_w\[12\]\)\?\$/.test(extr
 assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'spectral idle and front walk blit as painted; atk/back still lift');
-assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost/.test(extractFn('nickSpectralGhostSheet'))
+assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
   && /pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && !/SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_w/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
   && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_back/.test(extractFn('nickSpectralGhostSheet')),
-  'painted spectral skip is Pordoom/Fendur/Orbo; Talpor lifts until the drop-in file is repainted');
+  'approved Talpor idle blits as painted; walk, attack, and back still lift');
 assert(/_ghost_w\[12\]\$/.test(extractFn('partyGhostKeyReady')),
   'front ghost walk skips the idle crop match so stride overhang stays bound');
 assert(/talporInterimGhostKey\(key\)\) return true/.test(extractFn('partyGhostKeyReady'))
@@ -131,6 +133,24 @@ assert(replaceList.length===KIN.length*UNSIGNED_SUF.length,
   'Limner replace list is every remaining unsigned ghost walk/atk/compass sheet');
 assert(KIN.length*(SPECTRAL_WALK.length+LIVING_SUF.length)===16,
   'front motion is 8 spectral walks plus 8 living atk sheets');
+function alphaFrac(file){
+  const {w,h,data}=readRgba(file);
+  let top=h, bot=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(data[(y*w+x)*4+3]<=30) continue;
+    if(y<top) top=y;
+    if(y>bot) bot=y;
+  }
+  return (bot+1-top)/h;
+}
+const stature={};
+KIN.forEach(k=>{ stature[k]=alphaFrac(path.join(creatures,'dwarf_'+k+'_ghost.png')); });
+const ghostRef=(stature.pordoom+stature.fendur+stature.orbo)/3;
+assert(Math.abs(stature.talpor-ghostRef)/ghostRef<0.02,
+  'Talpor idle content box matches the other ghosts\' stature');
+assert(/talporGhostStatureFit\(e\)/.test(extractFn('frameFit'))
+  && /ghostContentFrac/.test(html),
+  'Talpor stature is the other ghosts\' alpha box, applied on every frame');
 
 const SPR={};
 function ready(k, live){
@@ -309,7 +329,7 @@ assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0
   'fendur spectral w1 binds at 593×512');
 assert(run.entAnimKey(ghost('fendur',{moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, gait:0.62}))==='fendur_ghost_w2',
   'fendur spectral w2 binds at 527×512');
-sized('talpor_ghost', 674, 512);
+sized('talpor_ghost', 470, 512);
 sized('talpor_ghost_w1', 589, 512);
 sized('talpor_ghost_w2', 504, 512);
 sized('talpor_ghost_atk', 504, 512);
@@ -322,9 +342,9 @@ assert(run.entAnimKey(ghost('talpor',{atk:0.7, atkMax:1}))==='talpor_ghost_atk',
 assert(run.entAnimKey(ghost('talpor',{atk:0.20, atkMax:1}))==='talpor_ghost_atk_recover',
   'talpor brown recover binds with the attack state');
 assert(run.entAnimKey(ghost('talpor',{fdx:-0.7, fdy:-0.7}))==='talpor_ghost_back',
-  'talpor brown back binds even though 504×512 fails the idle family match');
-assert(run.partySheetMatchesIdle(SPR.talpor_ghost_back, SPR.talpor_ghost, 'talpor_ghost_back')===false,
-  'talpor back still fails the generic crop match — the interim key is what binds it');
+  'talpor brown back binds beside the 470 idle');
+assert(run.partySheetMatchesIdle(SPR.talpor_ghost_w1, SPR.talpor_ghost, 'talpor_ghost_w1')===false,
+  'talpor walk still fails the idle family match — the interim key is what binds it');
 assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_w2, SPR.pordoom_ghost, 'pordoom_ghost_w2')===false,
   'wide spectral w2 still fails the generic crop match — the walk bypass is what binds it');
 

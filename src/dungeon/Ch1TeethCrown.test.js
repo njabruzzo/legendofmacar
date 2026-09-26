@@ -63,7 +63,7 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='117'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='118'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
@@ -175,10 +175,10 @@ assert(/function cellWallH\(L,x,y\)/.test(html)
   && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(extractFn('cellWallH'))
   && /const faceH=cellWallH\(L,x,y\)/.test(html),
   'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
-assert(/DEMON_FACE_PLATE=\{w:267,h:434,pad:16\}/.test(html)
+assert(/DEMON_FACE_PLATE=\{w:267,h:438,pad:16\}/.test(html)
   && /DEMON_FACE_CONTENT_SCALE=2\.40/.test(html)
   && /WALL_TEETH_FACE_SCALE=3\.15/.test(html),
-  'the face wall covers a 267×434 plate, horns included, with margin');
+  'the face wall covers a 267×438 plate, horns included, with margin');
 assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
   && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
   && /function wallHeightOverride\(/.test(html)

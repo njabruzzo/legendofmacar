@@ -25,7 +25,7 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/ASSET_VER='117'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
+assert(/ASSET_VER='118'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
   'ASSET_VER is 117');
 assert(!/G\.scene='intro'/.test(html), 'new descent does not open the chapter intro');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro remains in source but is not the player gate');

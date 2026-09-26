@@ -5743,13 +5743,8 @@ function startChapter(n){
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
-<<<<<<< HEAD
-  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; }
-  G.inspect=null; G.showObjs=0; G.showLog=0; G.miniBig=0;
-=======
   if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; G.noisyTurns=0; }
-  G.inspect=null; G.showObjs=0; G.showLog=0;
->>>>>>> 23cca82 (Apply the referee encounter clock and raise skeletal dwarves once.)
+  G.inspect=null; G.showObjs=0; G.showLog=0; G.miniBig=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
     const sheet=G.abil[r.key];
