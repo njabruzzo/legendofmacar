@@ -53,7 +53,7 @@ const ctx={
   HERBS:[{n:'Bearded Fang', diff:100, k:'food', d:'A test herb.'}],
   ROSTER:[{key:'macar', name:'MACAR'}],
   TAU:Math.PI*2,
-  ENCOUNTER_RULES:{searchTurns:1},
+  ENCOUNTER_RULES:{herbTurnsPer10ft:1},
   say(t){ ctx.lines.push(t); },
   hint(){}, ftext(){}, burst(){}, shake(){}, learn(){},
   skillLvl(){ return 1; },

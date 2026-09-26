@@ -202,6 +202,7 @@ vm.runInContext(
   +extractFn('dwarfAngleKey')
   +extractFn('ghostAnimKey')
   +extractFn('entSpriteKey')
+  +extractFn('singlePoseLocked')
   +extractFn('livingMacarAnimKey')
   +extractFn('entAnimKey'),
   run
