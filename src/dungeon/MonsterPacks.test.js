@@ -68,7 +68,8 @@ assert(/if\(ch===2 && gob && hd>7\) return false/.test(html), 'goblin level gobl
 assert(/hd:7/.test(html.match(/goblinShaman:\{[^}]+\}/)[0]), 'shaman is 7 HD');
 assert(/if\(roll===1\)\{/.test(html.match(/function campRest[\s\S]*?function /)[0]) || /if\(roll===1\)\{/.test(html),
   'camp rest wandering odds are 1 in 6');
-assert(/function wanderCheckHits\(/.test(html) && /hit:roll===1/.test(html),
+assert(/function wanderCheckHits\(/.test(html) && /hit:roll===on/.test(html)
+  && /encounterOn:1/.test(html) && /die:6/.test(html),
   'ruin wandering odds are 1 in 6');
 assert(/wanderKindAllowed\(k\)/.test(html), 'wanderers filter by HD band');
 

@@ -5241,6 +5241,35 @@ function spawnWanderers(p){
   if(spawned.length) beginFight(G.ents[G.ents.length-1]);
   return spawned;
 }
+function logWanderCheck(chk, names){
+  const die=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.die)||6;
+  let line='Wandering check: rolled '+chk.roll+' on d'+die;
+  if(chk.hit && names && names.length) line+=', encounter: '+names.join(', ');
+  else line+=', no encounter';
+  if(typeof say==='function') say(line, chk.hit?'#ff6a5a':'#c9b895');
+  return line;
+}
+function advanceDungeonTurns(turns){
+  turns=+turns||0;
+  if(!(turns>0) || typeof G==='undefined' || !G) return [];
+  G.dungeonTurns=(G.dungeonTurns||0)+turns;
+  const every=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.checkEveryTurns)||3;
+  const logs=[];
+  let guard=0;
+  while(G.dungeonTurns+1e-9>=every && guard<12){
+    guard++;
+    G.dungeonTurns-=every;
+    const chk=wanderCheckHits();
+    let names=[];
+    if(chk.hit && typeof spawnWanderers==='function'){
+      const p=typeof player==='function'?player():null;
+      if(p) names=spawnWanderers(p)||[];
+    }
+    logs.push(logWanderCheck(chk, names));
+  }
+  if(G.dungeonTurns<0) G.dungeonTurns=0;
+  return logs;
+}
 function endSleepShow(){ G.sleepShow=null; }
 function campRest(){
   const p=player(); if(!p) return;
@@ -5602,7 +5631,7 @@ function startChapter(n){
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
-  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; }
+  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; }
   G.inspect=null; G.showObjs=0; G.showLog=0; G.miniBig=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
@@ -7025,12 +7054,27 @@ function wanderKindAllowed(k){
   if(ch===2 && gob && hd>7) return false;
   return hd>=lo && hd<=hi;
 }
+/* AD&D 1st Edition Dungeon Masters Guide, Dungeon Random Monster
+   Encounters: one turn is ten minutes. In the dungeon, check every
+   three turns (thirty minutes). An encounter occurs on 1 of 1d6.
+   Dig and Search spend whole turns. The bank keeps the remainder so a
+   shorter action still reaches a check. */
+const DMG_WANDER={
+  turnMinutes:10,
+  checkEveryTurns:3,
+  die:6,
+  encounterOn:1,
+  digTurns:1,
+  searchTurns:1
+};
 function wanderCheckHits(){
-  const roll=typeof ri==='function'?ri(1,6):1;
+  const die=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.die)||6;
+  const on=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.encounterOn)||1;
+  const roll=typeof ri==='function'?ri(1,die):1;
   const who=typeof player==='function'?player():null;
   if(typeof wearingElvenkind==='function' && wearingElvenkind(who))
     return {roll, hit:false, silent:1};
-  return {roll, hit:roll===1};
+  return {roll, hit:roll===on};
 }
 
 function markWebTalkSkeleton(){
@@ -10171,6 +10215,7 @@ function nearestPlant(e,r){
 }
 function forageHerbs(src){
   ensurePacks();
+  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.searchTurns);
   const p=player();
   const patch=src&&isPlantKind(src.k)?src:null;
   const ch=forageChance()+(patch?25:0);
@@ -13030,7 +13075,11 @@ function update(dt){
     p.secretCd=Math.max(0,(p.secretCd||0)-dt);
     maybeHintSecret(L, p);
     tryFindSecret(p,'pass');
-    if(G.secretSearch && (p.secretCd||0)<=0){ p.secretCd=1.6; tryFindSecret(p,'search'); }
+    if(G.secretSearch && (p.secretCd||0)<=0){
+      p.secretCd=1.6;
+      if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.searchTurns);
+      tryFindSecret(p,'search');
+    }
     if(G.digging){
       const t=digTarget(p);
       if(t){
@@ -13043,6 +13092,7 @@ function update(dt){
             if(G.digBoost>0) G.digBoost--;
             say('A square foot of stone comes away.','#d8c49a');
             G.dig=null;
+            if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.digTurns);
           }
         }
       }
@@ -17449,7 +17499,7 @@ function drawLog(g,s){
     for(const wd of words){ const t=cur?cur+' '+wd:wd;
       if(g.measureText(t).width>w-22*s){ lines.push({t:cur,c:l.c,a:l.a,k:l.k}); cur=wd; } else cur=t; }
     if(cur) lines.push({t:cur,c:l.c,a:l.a,k:l.k}); }
-  lines.slice(-6).forEach((l,i)=>{
+  lines.slice(-10).forEach((l,i)=>{
     g.globalAlpha=l.a;
     const combat=l.t.indexOf('[COMBAT]')===0 || l.k==='combat';
     g.fillStyle=combat?'#ff6a5a':(l.t.indexOf('[LOG]')===0?'#ffb45c':l.c);
@@ -18998,6 +19048,15 @@ function collectPackRows(pk, who){
   });
   Object.keys(pk.herbs||{}).forEach(n=>rows.push({kind:'herb',n,t:n+'  \u00d7'+(pk.herbs[n]||0),
     info:lend+((HERBS.find(h=>h.n===n)||{}).d||''),tag:'Herb'}));
+  if((!who || who==='macar') && typeof G!=='undefined' && G.res){
+    const keys=(typeof RES!=='undefined')?RES:Object.keys(G.res);
+    keys.forEach(r=>{
+      const n=G.res[r]||0;
+      if(n>0) rows.push({kind:'res', field:r,
+        t:((typeof RESMETA!=='undefined' && RESMETA[r] && RESMETA[r].n)||r)+'  \u00d7'+n,
+        info:'Dig and craft stock. Stays with the pack.', tag:'Ore'});
+    });
+  }
   if((!who || who==='macar') && typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack() && ((G.coin&&G.coin.ep)||0)>0){
     const ep=(G.coin.ep||0);
     rows.unshift({kind:'drop-ep', t:'Drop electrum  \u00d7'+ep,
@@ -19433,6 +19492,7 @@ function drawPack(g){
       /* Quest fangs stay on the default Gear list. A slot filter still means armor. */
       const quest=r.it && (r.it.quest || r.it.grondTooth || r.it.cat==='Quest');
       if(quest && !G.packSlotFilter) return true;
+      if(r.kind==='res' && !G.packSlotFilter) return true;
       if(!isPackEquipable(r)) return false;
       if(G.packSlotFilter && r.slot && r.slot!==G.packSlotFilter) return false;
       return true;

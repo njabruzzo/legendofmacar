@@ -404,6 +404,7 @@
       taught: clone(snap.taught || {}),
       day: snap.day || 1,
       dayClock: snap.dayClock || 0,
+      dungeonTurns: snap.dungeonTurns || 0,
       pordoomGiftDay: snap.pordoomGiftDay || 0,
       macarGearReady: snap.macarGearReady || 0,
       gnomeGift: !!snap.gnomeGift,
@@ -443,6 +444,7 @@
       taught: clone(G.taught || {}),
       day: G.day || 1,
       dayClock: G.dayClock || 0,
+      dungeonTurns: G.dungeonTurns || 0,
       pordoomGiftDay: G.pordoomGiftDay || 0,
       macarGearReady: G.macarGearReady || 0,
       gnomeGift: !!G.gnomeGift,
@@ -475,6 +477,7 @@
     G.taught = clone(snap.taught || {});
     G.day = snap.day || 1;
     G.dayClock = snap.dayClock || 0;
+    G.dungeonTurns = snap.dungeonTurns || 0;
     G.pordoomGiftDay = snap.pordoomGiftDay || 0;
     G.macarGearReady = snap.macarGearReady || 0;
     G.gnomeGift = !!snap.gnomeGift;
