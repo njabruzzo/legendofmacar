@@ -12166,12 +12166,34 @@ const HUDSKILLS=[
 const HUD_TAP=44;
 const HUD_OVERFLOW={};
 const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','bow','bomb'];
+/* Touch: these ride the right-thumb cluster, one row above the Attack slab.
+   Defend sits outermost, nearest the thumb's resting arc. */
+const HUD_TOUCH_COMBAT=['ale','bomb','bow','wall'];
+/* Desktop bar groups: PACK ‖ combat ‖ field work. */
+const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale'],['search','secret','shovel','camp','craft']];
+/* Keycaps drawn on mouse/keyboard only. Mirrors the keydown table. */
+const HUD_KEYS={pack:'I', wall:'V', attack:'1', bow:'X', bomb:'B', ale:'2',
+  search:'F', secret:'T', shovel:'G', camp:'C', craft:'K', hold:'H', regroup:'Y', focus:'Z'};
+/* Touch secondaries draw smaller than their tap circle, so the HUD reads
+   lighter over the map without shrinking the 44px thumb target. */
+const HUD_QUIET=0.84;
 /* Desktop skill bar (mouse, landscape). Mobile keeps HUD_TAP=44. */
 const HUD_DESK_WIDE=1280;
 const HUD_DESK_SLOT_MIN=60;
-const HUD_DESK_SLOT_MAX=80;
+const HUD_DESK_SLOT_MAX=72;
+/* Attack is a slab this many slots wide; I–IV chips share its width. */
+const HUD_ATTACK_W=1.75;
 
 function hitRect(h,x,y){ return !!(h && x>=h.x && x<=h.x+h.w && y>=h.y && y<=h.y+h.h); }
+function btnBox(b){
+  const w=b.w||b.r*2, h=b.h||b.r*2;
+  return {x:b.x-w/2, y:b.y-h/2, w:w, h:h};
+}
+/* Gap from a circle to any HUD button, rect-aware for Attack and chips. */
+function btnGap(c, b){
+  if(b.w) return circleRectGap(c, btnBox(b));
+  return Math.hypot(c.x-b.x, c.y-b.y)-c.r-b.r;
+}
 
 function safeInsets(){
   const cs=getComputedStyle(document.documentElement);
@@ -12179,70 +12201,23 @@ function safeInsets(){
   return {t:px('--sat'), r:px('--sar'), b:px('--sab'), l:px('--sal')};
 }
 
-function layoutSpecialtyCluster(ax, belowY, belowR, specSlot, specGap){
-  /* 2×2 I II / III IV parked above the combat button. Not in HUDSKILLS. */
-  const slot=Math.max(specSlot||44, 44);
-  const gap=Math.max(specGap||8, 8);
-  const bottomY=belowY - belowR - gap - slot/2;
-  const topY=bottomY - slot - gap;
-  let leftX=ax - (slot+gap)/2;
-  let rightX=ax + (slot+gap)/2;
-  const overflowR=(rightX+slot/2)-(VW-6);
-  if(overflowR>0){ leftX-=overflowR; rightX-=overflowR; ax-=overflowR; }
-  const plates=[
-    {kind:1, key:'spec1', ico:'specialtyI', x:leftX, y:topY},
-    {kind:2, key:'spec2', ico:'specialtyII', x:rightX, y:topY},
-    {kind:3, key:'spec3', ico:'specialtyIII', x:leftX, y:bottomY},
-    {kind:4, key:'spec4', ico:'specialtyIV', x:rightX, y:bottomY}
-  ];
-  plates.forEach(p=>{
-    UIBTN.push({x:p.x, y:p.y, r:slot/2, key:p.key, ico:p.ico, spec:p.kind, slot:1});
-  });
-  UI.specialty={
-    titleX:ax, titleY:topY - slot/2 - 11,
-    top:topY - slot/2 - 22, slot, gap,
-    plates:plates.map(p=>({x:p.x,y:p.y,r:slot/2,kind:p.kind,key:p.key}))
-  };
-  shiftSpecialtyOffCards();
-}
-/* Landscape only. The 2×2 sits on the combat button, which on a short
-   window is still inside the portrait column. Slide it right until every
-   plate clears that column. Portrait is left where the combat button put it. */
-function shiftSpecialtyOffCards(){
-  if(PORT || !UI.specialty) return;
-  const frame=partyPortraitFrame();
-  if(!frame.cards.length) return;
-  const gutter=18;
-  const cardTop=frame.y;
-  const cardBottom=frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), frame.y);
-  const cardRight=frame.x+frame.w;
-  const specs=UIBTN.filter(b=>b.spec);
-  let shift=0;
-  specs.forEach(p=>{
-    let near=false;
-    for(let i=0;i<frame.cards.length;i++){
-      if(circleRectGap(p, frame.cards[i])<gutter) near=true;
-    }
-    if(!near) return;
-    const need=(cardRight+gutter)-(p.x-p.r);
-    if(need>shift) shift=need;
-  });
-  const s=UIS;
-  const titleHalf=Math.max(28, 46*s);
-  const titleTop=UI.specialty.titleY-12*s, titleBot=UI.specialty.titleY+3*s;
-  if(titleBot>cardTop && titleTop<cardBottom){
-    const need=(cardRight+gutter)-(UI.specialty.titleX-titleHalf);
-    if(need>shift) shift=need;
+/* Specialty I–IV: four small numbered chips in one row directly under the
+   Attack slab, same width as the slab. Not in HUDSKILLS. */
+function layoutSpecialtyCluster(ax, rowY, rowW, chipH, chipGap){
+  const cg=Math.max(3, chipGap||4);
+  const cw=(rowW-3*cg)/4;
+  const left=ax-rowW/2;
+  const plates=[];
+  for(let k=1;k<=4;k++){
+    const x=left+cw/2+(k-1)*(cw+cg);
+    plates.push({kind:k, key:'spec'+k, x:x, y:rowY, w:cw, h:chipH, r:Math.min(cw,chipH)/2});
+    UIBTN.push({x:x, y:rowY, w:cw, h:chipH, r:Math.min(cw,chipH)/2,
+      key:'spec'+k, spec:k, chip:1, slot:1});
   }
-  if(shift<=0.5) return;
-  let overflow=0;
-  const maxR=VW-6;
-  specs.forEach(p=>{ const e=p.x+shift+p.r-maxR; if(e>overflow) overflow=e; });
-  const applied=shift-Math.max(0, overflow);
-  if(applied<=0.5) return;
-  specs.forEach(p=>{ p.x+=applied; });
-  UI.specialty.titleX+=applied;
-  UI.specialty.plates.forEach(p=>{ p.x+=applied; });
+  UI.specialty={
+    top:rowY-chipH/2, bottom:rowY+chipH/2, left:left, w:rowW, chipW:cw, chipH:chipH, gap:cg,
+    plates:plates
+  };
 }
 function partyPortraitFrame(){
   const s=UIS;
@@ -12277,7 +12252,8 @@ function layoutPartyOrders(){
     {key:'focus', ico:'focus', label:'Focus'}
   ];
   orders.forEach(b=>{
-    UIBTN.push({x:anchor.x+r, y:r+8, r:r, key:b.key, ico:b.ico, label:b.label, slot:1, order:1});
+    UIBTN.push({x:anchor.x+r, y:r+8, r:r, key:b.key, ico:b.ico, label:b.label, slot:1, order:1,
+      quiet:mobile?1:0, kc:mobile?null:HUD_KEYS[b.key]});
   });
   placePartyOrderRow(anchor.x, anchor.bottom);
 }
@@ -12292,153 +12268,189 @@ function layoutUI(){
   const padB=Math.max(inset.b, mobile?(PORT?10:8):8);
   const padT=Math.max(inset.t, 8);
   UI.pad={l:padL,r:padR,b:padB,t:padT};
+  UI.more=null; UI.overflow=[]; UI.overflowBox=null; UI.barDividers=[];
+  const find=k=>HUDSKILLS.find(b=>b.key===k);
 
   if(mobile){
-    /* Left thumb: stick. Right thumb: Attack / Defend. Center: 44px verbs.
-       Any verb that will not fit goes in the More tray. */
+    /* Left thumb: stick. Right thumb: one tight cluster —
+         [Heal][Throw][Shoot][Defend]
+         [       ATTACK slab       ]
+         [ 1 ][ 2 ][ 3 ][ 4 ]   ← Specialty
+       Field verbs (PACK / SEARCH / Dig / Camp / Craft) sit in a quiet row
+       between the thumbs, or above the cluster when the phone is too narrow.
+       No text labels on touch: icons only, 44px taps, lighter plates. */
     const TAP=HUD_TAP;
-    const gap=5;
-    const rowGap=PORT?16:12;
-    const combatKeys={attack:1, wall:1};
-    const combat=HUDSKILLS.filter(b=>combatKeys[b.key]);
-    const rest=HUD_MOBILE_ORDER.map(k=>HUDSKILLS.find(b=>b.key===k)).filter(Boolean)
-      .filter(b=>!combatKeys[b.key] && !HUD_OVERFLOW[b.key]);
-    const overflowSkills=HUDSKILLS.filter(b=>HUD_OVERFLOW[b.key]);
+    const edge=8;
+    const gap=PORT?6:5;
+    const combatRow=HUD_TOUCH_COMBAT.map(find).filter(Boolean);
+    const util=HUD_MOBILE_ORDER.filter(k=>HUD_TOUCH_COMBAT.indexOf(k)<0)
+      .map(find).filter(b=>b && !HUD_OVERFLOW[b.key]);
 
-    const cSlot=Math.max(TAP, Math.min(PORT?64:56, Math.min(VW,VH)*0.125));
-    const cx=VW - padR - 8 - cSlot/2;
-    const attackY=VH - padB - 8 - cSlot/2;
-    const defendY=attackY - (cSlot + rowGap);
-    UI.attack={x:cx,y:attackY,r:cSlot/2};
-    combat.forEach(b=>{
-      const y = b.key==='attack' ? attackY : defendY;
-      const btn={x:cx, y, r:cSlot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
-      if(b.key==='attack') UI.attack=btn;
-      UIBTN.push(btn);
+    const clusterW=combatRow.length*TAP+(combatRow.length-1)*gap;
+    const right=VW-padR-edge;
+    const clusterLeft=right-clusterW;
+    const cx=right-clusterW/2;
+    const chipH=32;
+    const atkH=Math.max(48, Math.min(PORT?56:52, Math.min(VW,VH)*0.13));
+    const chipY=VH-padB-edge-chipH/2;
+    const attackY=chipY-chipH/2-6-atkH/2;
+    const rowY=attackY-atkH/2-8-TAP/2;
+    combatRow.forEach((b,i)=>{
+      UIBTN.push({x:clusterLeft+TAP/2+i*(TAP+gap), y:rowY, r:TAP/2,
+        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:1});
     });
-    layoutSpecialtyCluster(cx, defendY, cSlot/2, Math.max(44, Math.min(cSlot, 52)), 8);
+    const atk={x:cx, y:attackY, w:clusterW, h:atkH, r:atkH/2,
+      key:'attack', ico:'attack', label:'Attack', slot:1, nolabel:1};
+    UIBTN.push(atk);
+    UI.attack=atk;
+    layoutSpecialtyCluster(cx, chipY, clusterW, chipH, 5);
+    const clusterTop=rowY-TAP/2;
 
     const stickR=Math.max(TAP/2, PORT?26*s:28*s);
     const stickX=padL + 6 + stickR;
-    const stickReserve=stickX + stickR + 16;
-    const rightReserve=(VW-cx) + cSlot/2 + 8;
-    const availW=Math.max(TAP, VW - stickReserve - rightReserve);
-    const fit=Math.floor((availW+gap)/(TAP+gap));
-    const perRow=Math.max(1, Math.min(5, fit||1));
-    const raw=(availW-(perRow-1)*gap)/perRow;
-    const slot=Math.min(Math.max(TAP, Math.min(PORT?52:48, raw)), raw);
+    const stickY=VH - padB - edge - stickR - 4;
+    const stickReserve=stickX + stickR + 14;
 
-    const maxPrimary=perRow*2;
-    const needMore=overflowSkills.length>0 || rest.length>maxPrimary;
-    const primaryCap=needMore?Math.max(1, maxPrimary-1):maxPrimary;
-    const primary=rest.slice(0, primaryCap);
-    const extra=rest.slice(primaryCap);
-    const overflow=overflowSkills.concat(extra);
-
+    /* Field verbs, first fit wins:
+         1. one row between the thumbs (landscape)
+         2. two short rows between the thumbs
+         3. up to two rows stacked over the stick, left of the cluster (portrait)
+         4. one centered row above the whole thumb zone (very narrow phones) */
+    let ug=6;
+    const need=n=>n*TAP+(n-1)*ug;
+    const zoneL=stickReserve, zoneR=clusterLeft-8, zoneW=zoneR-zoneL;
+    const colL=padL+edge, colW=zoneR-colL;
     const rows=[];
-    for(let i=0;i<primary.length;i+=perRow) rows.push(primary.slice(i,i+perRow));
-    if(overflow.length){
-      if(!rows.length) rows.push([]);
-      const last=rows[rows.length-1];
-      if(last.length>=perRow) rows.push([{key:'more', ico:'more', label:'More'}]);
-      else last.push({key:'more', ico:'more', label:'More'});
+    let rowsLeft=zoneL, rowsBottom=VH-padB-edge-TAP/2, centered=false;
+    /* Items per row in width w; tightens the gap to 4px only if that buys a slot. */
+    const perIn=w=>{ const n6=Math.floor((w+6)/(TAP+6)), n4=Math.floor((w+4)/(TAP+4));
+      ug=n4>n6?4:6; return Math.max(1, n4>n6?n4:n6); };
+    const split=(per)=>{ for(let i=0;i<util.length;i+=per) rows.push(util.slice(i,i+per)); };
+    const half=Math.ceil(util.length/2);
+    if(zoneW>=need(util.length)){
+      rows.push(util);
+    } else if(zoneW>=need(half)){
+      rows.push(util.slice(0,half), util.slice(half));
+    } else if(perIn(colW)>=half){
+      split(perIn(colW));
+      rowsLeft=colL;
+      rowsBottom=stickY-stickR-12-TAP/2;
+    } else {
+      const spanL=colL, spanR=right;
+      split(Math.max(util.length<=perIn(spanR-spanL)?util.length:perIn(spanR-spanL), 1));
+      rowsBottom=clusterTop-14-TAP/2;
+      centered=true;
+      rowsLeft=spanL;
+      UI._utilSpan={l:spanL, r:spanR};
     }
-
-    const nRows=Math.max(1, rows.length);
-    const by=VH - padB - 8 - slot/2;
-    const topY=by - (nRows-1)*(slot+rowGap);
-    const left=stickReserve;
-    /* Stick in the left thumb corner, aligned with the bottom row, with a
-       real gap so it cannot eat Camp / PACK. Not vertically centered on the grid. */
-    const stickY=by;
-    UI.orb={ r:slot/2, x:left+slot/2, y:nRows>1?topY:by };
-    UI.more=null;
+    const nRows=rows.length;
+    const topRowY=rowsBottom-(nRows-1)*(TAP+10);
     rows.forEach((row,ri)=>{
-      const y=topY + ri*(slot+rowGap);
+      const y=topRowY+ri*(TAP+10);
+      let x0=rowsLeft;
+      if(centered){ const w=need(row.length); x0=(UI._utilSpan.l+UI._utilSpan.r)/2-w/2; }
       row.forEach((b,i)=>{
-        const x=left + i*(slot+gap) + slot/2;
-        const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
-        if(b.key==='pack') UI.orb={r:slot/2, x, y};
-        if(b.key==='more') UI.more=btn;
+        const x=x0+TAP/2+i*(TAP+ug);
+        const btn={x, y, r:TAP/2, key:b.key, ico:b.ico, label:b.label, slot:1, quiet:1, nolabel:1};
+        if(b.key==='pack') UI.orb={r:TAP/2, x, y};
         UIBTN.push(btn);
       });
     });
+    UI._utilSpan=null;
+    if(!UI.orb) UI.orb={r:TAP/2, x:stickReserve+TAP/2, y:rowsBottom};
 
-    UI.overflow=[];
-    overflow.forEach((b,i)=>{
-      const cols=Math.min(overflow.length, Math.max(3, perRow));
-      const n=Math.min(overflow.length, cols);
-      const ox=VW/2 - ((n-1)*(slot+gap))/2;
-      const row=(i/cols)|0;
-      const col=i%cols;
-      const x=ox + col*(slot+gap);
-      const y=topY - 18 - slot/2 - row*(slot+rowGap);
-      const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, overflow:1};
-      UI.overflow.push(btn);
-      UIBTN.push(btn);
-    });
-    UI.overflowBox=UI.overflow.length?{
-      x:Math.min.apply(null, UI.overflow.map(b=>b.x-b.r))-12,
-      y:Math.min.apply(null, UI.overflow.map(b=>b.y-b.r))-24,
-      w:Math.max.apply(null, UI.overflow.map(b=>b.x+b.r))-Math.min.apply(null, UI.overflow.map(b=>b.x-b.r))+24,
-      h:Math.max.apply(null, UI.overflow.map(b=>b.y+b.r))-Math.min.apply(null, UI.overflow.map(b=>b.y-b.r))+40
-    }:null;
-
-    UI.hudTop=Math.min(topY, (UI.specialty&&UI.specialty.top)||defendY) - Math.max(slot,cSlot)/2 - 18;
+    UI.hudTop=Math.min(clusterTop, topRowY-TAP/2) - 14;
     UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: Math.max(18, 16*s), key:'pause'});
     UI.stickHome={ x: stickX, y: stickY, r: stickR };
     layoutPartyOrders();
     return;
   }
 
+  /* Desktop: one centered bar, three groups with dividers.
+       PACK ‖ Defend [ATTACK] Shoot Throw Heal ‖ SEARCH SEARCH Dig Camp Craft
+     Specialty 1–4 chips hang under the Attack slab. Keycaps in each corner. */
   const deskWide = VW >= HUD_DESK_WIDE;
   const stickR = (deskWide?42:34)*s;
   const stickX = padL + 14*s + stickR;
-  const gap = 5*s;
-  const rowGap = 8*s;
-  const rows = [HUDSKILLS];
-  const perRow = HUDSKILLS.length;
+  const gap = Math.max(4, 5*s);
+  const groupGap = Math.max(14, 18*s);
+  const groups = HUD_DESK_GROUPS.map(gk=>gk.map(find).filter(Boolean)).filter(gr=>gr.length);
+  const nSlots = groups.reduce((n,gr)=>n+gr.length, 0);
+  const nGaps = nSlots - groups.length;
   const rightReserve = padR + 10*s;
   const stickReserve = stickX + stickR + 12*s;
-  const availW = Math.max(180, VW - stickReserve - rightReserve);
   const slotMin = deskWide ? HUD_DESK_SLOT_MIN : 46;
-  const slotMax = deskWide ? HUD_DESK_SLOT_MAX : 56;
-  const slot = Math.min(slotMax, Math.max(slotMin, (availW - (perRow-1)*gap)/perRow));
-  const skillsW = perRow*slot + (perRow-1)*gap;
-  const by = VH - padB - 16*s - slot/2;
-  const topY = by;
-  const midY = by;
-  let left = stickReserve;
-  const extra = VW - stickReserve - rightReserve - skillsW;
-  if(extra>0) left = stickReserve + extra*0.15;
+  const slotMax = Math.max(slotMin, Math.min(deskWide ? HUD_DESK_SLOT_MAX : 56, VH*0.13));
+  const labelH = 16*s;
+  const frame = partyPortraitFrame();
+  const cardBottom = frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), 0);
+  const cardRight = frame.x + frame.w;
 
-  UI.orb = { r:slot/2, x:left+slot/2, y:midY };
+  function fit(leftBound){
+    const availW = Math.max(180, VW - leftBound - rightReserve);
+    const units = nSlots - 1 + HUD_ATTACK_W;
+    const slot = Math.min(slotMax, Math.max(slotMin, (availW - nGaps*gap - (groups.length-1)*groupGap)/units));
+    const atkW = slot*HUD_ATTACK_W;
+    const barW = (nSlots-1)*slot + atkW + nGaps*gap + (groups.length-1)*groupGap;
+    const chipH = Math.max(20, Math.min(28, slot*0.36));
+    const bottom = VH - padB - Math.max(8, 10*s);
+    const chipY = bottom - chipH/2;
+    const y = chipY - chipH/2 - 4 - slot/2;
+    let x0 = Math.max(leftBound, VW/2 - barW/2);
+    if(x0 + barW > VW - rightReserve) x0 = Math.max(leftBound, VW - rightReserve - barW);
+    return {slot, atkW, barW, chipH, chipY, y, x0, top:y - slot/2 - labelH};
+  }
+  let L = fit(stickReserve);
+  /* Short windows: the portrait column can reach the bar. Start past it. */
+  if(frame.cards.length && cardBottom + 12 > L.top && L.x0 < cardRight + 18){
+    L = fit(Math.max(stickReserve, cardRight + 18));
+  }
+
+  const slot=L.slot, y=L.y;
+  UI.orb = { r:slot/2, x:L.x0+slot/2, y:y };
   UI.attack={x:0,y:0,r:slot/2};
-  UI.more=null; UI.overflow=[]; UI.overflowBox=null;
-  rows.forEach((row,ri)=>{
-    const y = topY + ri*(slot+rowGap);
-    const rowW = row.length*slot + (row.length-1)*gap;
-    const rowLeft = left + (skillsW-rowW)/2;
-    row.forEach((b,i)=>{
-      const x = rowLeft + i*(slot+gap) + slot/2;
-      const btn={x, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1};
-      if(b.key==='attack') UI.attack=btn;
-      if(b.key==='pack') UI.orb={r:slot/2, x, y};
+  let x=L.x0;
+  groups.forEach((gr,gi)=>{
+    if(gi>0){
+      UI.barDividers.push({x:x - groupGap/2, y1:y - slot*0.36, y2:y + slot*0.36});
+    }
+    gr.forEach((b,i)=>{
+      const wide = b.key==='attack';
+      const w = wide ? L.atkW : slot;
+      const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key]};
+      if(wide){ btn.w=w; btn.h=slot; UI.attack=btn; }
+      if(b.key==='pack') UI.orb={r:slot/2, x:btn.x, y};
       UIBTN.push(btn);
+      x += w + (i<gr.length-1 ? gap : 0);
     });
+    x += groupGap;
   });
-  layoutSpecialtyCluster(UI.attack.x, UI.attack.y, UI.attack.r, Math.max(48, Math.min(slot, 56)), 8);
-  UI.hudTop = Math.min(topY - slot/2, (UI.specialty&&UI.specialty.top)||topY) - 18*s;
+  layoutSpecialtyCluster(UI.attack.x, L.chipY, L.atkW, L.chipH, 4);
+  UI.hudTop = L.top - 6*s;
   UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: 16*s, key:'pause'});
-  UI.stickHome={ x: stickX, y: midY, r: stickR };
+  UI.stickHome={ x: stickX, y: y, r: stickR };
   layoutPartyOrders();
 }
+/* Nearest button wins. Circles keep their 25% forgiveness ring; rect slabs
+   and chips get a few px so neighbouring chips never steal each other's taps. */
 function btnAt(x,y){
+  let best=null, bestD=Infinity;
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
-    if(Math.hypot(x-b.x,y-b.y)<b.r*1.25) return b;
+    let d, tol;
+    if(b.w){
+      const bx=btnBox(b);
+      const dx=Math.max(bx.x-x, 0, x-(bx.x+bx.w));
+      const dy=Math.max(bx.y-y, 0, y-(bx.y+bx.h));
+      d=Math.hypot(dx,dy);
+      tol=b.chip?(IS_TOUCH?6:2):6;
+    } else {
+      d=Math.max(0, Math.hypot(x-b.x,y-b.y)-b.r);
+      tol=b.r*0.25;
+    }
+    if(d<=tol && d<bestD){ best=b; bestD=d; }
   }
-  return null;
+  return best;
 }
 
 const pressed={};
@@ -17019,7 +17031,7 @@ function landscapePartyOrderSeat(originX, stackBottom, slot, gap, r, rowW){
       const b=UIBTN[bi];
       if(!b || b.order || !(b.r>0)) continue;
       if(b.overflow && !(G&&G.hudMore)) continue;
-      if(Math.hypot(c.x-b.x, c.y-b.y)<r+b.r+hudPad) return true;
+      if(btnGap(c, b)<hudPad) return true;
     }
     if(circleRectGap(c, mini)<hudPad || circleRectGap(c, log)<hudPad) return true;
     return false;
@@ -17475,32 +17487,53 @@ function slotAnimImg(b){
   return SPR[k]||null;
 }
 function drawSlot(g,b,s){
-  const R=b.r, x=b.x-R, y=b.y-R, w=R*2, h=R*2;
+  if(b.chip) return drawSpecChip(g,b,s);
+  const q=b.quiet?HUD_QUIET:1;
+  const W=(b.w||b.r*2)*q, H=(b.h||b.r*2)*q;
+  const R=Math.min(W,H)/2, x=b.x-W/2, y=b.y-H/2, w=W, h=H;
+  const wide=w>h*1.25;
+  const A=b.quiet?0.88:1;
   const ab=ABIL.find(a=>a.key===b.key);
   const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
   const atForge=b.key!=='craft' || (!foesVisible() && !!(player()&&nearestCraftStation(player(),1.7)));
   const ico=(b.key==='attack'&&typeof attackHudIco==='function')?attackHudIco():(b.ico||(b.key==='attack'?'attack':(ab&&ab.ico)));
-  carveFrame(g,x,y,w,h,5,.92);
+  g.globalAlpha=A;
+  carveFrame(g,x,y,w,h,wide?7:5,.92);
   if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2.2*s; roundPath(g,x+1,y+1,w-2,h-2,5); g.stroke(); }
-  const specLit=b.spec && player() && player().specialty===b.spec;
   const orderLit=!!(b.order && typeof PartyOrders!=='undefined' && PartyOrders.order && PartyOrders.order()===b.key);
-  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')||specLit||orderLit){
+  const specArmed=b.key==='attack' && player() && player().specialty;
+  if((b.key==='search'&&G.searching)||(b.key==='secret'&&G.secretSearch)||(b.key==='shovel'&&G.digging)||(b.key==='wall'&&player()&&player().defending)||(b.key==='craft'&&G.scene==='craft')||orderLit||specArmed){
     g.strokeStyle='rgba(255,214,140,'+(0.5+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2.4*s;
-    roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,6); g.stroke(); }
+    roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,wide?8:6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
   const simg=slotAnimImg(b);
   if(simg){
-    g.save();
-    roundPath(g,x+3*s,y+3*s,w-6*s,h-6*s,3); g.clip();
-    g.globalAlpha=(ready&&atForge)?1:0.42;
     const iw=Math.max(1,simg.width), ih=Math.max(1,simg.height);
     const dw=w-6*s, dh=h-6*s;
-    const sc=Math.max(dw/iw, dh/ih);
-    const rw=iw*sc, rh=ih*sc;
-    g.drawImage(simg, x+3*s+(dw-rw)/2, y+3*s+(dh-rh)/2, rw, rh);
-    g.globalAlpha=1; g.restore();
+    g.save();
+    roundPath(g,x+3*s,y+3*s,dw,dh,wide?5:3); g.clip();
+    const lit=(ready&&atForge)?1:0.42;
+    if(wide){
+      /* Slab: the art, cover-fit and darkened, as a backdrop; the crisp
+         square icon centered on top. Square art never gets sliced thin. */
+      const glow=g.createRadialGradient(b.x,b.y,dh*0.2,b.x,b.y,w*0.55);
+      glow.addColorStop(0,'rgba(196,128,52,'+(0.34*lit)+')');
+      glow.addColorStop(1,'rgba(196,128,52,0)');
+      g.globalAlpha=A;
+      g.fillStyle=glow; g.fillRect(x,y,w,h);
+      const sq=dh, sc2=Math.max(sq/iw, sq/ih), qw=iw*sc2, qh=ih*sc2;
+      g.globalAlpha=A*lit;
+      g.drawImage(simg, b.x-qw/2, b.y-qh/2, qw, qh);
+    } else {
+      g.globalAlpha=A*lit;
+      const sc=Math.max(dw/iw, dh/ih);
+      const rw=iw*sc, rh=ih*sc;
+      g.drawImage(simg, x+3*s+(dw-rw)/2, y+3*s+(dh-rh)/2, rw, rh);
+    }
+    g.restore();
+    g.globalAlpha=A;
   } else {
-    icon(g, ico, b.x, b.y-(b.num?2*s:0), b.small?0.78*s:1.05*s, atForge?col:'rgba(160,140,110,0.42)');
+    icon(g, ico, b.x, b.y-(b.num?2*s:0), (b.small?0.78:1.05)*s*q, atForge?col:'rgba(160,140,110,0.42)');
   }
   if(b.num){
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='left';
@@ -17518,12 +17551,13 @@ function drawSlot(g,b,s){
     syncPackTotals();
     const n=ab.key==='bomb'?(partyCount('bombs')+partyCount('burps')):ab.key==='ale'?healCharges():partyCount('ammo');
     if(!n){ g.fillStyle='rgba(8,5,3,0.5)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill(); }
-    const px=b.x+R*0.72, py=b.y-R*0.72;
+    const br=Math.min(8.4*s, R*0.36);
+    const px=x+w-R*0.28, py=y+R*0.28;
     g.fillStyle=n?'rgba(20,14,8,0.92)':'rgba(50,14,8,0.92)';
-    g.beginPath(); g.arc(px,py,8.4*s,0,TAU); g.fill();
+    g.beginPath(); g.arc(px,py,br,0,TAU); g.fill();
     g.strokeStyle=n?'rgba(214,176,104,0.85)':'rgba(190,80,60,0.8)'; g.lineWidth=1.4*s; g.stroke();
-    g.font='800 '+(9.5*s)+'px '+FONT_UI; g.textAlign='center';
-    g.fillStyle=n?'#f2dfb6':'#ff9a86'; g.fillText(String(n),px,py+3.4*s); g.textAlign='left';
+    g.font='800 '+(br*1.13)+'px '+FONT_UI; g.textAlign='center';
+    g.fillStyle=n?'#f2dfb6':'#ff9a86'; g.fillText(String(n),px,py+br*0.4); g.textAlign='left';
   }
   if(ab&&ab.key==='bomb'&&G.aim){
     g.strokeStyle='rgba(255,170,90,'+(0.6+Math.sin(G.elapsed*6)*0.3)+')'; g.lineWidth=2.4*s;
@@ -17532,12 +17566,51 @@ function drawSlot(g,b,s){
     const left=G.dig?Math.max(0,digNeedMinutes()-G.dig.min):digNeedMinutes();
     g.font='800 '+(9*s)+'px '+FONT_UI; g.textAlign='center';
     g.fillStyle='#f2dfb6'; g.fillText(Math.ceil(left)+'m', b.x, b.y+R*0.62); g.textAlign='left'; }
-  if(b.label && b.r>=18){
-    const labelPx=b.r>=28?Math.min(14, Math.max(11, b.r*0.34)):(PORT?9.5:8.5)*s;
+  if(b.kc && !IS_TOUCH){
+    /* Keycap, top-left. Mouse/keyboard only. */
+    const kp=Math.max(9, Math.min(11, R*0.3));
+    g.font='800 '+kp+'px '+FONT_UI;
+    const tw=g.measureText(b.kc).width, kw=Math.max(kp+4, tw+6), kh=kp+4;
+    const kx=x+4, ky=y+4;
+    g.fillStyle='rgba(10,7,4,0.82)'; roundPath(g,kx,ky,kw,kh,3); g.fill();
+    g.strokeStyle='rgba(214,176,112,0.55)'; g.lineWidth=1; roundPath(g,kx+0.5,ky+0.5,kw-1,kh-1,3); g.stroke();
+    g.textAlign='center'; g.fillStyle='#f2dfb6';
+    g.fillText(b.kc, kx+kw/2, ky+kh-3.2); g.textAlign='left';
+  }
+  if(b.label && R>=18 && !b.nolabel){
+    const labelPx=R>=28?Math.min(14, Math.max(11, R*0.34)):(PORT?9.5:8.5)*s;
     g.font='800 '+labelPx+'px '+FONT_UI; g.textAlign='center';
     g.lineWidth=3*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText(b.label, b.x, b.y-R-7*s);
-    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, b.y-R-7*s); g.textAlign='left'; }
+    g.strokeText(b.label, b.x, y-7*s);
+    g.fillStyle='#f2dfb6'; g.fillText(b.label, b.x, y-7*s); g.textAlign='left'; }
+  g.globalAlpha=1;
+}
+
+/* Specialty chip: small numbered plate under the Attack slab. */
+function drawSpecChip(g,b,s){
+  const w=b.w, h=b.h, x=b.x-w/2, y=b.y-h/2;
+  const armed=!!(player() && player().specialty===b.spec);
+  g.fillStyle='rgba(10,7,5,'+(armed?0.94:0.8)+')'; roundPath(g,x,y,w,h,4); g.fill();
+  const bev=g.createLinearGradient(0,y,0,y+h);
+  bev.addColorStop(0,'rgba(60,44,28,0.6)'); bev.addColorStop(1,'rgba(14,10,8,0.2)');
+  g.fillStyle=bev; roundPath(g,x+2,y+2,w-4,h-4,3); g.fill();
+  g.strokeStyle='rgba(214,176,112,'+(armed?0.9:0.55)+')'; g.lineWidth=1.3;
+  roundPath(g,x+0.75,y+0.75,w-1.5,h-1.5,4); g.stroke();
+  if(armed){
+    const gr=g.createLinearGradient(0,y,0,y+h);
+    gr.addColorStop(0,'rgba(255,196,110,0.55)'); gr.addColorStop(1,'rgba(150,80,20,0.35)');
+    g.fillStyle=gr; roundPath(g,x+2,y+2,w-4,h-4,3); g.fill();
+    g.strokeStyle='rgba(255,214,140,'+(0.55+Math.sin(G.elapsed*6)*0.4)+')'; g.lineWidth=2*s;
+    roundPath(g,x-2,y-2,w+4,h+4,5); g.stroke();
+  }
+  if(b.hold){ g.strokeStyle='rgba(255,220,150,0.95)'; g.lineWidth=2; roundPath(g,x+1,y+1,w-2,h-2,4); g.stroke(); }
+  const fp=Math.max(11, Math.min(IS_TOUCH?15:16, h*0.56));
+  g.font='700 '+fp+'px Georgia,"Times New Roman",serif'; g.textAlign='center';
+  g.lineWidth=2.4; g.strokeStyle='rgba(0,0,0,0.7)';
+  g.strokeText(String(b.spec), b.x, b.y+fp*0.36);
+  g.fillStyle=armed?'#fff3d0':'#d9bd7c';
+  g.fillText(String(b.spec), b.x, b.y+fp*0.36);
+  g.textAlign='left';
 }
 
 function drawButtons(g,s){
@@ -17549,6 +17622,14 @@ function drawButtons(g,s){
     g.fillText('More', box.x+box.w/2, box.y+16*s);
     g.textAlign='left';
   }
+  (UI.barDividers||[]).forEach(d=>{
+    const gr=g.createLinearGradient(0,d.y1,0,d.y2);
+    gr.addColorStop(0,'rgba(214,176,112,0)'); gr.addColorStop(0.5,'rgba(214,176,112,0.55)'); gr.addColorStop(1,'rgba(214,176,112,0)');
+    g.strokeStyle=gr; g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(d.x,d.y1); g.lineTo(d.x,d.y2); g.stroke();
+    g.fillStyle='rgba(214,176,112,0.7)';
+    g.beginPath(); g.moveTo(d.x,(d.y1+d.y2)/2-3); g.lineTo(d.x+3,(d.y1+d.y2)/2); g.lineTo(d.x,(d.y1+d.y2)/2+3); g.lineTo(d.x-3,(d.y1+d.y2)/2); g.closePath(); g.fill();
+  });
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
     if(b.key==='pause'){ carveFrame(g,b.x-b.r,b.y-b.r,b.r*2,b.r*2,b.r*.4,.7);
@@ -17559,14 +17640,6 @@ function drawButtons(g,s){
       roundPath(g,b.x-b.r-2.5*s,b.y-b.r-2.5*s,b.r*2+5*s,b.r*2+5*s,6); g.stroke();
     }
     drawSlot(g,b,s);
-  }
-  if(UI.specialty && UI.specialty.titleX!=null){
-    g.font='800 '+(PORT?11:12)*s+'px '+FONT_UI; g.textAlign='center';
-    g.lineWidth=3.2*s; g.strokeStyle='rgba(0,0,0,0.75)';
-    g.strokeText('Specialty', UI.specialty.titleX, UI.specialty.titleY);
-    g.fillStyle='#f2dfb6';
-    g.fillText('Specialty', UI.specialty.titleX, UI.specialty.titleY);
-    g.textAlign='left';
   }
 }
 

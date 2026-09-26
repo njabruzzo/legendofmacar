@@ -36,78 +36,34 @@ assert(!/e\.x=p\.x/.test(html.match(/if\(key==='rally'\)\{[\s\S]*?\}/)[0]), 'Ral
 assert(!/Rally: war-horn/.test(html) && !/Rally \(5 \/ More\)/.test(html),
   'More tray and pause no longer advertise Rally');
 
-/* Simulate the mobile layout math for a 390×844 phone (Ch1 thumb zone). */
+/* Real mobile layout (HudHarness runs layoutUI from index.html). */
+const HH=require('./HudHarness');
 function sim(vw, vh, s, inset){
-  const TAP=44, gap=5, rowGap=16, PORT=vh>vw;
-  const padL=Math.max(inset.l||0, 8);
-  const padR=Math.max(inset.r||0, 8);
-  const padB=Math.max(inset.b||0, PORT?10:8);
-  const combatKeys={attack:1, wall:1};
-  const overflowAlways={};
-  const order=['pack','ale','search','secret','shovel','camp','craft','bow','bomb'];
-  const rest=order.filter(k=>!combatKeys[k] && !overflowAlways[k]);
-  const cSlot=Math.max(TAP, Math.min(PORT?64:56, Math.min(vw,vh)*0.125));
-  const cx=vw - padR - 8 - cSlot/2;
-  const attackY=vh - padB - 8 - cSlot/2;
-  const defendY=attackY - (cSlot + rowGap);
-  const stickR=Math.max(TAP/2, PORT?26*s:28*s);
-  const stickX=padL + 6 + stickR;
-  const stickReserve=stickX + stickR + 16;
-  const rightReserve=(vw-cx) + cSlot/2 + 8;
-  const availW=Math.max(TAP, vw - stickReserve - rightReserve);
-  const fit=Math.floor((availW+gap)/(TAP+gap));
-  const perRow=Math.max(1, Math.min(5, fit||1));
-  const raw=(availW-(perRow-1)*gap)/perRow;
-  const slot=Math.min(Math.max(TAP, Math.min(PORT?52:48, raw)), raw);
-  const maxPrimary=perRow*2;
-  const needMore=rest.length>maxPrimary;
-  const primaryCap=needMore?Math.max(1, maxPrimary-1):maxPrimary;
-  const primary=rest.slice(0, primaryCap);
-  const extra=rest.slice(primaryCap);
-  const overflow=extra.slice();
-  const keys=overflow.length?primary.concat(['more']):primary;
-  const nRows=Math.ceil(keys.length/perRow);
-  const by=vh - padB - 8 - slot/2;
-  const topY=by - (nRows-1)*(slot+rowGap);
-  const left=stickReserve;
-  const btns=[];
-  keys.forEach((key,i)=>{
-    const ri=(i/perRow)|0, ci=i%perRow;
-    btns.push({key, x:left+ci*(slot+gap)+slot/2, y:topY+ri*(slot+rowGap), r:slot/2});
-  });
-  btns.push({key:'attack', x:cx, y:attackY, r:cSlot/2});
-  btns.push({key:'wall', x:cx, y:defendY, r:cSlot/2});
-  const stick={x:stickX, y:by, r:stickR};
-  return {slot, cSlot, perRow, primary, overflow, btns, stick, nRows, availW};
+  const L=HH.layout({vw, vh, inset, touch:true, cards:5});
+  const stick=Object.assign({}, L.UI.stickHome);
+  return {L, btns:L.btns.filter(b=>b.key!=='pause' && !b.order), stick};
 }
-
-function circlesOverlap(a,b,pad){
-  return Math.hypot(a.x-b.x, a.y-b.y) < a.r+b.r-(pad||0);
-}
-
 const phone=sim(390, 844, 390/430, {t:47, r:0, b:34, l:0});
-assert(phone.slot>=44-0.01, '390×844 skill slots are at least 44px (got '+phone.slot.toFixed(1)+')');
-assert(phone.cSlot>=44, '390×844 Attack/Defend are at least 44px');
+const round=phone.btns.filter(b=>!b.w);
+assert(round.every(b=>b.r*2>=44-0.01), '390×844 round skill targets are at least 44px');
+const atk=phone.L.find('attack');
+assert(atk.h>=44 && atk.w>=44, '390×844 Attack slab is at least 44px tall');
 assert(phone.stick.r*2>=44, '390×844 stick diameter is at least 44px');
-assert(phone.primary.includes('pack') && phone.primary.includes('search') && phone.primary.includes('camp'),
-  '390×844 keeps PACK, Herbs, Camp on the thumb row');
-assert(!phone.primary.includes('rally') && !phone.overflow.includes('rally'),
-  '390×844 Rally icon is not on the bar or in More');
-assert(phone.btns.every(b=>!circlesOverlap(b, phone.stick, 2)), '390×844 skill circles do not overlap the stick');
-const camp=phone.btns.find(b=>b.key==='camp');
-assert(!camp || !circlesOverlap(camp, phone.stick, 8), 'Camp does not sit on the movement stick');
-const pack=phone.btns.find(b=>b.key==='pack');
-assert(pack && pack.x-pack.r > phone.stick.x+phone.stick.r+4, 'PACK is to the right of the stick, not on it');
-const attack=phone.btns.find(b=>b.key==='attack');
-assert(attack && !circlesOverlap(attack, phone.stick, 8), 'Attack does not overlap the movement stick');
+['pack','search','secret','shovel','camp','craft','bow','bomb','ale','wall'].forEach(k=>{
+  assert(!!phone.L.find(k), '390×844 '+k+' is on screen (no More tray)');
+});
+assert(!phone.L.find('rally'), '390×844 Rally icon is not on the bar');
+assert(phone.btns.every(b=>HH.gap(b, phone.stick)>=2), '390×844 skill plates do not overlap the stick');
+const pack=phone.L.find('pack');
+assert(HH.gap(pack, phone.stick)>=8, 'PACK is clear of the stick');
+assert(HH.gap(atk, phone.stick)>=8, 'Attack does not overlap the movement stick');
 assert(phone.stick.x-phone.stick.r > 4, 'stick sits off the left edge');
 assert(phone.stick.y+phone.stick.r < 844-30, 'stick sits above the home-indicator inset');
 
 const slim=sim(320, 568, 320/430, {t:20, r:0, b:0, l:0});
-assert(slim.slot>=40, '320×568 still lays out real slots (got '+slim.slot.toFixed(1)+')');
-assert(!slim.primary.includes('rally') && !slim.overflow.includes('rally'),
-  'narrow phones have no Rally icon');
-assert(slim.btns.every(b=>!circlesOverlap(b, slim.stick, 1)), '320×568 no stick overlap');
+assert(slim.btns.filter(b=>!b.w).every(b=>b.r*2>=44-0.01), '320×568 still lays out 44px slots');
+assert(!slim.L.find('rally'), 'narrow phones have no Rally icon');
+assert(slim.btns.every(b=>HH.gap(b, slim.stick)>=1), '320×568 no stick overlap');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMobile HUD checks passed');
