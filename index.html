@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=121">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=121">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=122">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=122">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -388,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='121';
+const ASSET_VER='122';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -482,9 +482,6 @@ const SPRITE_FILES={
   rat:'assets/creatures/mon_rat.png', bat:'assets/creatures/mon_bat.png', spider:'assets/creatures/mon_spider.png', spitter:'assets/creatures/mon_spitter.png',
   beetle:'assets/creatures/mon_beetle.png', myconid:'assets/creatures/mon_myconid.png', thinone:'assets/creatures/mon_thinone.png',
   crawler:'assets/creatures/mon_crawler.png', undead:'assets/creatures/mon_undead.png', elder:'assets/creatures/mon_elder.png',
-  /* Skeletal dwarf idle. Walk and attack drop in as dwarf_skeleton_idle_w1.png,
-     _w2.png, and _atk.png. Until those exist, single-pose slides this sheet. */
-  dwarf_skeleton_idle:'assets/creatures/dwarf_skeleton_idle.png',
   barrow:'assets/creatures/mon_barrow.png', troll:'assets/creatures/mon_troll.png', construct:'assets/creatures/mon_construct.png',
   wraith:'assets/creatures/mon_wraith.png', burrower:'assets/creatures/mon_burrower.png', champion:'assets/creatures/mon_champion.png',
   warden:'assets/creatures/mon_warden.png', horror:'assets/creatures/mon_horror.png', drake:'assets/creatures/mon_drake.png', king:'assets/creatures/mon_king.png',
@@ -504,9 +501,6 @@ const SPRITE_FILES={
   dwarfface:'assets/props/prop_dwarfface.png',
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
-  /* Empty-socket plate. Same 267×434 canvas as prop_demon_dwarfface.png,
-     no tooth. demonFaceImg uses it once the electrum tooth is taken. */
-  demon_dwarfface_empty:'assets/props/prop_demon_dwarfface_empty.png',
   craftstation:'assets/props/prop_craftstation.png',
   shadowcleaver:'assets/props/loot_shadowcleaver.png',
   dwarfkey:'assets/props/loot_dwarfkey.png',
@@ -711,6 +705,12 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const w3=k.replace(/_w1$/,'_w3');
   if(!SPRITE_FILES[w3]) SPRITE_FILES[w3]=src.replace(/_w1\.png$/,'_w3.png');
 });
+/* After dead, walk, attack, and _w3 guessing. These files have no sibling
+   frames on disk. Register a frame here only when that file exists. */
+SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
+SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
+/* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
+SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -1124,11 +1124,31 @@ function namedFrameFit(e,img){
   }
   return 0;
 }
+function ghostContentFrac(img){
+  if(!img||!img.width||typeof spriteBounds!=='function') return 0;
+  const b=spriteBounds(img);
+  if(!b||!b.ok||b.y0==null||b.y1==null) return 0;
+  return b.y1-b.y0;
+}
+/* Talpor's standing sheet is sized by its alpha box against Pordoom,
+   Fendur, and Orbo, not by canvas width. Walk, attack, and back share
+   that same stature so the interim sheets do not pop. */
+function talporGhostStatureFit(e){
+  if(!e||!e.ghost||!e.col||e.col.key!=='talpor'||typeof SPR==='undefined') return 1;
+  const mine=ghostContentFrac(SPR.talpor_ghost);
+  let sum=0, n=0;
+  for(const img of [SPR.pordoom_ghost, SPR.fendur_ghost, SPR.orbo_ghost]){
+    const f=ghostContentFrac(img);
+    if(f){ sum+=f; n++; }
+  }
+  if(!mine||!n) return 1;
+  return (sum/n)/mine;
+}
 function frameFit(e,img){
   const named=namedFrameFit(e,img);
   if(named) return named;
   if(e&&e.singlePose&&!e.dead&&!e.crushed) return skeletalDwarfFit(e,img);
-  if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img);
+  if(e&&e.kind==='dwarf'&&!e.dead&&!e.crushed) return dwarfFigureFit(e,img)*talporGhostStatureFit(e);
   return 1;
 }
 function morphPass(src,dst,W,H,R,wantMax,vertical){
@@ -1465,12 +1485,10 @@ function solidMacarSprite(img){ return blitLivingMacar(img); }
 function nickSpectralGhostSheet(img){
   if(!img) return false;
   /* Pordoom, Fendur, and Orbo idle and front walk are already spectral.
-     Talpor is not: idle and walk are flat teal, attack and back are brown.
-     Leave every Talpor sheet off this list so liftGhostSpirit covers all
-     four states. Idle drop-in: assets/creatures/dwarf_talpor_ghost.png.
-     Walk, attack, and back slots are named on talporInterimGhostKey.
-     When a state is already spectral, add its SPR comparison here. */
-  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost
+     Talpor's approved standing idle is too (assets/creatures/dwarf_talpor_ghost.png).
+     Walk, attack, and back stay off this list so the interim lift still
+     covers those three. Their drop-in names live on talporInterimGhostKey. */
+  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
     ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2;
@@ -3043,8 +3061,8 @@ function entSpriteKey(e){
   if(e.sprite) return e.sprite;
   return e.kind;
 }
-/* One idle sheet slides and lunges until its own walk frames exist.
-   dwarf_skeleton_idle_w1.png / _atk.png unlock the normal cycle. */
+/* One idle sheet slides and lunges until its own walk frame is registered
+   and ready. A ready walk leaves single-pose. */
 function singlePoseLocked(e){
   if(!e||!e.singlePose||e.dead||e.crushed) return false;
   const k=entSpriteKey(e);
@@ -4917,16 +4935,7 @@ function makeChapter(n){
       if(!L.flags.ruinDeepSS&&p.x>70&&p.y>92){L.flags.ruinDeepSS=1;
         spawnLairGroup(88,102,{pack:[['basilisk',1],['cockatrice',1]],spread:1.4,aggro:3.4});
         say('Petrifiers nest in the south-south court. Gaze and spur.','#8a9a6a');}
-      if(L.flags.w1 && !G.fightOn){
-        L.wanderT=(L.wanderT||0)+(dt||0.016);
-        if(L.wanderT>20){
-          L.wanderT=0;
-          if(wanderCheckHits().hit){
-            const names=spawnWanderers(p);
-            if(names.length) say('Ruin-walkers: '+names.join(', ')+'.','#ff6a5a');
-          }
-        }
-      }
+      /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The warden falls. The road to the city is open.','#ffd27a');
         setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
@@ -5365,8 +5374,11 @@ function advanceDungeonTurns(turns, mode){
   if(!(turns>0) || typeof G==='undefined' || !G) return [];
   const rules=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES)||{};
   const noisy=mode==='noisy';
-  const every=noisy?(rules.noisyEveryTurns||1):(rules.everyTurns||rules.checkEveryTurns||3);
-  const bank=noisy?'noisyTurns':'dungeonTurns';
+  const rest=mode==='rest';
+  const every=rest?(rules.restEveryTurns||6)
+    :noisy?(rules.noisyEveryTurns||1)
+    :(rules.everyTurns||rules.checkEveryTurns||3);
+  const bank=rest?'restTurns':noisy?'noisyTurns':'dungeonTurns';
   G[bank]=(G[bank]||0)+turns;
   const logs=[];
   let guard=0;
@@ -5385,6 +5397,22 @@ function advanceDungeonTurns(turns, mode){
   return logs;
 }
 function endSleepShow(){ G.sleepShow=null; }
+function restTurnsForHours(hours){
+  const min=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.turnMinutes)||10;
+  return (+hours||0)*(60/min);
+}
+/* One check per hour. A spawned encounter ends the watch; unspent hours
+   stay off the rest clock. */
+function campRestChecks(hours){
+  const logs=[];
+  const per=restTurnsForHours(1);
+  for(let h=0;h<(+hours||0);h++){
+    const batch=(typeof advanceDungeonTurns==='function')?advanceDungeonTurns(per,'rest'):[];
+    if(batch&&batch.length) logs.push.apply(logs, batch);
+    if(batch&&batch.some(line=>/, encounter:/.test(line))) break;
+  }
+  return logs;
+}
 function campRest(){
   const p=player(); if(!p) return;
   if(G.sleepShow) return;
@@ -5392,17 +5420,15 @@ function campRest(){
   G.searching=0; G.digging=0; G.dig=null; p.dest=null;
   const open=openPassagesAt(p.x,p.y);
   if(open){
-    const roll=ri(1,6);
-    say('Open passages. Wandering check: d6 = '+roll+'.','#c9b895');
-    if(roll===1){
-      const names=spawnWanderers(p);
-      if(names.length){
-        say('Steel in the dark: '+names.join(', ')+'. Sleep breaks.','#ff6a5a');
-        hint('Wandering monsters. The rest is interrupted.',4.2);
-        G.flash={c:'#3a1208',a:.55}; shake(10);
-        return;
-      }
-      say('A scrape in the dark, then nothing. The watch holds.','#c9b895');
+    say('Open passages. The watch checks once each hour.','#c9b895');
+    const logs=campRestChecks(8);
+    const hit=(logs||[]).find(line=>/, encounter:/.test(line));
+    if(hit){
+      const names=hit.split(', encounter: ')[1]||'something in the dark';
+      say('Steel in the dark: '+names+'. Sleep breaks.','#ff6a5a');
+      hint('Wandering monsters. The rest is interrupted.',4.2);
+      G.flash={c:'#3a1208',a:.55}; shake(10);
+      return;
     }
     say('The night passes. Nothing comes down the tunnel.','#c9b895');
   } else {
@@ -5745,7 +5771,7 @@ function startChapter(n){
   ensureCharXp();
   ensurePacks();
   syncPackTotals();
-  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; G.noisyTurns=0; }
+  if(n===1 && !keep){ G.ghostAllies={}; G.day=1; G.dayClock=0; G.pordoomGiftDay=0; G.dungeonTurns=0; G.noisyTurns=0; G.restTurns=0; }
   G.inspect=null; G.showObjs=0; G.showLog=0; G.miniBig=0;
   ROSTER.forEach((r,i)=>{
     const hero=i===0;
@@ -7181,7 +7207,12 @@ function wanderKindAllowed(k){
    RULING: herb Search is quiet. No DMG/PHB herb rule. One Search is one
    10'×10' area, the same scale as a secret-door search, and costs 1 turn
    on the normal every-3-turns clock. Quiet and noisy banks are separate
-   so a short herb still carries its remainder. */
+   so a short herb still carries its remainder.
+   RULING (Sage, 1e DMG Keeping Track of Time; Nick may override):
+   camp rest rolls 1 in 6 once per hour, every 6 turns, half the dungeon
+   rate. An 8-hour rest is 8 checks. Rest time does not stack with dig
+   or herb-search time. Each clock counts only its own turns, and a
+   leftover carries to the next action on that same clock. */
 const ENCOUNTER_RULES={
   turnMinutes:10,
   chance:1/6,
@@ -7189,6 +7220,7 @@ const ENCOUNTER_RULES={
   encounterOn:1,
   everyTurns:3,
   noisyEveryTurns:1,
+  restEveryTurns:6,
   digTurns:{loose:1, packed:3, softRock:6},
   herbTurnsPer10ft:1
 };
@@ -7202,6 +7234,18 @@ function digTerrainTurns(kind){
   if(kind==='packed') return t.packed||3;
   if(kind==='softRock') return t.softRock||6;
   return t.loose||1;
+}
+function completeDigSquare(L){
+  const dig=G.dig;
+  if(!dig||!L) return 0;
+  const i=dig.i, j=dig.j;
+  const turns=digTerrainTurns(digTerrainAt(L, i, j));
+  breakRock(L, i, j);
+  if(G.digBoost>0) G.digBoost--;
+  say('A square foot of stone comes away.','#d8c49a');
+  G.dig=null;
+  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(turns, 'noisy');
+  return turns;
 }
 function wanderCheckHits(){
   const die=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.die)||6;
@@ -11432,7 +11476,7 @@ function buildTeethCrownRoom(L, sec){
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
-  hint('A bone crown on the altar. TAKE it, or ATTACK to smash it.',5.2);
+  hint('A bone crown on the altar. Destroy the crown, or take it.',5.2);
 }
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
    Quest unique, not combat magic, no sell, Macar pack only.
@@ -13256,13 +13300,7 @@ function update(dt){
         else {
           const need=digNeedMinutes();
           G.dig.min+=dt;
-          if(G.dig.min>=need){
-            breakRock(L,G.dig.i,G.dig.j);
-            if(G.digBoost>0) G.digBoost--;
-            say('A square foot of stone comes away.','#d8c49a');
-            G.dig=null;
-            if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(digTerrainTurns(digTerrainAt(L,G.dig.i,G.dig.j)), 'noisy');
-          }
+          if(G.dig.min>=need) completeDigSquare(L);
         }
       }
     }
@@ -14753,24 +14791,32 @@ function demonFaceShowsEmpty(p){
   if(typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()) return true;
   return false;
 }
+function vaultDemonFace(p){
+  return !!(p && (p.wall==='e' || p.toothKind==='bronze'));
+}
 function demonFaceImg(p){
-  /* Empty-socket plate once the electrum tooth is taken or in the pack.
-     Missing file keeps the toothed sheet; drawDemonDwarfFace then marks
-     the socket. Same inventory state as Grond's Electrum Tooth. */
+  /* Hourglass vault keeps main's wide plate. The v4 portrait and the
+     empty-socket sheet are the chapter 1 chapel face only. */
+  if(p && vaultDemonFace(p)) return SPR.demon_dwarfface_vault||null;
   if(p && demonFaceShowsEmpty(p)){
     const empty=SPR.demon_dwarfface_empty;
     if(empty && empty.width) return empty;
   }
   return SPR.demon_dwarfface||SPR.demonface||null;
 }
-function demonFaceHalf(){
-  const img=demonFaceImg();
+function demonFaceHalf(p){
+  const img=demonFaceImg(p);
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  if(!p || vaultDemonFace(p)){
+    const H=dwarfFaceH()*1.08;
+    const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
+    return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  }
   /* Width uses the same screen height as the blit. A portrait plate is
      sized from its content box in demonFaceDrawH; matching that height
      here keeps the canvas aspect so the horns are not stretched. */
-  const H=demonFaceDrawH(img);
+  const H=demonFaceDrawH(img, p);
   const aspect=(img&&img.width)?img.width/Math.max(1,img.height):0.62;
-  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
   return clamp(H*aspect/(2*perTile), 0.70, 2.40);
 }
 function demonFacePlaneY(p){
@@ -14780,7 +14826,8 @@ function demonFacePlaneY(p){
 function demonFaceScreen(p){
   return w2s(p.x, demonFacePlaneY(p));
 }
-function demonFaceDrawH(img){
+function demonFaceDrawH(img, p){
+  if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
   const b=img&&img.width&&typeof spriteBounds==='function'?spriteBounds(img):null;
   const cw=(b&&b.ok&&b.x0!=null)?(b.x1-b.x0)*img.width:0;
   const ch=(b&&b.ok&&b.y0!=null)?(b.y1-b.y0)*img.height:0;
@@ -14789,9 +14836,53 @@ function demonFaceDrawH(img){
   return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, frac);
 }
 function drawDemonDwarfFace(g,p){
+  if(vaultDemonFace(p)){
+    /* Main's vault draw: dwarfFaceH()*1.08, wide-plate aspect, cap 1.90.
+       Bronze tooth is the painted triangle, not the chapel portrait. */
+    const img=demonFaceImg(p);
+    const H=dwarfFaceH()*1.08;
+    const half=demonFaceHalf(p);
+    g.save();
+    if(p.wall==='e'){
+      drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});
+    } else {
+      const yPlane=demonFacePlaneY(p);
+      drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
+    }
+    const s=demonFaceScreen(p);
+    const ox=s.x+(p.wall==='e'?8:2)*ZOOM;
+    const oy=s.y-H*(p.wall==='e'?0.28:0.38);
+    if(p.emptySocket){
+      g.save();
+      g.fillStyle='rgba(8,4,4,0.82)';
+      g.beginPath();
+      g.ellipse(ox, oy, 5.2*ZOOM, 7.4*ZOOM, 0, 0, TAU);
+      g.fill();
+      g.strokeStyle='rgba(40,20,16,0.7)';
+      g.lineWidth=1.2*ZOOM;
+      g.stroke();
+      g.restore();
+    } else if(!img || p.toothKind==='bronze'){
+      const bronze=p.toothKind==='bronze';
+      g.save();
+      g.fillStyle=bronze?'#c48a3a':'#d8e0e4';
+      g.strokeStyle=bronze?'#7a4e18':'#8a9498';
+      g.lineWidth=1.1*ZOOM;
+      g.beginPath();
+      g.moveTo(ox-3.4*ZOOM, oy-6*ZOOM);
+      g.lineTo(ox+3.4*ZOOM, oy-6*ZOOM);
+      g.lineTo(ox+1.1*ZOOM, oy+8.2*ZOOM);
+      g.lineTo(ox-1.1*ZOOM, oy+8.2*ZOOM);
+      g.closePath();
+      g.fill(); g.stroke();
+      g.restore();
+    }
+    g.restore();
+    return;
+  }
   const img=demonFaceImg(p);
-  const H=demonFaceDrawH(img);
-  const half=demonFaceHalf();
+  const H=demonFaceDrawH(img, p);
+  const half=demonFaceHalf(p);
   g.save();
   if(p.wall==='e'){
     drawIsoPlaneImg(g, img, p.x, p.y-half, p.x, p.y+half, H, {stroke:0});

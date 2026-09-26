@@ -406,6 +406,7 @@
       dayClock: snap.dayClock || 0,
       dungeonTurns: snap.dungeonTurns || 0,
       noisyTurns: snap.noisyTurns || 0,
+      restTurns: snap.restTurns || 0,
       pordoomGiftDay: snap.pordoomGiftDay || 0,
       macarGearReady: snap.macarGearReady || 0,
       gnomeGift: !!snap.gnomeGift,
@@ -447,6 +448,7 @@
       dayClock: G.dayClock || 0,
       dungeonTurns: G.dungeonTurns || 0,
       noisyTurns: G.noisyTurns || 0,
+      restTurns: G.restTurns || 0,
       pordoomGiftDay: G.pordoomGiftDay || 0,
       macarGearReady: G.macarGearReady || 0,
       gnomeGift: !!G.gnomeGift,
@@ -481,6 +483,7 @@
     G.dayClock = snap.dayClock || 0;
     G.dungeonTurns = snap.dungeonTurns || 0;
     G.noisyTurns = snap.noisyTurns || 0;
+    G.restTurns = snap.restTurns || 0;
     G.pordoomGiftDay = snap.pordoomGiftDay || 0;
     G.macarGearReady = snap.macarGearReady || 0;
     G.gnomeGift = !!snap.gnomeGift;

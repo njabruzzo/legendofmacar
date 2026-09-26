@@ -177,7 +177,7 @@ SPR.macar_atk._stature=windBody;
 SPR.macar_atk_contact._stature=hitBody;
 assert(idleBody>0.94 && idleBody<0.995
   && windBody>0.55 && windBody<0.68
-  && hitBody>0.94 && hitBody<0.995
+  && hitBody>0.84 && hitBody<0.93
   && hitBody>windBody+0.08,
   'idle fills the sheet, windup stops at the helm, contact includes the helm (idle '
   +idleBody.toFixed(3)+' wind '+windBody.toFixed(3)+' hit '+hitBody.toFixed(3)+')');
@@ -205,8 +205,8 @@ assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFi
 assert(macarB.h>windB.h && windBlith>idleBlith*1.45 && windBlith<idleBlith*1.70,
   'windup dest H grows for the shorter helm-to-boot body on the taller freearm canvas (wind '+windBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
-assert(hitBlith>idleBlith*0.90 && hitBlith<idleBlith*1.08,
-  'contact dest H tracks the helm and does not overshoot idle (hit '+hitBlith.toFixed(3)
+assert(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
+  'contact dest H tracks the helm on the restored 893×540 sheet (hit '+hitBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
 const grown=idleFit*(windB.h/macarB.h);
 assert(Math.abs(blitH(grown)-windBlith)/windBlith>0.08,
@@ -289,15 +289,12 @@ function footHists(file){
   return {w, avg, boot:ctx.bootPlantFrac(foot, upper, w, avg)};
 }
 const contactFeet=footHists('dwarf_macar_atk_contact.png');
-assert(contactFeet.avg>0.40 && contactFeet.avg<0.55,
-  'restored contact foot sits near center (avg '
+assert(contactFeet.avg<0.42 && contactFeet.boot>0.48 && contactFeet.boot<0.70,
+  'contact boot cluster is the body, not the maul average (avg '
   +contactFeet.avg.toFixed(3)+' boot '+contactFeet.boot.toFixed(3)+')');
 const idleFeet=footHists('dwarf_macar.png');
-const planted=ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg);
-const closer=Math.abs(contactFeet.avg-idleFeet.avg)<=Math.abs(contactFeet.boot-idleFeet.avg)
-  ?contactFeet.avg:contactFeet.boot;
-assert(Math.abs(planted-closer)<1e-9,
-  'contact plants on the foot sample closer to idle (idle foot '
+assert(Math.abs(ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg)-contactFeet.boot)<1e-9,
+  'contact plants on boots so the maul overhangs (idle foot '
   +idleFeet.avg.toFixed(3)+' contact foot '+contactFeet.avg.toFixed(3)
   +' boot '+contactFeet.boot.toFixed(3)+')');
 

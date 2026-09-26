@@ -60,7 +60,7 @@ assert(/nocked|stays packed/.test(useFn), 'plus-shot ammo use is still nock/read
 assert(/EquipmentSlots\.isEquippable\(it\)/.test(useFn),
   'wearable misc (Displacement) dons through isEquippable before the generic buff+heal');
 
-assert(/ASSET_VER='121'/.test(html), 'ASSET_VER is 117');
+assert(/ASSET_VER='122'/.test(html), 'ASSET_VER is 117');
 
 const ctx={
   G:{equipped:{}},

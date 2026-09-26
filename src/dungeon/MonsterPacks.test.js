@@ -66,8 +66,8 @@ assert(/return \[6,12\]/.test(html), 'dead city HD band 6-12');
 assert(/return \[7,16\]/.test(html), 'temple HD band 7-16');
 assert(/if\(ch===2 && gob && hd>7\) return false/.test(html), 'goblin level goblins <=7 HD');
 assert(/hd:7/.test(html.match(/goblinShaman:\{[^}]+\}/)[0]), 'shaman is 7 HD');
-assert(/if\(roll===1\)\{/.test(html.match(/function campRest[\s\S]*?function /)[0]) || /if\(roll===1\)\{/.test(html),
-  'camp rest wandering odds are 1 in 6');
+assert(/restEveryTurns:6/.test(html) && /campRestChecks\(8\)/.test(html.match(/function campRest\([\s\S]*?\n\}/)[0]),
+  'camp rest wandering odds are 1 in 6, once each hour of an 8-hour rest');
 assert(/function wanderCheckHits\(/.test(html) && /hit:roll===on/.test(html)
   && /encounterOn:1/.test(html) && /die:6/.test(html),
   'ruin wandering odds are 1 in 6');

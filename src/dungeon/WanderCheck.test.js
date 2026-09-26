@@ -42,13 +42,23 @@ assert(/RULING: digging is noisy/.test(html) && /RULING: herb Search is quiet/.t
   'dig noise and herb time are marked as rulings');
 assert(/const ENCOUNTER_RULES=/.test(html),
   'frequency, chance, and action costs live on ENCOUNTER_RULES');
-assert(/everyTurns:3/.test(html) && /noisyEveryTurns:1/.test(html) && /die:6/.test(html)
+assert(/everyTurns:3/.test(html) && /noisyEveryTurns:1/.test(html) && /restEveryTurns:6/.test(html)
+  && /die:6/.test(html)
   && /encounterOn:1/.test(html) && /chance:1\/6/.test(html) && /turnMinutes:10/.test(html)
   && /loose:1/.test(html) && /packed:3/.test(html) && /softRock:6/.test(html)
   && /herbTurnsPer10ft:1/.test(html),
-  'referee numbers are 1-in-6, every 3 turns, noisy every dig turn, dig 1/3/6, herb 1');
-assert(/advanceDungeonTurns\(digTerrainTurns\(digTerrainAt\(L,G\.dig\.i,G\.dig\.j\)\), 'noisy'\)/.test(html),
-  'a finished dig spends noisy dungeon turns');
+  'referee numbers are 1-in-6, every 3 turns, noisy every dig turn, rest every 6, dig 1/3/6, herb 1');
+assert(/RULING \(Sage, 1e DMG Keeping Track of Time; Nick may override\)/.test(html),
+  'the hourly camp-rest check is marked as Sage\'s ruling');
+assert(/function completeDigSquare\(L\)/.test(html)
+  && /const i=dig\.i, j=dig\.j;/.test(extractFn('completeDigSquare'))
+  && /G\.dig=null;/.test(extractFn('completeDigSquare'))
+  && extractFn('completeDigSquare').indexOf('const i=dig.i')<extractFn('completeDigSquare').indexOf('G.dig=null'),
+  'a finished dig reads the square before clearing it');
+assert(!/G\.dig=null;[\s\S]{0,120}G\.dig\.i/.test(html),
+  'nothing reads G.dig after it is cleared');
+assert(!/L\.wanderT>20/.test(html),
+  'chapter 3 has no 20-second realtime wandering roll');
 assert(/function forageHerbs\(src\)\{[\s\S]*?advanceDungeonTurns\(ENCOUNTER_RULES\.herbTurnsPer10ft\)/.test(html),
   'herb search spends one quiet turn per 10-foot area');
 assert(/G\.secretSearch && \(p\.secretCd\|\|0\)<=0\)\{[\s\S]*?advanceDungeonTurns\(ENCOUNTER_RULES\.herbTurnsPer10ft\)/.test(html),
@@ -81,10 +91,10 @@ vm.runInContext(
 );
 
 const rules=ctx.ENCOUNTER_RULES;
-assert(rules.everyTurns===3 && rules.noisyEveryTurns===1 && rules.die===6
+assert(rules.everyTurns===3 && rules.noisyEveryTurns===1 && rules.restEveryTurns===6 && rules.die===6
   && rules.encounterOn===1 && Math.abs(rules.chance-1/6)<1e-9
   && rules.digTurns.loose===1 && rules.digTurns.packed===3 && rules.digTurns.softRock===6
-  && rules.herbTurnsPer10ft===1,
+  && rules.herbTurnsPer10ft===1 && rules.turnMinutes===10,
   'seeded checks use the referee 1-in-6 rules');
 assert(ctx.digTerrainAt({},0,0)==='loose' && ctx.digTerrainTurns('loose')===1
   && ctx.digTerrainTurns('packed')===3 && ctx.digTerrainTurns('softRock')===6,
@@ -154,6 +164,75 @@ assert(ctx.lines.length===2
   && ctx.lines[0]==='Wandering check: rolled 2 on d6, no encounter'
   && ctx.lines[1]==='Wandering check: rolled 5 on d6, no encounter',
   'six turns roll twice and keep the seeded order');
+
+ctx.broke=null;
+ctx.breakRock=function(L,i,j){ ctx.broke=[i,j]; };
+ctx.G.dig={i:3, j:8};
+ctx.G.digBoost=1;
+ctx.G.lvl={n:1, digTerrain:{}};
+ctx.lines=[];
+ctx.rolls=[4];
+vm.runInContext(extractFn('completeDigSquare')+'\nthis.completeDigSquare=completeDigSquare;', ctx);
+const spent=ctx.completeDigSquare(ctx.G.lvl);
+assert(spent===1 && ctx.broke[0]===3 && ctx.broke[1]===8 && ctx.G.dig===null && ctx.G.digBoost===0,
+  'completeDigSquare reads the square, breaks it, then clears the dig');
+assert(ctx.lines.indexOf('Wandering check: rolled 4 on d6, no encounter')>=0,
+  'the finished dig runs the noisy wandering roll');
+assert(ctx.completeDigSquare(ctx.G.lvl)===0, 'a cleared dig does not throw');
+
+ctx.G.restTurns=4;
+ctx.G.dungeonTurns=2;
+ctx.G.noisyTurns=1;
+ctx.lines=[];
+ctx.rolls=[3];
+ctx.advanceDungeonTurns(rules.restEveryTurns, 'rest');
+assert(ctx.lines.length===1 && ctx.G.restTurns===4
+  && ctx.G.dungeonTurns===2 && ctx.G.noisyTurns===1,
+  'a rest hour spends only the rest clock and keeps its leftover');
+ctx.lines=[];
+ctx.rolls=[2];
+ctx.G.dungeonTurns=0;
+ctx.G.noisyTurns=0;
+ctx.advanceDungeonTurns(rules.herbTurnsPer10ft);
+ctx.advanceDungeonTurns(ctx.digTerrainTurns('loose'), 'noisy');
+assert(ctx.G.restTurns===4 && ctx.G.dungeonTurns===1 && ctx.G.noisyTurns===0
+  && ctx.lines.length===1,
+  'herb search and dig do not spend the rest clock');
+
+ctx.G.restTurns=0;
+ctx.G.dungeonTurns=2;
+ctx.G.noisyTurns=1;
+ctx.G.sleepShow=null;
+ctx.G.fightOn=0;
+ctx.G.day=3;
+ctx.G.ents=[{team:'party', dead:0, hp:8, maxhp:8}];
+ctx.nearestFoe=()=>null;
+ctx.openPassagesAt=()=>true;
+ctx.hint=()=>{};
+ctx.clearPoison=()=>{};
+ctx.restoreBorrowedGear=()=>0;
+ctx.tryPordoomGifts=()=>{};
+ctx.writeGameSave=()=>{};
+ctx.shake=()=>{};
+ctx.lines=[];
+ctx.rolls=[4,4,4,4,4,4,4,4];
+vm.runInContext(
+  extractFn('restTurnsForHours')+'\n'+
+  extractFn('campRestChecks')+'\n'+
+  extractFn('campRest')+'\n'+
+  'this.campRest=campRest; this.restTurnsForHours=restTurnsForHours;',
+  ctx
+);
+assert(ctx.restTurnsForHours(8)===48 && ctx.restTurnsForHours(1)===6,
+  'an hour of rest is 6 turns and a night is 48');
+ctx.campRest();
+const restRolls=ctx.lines.filter(l=>/^Wandering check: rolled /.test(l));
+assert(restRolls.length===8 && restRolls.every(l=>/rolled 4 on d6, no encounter/.test(l)),
+  'an 8-hour rest rolls once an hour, eight times');
+assert(ctx.G.dungeonTurns===2 && ctx.G.noisyTurns===1 && ctx.G.restTurns===0 && ctx.G.day===4,
+  'the night does not spend dig or herb time, and the rest leftover is zero');
+assert(ctx.lines.some(l=>l==='The night passes. Nothing comes down the tunnel.'),
+  'a quiet night still finishes the rest');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nwander check passed');

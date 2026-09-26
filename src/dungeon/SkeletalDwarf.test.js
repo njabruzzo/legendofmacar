@@ -26,10 +26,15 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/dwarf_skeleton_idle:'assets\/creatures\/dwarf_skeleton_idle\.png'/.test(html),
+assert(/SPRITE_FILES\.dwarf_skeleton_idle='assets\/creatures\/dwarf_skeleton_idle\.png'/.test(html),
   'skeletal dwarf idle slot is registered');
-assert(/dwarf_skeleton_idle_w1\.png/.test(html) && /_atk\.png/.test(html),
-  'walk and attack frames are named as later drop-ins');
+assert(!/dwarf_skeleton_idle_w1\.png/.test(html)
+  && !/dwarf_skeleton_idle_w2\.png/.test(html)
+  && !/dwarf_skeleton_idle_atk\.png/.test(html)
+  && !/dwarf_skeleton_idle_dead\.png/.test(html)
+  && !/dwarf_skeleton_idle_w3\.png/.test(html)
+  && !/prop_demon_dwarfface_empty_atk/.test(html),
+  'missing skeleton and empty-face frames are not named for the loader');
 assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/mon_undead.png')),
   'placeholder art is the existing undead sheet');
 {
@@ -51,9 +56,12 @@ assert(/elapsedMs<leg\) amp=6\*\(elapsedMs\/leg\)/.test(extractFn('singlePoseOff
   'single pose bobs 2px and lunges 6px over 120ms');
 assert(/k==='dwarf_skeleton_idle' && typeof sprReady/.test(extractFn('singlePoseLocked')),
   'own walk frames unlock the normal cycle');
-const idleAt=html.indexOf("dwarf_skeleton_idle:'assets/creatures/dwarf_skeleton_idle.png'");
+const idleAt=html.indexOf("SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png'");
 const deriveAt=html.indexOf("SPRITE_FILES[k+'_w1']=stem+'_w1.png'");
-assert(idleAt>0 && deriveAt>idleAt, 'walk and attack frames derive from the one idle slot');
+const deadAt=html.indexOf("SPRITE_FILES[k+'_dead']=");
+const w3At=html.indexOf("const w3=k.replace(/_w1$/,'_w3')");
+assert(idleAt>deriveAt && idleAt>deadAt && idleAt>w3At,
+  'the idle is registered after frame guessing, so missing walks are not fetched');
 assert(/skeletalDwarf:\{[^}]*mv:12/.test(html) && /fangedSkeleton:\{[^}]*mv:12/.test(html),
   'skeletal dwarves slide at the same move rate as the other skeletons');
 assert(/const squash=img\?1:\(1\+sw\*0\.06\)/.test(html)

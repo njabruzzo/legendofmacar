@@ -63,7 +63,7 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='121'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='122'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
@@ -107,9 +107,20 @@ assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
   assert(ebuf.readUInt32BE(16)===267 && ebuf.readUInt32BE(20)===434,
     'empty socket is the same 267×434 plate');
 }
-assert(/demonFaceDrawH\(img\)/.test(extractFn('demonFaceHalf'))
+assert(/demonFaceDrawH\(img, p\)/.test(extractFn('demonFaceHalf'))
   && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 2\.40\)/.test(extractFn('demonFaceHalf')),
-  'the face quad uses the content-sized height and keeps the plate aspect');
+  'the chapel face quad uses the content-sized height and keeps the plate aspect');
+assert(/function vaultDemonFace\(/.test(html)
+  && /p\.wall==='e' \|\| p\.toothKind==='bronze'/.test(extractFn('vaultDemonFace'))
+  && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(extractFn('demonFaceDrawH'))
+  && /SPR\.demon_dwarfface_vault/.test(extractFn('demonFaceImg'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
+  'the hourglass vault face keeps main\'s height and wide-plate cap');
+{
+  const vault=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_demon_dwarfface_vault.png'));
+  assert(vault.readUInt32BE(16)===457 && vault.readUInt32BE(20)===274,
+    'vault plate is main\'s 457×274 sheet');
+}
 assert(!/TODO\(Disney SIGNED\)/.test(html),
   'Disney SIGNED TODO is gone — signed sheet is the file on disk');
 assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
@@ -205,7 +216,7 @@ assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
 assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html)
   && /else if\(isTeethFaceWall\(L,x,y\)\) tall=teethFaceWallH\(L\)/.test(html),
   'fog punch grows with the chapel wall, then the taller face segment');
-assert(/demon_dwarfface_empty:'assets\/props\/prop_demon_dwarfface_empty\.png'/.test(html)
+assert(/SPRITE_FILES\.demon_dwarfface_empty='assets\/props\/prop_demon_dwarfface_empty\.png'/.test(html)
   && /hasElectrumToothInPack\(\)/.test(extractFn('demonFaceShowsEmpty'))
   && /SPR\.demon_dwarfface_empty/.test(extractFn('demonFaceImg'))
   && /emptySheet/.test(extractFn('drawDemonDwarfFace')),

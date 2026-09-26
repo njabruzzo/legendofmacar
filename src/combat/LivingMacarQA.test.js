@@ -147,8 +147,8 @@ const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
 assert(windupHist.ok && windupHist.w===470 && windupHist.h===512,
   'restored maul windup canvas is 470×512');
-assert(contactHist.ok && contactHist.w===527 && contactHist.h===512,
-  'restored follow-through contact canvas is 527×512 (original atk_recover pixels)');
+assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
+  'maul contact stays main\'s 893×540 sheet');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');
@@ -662,8 +662,8 @@ assert(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
 assert(atkBody>0.55 && atkBody<0.68,
   'restored windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
-assert(hitBody>0.94 && hitBody<0.995,
-  'restored follow-through fills the sheet crown to boots (frac '+hitBody.toFixed(3)+')');
+assert(hitBody>0.84 && hitBody<0.93,
+  'main contact crown is the helm (frac '+hitBody.toFixed(3)+')');
 assert(hitBody>atkBody+0.08,
   'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
   +' contact '+hitBody.toFixed(3)+')');
@@ -686,8 +686,8 @@ const windScale=blitHOf('macar_atk')/blitHOf('macar');
 const hitScale=blitHOf('macar_atk_contact')/blitHOf('macar');
 assert(windScale>1.45 && windScale<1.70,
   'windup dest H grows for the shorter helm-to-boot body (scale '+windScale.toFixed(3)+')');
-assert(hitScale>0.90 && hitScale<1.08,
-  'restored contact dest H stays with idle (scale '+hitScale.toFixed(3)+')');
+assert(hitScale>1.02 && hitScale<1.22,
+  'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
 const widthRatio=893/470;
 assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
   'contact body scale is not the 893 sheet width');
