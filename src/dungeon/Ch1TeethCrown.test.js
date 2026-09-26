@@ -171,10 +171,23 @@ assert(/function isTeethNwChapelWall\(/.test(html) && /x<105/.test(extractFn('is
   'chapel mural stays on the northwest wall, off the demon face');
 assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
   'only the teeth-chapel north row is the tall face wall');
-assert(/isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H/.test(html),
-  'drawWallCell uses the tall teeth face on that row');
-assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html),
-  'fog punch grows with the tall chapel wall');
+assert(/function cellWallH\(L,x,y\)/.test(html)
+  && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(extractFn('cellWallH'))
+  && /const faceH=cellWallH\(L,x,y\)/.test(html),
+  'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
+assert(/WALL_TEETH_FACE_SCALE=3\.15/.test(html)
+  && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
+  && /function wallHeightOverride\(/.test(html)
+  && /applyTeethFaceWallHeight\(L\)/.test(extractFn('buildTeethCrownRoom')),
+  'tiles behind the demon face override to a taller wall');
+assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html)
+  && /else if\(isTeethFaceWall\(L,x,y\)\) tall=teethFaceWallH\(L\)/.test(html),
+  'fog punch grows with the chapel wall, then the taller face segment');
+assert(/demon_dwarfface_empty:'assets\/props\/prop_demon_dwarfface_empty\.png'/.test(html)
+  && /hasElectrumToothInPack\(\)/.test(extractFn('demonFaceShowsEmpty'))
+  && /SPR\.demon_dwarfface_empty/.test(extractFn('demonFaceImg'))
+  && /emptySheet/.test(extractFn('drawDemonDwarfFace')),
+  'empty-socket face follows the electrum tooth and skips the ellipse when that plate is loaded');
 {
   const room=extractFn('buildTeethCrownRoom');
   assert(/k:'altar',s:1\.55,teethAltar:1/.test(room), 'teeth altar scale is 1.55 so it fits the northwest wall');
@@ -432,8 +445,9 @@ const layout={
 };
 vm.createContext(layout);
 vm.runInContext(hashes+gridSrc, layout);
-['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','buildTeethCrownRoom']
+['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','isTeethNorthWall','isTeethFaceWall','buildTeethCrownRoom']
   .forEach(n=>vm.runInContext(extractFn(n)+';', layout));
+vm.runInContext('const WALL_TEETH_FACE_SCALE=3.15;\n'+extractFn('applyTeethFaceWallHeight')+';', layout);
 layout.G.props=[];
 const L=vm.runInContext(`
   var L={n:1,w:132,h:90,flags:{},secrets:[],lights:[],grid:newGrid(132,90,1)};
@@ -464,6 +478,8 @@ const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
 assert(altar && altar.x>=101.5 && altar.x<=104 && altar.y>=3.5 && altar.y<=5.5,
   'altar sits on the northwest wall of the chapel');
 assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
+assert(L.wallH && L.wallH['107,1']===3.15 && L.wallH['104,1']==null && L.wallH['105,1']===3.15 && L.wallH['109,1']===3.15,
+  'the face segment stores a taller per-tile wall height; the mural tile does not');
 assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
 assert(crown && Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2, 'crown sits on the altar');
 function canWalk(g,x0,y0,x1,y1){

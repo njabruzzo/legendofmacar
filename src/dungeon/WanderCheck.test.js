@@ -34,15 +34,17 @@ function extractConst(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/AD&D 1st Edition Dungeon Masters Guide/.test(html), 'DMG wandering rule is cited');
+assert(/AD&D 1st Edition Dungeon Masters Guide/.test(html), 'DMG wandering rule is cited as the placeholder source');
+assert(/const ENCOUNTER_RULES=/.test(html) && /Placeholder encounter clock/.test(html),
+  'frequency, chance, and action costs live on ENCOUNTER_RULES');
 assert(/checkEveryTurns:3/.test(html) && /die:6/.test(html) && /encounterOn:1/.test(html)
-  && /turnMinutes:10/.test(html),
-  'check frequency and chance live on DMG_WANDER');
-assert(/advanceDungeonTurns\(DMG_WANDER\.digTurns\)/.test(html),
+  && /turnMinutes:10/.test(html) && /digTurns:1/.test(html) && /searchTurns:1/.test(html),
+  'placeholder is 1-in-6 every 3 turns, one turn per Dig and herb Search');
+assert(/advanceDungeonTurns\(ENCOUNTER_RULES\.digTurns\)/.test(html),
   'a finished dig spends dungeon turns');
-assert(/function forageHerbs\(src\)\{[\s\S]*?advanceDungeonTurns\(DMG_WANDER\.searchTurns\)/.test(html),
+assert(/function forageHerbs\(src\)\{[\s\S]*?advanceDungeonTurns\(ENCOUNTER_RULES\.searchTurns\)/.test(html),
   'herb search spends dungeon turns');
-assert(/G\.secretSearch && \(p\.secretCd\|\|0\)<=0\)\{[\s\S]*?advanceDungeonTurns\(DMG_WANDER\.searchTurns\)/.test(html),
+assert(/G\.secretSearch && \(p\.secretCd\|\|0\)<=0\)\{[\s\S]*?advanceDungeonTurns\(ENCOUNTER_RULES\.searchTurns\)/.test(html),
   'secret search spends dungeon turns');
 assert(/Wandering check: rolled /.test(extractFn('logWanderCheck')),
   'each roll is written for the combat log');
@@ -61,16 +63,18 @@ const ctx={
 };
 vm.createContext(ctx);
 vm.runInContext(
-  extractConst('DMG_WANDER')+';\n'+
+  extractConst('ENCOUNTER_RULES')+';\n'+
   extractFn('wanderCheckHits')+'\n'+
   extractFn('logWanderCheck')+'\n'+
   extractFn('advanceDungeonTurns')+'\n'+
-  'this.advanceDungeonTurns=advanceDungeonTurns; this.DMG_WANDER=DMG_WANDER;',
+  'this.advanceDungeonTurns=advanceDungeonTurns; this.ENCOUNTER_RULES=ENCOUNTER_RULES;',
   ctx
 );
 
-assert(ctx.DMG_WANDER.checkEveryTurns===3 && ctx.DMG_WANDER.die===6 && ctx.DMG_WANDER.encounterOn===1,
-  'seeded checks use the DMG 3-turn, 1-in-6 constant');
+assert(ctx.ENCOUNTER_RULES.checkEveryTurns===3 && ctx.ENCOUNTER_RULES.die===6
+  && ctx.ENCOUNTER_RULES.encounterOn===1 && ctx.ENCOUNTER_RULES.digTurns===1
+  && ctx.ENCOUNTER_RULES.searchTurns===1,
+  'seeded checks use the placeholder 3-turn, 1-in-6 rules');
 
 ctx.advanceDungeonTurns(1);
 ctx.advanceDungeonTurns(1);
@@ -78,7 +82,7 @@ assert(ctx.G.dungeonTurns===2 && ctx.lines.length===0 && ctx.spawned===0,
   'two turns bank without a check');
 
 ctx.rolls=[4];
-ctx.advanceDungeonTurns(ctx.DMG_WANDER.digTurns);
+ctx.advanceDungeonTurns(ctx.ENCOUNTER_RULES.digTurns);
 assert(ctx.lines[0]==='Wandering check: rolled 4 on d6, no encounter',
   'the third dig turn logs a miss');
 assert(ctx.spawned===0 && ctx.G.dungeonTurns===0, 'a miss does not spawn and clears the bank');

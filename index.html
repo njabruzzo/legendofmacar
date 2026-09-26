@@ -501,6 +501,10 @@ const SPRITE_FILES={
   dwarfface:'assets/props/prop_dwarfface.png',
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
+  /* Empty-socket drop-in. Same plate as prop_demon_dwarfface.png, no tooth.
+     demonFaceImg uses it when the electrum tooth is in Macar's pack.
+     Until the file exists, the toothed sheet keeps the socket mark. */
+  demon_dwarfface_empty:'assets/props/prop_demon_dwarfface_empty.png',
   craftstation:'assets/props/prop_craftstation.png',
   shadowcleaver:'assets/props/loot_shadowcleaver.png',
   dwarfkey:'assets/props/loot_dwarfkey.png',
@@ -1455,11 +1459,12 @@ function solidMacarSprite(img){ return blitLivingMacar(img); }
    that kit and caps its alpha. Never punch a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
-  /* Talpor's painted idle is flat teal. Leave it OFF this skip list so
-     liftGhostSpirit runs the same spectral treatment as the other ghosts.
-     Drop-in slot for a later repaint: assets/creatures/dwarf_talpor_ghost.png
-     (SPRITE_FILES.talpor_ghost). When that file is already spectral, add
-     talpor_ghost / talpor_ghost_w1 / talpor_ghost_w2 back here. */
+  /* Pordoom, Fendur, and Orbo idle and front walk are already spectral.
+     Talpor is not: idle and walk are flat teal, attack and back are brown.
+     Leave every Talpor sheet off this list so liftGhostSpirit covers all
+     four states. Idle drop-in: assets/creatures/dwarf_talpor_ghost.png.
+     Walk, attack, and back slots are named on talporInterimGhostKey.
+     When a state is already spectral, add its SPR comparison here. */
   return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
@@ -1937,12 +1942,29 @@ function ghostIdleKey(k, back){
     return k+'_back';
   return k;
 }
+function talporInterimGhostKey(key){
+  /* Interim bind until Talpor is repainted. One file per state. The second
+     walk step and the attack recover frame share those states. Compass and
+     back-walk sheets stay unsigned and are not listed here. When a state
+     is painted spectral, add that key to nickSpectralGhostSheet.
+     idle   assets/creatures/dwarf_talpor_ghost.png
+     walk   assets/creatures/dwarf_talpor_ghost_w1.png
+     attack assets/creatures/dwarf_talpor_ghost_atk.png
+     back   assets/creatures/dwarf_talpor_ghost_back.png */
+  return key==='talpor_ghost'
+    ||key==='talpor_ghost_w1'||key==='talpor_ghost_w2'
+    ||key==='talpor_ghost_atk'||key==='talpor_ghost_atk_recover'
+    ||key==='talpor_ghost_back';
+}
 function partyGhostKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
-  if(!sheetLivingColors(img, key)) return false;
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
+  /* Brown back is narrower than idle, so the family match would plant
+     the teal idle and never lift the back sheet. */
+  if(talporInterimGhostKey(key)) return true;
+  if(!sheetLivingColors(img, key)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
   /* Nick-GOOD front walk is this kin's own sheet. Stride and weapon
      overhang (Pordoom w2 692, Fendur w1 593, Talpor w1 589) fail
@@ -2490,6 +2512,36 @@ function isTeethNwChapelWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x<105;
 }
 function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
+/* Northeast stretch of the chapel north wall, the masonry behind the
+   demon face (mural stays west of x=105). Taller than the rest of that
+   row so a replacement face plate can rise inside the wall. L.wallH
+   stores a multiple of wallFaceH per tile; a set value wins, and the
+   predicate still applies when a save has no map. */
+const WALL_TEETH_FACE_SCALE=3.15;
+function isTeethFaceWall(L,x,y){
+  return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
+}
+function teethFaceWallH(L){ return wallFaceH(L)*WALL_TEETH_FACE_SCALE; }
+function wallHeightOverride(L,x,y){
+  if(!L||!L.wallH) return 0;
+  const v=L.wallH[x+','+y];
+  if(typeof v==='number' && v>0) return wallFaceH(L)*v;
+  if(v && typeof v.scale==='number' && v.scale>0) return wallFaceH(L)*v.scale;
+  return 0;
+}
+function applyTeethFaceWallHeight(L){
+  if(!L) return;
+  L.wallH=L.wallH||{};
+  for(let x=105;x<=109;x++) L.wallH[x+',1']=WALL_TEETH_FACE_SCALE;
+}
+function cellWallH(L,x,y){
+  const over=wallHeightOverride(L,x,y);
+  if(over) return over;
+  if(isTeethFaceWall(L,x,y)) return teethFaceWallH(L);
+  if(isRubyNorthWall(L,x,y)) return rubyNorthWallH(L);
+  if(isTeethNorthWall(L,x,y)) return teethNorthWallH(L);
+  return hallWallH(L);
+}
 /* Chapel north face. The signed sheet is masonry plus a wide empty margin
    (black on the opaque flatten). Crop to the stone and fill the margin so
    the live quad is wall mass, not a black void beside the demon face. */
@@ -5242,7 +5294,7 @@ function spawnWanderers(p){
   return spawned;
 }
 function logWanderCheck(chk, names){
-  const die=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.die)||6;
+  const die=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.die)||6;
   let line='Wandering check: rolled '+chk.roll+' on d'+die;
   if(chk.hit && names && names.length) line+=', encounter: '+names.join(', ');
   else line+=', no encounter';
@@ -5253,7 +5305,7 @@ function advanceDungeonTurns(turns){
   turns=+turns||0;
   if(!(turns>0) || typeof G==='undefined' || !G) return [];
   G.dungeonTurns=(G.dungeonTurns||0)+turns;
-  const every=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.checkEveryTurns)||3;
+  const every=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.checkEveryTurns)||3;
   const logs=[];
   let guard=0;
   while(G.dungeonTurns+1e-9>=every && guard<12){
@@ -7054,12 +7106,15 @@ function wanderKindAllowed(k){
   if(ch===2 && gob && hd>7) return false;
   return hd>=lo && hd<=hi;
 }
-/* AD&D 1st Edition Dungeon Masters Guide, Dungeon Random Monster
-   Encounters: one turn is ten minutes. In the dungeon, check every
-   three turns (thirty minutes). An encounter occurs on 1 of 1d6.
-   Dig and Search spend whole turns. The bank keeps the remainder so a
-   shorter action still reaches a check. */
-const DMG_WANDER={
+/* Placeholder encounter clock. The rules referee will confirm the
+   AD&D 1st Edition Dungeon Masters Guide numbers (Dungeon Random Monster
+   Encounters: one turn is ten minutes; in the dungeon, check every three
+   turns; an encounter occurs on 1 of 1d6). Until that note lands, those
+   are the values below. digTurns and searchTurns are the placeholder
+   costs of one Dig and one herb Search. Secret-door Search uses the
+   same searchTurns number until the referee splits it. The bank keeps
+   the remainder so a shorter action still reaches a check. */
+const ENCOUNTER_RULES={
   turnMinutes:10,
   checkEveryTurns:3,
   die:6,
@@ -7068,8 +7123,8 @@ const DMG_WANDER={
   searchTurns:1
 };
 function wanderCheckHits(){
-  const die=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.die)||6;
-  const on=(typeof DMG_WANDER!=='undefined' && DMG_WANDER.encounterOn)||1;
+  const die=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.die)||6;
+  const on=(typeof ENCOUNTER_RULES!=='undefined' && ENCOUNTER_RULES.encounterOn)||1;
   const roll=typeof ri==='function'?ri(1,die):1;
   const who=typeof player==='function'?player():null;
   if(typeof wearingElvenkind==='function' && wearingElvenkind(who))
@@ -10215,7 +10270,7 @@ function nearestPlant(e,r){
 }
 function forageHerbs(src){
   ensurePacks();
-  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.searchTurns);
+  if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(ENCOUNTER_RULES.searchTurns);
   const p=player();
   const patch=src&&isPlantKind(src.k)?src:null;
   const ch=forageChance()+(patch?25:0);
@@ -11237,6 +11292,7 @@ function buildTeethCrownRoom(L, sec){
   L.flags=L.flags||{};
   L.flags.teethRoom=1;
   L.flags.teethBounds=L.teethBounds;
+  applyTeethFaceWallHeight(L);
   if(already) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
@@ -13077,7 +13133,7 @@ function update(dt){
     tryFindSecret(p,'pass');
     if(G.secretSearch && (p.secretCd||0)<=0){
       p.secretCd=1.6;
-      if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.searchTurns);
+      if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(ENCOUNTER_RULES.searchTurns);
       tryFindSecret(p,'search');
     }
     if(G.digging){
@@ -13092,7 +13148,7 @@ function update(dt){
             if(G.digBoost>0) G.digBoost--;
             say('A square foot of stone comes away.','#d8c49a');
             G.dig=null;
-            if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(DMG_WANDER.digTurns);
+            if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(ENCOUNTER_RULES.digTurns);
           }
         }
       }
@@ -13642,7 +13698,7 @@ function drawWorld(g,L){
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
     const H=hallWallH(L);
-    const faceH=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(isTeethNorthWall(L,x,y)?teethNorthWallH(L):H);
+    const faceH=cellWallH(L,x,y);
     if(useWallFaces(L)){
       const faceL=TILEBLIT.faceL||TILEBLIT.face;
       const faceR=TILEBLIT.faceR||faceL;
@@ -14007,6 +14063,9 @@ function drawBeyondMask(g,L){
         if(oS||oE||oN||oW){
           let tall=isRubyNorthWall(L,x,y)?rubyNorthWallH(L):(useWallFaces(L)?wallFaceH(L):TH);
           if(isTeethNorthWall(L,x,y)) tall=teethNorthWallH(L);
+          const faceOver=wallHeightOverride(L,x,y);
+          if(faceOver) tall=faceOver;
+          else if(isTeethFaceWall(L,x,y)) tall=teethFaceWallH(L);
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -14550,7 +14609,23 @@ function drawToothProp(g,p,z){
   }
   drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
 }
-function demonFaceImg(){
+function demonFaceShowsEmpty(p){
+  if(!p) return false;
+  const kind=p.toothKind==='copper'?'electrum':(p.toothKind||'electrum');
+  if(kind==='bronze') return !!p.emptySocket;
+  if(p.emptySocket) return true;
+  if(typeof chapelFaceToothTaken==='function' && chapelFaceToothTaken(p)) return true;
+  if(typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()) return true;
+  return false;
+}
+function demonFaceImg(p){
+  /* Empty-socket plate once the electrum tooth is taken or in the pack.
+     Missing file keeps the toothed sheet; drawDemonDwarfFace then marks
+     the socket. Same inventory state as Grond's Electrum Tooth. */
+  if(p && demonFaceShowsEmpty(p)){
+    const empty=SPR.demon_dwarfface_empty;
+    if(empty && empty.width) return empty;
+  }
   return SPR.demon_dwarfface||SPR.demonface||null;
 }
 function demonFaceHalf(){
@@ -14571,7 +14646,7 @@ function demonFaceScreen(p){
   return w2s(p.x, demonFacePlaneY(p));
 }
 function drawDemonDwarfFace(g,p){
-  const img=demonFaceImg();
+  const img=demonFaceImg(p);
   const H=dwarfFaceH()*1.08;
   const half=demonFaceHalf();
   g.save();
@@ -14585,7 +14660,10 @@ function drawDemonDwarfFace(g,p){
   const s=demonFaceScreen(p);
   const ox=s.x+(p.wall==='e'?8:2)*ZOOM;
   const oy=s.y-H*(p.wall==='e'?0.28:0.38);
-  if(p.emptySocket){
+  const emptySheet=demonFaceShowsEmpty(p) && img && img===SPR.demon_dwarfface_empty && img.width;
+  if(emptySheet){
+    /* Drop-in plate already shows the empty socket. */
+  } else if(demonFaceShowsEmpty(p)){
     g.save();
     g.fillStyle='rgba(8,4,4,0.82)';
     g.beginPath();
