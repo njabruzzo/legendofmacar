@@ -53,7 +53,7 @@ assert(/if\(r\.key==='macar'\) ensureMacarStartingGear\(pk\)/.test(html),
   'ensurePacks wears the starting kit on Macar');
 assert(/livingMacarIdleKey/.test(html) && /wieldsShadowCleaver/.test(html),
   'maul idle is the default; Cleaver is an equip swap');
-assert(/ASSET_VER='120'/.test(html),
+assert(/ASSET_VER='121'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/Interaction\.installChapterI/.test(html)
   && /if \(L\.n === 1 && i < 14\) return true/.test(fs.readFileSync(path.join(root,'src/systems/Interaction.js'),'utf8')),

@@ -278,7 +278,7 @@ assert(rooted.moving===0 && rooted.atk===0 && rooted.x===3 && !rooted.aim,
 
 /* ---- host wiring ---- */
 assert(/src="src\/systems\/PartyOrders\.js"/.test(html), 'index includes PartyOrders.js');
-assert(/ASSET_VER='120'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 120 — remat Talpor idle bw=344 (Nick CALL)');
+assert(/ASSET_VER='121'/.test(html) && !/ASSET_VER='115'/.test(html), 'ASSET_VER is 121 — remat Talpor idle bw=344 (Nick CALL)');
 /* 2026-09-26: the Hold / Regroup / Focus HUD was removed (mobile clutter).
    The module stays for its logic tests; play switches it off. */
 assert(!/key:'hold'/.test(html) && !/key:'regroup'/.test(html) && !/key:'focus'/.test(html),

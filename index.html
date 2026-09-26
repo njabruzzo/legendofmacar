@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=120">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=120">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=121">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=121">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -388,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='120';
+const ASSET_VER='121';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -11550,21 +11550,18 @@ function crownWasDropped(){
 }
 function teethCrownChoices(){
   const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
-  const dropped=crownWasDropped();
   const choices=[];
   if(worn){
     choices.push({t:'Drop the crown.', then:()=>{ if(typeof dropBoneCrown==='function') dropBoneCrown(); }});
   } else {
-    choices.push({t:'Take the bone crown.', then:()=>{
-      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 6):null;
-      if(c) takeBoneCrown(c);
-    }});
-  }
-  /* Destroy is crown-specific only after the crown has been dropped. */
-  if(dropped){
+    /* Destroy leads on the first talk and again after a drop. */
     choices.push({t:'Destroy the crown.', then:()=>{
       const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
       if(c) destroyBoneCrown(c);
+    }});
+    choices.push({t:'Take the bone crown.', then:()=>{
+      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 6):null;
+      if(c) takeBoneCrown(c);
     }});
   }
   choices.push({t:'Leave it.'});

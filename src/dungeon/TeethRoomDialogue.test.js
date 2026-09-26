@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Teeth chapel: destroy only after the crown is dropped, electrum tooth
+ * Teeth chapel: destroy leads the crown talk, electrum tooth
  * enters the pack, and the floor still paints readable fangs.
  * Run: node src/dungeon/TeethRoomDialogue.test.js
  */
@@ -25,7 +25,7 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/ASSET_VER='120'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
+assert(/ASSET_VER='121'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
   'ASSET_VER is 117');
 assert(!/G\.scene='intro'/.test(html), 'new descent does not open the chapter intro');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro remains in source but is not the player gate');
@@ -78,16 +78,15 @@ vm.createContext(ctx);
 ctx.G.props=[{x:10,y:10,k:'bonecrown',gone:0}];
 ctx.G.ents=[{hero:1,x:10,y:10.4}];
 let choices=labels(ctx.teethCrownChoices());
-assert(choices.indexOf('Take the bone crown.')>=0 && choices.indexOf('Leave it.')>=0
-  && choices.indexOf('Destroy the crown.')<0,
-  'before a drop the crown talk is take and leave only');
+assert(choices[0]==='Destroy the crown.' && choices[1]==='Take the bone crown.' && choices[2]==='Leave it.',
+  'the first crown talk is destroy, then take, then leave');
 
 ctx.G.lvl.flags.crownDropped=1;
 choices=labels(ctx.teethCrownChoices());
-assert(choices.indexOf('Take the bone crown.')>=0
-  && choices.indexOf('Destroy the crown.')>choices.indexOf('Take the bone crown.')
-  && choices.indexOf('Leave it.')===choices.length-1,
-  'after the crown is dropped, destroy is offered with take and leave');
+assert(choices[0]==='Destroy the crown.' && choices[1]==='Take the bone crown.' && choices[2]==='Leave it.',
+  'after a drop the crown talk is destroy, then take, then leave');
+assert(/riseSkeletalDwarves\(where\)/.test(extractFn('destroyBoneCrown')),
+  'destroy still raises the skeletal dwarves once');
 
 ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
 ctx.G.lvl.flags.crownDropped=0;

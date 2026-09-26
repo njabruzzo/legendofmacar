@@ -25,7 +25,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='120'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='121'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
