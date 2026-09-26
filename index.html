@@ -12278,33 +12278,25 @@ function layoutUI(){
 
     const stickR=Math.max(TAP/2, PORT?26*s:28*s);
     const stickX=padL + 6 + stickR;
-    const stickY=VH - padB - edge - stickR - 4;
-    const stickReserve=stickX + stickR + 14;
 
-    /* Field verbs, first fit wins:
-         1. one row between the thumbs (landscape)
-         2. two short rows between the thumbs
-         3. up to two rows stacked over the stick, left of the cluster (portrait)
-         4. one centered row above the whole thumb zone (very narrow phones) */
+    /* Field verbs sit along the bottom-left; the movement stick rides
+       above them. First fit wins:
+         1. one row from the left edge to the cluster (landscape)
+         2. rows of as many as fit in that column (portrait: two of three)
+         3. one centered row above the whole thumb zone (very narrow phones) */
     let ug=6;
     const need=n=>n*TAP+(n-1)*ug;
-    const zoneL=stickReserve, zoneR=clusterLeft-8, zoneW=zoneR-zoneL;
-    const colL=padL+edge, colW=zoneR-colL;
+    const colL=padL+edge, zoneR=clusterLeft-8, colW=zoneR-colL;
     const rows=[];
-    let rowsLeft=zoneL, rowsBottom=VH-padB-edge-TAP/2, centered=false;
+    let rowsLeft=colL, rowsBottom=VH-padB-edge-TAP/2, centered=false;
     /* Items per row in width w; tightens the gap to 4px only if that buys a slot. */
     const perIn=w=>{ const n6=Math.floor((w+6)/(TAP+6)), n4=Math.floor((w+4)/(TAP+4));
       ug=n4>n6?4:6; return Math.max(1, n4>n6?n4:n6); };
     const split=(per)=>{ for(let i=0;i<util.length;i+=per) rows.push(util.slice(i,i+per)); };
     const half=Math.ceil(util.length/2);
-    if(zoneW>=need(util.length)){
-      rows.push(util);
-    } else if(zoneW>=need(half)){
-      rows.push(util.slice(0,half), util.slice(half));
-    } else if(perIn(colW)>=half){
-      split(perIn(colW));
-      rowsLeft=colL;
-      rowsBottom=stickY-stickR-12-TAP/2;
+    const perCol=perIn(colW);
+    if(perCol>=half){
+      split(Math.min(perCol, util.length));
     } else {
       const spanL=colL, spanR=right;
       split(Math.max(util.length<=perIn(spanR-spanL)?util.length:perIn(spanR-spanL), 1));
@@ -12327,9 +12319,11 @@ function layoutUI(){
       });
     });
     UI._utilSpan=null;
-    if(!UI.orb) UI.orb={r:TAP/2, x:stickReserve+TAP/2, y:rowsBottom};
+    if(!UI.orb) UI.orb={r:TAP/2, x:colL+TAP/2, y:rowsBottom};
+    /* Stick home: directly above the field-verb block, left-aligned. */
+    const stickY=topRowY - TAP/2 - 14 - stickR;
 
-    UI.hudTop=Math.min(clusterTop, topRowY-TAP/2) - 14;
+    UI.hudTop=Math.min(clusterTop, topRowY-TAP/2, stickY-stickR) - 14;
     UI.cluster={l:clusterLeft, r:right, top:clusterTop};
     UI.utilTop=topRowY-TAP/2;
     UI.utilL=Math.min.apply(null, UIBTN.filter(b=>b.quiet).map(b=>b.x-b.r).concat([VW]));

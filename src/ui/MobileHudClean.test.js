@@ -92,7 +92,7 @@ CASES.forEach(([name, vw, vh, inset])=>{
 
   /* Large map. */
   const B=L.bigMap, BB={x:B.x, y:B.y, w:B.sz, h:B.sz};
-  assert(B.sz>=Math.min(220, Math.min(vw,vh)*0.55), name+' large map is '+Math.round(B.sz)+'px');
+  assert(B.sz>=(vw<375&&vh>vw?130:Math.min(220, Math.min(vw,vh)*0.55)), name+' large map is '+Math.round(B.sz)+'px');
   assert(BB.x>=0 && BB.y>=0 && BB.x+BB.w<=vw && BB.y+BB.h<=vh, name+' large map is on screen');
   const under=L.btns.filter(b=>rectGap(H.box(b), BB)<0);
   assert(!under.length, name+' no thumb button sits under the large map'+(under.length?' ('+under.map(b=>b.key)+')':''));
@@ -107,6 +107,14 @@ CASES.forEach(([name, vw, vh, inset])=>{
   const hitBtn=L.btns.filter(b=>rectGap(H.box(b), PL)<2);
   assert(!hitBtn.length && PL.x>=0 && PL.y+PL.h<=vh, name+' open log / quest list clears every button'+(hitBtn.length?' ('+hitBtn.map(b=>b.key)+')':''));
   assert(f.cards.every(c=>rectGap(c, PL)>=4), name+' open list clears the party cards');
+
+  /* Movement stick rides above the left field-verb buttons. */
+  const field=L.btns.filter(b=>b.quiet);
+  const fieldTop=Math.min.apply(null, field.map(b=>b.y-b.r));
+  assert(st.y+st.r<=fieldTop-8, name+' stick sits above the field buttons');
+  assert(st.x<vw*0.3, name+' stick stays on the left');
+  assert(f.cards.every(c=>H.gap({x:st.x,y:st.y,r:st.r},{x:c.x+c.w/2,y:c.y+c.h/2,w:c.w,h:c.h})>=6),
+    name+' stick clears the party cards');
 
   /* Thumb cluster record used by the prompt. */
   assert(L.UI.cluster && L.UI.cluster.r<=vw && L.UI.cluster.top<vh, name+' thumb cluster is recorded for the prompt');

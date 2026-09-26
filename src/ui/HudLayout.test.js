@@ -88,7 +88,7 @@ CASES.forEach(([name, vw, vh, inset, touch])=>{
     const cap=short>=390?0.13:short>=375?0.17:0.23;
     assert(area<=cap, name+' action plates cover '+(area*100).toFixed(1)+'% of the screen (≤'+Math.round(cap*100)+'%)');
     if(L.port){
-      const hudH=vh-L.UI.hudTop, bandCap=vw>=375?0.30:0.42;
+      const hudH=vh-L.UI.hudTop, bandCap=vw>=375?0.30:0.52;  /* 320-wide: field verbs span the width, stick stacks above them */
       assert(hudH<=bandCap*vh, name+' portrait thumb band is '+Math.round(hudH/vh*100)+'% of height (≤'+Math.round(bandCap*100)+'%)');
     }
   } else {
