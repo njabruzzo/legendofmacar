@@ -1,8 +1,9 @@
 'use strict';
 /**
- * Preview bind: Macar's maul walk is v0.13p B, 8 painted directions × 12
- * frames. Idle and attack stay on the signed sheets. W / NW / SW are not
- * mirrors. Canvases are the export size — not normalised to one box.
+ * Preview bind: Macar's maul walk is the v0.13q solid-pommel re-render,
+ * 8 painted directions × 12 frames, still keyed as macar_v13p_. Idle and
+ * attack stay on the signed sheets. W / NW / SW are not mirrors.
+ * Canvases are the export size — not normalised to one box.
  * Run: node src/combat/MacarWalkV13p.test.js
  */
 const fs=require('fs');

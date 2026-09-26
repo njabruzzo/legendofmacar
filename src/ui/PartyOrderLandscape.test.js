@@ -34,7 +34,7 @@ assert(/if\(!PORT\)\{[\s\S]*landscapePartyOrderSeat\(/.test(extractFn('placePart
   'every landscape uses the landscape seat; portrait keeps the ceiling clamp');
 assert(!/label:'Rally'/.test(html) && !/key:'rally'/.test(extractFn('layoutPartyOrders')),
   'no Rally plate on the order row');
-assert(/ASSET_VER='115'/.test(html), 'ASSET_VER stays 115');
+assert(/ASSET_VER='116'/.test(html), 'ASSET_VER stays 116');
 
 const ctx={
   UIBTN:[], UI:{},

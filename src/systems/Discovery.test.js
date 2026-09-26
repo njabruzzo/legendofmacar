@@ -32,7 +32,7 @@ assert(SR.has('Discovery') && SR.get('Discovery')===D,
 assert(/src="src\/systems\/Discovery\.js"/.test(html),
   'Discovery is a classic sync tag');
 assert(!/type\s*=\s*["']module["']/.test(html), 'index.html still has no type=module');
-assert(/ASSET_VER='115'/.test(html), 'ASSET_VER is 115');
+assert(/ASSET_VER='116'/.test(html), 'ASSET_VER is 116');
 
 D.reset();
 assert(D.note('not-an-id','seen')===null, 'malformed id is rejected');
