@@ -29,6 +29,9 @@ assert(/Shift\+1â€“4 Specialty/.test(html), 'pause key list advertises Shift+1â€
 assert(/if\(k==='v'\) fire\('wall'\)/.test(html) && /if\(e\.key==='1'\) fire\('attack'\)/.test(html),
   'V Defend and 1 Attack are not stolen');
 assert(/icon_specialty_i/.test(html) && /icon_specialty_iv/.test(html), 'Limner plate assets stay registered');
+assert(/e\.specInUse=kind;/.test(H.extractFn('beginSpecialtySwing')), 'swing records which Specialty is in use');
+assert(/p\.specInUse===b\.spec/.test(H.extractFn('drawSpecChip')) && /const lit=armed\|\|inUse/.test(H.extractFn('drawSpecChip')),
+  'chip stays lit while its Specialty is being used, not just while armed');
 
 function checkChips(name, L){
   const atk=L.find('attack');
