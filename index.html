@@ -12381,7 +12381,6 @@ function layoutUI(){
   const stickReserve = stickX + stickR + 12*s;
   const slotMin = deskWide ? HUD_DESK_SLOT_MIN : 46;
   const slotMax = Math.max(slotMin, Math.min(deskWide ? HUD_DESK_SLOT_MAX : 56, VH*0.13));
-  const labelH = 16*s;
   const frame = partyPortraitFrame();
   const cardBottom = frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), 0);
   const cardRight = frame.x + frame.w;
@@ -12392,13 +12391,21 @@ function layoutUI(){
     const slot = Math.min(slotMax, Math.max(slotMin, (availW - nGaps*gap - (groups.length-1)*groupGap)/units));
     const atkW = slot*HUD_ATTACK_W;
     const barW = (nSlots-1)*slot + atkW + nGaps*gap + (groups.length-1)*groupGap;
-    const chipH = Math.max(20, Math.min(28, slot*0.36));
+    /* Attack slab + chips fill exactly the height of a titled slot:
+       from the top of the title glyphs down to the bottom of the plate. */
+    const R = slot/2;
+    const labelPx = R>=28 ? Math.min(14, Math.max(11, R*0.34)) : (PORT?9.5:8.5)*s;
     const bottom = VH - padB - Math.max(8, 10*s);
+    const y = bottom - slot/2;
+    const groupTop = y - slot/2 - 7*s - labelPx*0.74;
+    const groupH = bottom - groupTop;
+    const chipH = Math.max(18, Math.min(26, groupH*0.28));
     const chipY = bottom - chipH/2;
-    const y = chipY - chipH/2 - 4 - slot/2;
+    const atkH = groupH - chipH - 4;
+    const atkY = groupTop + atkH/2;
     let x0 = Math.max(leftBound, VW/2 - barW/2);
     if(x0 + barW > VW - rightReserve) x0 = Math.max(leftBound, VW - rightReserve - barW);
-    return {slot, atkW, barW, chipH, chipY, y, x0, top:y - slot/2 - labelH};
+    return {slot, atkW, barW, chipH, chipY, atkH, atkY, y, x0, top:groupTop - 2*s};
   }
   let L = fit(stickReserve);
   /* Short windows: the portrait column can reach the bar. Start past it. */
@@ -12418,7 +12425,7 @@ function layoutUI(){
       const wide = b.key==='attack';
       const w = wide ? L.atkW : slot;
       const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key]};
-      if(wide){ btn.w=w; btn.h=slot; UI.attack=btn; }
+      if(wide){ btn.w=w; btn.h=L.atkH; btn.y=L.atkY; btn.nolabel=1; UI.attack=btn; }
       if(b.key==='pack') UI.orb={r:slot/2, x:btn.x, y};
       UIBTN.push(btn);
       x += w + (i<gr.length-1 ? gap : 0);

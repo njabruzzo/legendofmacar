@@ -91,13 +91,23 @@ CASES.forEach(([name, vw, vh, inset, touch])=>{
     }
   } else {
     const atk=L.find('attack');
-    const row=act.filter(b=>!b.order && !b.chip);
+    const row=act.filter(b=>!b.order && !b.chip && b.key!=='attack');
     const ys=row.map(b=>b.y);
     assert(Math.max.apply(null,ys)-Math.min.apply(null,ys)<0.01, name+' desktop verbs share one row');
     const l=Math.min.apply(null,row.map(b=>H.box(b).x)), r=Math.max.apply(null,row.map(b=>H.box(b).x+H.box(b).w));
     assert(Math.abs((l+r)/2-vw/2)<vw*0.12 || l>L.frame.x+L.frame.w, name+' desktop bar is centered (or pushed past the portraits)');
     assert(L.UI.barDividers.length===2, name+' desktop bar has two group dividers');
     assert(atk.w>atk.h, name+' Attack is the wide slab');
+    /* Attack slab + chips span exactly a titled slot: title-glyph top → plate bottom. */
+    const ref=L.find('wall'), R=ref.r, s=L.UI.pad?1:1;
+    const UIS=Math.min(Math.max(Math.min(vw,vh)/700,0.66),1.30);
+    const labelPx=R>=28?Math.min(14,Math.max(11,R*0.34)):8.5*UIS;
+    const titleTop=ref.y-R-7*UIS-labelPx*0.74, plateBottom=ref.y+R;
+    const A=H.box(atk);
+    const chipBottom=Math.max.apply(null, L.chips.map(c=>c.y+c.h/2));
+    assert(Math.abs(A.y-titleTop)<0.5, name+' Attack top meets the title line ('+(A.y-titleTop).toFixed(2)+')');
+    assert(Math.abs(chipBottom-plateBottom)<0.5, name+' chip bottom meets the plate bottom ('+(chipBottom-plateBottom).toFixed(2)+')');
+    assert(atk.nolabel, name+' Attack slab carries no separate title');
   }
 });
 
