@@ -35,8 +35,8 @@ assert(!/QUALITY/.test(liveKey), 'living Macar walk ignores QUALITY');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'south walk uses the front w1/w2 pair of the live idle');
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'walk helper does not steal the matching melee atk bind');
-assert(/macar_e_w3/.test(liveKey) && /macar_back_w1/.test(liveKey),
-  'living Macar walk binds compass sheets when the heading is not south');
+assert(/macar_e_w1/.test(liveKey) && /macar_back_w1/.test(liveKey),
+  'living Macar walk binds restored compass sheets when the heading is not south');
 
 const angled=html.match(/function dwarfAngleKey\(e,k\)\{[\s\S]*?\nfunction wantsSpriteFlip/)[0];
 assert(/const moving=e\.moving && !e\.defending/.test(angled),
@@ -126,7 +126,7 @@ vm.runInContext(
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
   +extractFn('matchingPartyAtkReady')
-  +extractFn('partyAnimKeyReady')
+  +extractFn('restoredMacarMotionKey')+extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('attackProgress')+extractFn('wantsMeleePose')+extractFn('wantsMeleeRecover')
   +'const MACAR_BOW_POSE_S=0.40;'+extractFn('nowMs')+extractFn('armBowPose')
@@ -152,10 +152,10 @@ function holdWalk(ix, iy){
 }
 const holdD=holdWalk(0.707, -0.707);
 const holdA=holdWalk(-0.707, 0.707);
-assert(holdD.every(s=>s.oct==='e' && s.key==='macar_e_w3' && s.flip===false && !/^macar_w3$/.test(s.key)),
-  'hold D: every gait frame is the east sheet, unflipped');
-assert(holdA.every(s=>s.oct==='w' && s.key==='macar_e_w3' && s.flip===true && !/^macar_w3$/.test(s.key)),
-  'hold A: every gait frame is the same east sheet flipped for screen-left');
+assert(holdD.every(s=>s.oct==='e' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===false && !/^macar_w3$/.test(s.key)),
+  'hold D: every gait frame is the restored east pair, unflipped');
+assert(holdA.every(s=>s.oct==='w' && (s.key==='macar_e_w1'||s.key==='macar_e_w2') && s.flip===true && !/^macar_w3$/.test(s.key)),
+  'hold A: every gait frame is the restored east pair flipped for screen-left');
 assert(new Set(holdD.map(s=>s.flip)).size===1 && new Set(holdA.map(s=>s.flip)).size===1,
   'flip does not change across the gait while heading is fixed');
 

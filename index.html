@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=114">
+<link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=117">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=117">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -295,7 +295,8 @@ function walkCycleKey(e, stem){
   return w2||w1;
 }
 function partyForm(i,p){
-  const slots=[[-1.15,0.95],[-1.15,-0.95],[-2.15,0.55],[-2.15,-0.55]];
+  /* Two ranks behind Macar, wide enough that 78px billboards do not stack. */
+  const slots=[[-1.85,1.70],[-1.85,-1.70],[-3.35,1.85],[-3.35,-1.85]];
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
   return {x:p.x+fx*s[0]+rx*s[1], y:p.y+fy*s[0]+ry*s[1]};
 }
@@ -333,7 +334,7 @@ function recordTrail(p){
 function trailSlot(i){
   const t=G.trail||[];
   if(t.length<4) return null;
-  const need=1.2*(i+1);
+  const need=2.6*(i+1);
   let acc=0;
   for(let k=t.length-1;k>0;k--){
     acc+=Math.hypot(t[k].x-t[k-1].x, t[k].y-t[k-1].y);
@@ -387,7 +388,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='114';
+const ASSET_VER='117';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -653,7 +654,9 @@ SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 /* Disney SIGNED teeth-chapel v11. After walk/atk derivation so the altar
    sheet does not spawn a missing _atk and the tiles do not spawn _w1.
    Platform is the opaque slab (same pixels as prop_altar.png). The crown
-   on that slab is the Macar-head scene sheet, not the full TAKE crown. */
+   on that slab is the Macar-head scene sheet, not the full TAKE crown.
+   Art-director drop-in for a new teeth floor: assets/tiles/teeth_floor_hq.png
+   Do not register that file until it exists. teeth_floor.png is the live bind. */
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
@@ -721,13 +724,17 @@ SPRITE_FILES.macar_xbow='assets/creatures/dwarf_macar_xbow.png';
 SPRITE_FILES.macar_xbow_w1='assets/creatures/dwarf_macar_xbow_w1.png';
 SPRITE_FILES.macar_xbow_w2='assets/creatures/dwarf_macar_xbow_w2.png';
 SPRITE_FILES.macar_xbow_atk='assets/creatures/dwarf_macar_xbow_atk.png';
-/* Compass maul walks. Screen-left mirrors the screen-right sheet.
-   South stays the signed front pair. Registered after the strip and
-   after _w3 derivation so these do not spawn missing siblings. */
-SPRITE_FILES.macar_e_w3='assets/creatures/dwarf_macar_e_w3.png';
-SPRITE_FILES.macar_se_w3='assets/creatures/dwarf_macar_se_w3.png';
+/* Original Macar compass walks (brown leather, fur, braided beard).
+   Registered after the macar strip and after _w3 derivation so a _w1
+   here does not rebind helmeted dwarf_macar_*_w3.png. Screen-left
+   mirrors the screen-right sheet. South stays the front w1/w2 pair.
+   Helmeted e_w3 / se_w3 / ne_w3 stay unwired. */
+SPRITE_FILES.macar_e_w1='assets/creatures/dwarf_macar_e_w1.png';
+SPRITE_FILES.macar_e_w2='assets/creatures/dwarf_macar_e_w2.png';
+SPRITE_FILES.macar_se_w1='assets/creatures/dwarf_macar_se_w1.png';
+SPRITE_FILES.macar_se_w2='assets/creatures/dwarf_macar_se_w2.png';
+SPRITE_FILES.macar_ne_w1='assets/creatures/dwarf_macar_ne_w1.png';
 SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
-SPRITE_FILES.macar_ne_w3='assets/creatures/dwarf_macar_ne_w3.png';
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 const ICON_SPR={
@@ -762,7 +769,8 @@ function loadSprites(done){
   const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
-    'macar_e_w3','macar_se_w3','macar_ne_w2','macar_ne_w3','macar_back_w1','macar_back_w2',
+    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+    'teeth_floor','tooth','tooth_2','tooth_3',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
@@ -1447,11 +1455,15 @@ function solidMacarSprite(img){ return blitLivingMacar(img); }
    that kit and caps its alpha. Never punch a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
-  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
+  /* Talpor's painted idle is flat teal. Leave it OFF this skip list so
+     liftGhostSpirit runs the same spectral treatment as the other ghosts.
+     Drop-in slot for a later repaint: assets/creatures/dwarf_talpor_ghost.png
+     (SPRITE_FILES.talpor_ghost). When that file is already spectral, add
+     talpor_ghost / talpor_ghost_w1 / talpor_ghost_w2 back here. */
+  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
-    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
-    ||img===SPR.talpor_ghost_w1||img===SPR.talpor_ghost_w2;
+    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2;
 }
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
@@ -1730,25 +1742,27 @@ function drawEntBillboard(g,e,img,z,flip){
    ========================================================================== */
 const MACAR_PLAN={
   macar:{
-    e:  {flip:0, frames:['macar_e_w3']},
-    w:  {flip:1, frames:['macar_e_w3']},
-    se: {flip:0, frames:['macar_se_w3']},
-    sw: {flip:1, frames:['macar_se_w3']},
-    ne: {flip:0, frames:['macar_ne_w2','macar_ne_w3']},
-    /* ne_w3 mirrored puts the torso on the SE sheet. NW stays on ne_w2. */
-    nw: {flip:1, frames:['macar_ne_w2']},
+    e:  {flip:0, frames:['macar_e_w1','macar_e_w2']},
+    w:  {flip:1, frames:['macar_e_w1','macar_e_w2']},
+    se: {flip:0, frames:['macar_se_w1','macar_se_w2']},
+    sw: {flip:1, frames:['macar_se_w1','macar_se_w2']},
+    ne: {flip:0, frames:['macar_ne_w1','macar_ne_w2']},
+    nw: {flip:1, frames:['macar_ne_w1','macar_ne_w2']},
     n:  {flip:0, frames:['macar_back_w1','macar_back_w2']},
     s:  {flip:0, frames:['macar_w1','macar_w2']},
-    idle:{e:'macar_e_w3', w:'macar_e_w3', se:'macar_se_w3', sw:'macar_se_w3', s:'macar',
-          n:'macar_back_w1', ne:'macar_ne_w2', nw:'macar_ne_w2'},
+    /* Standing idle is the front original. Walk sheets are only while moving
+       so idle / walk / attack do not pop to a side crop. */
+    idle:{e:'macar', w:'macar', se:'macar', sw:'macar', s:'macar',
+          n:'macar', ne:'macar', nw:'macar'},
     atk:'macar_atk', rec:null, sideAtk:null
   }
 };
-/* Maul idle + front w1/w2 + compass walks + windup/contact + Cleaver + crossbow. */
+/* Maul idle + restored front/compass walks + windup/contact + Cleaver + crossbow.
+   Helmeted e_w3 / se_w3 / ne_w3 are not living keys. */
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
-  macar_e_w3:1, macar_se_w3:1, macar_ne_w2:1, macar_ne_w3:1, macar_back_w1:1, macar_back_w2:1
+  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -1832,12 +1846,21 @@ function matchingPartyAtkReady(key, idleKey){
   const idle=(SPR[idleKey]&&SPR[idleKey].width)?SPR[idleKey]:null;
   return partyFrameFitOk(img, idle);
 }
+/* Restored original Macar motion is 470×512 (walk/atk) and 366–527 wide
+   compass/contact. Idle stays 1100×920. samePaintedFamily would plant idle
+   and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
+function restoredMacarMotionKey(key){
+  return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+    ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
+    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2';
+}
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
   const img=SPR[key];
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
+  if(restoredMacarMotionKey(key)) return true;
   if(idle && key!==idleKey && !partySheetMatchesIdle(img, idle, key)) return false;
   return true;
 }
@@ -1971,9 +1994,7 @@ function livingMacarBlitKey(key){
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
      Skip the idle-family match or every turn plants the front sheet. */
-  if(isLivingMacarKey(key) && sprReady(key) && (
-      key==='macar_e_w3'||key==='macar_se_w3'||key==='macar_ne_w2'||key==='macar_ne_w3'
-      ||key==='macar_back_w1'||key==='macar_back_w2')
+  if(isLivingMacarKey(key) && sprReady(key) && restoredMacarMotionKey(key)
      && partyFrameFitOk(SPR[key], null)) return key;
   return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
@@ -2120,22 +2141,17 @@ function livingMacarAnimKey(e){
     if(matchingPartyAtkReady(rec, idle)) return rec;
     return idle;
   }
-  /* Maul compass from the move / last heading. South stays the signed
-     front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
-     crossbow have no compass sheets, so they keep their front walks.
-     No heading reads as south. */
-  if(idle==='macar' && typeof screenOctant==='function'){
+  /* Original compass walks only while moving, so a standing Macar
+     stays the front idle (no size pop onto a side sheet). South stays
+     the front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
+     crossbow have no compass sheets, so they keep their front walks. */
+  if(idle==='macar' && e.moving && !e.defending && typeof screenOctant==='function'){
     const oct=screenOctant(e);
     let frames=null;
     if(oct==='n') frames=['macar_back_w1','macar_back_w2'];
-    else if(oct==='e'||oct==='w') frames=['macar_e_w3'];
-    else if(oct==='se'||oct==='sw') frames=['macar_se_w3'];
-    /* Both NE frames face up-right. The mirror of ne_w2 keeps that body
-       aimed up-left. The mirror of ne_w3 drops the torso onto the SE
-       sheet, so a mid-stride W+A read as lower-right. NW stays on ne_w2
-       for the whole gait; NE still alternates w2/w3. */
-    else if(oct==='ne') frames=['macar_ne_w2','macar_ne_w3'];
-    else if(oct==='nw') frames=['macar_ne_w2'];
+    else if(oct==='e'||oct==='w') frames=['macar_e_w1','macar_e_w2'];
+    else if(oct==='se'||oct==='sw') frames=['macar_se_w1','macar_se_w2'];
+    else if(oct==='ne'||oct==='nw') frames=['macar_ne_w1','macar_ne_w2'];
     if(frames){
       const ready=[];
       for(let i=0;i<frames.length;i++){
@@ -2983,9 +2999,10 @@ function faceVec(e){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
-  // Party kin share Macar heading while they follow so trail-lag scramble
-  // does not mix left/right in the line — including when they stand still.
-  // In a fight they face the foe they are closing on, not Macar's walk.
+  /* Every moving sprite faces its own travel, all 8 screen octants. */
+  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
+  /* Idle party kin share Macar heading so a stopped line does not scramble.
+     In a fight they face the foe they are closing on, not Macar's walk. */
   const lead=e.hero?null:player();
   if(e.team==='party' && !e.hero && lead && !e.defending && !(e.atk>0)
     && !(e.aim && !e.aim.dead && e.aim.team==='foe' && kinCanAutoFight(e))){
@@ -2993,7 +3010,6 @@ function faceVec(e){
     const hy=lead.fdy!=null?lead.fdy:(lead.iy||0);
     if(hx||hy) return {dx:hx, dy:hy};
   }
-  if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   return {dx:e.fdx||0, dy:e.fdy||0};
 }
 function screenOctant(e){
@@ -5638,7 +5654,9 @@ function startChapter(n){
     if(x.t==='magic') useMagicItem(x.it,e);
   });
   G.carryEffects=[];
-  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='intro'; G.introT=0; G._wantPlay=0;
+  /* Chapter intro (Descend) is not a player gate. New descent goes to play.
+     If world art is still decoding, render holds a full-bleed plate. */
+  G.cam.x=sp.x; G.cam.y=sp.y; G.scene='play'; G.introT=99; G._wantPlay=1;
   rebuildVision();
   pinFallenKin();
   revealCrushTiles();
@@ -5653,6 +5671,7 @@ function startChapter(n){
     Interaction.installChapterI(G.lvl, G, interactHost());
   if(typeof layoutUI==='function') layoutUI();
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
+  if(typeof tryEnterPlay==='function') tryEnterPlay();
 }
 function pinFallenKin(){
   const L=G.lvl;
@@ -11141,6 +11160,7 @@ function destroyBoneCrown(crown){
 }
 function tryStrikeBoneCrown(e, reach){
   if(!e||!e.hero) return 0;
+  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
   const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
   if(crown){ destroyBoneCrown(crown); return 1; }
   return 0;
@@ -11283,7 +11303,7 @@ function maybeTeethChapelLooks(p){
   if(!hits.length) return false;
   hits.sort((a,b)=>a.d-b.d);
   const hit=hits[0];
-  interact(hit.label,()=>startTalk(hit.key));
+  interact(hit.label,()=>openTeethChapelLook(hit.key));
   return true;
 }
 function teethChapelLookHit(w){
@@ -11308,10 +11328,76 @@ function teethChapelLookStand(hit){
   if(hit.key==='teeth_chapel_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
   return {x:hit.x, y:hit.y+0.65, look:hit.key};
 }
+function crownWasDropped(){
+  const f=G.lvl&&G.lvl.flags;
+  return !!(f&&f.crownDropped);
+}
+function teethCrownChoices(){
+  const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
+  const dropped=crownWasDropped();
+  const choices=[];
+  if(worn){
+    choices.push({t:'Drop the crown.', then:()=>{ if(typeof dropBoneCrown==='function') dropBoneCrown(); }});
+  } else {
+    choices.push({t:'Take the bone crown.', then:()=>{
+      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 6):null;
+      if(c) takeBoneCrown(c);
+    }});
+  }
+  /* Destroy is crown-specific only after the crown has been dropped. */
+  if(dropped){
+    choices.push({t:'Destroy the crown.', then:()=>{
+      const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
+      if(c) destroyBoneCrown(c);
+    }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
+function teethFaceChoices(){
+  const face=typeof nearestDemonFace==='function'?nearestDemonFace(player(), 6):null;
+  const choices=[];
+  const taken=face?chapelFaceToothTaken(face):true;
+  if(face && !taken){
+    choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
 function openTeethChapelLook(key){
   if(!key||G.talk||!NPC_TALK[key]) return false;
   startTalk(key);
+  if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function')
+    G.talk.choices=teethCrownChoices();
+  else if(G.talk && key==='teeth_chapel_face' && typeof teethFaceChoices==='function')
+    G.talk.choices=teethFaceChoices();
   return true;
+}
+function dropBoneCrown(){
+  if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
+  const eq=G.equipped||{};
+  const it=eq.helmet;
+  eq.helmet=null;
+  const pk=G.packs&&G.packs.macar;
+  if(pk&&pk.magic){
+    pk.magic=pk.magic.filter(x=>!(x&&(x===it||x.boneCrown||x.id==='bone_crown')));
+  }
+  const L=G.lvl;
+  if(L&&L.flags){
+    L.flags.crownDropped=1;
+    L.flags.crownTaken=0;
+  }
+  const p=typeof player==='function'?player():null;
+  let crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown');
+  if(crown){
+    crown.gone=0; crown.taken=0; crown.destroyed=0;
+    if(p){ crown.x=p.x; crown.y=p.y+0.55; }
+  } else if(p){
+    G.props=G.props||[];
+    G.props.push({x:p.x, y:p.y+0.55, k:'bonecrown', s:1.70, seed:881});
+  }
+  say('Macar sets the bone crown down.','#c9b895');
+  return {ok:1};
 }
 function pryGrondTooth(face, kind){
   const L=G.lvl;
@@ -13000,11 +13086,12 @@ function update(dt){
     }
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const crown=nearestBoneCrown(p,1.75);
-      if(crown) interact('Take the bone crown',()=>takeBoneCrown(crown));
+      if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const smash=nearestBoneCrown(p,1.75);
-      if(smash) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
+      const dropped=G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped;
+      if(smash && dropped) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
     }
     if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown()){
       const body=nearestAnimatableCorpse(p,1.95);
@@ -13016,8 +13103,8 @@ function update(dt){
         interact(pet.thrallStay?'Thrall: follow':'Thrall: stay',()=>setThrallStay(!pet.thrallStay));
       }
     }
-    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof smashWornBoneCrown==='function'){
-      interact('Attack the bone crown',()=>smashWornBoneCrown());
+    if(!PROMPT && typeof wearingBoneCrown==='function' && wearingBoneCrown() && typeof dropBoneCrown==='function'){
+      interact('Drop the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
@@ -13025,7 +13112,7 @@ function update(dt){
         const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
         const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth)
           :(L.flags.electrumTooth||L.flags.copperTooth));
-        if(!taken) interact('Pry the tooth',()=>pryGrondTooth(face, kind));
+        if(!taken) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
       }
     }
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
@@ -13211,7 +13298,7 @@ function update(dt){
         if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
           const nr=Navigation.tickFollower(e, p, dt, navHost());
           if(nr && nr.handled){
-            if(p){ e.fdx=p.fdx; e.fdy=p.fdy; }
+            if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
             ghostSapperBomb(e, dt);
             continue;
           }
@@ -13249,9 +13336,11 @@ function update(dt){
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
-          if(dd<(e.r+o.r)*1.15&&dd>.001){ vx+=(e.x-o.x)/dd*.35; vy+=(e.y-o.y)/dd*.35; } }
+          const partyGap=form && o.team==='party' && e.team==='party';
+          const reach=(e.r+o.r)*(partyGap?3.2:1.15);
+          const push=partyGap?1.15:0.35;
+          if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; } }
         steerWalk(e, vx, vy, go, dt);
-        if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
@@ -13275,6 +13364,7 @@ function update(dt){
       if(typeof PartyOrders!=='undefined' && PartyOrders.use() && PartyOrders.order() && PartyOrders.commands(e)) continue;
       if(threat && kinCanAutoFight(e)) continue;
       if(!p.moving && (p.aim||p.atk>0)) continue;
+      if(e.moving) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
     }
   }
@@ -13405,12 +13495,11 @@ function render(){
   if(G.scene==='title_menu') drawTitleMenu(g);
   if(G.scene==='chapters') drawChapterSelect(g);
   if(G.scene==='credits') drawCredits(g);
-  if(G.scene==='intro') drawIntro(g);
   if(G.scene==='play' && !worldArtReady(G.ch)){
-    /* Hold the title card (or a black frame) until Ch1 sprites are decoded.
-       Painting the world early is the old-graphics flash. */
-    if(L) drawIntro(g);
-    else { g.fillStyle='#050308'; g.fillRect(0,0,VW,VH); }
+    /* Full-bleed hold until Ch1 sprites decode. No Descend gate, no letterbox. */
+    g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+    const hold=(SPR.title_menu&&SPR.title_menu.width)?SPR.title_menu:SPR.title_splash;
+    if(hold&&hold.width) drawTitleMenuCover(g, hold);
   }
   if(G.scene==='camp') drawCamp(g);
   if(G.scene==='craft') drawCraft(g);
@@ -14118,6 +14207,9 @@ function teethCarpetStamp(x,y){
 function drawTeethTile(g,x,y){
   const risen=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.teethRisen);
   const field=SPR.teeth_floor;
+  /* teeth_floor.png is a dark field. Paint it, then the readable fang stamps.
+     Returning here hid the floor teeth. HQ replacement slot (unregistered
+     until the file lands): assets/tiles/teeth_floor_hq.png */
   if(field&&field.width&&!risen){
     const s=w2s(x,y);
     const stamp=teethCarpetStamp(x,y)||field;
@@ -14131,7 +14223,6 @@ function drawTeethTile(g,x,y){
     g.clip();
     g.drawImage(stamp, s.x-TW/2, s.y-TH/2, TW, TH);
     g.restore();
-    return;
   }
   const s=w2s(x+0.5,y+0.5), z=ZOOM;
   g.save();

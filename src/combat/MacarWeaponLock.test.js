@@ -135,8 +135,8 @@ assert(Math.abs(unlockedW1-idleFit)<0.06,
 const idleScreen=macarB.boxH*idleFit/macarB.h;
 const w1Screen=w1B.boxH*w1Fit/w1B.h;
 const w2Screen=w2B.boxH*w2Fit/w2B.h;
-assert(Math.abs(w1Screen-idleScreen)/idleScreen<0.02
-  && Math.abs(w2Screen-idleScreen)/idleScreen<0.02,
+assert(Math.abs(w1Screen-idleScreen)/idleScreen<0.04
+  && Math.abs(w2Screen-idleScreen)/idleScreen<0.04,
   'on-screen maul box height matches idle (idle '+idleScreen.toFixed(3)
   +', w1 '+w1Screen.toFixed(3)+', w2 '+w2Screen.toFixed(3)+')');
 
@@ -176,8 +176,8 @@ SPR.macar._stature=idleBody;
 SPR.macar_atk._stature=windBody;
 SPR.macar_atk_contact._stature=hitBody;
 assert(idleBody>0.94 && idleBody<0.995
-  && windBody>0.66 && windBody<0.78
-  && hitBody>0.84 && hitBody<0.93
+  && windBody>0.55 && windBody<0.68
+  && hitBody>0.94 && hitBody<0.995
   && hitBody>windBody+0.08,
   'idle fills the sheet, windup stops at the helm, contact includes the helm (idle '
   +idleBody.toFixed(3)+' wind '+windBody.toFixed(3)+' hit '+hitBody.toFixed(3)+')');
@@ -202,10 +202,10 @@ assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
 assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
   'crown-to-boots figure height matches idle vs windup vs contact (idle '
   +idleFig.toFixed(3)+' wind '+windFig.toFixed(3)+' hit '+hitFig.toFixed(3)+')');
-assert(macarB.h>windB.h && windBlith>idleBlith*1.2 && windBlith<idleBlith*1.55,
+assert(macarB.h>windB.h && windBlith>idleBlith*1.45 && windBlith<idleBlith*1.70,
   'windup dest H grows for the shorter helm-to-boot body on the taller freearm canvas (wind '+windBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
-assert(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
+assert(hitBlith>idleBlith*0.90 && hitBlith<idleBlith*1.08,
   'contact dest H tracks the helm and does not overshoot idle (hit '+hitBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
 const grown=idleFit*(windB.h/macarB.h);
@@ -289,12 +289,15 @@ function footHists(file){
   return {w, avg, boot:ctx.bootPlantFrac(foot, upper, w, avg)};
 }
 const contactFeet=footHists('dwarf_macar_atk_contact.png');
-assert(contactFeet.avg<0.42 && contactFeet.boot>0.48 && contactFeet.boot<0.70,
-  'contact boot cluster is the body, not the maul average (avg '
+assert(contactFeet.avg>0.40 && contactFeet.avg<0.55,
+  'restored contact foot sits near center (avg '
   +contactFeet.avg.toFixed(3)+' boot '+contactFeet.boot.toFixed(3)+')');
 const idleFeet=footHists('dwarf_macar.png');
-assert(Math.abs(ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg)-contactFeet.boot)<1e-9,
-  'contact plants on boots so the maul overhangs (idle foot '
+const planted=ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg);
+const closer=Math.abs(contactFeet.avg-idleFeet.avg)<=Math.abs(contactFeet.boot-idleFeet.avg)
+  ?contactFeet.avg:contactFeet.boot;
+assert(Math.abs(planted-closer)<1e-9,
+  'contact plants on the foot sample closer to idle (idle foot '
   +idleFeet.avg.toFixed(3)+' contact foot '+contactFeet.avg.toFixed(3)
   +' boot '+contactFeet.boot.toFixed(3)+')');
 

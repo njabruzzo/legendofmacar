@@ -52,12 +52,13 @@ assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\(\?:_w\[12\]\)\?\$/.test(extr
 assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'spectral idle and front walk blit as painted; atk/back still lift');
-assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost/.test(extractFn('nickSpectralGhostSheet'))
   && /pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_back/.test(extractFn('nickSpectralGhostSheet')),
-  'painted spectral list is idle plus front w1/w2 only');
+  'painted spectral skip is Pordoom/Fendur/Orbo; Talpor lifts until the drop-in file is repainted');
 assert(/_ghost_w\[12\]\$/.test(extractFn('partyGhostKeyReady')),
   'front ghost walk skips the idle crop match so stride overhang stays bound');
 assert(/punch!==false/.test(extractFn('flippedSprite'))
@@ -164,7 +165,7 @@ vm.runInContext(
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
   +extractFn('matchingPartyAtkReady')
-  +extractFn('partyAnimKeyReady')
+  +extractFn('restoredMacarMotionKey')+extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('ghostKeyLooksUnsigned')
   +extractFn('livingColorStats')

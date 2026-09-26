@@ -82,8 +82,6 @@ control-macar browser wait --scene title
 control-macar browser click --name "Continue"
 control-macar browser wait --scene title_menu
 control-macar browser click --name "New descent"
-control-macar browser wait --scene intro
-control-macar browser click --name "Descend"
 control-macar browser wait --scene play --timeout 60
 control-macar browser press --key d --hold-ms 800
 control-macar browser press --key v
@@ -182,7 +180,7 @@ Never APPROVE because the game compiled, Chrome launched, or `npm test` passed. 
 
 Mapped required checks:
 
-- `title-new-game`: `doctor`, `title-visible`, `title-menu-visible`, `enter-the-deep`, `intro-visible`, `descend-to-play`, `play-hud`, `cleanup-intact`
+- `title-new-game`: `doctor`, `title-visible`, `title-menu-visible`, `enter-the-deep`, `play-hud`, `cleanup-intact`
 - Other features: the labeled bullets in that feature's **Driving it with control-macar** section, plus `doctor` and `cleanup-intact`
 
 One-feature golden path (enough to prove this skill):

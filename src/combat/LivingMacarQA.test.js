@@ -110,13 +110,15 @@ assert(!!keysDecl, 'LIVING_MACAR_KEYS is in index.html');
 BLIT_KEYS.forEach(k=>{
   assert(new RegExp(k+':1').test(keysDecl[0]), 'whitelist includes '+k);
 });
-assert(/macar_e_w3:1/.test(keysDecl[0]) && /macar_se_w3:1/.test(keysDecl[0])
-  && /macar_ne_w2:1/.test(keysDecl[0]) && /macar_ne_w3:1/.test(keysDecl[0])
+assert(/macar_e_w1:1/.test(keysDecl[0]) && /macar_e_w2:1/.test(keysDecl[0])
+  && /macar_se_w1:1/.test(keysDecl[0]) && /macar_se_w2:1/.test(keysDecl[0])
+  && /macar_ne_w1:1/.test(keysDecl[0]) && /macar_ne_w2:1/.test(keysDecl[0])
   && /macar_back_w1:1/.test(keysDecl[0]) && /macar_back_w2:1/.test(keysDecl[0]),
-  'whitelist binds maul compass walks (e / se / ne / back)');
-assert(!/macar_e_w1:1/.test(keysDecl[0]) && !/macar_w3:1/.test(keysDecl[0])
+  'whitelist binds restored original compass walks (e / se / ne / back)');
+assert(!/macar_e_w3:1/.test(keysDecl[0]) && !/macar_se_w3:1/.test(keysDecl[0])
+  && !/macar_ne_w3:1/.test(keysDecl[0]) && !/macar_w3:1/.test(keysDecl[0])
   && !/macar_back:1/.test(keysDecl[0]) && !/macar_title:1/.test(keysDecl[0]),
-  'whitelist does not bind holed e_w1 / front w3 / title / back still');
+  'whitelist does not bind helmeted e_w3 / se_w3 / ne_w3 / front w3 / title');
 
 BLIT_KEYS.forEach(k=>{
   const file=path.join(root,'assets/creatures', KEY_FILE[k]);
@@ -128,20 +130,25 @@ BLIT_KEYS.forEach(k=>{
       KEY_FILE[k]+' alpha is 0/255 only'+(hist.ok?' (mid='+hist.mid+')':' ('+hist.err+')'));
   }
 });
-['macar','macar_w1','macar_w2'].forEach(k=>{
-  const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE[k]));
+{
+  const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar));
   assert(hist.ok && hist.w===1100 && hist.h===920,
-    KEY_FILE[k]+' is the signed 1100×920 front-carry canvas');
+    'dwarf_macar.png idle stays the original 1100×920 front-carry canvas');
   assert(hist.ok && hist.mid>0 && hist.a255>0 && hist.mid<hist.a255*0.06,
-    KEY_FILE[k]+' keeps a thin AA rim, not a cel wash'
+    'idle keeps a thin AA rim, not a cel wash'
     +(hist.ok?' (mid='+hist.mid+' opaque='+hist.a255+')':''));
+}
+['macar_w1','macar_w2'].forEach(k=>{
+  const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE[k]));
+  assert(hist.ok && hist.w===470 && hist.h===512,
+    KEY_FILE[k]+' is the restored original 470×512 front walk');
 });
 const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
-assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
-  'maul windup canvas is 470×540');
-assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
-  'maul contact canvas is 893×540 (GOLDEN overhang)');
+assert(windupHist.ok && windupHist.w===470 && windupHist.h===512,
+  'restored maul windup canvas is 470×512');
+assert(contactHist.ok && contactHist.w===527 && contactHist.h===512,
+  'restored follow-through contact canvas is 527×512 (original atk_recover pixels)');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');
@@ -177,11 +184,11 @@ assert(/wieldsShadowCleaver/.test(extractFn('livingMacarIdleKey')),
   'livingMacarIdleKey gates on wieldsShadowCleaver');
 assert(/wieldsCrossbow/.test(extractFn('livingMacarIdleKey')),
   'livingMacarIdleKey gates on wieldsCrossbow');
-assert(/macar_e_w3/.test(liveKey) && /macar_se_w3/.test(liveKey)
-  && /macar_ne_w2/.test(liveKey) && /macar_back_w1/.test(liveKey),
-  'livingMacarAnimKey binds compass sheets from the move octant');
-assert(!/macar_title/.test(liveKey) && !/macar_e_w1/.test(liveKey),
-  'livingMacarAnimKey does not bind title or holed east w1');
+assert(/macar_e_w1/.test(liveKey) && /macar_se_w1/.test(liveKey)
+  && /macar_ne_w1/.test(liveKey) && /macar_back_w1/.test(liveKey),
+  'livingMacarAnimKey binds restored compass sheets from the move octant');
+assert(!/macar_title/.test(liveKey) && !/macar_e_w3/.test(liveKey),
+  'livingMacarAnimKey does not bind title or the helmeted east w3');
 assert(/walkCycleKey\(e, idle\)/.test(liveKey), 'south walk uses the front w1/w2 pair of the live idle');
 assert(/macar_axe_atk/.test(liveKey) && (/pickReadyPartyKey\(atk, idle\)/.test(liveKey)
   || /pickReadyPartyKey\('macar_atk', idle\)/.test(liveKey)
@@ -248,7 +255,7 @@ vm.runInContext(
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
   +extractFn('matchingPartyAtkReady')
-  +extractFn('partyAnimKeyReady')
+  +extractFn('restoredMacarMotionKey')+extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('livingMacarBlitKey')
   +extractFn('walkCycleKey')
@@ -471,7 +478,7 @@ assert(landed===0, 'pose-only cooldown swing never fires the hit tick');
 
 /* Compass sheets travel screen-right. D stays unflipped; A flips the
    same east sheet. South keeps the signed front pair. */
-['macar_e_w3','macar_se_w3','macar_ne_w2','macar_ne_w3','macar_back_w1','macar_back_w2'].forEach(k=>{
+['macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2'].forEach(k=>{
   SPR[k]={width:8, height:32};
 });
 const eastWalk=macar({moving:1, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707, gait:0.12});
@@ -480,26 +487,26 @@ assert(ctx.moveHeadingSX(eastWalk)>0.02, 'east heading has positive screen-x');
 assert(ctx.moveHeadingSX(westWalk)<-0.02, 'west heading has negative screen-x');
 assert(ctx.wantsSpriteFlip(eastWalk)===false, 'walk-right (D / gold-right) stays unflipped');
 assert(ctx.wantsSpriteFlip(westWalk)===true, 'walk-left (A / gold-left) flips the painted-right sheet');
-assert(ctx.livingMacarAnimKey(eastWalk)==='macar_e_w3'
-  && ctx.livingMacarAnimKey(westWalk)==='macar_e_w3',
-  'east and west walks share the east sheet (flip is blit-only)');
-assert(ctx.livingMacarAnimKey(macar({moving:1, ix:1, iy:0, fdx:1, fdy:0, gait:0.12}))==='macar_se_w3',
-  'southeast uses the se sheet');
-assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:1, fdx:0, fdy:1, gait:0.12}))==='macar_se_w3',
+assert(ctx.livingMacarAnimKey(eastWalk)==='macar_e_w1'
+  && ctx.livingMacarAnimKey(westWalk)==='macar_e_w1',
+  'east and west walks share the restored east sheet (flip is blit-only)');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:1, iy:0, fdx:1, fdy:0, gait:0.12}))==='macar_se_w1',
+  'southeast uses the restored se sheet');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:1, fdx:0, fdy:1, gait:0.12}))==='macar_se_w1',
   'southwest uses the se sheet (flip is blit-only)');
-assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.12}))==='macar_ne_w2'
-  && ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.62}))==='macar_ne_w3',
-  'northeast cycles ne w2 / w3');
-assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.12}))==='macar_ne_w2'
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.12}))==='macar_ne_w1'
+  && ctx.livingMacarAnimKey(macar({moving:1, ix:0, iy:-1, fdx:0, fdy:-1, gait:0.62}))==='macar_ne_w2',
+  'northeast cycles restored ne w1 / w2');
+assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.12}))==='macar_ne_w1'
   && ctx.livingMacarAnimKey(macar({moving:1, ix:-1, iy:0, fdx:-1, fdy:0, gait:0.62}))==='macar_ne_w2',
-  'northwest stays on ne_w2 for the whole gait (ne_w3 mirrored reads southeast)');
+  'northwest cycles the same ne sheets (flip is blit-only)');
 assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.12}))==='macar_back_w1'
   && ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707, fdy:-0.707, gait:0.62}))==='macar_back_w2',
   'north cycles the back walk');
 assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0.707, iy:0.707, fdx:0.707, fdy:0.707, gait:0.12}))==='macar_w1',
   'south keeps the signed front walk');
-assert(ctx.livingMacarAnimKey(macar({moving:0, ix:0, iy:0, fdx:0.707, fdy:-0.707}))==='macar_e_w3',
-  'idle keeps the last east facing');
+assert(ctx.livingMacarAnimKey(macar({moving:0, ix:0, iy:0, fdx:0.707, fdy:-0.707}))==='macar',
+  'standing idle stays the front original, not a side walk sheet');
 const eastIdle=macar({fdx:0.707, fdy:-0.707});
 const westIdle=macar({fdx:-0.707, fdy:0.707});
 assert(ctx.wantsSpriteFlip(eastIdle)===false, 'idle facing east is unflipped');
@@ -653,10 +660,10 @@ const atkBody=sheetStature('dwarf_macar_atk.png');
 const hitBody=sheetStature('dwarf_macar_atk_contact.png');
 assert(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
-assert(atkBody>0.66 && atkBody<0.78,
-  'windup crown stops at the helm, not the overhead maul (frac '+atkBody.toFixed(3)+')');
-assert(hitBody>0.84 && hitBody<0.93,
-  'contact crown is the helm, not the beard under a narrow column (frac '+hitBody.toFixed(3)+')');
+assert(atkBody>0.55 && atkBody<0.68,
+  'restored windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
+assert(hitBody>0.94 && hitBody<0.995,
+  'restored follow-through fills the sheet crown to boots (frac '+hitBody.toFixed(3)+')');
 assert(hitBody>atkBody+0.08,
   'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
   +' contact '+hitBody.toFixed(3)+')');
@@ -677,10 +684,10 @@ assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig
   +idleFig.toFixed(3)+' wind '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
 const windScale=blitHOf('macar_atk')/blitHOf('macar');
 const hitScale=blitHOf('macar_atk_contact')/blitHOf('macar');
-assert(windScale>1.20 && windScale<1.55,
+assert(windScale>1.45 && windScale<1.70,
   'windup dest H grows for the shorter helm-to-boot body (scale '+windScale.toFixed(3)+')');
-assert(hitScale>1.02 && hitScale<1.22,
-  'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
+assert(hitScale>0.90 && hitScale<1.08,
+  'restored contact dest H stays with idle (scale '+hitScale.toFixed(3)+')');
 const widthRatio=893/470;
 assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
   'contact body scale is not the 893 sheet width');

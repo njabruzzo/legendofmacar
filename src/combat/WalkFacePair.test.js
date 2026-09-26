@@ -33,12 +33,11 @@ assert(/const flip=wantsSpriteFlip\(e\)/.test(html) && /blitFacing\(g,img,dx,dy,
 
 assert(/s:\s*\{flip:0, frames:\['macar_w1','macar_w2'\]\}/.test(html),
   'MACAR_PLAN south walk stays the signed front pair');
-assert(/e:\s*\{flip:0, frames:\['macar_e_w3'\]\}/.test(html)
+assert(/e:\s*\{flip:0, frames:\['macar_e_w1','macar_e_w2'\]\}/.test(html)
   && /n:\s*\{flip:0, frames:\['macar_back_w1','macar_back_w2'\]\}/.test(html),
-  'MACAR_PLAN east and north use compass sheets');
-assert(!/macar_e_w1/.test(html.match(/const MACAR_PLAN=\{[\s\S]*?\};/)[0])
-  && !/dwarf_macar_e_w1\.png/.test(html),
-  'engine does not bind deleted e_w1 Macar art');
+  'MACAR_PLAN east and north use the restored compass sheets');
+assert(/dwarf_macar_e_w1\.png/.test(html),
+  'engine binds the restored original east walk');
 
 ['dwarf_macar.png','dwarf_macar_w1.png','dwarf_macar_w2.png','dwarf_macar_atk.png',
  'dwarf_macar_atk_contact.png',
@@ -46,9 +45,11 @@ assert(!/macar_e_w1/.test(html.match(/const MACAR_PLAN=\{[\s\S]*?\};/)[0])
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
   assert(fs.existsSync(path.join(creatures,f)), f+' on disk');
 });
-['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_e_atk.png'].forEach(f=>{
-  assert(!fs.existsSync(path.join(creatures,f)), f+' leftover compass Macar art stays gone');
+['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_se_w1.png','dwarf_macar_se_w2.png',
+ 'dwarf_macar_ne_w1.png','dwarf_macar_ne_w2.png','dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'].forEach(f=>{
+  assert(fs.existsSync(path.join(creatures,f)), f+' restored original compass walk is on disk');
 });
+assert(!fs.existsSync(path.join(creatures,'dwarf_macar_e_atk.png')), 'leftover east strike stays gone');
 
 function checkPair(aName, bName, label){
   const a=path.join(creatures, aName);

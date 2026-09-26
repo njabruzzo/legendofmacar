@@ -53,8 +53,10 @@ assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSp
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'Nick spectral idle and front walk blit as painted; atk/back still lift');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet')),
-  'painted list is the four idles plus front w1/w2');
+  && /img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && /assets\/creatures\/dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
+  'Talpor is off the painted skip list so the spectral lift runs; drop-in file is named');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
