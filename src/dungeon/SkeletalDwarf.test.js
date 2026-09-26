@@ -46,6 +46,16 @@ assert(/elapsedMs<leg\) amp=6\*\(elapsedMs\/leg\)/.test(extractFn('singlePoseOff
   'single pose bobs 2px and lunges 6px over 120ms');
 assert(/k==='dwarf_skeleton_idle' && typeof sprReady/.test(extractFn('singlePoseLocked')),
   'own walk frames unlock the normal cycle');
+const idleAt=html.indexOf("dwarf_skeleton_idle:'assets/creatures/dwarf_skeleton_idle.png'");
+const deriveAt=html.indexOf("SPRITE_FILES[k+'_w1']=stem+'_w1.png'");
+assert(idleAt>0 && deriveAt>idleAt, 'walk and attack frames derive from the one idle slot');
+assert(/skeletalDwarf:\{[^}]*mv:12/.test(html) && /fangedSkeleton:\{[^}]*mv:12/.test(html),
+  'skeletal dwarves slide at the same move rate as the other skeletons');
+assert(/const squash=img\?1:\(1\+sw\*0\.06\)/.test(html)
+  && /g\.translate\(pose\?pose\.x:0, -bob0\+\(pose\?pose\.y:0\)\)/.test(html),
+  'the lunge is a translate: no squash and no rotation');
+assert(/return ghostStatureFrac\(\)\/frac/.test(extractFn('skeletalDwarfFit')),
+  'stature is the ghost content box over this sheet\'s content box');
 
 const ctx={
   G:{ents:[], lvl:{flags:{}, n:1}},
@@ -67,7 +77,14 @@ vm.runInContext(
   +extractFn('entSpriteKey')+'\n'
   +extractFn('singlePoseLocked')+'\n'
   +extractFn('singlePoseOffset')+'\n'
-  +'this.riseSkeletalDwarves=riseSkeletalDwarves; this.singlePoseLocked=singlePoseLocked; this.singlePoseOffset=singlePoseOffset;',
+  +extractFn('entAnimKey')+'\n'
+  +extractFn('faceVec')+'\n'
+  +extractFn('moveHeadingSX')+'\n'
+  +extractFn('wantsSpriteFlip')+'\n'
+  +'function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }\n'
+  +extractFn('ghostStatureFrac')+'\n'
+  +extractFn('skeletalDwarfFit')+'\n'
+  +'this.riseSkeletalDwarves=riseSkeletalDwarves; this.singlePoseLocked=singlePoseLocked; this.singlePoseOffset=singlePoseOffset; this.entAnimKey=entAnimKey; this.wantsSpriteFlip=wantsSpriteFlip; this.skeletalDwarfFit=skeletalDwarfFit;',
   ctx
 );
 
@@ -92,6 +109,17 @@ assert(Math.abs(ctx.singlePoseOffset(peak).x-6)<1e-6, '120ms is the 6px peak');
 const back={singlePose:1, sprite:'undead', kind:'undead', moving:0, dead:0, atk:0.12, atkMax:0.3, x:1, y:1};
 assert(Math.abs(ctx.singlePoseOffset(back).x-3)<1e-6, '180ms the lunge is halfway back');
 
+ctx.SPR.undead_w1={width:8};
+assert(ctx.entAnimKey(slide)==='undead', 'sliding keeps the idle sheet when a walk frame exists');
+const east={singlePose:1, sprite:'undead', kind:'undead', moving:1, dead:0, atk:0, ix:1, iy:0, x:1, y:1};
+const west={singlePose:1, sprite:'undead', kind:'undead', moving:1, dead:0, atk:0, ix:-1, iy:0, x:1, y:1};
+assert(ctx.wantsSpriteFlip(east)===false && ctx.wantsSpriteFlip(west)===true,
+  'west travel mirrors the east-facing idle');
+ctx.spriteBounds=function(img){ return img.b; };
+ctx.SPR.pordoom_ghost={width:8, b:{ok:true, y0:0.1, y1:0.9}};
+const skelImg={width:8, b:{ok:true, y0:0.25, y1:0.75}};
+assert(Math.abs(ctx.skeletalDwarfFit({singlePose:1}, skelImg)-(0.8/0.5))<1e-6,
+  'a shorter content box is scaled up to the ghost stature');
 ctx.SPR.dwarf_skeleton_idle_w1={width:8};
 const painted={singlePose:1, sprite:'dwarf_skeleton_idle', kind:'undead', moving:1, dead:0};
 assert(ctx.singlePoseLocked(painted)===false, 'a ready walk frame leaves single-pose');
