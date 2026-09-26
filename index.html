@@ -15280,6 +15280,22 @@ function drawProp(g,p,pal){
   g.restore();
 }
 
+/* Ground coin pile. One swappable file: assets/props/loot_coins.png
+   (SPRITE_FILES.loot_coins). Drop the new painting on that path.
+   The gold disc is only the undecoded fallback, baked once into the slot. */
+let COIN_PILE_FALLBACK=null;
+function coinPileSprite(){
+  const img=typeof SPR!=='undefined' && SPR.loot_coins;
+  if(img && img.width) return img;
+  if(COIN_PILE_FALLBACK && COIN_PILE_FALLBACK.width) return COIN_PILE_FALLBACK;
+  const c=document.createElement('canvas');
+  c.width=64; c.height=40;
+  const x=c.getContext('2d');
+  x.fillStyle='#e0c169';
+  x.beginPath(); x.ellipse(32,22,26,16,0,0,TAU); x.fill();
+  COIN_PILE_FALLBACK=c;
+  return c;
+}
 function drawLoot(g,pile){
   const s=w2s(pile.x,pile.y), z=ZOOM;
   const pulse=.62+Math.sin(G.elapsed*4.2+(pile.x||0)*3)*.28;
@@ -15295,8 +15311,7 @@ function drawLoot(g,pile){
   else if(pile.kind==='jewels' || pile.jew || ((pile.items||[]).some(it=>/ring|amulet|jewel|necklace|torque/i.test(it.n||it.k||'')))){ img=SPR.loot_jewelry||SPR.loot_gems; h=44*z; }
   else if((pile.gems||((pile.items||[]).some(it=>it.k==='gem'))) && SPR.loot_gems){ img=SPR.loot_gems; h=46*z; }
   else if(SPR.loot_chest && pile.coins && ((pile.coins.gp||0)+(pile.coins.pp||0)>8)){ img=SPR.loot_chest; h=56*z; }
-  else if(SPR.loot_coins){ img=SPR.loot_coins; h=46*z; }
-  else img=SPR.sack;
+  else { img=coinPileSprite(); h=46*z; }
   if(img && img.width && drawBillboard(g, img, h)){
     const glow=pile.kind==='ruby'?'#ff2a3c':(pile.glow||'#ffd27a');
     emit(s.x,s.y-h*0.35,12*z*pulse,glow, pile.kind==='ruby'?0.85:0.75);
@@ -15308,8 +15323,7 @@ function drawLoot(g,pile){
     g.fillStyle=RESMETA.ironstone.c;
     g.beginPath(); g.moveTo(-6*z,-4*z); g.lineTo(0,-12*z); g.lineTo(7*z,-3*z); g.lineTo(3*z,4*z); g.lineTo(-5*z,3*z); g.closePath(); g.fill();
   } else {
-    g.fillStyle='#e0c169';
-    g.beginPath(); g.ellipse(0,0,10*z,6*z,0,0,TAU); g.fill();
+    drawBillboard(g, coinPileSprite(), 46*z);
   }
   g.restore();
 }
