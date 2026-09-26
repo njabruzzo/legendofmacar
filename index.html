@@ -4505,6 +4505,7 @@ function makeChapter(n){
     L.tick=()=>{
       const p=player(); if(!p) return;
       if(typeof maybeTeethChapelEnter==='function') maybeTeethChapelEnter(p);
+      if(typeof maybeCrownAltarHint==='function') maybeCrownAltarHint(p);
       if(!L.flags.southStore && p.y>48){
         L.flags.southStore=1;
         spawnLairGroup(30,56,{pack:[['rat',4]],spread:1.4,aggro:2.8});
@@ -11476,7 +11477,26 @@ function buildTeethCrownRoom(L, sec){
     }
   }
   L.lights.push({x:altar.x,y:altar.y,c:'#c81824',r:5.2,f:0.95});
+}
+/* The room builder used to toast this at the secret, while Macar was still
+   in the hall, and a loaded save skips the builder entirely (teethRoom is
+   already set). Show it once, when the altar is in sight or Macar steps
+   into that corner, and not under the chapel-enter dialogue. */
+function maybeCrownAltarHint(p){
+  const L=G.lvl;
+  if(!p||p.dead||!L||L.n!==1||G.talk) return false;
+  if(L.flags&&L.flags.crownAltarHint) return false;
+  if(L.flags&&(L.flags.crownTaken||L.flags.crownDestroyed)) return false;
+  const altar=(G.props||[]).find(pr=>pr&&!pr.gone&&pr.teethAltar);
+  const crown=(G.props||[]).find(pr=>pr&&!pr.gone&&pr.k==='bonecrown');
+  if(!altar||!crown) return false;
+  const sees=typeof tileVisible==='function' && tileVisible(altar.x, altar.y);
+  const near=dist(p, altar)<3.8;
+  if(!sees && !near) return false;
+  L.flags=L.flags||{};
+  L.flags.crownAltarHint=1;
   hint('A bone crown on the altar. Destroy the crown, or take it.',5.2);
+  return true;
 }
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
    Quest unique, not combat magic, no sell, Macar pack only.
@@ -14156,6 +14176,16 @@ function drawMemoryShade(g,L){
       g.lineTo(s.x, s.y+TH/2); g.lineTo(s.x-TW/2, s.y);
       g.closePath(); g.fill();
     } else if(t===1||t===2){
+      /* Only rock that actually draws a face. Buried cells behind the
+         chapel's tall north wall (and the vault's east wall) are often
+         seen but out of sight. A disc on that cell is not on its own
+         masonry — it lands on the portrait in front and reads as a row
+         of black blobs. Halls still shade; they have an open side. */
+      const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
+      const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
+      const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
+      const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
+      if(!oS&&!oE&&!oN&&!oW) continue;
       const H=useWallFaces(L)?wallFaceH(L):TH;
       g.beginPath();
       g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);

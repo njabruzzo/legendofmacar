@@ -52,5 +52,11 @@ assert(/corridor\(g,16,44,28,44,6,0\)/.test(html), 'chapter V halls are 6 tiles 
 assert(/rect\(g,14,14,18,16,0\)/.test(html) && /rect\(g,24,7,28,28,0\)/.test(html),
   'chapter I start rooms stay isometric chambers (grid was never a 1-tile tunnel)');
 
+const shade=html.slice(html.indexOf('function drawMemoryShade'), html.indexOf('function drawBeyondMask'));
+assert(/!oS&&!oE&&!oN&&!oW\) continue/.test(shade)
+  && /isWalkTile\(L\.grid\[y\+1\]\[x\]\)/.test(shade)
+  && /isWalkTile\(L\.grid\[y\]\[x\+1\]\)/.test(shade),
+  'memory shade skips buried rock so its discs cannot cover a taller face in front');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nhall visibility checks passed');

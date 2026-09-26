@@ -549,6 +549,9 @@ assert(!/electrum/i.test(enterPack), 'enter box does not name electrum');
 assert(!/\b(north|south|east|west|northwest|northeast|southwest|southeast)\b/i.test(enterPack),
   'enter box does not name a compass direction');
 assert(/maybeTeethChapelEnter\(p\)/.test(ch1), 'Ch1 tick fires the enter box');
+assert(/maybeCrownAltarHint\(p\)/.test(ch1), 'Ch1 tick fires the altar hint when the crown comes into view');
+assert(!/A bone crown on the altar/.test(extractFn('buildTeethCrownRoom')),
+  'opening the secret does not burn the crown hint while Macar is still in the hall');
 assert(/maybeTeethChapelLooks\(p\)/.test(html), 'look-at uses the interact prompt');
 assert(/teethChapelLookHit\(w\)/.test(html), 'tapping the face or crown looks');
 assert(/Look at the demon face/.test(html) && /Look at the bone crown/.test(html),
@@ -616,6 +619,34 @@ const crownTap=box.teethChapelLookHit({x:102.4,y:4.5});
 assert(crownTap && crownTap.key==='teeth_chapel_crown', 'a tap on the altar crown looks at the crown');
 assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_LINE,
   'opening the crown look shows Nick\'s line');
+
+{
+  const hintCtx={
+    G:{talk:null, props:[
+      {x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0},
+      {x:102.25,y:4.35,k:'bonecrown',gone:0}
+    ], lvl:{n:1, flags:{}}},
+    hints:[],
+    dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); },
+    tileVisible(){ return false; },
+    hint(t){ hintCtx.hints.push(t); }
+  };
+  vm.createContext(hintCtx);
+  vm.runInContext(extractFn('maybeCrownAltarHint')+'\nthis.maybeCrownAltarHint=maybeCrownAltarHint;', hintCtx);
+  const far={x:106,y:10,dead:0};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===0,
+    'an unseen altar out of reach does not toast the crown hint');
+  hintCtx.tileVisible=function(){ return true; };
+  assert(hintCtx.maybeCrownAltarHint(far)===true
+    && hintCtx.hints[0]==='A bone crown on the altar. Destroy the crown, or take it.',
+    'seeing the altar toasts Destroy the crown, or take it');
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the altar hint fires once');
+  hintCtx.G.lvl.flags.crownAltarHint=0;
+  hintCtx.G.talk={key:'teeth_chapel_enter'};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the chapel-enter dialogue holds the altar hint until it closes');
+}
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');
