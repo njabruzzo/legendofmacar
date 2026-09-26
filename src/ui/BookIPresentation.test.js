@@ -147,7 +147,7 @@ assert(/drawKinRubbleOverlay/.test(html), 'fallen kin draw crush/rubble over the
 
 assert(/HUD_DESK_WIDE=1280/.test(html), 'desktop HUD wide breakpoint is 1280px');
 assert(/HUD_DESK_SLOT_MIN=60/.test(html), 'desktop HUD icons floor at 60px');
-assert(/HUD_DESK_SLOT_MAX=80/.test(html), 'desktop HUD icons may reach 80px');
+assert(/HUD_DESK_SLOT_MAX=72/.test(html), 'desktop HUD icons cap at 72px (room for the Specialty chip row)');
 assert(/HUD_TAP=44/.test(html), 'mobile HUD_TAP stays 44');
 assert(/HUD_OVERFLOW=\{\}/.test(html), 'mobile HUD has no Rally overflow icon');
 assert(!/#dgBtn\{position:fixed;left:8px;bottom:8px/.test(html), 'diagnostic flag is still off the stick');
@@ -164,7 +164,7 @@ function deskSim(vw, vh, s){
   const stickReserve=stickX+stickR+12*s;
   const availW=Math.max(180, vw-stickReserve-rightReserve);
   const slotMin=deskWide?60:46;
-  const slotMax=deskWide?80:56;
+  const slotMax=Math.max(slotMin, Math.min(deskWide?72:56, vh*0.13));
   const slot=Math.min(slotMax, Math.max(slotMin, (availW-(perRow-1)*gap)/perRow));
   return {slot, deskWide, availW};
 }

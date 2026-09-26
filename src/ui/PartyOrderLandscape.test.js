@@ -7,7 +7,6 @@
  */
 const fs=require('fs');
 const path=require('path');
-const vm=require('vm');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 
 let failed=0;
@@ -36,54 +35,32 @@ assert(!/label:'Rally'/.test(html) && !/key:'rally'/.test(extractFn('layoutParty
   'no Rally plate on the order row');
 assert(/ASSET_VER='114'/.test(html), 'ASSET_VER stays 114');
 
-const ctx={
-  UIBTN:[], UI:{},
-  HUD_TAP:44, HUD_OVERFLOW:{},
-  HUD_MOBILE_ORDER:['pack','ale','search','secret','shovel','camp','craft','bow','bomb'],
-  HUD_DESK_WIDE:1280, HUD_DESK_SLOT_MIN:60, HUD_DESK_SLOT_MAX:80,
-  HUDSKILLS:['pack','wall','attack','bow','bomb','ale','search','secret','shovel','camp','craft'].map(k=>({key:k})),
-  IS_TOUCH:true, PORT:false, VW:0, VH:0, UIS:1,
-  G:{ents:[], hudMore:0}, Math
-};
-ctx.clamp=(v,a,b)=>v<a?a:v>b?b:v;
-ctx.safeInsets=()=>ctx._inset;
-ctx.partyPortraitList=()=>Array.from({length:ctx._n},(_,i)=>({
-  team:'party', col:{key:'k'+i}, hero:i===0
-}));
-vm.createContext(ctx);
-['partyPortraitFrame','partyOrderAnchor','shiftSpecialtyOffCards','layoutSpecialtyCluster','layoutPartyOrders','layoutUI',
- 'circleRectGap','rectsMeet','landscapePartyOrderSeat','placePartyOrderRow']
-  .forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
-
+const HH=require('./HudHarness');
 function gapCircleRect(c, rect){
   const cx=Math.max(rect.x, Math.min(c.x, rect.x+rect.w));
   const cy=Math.max(rect.y, Math.min(c.y, rect.y+rect.h));
   return Math.hypot(c.x-cx, c.y-cy)-c.r;
 }
-function gapCircles(a,b){ return Math.hypot(a.x-b.x, a.y-b.y)-a.r-b.r; }
 
 function measure(vw, vh, inset, n, touch){
-  ctx.UIBTN.length=0;
-  ctx.UI={};
-  ctx.VW=vw; ctx.VH=vh;
-  ctx.IS_TOUCH=touch!==false;
-  ctx.PORT=vh>vw;
-  ctx.UIS=ctx.clamp(Math.min(vw,vh)/(ctx.PORT?430:700), 0.66, 1.30);
-  ctx._inset=inset;
-  ctx._n=n;
-  ctx.layoutUI();
-  const orders=ctx.UIBTN.filter(b=>b.order);
-  const frame=ctx.partyPortraitFrame();
-  const stick=Object.assign({key:'stick'}, ctx.UI.stickHome);
-  const attack=ctx.UIBTN.find(b=>b.key==='attack');
-  const defend=ctx.UIBTN.find(b=>b.key==='wall');
-  const specs=ctx.UIBTN.filter(b=>b.spec);
-  function minGap(list, fn){
+  const L=HH.layout({vw, vh, inset, cards:n, touch:touch!==false});
+  const orders=L.orders;
+  const frame=L.frame;
+  const stick=Object.assign({key:'stick'}, L.UI.stickHome);
+  const attack=L.find('attack');
+  const defend=L.find('wall');
+  const specs=L.chips;
+  function minGap(list){
     let m=Infinity;
     for(const o of orders) for(const t of list){
-      const g=fn(o,t);
+      const g=HH.gap(o,t);
       if(g<m) m=g;
     }
+    return m;
+  }
+  function minCardGap(){
+    let m=Infinity;
+    for(const o of orders) for(const c of frame.cards){ const g=gapCircleRect(o,c); if(g<m) m=g; }
     return m;
   }
   const cardBottom=frame.cards.reduce((m,c)=>Math.max(m, c.y+c.h), 0);
@@ -93,7 +70,9 @@ function measure(vw, vh, inset, n, touch){
   const fullyRight=orders.every(o=>o.x-o.r>=cardRight+gutter-0.05);
   let specGap=Infinity;
   for(const sp of specs) for(const c of frame.cards){
-    const g=gapCircleRect(sp, c);
+    const B=HH.box(sp);
+    const dx=Math.max(c.x-(B.x+B.w), B.x-(c.x+c.w), 0), dy=Math.max(c.y-(B.y+B.h), B.y-(c.y+c.h), 0);
+    const g=Math.hypot(dx,dy);
     if(g<specGap) specGap=g;
   }
   return {
@@ -101,11 +80,11 @@ function measure(vw, vh, inset, n, touch){
     y:orders[0].y,
     left:Math.min.apply(null, orders.map(o=>o.x-o.r)),
     right:Math.max.apply(null, orders.map(o=>o.x+o.r)),
-    port:minGap(frame.cards, gapCircleRect),
-    stick:minGap([stick], gapCircles),
-    atk:minGap([attack], gapCircles),
-    def:minGap([defend], gapCircles),
-    spec:minGap(specs, gapCircles),
+    port:minCardGap(),
+    stick:minGap([stick]),
+    atk:minGap([attack]),
+    def:minGap([defend]),
+    spec:minGap(specs),
     specCards:specGap,
     fullyUnder, fullyRight, cardBottom, cardRight
   };
@@ -175,7 +154,7 @@ assert(Math.abs(p375.y-286.3)<0.2 && p375.port>20, '375×667 portrait order row 
 const p430=measure(430, 932, {t:59,r:0,b:34,l:0}, 5);
 assert(Math.abs(p430.y-360.0)<0.2 && p430.port>20, '430×932 portrait order row stays under the cards (y='+p430.y.toFixed(1)+')');
 const p320=measure(320, 568, {t:20,r:0,b:0,l:0}, 5);
-assert(Math.abs(p320.y-248.0)<0.2 && p320.port>6, '320×568 portrait order row keeps its ceiling seat (y='+p320.y.toFixed(1)+')');
+assert(Math.abs(p320.y-251.7)<0.2 && p320.port>6, '320×568 portrait order row sits under the cards; the lower HUD no longer clamps it (y='+p320.y.toFixed(1)+')');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nlandscape party-order checks passed');

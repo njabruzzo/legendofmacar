@@ -24,7 +24,8 @@ assert(!labels.includes('Herbs') && !labels.includes('Seams') && !labels.include
 assert(!/key:'rally'/.test(block), 'Rally is not a HUD skill');
 assert(/HUD_OVERFLOW=\{\}/.test(html), 'HUD overflow tray has no Rally icon');
 assert(/HUD_TAP=44/.test(html), 'mobile tap target floor is 44px');
-assert(/key:'more'/.test(html) && /label:'More'/.test(html), 'mobile overflow More control exists');
+assert(/HUD_TOUCH_COMBAT=/.test(html) && !/key:'more', ico:'more'/.test(html.match(/function layoutUI\(\)\{[\s\S]*?\n\}/)[0]),
+  'mobile shows every verb (combat cluster + field row), no More tray');
 
 assert(/drawLog\(g,s\)/.test(html.match(/function drawPlayPlates\(g\)\{[\s\S]*?\n\}/)[0]),
   'combat log paints on the post-terrain UI layer');
@@ -39,7 +40,7 @@ assert(/e\.team==='foe' && \(e\.atk>0 || \(e\.engaged && e\.ct>0 && e\.ct<0\.4\)
 assert(/atForge/.test(html) && /nearestCraftStation\(player\(\),1\.7\)/.test(html), 'Craft dims unless Macar is at the station');
 assert(!/fillText\('ANVIL'/.test(html), 'Craft slot does not write ANVIL on top of the icon');
 assert(/\{key:'craft', ico:'craft', label:'Craft'\}/.test(html), 'Craft uses the same above-icon title pattern as SEARCH');
-assert(/b\.y-R-7\*s/.test(html.match(/function drawSlot\(g,b,s\)\{[\s\S]*?\nfunction drawButtons/)[0]),
+assert(/const ty=b\.y-\(b\.h\|\|b\.r\*2\)\/2-7\*s/.test(html.match(/function drawSlot\(g,b,s\)\{[\s\S]*?\nfunction drawButtons/)[0]),
   'HUD titles paint above the slot, not on the art');
 assert(/G\.craftGuide/.test(html) && /G\.craftGuideT/.test(html), 'Craft far from the anvil points a guide arrow');
 assert(!/5 Rally/.test(html) && /F SEARCH/.test(html) && /T SEARCH/.test(html),

@@ -73,7 +73,7 @@ assert(/function attackHudIco\(/.test(html) && /attackHudIco\(\)/.test(slotFn),
   'Attack HUD plate resolves through attackHudIco, not a frozen maul ico');
 
 const drawSlot=html.match(/function drawSlot\(g,b,s\)\{[\s\S]*?\nfunction /)[0];
-assert(/if\(b\.hold\)/.test(drawSlot) && /globalAlpha=\(ready&&atForge\)\?1:0\.42/.test(drawSlot),
+assert(/if\(b\.hold\)/.test(drawSlot) && /lit=\(ready&&atForge\)\?1:0\.42/.test(drawSlot),
   'hold stroke and not-ready dimming stay in drawSlot');
 assert(/Math\.ceil\(cds\[ab\.key\]\)/.test(drawSlot), 'cooldown overlay stays in drawSlot');
 assert(/attackHudIco\(\)/.test(drawSlot),
