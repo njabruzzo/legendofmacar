@@ -12547,6 +12547,9 @@ window.addEventListener('keydown',e=>{
     if(e.key==='Escape') G.paused=!G.paused;
     return;
   }
+  /* Shift+1–4 arms Specialty, matching the numbered chips under Attack.
+     Physical key (e.code) so it works on any layout; 6–9 still work too. */
+  if(e.shiftKey && /^Digit[1-4]$/.test(e.code||'')){ fire('spec'+e.code.slice(5)); e.preventDefault(); return; }
   if(e.key===' '){ fire('attack'); e.preventDefault(); }
   if(e.key==='e'||e.key==='Enter') fire('use');
   if(e.key==='1') fire('attack');
@@ -17610,6 +17613,12 @@ function drawSpecChip(g,b,s){
   g.strokeText(String(b.spec), b.x, b.y+fp*0.36);
   g.fillStyle=armed?'#fff3d0':'#d9bd7c';
   g.fillText(String(b.spec), b.x, b.y+fp*0.36);
+  if(!IS_TOUCH && w>=22){
+    /* Keyboard hint: Shift + the chip's number. */
+    g.font='700 '+Math.max(8, h*0.32)+'px '+FONT_UI;
+    g.fillStyle='rgba(217,189,124,0.7)';
+    g.fillText('\u21e7', x+Math.max(5, h*0.22), y+Math.max(9, h*0.38));
+  }
   g.textAlign='left';
 }
 
@@ -19492,7 +19501,7 @@ function drawPause(g){
   bigTitle(g,'PAUSED',VH*.20,(PORT?24:34)*s);
   g.textAlign='center'; g.font='600 '+(PORT?10:11)*s+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(190,168,128,0.8)';
-  const keys='V Defend  ·  1 Attack  ·  6–9 Specialty  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  H Hold  ·  Y Regroup  ·  Z Focus';
+  const keys='V Defend  ·  1 Attack  ·  Shift+1–4 Specialty  ·  X Shoot  ·  B Throw  ·  2 Heal  ·  F SEARCH  ·  T SEARCH  ·  G Dig  ·  C Camp  ·  K Craft  ·  H Hold  ·  Y Regroup  ·  Z Focus';
   const maxW=VW*0.92; let ky=VH*.255;
   const words=keys.split('  ·  '); let line='';
   words.forEach((w,i)=>{

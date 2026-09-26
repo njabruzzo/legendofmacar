@@ -21,6 +21,11 @@ assert(!/fillText\('Specialty'/.test(html), 'no floating Specialty title over th
 assert(/String\(b\.spec\)/.test(H.extractFn('drawSpecChip')), 'chips are labelled with numbers 1–4');
 assert(/if\(e\.key==='6'\) fire\('spec1'\)/.test(html) && /if\(e\.key==='9'\) fire\('spec4'\)/.test(html),
   'keys 6–9 still arm I–IV');
+assert(/e\.shiftKey && \/\^Digit\[1-4\]\$\/\.test\(e\.code/.test(html) && /fire\('spec'\+e\.code\.slice\(5\)\)/.test(html),
+  'Shift+1–4 arms Specialty 1–4, matching the chip numbers');
+assert(html.indexOf("e.shiftKey && /^Digit[1-4]$/")<html.indexOf("if(e.key==='1') fire('attack')"),
+  'Shift+1 is handled before plain 1 → Attack');
+assert(/Shift\+1–4 Specialty/.test(html), 'pause key list advertises Shift+1–4');
 assert(/if\(k==='v'\) fire\('wall'\)/.test(html) && /if\(e\.key==='1'\) fire\('attack'\)/.test(html),
   'V Defend and 1 Attack are not stolen');
 assert(/icon_specialty_i/.test(html) && /icon_specialty_iv/.test(html), 'Limner plate assets stay registered');
