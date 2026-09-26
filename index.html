@@ -553,6 +553,7 @@ const SPRITE_FILES={
   icon_climb:'assets/ui/icon_climb.png',
   icon_attack:'assets/ui/icon_attack.png',
   icon_attack_wide:'assets/ui/icon_attack_wide.png',
+  icon_attack_long:'assets/ui/icon_attack_long.png',
   icon_defend:'assets/ui/icon_defend.png',
   icon_craft:'assets/ui/icon_craft.png',
   icon_specialty_i:'assets/ui/icon_specialty_i.png',
@@ -765,7 +766,7 @@ function loadSprites(done){
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_attack_wide','icon_defend','icon_craft',
+    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_attack_wide','icon_attack_long','icon_defend','icon_craft',
     'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
     'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_save',
     'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
@@ -17520,7 +17521,12 @@ function drawSlot(g,b,s){
     roundPath(g,x-2.5*s,y-2.5*s,w+5*s,h+5*s,wide?8:6); g.stroke(); }
   const col=ready?(b.key==='rally'?'#ff8a7a':'#e9d5a6'):'rgba(160,140,110,0.42)';
   const simg=slotAnimImg(b);
-  const wideArt=wide && b.key==='attack' && ico==='attack' && SPR.icon_attack_wide && SPR.icon_attack_wide.width ? SPR.icon_attack_wide : null;
+  /* Horizontal maul: 1.75:1 art for the desktop slab, 3.75:1 for flat touch slabs. */
+  const artOk=k=>SPR[k]&&SPR[k].width?SPR[k]:null;
+  const longSlab=wide && (w/h)>2.6;
+  const wideArt=(wide && b.key==='attack' && ico==='attack')
+    ? ((longSlab&&artOk('icon_attack_long'))||artOk('icon_attack_wide')) : null;
+  const impactX=wideArt&&wideArt===SPR.icon_attack_long?0.9052:0.7969, impactY=0.695;
   if(wideArt){
     /* Horizontal maul, head to the right, striking. Cover-fit, then a live
        impact flare on the head so the slab reads as a blow landing. */
@@ -17528,12 +17534,15 @@ function drawSlot(g,b,s){
     const lit=(ready&&atForge)?1:0.42;
     g.save();
     roundPath(g,x+3*s,y+3*s,dw,dh,5); g.clip();
+    /* Cover-fit, pinned right so the head and burst never crop;
+       any overflow trims the pommel end of the shaft. */
     const sc=Math.max(dw/iw, dh/ih), rw=iw*sc, rh=ih*sc;
-    const ox=x+3*s+(dw-rw)/2, oy=y+3*s+(dh-rh)/2;
+    const ox=x+3*s+dw-rw, oy=y+3*s+(dh-rh)/2;
     g.globalAlpha=A*lit;
     g.drawImage(wideArt, ox, oy, rw, rh);
     if(lit===1){
-      const hx=ox+rw*0.83, hy=oy+rh*0.47;
+      /* Impact point: the bottom striking face of the head. */
+      const hx=ox+rw*impactX, hy=oy+rh*impactY;
       const beat=0.5+0.5*Math.sin(G.elapsed*5.2);
       const rad=dh*(0.30+0.10*beat)+(b.hold?dh*0.18:0);
       g.globalCompositeOperation='lighter';
@@ -17544,7 +17553,7 @@ function drawSlot(g,b,s){
       g.fillStyle=fl; g.beginPath(); g.arc(hx,hy,rad,0,TAU); g.fill();
       g.strokeStyle='rgba(255,220,150,'+(0.35+0.35*beat)+')'; g.lineWidth=Math.max(1,1.2*s);
       for(let i=0;i<7;i++){
-        const a0=-1.1+i*0.37+Math.sin(G.elapsed*3+i)*0.08;
+        const a0=Math.PI/2-1.1+i*0.37+Math.sin(G.elapsed*3+i)*0.08;
         const r0=rad*0.35, r1=rad*(0.85+0.25*((i*37%10)/10))*(0.8+0.3*beat);
         g.beginPath(); g.moveTo(hx+Math.cos(a0)*r0, hy+Math.sin(a0)*r0);
         g.lineTo(hx+Math.cos(a0)*r1, hy+Math.sin(a0)*r1); g.stroke();

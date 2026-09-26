@@ -19,7 +19,7 @@ assert(/HUD_DESK_GROUPS=/.test(html), 'desktop bar is grouped (PACK â€– combat â
 assert(/HUD_KEYS=\{/.test(html) && /b\.kc && !IS_TOUCH/.test(html), 'keycaps draw on mouse/keyboard only');
 assert(/b\.label && R>=18 && !b\.nolabel/.test(html), 'touch action buttons skip text labels');
 assert(/const labelPx=UI\.labelPx\|\|/.test(html) && /String\(b\.label\)\.toUpperCase\(\)/.test(html), 'every HUD title uses one size and one case');
-assert(/icon_attack_wide:'assets\/ui\/icon_attack_wide\.png'/.test(html), 'Attack slab has horizontal maul art');
+assert(/icon_attack_wide:'assets\/ui\/icon_attack_wide\.png'/.test(html) && /icon_attack_long:'assets\/ui\/icon_attack_long\.png'/.test(html), 'Attack slab has horizontal maul art (desktop + touch shapes)');
 
 const none={t:0,r:0,b:0,l:0};
 const CASES=[
