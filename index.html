@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=75">
-<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=114">
+<link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=116">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -387,7 +387,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='114';
+const ASSET_VER='116';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -728,6 +728,22 @@ SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
 SPRITE_FILES.macar_ne_w3='assets/creatures/dwarf_macar_ne_w3.png';
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
+/* v0.13p B maul walk. 8 painted directions × 12 frames. Canvases stay at
+   the export size (per-direction 390 / body-only height). Do not rescale.
+   W / NW / SW are real paintings, not mirrors of E / NE / SE.
+   Registered after the Macar strip so they are not deleted and do not
+   spawn _w1 / _atk siblings. Idle and attack stay on the signed sheets. */
+const MACAR_V13P_DIRS=['s','sw','w','nw','n','ne','e','se'];
+const MACAR_V13P_WALK={};
+MACAR_V13P_DIRS.forEach(function(dir){
+  MACAR_V13P_WALK[dir]=[];
+  for(let i=0;i<12;i++){
+    const nn=(i<10?'0':'')+i;
+    const key='macar_v13p_'+dir+'_'+nn;
+    SPRITE_FILES[key]='assets/creatures/dwarf_macar_v13p_'+dir+'_'+nn+'.png';
+    MACAR_V13P_WALK[dir].push(key);
+  }
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -749,6 +765,17 @@ const WORLD_ART_KEYS={
   4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
   5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact']
 };
+/* Hold the first step until the v0.13p walk is decoded, or the old
+   compass sheets flash and then pop. */
+if(typeof MACAR_V13P_WALK==='object'){
+  Object.keys(MACAR_V13P_WALK).forEach(function(dir){
+    (MACAR_V13P_WALK[dir]||[]).forEach(function(k){
+      Object.keys(WORLD_ART_KEYS).forEach(function(n){
+        if(WORLD_ART_KEYS[n].indexOf(k)<0) WORLD_ART_KEYS[n].push(k);
+      });
+    });
+  });
+}
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 function worldArtReady(n){
   n=n||(G&&G.ch)||1;
@@ -788,6 +815,13 @@ function loadSprites(done){
     'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
     'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
     'glowcap','cavefern','sporepuff','nightbloom','lichen'];
+  if(typeof MACAR_V13P_WALK==='object'){
+    Object.keys(MACAR_V13P_WALK).forEach(function(dir){
+      (MACAR_V13P_WALK[dir]||[]).forEach(function(k){
+        if(first.indexOf(k)<0) first.push(k);
+      });
+    });
+  }
   const seen={};
   const queue=[];
   first.forEach(k=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; queue.push(k); } });
@@ -857,6 +891,7 @@ function warmLivingMacarSheets(){
 }
 function ensureDeadSprites(){
   Object.keys(SPRITE_FILES).forEach(k=>{
+    if(/^macar_v13p_/.test(k)) return;
     if(/_(w1|w2|atk|dead|sleep)$/.test(k)) return;
     const src=SPRITE_FILES[k]||'';
     if(!/\/(mon_|dwarf_)/.test(src)) return;
@@ -1748,6 +1783,11 @@ const LIVING_MACAR_KEYS={
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
   macar_e_w3:1, macar_se_w3:1, macar_ne_w2:1, macar_ne_w3:1, macar_back_w1:1, macar_back_w2:1
 };
+if(typeof MACAR_V13P_WALK==='object'){
+  Object.keys(MACAR_V13P_WALK).forEach(function(dir){
+    (MACAR_V13P_WALK[dir]||[]).forEach(function(k){ LIVING_MACAR_KEYS[k]=1; });
+  });
+}
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
@@ -1971,7 +2011,8 @@ function livingMacarBlitKey(key){
      Skip the idle-family match or every turn plants the front sheet. */
   if(isLivingMacarKey(key) && sprReady(key) && (
       key==='macar_e_w3'||key==='macar_se_w3'||key==='macar_ne_w2'||key==='macar_ne_w3'
-      ||key==='macar_back_w1'||key==='macar_back_w2')
+      ||key==='macar_back_w1'||key==='macar_back_w2'
+      ||/^macar_v13p_/.test(key))
      && partyFrameFitOk(SPR[key], null)) return key;
   return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
     || (sprReady('macar')?'macar':null);
@@ -2086,6 +2127,21 @@ function macarPose(e){
   ]);
   return idle?{key:idle, flip:flip}:none;
 }
+/* One gait (0..1) plays all 12 v0.13p frames. Returns null unless the
+   whole direction is decoded, so a half-loaded cycle cannot mix with
+   the signed compass sheets. */
+function macarV13pWalkKey(e){
+  if(!e || !e.moving || e.defending) return null;
+  if(typeof MACAR_V13P_WALK!=='object' || !MACAR_V13P_WALK) return null;
+  const oct=(typeof screenOctant==='function')?screenOctant(e):'s';
+  const list=MACAR_V13P_WALK[oct];
+  if(!list || list.length!==12) return null;
+  for(let i=0;i<12;i++){
+    if(!isLivingMacarKey(list[i]) || !sprReady(list[i])) return null;
+  }
+  const phase=(((e.gait||0)%1)+1)%1;
+  return list[Math.min(11, (phase*12)|0)];
+}
 /* Living Macar only. Idle / front w1-w2 (maul) or axe / xbow carry plant.
    Maul strike: windup (macar_atk) early, contact at the hit (t≥0.45).
    Axe / xbow keep a single matching _atk. Recover plants idle (or a real
@@ -2118,10 +2174,18 @@ function livingMacarAnimKey(e){
     if(matchingPartyAtkReady(rec, idle)) return rec;
     return idle;
   }
+  /* Moving maul walk is the v0.13p B cycle (12 frames, 8 real directions).
+     Standing still keeps the signed idle / compass sheets. Cleaver and
+     crossbow never enter this path (idle !== 'macar'). */
+  if(idle==='macar' && typeof macarV13pWalkKey==='function'){
+    const v13=macarV13pWalkKey(e);
+    if(v13) return v13;
+  }
   /* Maul compass from the move / last heading. South stays the signed
      front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
      crossbow have no compass sheets, so they keep their front walks.
-     No heading reads as south. */
+     No heading reads as south. Used when the v0.13p frames are not ready,
+     and for a standing compass pose. */
   if(idle==='macar' && typeof screenOctant==='function'){
     const oct=screenOctant(e);
     let frames=null;
@@ -2251,6 +2315,15 @@ function livingMacarPlantFit(e, key, img){
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
   const idleFit=heroFigureFit(e, idle);
+  /* v0.13p frames are already stature-locked (390 / body-only standing
+     height per direction). One plant, taken against the south 678 canvas,
+     so the blit does not remeasure the maul and rescale a direction. */
+  if(key && /^macar_v13p_/.test(key)){
+    const idleBody=livingSheetStature(idle);
+    const refBody=390/678;
+    const body=(idleBody>0.55)?idleBody:MACAR_IDLE_FRAC;
+    return idleFit*(body/refBody);
+  }
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
@@ -2300,10 +2373,15 @@ function drawLivingMacar(g,e){
   const footCx=(b&&b.ok&&b.footCx!=null)?b.footCx:0.5;
   const bootCx=(b&&b.ok&&b.bootCx!=null)?b.bootCx:footCx;
   const idleFoot=(ib&&ib.ok&&ib.footCx!=null)?ib.footCx:footCx;
-  const plant=livingMacarPlantX(footCx, bootCx, idleFoot);
+  const v13=/^macar_v13p_/.test(String(blitKey||key||''));
+  /* v0.13p pivot is bottom-centre on the sole line. Source renders put
+     that line at row 1002 of 1152, and the 390 export is a uniform scale,
+     so the fraction is the same in every direction. The foot histogram
+     follows the passing boot and would hop him. */
+  const plant=v13?0.5:livingMacarPlantX(footCx, bootCx, idleFoot);
   const cx=flip?1-plant:plant;
   const dx=-W*cx;
-  const dy=(b&&b.ok)?-H*b.botY:-H;
+  const dy=v13?-H*(1002/1152):((b&&b.ok)?-H*b.botY:-H);
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z);
@@ -3071,6 +3149,8 @@ function wantsSpriteFlip(e){
   const key=entAnimKey(e)||'';
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
+  /* v0.13p paints all 8 directions, including W / NW / SW. Do not mirror. */
+  if(/^macar_v13p_/.test(key)) return false;
   // Painted sheets travel SCREEN-RIGHT (east / se / ne / front). Flip ONLY
   // for screen-left, so west mirrors east, SW mirrors SE, NW mirrors NE.
   // A _ne_ early-out left NW on the unflipped up-right sheet.

@@ -86,7 +86,8 @@ Object.keys(registry).forEach(k=>{
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk'
      || k==='macar_e_w3' || k==='macar_se_w3' || k==='macar_ne_w2' || k==='macar_ne_w3'
-     || k==='macar_back_w1' || k==='macar_back_w2') return;
+     || k==='macar_back_w1' || k==='macar_back_w2'
+     || /^macar_v13p_(s|sw|w|nw|n|ne|e|se)_\d\d$/.test(k)) return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 
