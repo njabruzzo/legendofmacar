@@ -14535,7 +14535,15 @@ function chapelShadeDisjoint(rects){
 function chapelShadeClipOut(g, rects){
   g.beginPath();
   g.rect(0, 0, VW, VH);
-  const holes=chapelShadeDisjoint(rects||[]);
+  /* Grow a pixel, then split again. The clip edge is antialiased, and a
+     bare shared edge leaves a one-pixel fringe on the chapel. */
+  const grown=[];
+  for(let i=0;i<(rects||[]).length;i++){
+    const r=rects[i];
+    if(!r) continue;
+    grown.push({x0:r.x0-1, y0:r.y0-1, x1:r.x1+1, y1:r.y1+1});
+  }
+  const holes=chapelShadeDisjoint(grown);
   for(let i=0;i<holes.length;i++){
     const r=holes[i];
     g.rect(r.x0, r.y0, r.x1-r.x0, r.y1-r.y0);
