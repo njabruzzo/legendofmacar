@@ -6238,6 +6238,7 @@ function applyPlaySave(play){
   });
   pinFallenKin();
   if(G.lvl&&G.lvl.flags&&G.lvl.flags.copperTooth) G.lvl.flags.electrumTooth=1;
+  if(typeof bindPriedChapelTooth==='function') bindPriedChapelTooth();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
@@ -11735,10 +11736,28 @@ function chapelNorthFace(p, r){
 function chapelFaceToothTaken(face){
   if(!face||face.emptySocket) return true;
   const f=G.lvl&&G.lvl.flags;
-  if(!f) return false;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
-  if(kind==='bronze') return !!(f.bronzeSecured||f.bronzeTooth);
-  return !!(f.electrumTooth||f.copperTooth);
+  if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
+  if(f&&(f.electrumTooth||f.copperTooth)) return true;
+  /* The pack item is the same pry. A save that kept the tooth and dropped
+     the flag must not offer a second Pry. */
+  if(typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()) return true;
+  return false;
+}
+/* After props are restored. The flag (or the tooth still in the pack) wins
+   over a face that came back with the fang. */
+function bindPriedChapelTooth(){
+  const L=G.lvl;
+  if(!L) return;
+  L.flags=L.flags||{};
+  if(L.flags.copperTooth) L.flags.electrumTooth=1;
+  if(typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack()) L.flags.electrumTooth=1;
+  if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
+  (G.props||[]).forEach(p=>{
+    if(!p||p.gone||p.k!=='demonface') return;
+    if(p.wall==='e'||p.toothKind==='bronze') return;
+    p.emptySocket=1;
+  });
 }
 function maybeTeethChapelLooks(p){
   if(!p||G.talk||PROMPT) return false;
@@ -13573,12 +13592,7 @@ function update(dt){
     }
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
-      if(face && !face.emptySocket){
-        const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
-        const taken=L.flags&&((kind==='bronze')?(L.flags.bronzeSecured||L.flags.bronzeTooth)
-          :(L.flags.electrumTooth||L.flags.copperTooth));
-        if(!taken) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
-      }
+      if(face && !chapelFaceToothTaken(face)) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
     }
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
     if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
@@ -15013,10 +15027,9 @@ function demonFaceImg(p){
   /* Hourglass vault keeps main's wide plate. The v4 portrait and the
      empty-socket sheet are the chapter 1 chapel face only. */
   if(p && vaultDemonFace(p)) return SPR.demon_dwarfface_vault||null;
-  if(p && demonFaceShowsEmpty(p)){
-    const empty=SPR.demon_dwarfface_empty;
-    if(empty && empty.width) return empty;
-  }
+  /* Empty v5 plate only. The fanged sheet used to win until the empty
+     image had a width, so a reload drew the tooth back in the socket. */
+  if(p && demonFaceShowsEmpty(p)) return SPR.demon_dwarfface_empty||null;
   return SPR.demon_dwarfface||SPR.demonface||null;
 }
 function demonFaceHalf(p){

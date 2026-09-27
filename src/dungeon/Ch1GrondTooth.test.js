@@ -279,5 +279,88 @@ assert(!ctx.hasBronzeToothInPack(), 'unsecured bronze is stripped from the pack'
 assert(!ctx.G.lvl.flags.hourglassRaid && ctx.G.hourglassT===10,
   'reload without bronzeSecured resets the 10s glass');
 
+/* Pry, save, reload. The flag comes back, the empty plate is bound,
+   Pry is not offered, and the pack still holds one tooth. */
+{
+  const gs=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
+  const round={
+    G:{
+      packs:{macar:{magic:[],potions:[],gems:[]}},
+      equipped:{},
+      props:[],
+      ents:[{hero:1,dead:0,x:107.1,y:4.2,hp:20,maxhp:20,col:{key:'macar'}}],
+      lvl:{
+        n:1,w:132,h:90,grid:[],flags:{},lights:[],wallHP:{},
+        secrets:[{i:105,j:15,x:106.5,y:15.05,w:3,h:1,kind:'teeth',face:'n',open:0}]
+      },
+      coin:{cp:0,sp:0,ep:0,gp:0,pp:0},
+      scene:'play', kills:0, cam:{x:0,y:0}
+    },
+    SPR:{
+      demon_dwarfface_empty:{width:298,height:392,id:'empty'},
+      demon_dwarfface:{width:298,height:392,id:'tooth'},
+      demon_dwarfface_vault:{width:457,height:274,id:'vault'}
+    },
+    EID:3,
+    Math, Object, JSON,
+    h2(){ return 0.4; },
+    rect(){}, corridor(){}, carvePath(){}, burst(){}, say(){}, hint(){},
+    bumpTopology(){}, applyTeethFaceWallHeight(){}, ftext(){},
+    enterGoblinKingLevel(){}, restoreSavedEid(){}, restorePartyHaste(){},
+    remakeSavedEnt(sv){ return sv; },
+    pinFallenKin(){}, rebuildVision(){}, ensureCh1CenterPillar(){},
+    convertCoinsToElectrum(){},
+    stowPackItem(it){ round.G.packs.macar.magic.push(it); return it; },
+    player(){ return (round.G.ents||[]).find(e=>e&&e.hero&&!e.dead); }
+  };
+  vm.createContext(round);
+  vm.runInContext(gs, round);
+  [
+    'makeGrondTooth','pryGrondTooth','hasElectrumToothInPack','hasBronzeToothInPack',
+    'chapelFaceToothTaken','bindPriedChapelTooth','demonFaceShowsEmpty','vaultDemonFace',
+    'demonFaceImg','buildTeethCrownRoom','openSecret','revertUnsecuredBronzeTooth',
+    'resetUnsecuredHourglass','applyPlaySave'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', round));
+  function toothCount(){
+    const pk=round.G.packs.macar;
+    let n=0;
+    Object.keys(pk).forEach(k=>{
+      const bag=pk[k];
+      if(bag&&bag.forEach) bag.forEach(it=>{
+        if(it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')) n++;
+      });
+    });
+    return n;
+  }
+  round.openSecret(round.G.lvl.secrets[0]);
+  const face=round.G.props.find(p=>p&&p.k==='demonface'&&p.wall!=='e');
+  const pry=round.pryGrondTooth(face,'electrum');
+  assert(pry.ok===1 && toothCount()===1, 'pry stows one electrum tooth');
+  const play=round.GameSave.captureWorld(round.G,{nextEid:4});
+  assert(play.flags.electrumTooth===1, 'save persists the tooth-pried flag');
+  const savedFace=(play.props||[]).find(p=>p&&p.k==='demonface'&&p.wall!=='e');
+  assert(savedFace&&savedFace.emptySocket, 'save persists the empty socket on the face');
+  savedFace.emptySocket=0;
+  const snap=round.GameSave.snapshot(round.G,{scene:'play',play});
+  const store={data:{},setItem(k,v){this.data[k]=String(v);},getItem(k){return this.data[k]||null;},removeItem(k){delete this.data[k];}};
+  assert(round.GameSave.write(store,snap)===true, 'pried-tooth save writes');
+  const loaded=round.GameSave.read(store);
+  round.G.props=[];
+  round.G.lvl.flags={broke:1};
+  round.G.lvl.secrets[0].open=0;
+  round.G.packs={macar:{magic:[],potions:[],gems:[]}};
+  round.GameSave.applyCampaign(round.G, loaded);
+  round.applyPlaySave(loaded.play);
+  const again=round.G.props.find(p=>p&&p.k==='demonface'&&p.wall!=='e');
+  assert(round.G.lvl.flags.electrumTooth===1, 'load restores the tooth-pried flag');
+  assert(again&&again.emptySocket===1, 'load binds the empty socket from the flag');
+  assert(round.demonFaceImg(again)===round.SPR.demon_dwarfface_empty, 'load shows the empty plate');
+  assert(round.chapelFaceToothTaken(again)===true, 'load offers no Pry prompt');
+  assert(toothCount()===1, 'load keeps exactly one tooth in the pack');
+  const second=round.pryGrondTooth(again,'electrum');
+  assert(second.ok===0 && second.reason==='taken' && toothCount()===1,
+    'a second pry after load does not duplicate the tooth');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nSage tooth-hunt / hourglass checks passed');
