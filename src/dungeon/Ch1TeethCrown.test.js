@@ -356,6 +356,13 @@ assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
   'TAKE raises four skeletal dwarves');
 assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
   'TAKE does not spawn fanged skeletons');
+{
+  const mac=ctx.G.ents.find(e=>e.hero);
+  const spots=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(spots.length===4 && dwarves.every((e,i)=>e.x===spots[i].x && e.y===spots[i].y),
+    'TAKE skeletal dwarves stand on their spawn spots');
+}
 assert(ctx.takeBoneCrown(altarCrown).ok===0, 'taking again is a no-op');
 assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
   'wearing after take does not raise the dwarves twice');
@@ -370,18 +377,6 @@ assert(!/riseTeethHorde\(/.test(extractFn('takeBoneCrown'))
 assert(/riseSkeletalDwarves\(crown\)/.test(extractFn('takeBoneCrown'))
   && /riseSkeletalDwarves\(where\)/.test(extractFn('destroyBoneCrown')),
   'take and destroy raise skeletal dwarves');
-assert(/macar_crown/.test(html.slice(html.indexOf('Title-law Macar'), html.indexOf('SPRITE_FILES.macar_atk_contact'))),
-  'title-law strip keeps crowned Macar keys');
-assert(/function crownedMacarSwap\(/.test(html)
-  && /wearingBoneCrown\(\)/.test(extractFn('crownedMacarSwap'))
-  && /return key/.test(extractFn('crownedMacarSwap')),
-  'a worn crown swaps to the crowned sheet, and doffing returns the plain key');
-assert(/browY/.test(extractFn('drawWornBoneCrown'))
-  && /crownSprite\(\)/.test(extractFn('drawWornBoneCrown'))
-  && !/H\*0\.15/.test(extractFn('drawWornBoneCrown')),
-  'the worn crown sits on the sheet brow, one crown, not the maul ledge');
-assert(/crownedMacarSwap\(livingMacarAnimKey/.test(extractFn('drawLivingMacar')),
-  'idle, walk, and attack all pass through the crowned swap');
 assert(ctx.xpAwards.length===0, 'TAKE does not award the destroy XP');
 
 ctx.G.lvl.flags={};
@@ -401,6 +396,13 @@ assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
   'DESTROY raises four skeletal dwarves');
 assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
   'DESTROY does not spawn fanged skeletons');
+{
+  const mac=ctx.G.ents.find(e=>e.hero);
+  const spots=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(spots.length===4 && dwarves.every((e,i)=>e.x===spots[i].x && e.y===spots[i].y),
+    'DESTROY skeletal dwarves stand on their spawn spots');
+}
 
 /* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
    Wall cells on the far edge must be skipped. beginFight may lengthen stun;

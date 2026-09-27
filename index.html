@@ -766,9 +766,7 @@ SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png'
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
-     || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk'
-     || k==='macar_crown' || k==='macar_crown_w1' || k==='macar_crown_w2'
-     || k==='macar_crown_atk' || k==='macar_crown_atk_contact') return;
+     || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver + crossbow carry/atk — registered after the strip so they survive. */
@@ -1119,22 +1117,6 @@ function spriteBounds(img){
     if(y<=midY) upperHist[x]++;
   }
   const bootCx=bootPlantFrac(footHist, upperHist, w, fcx/w);
-  /* Brow: first rows wider than a maul shaft (0.22 of the sheet). The old
-     worn crown sat at 15% of the canvas, which is the maul on the idle. */
-  let browY=0.24, browX=0.5, browRun=0;
-  const browThr=w*0.22;
-  for(let y=0;y<h;y++){
-    let xlo=w, xhi=-1;
-    for(let x=0;x<w;x++){
-      if(d[(y*w+x)*4+3]<=40) continue;
-      if(x<xlo) xlo=x;
-      if(x>xhi) xhi=x;
-    }
-    if(xhi>=xlo && (xhi-xlo)>=browThr){
-      browRun++;
-      if(browRun>=2){ browY=y/h; browX=(xlo+xhi+1)/(2*w); break; }
-    } else browRun=0;
-  }
   return stampMetrics(img,{
     ok:true,
     botY:(bot+1)/h,
@@ -1143,7 +1125,6 @@ function spriteBounds(img){
     bootCx:bootCx,
     x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h,
     personY0:crown/h,
-    browY:browY, browX:browX,
     crown:crownId
   });
 }
@@ -1942,7 +1923,6 @@ const MACAR_PLAN={
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
-  macar_crown:1, macar_crown_w1:1, macar_crown_w2:1, macar_crown_atk:1, macar_crown_atk_contact:1,
   macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
@@ -1954,18 +1934,6 @@ function livingMacarIdleKey(){
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
   return 'macar';
-}
-/* Worn bone crown. A signed macar_crown sheet wins when it has loaded.
-   Doffing (helmet clear) returns the plain key. No sheet on disk: the
-   caller draws the one crown on that sheet's brow. */
-function crownedMacarSwap(key){
-  if(!key || typeof wearingBoneCrown!=='function' || !wearingBoneCrown()) return key;
-  if(String(key).indexOf('macar_crown')===0) return key;
-  if(!/^macar(_|$)/.test(key)) return key;
-  const alt=key==='macar'?'macar_crown':('macar_crown_'+key.slice('macar_'.length));
-  if(typeof isLivingMacarKey==='function' && !isLivingMacarKey(alt)) return key;
-  if(typeof sprReady==='function' && sprReady(alt)) return alt;
-  return key;
 }
 /* Extra mass is WIDTH, not height. Dungeon height stays kin 78*z so Macar
    never reads taller than title-law / party. 1.24× turns the old ~70px
@@ -2200,7 +2168,6 @@ function ghostAnimKey(e, k){
    pickReadyPartyKey so a second crown/family pass cannot plant idle after
    livingMacarAnimKey already chose the mid-swing sheet. */
 function livingMacarBlitKey(key){
-  if(key && String(key).indexOf('macar_crown')===0 && typeof sprReady==='function' && sprReady(key)) return key;
   const idle=livingMacarIdleKey();
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
@@ -2492,7 +2459,7 @@ function livingMacarPlantFit(e, key, img){
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
 function drawLivingMacar(g,e){
   if(!e||!e.hero||e.dead||e.ghost||e.hidden) return;
-  const key=crownedMacarSwap(livingMacarAnimKey(e));
+  const key=livingMacarAnimKey(e);
   const blitKey=livingMacarBlitKey(key);
   noteMacarStrikeQA(e, key, blitKey);
   const img=livingMacarImg(key);
@@ -2534,12 +2501,8 @@ function drawLivingMacar(g,e){
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
-  /* One crown. A loaded macar_crown sheet already wears it. Otherwise the
-     prop sits on this sheet's brow — idle, walk, and attack. Doff skips it. */
-  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()
-     && String(blitKey||key||'').indexOf('macar_crown')!==0){
-    const src=(typeof SPR!=='undefined' && SPR[blitKey||key])||img;
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z, src);
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
   }
   g.restore();
 }
@@ -11582,10 +11545,6 @@ function riseSkeletalDwarves(where){
   if(risen.length){
     say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
     if(typeof beginFight==='function') beginFight(last);
-    /* beginFight can clear the stir. Pin it so the open is a short beat. */
-    for(let i=0;i<risen.length;i++){
-      if(risen[i] && !risen[i].dead) risen[i].stun=0.4;
-    }
   }
   return risen.length;
 }
@@ -11603,7 +11562,6 @@ function takeBoneCrown(crown){
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
   hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
-  /* Take already wears it. One raise: skeletal dwarves, not the fanged horde. */
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
   return {ok:1, worn:1};
 }
@@ -11629,7 +11587,6 @@ function destroyBoneCrown(crown){
   say('Macar shatters the bone crown.','#ffe08a');
   const xp=awardCrownDestroyXp(where);
   collapseCrownThrall();
-  /* Same one-shot as take. A crown already worn does not raise them again. */
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
@@ -15026,50 +14983,15 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-let WORN_CROWN_SHEET=null, WORN_CROWN_SRC=null;
-/* Neutral gray in the crown's opening is opaque on the prop. Punch it
-   for the worn draw only so the face shows through. The altar sheet is
-   untouched. */
-function wornCrownSheet(){
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
   const img=crownSprite();
-  if(!img||!img.width) return null;
-  if(WORN_CROWN_SRC===img && WORN_CROWN_SHEET) return WORN_CROWN_SHEET;
-  WORN_CROWN_SRC=img;
-  try{
-    const c=document.createElement('canvas');
-    c.width=img.width; c.height=img.height;
-    const x=c.getContext('2d',{willReadFrequently:true});
-    x.drawImage(img,0,0);
-    const im=x.getImageData(0,0,c.width,c.height);
-    const p=im.data;
-    for(let i=0;i<p.length;i+=4){
-      if(p[i+3]<8) continue;
-      const r=p[i], g=p[i+1], b=p[i+2];
-      const mx=r>g?(r>b?r:b):(g>b?g:b);
-      const mn=r<g?(r<b?r:b):(g<b?g:b);
-      if(mx && (mx-mn)/mx<0.12 && mx>70 && mx<190) p[i+3]=0;
-    }
-    x.putImageData(im,0,0);
-    WORN_CROWN_SHEET=c;
-    return c;
-  }catch(_){
-    WORN_CROWN_SHEET=img;
-    return img;
-  }
-}
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z, src){
-  /* Full TAKE crown (crownSprite), punched for the face opening. */
-  const img=crownSprite()?wornCrownSheet():null;
-  const b=src && typeof spriteBounds==='function'?spriteBounds(src):null;
-  const hy=(b&&b.browY!=null)?b.browY+0.015:0.25;
-  const hx=(b&&b.browX!=null)?b.browX:0.5;
-  const cx=dx+W*(flip?(1-hx):hx);
-  const cy=dy+H*hy;
+  const cx=dx+W*0.5;
+  const cy=dy+H*0.15;
   g.save();
   if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
   if(img){
-    const h=Math.max(12, H*0.32), w=h*(img.width/Math.max(1,img.height));
-    g.drawImage(img, cx-w/2, cy-h, w, h);
+    const h=Math.max(14, H*0.20), w=h*(img.width/Math.max(1,img.height));
+    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
   } else {
     g.translate(cx, cy);
     drawBoneCrownShape(g, z, 0.72);
