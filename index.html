@@ -12056,13 +12056,9 @@ function openTeethChapelLook(key){
     G.talk.choices=teethFaceChoices();
   return true;
 }
-function primaryCrownPrompt(p){
-  /* The crown leaves only from its inventory Drop. Raising a corpse is
-     the Animate bar button, not a plate on the play field. */
-  if(typeof livingThrall==='function' && typeof setThrallStay==='function'){
-    const pet=livingThrall();
-    if(pet && p && dist(p,pet)<3.2) return pet.thrallStay?'Thrall: follow':'Thrall: stay';
-  }
+function primaryCrownPrompt(){
+  /* Crown actions stay off the play field. Drop is inventory.
+     Raising a corpse is the Animate bar button. */
   return null;
 }
 /* The teeth altar sheet is 1075×718, drawn 150*s px tall, and TW is 84*ZOOM.
@@ -13871,13 +13867,7 @@ function update(dt){
       const crown=nearestBoneCrown(p,1.75);
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
-    if(!PROMPT && typeof primaryCrownPrompt==='function'){
-      const crownLab=primaryCrownPrompt(p);
-      if(crownLab){
-        const pet=livingThrall();
-        if(pet) interact(crownLab,()=>setThrallStay(!pet.thrallStay));
-      }
-    }
+    /* Crown plates used to float here. Animate is the bar button. */
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
       if(face && !chapelFaceToothTaken(face)) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
