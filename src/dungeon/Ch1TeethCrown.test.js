@@ -245,8 +245,8 @@ assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
   'tooth prop height is the small-fang scale');
 assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
   'bone crown is drawn up on the altar slab');
-assert(/TEETH_ALTAR_SLAB_FX=535\/1075/.test(html) && /TEETH_ALTAR_SLAB_FY=475\/718/.test(html),
-  'crown base is the slab-center pixel of the altar sheet');
+assert(/TEETH_ALTAR_SLAB_FX=445\/1075/.test(html) && /TEETH_ALTAR_SLAB_FY=212\/718/.test(html),
+  'crown base is the blood-lid center of the altar sheet');
 assert(!/TEETH_CROWN_SEAT_TUCK/.test(html) && !/TEETH_CROWN_SEAT_X/.test(html),
   'seat has no zoom tuck and no world-unit x offset');
 assert(/function boneCrownAltarSeat\(rect\)/.test(html)
@@ -727,7 +727,7 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
     'drawBoneCrownAt','boneCrownDroppedOnFloor','drawBoneCrownProp'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
-  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_ALTAR_SLAB_FY=475\/718;/)[0];
+  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_ALTAR_SLAB_FY=212\/718;/)[0];
   vm.runInContext(seatConsts, ctx);
   ctx.SPR={bone_crown_scene:{width:109,height:66}};
   const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,s:1.55,gone:0};
@@ -794,14 +794,14 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     const at=ctx.boneCrownAltarSeat(rect);
     const fx=(at.x-rect.x)/rect.w, fy=(at.y-rect.y)/rect.h;
     zoomFrac.push({fx, fy});
-    assert(Math.abs(fx-535/1075)<1e-12 && Math.abs(fy-475/718)<1e-12,
-      'zoom '+zz+' seat is the slab-center fraction of the altar rect');
+    assert(Math.abs(fx-445/1075)<1e-12 && Math.abs(fy-212/718)<1e-12,
+      'zoom '+zz+' seat is the lid-center fraction of the altar rect');
     const calls=[];
     ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ calls.push({x,y,w,h}); }}, crown, zz);
     assert(calls.length===1, 'zoom '+zz+' draws one seated crown');
     const baseX=calls[0].x+calls[0].w/2, baseY=calls[0].y+calls[0].h;
-    assert(Math.abs((baseX-rect.x)/rect.w - 535/1075)<1e-9
-      && Math.abs((baseY-rect.y)/rect.h - 475/718)<1e-9,
+    assert(Math.abs((baseX-rect.x)/rect.w - 445/1075)<1e-9
+      && Math.abs((baseY-rect.y)/rect.h - 212/718)<1e-9,
       'zoom '+zz+' crown base sits on that same fraction of the drawn rect');
   });
   assert(Math.abs(zoomFrac[0].fx-zoomFrac[1].fx)<1e-12

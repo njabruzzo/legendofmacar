@@ -15113,12 +15113,12 @@ function teethAltarSheetActive(){
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
-/* Slab-center pixel on prop_altar_teeth.png (1075×718): the top face
-   of the raised block, the blood pool in the box with the carved band.
-   Back lip y=460, front lip y=490, side edges x=480 and x=590.
-   Center is (535, 475). Not the stairs and not the back-wall cap. */
-const TEETH_ALTAR_SLAB_FX=535/1075;
-const TEETH_ALTAR_SLAB_FY=475/718;
+/* Lid center on prop_altar_teeth.png (1075×718). The raised block's
+   top face — the blood-smeared lid of the box with the knotwork band —
+   spans about x=305–585, y=170–235. Center is (445, 212).
+   (535, 475) is a front stair tread, not this lid. */
+const TEETH_ALTAR_SLAB_FX=445/1075;
+const TEETH_ALTAR_SLAB_FY=212/718;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;
