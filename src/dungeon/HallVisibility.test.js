@@ -53,10 +53,12 @@ assert(/rect\(g,14,14,18,16,0\)/.test(html) && /rect\(g,24,7,28,28,0\)/.test(htm
   'chapter I start rooms stay isometric chambers (grid was never a 1-tile tunnel)');
 
 const shade=html.slice(html.indexOf('function drawMemoryShade'), html.indexOf('function drawBeyondMask'));
-assert(/!oS&&!oE&&!oN&&!oW\) continue/.test(shade)
-  && /isWalkTile\(L\.grid\[y\+1\]\[x\]\)/.test(shade)
-  && /isWalkTile\(L\.grid\[y\]\[x\+1\]\)/.test(shade),
-  'memory shade skips buried rock so its discs cannot cover a taller face in front');
+assert(!/ellipse\(/.test(shade), 'memory shade does not paint black discs on walls');
+assert(/nearTeethChapel\(L,x,y\)\) continue/.test(shade),
+  'the revealed chapel is not covered by memory-shade discs');
+assert(/isWalkTile\(t\)/.test(shade), 'out-of-sight floor still shades as the tile diamond');
+assert(/function drawBeyondMask/.test(html) && /fillStyle=rock/.test(html),
+  'unexplored rock stays a solid mask, not a disc');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nhall visibility checks passed');

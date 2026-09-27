@@ -11264,6 +11264,12 @@ function isTeethFloor(L,x,y){
   if(!b) return false;
   return x>=b.x0 && x<b.x1 && y>=b.y0 && y<b.y1;
 }
+/* The chapel's own walls sit one cell outside the floor rect. */
+function nearTeethChapel(L,x,y){
+  const b=teethBounds(L);
+  if(!b) return false;
+  return x>=b.x0-1 && x<b.x1+1 && y>=b.y0-1 && y<b.y1+1;
+}
 function wearingBoneCrown(eq){
   eq=eq||(typeof G!=='undefined'?G.equipped:null)||{};
   const h=eq.helmet;
@@ -14316,6 +14322,11 @@ function drawMemoryShade(g,L){
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
     if(!L.seen[y]||!L.seen[y][x]) continue;
     if(L.vis&&L.vis[y]&&L.vis[y][x]) continue;
+    /* The revealed chapel is a lit room. Remembered cells there used to
+       take a wall disc (radius tied to wallFaceH) that landed on the
+       floor, the west wall, and the altar as solid black balls. Unexplored
+       rock stays black in drawBeyondMask, which does not use discs. */
+    if(nearTeethChapel(L,x,y)) continue;
     const s=w2s(x,y);
     const t=L.grid[y][x];
     if(isWalkTile(t)){
@@ -14323,21 +14334,6 @@ function drawMemoryShade(g,L){
       g.moveTo(s.x, s.y-TH/2); g.lineTo(s.x+TW/2, s.y);
       g.lineTo(s.x, s.y+TH/2); g.lineTo(s.x-TW/2, s.y);
       g.closePath(); g.fill();
-    } else if(t===1||t===2){
-      /* Only rock that actually draws a face. Buried cells behind the
-         chapel's tall north wall (and the vault's east wall) are often
-         seen but out of sight. A disc on that cell is not on its own
-         masonry — it lands on the portrait in front and reads as a row
-         of black blobs. Halls still shade; they have an open side. */
-      const oS=L.grid[y+1]&&isWalkTile(L.grid[y+1][x]);
-      const oE=L.grid[y]&&isWalkTile(L.grid[y][x+1]);
-      const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
-      const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
-      if(!oS&&!oE&&!oN&&!oW) continue;
-      const H=useWallFaces(L)?wallFaceH(L):TH;
-      g.beginPath();
-      g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
-      g.fill();
     }
   }
   g.restore();
