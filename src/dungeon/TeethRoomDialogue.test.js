@@ -129,5 +129,45 @@ assert(/const quest=r\.it && \(r\.it\.quest \|\| r\.it\.grondTooth \|\| r\.it\.c
   && /if\(quest && !G\.packSlotFilter\) return true/.test(html),
   'the electrum tooth stays on the default Gear inventory list');
 
+const ALTAR_LINE='A bone crown rests on the bloody altar. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';
+const FLOOR_LINE='A bone crown lies on the floor. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';
+const WORN_LINE='The bone crown sits on Macar\'s brow. It is yellowed and cold, and it does not want to come off.';
+assert(html.indexOf("line:'"+ALTAR_LINE+"'")>=0, 'the talk pack keeps the altar line');
+ctx.Object=Object;
+ctx.NPC_TALK.teeth_chapel_crown.line=ALTAR_LINE;
+['isToyTalkKey','startTalkObj','startTalk','teethCrownOnAltarSeat','teethCrownLookLine','openTeethChapelLook']
+  .forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0};
+const crownProp={x:altar.x,y:altar.y,k:'bonecrown',gone:0,taken:0,destroyed:0};
+ctx.G.props=[altar, crownProp];
+ctx.G.equipped.helmet=null;
+ctx.G.lvl.flags={};
+ctx.G.talk=null;
+assert(ctx.openTeethChapelLook('teeth_chapel_crown')===true && ctx.G.talk.line===ALTAR_LINE,
+  'a crown seated on the altar keeps the altar line');
+ctx.G.talk=null;
+ctx.G.lvl.flags.crownDropped=1;
+crownProp.x=108; crownProp.y=10.55;
+assert(!ctx.teethCrownOnAltarSeat(), 'a floor crown is not on the altar seat');
+assert(ctx.openTeethChapelLook('teeth_chapel_crown')===true && ctx.G.talk.line===FLOOR_LINE,
+  'a dropped crown on the floor reads the floor line');
+ctx.G.talk=null;
+ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+ctx.G.ents=[{hero:1,x:altar.x,y:altar.y+0.8}];
+ctx.G.lvl.flags={crownTaken:1, crownTouched:1, crownDropped:0};
+crownProp.gone=1; crownProp.taken=1; crownProp.x=altar.x; crownProp.y=altar.y;
+assert(ctx.dropBoneCrown().ok===1 && ctx.G.lvl.flags.crownDropped===0
+  && crownProp.x===altar.x && crownProp.y===altar.y,
+  'a near drop re-seats the crown on the altar');
+ctx.G.talk=null;
+assert(ctx.openTeethChapelLook('teeth_chapel_crown')===true && ctx.G.talk.line===ALTAR_LINE,
+  'a re-seated crown reads the altar line');
+ctx.G.talk=null;
+ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+ctx.G.lvl.flags.crownDropped=1;
+crownProp.x=108; crownProp.y=10.55; crownProp.gone=0; crownProp.taken=0;
+assert(ctx.openTeethChapelLook('teeth_chapel_crown')===true && ctx.G.talk.line===WORN_LINE,
+  'a worn crown reads the brow line');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nteeth room dialogue checks passed');

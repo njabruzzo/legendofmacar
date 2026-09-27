@@ -11852,11 +11852,34 @@ function teethFaceChoices(){
   choices.push({t:'Leave it.'});
   return choices;
 }
+/* Seated when the dropped flag is clear, or the prop is back on the altar
+   seat. A near drop clears crownDropped and snaps the prop, so that look
+   keeps the altar sentence. A far drop sets the flag and leaves the prop
+   off the seat. */
+function teethCrownOnAltarSeat(){
+  const altar=(G.props||[]).find(pr=>pr&&pr.k==='altar'&&pr.teethAltar&&!pr.gone);
+  const crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown'&&!pr.gone&&!pr.taken&&!pr.destroyed);
+  if(!altar||!crown) return false;
+  return Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2;
+}
+function teethCrownLookLine(){
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
+    return 'The bone crown sits on Macar\'s brow. It is yellowed and cold, and it does not want to come off.';
+  const f=G.lvl&&G.lvl.flags;
+  if(f&&f.crownDropped && !teethCrownOnAltarSeat())
+    return 'A bone crown lies on the floor. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';
+  return '';
+}
 function openTeethChapelLook(key){
   if(!key||G.talk||!NPC_TALK[key]) return false;
   startTalk(key);
-  if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function')
+  if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function'){
     G.talk.choices=teethCrownChoices();
+    if(typeof teethCrownLookLine==='function'){
+      const line=teethCrownLookLine();
+      if(line) G.talk.line=line;
+    }
+  }
   else if(G.talk && key==='teeth_chapel_face' && typeof teethFaceChoices==='function')
     G.talk.choices=teethFaceChoices();
   return true;
