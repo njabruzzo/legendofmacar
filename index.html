@@ -11594,9 +11594,23 @@ function destroyBoneCrown(crown){
 function tryStrikeBoneCrown(e, reach){
   if(!e||!e.hero) return 0;
   if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
+  /* The swing already in the air when the crown is set down must not
+     erase it before it can be seen. The next swing still can. */
+  if(e.crownDropGuard){ e.crownDropGuard=0; return 0; }
   const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
-  if(crown){ destroyBoneCrown(crown); return 1; }
-  return 0;
+  if(!crown) return 0;
+  /* Auto-attack faces the foe. A crown at Macar's feet is not that target
+     unless the swing is aimed at it. */
+  const af=e._attack&&e.atk>0?e._attack:{fdx:e.fdx,fdy:e.fdy};
+  if(af&&(af.fdx||af.fdy)){
+    const fa=Math.atan2(af.fdy, af.fdx);
+    const a=Math.atan2(crown.y-e.y, crown.x-e.x);
+    let df=Math.abs(a-fa);
+    if(df>Math.PI) df=Math.PI*2-df;
+    if(df>1.15) return 0;
+  }
+  destroyBoneCrown(crown);
+  return 1;
 }
 function smashWornBoneCrown(){
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
@@ -11859,6 +11873,46 @@ function primaryCrownPrompt(p){
   }
   return null;
 }
+/* The teeth altar sheet is 1075×718, drawn 150*s px tall, and TW is 84*ZOOM.
+   Half the front lip in world tiles does not change with zoom. The prop
+   point is that lip's midpoint (the billboard's bottom center), not the
+   slab and not the whole platform. */
+function teethAltarLipHalf(altar){
+  const s=(altar&&altar.s)||1;
+  return (150*s*(1075/718)*0.5)/84;
+}
+function teethAltarFootTiles(altar){
+  if(!altar) return [];
+  const half=teethAltarLipHalf(altar);
+  const seen={}, out=[];
+  const n=Math.max(1, Math.ceil(half*4));
+  for(let i=0;i<=n;i++){
+    const t=-half+(2*half)*i/n;
+    const x=Math.floor(altar.x+t), y=Math.floor(altar.y-t);
+    const k=x+','+y;
+    if(seen[k]) continue;
+    seen[k]=1;
+    out.push({x:x,y:y});
+  }
+  return out;
+}
+/* King-move tiles from Macar's cell to the nearest cell of the front lip.
+   A step toward the camera is (+1,+1), so three tiles in front is
+   Euclidean ~4.2 and the old dist()<=3 test left that drop on the floor. */
+function crownAltarTileDist(p, altar){
+  if(!p||!altar) return 99;
+  const tx=Math.floor(p.x), ty=Math.floor(p.y);
+  const tiles=teethAltarFootTiles(altar);
+  let best=99;
+  for(let i=0;i<tiles.length;i++){
+    const d=Math.max(Math.abs(tx-tiles[i].x), Math.abs(ty-tiles[i].y));
+    if(d<best) best=d;
+  }
+  return best;
+}
+function crownDropAtAltar(p, altar){
+  return !!(altar&&p&&crownAltarTileDist(p, altar)<=3);
+}
 function dropBoneCrown(){
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   const eq=G.equipped||{};
@@ -11873,14 +11927,18 @@ function dropBoneCrown(){
   const altar=(G.props||[]).find(pr=>pr&&pr.k==='altar'&&pr.teethAltar&&!pr.gone);
   /* Drop in front of the slab returns the crown to the seated prop.
      crownTouched is what hides the billboard in live play; a reload
-     already shows it on the slab, so clear the flag here too. */
-  const atAltar=!!(altar&&p&&typeof dist==='function'&&dist(p,altar)<=3);
+     already shows it on the slab, so clear the flag here too.
+     A fight does not take another drop path. */
+  const atAltar=crownDropAtAltar(p, altar);
   if(L&&L.flags){
     L.flags.crownTaken=0;
     /* Back on the slab it is seated again, so a melee swing beside the
        altar does not treat it as a dropped prop. */
-    if(atAltar){ L.flags.crownTouched=0; L.flags.crownDropped=0; }
-    else L.flags.crownDropped=1;
+    if(atAltar){ L.flags.crownTouched=0; L.flags.crownDropped=0; if(p) p.crownDropGuard=0; }
+    else {
+      L.flags.crownDropped=1;
+      if(p) p.crownDropGuard=1;
+    }
   }
   let crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown');
   if(crown){

@@ -708,7 +708,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
    Take hides the billboard while it is held. */
 {
   [
-    'wearingBoneCrown','dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
+    'wearingBoneCrown','teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
+    'dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
     'teethAltarSheetH','boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY',
     'boneCrownDroppedOnFloor','drawBoneCrownProp'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -796,6 +797,92 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     && loadedCalls[0].img===ctx.sceneCrownSprite()
     && loadedCalls[0].y===floorSeat-floorHead,
     'after save and load the crown is still drawn at the drop');
+
+  /* Three camera-south steps are (+3,+3). Euclidean length is ~4.2, which
+     the old dist()<=3 test treated as a far drop and left invisible. */
+  function stand(n){
+    ctx.G.ents[0].x=altar.x+n;
+    ctx.G.ents[0].y=altar.y+n;
+    ctx.G.ents[0].fdx=-1; ctx.G.ents[0].fdy=-1;
+    ctx.G.ents[0].crownDropGuard=0;
+    ctx.G.ents[0].atk=0; ctx.G.ents[0]._attack=null;
+    ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+    ctx.G.lvl.flags={crownTaken:1, crownTouched:1, crownDropped:0, crownDestroyed:0};
+    crown.gone=1; crown.taken=1; crown.destroyed=0; crown.x=altar.x; crown.y=altar.y;
+    ctx.G.props=[altar, crown];
+    ctx.G.fightOn=0;
+  }
+  [1,2,3].forEach(n=>{
+    stand(n);
+    assert(ctx.dist(ctx.player(), altar)>3 || n<3, 'tile '+n+' setup');
+    if(n===3) assert(ctx.dist(ctx.player(), altar)>3,
+      'three tiles toward the camera is farther than Euclidean 3');
+    assert(ctx.crownAltarTileDist(ctx.player(), altar)===n,
+      'stand '+n+' is '+n+' king-move tiles from the altar footprint');
+    const d=ctx.dropBoneCrown();
+    assert(d.ok===1 && ctx.crownDropAtAltar(ctx.player(), altar),
+      'drop at '+n+' tiles seats on the slab');
+    assert(ctx.G.lvl.flags.crownTouched===0 && ctx.G.lvl.flags.crownDropped===0,
+      'drop at '+n+' tiles clears touched and dropped');
+    assert(ctx.teethCrownStillSeated() && paint().length===1 && paint()[0].y===seat-head,
+      'drop at '+n+' tiles draws the crown on the slab');
+    assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.2)===0 && !crown.destroyed,
+      'a swing after a '+n+'-tile drop does not shatter the seated crown');
+  });
+  stand(4);
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)===4, 'four tiles is outside the seat');
+  const four=ctx.dropBoneCrown();
+  assert(four.ok===1 && ctx.G.lvl.flags.crownDropped===1 && ctx.G.lvl.flags.crownTouched===1,
+    'a drop at 4 tiles stays on the floor');
+  assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
+    'a drop at 4 tiles draws the crown at the floor seat');
+
+  /* Beside the lip: four cells from the prop tile, two from the footprint. */
+  ctx.G.ents[0].x=106.2; ctx.G.ents[0].y=4.2;
+  assert(Math.max(Math.abs(Math.floor(ctx.player().x)-Math.floor(altar.x)),
+    Math.abs(Math.floor(ctx.player().y)-Math.floor(altar.y)))>=4,
+    'the side stand is four tiles from the prop cell');
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)<=3,
+    'the side stand is within 3 tiles of the front lip');
+  stand(0);
+  ctx.G.ents[0].x=106.2; ctx.G.ents[0].y=4.2;
+  assert(ctx.dropBoneCrown().ok===1 && ctx.teethCrownStillSeated() && paint().length===1,
+    'a drop beside the altar footprint seats and draws');
+
+  /* Combat uses dropBoneCrown. The swing already in the air must not erase it. */
+  stand(2);
+  ctx.G.fightOn=1;
+  ctx.G.ents.push({id:9, team:'foe', name:'Skeletal Dwarf', dead:0, hp:12, x:altar.x+1, y:altar.y+1});
+  const foe=ctx.G.ents[ctx.G.ents.length-1];
+  ctx.G.ents[0].fdx=foe.x-ctx.player().x; ctx.G.ents[0].fdy=foe.y-ctx.player().y;
+  ctx.G.ents[0]._attack={fdx:ctx.G.ents[0].fdx, fdy:ctx.G.ents[0].fdy};
+  assert(!/G\.fightOn/.test(extractFn('dropBoneCrown')),
+    'a drop during combat takes the same dropBoneCrown path');
+  const combatNear=ctx.dropBoneCrown();
+  assert(combatNear.ok===1 && ctx.teethCrownStillSeated(),
+    'a drop at 2 tiles during combat seats the crown');
+  assert(ctx.tryStrikeBoneCrown(ctx.player(), ctx.player().range||1.4)===0 && paint().length===1
+    && paint()[0].y===seat-head,
+    'combat melee after a near drop still draws the crown on the slab');
+
+  stand(6);
+  ctx.G.fightOn=1;
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)>3, 'the open-floor drop is farther than 3 tiles');
+  const combatFar=ctx.dropBoneCrown();
+  assert(combatFar.ok===1 && ctx.G.lvl.flags.crownDropped===1 && !ctx.wearingBoneCrown(),
+    'a far drop during combat puts the crown on the floor');
+  ctx.G.ents[0].fdx=-1; ctx.G.ents[0].fdy=-1;
+  ctx.G.ents[0]._attack={fdx:-1, fdy:-1};
+  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===0 && !crown.gone && !crown.destroyed,
+    'the swing already in the air does not destroy the crown just dropped');
+  assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
+    'after that swing the far crown is still drawn at the floor seat');
+  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===0 && !crown.destroyed,
+    'a swing aimed at a foe does not shatter the crown at Macar\'s feet');
+  ctx.G.ents[0].fdx=0; ctx.G.ents[0].fdy=1;
+  ctx.G.ents[0]._attack={fdx:0, fdy:1};
+  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===1 && crown.destroyed===1,
+    'a later swing aimed at the crown still destroys it');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

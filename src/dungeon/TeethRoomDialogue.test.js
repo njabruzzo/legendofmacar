@@ -72,6 +72,7 @@ vm.createContext(ctx);
 [
   'wearingBoneCrown','nearestBoneCrown','nearestDemonFace','chapelFaceToothTaken',
   'makeGrondTooth','crownWasDropped','teethCrownChoices','teethFaceChoices',
+  'teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
   'dropBoneCrown','pryGrondTooth','livingThrall','isAnimateDeadEligible',
   'nearestAnimatableCorpse','primaryCrownPrompt'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
