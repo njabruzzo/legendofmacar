@@ -1504,7 +1504,8 @@ function blitLivingMacar(img){
     out=null;
   }
   /* 0-size / failed bake would blit a see-through sliver. Fall back to
-     punching the source, then idle — never cache an empty canvas. */
+     the same capped lift repair uses, then punch. An uncapped 255/a here
+     turns a=41 edge paint white (~6×). Never cache an empty canvas. */
   if(!out||!out.width||!out.height){
     try{
       const c=document.createElement('canvas');
@@ -1514,6 +1515,22 @@ function blitLivingMacar(img){
       x.globalAlpha=1;
       x.globalCompositeOperation='source-over';
       x.drawImage(img,0,0);
+      const id=x.getImageData(0,0,c.width,c.height), fd=id.data;
+      const fn=c.width*c.height;
+      for(let i=0,p=0;i<fn;i++,p+=4){
+        const a=fd[p+3];
+        if(a<=40 || isMagentaMatte(fd[p],fd[p+1],fd[p+2]) || isBlackMatte(fd[p],fd[p+1],fd[p+2])){
+          fd[p]=0; fd[p+1]=0; fd[p+2]=0; fd[p+3]=0; continue;
+        }
+        if(a<255){
+          const s=Math.min(1.25, 255/a);
+          fd[p]=Math.min(255,(fd[p]*s+0.5)|0);
+          fd[p+1]=Math.min(255,(fd[p+1]*s+0.5)|0);
+          fd[p+2]=Math.min(255,(fd[p+2]*s+0.5)|0);
+        }
+        fd[p+3]=255;
+      }
+      x.putImageData(id,0,0);
       out=punchLivingMacarCanvas(c);
     }catch(_){ out=null; }
   }
@@ -1527,6 +1544,7 @@ function blitLivingMacar(img){
     if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
     return null;
   }
+  out.__livingBake=1;
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
   else img.__solidMacar=out;
   return out;
@@ -1823,14 +1841,22 @@ function flippedSprite(img, punch){
   const doPunch=punch!==false;
   const cache=doPunch?FLIP_CACHE:FLIP_CACHE_RAW;
   if(cache&&cache.has(img)) return cache.get(img);
+  /* West mirrors the same capped repair bake as the south idle. A raw
+     punch (s=255/a) blows faint edges white. A sheet livingMacarImg
+     already baked is not repaired again — that would move the live idle. */
+  let src=img;
+  if(doPunch && !img.__livingBake){
+    const baked=blitLivingMacar(img);
+    if(baked&&baked.width&&baked.height) src=baked;
+  }
   const c=document.createElement('canvas');
-  c.width=img.width; c.height=img.height;
+  c.width=src.width; c.height=src.height;
   const fg=c.getContext('2d',{willReadFrequently:true});
   fg.imageSmoothingEnabled=false;
   fg.globalAlpha=1;
   fg.globalCompositeOperation='source-over';
   fg.translate(c.width,0); fg.scale(-1,1);
-  fg.drawImage(img,0,0);
+  fg.drawImage(src,0,0);
   /* Living sheets re-punch so a flip cannot reintroduce fringe. Ghost sheets
      are mid-alpha by design — punching them to a=255 is the solid↔ghost flash. */
   if(doPunch) punchLivingMacarCanvas(c);

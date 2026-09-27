@@ -550,6 +550,8 @@ const flipBake=extractFn('flippedSprite');
 assert(/imageSmoothingEnabled=false/.test(flipBake), 'mirror bake is nearest-neighbor');
 assert(/punch!==false/.test(flipBake) && /if\(doPunch\) punchLivingMacarCanvas\(c\)/.test(flipBake),
   'mirror bake re-punches living sheets and can skip punch for ghost mid-alpha');
+assert(/blitLivingMacar\(img\)/.test(flipBake),
+  'west mirror sends the sheet through the capped living bake before punch');
 assert(/globalAlpha=1/.test(flipBake) && /globalCompositeOperation='source-over'/.test(flipBake),
   'mirror bake is source-over at alpha 1');
 const bake=extractFn('blitLivingMacar');
@@ -780,6 +782,114 @@ assert(westCrown.key==='dwarf_macar_crowned' && westCrown.prop===0 && westCrown.
   && ctx.wantsSpriteFlip(west)===true,
   'stopped facing west mirrors the crowned idle and does not add the prop');
 delete SPR.macar_atk; delete SPR.macar_atk_contact;
+
+/* Crowned idle must take the capped repair bake, plain and mirrored.
+   punchLivingAlpha's uncapped s=255/a turns a=41 edge paint white.
+   Near-white + source alpha still in (40, 200) + a clear neighbor is
+   that blowout. The bone/electrum rim is already opaque, so it does
+   not count. */
+function livingCanvas(){
+  function alloc(w, h){ return new Uint8ClampedArray(Math.max(0, w*h*4)); }
+  function makeCanvas(w, h){
+    const cv={width:w|0, height:h|0, __livingBake:0, _ctx:null};
+    cv.getContext=function(){
+      if(!cv._ctx){
+        const ctx={
+          cv:cv, _sx:1, _sy:1,
+          imageSmoothingEnabled:false, globalAlpha:1, globalCompositeOperation:'source-over',
+          _rgba:alloc(cv.width, cv.height)
+        };
+        ctx.translate=function(){};
+        ctx.scale=function(x){ ctx._sx*=x; };
+        ctx.clearRect=function(){ ctx._rgba.fill(0); };
+        ctx.getImageData=function(){ return {data:new Uint8ClampedArray(ctx._rgba)}; };
+        ctx.putImageData=function(id){ ctx._rgba.set(id.data); };
+        ctx.drawImage=function(img){
+          const sw=img.width|0, sh=img.height|0;
+          const src=img._rgba||(img._ctx&&img._ctx._rgba);
+          if(!src) return;
+          const dw=cv.width, dh=cv.height;
+          const flip=ctx._sx<0;
+          const dst=ctx._rgba;
+          const w=Math.min(sw, dw), h=Math.min(sh, dh);
+          for(let y=0;y<h;y++){
+            for(let x=0;x<w;x++){
+              const sx=flip?(sw-1-x):x;
+              const sp=(y*sw+sx)*4, dp=(y*dw+x)*4;
+              dst[dp]=src[sp]; dst[dp+1]=src[sp+1]; dst[dp+2]=src[sp+2]; dst[dp+3]=src[sp+3];
+            }
+          }
+        };
+        cv._ctx=ctx;
+      }
+      return cv._ctx;
+    };
+    return cv;
+  }
+  return {
+    document:{createElement:function(){ return makeCanvas(0,0); }},
+    SOLID_MACAR:new WeakMap(),
+    FLIP_CACHE:new WeakMap(),
+    FLIP_CACHE_RAW:new WeakMap(),
+    Uint8ClampedArray:Uint8ClampedArray,
+    Uint8Array:Uint8Array,
+    Int32Array:Int32Array
+  };
+}
+function whiteLowAlphaEdges(src, baked, w, h, flip){
+  let n=0;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const sx=flip?(w-1-x):x;
+      const sa=src[(y*w+sx)*4+3];
+      if(sa<=40 || sa>=200) continue;
+      const bp=(y*w+x)*4;
+      const r=baked[bp], g=baked[bp+1], b=baked[bp+2], a=baked[bp+3];
+      if(a<200 || r<230 || g<230 || b<220) continue;
+      let edge=x===0||y===0||x===w-1||y===h-1;
+      if(!edge){
+        const nb=[bp-4, bp+4, bp-w*4, bp+w*4];
+        for(let k=0;k<4;k++) if(baked[nb[k]+3]<40){ edge=true; break; }
+      }
+      if(edge) n++;
+    }
+  }
+  return n;
+}
+{
+  const crownPath=path.join(root,'assets/creatures/dwarf_macar_crowned.png');
+  const rgba=readRgba(crownPath);
+  const src=new Uint8ClampedArray(rgba.data);
+  const img={width:rgba.w, height:rgba.h, _rgba:src};
+  const box=livingCanvas();
+  vm.createContext(box);
+  vm.runInContext(
+    extractFn('morphPass')
+    +extractFn('isMagentaMatte')
+    +extractFn('isBlackMatte')
+    +extractFn('punchLivingAlpha')
+    +'const MACAR_BLACK_SLAB_T=8;'
+    +extractFn('punchBlackExportSlab')
+    +extractFn('punchLivingMacarCanvas')
+    +extractFn('repairSpriteSheet')
+    +extractFn('blitLivingMacar')
+    +extractFn('flippedSprite'),
+    box);
+  const plain=box.blitLivingMacar(img);
+  const plainN=whiteLowAlphaEdges(src, plain._ctx._rgba, rgba.w, rgba.h, false);
+  const flipped=box.flippedSprite(img, true);
+  const flipN=whiteLowAlphaEdges(src, flipped._ctx._rgba, rgba.w, rgba.h, true);
+  const WHITE_EDGE_MAX=48;
+  assert(plain&&plain.__livingBake && plainN<=WHITE_EDGE_MAX,
+    'baked crowned sheet keeps near-white low-alpha edge pixels under '+WHITE_EDGE_MAX+' (got '+plainN+')');
+  assert(flipped&&flipN<=WHITE_EDGE_MAX,
+    'flipped crowned bake keeps near-white low-alpha edge pixels under '+WHITE_EDGE_MAX+' (got '+flipN+')');
+  const punched=new Uint8ClampedArray(src);
+  box.punchLivingAlpha(punched, rgba.w*rgba.h);
+  const rawN=whiteLowAlphaEdges(src, punched, rgba.w, rgba.h, false);
+  assert(rawN>WHITE_EDGE_MAX,
+    'uncapped punch of the crowned sheet still blows the edge (got '+rawN+', gate '+WHITE_EDGE_MAX+')');
+}
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nliving Macar QA checks passed');
