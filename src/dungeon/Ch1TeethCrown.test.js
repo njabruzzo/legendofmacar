@@ -204,16 +204,16 @@ assert(/function cellWallH\(L,x,y\)/.test(html)
   && /const faceH=cellWallH\(L,x,y\)/.test(html),
   'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
 assert(/DEMON_FACE_PLATE=\{w:298,h:392,pad:16\}/.test(html)
-  && /DEMON_FACE_CONTENT_SCALE=2\.12/.test(html)
-  && /WALL_TEETH_FACE_SCALE=2\.40/.test(html)
-  && 2.40 > 2.12 / (360/392),
+  && /DEMON_FACE_CONTENT_SCALE=1\.94/.test(html)
+  && /WALL_TEETH_FACE_SCALE=2\.26/.test(html)
+  && 2.26 > 1.94 / (360/392),
   'the face wall covers the 298×392 plate, horns included, with margin');
 assert(/function chapelFaceContentFrac\(/.test(html)
   && /return 360\/DEMON_FACE_PLATE\.h/.test(extractFn('chapelFaceContentFrac'))
   && !/spriteBounds/.test(extractFn('demonFaceDrawH'))
   && /chapelFaceContentFrac\(\)/.test(extractFn('demonFaceDrawH')),
   'chapel face height uses the plate fraction, not a live content box');
-assert(/WALL_TEETH_FACE_SCALE=2\.40/.test(html)
+assert(/WALL_TEETH_FACE_SCALE=2\.26/.test(html)
   && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
   && /function wallHeightOverride\(/.test(html)
   && /applyTeethFaceWallHeight\(L\)/.test(extractFn('buildTeethCrownRoom')),
@@ -494,7 +494,7 @@ vm.createContext(layout);
 vm.runInContext(hashes+gridSrc, layout);
 ['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','isTeethNorthWall','isTeethFaceWall','buildTeethCrownRoom']
   .forEach(n=>vm.runInContext(extractFn(n)+';', layout));
-vm.runInContext('const WALL_TEETH_FACE_SCALE=2.40;\n'+extractFn('applyTeethFaceWallHeight')+';', layout);
+vm.runInContext('const WALL_TEETH_FACE_SCALE=2.26;\n'+extractFn('applyTeethFaceWallHeight')+';', layout);
 layout.G.props=[];
 const L=vm.runInContext(`
   var L={n:1,w:132,h:90,flags:{},secrets:[],lights:[],grid:newGrid(132,90,1)};
@@ -525,7 +525,7 @@ const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
 assert(altar && altar.x>=101.5 && altar.x<=104 && altar.y>=3.5 && altar.y<=5.5,
   'altar sits on the northwest wall of the chapel');
 assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
-assert(L.wallH && L.wallH['107,1']===2.40 && L.wallH['104,1']==null && L.wallH['105,1']===2.40 && L.wallH['109,1']===2.40,
+assert(L.wallH && L.wallH['107,1']===2.26 && L.wallH['104,1']==null && L.wallH['105,1']===2.26 && L.wallH['109,1']===2.26,
   'the face segment stores a taller per-tile wall height; the mural tile does not');
 assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
 assert(face && face.x>105.4 && face.x<108.2, 'face anchor is centered on the tall north-wall span');
@@ -675,8 +675,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     TH:58,
     TILESET:{srcH:96},
     DEMON_FACE_PLATE:{w:298,h:392,pad:16},
-    DEMON_FACE_CONTENT_SCALE:2.12,
-    WALL_TEETH_FACE_SCALE:2.40,
+    DEMON_FACE_CONTENT_SCALE:1.94,
+    WALL_TEETH_FACE_SCALE:2.26,
     tilesetPack(){ return {wall:{oy:287}}; }
   };
   vm.createContext(faceCtx);
