@@ -76,6 +76,47 @@ const loadedFresh={animateDeadSpent:1};
 GS.applyCampaign(loadedFresh, fresh);
 assert(loadedFresh.animateDeadSpent===0, 'reload of an unused power clears a stale flag');
 
+const thrallSnap=GS.snapshot({animateDeadSpent:1, thrallId:9, scene:'play', ch:1});
+assert(thrallSnap.thrallId===9, 'save keeps the thrall id');
+const thrallLoaded={thrallId:null};
+GS.applyCampaign(thrallLoaded, thrallSnap);
+assert(thrallLoaded.thrallId===9 && thrallLoaded.animateDeadSpent===1,
+  'reload restores the thrall id with the spent flag');
+const blank=GS.snapshot({scene:'play', ch:1});
+const stale={thrallId:9, animateDeadSpent:1};
+GS.applyCampaign(stale, blank);
+assert(stale.thrallId==null && stale.animateDeadSpent===0,
+  'a save with no thrall clears a stale id');
+
+function numGrid(w,h,v){
+  return Array.from({length:h},()=>Array.from({length:w},()=>v));
+}
+const world={
+  ents:[
+    {id:1, hero:1, team:'party', col:{key:'macar'}, name:'MACAR', x:2, y:2, hp:40, maxhp:40, dead:0},
+    {id:9, kind:'undead', sprite:'undead', name:'Skeleton', team:'party', ally:1, thrall:1,
+      dead:0, hp:11, maxhp:16, x:3, y:2}
+  ],
+  props:[], loot:[], kills:0,
+  lvl:{n:1, w:4, h:4, grid:numGrid(4,4,0), seen:numGrid(4,4,1), flags:{}, secrets:[], wallHP:{}, objs:[],
+    warrenSeed:1, dressSeed:1}
+};
+const play=GS.captureWorld(world, {nextEid:10});
+const savedThrall=play.ents.find(e=>e.id===9);
+assert(savedThrall && savedThrall.thrall && savedThrall.hp===11 && savedThrall.team==='party',
+  'the thrall body is in the world save');
+const reloaded={
+  ents:[{id:1, hero:1, team:'party', col:{key:'macar'}, x:0, y:0, hp:1, maxhp:40}],
+  props:[], loot:[],
+  lvl:world.lvl
+};
+GS.applyWorld(reloaded, play);
+const back=reloaded.ents.find(e=>e.id===9);
+assert(back && back.thrall && !back.dead && back.hp===11,
+  'continue puts the living thrall back in the ent list');
+assert(/function rebindSavedThrall\(/.test(html) && /rebindSavedThrall\(\)/.test(extractFn('applyPlaySave')),
+  'continue rebinds G.thrallId when the body returns without an id');
+
 const H=require('./HudHarness');
 H.ctx.wearingBoneCrown=function(){ return true; };
 function rectGap(a, b){

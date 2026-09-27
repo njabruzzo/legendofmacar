@@ -60,11 +60,15 @@ const ctx={
   Math, Object, String
 };
 vm.createContext(ctx);
-['wearingBoneCrown','livingThrall','animateDeadPartyOn','portraitIdentity','partyPortraitList']
+['wearingBoneCrown','livingThrall','animateDeadPartyOn','portraitIdentity','partyRaisedAllies','partyPortraitList']
   .forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
 function keys(){
-  return ctx.partyPortraitList().map(e=>e.thrall?'thrall':(e.col&&e.col.key));
+  return ctx.partyPortraitList().map(e=>{
+    if(e.thrall) return 'thrall';
+    if(e.name==='Skeletal Dwarf') return 'skeletal';
+    return e.col&&e.col.key;
+  });
 }
 
 ctx.G.ents=['macar','pordoom','fendur','orbo','talpor'].map(k=>kin(k));
@@ -102,6 +106,21 @@ assert(ctx.partyPortraitList()[0]===mac, 'thrall-only flow still leads with Maca
 thrall.hp=11;
 assert(ctx.partyPortraitList().some(e=>e===thrall && e.hp===11),
   'the raised-dead card reads the creature\'s current hp');
+const foeSkel={id:70, name:'Skeletal Dwarf', team:'foe', ally:0, dead:0, hp:16, maxhp:16};
+ctx.G.ents.push(foeSkel);
+assert(ctx.partyPortraitList().indexOf(foeSkel)<0,
+  'a crown-raised skeletal dwarf is a foe and has no party card');
+const allySkel={id:71, name:'Skeletal Dwarf', team:'party', ally:1, dead:0, hp:9, maxhp:16};
+ctx.G.ents.push(allySkel);
+const withAlly=ctx.partyPortraitList();
+assert(withAlly.indexOf(allySkel)>4 && withAlly.indexOf(allySkel)<withAlly.indexOf(thrall),
+  'an allied skeletal dwarf cards under the kin, ahead of the thrall');
+allySkel.hp=4;
+assert(ctx.partyPortraitList().some(e=>e===allySkel && e.hp===4),
+  'the allied skeletal card reads current hp');
+allySkel.dead=1;
+assert(ctx.partyPortraitList().indexOf(allySkel)<0,
+  'a dead allied skeletal dwarf leaves the column');
 thrall.dead=1;
 assert(ctx.partyPortraitList().indexOf(thrall)<0,
   'a dead thrall drops out of the column even if its id is still set');
@@ -119,6 +138,8 @@ assert(/UI\.hudTop/.test(extractFn('partyPortraitFrame')),
 const touch=extractFn('drawPortraitStackTouch');
 assert(/party\.forEach/.test(touch) && /col\.name/.test(touch) && /e\.hp/.test(touch),
   'touch raised-dead cards use the kin face, name, and hp bar');
+assert(/sheetHpNow\(e\)/.test(touch) && /effectiveAC\(e\)/.test(touch),
+  'touch raised-dead cards also show hp numbers and AC');
 
 assert(/miniRect\(\)/.test(extractFn('partyPortraitFrame'))
   && /touchPanelRect\(160\)/.test(extractFn('partyPortraitFrame')),

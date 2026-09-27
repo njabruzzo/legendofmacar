@@ -110,8 +110,12 @@ ctx.G.ents=[
 ];
 assert(ctx.nearestAnimatableCorpse(ctx.G.ents[0], 1.95)!=null, 'a corpse is in animate range');
 assert(ctx.livingThrall() && ctx.dist(ctx.G.ents[0], ctx.livingThrall())<3.2, 'a living thrall is in stay range');
-assert(ctx.primaryCrownPrompt(ctx.G.ents[0])==='Animate the dead',
-  'while the crown is worn, the action button does not say Drop the bone crown');
+ctx.setThrallStay=function(){};
+assert(ctx.primaryCrownPrompt(ctx.G.ents[0])==='Thrall: stay',
+  'a nearby corpse does not float an Animate the dead plate');
+assert(!/return 'Animate the dead'/.test(extractFn('primaryCrownPrompt'))
+  && !/crownLab==='Animate the dead'/.test(html),
+  'the floating Animate the dead prompt is gone');
 assert(!/return 'Drop the bone crown'/.test(html) && !/crownLab==='Drop the bone crown'/.test(html),
   'the on-screen Drop the bone crown prompt is gone');
 assert(/crownIt\.boneCrown/.test(html.match(/function dropPackRow[\s\S]*?\nfunction removePackRow/)[0])

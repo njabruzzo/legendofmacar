@@ -6287,7 +6287,18 @@ function applyPlaySave(play){
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
+  if(typeof rebindSavedThrall==='function') rebindSavedThrall();
   try{ rebuildVision(); }catch(e){}
+}
+/* Continue used to restore the thrall body and drop G.thrallId, so the
+   party card and the follow order both vanished. Prefer the saved id,
+   then any living allied thrall still in the ent list. */
+function rebindSavedThrall(){
+  const ents=G.ents||[];
+  let t=null;
+  if(G.thrallId!=null) t=ents.find(e=>e&&e.id===G.thrallId&&e.thrall&&!e.dead)||null;
+  if(!t) t=ents.find(e=>e&&e.thrall&&!e.dead&&(e.team==='party'||e.ally))||null;
+  G.thrallId=t?t.id:null;
 }
 function loadSavedGame(){
   if(typeof GameSave==='undefined') return;
@@ -12046,11 +12057,8 @@ function openTeethChapelLook(key){
   return true;
 }
 function primaryCrownPrompt(p){
-  const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
-  /* The crown leaves only from its inventory Drop. No on-screen prompt. */
-  if(worn && typeof nearestAnimatableCorpse==='function'){
-    if(nearestAnimatableCorpse(p,1.95)) return 'Animate the dead';
-  }
+  /* The crown leaves only from its inventory Drop. Raising a corpse is
+     the Animate bar button, not a plate on the play field. */
   if(typeof livingThrall==='function' && typeof setThrallStay==='function'){
     const pet=livingThrall();
     if(pet && p && dist(p,pet)<3.2) return pet.thrallStay?'Thrall: follow':'Thrall: stay';
@@ -13865,10 +13873,7 @@ function update(dt){
     }
     if(!PROMPT && typeof primaryCrownPrompt==='function'){
       const crownLab=primaryCrownPrompt(p);
-      if(crownLab==='Animate the dead'){
-        const body=nearestAnimatableCorpse(p,1.95);
-        if(body) interact(crownLab,()=>tryAnimateDead(p,body));
-      } else if(crownLab){
+      if(crownLab){
         const pet=livingThrall();
         if(pet) interact(crownLab,()=>setThrallStay(!pet.thrallStay));
       }
@@ -18116,20 +18121,35 @@ function portraitIdentity(e){
     cap:null
   };
 }
+/* Crown-raised skeletal dwarves spawn as foes (team foe, beginFight).
+   They do not join this column. An allied one would. The Animate Dead
+   thrall is team party and always does, under the dwarf boxes. */
+function partyRaisedAllies(){
+  const ents=G.ents||[];
+  const dwarves=[], thralls=[];
+  for(let i=0;i<ents.length;i++){
+    const e=ents[i];
+    if(!e||e.dead||e.hero||e.col) continue;
+    if(e.hp!=null && e.hp<=0) continue;
+    const allied=e.team==='party' || e.ally;
+    if(!allied) continue;
+    if(e.thrall){ if(thralls.indexOf(e)<0) thralls.push(e); }
+    else if(e.name==='Skeletal Dwarf' && dwarves.indexOf(e)<0) dwarves.push(e);
+  }
+  return dwarves.concat(thralls);
+}
 function partyPortraitList(){
   const roster=(typeof ROSTER!=='undefined'?ROSTER:[]);
   const ents=G.ents||[];
   const kin=roster.map(r=>ents.find(e=>e&&e.team==='party'&&e.col&&e.col.key===r.key))
     .filter(e=>e && (e.hero || e.ghost || e.crushed));
   const macar=ents.find(e=>e&&e.team==='party'&&(e.hero||(e.col&&e.col.key==='macar')))||null;
-  const on=animateDeadPartyOn();
+  const raised=partyRaisedAllies();
+  const on=animateDeadPartyOn() || raised.length>0;
   const out=[];
   if(on && macar) out.push(macar);
   kin.forEach(e=>{ if(out.indexOf(e)<0) out.push(e); });
-  if(on){
-    const thrall=typeof livingThrall==='function'?livingThrall():null;
-    if(thrall && out.indexOf(thrall)<0) out.push(thrall);
-  }
+  if(on) raised.forEach(e=>{ if(out.indexOf(e)<0) out.push(e); });
   return out;
 }
 function drawPortraitStack(g,s){
@@ -18140,7 +18160,7 @@ function drawPortraitStack(g,s){
   UI.portraitHits=[];
   party.forEach((e,i)=>{
     const col=portraitIdentity(e);
-    const hitKey=(e.col&&e.col.key)||(e.thrall?'thrall':col.key);
+    const hitKey=(e.col&&e.col.key)||((e.thrall||e.name==='Skeletal Dwarf')?'thrall':col.key);
     const yy=y+i*(h+gap);
     UI.portraitHits.push({x,y:yy,w,h,key:hitKey});
     carveFrame(g,x,yy,w,h,6,.88);
@@ -18187,7 +18207,7 @@ function drawPortraitStackTouch(g, party, frame){
   UI.portraitHits=[];
   party.forEach((e,i)=>{
     const col=portraitIdentity(e);
-    const hitKey=(e.col&&e.col.key)||(e.thrall?'thrall':col.key);
+    const hitKey=(e.col&&e.col.key)||((e.thrall||e.name==='Skeletal Dwarf')?'thrall':col.key);
     const yy=frame.y+i*(h+gap);
     /* Tap slop reaches halfway into the gap; cards stay 30px to draw. */
     UI.portraitHits.push({x, y:yy-gap/2, w, h:h+gap, key:hitKey});
@@ -18223,11 +18243,25 @@ function drawPortraitStackTouch(g, party, frame){
       g.font='700 8.5px '+FONT_UI; g.fillStyle='rgba(214,120,96,0.85)';
       g.fillText('FALLEN', tx, by+5);
     } else {
-      const f=clamp(e.hp/e.maxhp,0,1);
-      g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,by,bw,bh);
-      g.fillStyle=e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a');
-      g.fillRect(tx,by,bw*f,bh);
-      g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,by,bw,bh);
+      const f=clamp((e.hp||0)/(e.maxhp||1),0,1);
+      const raised=!e.col;
+      /* Raised cards use the dwarf line: name, bar, hp numbers, AC.
+         Kin stay slim; their numbers live on the sheet. */
+      if(raised && h>=28){
+        const barY=yy+14;
+        g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,barY,bw,4);
+        g.fillStyle=f<.3?'#e0644a':'#7ad45a';
+        g.fillRect(tx,barY,bw*f,4);
+        g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,barY,bw,4);
+        g.font='700 8px '+FONT_UI;
+        g.fillStyle='rgba(214,186,130,0.95)';
+        g.fillText(sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e), tx, yy+h-2);
+      } else {
+        g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,by,bw,bh);
+        g.fillStyle=e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a');
+        g.fillRect(tx,by,bw*f,bh);
+        g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,by,bw,bh);
+      }
     }
   });
 }
