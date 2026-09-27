@@ -4042,7 +4042,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
-  hudMore:0, miniBig:0 };
+  hudMore:0, miniBig:0, animateDeadSpent:0 };
 
 function say(t,c,k){
   const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
@@ -11449,6 +11449,7 @@ function tryAnimateDead(actor, body){
   body.name=bones?'Skeleton':'Zombie';
   body.kind='undead';
   G.thrallId=body.id;
+  G.animateDeadSpent=1;
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
   say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
   hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
@@ -12956,6 +12957,7 @@ const HUDSKILLS=[
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
+  {key:'animate', ico:'cross', label:'Animate'},
 ];
 /* Rally is not a HUD verb (bar or More). Key 5 still fires the war-horn if remembered. */
 const HUD_TAP=44;
@@ -12965,7 +12967,7 @@ const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','
    Defend sits outermost, nearest the thumb's resting arc. */
 const HUD_TOUCH_COMBAT=['ale','bomb','bow','wall'];
 /* Desktop bar groups: PACK ‖ combat ‖ field work. */
-const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale'],['search','secret','shovel','camp','craft']];
+const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale','animate'],['search','secret','shovel','camp','craft']];
 /* Keycaps drawn on mouse/keyboard only. Mirrors the keydown table. */
 const HUD_KEYS={pack:'I', wall:'V', attack:'1', bow:'X', bomb:'B', ale:'2',
   search:'F', secret:'T', shovel:'G', camp:'C', craft:'K'};
@@ -13061,7 +13063,10 @@ function layoutUI(){
   UI.pad={l:padL,r:padR,b:padB,t:padT};
   UI.more=null; UI.overflow=[]; UI.overflowBox=null; UI.barDividers=[];
   UI.labelPx = mobile ? Math.max(10, (PORT?9.5:8.5)*s) : hudLabelPx(56);
-  const find=k=>HUDSKILLS.find(b=>b.key===k);
+  const find=k=>{
+    if(k==='animate' && !(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return null;
+    return HUDSKILLS.find(b=>b.key===k);
+  };
 
   if(mobile){
     /* Left thumb: stick. Right thumb: one tight cluster —
@@ -13075,6 +13080,8 @@ function layoutUI(){
     const edge=8;
     const gap=PORT?6:5;
     const combatRow=HUD_TOUCH_COMBAT.map(find).filter(Boolean);
+    const animSkill=find('animate');
+    if(animSkill) combatRow.push(animSkill);
     const util=HUD_MOBILE_ORDER.filter(k=>HUD_TOUCH_COMBAT.indexOf(k)<0)
       .map(find).filter(b=>b && !HUD_OVERFLOW[b.key]);
 
@@ -13089,7 +13096,8 @@ function layoutUI(){
     const rowY=attackY-atkH/2-8-TAP/2;
     combatRow.forEach((b,i)=>{
       UIBTN.push({x:clusterLeft+TAP/2+i*(TAP+gap), y:rowY, r:TAP/2,
-        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:1});
+        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:b.key==='animate'?0:1,
+        disabled:b.key==='animate'&&!!G.animateDeadSpent});
     });
     const atk={x:cx, y:attackY, w:clusterW, h:atkH, r:atkH/2,
       key:'attack', ico:'attack', label:'Attack', slot:1, nolabel:1};
@@ -13214,7 +13222,8 @@ function layoutUI(){
     gr.forEach((b,i)=>{
       const wide = b.key==='attack';
       const w = wide ? L.atkW : slot;
-      const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key]};
+      const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key],
+        disabled:b.key==='animate'&&!!G.animateDeadSpent};
       if(wide){ btn.w=w; btn.h=L.atkH; btn.y=L.atkY; UI.attack=btn; }
       if(b.key==='pack') UI.orb={r:slot/2, x:btn.x, y};
       UIBTN.push(btn);
@@ -13471,6 +13480,14 @@ function fire(key){
     return;
   }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
+  if(key==='animate'){
+    if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return;
+    if(G.animateDeadSpent) return;
+    const body=typeof nearestAnimatableCorpse==='function'?nearestAnimatableCorpse(p,1.95):null;
+    if(!body){ say('No corpse is close enough.','#c9b895'); return; }
+    if(typeof tryAnimateDead==='function') tryAnimateDead(p, body);
+    return;
+  }
   if(key==='wall'){
     p.defending=!p.defending;
     if(p.defending){
@@ -18703,7 +18720,8 @@ function drawSlot(g,b,s){
   const wide=w>h*1.25;
   const A=b.quiet?0.88:1;
   const ab=ABIL.find(a=>a.key===b.key);
-  const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
+  const animateSpent=b.key==='animate' && !!(b.disabled || (typeof G!=='undefined' && G.animateDeadSpent));
+  const ready=(!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0) && !animateSpent;
   const atForge=b.key!=='craft' || (!foesVisible() && !!(player()&&nearestCraftStation(player(),1.7)));
   const ico=(b.key==='attack'&&typeof attackHudIco==='function')?attackHudIco():(b.ico||(b.key==='attack'?'attack':(ab&&ab.ico)));
   g.globalAlpha=A;
@@ -18795,6 +18813,9 @@ function drawSlot(g,b,s){
   }
   if(b.key==='craft' && !atForge){
     g.fillStyle='rgba(8,5,3,0.46)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
+  }
+  if(animateSpent){
+    g.fillStyle='rgba(8,5,3,0.58)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();
