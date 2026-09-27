@@ -877,12 +877,48 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'the swing already in the air does not destroy the crown just dropped');
   assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
     'after that swing the far crown is still drawn at the floor seat');
-  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===0 && !crown.destroyed,
-    'a swing aimed at a foe does not shatter the crown at Macar\'s feet');
-  ctx.G.ents[0].fdx=0; ctx.G.ents[0].fdy=1;
-  ctx.G.ents[0]._attack={fdx:0, fdy:1};
-  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===1 && crown.destroyed===1,
-    'a later swing aimed at the crown still destroys it');
+  assert(!/df>1\.15/.test(extractFn('tryStrikeBoneCrown')),
+    'a crown strike does not use a facing angle');
+
+  /* Probe case: crown just south of Macar, a foe in each direction. */
+  const hero=ctx.player();
+  hero.x=110.5; hero.y=2.5;
+  crown.x=110.5; crown.y=3.05; crown.gone=0; crown.destroyed=0;
+  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0;
+  [[0,1,'S'],[0,-1,'N'],[1,0,'E'],[-1,0,'W']].forEach(([dx,dy,name])=>{
+    const foe={id:90, team:'foe', name:'Skeletal Dwarf', dead:0, hp:12, r:0.35, x:hero.x+dx, y:hero.y+dy};
+    ctx.G.ents.push(foe);
+    hero.aim=foe; hero.fdx=dx||0; hero.fdy=dy||0; hero._attack={fdx:hero.fdx, fdy:hero.fdy};
+    hero.crownDropGuard=0;
+    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed && !crown.gone,
+      'a foe to the '+name+', crown adjacent, does not destroy the crown');
+    hero.aim=null;
+    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed,
+      'a foe to the '+name+' still in reach blocks the crown with no aim');
+    ctx.G.ents.pop();
+  });
+
+  const around=[[1.1,0],[-1.1,0],[0,1.1],[0,-1.1],[0.8,0.8]];
+  around.forEach((d,i)=>{
+    ctx.G.ents.push({id:100+i, team:'foe', dead:0, hp:8, x:hero.x+d[0], y:hero.y+d[1]});
+  });
+  hero.aim=ctx.G.ents[ctx.G.ents.length-1];
+  for(let i=0;i<15;i++){
+    hero.crownDropGuard=0;
+    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0, 'swing '+(i+1)+' with foes around leaves the crown');
+  }
+  assert(!crown.destroyed && !crown.gone, 'the floor crown survives repeated swings with foes around');
+
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.aim=null; hero._attack=null; hero.fdx=0; hero.fdy=1; hero.crownDropGuard=0;
+  ctx.G.lvl.flags.crownXp=0;
+  const before=ctx.xpAwards.length;
+  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===1 && crown.destroyed===1,
+    'a deliberate strike with no foe in reach destroys the crown');
+  assert(ctx.xpAwards.length===before+1 && ctx.G.lvl.flags.crownXp===1,
+    'that strike awards the destroy XP exactly once');
+  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && ctx.xpAwards.length===before+1,
+    'a second strike does not award the XP again');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
