@@ -143,6 +143,9 @@ assert(bound===4 && ctx.G.ents.every(e=>e.singlePose===1 && e.sprite==='dwarf_sk
 ctx.SPR.dwarf_skeleton_idle_w1={width:8};
 const painted={singlePose:1, sprite:'dwarf_skeleton_idle', kind:'undead', moving:1, dead:0};
 assert(ctx.singlePoseLocked(painted)===false, 'a ready walk frame leaves single-pose');
+const late={name:'Skeletal Dwarf', singlePose:1, sprite:'undead', kind:'undead', dead:0};
+assert(ctx.entSpriteKey(late)==='dwarf_skeleton_idle',
+  'a dwarf that rose before the idle loaded still draws that sheet once it is ready');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nskeletal dwarf checks passed');

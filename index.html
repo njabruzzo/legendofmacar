@@ -3221,6 +3221,10 @@ function fadeMasonryCanvas(img){
   return c;
 }
 function entSpriteKey(e){
+  /* Spawn may run before the idle sheet finishes loading. Use it once it has. */
+  if(e && e.name==='Skeletal Dwarf' && e.singlePose && !e.dead
+     && typeof sprReady==='function' && sprReady('dwarf_skeleton_idle'))
+    return 'dwarf_skeleton_idle';
   if(e.kind==='dwarf'){
     const k=e.col && e.col.key;
     if(e.ghost && k) return k+'_ghost';
