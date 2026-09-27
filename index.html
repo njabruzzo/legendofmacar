@@ -11495,6 +11495,10 @@ function skeletalDwarfOpen(L, x, y){
   if(!teethHordeWalkable(L, x, y)) return false;
   if(typeof wallHidesFloor==='function' && wallHidesFloor(L, x, y)) return false;
   const b=teethHordeBox(L);
+  /* East wall is the cell at x1. Tile x1-1 is the lip its face covers.
+     Two tiles in is x1-3. The face is still ~4 iso-depths tall, so the
+     body also stays inside that span, on the altar approach. */
+  if((x|0) > (b.x1|0)-3) return false;
   if(x>b.x1-4.2 || y>b.y1-4.2) return false;
   return true;
 }

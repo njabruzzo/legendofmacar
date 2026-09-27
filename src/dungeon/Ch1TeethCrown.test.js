@@ -423,6 +423,54 @@ assert(/skeletalDwarfSpots\(L, origin, n\)/.test(extractFn('riseSkeletalDwarves'
   && !/teethHordeSpots\(/.test(extractFn('riseSkeletalDwarves')),
   'skeletal dwarves use the approach spots, not the room-edge horde ring');
 
+/* Player at the altar. teethHordeSpots still picks the east lip. The dwarves
+   stand at least two tiles in from that wall, and the floor-teeth flag stays unset. */
+ctx.G.lvl.flags={};
+ctx.G.lvl.teethBounds={x0:101,y0:2,x1:113,y1:14};
+{
+  const grid=[];
+  for(let y=0;y<20;y++){
+    const row=[];
+    for(let x=0;x<130;x++) row.push((x>=101 && x<113 && y>=2 && y<14)?0:1);
+    grid.push(row);
+  }
+  for(let x=105;x<=108;x++) grid[14][x]=0;
+  ctx.G.lvl.grid=grid;
+  ctx.G.props=[
+    {k:'altar', teethAltar:1, x:102.25, y:4.35, gone:0},
+    {k:'tooth', x:106, y:7, gone:0},
+    {k:'bonecrown', x:102.25, y:4.35, gone:0}
+  ];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:102.25, y:4.35, hp:80, maxhp:80}];
+  const mac=ctx.G.ents[0];
+  const lip=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const lipWant=[[112.5,13.5],[112.5,11.5],[110.5,13.5],[112.5,9.5]];
+  assert(lip.length===4 && lip.every((s,i)=>s.x===lipWant[i][0] && s.y===lipWant[i][1]),
+    'the horde ring is still the east-wall lip');
+  const n=ctx.riseSkeletalDwarves({x:102.25,y:4.35});
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(n===4 && dwarves.length===4, 'altar take raises four dwarves off the lip');
+  assert(!ctx.G.lvl.flags.teethRisen, 'the floor-teeth flag stays unset');
+  assert(ctx.G.props.find(p=>p.k==='tooth').gone!==1, 'floor teeth stay on the chapel floor');
+  dwarves.forEach((e,i)=>{
+    const ix=e.x|0, iy=e.y|0;
+    assert(grid[iy][ix]===0, 'approach dwarf '+i+' stands on floor');
+    assert(ctx.teethHordeWalkable(ctx.G.lvl, e.x, e.y), 'approach dwarf '+i+' is walkable');
+    assert(ix<=110, 'approach dwarf '+i+' is at least two tiles in from the east wall ('+ix+')');
+    assert(e.x<=113-4.2 && e.y<=14-4.2, 'approach dwarf '+i+' is inside the wall-face span');
+    assert(!lipWant.some(o=>o[0]===e.x && o[1]===e.y), 'approach dwarf '+i+' is not on the east lip');
+  });
+  let nearest=99;
+  for(let i=0;i<dwarves.length;i++) for(let j=i+1;j<dwarves.length;j++){
+    nearest=Math.min(nearest, Math.hypot(dwarves[i].x-dwarves[j].x, dwarves[i].y-dwarves[j].y));
+  }
+  assert(nearest>=2.1, 'approach dwarves do not overlap ('+nearest.toFixed(2)+')');
+  ctx.G.lvl.grid=null;
+  ctx.G.lvl.flags={};
+  ctx.G.props=[];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124, y:21, hp:80, maxhp:80}];
+}
+
 /* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
    Wall cells on the far edge must be skipped. beginFight may lengthen stun;
    the stir is pinned back to the short beat. */
