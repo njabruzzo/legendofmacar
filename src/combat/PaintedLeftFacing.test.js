@@ -61,7 +61,8 @@ vm.runInContext(
   +extractFn('wantsSpriteFlip')+'\n'
   +extractFn('entAnimKey')+'\n'
   +extractFn('toyScreenFace')+'\n'
-  +'this.wantsSpriteFlip=wantsSpriteFlip; this.entAnimKey=entAnimKey; this.toyScreenFace=toyScreenFace;',
+  +extractFn('windupToyBlitFace')+'\n'
+  +'this.wantsSpriteFlip=wantsSpriteFlip; this.entAnimKey=entAnimKey; this.toyScreenFace=toyScreenFace; this.windupToyBlitFace=windupToyBlitFace;',
   ctx
 );
 
@@ -120,6 +121,15 @@ assert(ctx.toyScreenFace(-1, 1, 1)===-1, 'toy screen-west (dx-dy < 0) faces left
 assert(ctx.toyScreenFace(0.38, 0.92, 1)===-1, 'toy world +x that is screen-left faces left');
 assert(ctx.toyScreenFace(0.7, 0.7, -1)===-1, 'toy straight south keeps the last face');
 assert(ctx.toyScreenFace(-0.7, -0.7, 1)===1, 'toy straight north keeps the last face');
+
+/* prop_winduptoy faces left. Screen-right must mirror; screen-left stays
+   as painted. Near-vertical moves keep that last scale. */
+assert(ctx.windupToyBlitFace(1, 1)===-1, 'toy moving screen-right is flipped');
+assert(ctx.windupToyBlitFace(-1, 1)===1, 'toy moving screen-left is unflipped');
+assert(ctx.windupToyBlitFace(0.01, -1)===1, 'toy near-vertical keeps the last left face unflipped');
+assert(ctx.windupToyBlitFace(0, 1)===-1, 'toy near-vertical keeps the last right face flipped');
+assert(/windupToyBlitFace\(heading, p\.scampFace/.test(extractFn('drawWindupToyProp')),
+  'the walker blit uses the inverted face');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\npainted-left facing checks passed');

@@ -2502,7 +2502,7 @@ function drawLivingMacar(g,e){
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z, img, blitKey||key);
   }
   g.restore();
 }
@@ -7839,13 +7839,21 @@ function toyScreenFace(dx, dy, prev){
   if(Math.abs(sx)<0.02) return (prev<0)?-1:1;
   return sx<0?-1:1;
 }
+/* prop_winduptoy is painted facing screen-left (beard on the left, key
+   on the right). toyScreenFace is +1 when the toy moves screen-right, so
+   the blit scale is the opposite of that sign. A near-zero heading keeps
+   prev — the last left or right face — on straight north and south. */
+function windupToyBlitFace(heading, prev){
+  const screen=(Math.abs(heading)<0.02?(prev<0?-1:1):heading)<0?-1:1;
+  return -screen;
+}
 /* Painted idle/wound sheets only — bob, lean, flip, and a faster key rock while scampering. */
 function drawWindupToyProp(g,p,z){
   const ts=p.s||1;
   const wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
   const run=p.scampT>0;
   const heading=run?((p.scampDx||0)-(p.scampDy||0)):(p.scampFace||1);
-  const face=(Math.abs(heading)<0.02?(p.scampFace||1):heading)<0?-1:1;
+  const face=windupToyBlitFace(heading, p.scampFace||1);
   const H=propSpriteH(p,z);
   const t=G.elapsed||0;
   const phase=t*(run?14:2.4)+(p.seed||0);
@@ -15122,15 +15130,147 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
+/* Scalp of each living walk and strike sheet, as a fraction of that
+   sheet. Measured from the alpha (the head, not the maul). The worn
+   crown's band bottom sits on this row. Standing idle is not in the
+   table — it keeps the seat that already wraps the hair. */
+const WORN_CROWN_HEAD={
+  macar_w1:{y:0.0762,x:0.50},
+  macar_w2:{y:0.1523,x:0.51},
+  macar_e_w1:{y:0.0195,x:0.51},
+  macar_e_w2:{y:0.0078,x:0.48},
+  macar_se_w1:{y:0.0078,x:0.52},
+  macar_se_w2:{y:0.0078,x:0.59},
+  macar_ne_w1:{y:0.0078,x:0.75},
+  macar_ne_w2:{y:0.0059,x:0.72},
+  macar_back_w1:{y:0.0879,x:0.58},
+  macar_back_w2:{y:0.0664,x:0.62},
+  macar_atk:{y:0.0556,x:0.74},
+  macar_atk_contact:{y:0.0556,x:0.82}
+};
+function wornCrownMotionKey(key){
+  return !!(key && WORN_CROWN_HEAD[key]);
+}
+/* Band bottom is the foot of the crown image, planted on head.y.
+   flip mirrors the sheet, so the head's x mirrors with it. */
+function wornCrownSeat(W, H, dx, dy, flip, head, aspect){
+  const crownH=Math.max(14, H*0.20);
+  const crownW=crownH*(aspect>0?aspect:1.647);
+  const bandY=dy+H*head.y;
+  const x=flip?dx+W*(1-head.x):dx+W*head.x;
+  return {crownH:crownH, crownW:crownW, left:x-crownW/2, top:bandY-crownH, x:x, bandY:bandY};
+}
+/* Enclosed transparent middle of prop_bone_crown — not the outside.
+   Cached once. Walk and strike frames paint a scalp through it. */
+function crownInteriorMask(img){
+  if(!img||!img.width||typeof document==='undefined') return null;
+  if(img._holeMask) return img._holeMask;
+  try{
+    const w=img.width|0, h=img.height|0, n=w*h;
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    const data=x.getImageData(0,0,w,h);
+    const d=data.data;
+    const ext=new Uint8Array(n);
+    const q=new Int32Array(n);
+    let qs=0, qe=0;
+    const push=i=>{
+      if(ext[i]||d[(i<<2)+3]>40) return;
+      ext[i]=1; q[qe++]=i;
+    };
+    for(let x0=0;x0<w;x0++){ push(x0); push((h-1)*w+x0); }
+    for(let y0=0;y0<h;y0++){ push(y0*w); push(y0*w+w-1); }
+    while(qs<qe){
+      const i=q[qs++], px=i%w, py=(i/w)|0;
+      if(px>0) push(i-1);
+      if(px+1<w) push(i+1);
+      if(py>0) push(i-w);
+      if(py+1<h) push(i+w);
+    }
+    for(let i=0;i<n;i++){
+      const o=i<<2;
+      if(d[o+3]<=40 && !ext[i]){ d[o]=255; d[o+1]=255; d[o+2]=255; d[o+3]=255; }
+      else d[o+3]=0;
+    }
+    x.putImageData(data,0,0);
+    img._holeMask=c;
+    return c;
+  }catch(_){ return null; }
+}
+function macarScalpColor(img, head){
+  const fallback='#7a4324';
+  if(!img||!img.width||!head) return fallback;
+  if(img._scalp) return img._scalp;
+  if(typeof document==='undefined') return fallback;
+  try{
+    const w=img.width|0, h=img.height|0;
+    const x0=Math.max(0,((head.x-0.07)*w)|0);
+    const x1=Math.min(w-1,((head.x+0.07)*w)|0);
+    const y0=Math.max(0,(head.y*h)|0);
+    const y1=Math.min(h-1,((head.y+0.08)*h)|0);
+    const cw=Math.max(1,x1-x0+1), ch=Math.max(1,y1-y0+1);
+    const c=document.createElement('canvas');
+    c.width=cw; c.height=ch;
+    const g=c.getContext('2d',{willReadFrequently:true});
+    g.drawImage(img,x0,y0,cw,ch,0,0,cw,ch);
+    const d=g.getImageData(0,0,cw,ch).data;
+    let r=0, gg=0, b=0, n=0;
+    for(let i=0;i<d.length;i+=4){
+      const R=d[i], G=d[i+1], B=d[i+2], A=d[i+3];
+      if(A<=40||R<70||R<G+4||R<B+8) continue;
+      r+=R; gg+=G; b+=B; n++;
+    }
+    const color=n>=12?('rgb('+((r/n)|0)+','+((gg/n)|0)+','+((b/n)|0)+')'):fallback;
+    img._scalp=color;
+    return color;
+  }catch(_){ return fallback; }
+}
+function crownHoleColored(img, color){
+  const mask=crownInteriorMask(img);
+  if(!mask) return null;
+  if(img._holeFill && img._holeFillColor===color) return img._holeFill;
+  const c=document.createElement('canvas');
+  c.width=mask.width; c.height=mask.height;
+  const g=c.getContext('2d');
+  g.drawImage(mask,0,0);
+  g.globalCompositeOperation='source-in';
+  g.fillStyle=color||'#7a4324';
+  g.fillRect(0,0,c.width,c.height);
+  img._holeFill=c;
+  img._holeFillColor=color;
+  return c;
+}
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z, charImg, animKey){
   const img=crownSprite();
-  const cx=dx+W*0.5;
-  const cy=dy+H*0.15;
+  const head=wornCrownMotionKey(animKey)?WORN_CROWN_HEAD[animKey]:null;
+  const aspect=img&&img.height?img.width/img.height:1.647;
+  let cx, cy, left, top, crownW, crownH;
+  if(head){
+    const seat=wornCrownSeat(W, H, dx, dy, flip, head, aspect);
+    cx=seat.x; left=seat.left; top=seat.top;
+    crownW=seat.crownW; crownH=seat.crownH;
+    cy=top+crownH*0.5;
+  } else {
+    cx=dx+W*0.5;
+    cy=dy+H*0.15;
+    crownH=Math.max(14, H*0.20);
+    crownW=crownH*aspect;
+    left=cx-crownW/2;
+    top=cy-crownH*0.82;
+  }
   g.save();
   if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
+  /* The band is on the scalp, so the open middle sits above the hair.
+     Walk and strike frames fill that middle; standing idle stays
+     see-through over the real hair. */
+  if(head && img){
+    const hole=crownHoleColored(img, macarScalpColor(charImg, head));
+    if(hole) g.drawImage(hole, left, top, crownW, crownH);
+  }
   if(img){
-    const h=Math.max(14, H*0.20), w=h*(img.width/Math.max(1,img.height));
-    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
+    g.drawImage(img, left, top, crownW, crownH);
   } else {
     g.translate(cx, cy);
     drawBoneCrownShape(g, z, 0.72);
