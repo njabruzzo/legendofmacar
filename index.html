@@ -15113,13 +15113,13 @@ function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
 /* Crown base, fraction down the altar sheet.
-   0.38–0.42 sits on the enclosure's back-wall cap. The flat bloody
-   slab (the top step, where the pool is) centers near 0.65 down and
-   left of the sheet midline. 0.634 plus the tuck lands the base there. */
-const TEETH_ALTAR_SLAB=0.634;
+   0.38–0.42 is the enclosure's back-wall cap. The flat bloody top
+   slab (the pool on the top step) centers here; the tuck then puts
+   the base on that center, in front of the back wall. */
+const TEETH_ALTAR_SLAB=0.623;
 /* Fraction of the altar sheet width. Negative pulls the base left
    off the billboard center onto the pool. */
-const TEETH_CROWN_SEAT_X=-0.057;
+const TEETH_CROWN_SEAT_X=-0.0573;
 /* A few screen pixels into the stone so the base reads as seated. */
 const TEETH_CROWN_SEAT_TUCK=3;
 function boneCrownHeadH(z){

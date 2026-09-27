@@ -245,9 +245,9 @@ assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
   'tooth prop height is the small-fang scale');
 assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
   'bone crown is drawn up on the altar slab');
-assert(/TEETH_ALTAR_SLAB=0\.634/.test(html),
+assert(/TEETH_ALTAR_SLAB=0\.623/.test(html),
   'crown base seats on the bloody top slab, not the back-wall cap');
-assert(/TEETH_CROWN_SEAT_X=-0\.057/.test(html),
+assert(/TEETH_CROWN_SEAT_X=-0\.0573/.test(html),
   'crown base is left of the sheet center, on the blood pool');
 assert(/TEETH_CROWN_SEAT_TUCK\*z/.test(extractFn('boneCrownSeatY')),
   'crown base tucks a few pixels into the slab');
