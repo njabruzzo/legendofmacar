@@ -301,7 +301,11 @@ const ctx={
   TEETH_HORDE_STIR:0.8,
   TEETH_HORDE_MIN_DIST:2.8,
   isWalkTile(t){ return t===0||t===3||t===4; },
-  FOE:{fangedSkeleton(){ return {id:eid++, kind:'undead', name:'Fanged Skeleton', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; }},
+  SKELETAL_DWARF_N:4,
+  FOE:{
+    fangedSkeleton(){ return {id:eid++, kind:'undead', name:'Fanged Skeleton', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; },
+    skeletalDwarf(){ return {id:eid++, kind:'undead', name:'Skeletal Dwarf', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; }
+  },
   lines:[],
   hints:[],
   xpAwards:[],
@@ -324,14 +328,61 @@ const ctx={
 };
 vm.createContext(ctx);
 ctx.beginFight=function(){};
+vm.runInContext('const TEETH_ALTAR_STEP_FY=475/718;', ctx);
 [
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
-  'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
+  'teethHordeBox','teethHordeWalkable','teethHordeSpots','teethAltarLipHalf','teethAltarStepDepth','teethChapelAltar','teethAltarBlocksTile','skeletalDwarfClearOfWalls','skeletalDwarfOpen','skeletalDwarfSpots','riseTeethHorde','riseSkeletalDwarves','takeBoneCrown','awardCrownDestroyXp',
   'destroyBoneCrown','liveFoeBlocksCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+
+function chapelGrid(){
+  const grid=[];
+  for(let y=0;y<22;y++){
+    const row=[];
+    for(let x=0;x<130;x++) row.push((x>=101 && x<113 && y>=2 && y<14)?0:1);
+    grid.push(row);
+  }
+  ctx.G.lvl.grid=grid;
+  ctx.G.lvl.teethBounds={x0:101,y0:2,x1:113,y1:14};
+  return grid;
+}
+function tilesFromAnyWall(grid, x, y){
+  const ix=x|0, iy=y|0;
+  let best=99;
+  for(let yy=iy-3; yy<=iy+3; yy++){
+    const row=grid[yy];
+    if(!row) continue;
+    for(let xx=ix-3; xx<=ix+3; xx++){
+      if(row[xx]!==1) continue;
+      const d=Math.max(Math.abs(ix-xx), Math.abs(iy-yy));
+      if(d<best) best=d;
+    }
+  }
+  return best;
+}
+/* Spots follow Macar. Properties, not a fixed tile list. */
+function assertMacarSpots(label, mac){
+  const grid=ctx.G.lvl.grid;
+  const altar=(ctx.G.props||[]).find(p=>p&&p.teethAltar&&!p.gone);
+  const spots=ctx.skeletalDwarfSpots(ctx.G.lvl, mac, 4);
+  assert(spots.length===4, label+' places four spots');
+  const seen={};
+  spots.forEach((s,i)=>{
+    const key=(s.x|0)+','+(s.y|0);
+    assert(!seen[key], label+' spot '+i+' is a distinct tile');
+    seen[key]=1;
+    assert(ctx.teethHordeWalkable(ctx.G.lvl, s.x, s.y), label+' spot '+i+' is walkable chapel floor');
+    assert(grid[s.y|0] && grid[s.y|0][s.x|0]===0, label+' spot '+i+' is a floor tile');
+    assert(s.x>=101 && s.x<113 && s.y>=2 && s.y<14, label+' spot '+i+' is inside the chapel');
+    assert(tilesFromAnyWall(grid, s.x, s.y)>=2, label+' spot '+i+' is at least 2 tiles from any wall ('+key+')');
+    assert(Math.hypot(s.x-mac.x, s.y-mac.y)+1e-9>=ctx.TEETH_HORDE_MIN_DIST, label+' spot '+i+' stays 2.8 from Macar');
+    assert(altar && !ctx.teethAltarBlocksTile(altar, s.x|0, s.y|0), label+' spot '+i+' is clear of the altar');
+  });
+  return spots;
+}
 
 const crownItem=ctx.makeBoneCrownItem();
 assert(crownItem.boneCrown===1 && crownItem.slot==='helmet', 'crown item is a worn helm');
@@ -339,22 +390,57 @@ assert(ctx.wearingBoneCrown({helmet:crownItem})===true, 'wearingBoneCrown reads 
 assert(ctx.wearingBoneCrown({helmet:{n:'Iron Helm'}})===false, 'iron helm is not the bone crown');
 
 const altarCrown={x:125,y:21,k:'bonecrown',gone:0};
-ctx.G.props=[altarCrown];
-ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124, y:21, hp:80, maxhp:80}];
+const teethAltar={k:'altar', teethAltar:1, x:102.25, y:4.35, s:1.55, gone:0};
+chapelGrid();
+ctx.G.props=[altarCrown, teethAltar];
+ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:102.03, y:5.62, hp:80, maxhp:80}];
 const take=ctx.takeBoneCrown(altarCrown);
 assert(take.ok===1 && take.worn===1, 'TAKE seats the crown');
 assert(altarCrown.gone===1 && ctx.G.lvl.flags.crownTaken===1, 'taken crown is spent');
 assert(ctx.G.lvl.flags.crownTouched===1, 'TAKE sets crownTouched');
 assert(ctx.G.equipped.helmet && ctx.G.equipped.helmet.boneCrown, 'crown is on Macar\'s head');
-assert(ctx.G.lvl.flags.teethRisen===1, 'TAKE raises the teeth horde');
-assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
-  'TAKE horde is eight fanged skeletons');
+assert(ctx.G.lvl.flags.skeletalDwarves===1, 'TAKE raises the skeletal dwarves once');
+assert(!ctx.G.lvl.flags.teethRisen, 'TAKE does not raise the fanged horde');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'TAKE raises four skeletal dwarves');
+assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
+  'TAKE does not spawn fanged skeletons');
+{
+  const mac=ctx.G.ents.find(e=>e.hero);
+  const spots=assertMacarSpots('TAKE', mac);
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(dwarves.length===4, 'TAKE places four approach spots');
+  dwarves.forEach((e,i)=>{
+    assert(e.x===spots[i].x && e.y===spots[i].y, 'TAKE dwarf '+i+' stands on its approach spot');
+    assert(e.x<=113-4.2 && e.y<=14-4.2, 'TAKE dwarf '+i+' is clear of the south and east caps');
+  });
+  let nearest=99;
+  for(let i=0;i<dwarves.length;i++) for(let j=i+1;j<dwarves.length;j++){
+    nearest=Math.min(nearest, Math.hypot(dwarves[i].x-dwarves[j].x, dwarves[i].y-dwarves[j].y));
+  }
+  assert(nearest>=2.1, 'TAKE dwarves do not overlap ('+nearest.toFixed(2)+')');
+}
+assert(ctx.takeBoneCrown(altarCrown).ok===0, 'taking again is a no-op');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'wearing after take does not raise the dwarves twice');
+ctx.destroyBoneCrown({worn:1, x:124, y:21});
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'destroy after take does not raise a second pack');
+assert(ctx.xpAwards.length===1, 'that destroy still awards XP once');
+ctx.xpAwards.length=0;
+assert(!/riseTeethHorde\(/.test(extractFn('takeBoneCrown'))
+  && !/riseTeethHorde\(/.test(extractFn('destroyBoneCrown')),
+  'take and destroy do not call the fanged horde');
+assert(/riseSkeletalDwarves\(crown\)/.test(extractFn('takeBoneCrown'))
+  && /riseSkeletalDwarves\(where\)/.test(extractFn('destroyBoneCrown')),
+  'take and destroy raise skeletal dwarves');
 assert(ctx.xpAwards.length===0, 'TAKE does not award the destroy XP');
 
 ctx.G.lvl.flags={};
-ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124, y:21, hp:80, maxhp:80}];
+chapelGrid();
+ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:105.1, y:5.7, hp:80, maxhp:80}];
 ctx.G.equipped={};
-ctx.G.props=[];
+ctx.G.props=[teethAltar];
 ctx.xpAwards=[];
 const smash={x:125,y:21,k:'bonecrown',gone:0};
 const dest=ctx.destroyBoneCrown(smash);
@@ -364,8 +450,99 @@ assert(ctx.G.lvl.flags.crownDestroyed===1, 'destroy flag is set');
 assert(ctx.xpAwards[0] && ctx.xpAwards[0].n===5000, 'awardPartyXp got 5000');
 assert(/Bone Crown destroyed/.test(ctx.xpAwards[0].why), 'XP reason names the crown');
 assert(ctx.G.equipped.helmet==null, 'destroy does not wear the crown');
-assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
-  'DESTROY still raises the same horde');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'DESTROY raises four skeletal dwarves');
+assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
+  'DESTROY does not spawn fanged skeletons');
+{
+  const mac=ctx.G.ents.find(e=>e.hero);
+  const spots=assertMacarSpots('DESTROY', mac);
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(dwarves.length===4, 'DESTROY places four approach spots');
+  dwarves.forEach((e,i)=>{
+    assert(e.x===spots[i].x && e.y===spots[i].y, 'DESTROY dwarf '+i+' stands on its approach spot');
+    assert(ctx.skeletalDwarfOpen(ctx.G.lvl, e.x, e.y), 'DESTROY dwarf '+i+' is open floor inside the cap');
+  });
+}
+[[102,3],[103,3],[102,4],[103,4],[102,5]].forEach(([x,y])=>{
+  assert(ctx.teethAltarBlocksTile(teethAltar, x, y), 'altar footprint covers ('+x+','+y+')');
+  assert(!ctx.skeletalDwarfOpen(ctx.G.lvl, x+0.5, y+0.5), 'open rejects the altar tile ('+x+','+y+')');
+});
+{
+  const realSpots=ctx.skeletalDwarfSpots;
+  ctx.skeletalDwarfSpots=function(){ return []; };
+  ctx.G.lvl.flags={};
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', x:105.1, y:5.7, hp:80, maxhp:80}];
+  assert(ctx.riseSkeletalDwarves({x:105.1,y:5.7})===0 && !ctx.G.lvl.flags.skeletalDwarves,
+    'the raise flag stays clear when no dwarf spawns');
+  ctx.skeletalDwarfSpots=realSpots;
+}
+{
+  let swept=0;
+  const grid=ctx.G.lvl.grid;
+  for(let iy=2.4; iy<=11.6; iy+=0.9){
+    for(let ix=101.4; ix<=110.6; ix+=0.9){
+      if(!grid[iy|0] || grid[iy|0][ix|0]!==0) continue;
+      swept++;
+      assertMacarSpots('sweep '+ix.toFixed(1)+','+iy.toFixed(1), {x:ix,y:iy});
+    }
+  }
+  assert(swept>=40, 'the chapel sweep covers many Macar positions ('+swept+')');
+}
+assert(/skeletalDwarfSpots\(L, origin, n\)/.test(extractFn('riseSkeletalDwarves'))
+  && !/teethHordeSpots\(/.test(extractFn('riseSkeletalDwarves')),
+  'skeletal dwarves use the approach spots, not the room-edge horde ring');
+
+/* Player at the altar. teethHordeSpots still picks the east lip. The dwarves
+   stand at least two tiles in from that wall, and the floor-teeth flag stays unset. */
+ctx.G.lvl.flags={};
+ctx.G.lvl.teethBounds={x0:101,y0:2,x1:113,y1:14};
+{
+  const grid=[];
+  for(let y=0;y<20;y++){
+    const row=[];
+    for(let x=0;x<130;x++) row.push((x>=101 && x<113 && y>=2 && y<14)?0:1);
+    grid.push(row);
+  }
+  for(let x=105;x<=108;x++) grid[14][x]=0;
+  ctx.G.lvl.grid=grid;
+  ctx.G.props=[
+    {k:'altar', teethAltar:1, x:102.25, y:4.35, s:1.55, gone:0},
+    {k:'tooth', x:106, y:7, gone:0},
+    {k:'bonecrown', x:102.25, y:4.35, gone:0}
+  ];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:102.25, y:4.35, hp:80, maxhp:80}];
+  const mac=ctx.G.ents[0];
+  const lip=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const lipWant=[[112.5,13.5],[112.5,11.5],[110.5,13.5],[112.5,9.5]];
+  assert(lip.length===4 && lip.every((s,i)=>s.x===lipWant[i][0] && s.y===lipWant[i][1]),
+    'the horde ring is still the east-wall lip');
+  const n=ctx.riseSkeletalDwarves({x:102.25,y:4.35});
+  const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
+  assert(n===4 && dwarves.length===4, 'altar take raises four dwarves off the lip');
+  assert(!ctx.G.lvl.flags.teethRisen, 'the floor-teeth flag stays unset');
+  assert(ctx.G.props.find(p=>p.k==='tooth').gone!==1, 'floor teeth stay on the chapel floor');
+  dwarves.forEach((e,i)=>{
+    const ix=e.x|0, iy=e.y|0;
+    assert(grid[iy][ix]===0, 'approach dwarf '+i+' stands on floor');
+    assert(ctx.teethHordeWalkable(ctx.G.lvl, e.x, e.y), 'approach dwarf '+i+' is walkable');
+    assert(ix<=110, 'approach dwarf '+i+' is at least two tiles in from the east wall ('+ix+')');
+    assert(tilesFromAnyWall(grid, e.x, e.y)>=2, 'approach dwarf '+i+' is at least 2 tiles from any wall');
+    assert(!ctx.teethAltarBlocksTile(ctx.G.props[0], ix, iy), 'approach dwarf '+i+' is clear of the altar');
+    assert(Math.hypot(e.x-mac.x, e.y-mac.y)+1e-9>=ctx.TEETH_HORDE_MIN_DIST, 'approach dwarf '+i+' stays 2.8 from Macar');
+    assert(e.x<=113-4.2 && e.y<=14-4.2, 'approach dwarf '+i+' is inside the wall-face span');
+    assert(!lipWant.some(o=>o[0]===e.x && o[1]===e.y), 'approach dwarf '+i+' is not on the east lip');
+  });
+  let nearest=99;
+  for(let i=0;i<dwarves.length;i++) for(let j=i+1;j<dwarves.length;j++){
+    nearest=Math.min(nearest, Math.hypot(dwarves[i].x-dwarves[j].x, dwarves[i].y-dwarves[j].y));
+  }
+  assert(nearest>=2.1, 'approach dwarves do not overlap ('+nearest.toFixed(2)+')');
+  ctx.G.lvl.grid=null;
+  ctx.G.lvl.flags={};
+  ctx.G.props=[];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:124, y:21, hp:80, maxhp:80}];
+}
 
 /* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
    Wall cells on the far edge must be skipped. beginFight may lengthen stun;
