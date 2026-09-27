@@ -107,7 +107,7 @@ vm.runInContext(
    'const DEMON_FACE_CONTENT_SCALE=1.94;',
    'const WALL_HALL_SCALE=0.70;',
    'const WALL_TEETH_NORTH_SCALE=2.25;',
-   'const WALL_TEETH_FACE_SCALE=2.26;',
+   'const WALL_TEETH_FACE_SCALE=2.25;',
    extractFn('isWalkTile'), extractFn('teethBounds'), extractFn('nearTeethChapel'),
    extractFn('isTeethNorthWall'), extractFn('isTeethFaceWall'),
    extractFn('hallWallH'), extractFn('teethNorthWallH'), extractFn('teethFaceWallH'),

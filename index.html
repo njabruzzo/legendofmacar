@@ -2675,12 +2675,12 @@ function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
    predicate still applies when a save has no map. */
 /* v5 plate is 298×392, upright, with no pre-skew. Content box is 266×360
    (16px pad). The portrait draws that content box at 1.94× wallFaceH, so
-   the canvas quad is about 2.11× wallFaceH. This segment is 2.26× wallFaceH:
-   taller than the canvas, so both horns sit on the same masonry, and the
-   cap still lands on screen above them from the chapel floor, including
-   the short 844×390 view. */
+   the canvas quad is about 2.11× wallFaceH. This segment matches the
+   neighboring chapel north wall (WALL_TEETH_NORTH_SCALE) so the cap is
+   one line: no step at x=104/105 or x=109/110. 2.25 is still above the
+   canvas, so both horns sit on the masonry. */
 const DEMON_FACE_PLATE={w:298,h:392,pad:16};
-const WALL_TEETH_FACE_SCALE=2.26;
+const WALL_TEETH_FACE_SCALE=2.25;
 const DEMON_FACE_CONTENT_SCALE=1.94;
 function isTeethFaceWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
