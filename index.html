@@ -436,7 +436,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='123';
+const ASSET_VER='124';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -2673,11 +2673,11 @@ function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
    row so a replacement face plate can rise inside the wall. L.wallH
    stores a multiple of wallFaceH per tile; a set value wins, and the
    predicate still applies when a save has no map. */
-/* Approved plate is 267×434. Alpha box is 235×399 (16px side pad, 19px top).
-   The portrait draws that content box at 2.40× wallFaceH, so the canvas
-   quad is about 2.61× wallFaceH. This segment is 3.15× wallFaceH, taller
-   than the canvas, so the horns sit on masonry with margin. */
-const DEMON_FACE_PLATE={w:267,h:434,pad:16};
+/* v5 plate is 298×392, upright, with no pre-skew. Content box is 266×360
+   (16px pad). The portrait draws that content box at 2.40× wallFaceH, so
+   the canvas quad is about 2.61× wallFaceH. This segment is 3.15× wallFaceH,
+   taller than the canvas, so the horns sit on masonry with margin. */
+const DEMON_FACE_PLATE={w:298,h:392,pad:16};
 const WALL_TEETH_FACE_SCALE=3.15;
 const DEMON_FACE_CONTENT_SCALE=2.40;
 function isTeethFaceWall(L,x,y){
@@ -14996,7 +14996,8 @@ function demonFaceHalf(p){
   const H=demonFaceDrawH(img, p);
   const plateAspect=DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h;
   const aspect=(img&&img.width&&img.height>img.width)?img.width/Math.max(1,img.height):plateAspect;
-  return clamp(H*aspect/(2*perTile), 0.70, 2.40);
+  /* 298/392 half is about 2.66–2.72. A 2.40 cap squeezes that wider plate. */
+  return clamp(H*aspect/(2*perTile), 0.70, 2.80);
 }
 function demonFacePlaneY(p){
   if(!p||p.wall==='e') return p?p.y:0;
@@ -15006,11 +15007,11 @@ function demonFaceScreen(p){
   return w2s(p.x, demonFacePlaneY(p));
 }
 function chapelFaceContentFrac(){
-  /* Approved plate alpha box is 399 of 434. A live spriteBounds miss
+  /* Content box is 360 of 392 (16px pad). A live spriteBounds miss
      (plate not decoded yet, or a box that failed the portrait test)
      used to return dwarfFaceH()*1.08 — a small mask on the 3.15 wall.
      This fraction is dimensionless, so face/wall is the same at every zoom. */
-  return 399/DEMON_FACE_PLATE.h;
+  return 360/DEMON_FACE_PLATE.h;
 }
 function demonFaceDrawH(img, p){
   if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
