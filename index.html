@@ -8957,7 +8957,7 @@ function unequipPackSlot(slot, opts){
   const worn=G.equipped&&G.equipped[slot];
   if(worn&&worn.boneCrown&&!opts.camp&&!G.sleepShow&&!G.campDoff){
     say('The bone crown comes off only at camp, or by shattering it.','#c9b895');
-    hint('Camp to doff (1 turn), or Destroy it from the crown\'s look.',3.4);
+    hint('Camp to doff (1 turn), or Drop it, then destroy it from its Look menu.',3.4);
     return null;
   }
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
