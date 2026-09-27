@@ -932,6 +932,58 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     && !/\bdestroyBoneCrown\b|\btryStrikeBoneCrown\b/.test(extractFn('damage'))
     && !/\btryStrikeBoneCrown\b/.test(extractFn('update')),
     'shots, bombs, and the update loop do not strike the crown themselves');
+
+  /* Killing blow: the foe is alive when the swing starts and dead before
+     the crown check. The pre-damage snapshot must still spare the crown. */
+  const swingSrc=extractFn('meleeSwing');
+  const dmgAt=swingSrc.indexOf('damage(');
+  assert(swingSrc.indexOf('hadFoeTarget')>=0 && swingSrc.indexOf('hadFoeTarget')<dmgAt
+    && swingSrc.indexOf('foeInReach')>=0 && swingSrc.indexOf('foeInReach')<dmgAt,
+    'hadFoeTarget and foeInReach are captured before damage');
+  assert(/tryStrikeBoneCrown\(e, reach, \{hadFoeTarget:hadFoeTarget, foeInReach:foeInReach\}\)/.test(swingSrc),
+    'the crown check receives the pre-damage foe snapshot');
+  ctx.ang=function(x,y){ return Math.atan2(y,x); };
+  ctx.TAU=Math.PI*2;
+  ctx.addAttack=function(){ return 8; };
+  ctx.onHitFx=function(a,o,d){ return d; };
+  ctx.wear=function(){};
+  ctx.damage=function(o, amt){
+    if(!o||o.dead) return;
+    o.hp=(o.hp==null?1:o.hp)-(amt||0);
+    if(o.hp<=0){ o.hp=0; o.dead=1; }
+  };
+  vm.runInContext(extractFn('meleeSwing')+';', ctx);
+  hero.x=110.5; hero.y=2.5; hero.range=1.4; hero.r=0.36;
+  hero.fdx=0; hero.fdy=1; hero._attack={fdx:0, fdy:1}; hero.atk=0;
+  hero.crownDropGuard=0; hero.crownTarget=1;
+  crown.x=111.4; crown.y=2.5; crown.gone=0; crown.destroyed=0; crown.taken=0;
+  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0; ctx.G.lvl.flags.crownXp=0;
+  const killFoe={id:77, team:'foe', name:'Fanged Skeleton', dead:0, hp:1, maxhp:8, r:0.34,
+    x:hero.x, y:hero.y+0.7};
+  ctx.G.ents.push(killFoe);
+  hero.aim=killFoe;
+  const reach=(hero.range||1.4)+0.35;
+  assert(ctx.dist(hero, killFoe)<=1.2 && ctx.dist(hero, crown)<=1.2,
+    'the killing-blow foe and the crown are both adjacent');
+  const xp0=ctx.xpAwards.length;
+  ctx.meleeSwing(hero, 2.3, reach, 8);
+  assert(killFoe.dead===1 && killFoe.hp<=0, 'Macar\'s swing kills the 1 HP foe');
+  assert(!crown.destroyed && !crown.gone && ctx.G.lvl.flags.crownDestroyed!==1,
+    'the killing blow leaves the adjacent crown intact');
+  assert(ctx.xpAwards.length===xp0 && !ctx.G.lvl.flags.crownXp,
+    'the killing blow awards no crown XP');
+  assert(ctx.liveFoeBlocksCrown(hero, reach)==null,
+    'after the kill the live-foe check is empty');
+  hero.aim=null; hero.crownTarget=1; hero.crownDropGuard=0;
+  assert(ctx.meleeSwing(hero, 2.3, reach, 8)===1 && crown.destroyed===1 && crown.gone===1,
+    'the next deliberate swing with no foe destroys the crown');
+  assert(ctx.xpAwards.length===xp0+1 && ctx.xpAwards[ctx.xpAwards.length-1].why==='Bone Crown destroyed'
+    && ctx.G.lvl.flags.crownXp===1,
+    'that deliberate swing awards the destroy XP exactly once');
+  hero.crownTarget=1;
+  assert(ctx.meleeSwing(hero, 2.3, reach, 8)===0 && ctx.xpAwards.length===xp0+1,
+    'a further swing does not award the XP again');
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
 }
 
 /* Ten seconds of the real update loop: a live skeleton beside a floor crown,

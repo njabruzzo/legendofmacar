@@ -11111,6 +11111,14 @@ function meleeSwing(e,arc,reach,dmg,col){
   const fa=ang(af.fdx,af.fdy); let hit=0;
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
+  /* Snapshot before damage. A blow that kills the last foe must not
+     then see an empty reach and shatter the crown. */
+  const aim=e.aim;
+  const hadFoeTarget=!!(aim && !aim.dead && aim.team==='foe' && !(aim.hp!=null && aim.hp<=0));
+  let foeInReach=0;
+  for(const o of G.ents){ if(!o||o.dead||o.team===e.team||o.npc||o.sleeping) continue;
+    if(o.hp!=null && o.hp<=0) continue;
+    if(dist(e,o)<=rad+(o.r||0.35)){ foeInReach=1; break; } }
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
@@ -11126,7 +11134,7 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
     L.plug.hp-=rock; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
-  if(e.hero && typeof tryStrikeBoneCrown==='function' && tryStrikeBoneCrown(e, reach)) hit=1;
+  if(e.hero && typeof tryStrikeBoneCrown==='function' && tryStrikeBoneCrown(e, reach, {hadFoeTarget:hadFoeTarget, foeInReach:foeInReach})) hit=1;
   if(hit){ shake(4); G.hitstop=Math.max(G.hitstop,.035); }
   return hit;
 }
@@ -11606,7 +11614,7 @@ function liveFoeBlocksCrown(e, reach){
   }
   return null;
 }
-function tryStrikeBoneCrown(e, reach){
+function tryStrikeBoneCrown(e, reach, prior){
   if(!e||!e.hero) return 0;
   if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
   /* The swing already in the air when the crown is set down must not
@@ -11617,6 +11625,10 @@ function tryStrikeBoneCrown(e, reach){
   if(!e.crownTarget) return 0;
   const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
   if(!crown){ e.crownTarget=0; return 0; }
+  /* prior is the pre-damage snapshot from meleeSwing. A swing that
+     began on a foe, or with a foe already in reach, never strikes the
+     crown — even when that blow kills them and the live check is empty. */
+  if(prior && (prior.hadFoeTarget || prior.foeInReach)){ e.crownTarget=0; return 0; }
   if(liveFoeBlocksCrown(e, reach)){ e.crownTarget=0; return 0; }
   e.crownTarget=0;
   destroyBoneCrown(crown);
