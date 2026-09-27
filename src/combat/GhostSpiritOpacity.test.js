@@ -2,7 +2,7 @@
 /**
  * Ghost atk and back lift from the living-color stamp onto Nick's icy cyan.
  * Nick-GOOD idle and front walk w1/w2 blit as painted.
- * Talpor's standing idle is the pale sheet, so it takes the ice-cyan lift.
+ * Talpor's standing idle keeps its folds: luminance mapped onto his walk cyan, plus that sheet's dark rim.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
  * A thin cool line traces the silhouette and the main luminance ridge
  * (face, beard, helm, weapon) without punching the spirit opaque.
@@ -53,8 +53,9 @@ assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.te
 assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
   'liftGhostSpirit inks key-feature edges after the white lift');
 assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
-  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'Nick spectral idle and front walk blit as painted; atk/back still lift');
+  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite'))
+  && /img===SPR\.talpor_ghost\) return colorizeTalporStanding\(img\)/.test(extractFn('solidDwarfSprite')),
+  'Nick spectral idle and front walk blit as painted; Talpor standing is colorized; atk/back still lift');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
   && !/img===SPR\.talpor_ghost\|\|/.test(extractFn('nickSpectralGhostSheet'))
   && !/\|\|img===SPR\.talpor_ghost(?:\||\s|;)/.test(extractFn('nickSpectralGhostSheet'))
@@ -63,7 +64,7 @@ assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
   && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
-  'Talpor standing idle takes the ice-cyan lift; his front walks stay painted');
+  'Talpor standing idle is colorized off the painted list; his front walks stay painted');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
@@ -89,9 +90,12 @@ vm.runInContext(
   +'GHOST_SIL_BLUR=6,GHOST_SIL_CUT=0.45,GHOST_EDGE_DILATE=1;'
   +extractFn('liftGhostAlpha')
   +extractFn('ghostBoxBlur')
-  +extractFn('inkGhostFeatureEdges'),
+  +extractFn('inkGhostFeatureEdges')
+  +extractFn('colorizeTalporIdlePixels'),
   ctx
 );
+assert(!/GHOST_CYAN_MIX/.test(extractFn('colorizeTalporIdlePixels')),
+  'Talpor standing colorize does not use the flat ice mix');
 
 function liftCopy(rgba){
   const d=new Uint8ClampedArray(rgba);
@@ -141,6 +145,27 @@ assert(out195[3]===224 && out195[3]!==255,
 const already=new Uint8ClampedArray([200,200,200,255]);
 const out255=liftCopy(already);
 assert(out255[3]===224, 'a source a=255 is capped — west flip cannot go solid');
+
+{
+  const W=40, H=48;
+  const src=new Uint8ClampedArray(W*H*4);
+  for(let y=4;y<44;y++) for(let x=4;x<36;x++){
+    const p=(y*W+x)*4;
+    const dark=x<20;
+    src[p]=dark?4:169; src[p+1]=dark?32:216; src[p+2]=dark?49:243; src[p+3]=220;
+  }
+  ctx.colorizeTalporIdlePixels(src, W, H);
+  const at=(x,y)=>((y*W+x)*4);
+  const lum=p=>(src[p]*30+src[p+1]*59+src[p+2]*11)/100;
+  const left=at(10,24), right=at(28,24), rim=at(4,24), out=at(1,1);
+  assert(src[out+3]===0, 'colorize clears the empty margin');
+  assert(src[left+3]===255 && src[right+3]===255, 'standing figure alpha matches the opaque walk sheets');
+  assert(lum(right)-lum(left)>80, 'light and dark folds survive the cyan ramp (gap '+(lum(right)-lum(left)).toFixed(1)+')');
+  assert(src[right+2]>src[right]+20 && src[right+1]>src[right],
+    'the lit fold stays icy cyan (got '+src[right]+','+src[right+1]+','+src[right+2]+')');
+  assert(src[rim]===7 && src[rim+1]===17 && src[rim+2]===23 && src[rim+3]===255,
+    'the silhouette takes the walk sheet dark cool rim');
+}
 
 const fringe=new Uint8ClampedArray([40,30,20,30, 10,10,10,40]);
 const outFringe=liftCopy(fringe);

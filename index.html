@@ -1528,16 +1528,16 @@ function blitLivingMacar(img){
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Living kin take the Macar punch. Ghost atk and back are signed
    living-color stamps — lift those onto Nick's icy cyan. Nick idle and
-   front walk blit as painted. Talpor's standing sheet is the pale solid
-   paint, so it takes that same lift. His walks stay painted. Never punch
-   a ghost to 255. */
+   front walk blit as painted. Talpor's standing sheet keeps its own
+   light and dark, recolored onto his walk ramp. His walks stay painted.
+   Never punch a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
   /* Nick icy-cyan idle and front walk blit as painted. Talpor's standing
      sheet (assets/creatures/dwarf_talpor_ghost.png) is not on this list:
-     it is pale and solid as painted, and liftGhostSpirit grades it onto
-     the same ice cyan and capped alpha as the other ghosts' lifted
-     sheets. His front walks stay here so the first step does not flash. */
+     colorizeTalporStanding maps its luminance onto the walk-sheet cyan
+     and paints the walk's dark rim. The flat ice mix washed that detail
+     out. His front walks stay here so the first step does not flash. */
   return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
@@ -1548,6 +1548,7 @@ function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
   if(e.ghost){
+    if(img===SPR.talpor_ghost) return colorizeTalporStanding(img);
     if(nickSpectralGhostSheet(img)) return img;
     return liftGhostSpirit(img);
   }
@@ -1705,6 +1706,85 @@ function inkGhostFeatureEdges(dst, src, w, h){
     dst[p]=r; dst[p+1]=g; dst[p+2]=b;
   }
   return dst;
+}
+/* Talpor idle only. Luminance is slid onto the walk sheet's 5–95% value
+   span, then looked up on that sheet's ice-cyan ramp, so robe, beard, and
+   book keep their folds. A 2px rim uses the walk's dark cool outline.
+   Figure alpha matches the painted walks (opaque), not the capped lift.
+   Empty margin stays clear — this is not the living a=255 punch. */
+const TALPOR_IDLE_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
+function colorizeTalporIdlePixels(d, w, h){
+  if(!d||w<3||h<3) return d;
+  const RAMP=[
+    [1,6,11],[2,19,31],[4,32,49],[6,45,66],[9,57,81],
+    [12,69,95],[16,82,109],[21,94,123],[26,105,136],[32,117,149],
+    [40,128,161],[49,138,172],[59,148,182],[68,158,192],[78,168,202],
+    [90,178,210],[101,187,218],[114,196,226],[129,204,233],[143,212,239],
+    [158,221,246],[175,227,251],[197,232,253],[224,234,254]
+  ];
+  const IN0=6.6, IN1=201.9, OUT0=11.9, OUT1=171.8, SPAN=IN1-IN0, LO=40;
+  const N=w*h, on=new Uint8Array(N);
+  for(let i=0,p=0;i<N;i++,p+=4){
+    const a=d[p+3];
+    if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
+    on[i]=1;
+    const y=(d[p]*30+d[p+1]*59+d[p+2]*11)/100;
+    let t=(y-IN0)/SPAN;
+    if(t<0) t=0; else if(t>1) t=1;
+    const yo=OUT0+t*(OUT1-OUT0);
+    let bi=yo/10;
+    if(bi<0) bi=0; else if(bi>22.999) bi=22.999;
+    const i0=bi|0, f=bi-i0, a0=RAMP[i0], a1=RAMP[i0+1];
+    d[p]=(a0[0]+(a1[0]-a0[0])*f+0.5)|0;
+    d[p+1]=(a0[1]+(a1[1]-a0[1])*f+0.5)|0;
+    d[p+2]=(a0[2]+(a1[2]-a0[2])*f+0.5)|0;
+    d[p+3]=255;
+  }
+  const edge=new Uint8Array(N);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=y*w+x;
+    if(!on[i]) continue;
+    if(x===0||y===0||x===w-1||y===h-1||!on[i-1]||!on[i+1]||!on[i-w]||!on[i+w]) edge[i]=1;
+  }
+  let rim=edge;
+  for(let rad=1;rad<=2;rad++){
+    const srcE=rim, next=rim.slice();
+    for(let y=rad;y<h-rad;y++) for(let x=rad;x<w-rad;x++){
+      const i=y*w+x;
+      if(!on[i]||srcE[i]) continue;
+      let hit=0;
+      for(let dy=-rad;dy<=rad && !hit;dy++) for(let dx=-rad;dx<=rad;dx++){
+        if(srcE[i+dy*w+dx]) hit=1;
+      }
+      if(hit) next[i]=1;
+    }
+    rim=next;
+  }
+  for(let i=0,p=0;i<N;i++,p+=4){
+    if(!rim[i]) continue;
+    d[p]=7; d[p+1]=17; d[p+2]=23; d[p+3]=255;
+  }
+  return d;
+}
+function colorizeTalporStanding(img){
+  if(!img||!img.width) return img;
+  if(TALPOR_IDLE_SPIRIT&&TALPOR_IDLE_SPIRIT.has(img)) return TALPOR_IDLE_SPIRIT.get(img);
+  if(img.__talporIdle) return img.__talporIdle;
+  let out=img;
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.imageSmoothingEnabled=false;
+    x.drawImage(img,0,0);
+    const id=x.getImageData(0,0,c.width,c.height);
+    colorizeTalporIdlePixels(id.data, c.width, c.height);
+    x.putImageData(id,0,0);
+    out=c;
+  }catch(_){ out=img; }
+  if(TALPOR_IDLE_SPIRIT) TALPOR_IDLE_SPIRIT.set(img,out);
+  else img.__talporIdle=out;
+  return out;
 }
 function liftGhostSpirit(img){
   if(!img||!img.width) return img;

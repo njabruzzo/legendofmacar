@@ -63,7 +63,7 @@ assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_g
   && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/ghost_back/.test(extractFn('nickSpectralGhostSheet')),
-  'Talpor standing idle lifts; his walks stay painted and attack and back still lift');
+  'Talpor standing idle is colorized; his walks stay painted and attack and back still lift');
 assert(/_ghost_w\[12\]\$/.test(extractFn('partyGhostKeyReady')),
   'front ghost walk skips the idle crop match so stride overhang stays bound');
 assert(/talporInterimGhostKey\(key\)\) return true/.test(extractFn('partyGhostKeyReady'))
