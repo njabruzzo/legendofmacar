@@ -99,8 +99,13 @@ ctx.G.equipped={};
 assert(ctx.animateDeadPartyOn()===true, 'a living thrall keeps the strip on after the helm check');
 assert(ctx.partyPortraitList()[0]===mac, 'thrall-only flow still leads with Macar');
 
-ctx.G.thrallId=null;
+thrall.hp=11;
+assert(ctx.partyPortraitList().some(e=>e===thrall && e.hp===11),
+  'the raised-dead card reads the creature\'s current hp');
 thrall.dead=1;
+assert(ctx.partyPortraitList().indexOf(thrall)<0,
+  'a dead thrall drops out of the column even if its id is still set');
+ctx.G.thrallId=null;
 mac.hero=0;
 assert(ctx.animateDeadPartyOn()===false, 'no crown and no thrall leaves the flow off');
 assert(keys().indexOf('macar')<0, 'Macar is not forced onto the strip outside animate dead');
@@ -109,6 +114,11 @@ const stack=extractFn('drawPortraitStack');
 assert(/portraitIdentity\(e\)/.test(stack), 'every card, including the thrall, uses a portrait');
 assert(/sheetHpNow\(e\)/.test(stack) && /hp/.test(stack), 'thrall cards use the kin health line');
 assert(/e\.hero\)\{/.test(stack) && /GEAR/.test(stack), 'only Macar keeps the gear mark');
+assert(/UI\.hudTop/.test(extractFn('partyPortraitFrame')),
+  'phone party cards, including a raised dead, stop above the action bar');
+const touch=extractFn('drawPortraitStackTouch');
+assert(/party\.forEach/.test(touch) && /col\.name/.test(touch) && /e\.hp/.test(touch),
+  'touch raised-dead cards use the kin face, name, and hp bar');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate-dead party HUD checks passed');
