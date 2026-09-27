@@ -2771,6 +2771,10 @@ function actorDrawDepth(o){
   /* Chapel portrait. Its own x+y is before the next east cell, so that
      cell's south face paints over the right horn. */
   if(o.k==='demonface' && o.wall!=='e') return demonFaceDrawDepth(o);
+  /* Seated chapel crown. Its own x+y is the altar foot, so the back wall
+     and the portrait paint over the slab. Sort it after those, the face,
+     and the altar. */
+  if(o.k==='bonecrown' && teethCrownStillSeated()) return boneCrownDrawDepth(o);
   const d=(o.x+o.y);
   if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
   /* Hall faces are ~4 iso-depth tall. +1 left the dwarf in the south
@@ -2880,6 +2884,19 @@ function demonFaceDrawDepth(p){
   const xRight=p.x+demonFaceHalf(p);
   const wx=Math.floor(xRight-yPlane+faceY-1e-4);
   return (wx+wallY)|0;
+}
+/* Depth past the altar foot, the north-wall cell behind that tile, and the
+   chapel face. Walls in a bucket draw before props, so this bucket paints
+   the crown in front of all three. */
+function boneCrownDrawDepth(p){
+  const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+  const ax=altar?altar.x:((p&&p.x)||0);
+  const ay=altar?altar.y:((p&&p.y)||0);
+  let d=((ax+ay)|0)+1;
+  const face=(G.props||[]).find(f=>f&&!f.gone&&f.k==='demonface'&&f.wall!=='e');
+  if(face) d=Math.max(d, demonFaceDrawDepth(face)+1);
+  d=Math.max(d, ((ax|0)+1)+1);
+  return d|0;
 }
 function dwarfFaceH(L){
   return wallFaceH(L)*0.72;
@@ -14850,8 +14867,9 @@ function teethAltarSheetActive(){
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
-/* Slab lip on that platform, fraction down from the top of the sheet. */
-const TEETH_ALTAR_SLAB=0.157;
+/* Front lip of the top slab, fraction down from the top of the sheet.
+   0.157 was the back rim, so the crown sat on the wall behind the altar. */
+const TEETH_ALTAR_SLAB=0.22;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;
@@ -15469,7 +15487,13 @@ function drawProp(g,p,pal){
     return;
   }
   if(p.k==='bonecrown'){
-    g.save(); g.translate(s.x,s.y);
+    /* Screen anchor is the altar tile, then boneCrownSeatY lifts to the slab. */
+    let foot=s;
+    if(teethCrownStillSeated()){
+      const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+      if(altar) foot=w2s(altar.x, altar.y);
+    }
+    g.save(); g.translate(foot.x,foot.y);
     drawBoneCrownProp(g,p,z);
     g.restore();
     return;
