@@ -230,7 +230,7 @@ assert(/SPRITE_FILES\.demon_dwarfface_empty='assets\/props\/prop_demon_dwarfface
   const room=extractFn('buildTeethCrownRoom');
   assert(/k:'altar',s:1\.55,teethAltar:1/.test(room), 'teeth altar scale is 1.55 so it fits the northwest wall');
   assert(/const altar=\{x:102\.25,y:4\.35\}/.test(room), 'altar stands on the northwest wall');
-  assert(/const face=\{x:107\.25,y:2\.48\}/.test(room), 'demon face stays centered on the north wall');
+  assert(/const face=\{x:107\.10,y:2\.48\}/.test(room), 'demon face is centered on the tall north-wall span');
   assert(/k:'bonecrown',s:1\.70/.test(room), 'bone crown scale is 1.70');
   assert(/x:altar\.x,y:altar\.y,k:'bonecrown'/.test(room),
     'crown shares the altar foot so it can sit on the slab');
@@ -519,6 +519,9 @@ assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on
 assert(L.wallH && L.wallH['107,1']===3.15 && L.wallH['104,1']==null && L.wallH['105,1']===3.15 && L.wallH['109,1']===3.15,
   'the face segment stores a taller per-tile wall height; the mural tile does not');
 assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
+assert(face && face.x>105.4 && face.x<108.2, 'face anchor is centered on the tall north-wall span');
+assert(/o\.k==='demonface' && o\.wall!=='e'\) return demonFaceDrawDepth\(o\)/.test(extractFn('actorDrawDepth')),
+  'chapel face sorts after the east wall that covers its right horn');
 assert(crown && Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2, 'crown sits on the altar');
 function canWalk(g,x0,y0,x1,y1){
   const q=[[x0|0,y0|0]], seen={};

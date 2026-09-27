@@ -2768,6 +2768,9 @@ function actorDrawDepth(o){
      door's own x+y lets the next east face (drawn later on that diagonal)
      paint a hard vertical cut through the right outer arch. */
   if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
+  /* Chapel portrait. Its own x+y is before the next east cell, so that
+     cell's south face paints over the right horn. */
+  if(o.k==='demonface' && o.wall!=='e') return demonFaceDrawDepth(o);
   const d=(o.x+o.y);
   if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
   /* Hall faces are ~4 iso-depth tall. +1 left the dwarf in the south
@@ -2862,6 +2865,19 @@ function rubyDoorDrawDepth(p){
   const wallY=Math.floor(yPlane);
   const faceY=wallY+1;
   const xRight=p.x+rubyDoorHalf();
+  const wx=Math.floor(xRight-yPlane+faceY-1e-4);
+  return (wx+wallY)|0;
+}
+/* Depth of the north-wall cell whose south face reaches the portrait's
+   right edge. The sheet is wider than one cell and sits on the inset
+   plane, so that edge lands on the next east cell. Walls in a bucket
+   draw before props, so this bucket paints the horn in front of the flank. */
+function demonFaceDrawDepth(p){
+  if(!p||p.wall==='e') return ((p&&p.x)||0)+((p&&p.y)||0)|0;
+  const yPlane=demonFacePlaneY(p);
+  const wallY=Math.floor(yPlane);
+  const faceY=wallY+1;
+  const xRight=p.x+demonFaceHalf(p);
   const wx=Math.floor(xRight-yPlane+faceY-1e-4);
   return (wx+wallY)|0;
 }
@@ -11595,9 +11611,11 @@ function buildTeethCrownRoom(L, sec){
   if(already) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
-  /* Northwest corner, clear of the north-wall face at x≈107. */
+  /* Northwest corner, clear of the north-wall face. */
   const altar={x:102.25,y:4.35};
-  const face={x:107.25,y:2.48};
+  /* Tall span is cells 105–109. 107.10 centers the plate on that span
+     so both horns sit inside it, clear of the shorter east and west flanks. */
+  const face={x:107.10,y:2.48};
   G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.55,teethAltar:1,seed:880});
   if(!L.flags.crownTaken && !L.flags.crownTouched && !L.flags.crownDestroyed){
     /* Same foot as the altar. drawBoneCrownProp lifts it onto the slab. */
