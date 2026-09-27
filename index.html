@@ -11491,6 +11491,54 @@ function teethHordeSpots(L, origin, n){
    four iso-depths tall and paint over that lip. Skeletal dwarves are not
    living dwarves, so they do not get the +4 sort that clears the cap.
    Keep them on open floor along the altar approach, inside that span. */
+/* Screen-north run of the steps, in world tiles. Same 150px sheet height
+   and 42px tile half as teethAltarLipHalf. Zoom cancels. Negative: the
+   tread sits screen-north of the lip. */
+function teethAltarStepDepth(altar){
+  const s=(altar&&altar.s)||1;
+  return ((TEETH_ALTAR_STEP_FY-1)*150*s)/42;
+}
+function teethChapelAltar(){
+  const props=(typeof G!=='undefined' && G.props)||[];
+  for(let i=0;i<props.length;i++){
+    const pr=props[i];
+    if(pr&&pr.teethAltar&&!pr.gone&&pr.x!=null) return pr;
+  }
+  return null;
+}
+/* Lip, the step run back to the tread, and one tile around that footprint.
+   The floor grid under the altar is still 0, so this is what keeps a
+   dwarf off the slab. */
+function teethAltarBlocksTile(altar, ix, iy){
+  if(!altar||altar.x==null) return false;
+  const half=teethAltarLipHalf(altar);
+  const depth=teethAltarStepDepth(altar);
+  const n=Math.max(1, Math.ceil(half*8));
+  const steps=Math.max(1, Math.ceil(Math.abs(depth)*4));
+  const ax=altar.x, ay=altar.y;
+  for(let i=0;i<=n;i++){
+    const t=-half+(2*half)*i/n;
+    for(let k=0;k<=steps;k++){
+      const u=k/steps;
+      const tx=Math.floor(ax+t+u*depth), ty=Math.floor(ay-t+u*depth);
+      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1) return true;
+    }
+  }
+  return false;
+}
+function skeletalDwarfClearOfWalls(L, x, y){
+  const g=L&&L.grid;
+  if(!g) return true;
+  const ix=x|0, iy=y|0;
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-1;dx<=1;dx++){
+      if(!dx && !dy) continue;
+      const row=g[iy+dy];
+      if(row && row[ix+dx]===1) return false;
+    }
+  }
+  return true;
+}
 function skeletalDwarfOpen(L, x, y){
   if(!teethHordeWalkable(L, x, y)) return false;
   if(typeof wallHidesFloor==='function' && wallHidesFloor(L, x, y)) return false;
@@ -11500,6 +11548,9 @@ function skeletalDwarfOpen(L, x, y){
      body also stays inside that span, on the altar approach. */
   if((x|0) > (b.x1|0)-3) return false;
   if(x>b.x1-4.2 || y>b.y1-4.2) return false;
+  /* North and west faces are not covered by that east/south cap. */
+  if(!skeletalDwarfClearOfWalls(L, x, y)) return false;
+  if(teethAltarBlocksTile(teethChapelAltar(), x|0, y|0)) return false;
   return true;
 }
 function skeletalDwarfSpots(L, origin, n){
@@ -11581,8 +11632,6 @@ const SKELETAL_DWARF_N=4;
 function riseSkeletalDwarves(where){
   const L=G.lvl;
   if(!L||(L.flags&&L.flags.skeletalDwarves)) return 0;
-  L.flags=L.flags||{};
-  L.flags.skeletalDwarves=1;
   const make=typeof FOE!=='undefined' && FOE.skeletalDwarf;
   if(typeof make!=='function') return 0;
   const p=typeof player==='function'?player():null;
@@ -11603,10 +11652,13 @@ function riseSkeletalDwarves(where){
     last=e;
     burst(e.x,e.y,'#d8d0c4',8,2.1);
   }
-  if(risen.length){
-    say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
-    if(typeof beginFight==='function') beginFight(last);
-  }
+  /* The flag used to land before the spots were chosen, so a missed
+     spawn still counted as raised. Set it only once a dwarf is in. */
+  if(!risen.length) return 0;
+  L.flags=L.flags||{};
+  L.flags.skeletalDwarves=1;
+  say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
+  if(typeof beginFight==='function') beginFight(last);
   return risen.length;
 }
 function takeBoneCrown(crown){
@@ -15172,6 +15224,9 @@ const TEETH_CROWN_ON_ALTAR=66/718;
    (535, 475) is a front stair tread, not this lid. */
 const TEETH_ALTAR_SLAB_FX=445/1075;
 const TEETH_ALTAR_SLAB_FY=212/718;
+/* Front stair tread on the same sheet. The lip is the foot of the
+   billboard; this row is how far the steps run screen-north of it. */
+const TEETH_ALTAR_STEP_FY=475/718;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;

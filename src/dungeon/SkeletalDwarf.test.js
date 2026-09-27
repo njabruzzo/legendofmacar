@@ -146,6 +146,12 @@ assert(ctx.singlePoseLocked(painted)===false, 'a ready walk frame leaves single-
 const late={name:'Skeletal Dwarf', singlePose:1, sprite:'undead', kind:'undead', dead:0};
 assert(ctx.entSpriteKey(late)==='dwarf_skeleton_idle',
   'a dwarf that rose before the idle loaded still draws that sheet once it is ready');
+ctx.G.lvl.flags.skeletalDwarves=0;
+ctx.G.ents.length=0;
+ctx.fights=0;
+ctx.skeletalDwarfSpots=function(){ return []; };
+assert(ctx.riseSkeletalDwarves({x:5,y:5})===0 && !ctx.G.lvl.flags.skeletalDwarves && ctx.G.ents.length===0 && ctx.fights===0,
+  'the raise flag stays clear when no dwarf actually spawns');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nskeletal dwarf checks passed');
