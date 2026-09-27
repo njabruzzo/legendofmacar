@@ -120,5 +120,41 @@ const touch=extractFn('drawPortraitStackTouch');
 assert(/party\.forEach/.test(touch) && /col\.name/.test(touch) && /e\.hp/.test(touch),
   'touch raised-dead cards use the kin face, name, and hp bar');
 
+assert(/miniRect\(\)/.test(extractFn('partyPortraitFrame'))
+  && /touchPanelRect\(160\)/.test(extractFn('partyPortraitFrame')),
+  'phone landscape keeps the raised-dead column clear of the minimap and the log');
+
+const H=require('./HudHarness');
+H.ctx.wearingBoneCrown=function(){ return true; };
+function rectGap(a, b){
+  const dx=Math.max(b.x-(a.x+a.w), a.x-(b.x+b.w), 0);
+  const dy=Math.max(b.y-(a.y+a.h), a.y-(b.y+b.h), 0);
+  if(dx===0 && dy===0) return -1;
+  return Math.hypot(dx, dy);
+}
+[
+  ['phone L 844×390', 844, 390, {t:0,r:0,b:0,l:0}],
+  ['phone L notch', 844, 390, {t:0,r:47,b:21,l:47}],
+  ['SE L 667×375', 667, 375, {t:0,r:0,b:0,l:0}],
+  ['Pro Max L 932×430', 932, 430, {t:0,r:59,b:21,l:59}]
+].forEach(([name, vw, vh, inset])=>{
+  const L=H.layout({vw:vw, vh:vh, inset:inset, touch:true, cards:6});
+  const f=L.frame;
+  assert(f.n===6 && f.cards.length===6, name+' lays out the raised-dead card under the kin');
+  const mini={x:L.mini.x, y:L.mini.y, w:L.mini.sz, h:L.mini.sz};
+  const T=L.tabs;
+  const tabs={x:T.log.x, y:T.y, w:T.obj.x+T.obj.w-T.log.x, h:T.h};
+  const panel=L.panel(160);
+  let miniG=Infinity, tabG=Infinity, logG=Infinity;
+  f.cards.forEach(c=>{
+    miniG=Math.min(miniG, rectGap(c, mini));
+    tabG=Math.min(tabG, rectGap(c, tabs));
+    logG=Math.min(logG, rectGap(c, panel));
+  });
+  assert(miniG>=8 && tabG>=8 && logG>=8,
+    name+' raised-dead column clears minimap '+miniG.toFixed(1)
+    +'px, log tabs '+tabG.toFixed(1)+'px, open log '+logG.toFixed(1)+'px');
+});
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate-dead party HUD checks passed');

@@ -278,6 +278,7 @@ vm.runInContext(
   +extractFn('wantsLivingMacarStrike')
   +'function wearingBoneCrown(){ return !!wearingCrown; }'
   +extractFn('livingMacarStandKey')
+  +extractFn('livingMacarDrawsPropCrown')
   +extractFn('macarStrikeHoldAt')
   +extractFn('macarStrikeHoldMid')
   +extractFn('livingMacarAnimKey')
@@ -697,11 +698,27 @@ assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
 const crownedBody=sheetStature('dwarf_macar_crowned.png');
 assert(crownedBody>0.55 && crownedBody<0.995,
   'crowned idle has a measured body (frac '+crownedBody.toFixed(3)+')');
+const barePx=readRgba(path.join(root,'assets/creatures/dwarf_macar.png'));
+const crownPx=readRgba(path.join(root,'assets/creatures/dwarf_macar_crowned.png'));
+assert(barePx.w===1100 && barePx.h===920 && crownPx.w===1100 && crownPx.h===920,
+  'crowned idle canvas matches the live idle, 1100×920');
+const stride=barePx.w*4;
+let sameFrom=crownPx.h;
+for(let y=0;y<crownPx.h;y++){
+  if(Buffer.compare(barePx.data.subarray(y*stride,(y+1)*stride), crownPx.data.subarray(y*stride,(y+1)*stride))!==0)
+    sameFrom=y+1;
+}
+assert(sameFrom<=520 && crownPx.h-sameFrom>=400,
+  'pixels below the head match the live idle (identical from row '+sameFrom+')');
 fitSPR.dwarf_macar_crowned={width:1100, height:920, _stature:crownedBody, _b:b};
-const crownedFig=78*fitCtx.livingMacarPlantFit(fitMac, 'dwarf_macar_crowned', fitSPR.dwarf_macar_crowned)*crownedBody;
-assert(Math.abs(crownedFig-idleFig)/idleFig<0.02,
-  'crowned idle figure height matches the normal idle (idle '+idleFig.toFixed(3)
-  +' crowned '+crownedFig.toFixed(3)+')');
+const crownedFit=fitCtx.livingMacarPlantFit(fitMac, 'dwarf_macar_crowned', fitSPR.dwarf_macar_crowned);
+const bareFitNow=fitCtx.livingMacarPlantFit(fitMac, 'macar', fitSPR.macar);
+assert(Math.abs(crownedFit-bareFitNow)<1e-9,
+  'crowned idle uses the live idle pixel scale, not a content-height fit');
+assert(/key==='dwarf_macar_crowned'/.test(plantSrc)
+  && /heroFigureFit\(e, SPR\.macar\|\|idle\)/.test(plantSrc)
+  && !/bareFit\*\(bareBody\/liveBody\)/.test(plantSrc),
+  'crowned plant is the bare idle fit; the stature ratio is not applied to it');
 
 ctx.wearingCrown=1;
 SPR.dwarf_macar_crowned={width:1100, height:920};
@@ -725,8 +742,44 @@ assert(/_crowned/.test(html.slice(html.indexOf('Title-law Macar'), html.indexOf(
 assert(!/dwarf_macar_crowned_w1/.test(html) && !/dwarf_macar_crowned_dead/.test(html),
   'crowned idle does not invent walk or dead siblings');
 const draw=extractFn('drawLivingMacar');
-assert(/!=='dwarf_macar_crowned'/.test(draw) && /drawWornBoneCrown/.test(draw) && /-H\*b\.botY/.test(draw),
-  'crowned idle skips the floating prop and still plants on the feet');
+const propFn=extractFn('livingMacarDrawsPropCrown');
+assert(/livingMacarDrawsPropCrown\(blitKey\|\|key\)/.test(draw) && /drawWornBoneCrown/.test(draw) && /-H\*b\.botY/.test(draw),
+  'the prop is gated on the blit key and the crowned idle still plants on the feet');
+assert(/key!=='dwarf_macar_crowned'/.test(propFn) && /wearingBoneCrown/.test(propFn),
+  'the prop crown is not drawn while the crowned idle key is active');
+function crownCount(e){
+  const key=ctx.livingMacarAnimKey(e);
+  const blit=ctx.livingMacarBlitKey(key)||key;
+  const painted=blit==='dwarf_macar_crowned'?1:0;
+  const prop=ctx.livingMacarDrawsPropCrown(blit)?1:0;
+  return {key:blit, n:painted+prop, prop:prop};
+}
+ctx.wearingCrown=1;
+SPR.macar_e_w1={width:8}; SPR.macar_e_w2={width:8};
+SPR.macar_atk={width:8}; SPR.macar_atk_contact={width:8};
+const steps=[
+  ['idle', macar(), 'dwarf_macar_crowned', 0],
+  ['walk', macar({moving:1, gait:0.12}), 'macar_w1', 1],
+  ['walk-2', macar({moving:1, gait:0.62}), 'macar_w2', 1],
+  ['stop', macar(), 'dwarf_macar_crowned', 0],
+  ['east-walk', macar({moving:1, gait:0.2, ix:0.707, iy:-0.707, fdx:0.707, fdy:-0.707}), 'macar_e_w1', 1],
+  ['windup', macar({atk:0.80, atkMax:1}), 'macar_atk', 1],
+  ['contact', macar({atk:0.40, atkMax:1}), 'macar_atk_contact', 1],
+  ['recover', macar({atk:0.10, atkMax:1}), 'dwarf_macar_crowned', 0],
+  ['snap-0.96', macar({atk:0.04, atkMax:1}), 'dwarf_macar_crowned', 0],
+  ['after-swing', macar({atk:0.03, atkMax:1}), 'dwarf_macar_crowned', 0]
+];
+steps.forEach(([name, e, want, wantProp])=>{
+  const c=crownCount(e);
+  assert(c.key===want && c.prop===wantProp && c.n===1,
+    name+' has exactly one crown (key '+c.key+' prop '+c.prop+' n '+c.n+')');
+});
+const west=macar({ix:-1, iy:0, fdx:-1, fdy:0});
+const westCrown=crownCount(west);
+assert(westCrown.key==='dwarf_macar_crowned' && westCrown.prop===0 && westCrown.n===1
+  && ctx.wantsSpriteFlip(west)===true,
+  'stopped facing west mirrors the crowned idle and does not add the prop');
+delete SPR.macar_atk; delete SPR.macar_atk_contact;
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nliving Macar QA checks passed');

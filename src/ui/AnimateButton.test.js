@@ -76,5 +76,52 @@ const loadedFresh={animateDeadSpent:1};
 GS.applyCampaign(loadedFresh, fresh);
 assert(loadedFresh.animateDeadSpent===0, 'reload of an unused power clears a stale flag');
 
+const H=require('./HudHarness');
+H.ctx.wearingBoneCrown=function(){ return true; };
+function rectGap(a, b){
+  const dx=Math.max(b.x-(a.x+a.w), a.x-(b.x+b.w), 0);
+  const dy=Math.max(b.y-(a.y+a.h), a.y-(b.y+b.h), 0);
+  if(dx===0 && dy===0) return -Math.min(a.x+a.w-b.x, b.x+b.w-a.x, a.y+a.h-b.y, b.y+b.h-a.y);
+  return Math.hypot(dx, dy);
+}
+function labelInk(b, vw, vh){
+  if(!b || b.nolabel) return null;
+  const port=vh>vw;
+  const s=Math.max(0.66, Math.min(1.30, Math.min(vw,vh)/(port?430:700)));
+  const labelPx=Math.max(10, (port?9.5:8.5)*s);
+  const ty=b.y-(b.r*2)/2-7*s;
+  const w='ANIMATE'.length*labelPx*0.72+8;
+  return {x:b.x-w/2, y:ty-labelPx-2, w:w, h:labelPx+6};
+}
+[
+  ['phone 390×844', 390, 844, {t:47,r:0,b:34,l:0}],
+  ['phone 375×667', 375, 667, {t:20,r:0,b:0,l:0}],
+  ['phone 320×568', 320, 568, {t:20,r:0,b:0,l:0}],
+  ['phone L 844×390', 844, 390, {t:0,r:0,b:0,l:0}],
+  ['phone L notch', 844, 390, {t:0,r:47,b:21,l:47}]
+].forEach(([name, vw, vh, inset])=>{
+  const L=H.layout({vw:vw, vh:vh, inset:inset, touch:true, cards:6});
+  const act=L.btns.filter(b=>b.key!=='pause');
+  const anim=L.find('animate');
+  assert(!!anim && anim.r*2>=44-0.01 && anim.nolabel===1,
+    name+' shows a 44px icon Animate button while the crown is worn');
+  let worst=Infinity, pair='';
+  for(let i=0;i<act.length;i++) for(let j=i+1;j<act.length;j++){
+    const g=H.gap(act[i], act[j]);
+    if(g<worst){ worst=g; pair=act[i].key+'/'+act[j].key; }
+  }
+  assert(worst>=2.9, name+' Animate does not overlap other bottom-bar buttons ('+pair+' '+worst.toFixed(1)+'px)');
+  const ink=labelInk(anim, vw, vh);
+  if(ink){
+    let lg=Infinity, lp='';
+    act.forEach(b=>{
+      if(b===anim) return;
+      const g=rectGap(ink, H.box(b));
+      if(g<lg){ lg=g; lp=b.key; }
+    });
+    assert(lg>=4, name+' Animate title clears '+lp+' ('+lg.toFixed(1)+'px)');
+  }
+});
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate button checks passed');

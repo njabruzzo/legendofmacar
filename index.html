@@ -2469,18 +2469,12 @@ function livingMacarPlantFit(e, key, img){
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
   const idleFit=heroFigureFit(e, idle);
-  /* Crowned idle shares the 1100×920 canvas, so the same-height shortcut
-     would skip the stature ratio and the measured figure would sit short
-     of the live idle. Scale against the normal macar sheet, not this one,
-     so walk and attack (which still plant on macar) do not pop. */
-  if(key==='dwarf_macar_crowned'){
-    const bare=SPR.macar||idle;
-    const bareFit=heroFigureFit(e, bare);
-    const bareBody=livingSheetStature(bare);
-    const liveBody=livingSheetStature((SPR[key]&&SPR[key].height)?SPR[key]:(img&&img.height?img:bare));
-    if(bareBody>0.55 && liveBody>0.55) return bareFit*(bareBody/liveBody);
-    return bareFit;
-  }
+  /* Crowned idle is the same 1100×920 canvas as the live idle. The crown
+     moves the painted top from y=32 to y=56; the body below the head is
+     the live idle's paint. Draw at that idle's pixel scale and plant on
+     botY, the shared foot. Fitting the shorter content height would
+     resize the body. */
+  if(key==='dwarf_macar_crowned') return heroFigureFit(e, SPR.macar||idle);
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
@@ -2488,6 +2482,15 @@ function livingMacarPlantFit(e, key, img){
   const liveBody=livingSheetStature(live);
   if(!(idleBody>0.55) || !(liveBody>0.55)) return idleFit;
   return idleFit*(idleBody/liveBody);
+}
+/* Prop crown only on a sheet that does not already wear the painted crown.
+   Idle, the plant when a walk stops, and the snap back to the front idle
+   after a swing (recover, then t>0.96) are dwarf_macar_crowned: one crown
+   in the paint, never the prop on top. Walk and swing are the other sheets,
+   so they get the prop and never zero crowns. */
+function livingMacarDrawsPropCrown(key){
+  if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return false;
+  return key!=='dwarf_macar_crowned';
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -2535,9 +2538,7 @@ function drawLivingMacar(g,e){
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
-  /* The crowned idle already wears the bone crown. Walk and attack
-     still get the small head prop. */
-  if(typeof wearingBoneCrown==='function' && wearingBoneCrown() && (blitKey||key)!=='dwarf_macar_crowned'){
+  if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z);
   }
   g.restore();
@@ -13048,6 +13049,22 @@ function partyPortraitFrame(){
       const avail=Math.max(shown*20, limit-y);
       h=Math.max(20, Math.floor((avail-shown*gap)/shown));
     }
+    /* Phone landscape: the column, including a raised-dead card, stays
+       left of the minimap, the LOG / QUEST tabs, and the open log. */
+    if(!PORT && typeof miniRect==='function'){
+      let rightLim=(typeof VW==='number')?VW:x+w;
+      const mini=miniRect();
+      if(mini && mini.sz) rightLim=Math.min(rightLim, mini.x-8);
+      if(typeof touchTabs==='function'){
+        const tabs=touchTabs();
+        if(tabs && tabs.log) rightLim=Math.min(rightLim, tabs.log.x-8);
+      }
+      if(typeof touchPanelRect==='function'){
+        const panel=touchPanelRect(160);
+        if(panel && panel.w) rightLim=Math.min(rightLim, panel.x-8);
+      }
+      if(x+w>rightLim) w=Math.max(88, rightLim-x);
+    }
     const cards=[];
     for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
     return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap), compact:1};
@@ -13109,7 +13126,7 @@ function layoutUI(){
     const rowY=attackY-atkH/2-8-TAP/2;
     combatRow.forEach((b,i)=>{
       UIBTN.push({x:clusterLeft+TAP/2+i*(TAP+gap), y:rowY, r:TAP/2,
-        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:b.key==='animate'?0:1,
+        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:1,
         disabled:b.key==='animate'&&!!G.animateDeadSpent});
     });
     const atk={x:cx, y:attackY, w:clusterW, h:atkH, r:atkH/2,
