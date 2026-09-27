@@ -14499,15 +14499,46 @@ function chapelShadeClipDisc(L, x, y){
   const b=teethBounds(L);
   return !!(b && x===b.x0 && y===b.y1+1);
 }
+/* Two guard rects often cover the same pixel (a wall face over a floor
+   tile). evenodd would count that overlap as inside the clip and the disc
+   would paint the chapel there. Split first so each pixel is one hole. */
+function chapelShadeSubtract(r, cut){
+  if(!r||!cut||!shadeRectOverlap(r, cut)) return r?[r]:[];
+  const out=[];
+  const push=q=>{ if(q&&q.x1>q.x0&&q.y1>q.y0) out.push(q); };
+  if(r.y0<cut.y0) push({x0:r.x0, y0:r.y0, x1:r.x1, y1:cut.y0});
+  if(cut.y1<r.y1) push({x0:r.x0, y0:cut.y1, x1:r.x1, y1:r.y1});
+  const y0=Math.max(r.y0, cut.y0), y1=Math.min(r.y1, cut.y1);
+  if(y1>y0){
+    if(r.x0<cut.x0) push({x0:r.x0, y0:y0, x1:cut.x0, y1:y1});
+    if(cut.x1<r.x1) push({x0:cut.x1, y0:y0, x1:r.x1, y1:y1});
+  }
+  return out;
+}
+function chapelShadeDisjoint(rects){
+  const out=[];
+  for(let i=0;i<rects.length;i++){
+    let parts=[rects[i]];
+    for(let k=0;k<out.length;k++){
+      const next=[];
+      for(let p=0;p<parts.length;p++){
+        const bits=chapelShadeSubtract(parts[p], out[k]);
+        for(let b=0;b<bits.length;b++) next.push(bits[b]);
+      }
+      parts=next;
+      if(!parts.length) break;
+    }
+    for(let p=0;p<parts.length;p++) out.push(parts[p]);
+  }
+  return out;
+}
 function chapelShadeClipOut(g, rects){
   g.beginPath();
   g.rect(0, 0, VW, VH);
-  if(rects){
-    for(let i=0;i<rects.length;i++){
-      const r=rects[i];
-      if(!r) continue;
-      g.rect(r.x0, r.y0, r.x1-r.x0, r.y1-r.y0);
-    }
+  const holes=chapelShadeDisjoint(rects||[]);
+  for(let i=0;i<holes.length;i++){
+    const r=holes[i];
+    g.rect(r.x0, r.y0, r.x1-r.x0, r.y1-r.y0);
   }
   g.clip('evenodd');
 }

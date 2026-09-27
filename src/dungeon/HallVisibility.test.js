@@ -118,6 +118,7 @@ vm.runInContext(
    extractFn('rubyDoorPlaneY'), extractFn('demonFacePlaneY'),
    extractFn('shadeRectOverlap'), extractFn('memoryShadeDiscRect'),
    extractFn('chapelShadeFeatureRects'), extractFn('chapelShadeClipDisc'),
+   extractFn('chapelShadeSubtract'), extractFn('chapelShadeDisjoint'),
    extractFn('chapelShadeClipOut'), extractFn('chapelShadeGuardRects'), extractFn('chapelShadeGuardHit'),
    extractFn('drawMemoryShade')].join('\n'),
   box);
@@ -175,9 +176,11 @@ function paints(px, py, d){
   if(!inEllipse(px, py, d)) return false;
   if(!d.clip) return true;
   if(d.clip.outer && !pointInRect(px, py, d.clip.outer)) return false;
-  const holes=d.clip.holes||[];
-  for(let i=0;i<holes.length;i++) if(pointInRect(px, py, holes[i])) return false;
-  return true;
+  /* Canvas evenodd: two overlapping holes put the pixel back inside. */
+  let holes=0;
+  const list=d.clip.holes||[];
+  for(let i=0;i<list.length;i++) if(pointInRect(px, py, list[i])) holes++;
+  return (holes%2)===0;
 }
 function aabbHit(a, b){
   return a.x0<b.x1 && b.x0<a.x1 && a.y0<b.y1 && b.y0<a.y1;
