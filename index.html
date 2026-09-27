@@ -436,7 +436,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='124';
+const ASSET_VER='126';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -767,6 +767,8 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
+  /* Crowned idle is not a helmeted leftover. Keep every _crowned key. */
+  if(/_crowned/.test(k)) return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver + crossbow carry/atk — registered after the strip so they survive. */
@@ -793,6 +795,10 @@ SPRITE_FILES.macar_ne_w1='assets/creatures/dwarf_macar_ne_w1.png';
 SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
+/* Bone-crown idle. One front sheet for every facing (mirror is wantsSpriteFlip).
+   Registered after the title-law strip and the walk/dead derivation so those
+   passes cannot invent a crowned sibling frame or delete a _crowned key. */
+SPRITE_FILES.dwarf_macar_crowned='assets/creatures/dwarf_macar_crowned.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -825,7 +831,7 @@ function loadSprites(done){
   const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
-    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2','dwarf_macar_crowned',
     'teeth_floor','teeth_floor_atlas','tooth','tooth_2','tooth_3',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
@@ -1923,7 +1929,8 @@ const MACAR_PLAN={
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
-  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1
+  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1,
+  dwarf_macar_crowned:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -2167,7 +2174,16 @@ function ghostAnimKey(e, k){
 /* Sheet that livingMacarImg will actually bake. Ready matching _atk skips
    pickReadyPartyKey so a second crown/family pass cannot plant idle after
    livingMacarAnimKey already chose the mid-swing sheet. */
+/* Worn bone crown, standing only. Walk and attack keep their own sheets.
+   The floating prop is not drawn on this key — the crown is in the paint. */
+function livingMacarStandKey(idle){
+  if(idle==='macar' && typeof wearingBoneCrown==='function' && wearingBoneCrown()
+     && typeof sprReady==='function' && sprReady('dwarf_macar_crowned'))
+    return 'dwarf_macar_crowned';
+  return idle||'macar';
+}
 function livingMacarBlitKey(key){
+  if(key==='dwarf_macar_crowned' && sprReady('dwarf_macar_crowned')) return key;
   const idle=livingMacarIdleKey();
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
@@ -2301,7 +2317,7 @@ function livingMacarAnimKey(e){
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || idle;
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
@@ -2312,12 +2328,12 @@ function livingMacarAnimKey(e){
         return 'macar_atk_contact';
     }
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || idle;
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
   }
   if(wantsMeleeRecover(e)){
     const rec=(idle==='macar_axe')?'macar_axe_atk_recover':(idle==='macar_xbow')?'macar_xbow_atk_recover':'macar_atk_recover';
     if(matchingPartyAtkReady(rec, idle)) return rec;
-    return idle;
+    return livingMacarStandKey(idle);
   }
   /* Original compass walks only while moving, so a standing Macar
      stays the front idle (no size pop onto a side sheet). South stays
@@ -2344,8 +2360,14 @@ function livingMacarAnimKey(e){
   }
   /* Cleaver / xbow walk uses matching w1/w2 when ready; else plant that idle.
      South maul uses the front w1/w2 pair of the live idle. */
-  const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
-  return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
+  if(e.moving && !e.defending){
+    const hit=walkCycleKey(e, idle);
+    if(isLivingMacarKey(hit) && hit!==idle){
+      const walk=pickReadyPartyKey(hit, idle);
+      if(walk && walk!==idle) return walk;
+    }
+  }
+  return livingMacarStandKey(idle);
 }
 /* Crown-to-boots fraction of a sheet. The column is the densest lower
    body (legs and torso), not the overhead maul. Contact's helm sits left
@@ -2447,6 +2469,18 @@ function livingMacarPlantFit(e, key, img){
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
   const idleFit=heroFigureFit(e, idle);
+  /* Crowned idle shares the 1100×920 canvas, so the same-height shortcut
+     would skip the stature ratio and the measured figure would sit short
+     of the live idle. Scale against the normal macar sheet, not this one,
+     so walk and attack (which still plant on macar) do not pop. */
+  if(key==='dwarf_macar_crowned'){
+    const bare=SPR.macar||idle;
+    const bareFit=heroFigureFit(e, bare);
+    const bareBody=livingSheetStature(bare);
+    const liveBody=livingSheetStature((SPR[key]&&SPR[key].height)?SPR[key]:(img&&img.height?img:bare));
+    if(bareBody>0.55 && liveBody>0.55) return bareFit*(bareBody/liveBody);
+    return bareFit;
+  }
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
@@ -2501,7 +2535,9 @@ function drawLivingMacar(g,e){
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
-  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
+  /* The crowned idle already wears the bone crown. Walk and attack
+     still get the small head prop. */
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown() && (blitKey||key)!=='dwarf_macar_crowned'){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z);
   }
   g.restore();

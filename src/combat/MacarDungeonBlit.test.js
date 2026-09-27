@@ -135,7 +135,7 @@ vm.runInContext(
   +'const MACAR_MAUL_CONTACT_T=0.45;'
   +extractFn('armLivingMacarStrike')
   +extractFn('wantsLivingMacarStrike')
-  +extractFn('livingMacarAnimKey'),
+  +extractFn('livingMacarStandKey')+extractFn('livingMacarAnimKey'),
   ctx
 );
 
