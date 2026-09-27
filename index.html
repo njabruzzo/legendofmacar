@@ -11570,7 +11570,7 @@ function teethAltarBlocksTile(altar, ix, iy){
     for(let k=0;k<=steps;k++){
       const u=k/steps;
       const tx=Math.floor(ax+t+u*depth), ty=Math.floor(ay-t+u*depth);
-      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1) return true;
+      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1 || (ix===104 && iy===5) || (ix===103 && iy===6)) return true;
     }
   }
   return false;

@@ -464,7 +464,7 @@ assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
     assert(ctx.skeletalDwarfOpen(ctx.G.lvl, e.x, e.y), 'DESTROY dwarf '+i+' is open floor inside the cap');
   });
 }
-[[102,3],[103,3],[102,4],[103,4],[102,5]].forEach(([x,y])=>{
+[[102,3],[103,3],[102,4],[103,4],[102,5],[104,5],[103,6]].forEach(([x,y])=>{
   assert(ctx.teethAltarBlocksTile(teethAltar, x, y), 'altar footprint covers ('+x+','+y+')');
   assert(!ctx.skeletalDwarfOpen(ctx.G.lvl, x+0.5, y+0.5), 'open rejects the altar tile ('+x+','+y+')');
 });
