@@ -14359,6 +14359,62 @@ function drawBloom(g){
   g.restore();
 }
 
+function shadeRectOverlap(a,b){
+  return !!(a&&b&&a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0);
+}
+/* Axis-aligned bounds of the wall disc. Same radii as the ellipse below. */
+function memoryShadeDiscRect(s,H){
+  const rx=TW*0.62, ry=TH*0.9+H*0.28, cy=s.y-H*0.38;
+  return {x0:s.x-rx, y0:cy-ry, x1:s.x+rx, y1:cy+ry};
+}
+/* Screen rectangle of the chapel face plate, the north and east wall
+   faces, and the altar. A remembered disc whose own rectangle meets this
+   one is skipped. Hall discs that miss it, including (86,15) and (101,15),
+   stay. Camera translation cancels, so the test is the overlap itself. */
+function chapelShadeGuardRect(L){
+  const b=teethBounds(L);
+  if(!b||typeof w2s!=='function') return null;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  const add=r=>{
+    if(!r||!(r.x1>r.x0)||!(r.y1>r.y0)) return;
+    if(r.x0<x0) x0=r.x0; if(r.y0<y0) y0=r.y0;
+    if(r.x1>x1) x1=r.x1; if(r.y1>y1) y1=r.y1;
+  };
+  const quad=(ax,ay,bx,by,H)=>{
+    const a=w2s(ax,ay), c=w2s(bx,by);
+    add({x0:Math.min(a.x,c.x), y0:Math.min(a.y,c.y)-H, x1:Math.max(a.x,c.x), y1:Math.max(a.y,c.y)});
+  };
+  const wy=b.y0-1;
+  const inset=0.42;
+  for(let x=b.x0;x<b.x1;x++){
+    const H=isTeethFaceWall(L,x,wy)?teethFaceWallH(L):teethNorthWallH(L);
+    quad(x, b.y0-inset, x+1.14, b.y0-inset, H);
+  }
+  for(let y=b.y0;y<b.y1;y++) quad(b.x1+inset, y, b.x1+inset, y+1.14, hallWallH(L));
+  const plateH=wallFaceH(L)*DEMON_FACE_CONTENT_SCALE/(360/DEMON_FACE_PLATE.h);
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  const half=clamp(plateH*(DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h)/(2*perTile), 0.70, 2.80);
+  const props=(typeof G!=='undefined'&&G.props)||[];
+  const face=props.find(p=>p&&p.k==='demonface'&&!p.gone&&p.wall!=='e');
+  const fx=face?face.x:(b.x0+b.x1)*0.5;
+  let yPlane=b.y0-0.42;
+  if(face&&typeof demonFacePlaneY==='function'&&L.grid) yPlane=demonFacePlaneY(face);
+  quad(fx-half, yPlane, fx+half, yPlane, plateH);
+  const altar=props.find(p=>p&&p.teethAltar&&!p.gone);
+  const z=typeof ZOOM==='number'?ZOOM:1;
+  const ax=altar?altar.x:b.x0+1.25, ay=altar?altar.y:b.y0+2.35;
+  const aH=altar?teethAltarSheetH(altar,z):150*z*1.55;
+  let aAspect=1075/718;
+  if(typeof teethAltarSheetImg==='function'){
+    const img=teethAltarSheetImg();
+    if(img&&img.width&&img.height) aAspect=img.width/img.height;
+  }
+  const aW=aH*aAspect;
+  const as=w2s(ax,ay);
+  add({x0:as.x-aW/2, y0:as.y-aH, x1:as.x+aW/2, y1:as.y});
+  if(!(x1>x0&&y1>y0)) return null;
+  return {x0:x0,y0:y0,x1:x1,y1:y1};
+}
 function drawMemoryShade(g,L){
   if(!L||!L.grid||!L.seen) return;
   const c=[s2w(-TW,-TH*5),s2w(VW+TW,-TH*5),s2w(-TW,VH+TH*5),s2w(VW+TW,VH+TH*5)];
@@ -14366,6 +14422,7 @@ function drawMemoryShade(g,L){
   const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1);
   const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1);
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
+  const chapelGuard=chapelShadeGuardRect(L);
   g.save();
   g.fillStyle='rgba(0,0,0,0.78)';
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
@@ -14385,6 +14442,9 @@ function drawMemoryShade(g,L){
       g.closePath(); g.fill();
     } else if(t===1||t===2){
       const H=useWallFaces(L)?wallFaceH(L):TH;
+      /* Buried rock just outside the chapel box still throws this disc
+         onto the face and the east wall. Skip only that overlap. */
+      if(shadeRectOverlap(memoryShadeDiscRect(s,H), chapelGuard)) continue;
       g.beginPath();
       g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
       g.fill();
