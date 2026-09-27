@@ -8957,7 +8957,7 @@ function unequipPackSlot(slot, opts){
   const worn=G.equipped&&G.equipped[slot];
   if(worn&&worn.boneCrown&&!opts.camp&&!G.sleepShow&&!G.campDoff){
     say('The bone crown comes off only at camp, or by shattering it.','#c9b895');
-    hint('Camp to doff (1 turn), or Attack the crown to smash it.',3.4);
+    hint('Camp to doff (1 turn), or Destroy it from the crown\'s look.',3.4);
     return null;
   }
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
@@ -11111,14 +11111,6 @@ function meleeSwing(e,arc,reach,dmg,col){
   const fa=ang(af.fdx,af.fdy); let hit=0;
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
-  /* Snapshot before damage. A blow that kills the last foe must not
-     then see an empty reach and shatter the crown. */
-  const aim=e.aim;
-  const hadFoeTarget=!!(aim && !aim.dead && aim.team==='foe' && !(aim.hp!=null && aim.hp<=0));
-  let foeInReach=0;
-  for(const o of G.ents){ if(!o||o.dead||o.team===e.team||o.npc||o.sleeping) continue;
-    if(o.hp!=null && o.hp<=0) continue;
-    if(dist(e,o)<=rad+(o.r||0.35)){ foeInReach=1; break; } }
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
@@ -11134,7 +11126,6 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
     L.plug.hp-=rock; hit=1; burst(L.plug.x,L.plug.y-.2,'#7a6045',9,2.4); ftext(L.plug.x,L.plug.y,'crack','#d8c49a'); }
-  if(e.hero && typeof tryStrikeBoneCrown==='function' && tryStrikeBoneCrown(e, reach, {hadFoeTarget:hadFoeTarget, foeInReach:foeInReach})) hit=1;
   if(hit){ shake(4); G.hitstop=Math.max(G.hitstop,.035); }
   return hit;
 }
@@ -11614,31 +11605,14 @@ function liveFoeBlocksCrown(e, reach){
   }
   return null;
 }
-function tryStrikeBoneCrown(e, reach, prior){
-  if(!e||!e.hero) return 0;
-  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
-  /* The swing already in the air when the crown is set down must not
-     erase it before it can be seen. The next swing still can. */
-  if(e.crownDropGuard){ e.crownDropGuard=0; return 0; }
-  /* Ghost swings, foe swings, shots, bombs, and Macar's own Attack
-     never set crownTarget. Only an explicit crown action does. */
-  if(!e.crownTarget) return 0;
-  const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
-  if(!crown){ e.crownTarget=0; return 0; }
-  /* prior is the pre-damage snapshot from meleeSwing. A swing that
-     began on a foe, or with a foe already in reach, never strikes the
-     crown — even when that blow kills them and the live check is empty. */
-  if(prior && (prior.hadFoeTarget || prior.foeInReach)){ e.crownTarget=0; return 0; }
-  if(liveFoeBlocksCrown(e, reach)){ e.crownTarget=0; return 0; }
-  e.crownTarget=0;
-  destroyBoneCrown(crown);
-  return 1;
-}
-/* Attack the bone crown / Destroy the crown. Macar, crown chosen, no foe in reach. */
+/* Destroy the crown from the look menu. A live foe in reach refuses it. */
 function playerDestroyBoneCrown(crown){
   const p=typeof player==='function'?player():null;
   if(!p||!p.hero||!crown) return 0;
-  if(liveFoeBlocksCrown(p, p.range||1)) return 0;
+  if(liveFoeBlocksCrown(p, p.range||1)){
+    say('Not with foes this close.','#c9b895');
+    return 0;
+  }
   destroyBoneCrown(crown);
   return 1;
 }
@@ -13672,13 +13646,6 @@ function update(dt){
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const crown=nearestBoneCrown(p,1.75);
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
-    }
-    if(!PROMPT && typeof nearestBoneCrown==='function'){
-      const smash=nearestBoneCrown(p,1.75);
-      const dropped=G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped;
-      if(smash && dropped) interact('Attack the bone crown',()=>{
-        if(typeof playerDestroyBoneCrown==='function') playerDestroyBoneCrown(smash);
-      });
     }
     if(!PROMPT && typeof primaryCrownPrompt==='function'){
       const crownLab=primaryCrownPrompt(p);

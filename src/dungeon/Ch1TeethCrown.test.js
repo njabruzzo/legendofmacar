@@ -262,11 +262,12 @@ assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(
   'openSecret branches to the teeth chapel');
 assert(/Take the bone crown/.test(html) && /Animate the dead/.test(html),
   'TAKE and animate-dead prompts exist');
-assert(/Attack the bone crown/.test(html), 'ATTACK crown prompt exists');
+assert(!/Attack the bone crown/.test(html), 'the Attack the bone crown prompt is gone');
+assert(!/crown/i.test(extractFn('meleeSwing')),
+  'meleeSwing contains no Crown reference');
+assert(!/crownTarget/.test(html), 'the hero state has no crown target');
 assert(/crownTouched/.test(html) && /teethRisen/.test(html) && /crownDestroyed/.test(html),
   'Sage one-shot flags are crownTouched / teethRisen / crownDestroyed');
-assert(/tryStrikeBoneCrown/.test(extractFn('meleeSwing')),
-  'ATTACK can smash the crown');
 
 const fang=html.match(/fangedSkeleton:\{[^}]+\}/)[0];
 assert(/hd:2/.test(fang), 'fanged skeleton is 2 HD');
@@ -316,7 +317,7 @@ ctx.beginFight=function(){};
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
   'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
-  'destroyBoneCrown','liveFoeBlocksCrown','tryStrikeBoneCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
+  'destroyBoneCrown','liveFoeBlocksCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
@@ -723,7 +724,25 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   ctx.G.props=[altar, crown];
   ctx.G.packs={macar:{magic:[]}};
   ctx.G.equipped={};
-  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:altar.x, y:altar.y+0.8, hp:80, maxhp:80}];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:altar.x, y:altar.y+0.8, hp:80, maxhp:80, range:1.4}];
+  ctx.ang=function(x,y){ return Math.atan2(y,x); };
+  ctx.TAU=Math.PI*2;
+  ctx.addAttack=function(){ return 8; };
+  ctx.onHitFx=function(a,o,d){ return d; };
+  ctx.wear=function(){};
+  ctx.damage=function(o, amt){
+    if(!o||o.dead) return;
+    o.hp=(o.hp==null?1:o.hp)-(amt||0);
+    if(o.hp<=0){ o.hp=0; o.dead=1; }
+  };
+  vm.runInContext(extractFn('meleeSwing')+';', ctx);
+  vm.runInContext(extractFn('teethCrownChoices')+';', ctx);
+  function swing(e, reach){
+    const who=e||ctx.player();
+    const before=ctx.xpAwards.length;
+    ctx.meleeSwing(who, 2.3, reach==null?1.6:reach, 8);
+    return ctx.xpAwards.length-before;
+  }
   ctx.lines=[]; ctx.hints=[];
   const z=1;
   function paint(){
@@ -742,7 +761,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'drop at the altar returns the crown to the seated flags');
   assert(ctx.G.lvl.flags.crownDropped===0,
     'drop at the altar clears the dropped flag so melee does not shatter the seated crown');
-  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.2)===0,
+  swing(ctx.player(), 1.2);
+  assert(!crown.destroyed && !crown.gone,
     'a swing beside the altar does not destroy the crown just seated there');
   assert(crown.gone===0 && crown.x===altar.x && crown.y===altar.y,
     'drop at the altar puts the crown prop back on the altar foot');
@@ -826,7 +846,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
       'drop at '+n+' tiles clears touched and dropped');
     assert(ctx.teethCrownStillSeated() && paint().length===1 && paint()[0].y===seat-head,
       'drop at '+n+' tiles draws the crown on the slab');
-    assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.2)===0 && !crown.destroyed,
+    swing(ctx.player(), 1.2);
+    assert(!crown.destroyed && !ctx.G.lvl.flags.crownXp,
       'a swing after a '+n+'-tile drop does not shatter the seated crown');
   });
   stand(4);
@@ -861,8 +882,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   const combatNear=ctx.dropBoneCrown();
   assert(combatNear.ok===1 && ctx.teethCrownStillSeated(),
     'a drop at 2 tiles during combat seats the crown');
-  assert(ctx.tryStrikeBoneCrown(ctx.player(), ctx.player().range||1.4)===0 && paint().length===1
-    && paint()[0].y===seat-head,
+  swing(ctx.player(), ctx.player().range||1.4);
+  assert(!crown.destroyed && paint().length===1 && paint()[0].y===seat-head,
     'combat melee after a near drop still draws the crown on the slab');
 
   stand(6);
@@ -873,89 +894,48 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'a far drop during combat puts the crown on the floor');
   ctx.G.ents[0].fdx=-1; ctx.G.ents[0].fdy=-1;
   ctx.G.ents[0]._attack={fdx:-1, fdy:-1};
-  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.6)===0 && !crown.gone && !crown.destroyed,
+  swing(ctx.player(), 1.6);
+  assert(!crown.gone && !crown.destroyed && !ctx.G.lvl.flags.crownXp,
     'the swing already in the air does not destroy the crown just dropped');
   assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
     'after that swing the far crown is still drawn at the floor seat');
-  assert(!/df>1\.15/.test(extractFn('tryStrikeBoneCrown')),
-    'a crown strike does not use a facing angle');
+  assert(!/crown/i.test(extractFn('meleeSwing')),
+    'meleeSwing contains no Crown reference');
 
-  /* Probe case: crown just south of Macar, a foe in each direction. */
+  /* A swing never touches the crown, whatever direction the foe stands. */
   const hero=ctx.player();
-  hero.x=110.5; hero.y=2.5;
-  crown.x=110.5; crown.y=3.05; crown.gone=0; crown.destroyed=0;
-  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0;
+  hero.x=110.5; hero.y=2.5; hero.range=1.4;
+  crown.x=110.5; crown.y=3.05; crown.gone=0; crown.destroyed=0; crown.taken=0;
+  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0; ctx.G.lvl.flags.crownXp=0;
+  ctx.G.equipped.helmet=null;
   [[0,1,'S'],[0,-1,'N'],[1,0,'E'],[-1,0,'W']].forEach(([dx,dy,name])=>{
     const foe={id:90, team:'foe', name:'Skeletal Dwarf', dead:0, hp:12, r:0.35, x:hero.x+dx, y:hero.y+dy};
     ctx.G.ents.push(foe);
-    hero.aim=foe; hero.fdx=dx||0; hero.fdy=dy||0; hero._attack={fdx:hero.fdx, fdy:hero.fdy};
-    hero.crownDropGuard=0;
-    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed && !crown.gone,
-      'a foe to the '+name+', crown adjacent, does not destroy the crown');
+    hero.aim=foe; hero.fdx=dx||0; hero.fdy=dy||0; hero._attack={fdx:hero.fdx, fdy:hero.fdy}; hero.atk=0;
+    const gained=swing(hero, 1.6);
+    assert(!crown.destroyed && !crown.gone && gained===0 && !ctx.G.lvl.flags.crownXp,
+      'a swing at a foe to the '+name+' leaves the crown and awards no crown XP');
     hero.aim=null;
-    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed,
-      'a foe to the '+name+' still in reach blocks the crown with no aim');
+    assert(swing(hero, 1.6)===0 && !crown.destroyed,
+      'a swing with a foe to the '+name+' still in reach leaves the crown');
     ctx.G.ents.pop();
   });
 
   const around=[[1.1,0],[-1.1,0],[0,1.1],[0,-1.1],[0.8,0.8]];
   around.forEach((d,i)=>{
-    ctx.G.ents.push({id:100+i, team:'foe', dead:0, hp:8, x:hero.x+d[0], y:hero.y+d[1]});
+    ctx.G.ents.push({id:100+i, team:'foe', dead:0, hp:40, x:hero.x+d[0], y:hero.y+d[1], r:0.35});
   });
   hero.aim=ctx.G.ents[ctx.G.ents.length-1];
   for(let i=0;i<15;i++){
-    hero.crownDropGuard=0;
-    assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0, 'swing '+(i+1)+' with foes around leaves the crown');
+    assert(swing(hero, 1.6)===0 && !crown.destroyed, 'swing '+(i+1)+' with foes around leaves the crown');
   }
-  assert(!crown.destroyed && !crown.gone, 'the floor crown survives repeated swings with foes around');
+  assert(!crown.destroyed && !crown.gone && !ctx.G.lvl.flags.crownXp,
+    'the floor crown survives repeated swings with foes around');
 
+  /* Killing blow: the foe dies, and the swing still does not touch the crown. */
   ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
-  hero.aim=null; hero._attack=null; hero.fdx=0; hero.fdy=1; hero.crownDropGuard=0;
-  hero.crownTarget=0;
-  ctx.G.lvl.flags.crownXp=0;
-  const before=ctx.xpAwards.length;
-  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed,
-    'a swing with no foe still leaves the crown when Macar did not choose it');
-  hero.crownTarget=1;
-  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===1 && crown.destroyed===1 && !hero.crownTarget,
-    'a deliberate strike with no foe in reach destroys the crown');
-  assert(ctx.xpAwards.length===before+1 && ctx.G.lvl.flags.crownXp===1,
-    'that strike awards the destroy XP exactly once');
-  hero.crownTarget=1;
-  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && ctx.xpAwards.length===before+1,
-    'a second strike does not award the XP again');
-  assert(/e\.crownTarget/.test(extractFn('tryStrikeBoneCrown')),
-    'a combat swing destroys the crown only when Macar chose it');
-  assert(!/nearestBoneCrown/.test(extractFn('fire')),
-    'the Attack button does not choose the bone crown');
-  assert(!/\bdestroyBoneCrown\b|\btryStrikeBoneCrown\b/.test(extractFn('explode'))
-    && !/\bdestroyBoneCrown\b|\btryStrikeBoneCrown\b/.test(extractFn('damage'))
-    && !/\btryStrikeBoneCrown\b/.test(extractFn('update')),
-    'shots, bombs, and the update loop do not strike the crown themselves');
-
-  /* Killing blow: the foe is alive when the swing starts and dead before
-     the crown check. The pre-damage snapshot must still spare the crown. */
-  const swingSrc=extractFn('meleeSwing');
-  const dmgAt=swingSrc.indexOf('damage(');
-  assert(swingSrc.indexOf('hadFoeTarget')>=0 && swingSrc.indexOf('hadFoeTarget')<dmgAt
-    && swingSrc.indexOf('foeInReach')>=0 && swingSrc.indexOf('foeInReach')<dmgAt,
-    'hadFoeTarget and foeInReach are captured before damage');
-  assert(/tryStrikeBoneCrown\(e, reach, \{hadFoeTarget:hadFoeTarget, foeInReach:foeInReach\}\)/.test(swingSrc),
-    'the crown check receives the pre-damage foe snapshot');
-  ctx.ang=function(x,y){ return Math.atan2(y,x); };
-  ctx.TAU=Math.PI*2;
-  ctx.addAttack=function(){ return 8; };
-  ctx.onHitFx=function(a,o,d){ return d; };
-  ctx.wear=function(){};
-  ctx.damage=function(o, amt){
-    if(!o||o.dead) return;
-    o.hp=(o.hp==null?1:o.hp)-(amt||0);
-    if(o.hp<=0){ o.hp=0; o.dead=1; }
-  };
-  vm.runInContext(extractFn('meleeSwing')+';', ctx);
-  hero.x=110.5; hero.y=2.5; hero.range=1.4; hero.r=0.36;
-  hero.fdx=0; hero.fdy=1; hero._attack={fdx:0, fdy:1}; hero.atk=0;
-  hero.crownDropGuard=0; hero.crownTarget=1;
+  hero.x=110.5; hero.y=2.5; hero.range=1.4; hero.r=0.36; hero.atk=0;
+  hero.fdx=0; hero.fdy=1; hero._attack={fdx:0, fdy:1};
   crown.x=111.4; crown.y=2.5; crown.gone=0; crown.destroyed=0; crown.taken=0;
   ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0; ctx.G.lvl.flags.crownXp=0;
   const killFoe={id:77, team:'foe', name:'Fanged Skeleton', dead:0, hp:1, maxhp:8, r:0.34,
@@ -972,18 +952,49 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'the killing blow leaves the adjacent crown intact');
   assert(ctx.xpAwards.length===xp0 && !ctx.G.lvl.flags.crownXp,
     'the killing blow awards no crown XP');
-  assert(ctx.liveFoeBlocksCrown(hero, reach)==null,
-    'after the kill the live-foe check is empty');
-  hero.aim=null; hero.crownTarget=1; hero.crownDropGuard=0;
-  assert(ctx.meleeSwing(hero, 2.3, reach, 8)===1 && crown.destroyed===1 && crown.gone===1,
-    'the next deliberate swing with no foe destroys the crown');
+  hero.aim=null;
+  ctx.meleeSwing(hero, 2.3, reach, 8);
+  assert(!crown.destroyed && !crown.gone && ctx.xpAwards.length===xp0,
+    'another swing with no living foe still leaves the crown');
+
+  /* Destroy is the look menu, on the altar and after a drop. */
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.aim=null;
+  ctx.G.lvl.flags.crownDropped=0;
+  let menu=ctx.teethCrownChoices();
+  assert(menu[0] && menu[0].t==='Destroy the crown.',
+    'Destroy the crown. leads the look menu on the altar');
+  ctx.G.lvl.flags.crownDropped=1;
+  menu=ctx.teethCrownChoices();
+  assert(menu[0] && menu[0].t==='Destroy the crown.' && menu[1] && menu[1].t==='Take the bone crown.',
+    'Destroy the crown. leads the look menu after a drop');
+  const blocker={id:78, team:'foe', name:'Skeletal Dwarf', dead:0, hp:8, r:0.34, x:hero.x, y:hero.y+0.6};
+  ctx.G.ents.push(blocker);
+  hero.aim=blocker;
+  ctx.lines=[];
+  menu[0].then();
+  assert(!crown.destroyed && !crown.gone && ctx.xpAwards.length===xp0 && !ctx.G.lvl.flags.crownXp,
+    'Destroy the crown. refuses while a live foe is in range');
+  assert(ctx.lines.some(t=>/Not with foes this close/.test(t)),
+    'the refusal says foes are too close');
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.aim=null;
+  ctx.lines=[];
+  ctx.teethCrownChoices()[0].then();
+  assert(crown.destroyed===1 && crown.gone===1 && ctx.G.lvl.flags.crownDestroyed===1,
+    'Destroy the crown. from the look menu destroys the floor crown');
   assert(ctx.xpAwards.length===xp0+1 && ctx.xpAwards[ctx.xpAwards.length-1].why==='Bone Crown destroyed'
     && ctx.G.lvl.flags.crownXp===1,
-    'that deliberate swing awards the destroy XP exactly once');
-  hero.crownTarget=1;
-  assert(ctx.meleeSwing(hero, 2.3, reach, 8)===0 && ctx.xpAwards.length===xp0+1,
-    'a further swing does not award the XP again');
-  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+    'that menu choice awards the destroy XP exactly once');
+  ctx.teethCrownChoices()[0].then();
+  assert(ctx.xpAwards.length===xp0+1,
+    'a second Destroy the crown. gives no extra XP');
+  assert(!/nearestBoneCrown/.test(extractFn('fire')),
+    'the Attack button does not choose the bone crown');
+  assert(!/\bdestroyBoneCrown\b/.test(extractFn('explode'))
+    && !/\bdestroyBoneCrown\b/.test(extractFn('damage'))
+    && !/\bdestroyBoneCrown\b/.test(extractFn('meleeSwing')),
+    'shots, bombs, and swings do not destroy the crown');
 }
 
 /* Ten seconds of the real update loop: a live skeleton beside a floor crown,
@@ -1059,7 +1070,7 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   });
   [
     'wearingBoneCrown','nearestBoneCrown','awardCrownDestroyXp','destroyBoneCrown',
-    'liveFoeBlocksCrown','tryStrikeBoneCrown','playerDestroyBoneCrown',
+    'liveFoeBlocksCrown','playerDestroyBoneCrown',
     'nearestFoe','nearestAlly','kinCanAutoFight','foeInTheFight','faceToward','shoot','explode','updateBombs',
     'ghostSapperBomb','fire'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', sandbox));
@@ -1090,7 +1101,7 @@ function meleeSwing(e,arc,reach,dmg,col){
     id:1, hero:1, name:'Macar', team:'party', kind:'dwarf', col:{key:'macar'},
     x:106.25, y:8.35, hp:400, maxhp:400, dead:0, range:1.4, cd:1.05, ct:0,
     atk:0, atkMax:0.78, atkKind:'melee', swung:0, fdx:1, fdy:0, aim:null,
-    crownTarget:0, crownDropGuard:0, moving:0, r:0.36, dmg:8, sp:4.3, defending:0
+    moving:0, r:0.36, dmg:8, sp:4.3, defending:0
   };
   assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)<2.6, 'the floor crown sits inside a crown-strike radius');
   assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)>0.5, 'the floor crown is not under Macar\'s feet');
@@ -1150,7 +1161,8 @@ function meleeSwing(e,arc,reach,dmg,col){
     'ten seconds of party and foe combat leaves the floor crown');
   assert(!sandbox.xpAwards.some(a=>/Bone Crown destroyed/.test(a.why||'')),
     'that fight awards no crown-destroy XP');
-  assert(!hero.crownTarget, 'combat never armed a crown target');
+  assert(!/crown/i.test(extractFn('meleeSwing')),
+    'meleeSwing contains no Crown reference');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
