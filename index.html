@@ -436,7 +436,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='122';
+const ASSET_VER='123';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1551,14 +1551,10 @@ function solidDwarfSprite(e,img){
   }
   return blitLivingMacar(img)||img;
 }
-/* CAP stays under 255 so a west flip (punch=false) cannot go solid.
-   WHITE lifts gray dust toward white. COOL then pulls that white cool
-   (spectral, not warm parchment). SHADE puts the original luminance
-   folds back so the kit does not flatten to paper. Alpha rises only
-   enough that the cave floor cannot stain the spirit yellow.
-   EDGE then draws a thin cool line on the silhouette and on the ridge
-   where a blurred luminance band changes — nose, beard, helm, plate,
-   blade — so the white fill still shows a figure. */
+/* CAP stays under 255 so a west flip cannot go solid. Living-color
+   back and attack mix toward ice cyan; Nick idle and front walk skip
+   the lift. Shade keeps the luminance folds. Feature ink draws the
+   silhouette so the cyan fill still shows a figure. */
 const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=224;
@@ -1929,9 +1925,9 @@ function matchingPartyAtkReady(key, idleKey){
   const idle=(SPR[idleKey]&&SPR[idleKey].width)?SPR[idleKey]:null;
   return partyFrameFitOk(img, idle);
 }
-/* Restored original Macar motion is 470×512 (walk/atk) and 366–527 wide
-   compass/contact. Idle stays 1100×920. samePaintedFamily would plant idle
-   and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
+/* Restored walks are 470×512. Windup is main's 470×540 maul sheet.
+   Contact is 893×540. Idle stays 1100×920. samePaintedFamily would plant
+   idle and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
   return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'

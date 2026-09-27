@@ -45,7 +45,7 @@ function pngSize(p){
 
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'title-law Macar windup is on disk');
 const macarAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
-assert(macarAtk && macarAtk.w===470 && macarAtk.h===512, 'restored maul windup is 470x512');
+assert(macarAtk && macarAtk.w===470 && macarAtk.h===540, 'maul windup is main\'s 470x540 sheet');
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk_contact.png')), 'maul contact is on disk');
 const macarHit=pngSize(path.join(root,'dwarf_macar_atk_contact.png'));
 assert(macarHit && macarHit.w===893 && macarHit.h===540, 'maul contact is main\'s 893x540 sheet');

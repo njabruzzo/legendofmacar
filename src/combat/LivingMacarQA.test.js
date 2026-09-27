@@ -145,8 +145,8 @@ BLIT_KEYS.forEach(k=>{
 });
 const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
-assert(windupHist.ok && windupHist.w===470 && windupHist.h===512,
-  'restored maul windup canvas is 470×512');
+assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
+  'maul windup canvas is main\'s 470×540 sheet');
 assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
   'maul contact stays main\'s 893×540 sheet');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
@@ -660,8 +660,8 @@ const atkBody=sheetStature('dwarf_macar_atk.png');
 const hitBody=sheetStature('dwarf_macar_atk_contact.png');
 assert(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
-assert(atkBody>0.55 && atkBody<0.68,
-  'restored windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
+assert(atkBody>0.68 && atkBody<0.76,
+  'main windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
 assert(hitBody>0.84 && hitBody<0.93,
   'main contact crown is the helm (frac '+hitBody.toFixed(3)+')');
 assert(hitBody>atkBody+0.08,
@@ -684,7 +684,7 @@ assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig
   +idleFig.toFixed(3)+' wind '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
 const windScale=blitHOf('macar_atk')/blitHOf('macar');
 const hitScale=blitHOf('macar_atk_contact')/blitHOf('macar');
-assert(windScale>1.45 && windScale<1.70,
+assert(windScale>1.28 && windScale<1.45,
   'windup dest H grows for the shorter helm-to-boot body (scale '+windScale.toFixed(3)+')');
 assert(hitScale>1.02 && hitScale<1.22,
   'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
