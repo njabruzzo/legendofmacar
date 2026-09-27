@@ -3376,7 +3376,7 @@ function dwarfAngleKey(e,k){
 /* Idle, walk, and attack sheets for these kinds are painted facing
    screen-left. Add a kind here when its art faces left. Everyone else
    is painted facing screen-right. */
-const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1,burrower:1,drake:1,umberhulk:1,hookedhorror:1,centipede:1,troglodyte:1,crysmal:1,rustmonster:1,basilisk:1,otyugh:1,morkoth:1,aboleth:1,giantslug:1,shadowdragon:1,deepdragon:1,purpleworm:1,neothelid:1,deepdragon_wyrm:1,deepdragon_young:1,neootyugh:1};
+const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1};
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
   const key=entAnimKey(e)||'';

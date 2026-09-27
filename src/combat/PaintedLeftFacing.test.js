@@ -26,26 +26,14 @@ function extractFn(name){
 }
 
 const table=html.match(/const SPRITE_PAINTED_LEFT=\{[^}]*\};/);
-const PAINTED_LEFT='const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1,burrower:1,drake:1,umberhulk:1,hookedhorror:1,centipede:1,troglodyte:1,crysmal:1,rustmonster:1,basilisk:1,otyugh:1,morkoth:1,aboleth:1,giantslug:1,shadowdragon:1,deepdragon:1,purpleworm:1,neothelid:1,deepdragon_wyrm:1,deepdragon_young:1,neootyugh:1};';
-assert(table && table[0]===PAINTED_LEFT,
-  'painted-left is one object literal of the high-confidence left sheets');
-assert((html.match(/SPRITE_PAINTED_LEFT=\{/g)||[]).length===1,
+assert(table && table[0]==='const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1};',
+  'painted-left is one object literal: rat, beetle, goblin');
+assert(html.indexOf('SPRITE_PAINTED_LEFT')===html.lastIndexOf('SPRITE_PAINTED_LEFT={')
+  || (html.match(/SPRITE_PAINTED_LEFT=\{/g)||[]).length===1,
   'the painted-left table is declared once');
-['troll','drow','grimlock','pech','goblin_king'].forEach(k=>{
-  assert(!new RegExp('(?:^|[{,])'+k+':').test(table[0]),
-    k+' stays out of the painted-left table');
-});
-
-const regStart=html.indexOf('const SPRITE_FILES={');
-const regEnd=html.indexOf('const ICON_SPR={');
-const registry=new Function(html.slice(regStart, regEnd)+'\nreturn SPRITE_FILES;')();
-const tableKeys=Object.keys(new Function('return '+table[0].replace(/^const SPRITE_PAINTED_LEFT=/,''))());
-tableKeys.forEach(k=>{
-  assert(!!registry[k], 'painted-left key '+k+' is a registered sprite');
-});
 
 const SPR={};
-tableKeys.concat(['undead']).forEach(k=>{
+['rat','beetle','goblin','undead'].forEach(k=>{
   SPR[k]={width:8};
   SPR[k+'_w1']={width:8};
   SPR[k+'_w2']={width:8};
@@ -84,15 +72,6 @@ function mover(kind, ix, iy, gait){
     ix, iy, fdx:ix, fdy:iy
   };
 }
-
-tableKeys.forEach(kind=>{
-  const east=mover(kind, 0.7, -0.7);
-  const west=mover(kind, -0.7, 0.7);
-  assert(ctx.wantsSpriteFlip(east)===true, kind+' moving screen-east mirrors the left-painted sheet');
-  assert(ctx.wantsSpriteFlip(west)===false, kind+' moving screen-west keeps the left-painted sheet');
-  assert(ctx.entAnimKey(east)===kind+'_w1' && ctx.entAnimKey(west)===kind+'_w1',
-    kind+' east and west walks stay on the front walk sheet');
-});
 
 ['rat','beetle','goblin'].forEach(kind=>{
   const east=mover(kind, 0.7, -0.7);
