@@ -59,8 +59,13 @@ const wallDisc=shade.indexOf('} else if(t===1||t===2){');
 assert(chapelSkip>=0 && wallDisc>chapelSkip, 'chapel skip runs before the wall disc');
 assert(/g\.ellipse\(s\.x, s\.y-H\*0\.38, TW\*0\.62, TH\*0\.9\+H\*0\.28, 0, 0, TAU\);/.test(shade),
   'remembered hall walls still take the main wall disc');
-assert(/shadeRectOverlap\(memoryShadeDiscRect\(s,H\), chapelGuard\)/.test(shade),
+assert(/chapelShadeGuardHit\(memoryShadeDiscRect\(s,H\), chapelGuard\)/.test(shade),
   'a wall disc is skipped only when its screen rectangle meets the chapel');
+assert(/demonFaceDrawH\(img, face\)/.test(extractFn('chapelShadeFeatureRects'))
+  && /demonFaceHalf\(face\)/.test(extractFn('chapelShadeFeatureRects')),
+  'the chapel guard sizes the face with demonFaceDrawH and demonFaceHalf');
+assert(!/DEMON_FACE_CONTENT_SCALE\/\(360/.test(extractFn('chapelShadeFeatureRects')),
+  'the guard does not copy the face height formula');
 function extractFn(name){
   const start=html.indexOf('function '+name+'(');
   if(start<0) throw new Error('missing '+name);
@@ -84,7 +89,8 @@ const box={
   s2w(){ return {x:70, y:0}; },
   w2s(x,y){ cell={x,y}; return {x:(x-y)*(box.TW/2), y:(x+y)*(box.TH/2)}; },
   useWallFaces(){ return true; },
-  wallFaceH(){ return 287*(box.TH/96); }
+  wallFaceH(){ return 287*(box.TH/96); },
+  SPR:{}
 };
 /* Four frustum corners must cover the hall sample and the chapel wall. */
 let corner=0;
@@ -101,7 +107,13 @@ vm.runInContext(
    extractFn('isTeethNorthWall'), extractFn('isTeethFaceWall'),
    extractFn('hallWallH'), extractFn('teethNorthWallH'), extractFn('teethFaceWallH'),
    extractFn('teethAltarSheetH'),
-   extractFn('shadeRectOverlap'), extractFn('memoryShadeDiscRect'), extractFn('chapelShadeGuardRect'),
+   extractFn('dwarfFaceH'), extractFn('vaultDemonFace'), extractFn('chapelFaceContentFrac'),
+   extractFn('demonFaceShowsEmpty'), extractFn('demonFaceImg'),
+   extractFn('demonFaceDrawH'), extractFn('demonFaceHalf'),
+   extractFn('rubyDoorPlaneY'), extractFn('demonFacePlaneY'),
+   extractFn('shadeRectOverlap'), extractFn('memoryShadeDiscRect'),
+   extractFn('chapelShadeFeatureRects'), extractFn('chapelShadeKeepDisc'),
+   extractFn('carveShadeKeep'), extractFn('chapelShadeGuardRects'), extractFn('chapelShadeGuardHit'),
    extractFn('drawMemoryShade')].join('\n'),
   box);
 const W=130, H=24;
@@ -126,16 +138,21 @@ const g={
   }
 };
 box.drawMemoryShade(g, L);
-const guard=box.chapelShadeGuardRect(L);
-assert(!!guard, 'chapel shade guard is the face, north and east walls, and altar');
+const guard=box.chapelShadeGuardRects(L);
+const feats=box.chapelShadeFeatureRects(L);
+assert(guard&&guard.length>8, 'chapel shade guard is the walls, the floor, the face, and the altar');
 assert(box.nearTeethChapel(L,102,1) && discs.indexOf('102,1')<0,
   'discs are skipped near the teeth chapel');
 assert(discs.indexOf('86,15')>=0, 'a disc is still drawn on remembered hall wall (86,15)');
 assert(discs.indexOf('101,15')>=0, 'a disc is still drawn on remembered hall wall (101,15)');
 assert(discs.indexOf('107,0')<0 && discs.indexOf('114,8')<0 && discs.indexOf('116,6')<0,
   'buried rock north and east of the chapel does not draw a disc on it');
-const overlap=drawn.filter(d=>box.shadeRectOverlap(d.rect, guard));
+const overlap=drawn.filter(d=>box.chapelShadeGuardHit(d.rect, guard));
 assert(overlap.length===0, 'no drawn disc rectangle meets the chapel guard ('+overlap.map(d=>d.x+','+d.y).slice(0,8).join(' ')+')');
+const hallKeep=drawn.find(d=>d.x===101&&d.y===15);
+assert(hallKeep && feats.some(r=>box.shadeRectOverlap(hallKeep.rect, r))
+  && !box.chapelShadeGuardHit(hallKeep.rect, guard),
+  '(101,15) still meets the door jamb and is still drawn');
 
 /* Scripted walk: real hasLOS / rebuildVision, not a forced full reveal.
    After the walk, no drawn disc meets the chapel rectangle. */
@@ -192,13 +209,96 @@ assert(overlap.length===0, 'no drawn disc rectangle meets the chapel guard ('+ov
   }
   discs.length=0; drawn.length=0;
   box.drawMemoryShade(g, walked);
-  const walkedGuard=box.chapelShadeGuardRect(walked);
-  const walkedOverlap=drawn.filter(d=>box.shadeRectOverlap(d.rect, walkedGuard));
+  const walkedGuard=box.chapelShadeGuardRects(walked);
+  const walkedOverlap=drawn.filter(d=>box.chapelShadeGuardHit(d.rect, walkedGuard));
   assert(outside.indexOf('112,15')>=0, 'the walk remembers hall rock just outside the chapel box');
   assert(walkedOverlap.length===0,
     'after the walk, no drawn disc meets the face or chapel-wall rectangle ('
     +walkedOverlap.map(d=>d.x+','+d.y).slice(0,8).join(' ')+')');
   assert(discs.indexOf('112,15')<0, 'the remembered disc at (112,15) is the one that used to cover the chapel');
+}
+
+/* Real Chapter I map from the chapel-door save, not a stand-in corridor.
+   (a) a scripted walk with rebuildVision. (b) that save's seen state. */
+{
+  const fix=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/teeth-chapel-door-seen.json'),'utf8'));
+  function rows(packed){
+    return packed.map(s=>{
+      const row=new Array(s.length);
+      for(let i=0;i<s.length;i++) row[i]=(s.charCodeAt(i)-48)|0;
+      return row;
+    });
+  }
+  function rememberHall(level){
+    level.seen[15][86]=1; level.vis[15][86]=0;
+    level.seen[15][101]=1; level.vis[15][101]=0;
+  }
+  const grid=rows(fix.grid);
+  const seen=rows(fix.seen);
+  const vis=[];
+  for(let y=0;y<fix.h;y++) vis[y]=new Uint8Array(fix.w);
+  const walked={
+    n:1, w:fix.w, h:fix.h, grid, seen, vis,
+    teethBounds:fix.teethBounds,
+    flags:{teethBounds:fix.teethBounds, teethRoom:1, teethChapelEnter:1}
+  };
+  box.G.lvl=walked;
+  box.G.props=fix.props.map(p=>Object.assign({},p));
+  box.G.ents=[{hero:1, dead:0, x:106.5, y:18}];
+  const trail=[];
+  for(let y=18;y>=3;y-=0.4) trail.push([106.5, y]);
+  for(let x=101.5;x<=112.2;x+=0.4) trail.push([x, 4.2]);
+  for(let y=4;y<=13;y+=0.4) trail.push([111.2, y]);
+  for(let x=112;x>=101.5;x-=0.4) trail.push([x, 8]);
+  trail.push([107, 6]);
+  for(let i=0;i<trail.length;i++){
+    box.G.ents[0].x=trail[i][0];
+    box.G.ents[0].y=trail[i][1];
+    box.rebuildVision();
+  }
+  rememberHall(walked);
+  discs.length=0; drawn.length=0;
+  box.drawMemoryShade(g, walked);
+  const walkGuard=box.chapelShadeGuardRects(walked);
+  const walkFeats=box.chapelShadeFeatureRects(walked);
+  const walkOv=drawn.filter(d=>box.chapelShadeGuardHit(d.rect, walkGuard));
+  assert(walkOv.length===0,
+    'after the real-map walk, no drawn disc meets the chapel ('+walkOv.map(d=>d.x+','+d.y).slice(0,8).join(' ')+')');
+  assert(discs.indexOf('86,15')>=0 && discs.indexOf('101,15')>=0,
+    'after the real-map walk, (86,15) and (101,15) still shade');
+  assert(discs.indexOf('98,8')<0 && discs.indexOf('99,12')<0 && discs.indexOf('99,13')<0,
+    'the walk does not draw the west-rock discs that land on the chapel');
+  const westDisc=box.memoryShadeDiscRect(box.w2s(99,13), box.wallFaceH());
+  assert(walkFeats.some(r=>box.shadeRectOverlap(westDisc, r)) && discs.indexOf('99,13')<0,
+    'the disc at (99,13) meets the chapel and is not drawn');
+
+  const seenBits=rows(fix.seen);
+  const visBits=[];
+  for(let y=0;y<fix.h;y++) visBits[y]=new Uint8Array(fix.w);
+  const remembered={
+    n:1, w:fix.w, h:fix.h, grid, seen:seenBits, vis:visBits,
+    teethBounds:fix.teethBounds,
+    flags:{teethBounds:fix.teethBounds, teethRoom:1}
+  };
+  remembered.seen[15][86]=1;
+  box.G.lvl=remembered;
+  box.G.props=fix.props.map(p=>Object.assign({},p));
+  discs.length=0; drawn.length=0;
+  box.drawMemoryShade(g, remembered);
+  const seenGuard=box.chapelShadeGuardRects(remembered);
+  const seenFeats=box.chapelShadeFeatureRects(remembered);
+  const seenOv=drawn.filter(d=>box.chapelShadeGuardHit(d.rect, seenGuard));
+  assert(seenOv.length===0,
+    'chapel-door seen state: no drawn disc meets the chapel ('+seenOv.map(d=>d.x+','+d.y).slice(0,8).join(' ')+')');
+  assert(discs.indexOf('86,15')>=0 && discs.indexOf('101,15')>=0,
+    'chapel-door seen state: (86,15) and (101,15) still shade');
+  assert(discs.indexOf('98,8')<0 && discs.indexOf('99,12')<0 && discs.indexOf('99,13')<0,
+    'remembered rock at x=98-99 does not draw a disc on the chapel');
+  assert(discs.indexOf('96,8')>=0,
+    'rock further west that misses the chapel still shades');
+  const doorDisc=box.memoryShadeDiscRect(box.w2s(98,12), box.wallFaceH());
+  assert(seenFeats.some(r=>box.shadeRectOverlap(doorDisc, r)) && discs.indexOf('98,12')<0,
+    'the disc at (98,12) meets the chapel door and is not drawn');
 }
 assert(/isWalkTile\(t\)/.test(shade), 'out-of-sight floor still shades as the tile diamond');
 assert(/function drawBeyondMask/.test(html) && /fillStyle=rock/.test(html),

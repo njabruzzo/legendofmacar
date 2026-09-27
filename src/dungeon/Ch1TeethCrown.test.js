@@ -709,7 +709,8 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
 {
   [
     'wearingBoneCrown','dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
-    'teethAltarSheetH','boneCrownHeadH','boneCrownSeatY','drawBoneCrownProp'
+    'teethAltarSheetH','boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY',
+    'boneCrownDroppedOnFloor','drawBoneCrownProp'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
   const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_CROWN_SEAT_TUCK=3;/)[0];
   vm.runInContext(seatConsts, ctx);
@@ -738,6 +739,10 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   assert(dropped.ok===1 && !ctx.wearingBoneCrown(), 'drop at the altar clears the helm');
   assert(ctx.G.lvl.flags.crownTouched===0 && ctx.G.lvl.flags.crownTaken===0,
     'drop at the altar returns the crown to the seated flags');
+  assert(ctx.G.lvl.flags.crownDropped===0,
+    'drop at the altar clears the dropped flag so melee does not shatter the seated crown');
+  assert(ctx.tryStrikeBoneCrown(ctx.player(), 1.2)===0,
+    'a swing beside the altar does not destroy the crown just seated there');
   assert(crown.gone===0 && crown.x===altar.x && crown.y===altar.y,
     'drop at the altar puts the crown prop back on the altar foot');
   assert(ctx.teethCrownStillSeated(), 'the crown is seated again before any reload');
@@ -751,6 +756,46 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'take again works after the crown is back on the slab');
   assert(!ctx.teethCrownStillSeated() && paint().length===0,
     'while held again, the seated crown stops drawing');
+
+  /* More than 4 tiles from the altar: the crown stays touched, so the slab
+     path hides, and the floor billboard is the one draw. */
+  ctx.G.ents[0].x=altar.x+6;
+  ctx.G.ents[0].y=altar.y+1;
+  assert(ctx.dist(ctx.player(), altar)>4, 'the far drop stands more than 4 tiles from the altar');
+  const far=ctx.dropBoneCrown();
+  assert(far.ok===1 && ctx.G.lvl.flags.crownDropped===1 && ctx.G.lvl.flags.crownTouched===1
+    && ctx.G.lvl.flags.crownTaken===0,
+    'a far drop leaves the crown touched and marks it dropped');
+  assert(crown.gone===0 && crown.x===ctx.player().x && crown.y===ctx.player().y+0.55,
+    'a far drop puts the crown on the floor at the player');
+  const floorDrawn=paint();
+  const floorSeat=ctx.boneCrownFloorSeatY(z), floorHead=ctx.boneCrownHeadH(z);
+  assert(floorDrawn.length===1 && floorDrawn[0].img===ctx.sceneCrownSprite()
+    && floorDrawn[0].y===floorSeat-floorHead
+    && floorDrawn[0].y!==ctx.boneCrownSeatY(z)-floorHead,
+    'exactly one crown sprite is drawn at the floor seat, not on the slab');
+  const gsSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
+  ctx.globalThis=ctx;
+  vm.runInContext(gsSrc, ctx);
+  const world=ctx.GameSave.captureWorld(ctx.G);
+  const savedCrown=(world.props||[]).find(p=>p&&p.k==='bonecrown');
+  assert(savedCrown && savedCrown.x===crown.x && savedCrown.y===crown.y && !savedCrown.gone
+    && world.flags.crownDropped===1 && world.flags.crownTouched===1,
+    'the save records the dropped crown where it lies');
+  crown.x=0; crown.y=0; crown.gone=1;
+  ctx.G.lvl.flags={};
+  ctx.G.props=[];
+  ctx.G.lvl.flags=Object.assign({}, world.flags);
+  ctx.GameSave.applyWorld(ctx.G, world);
+  const loaded=ctx.G.props.find(p=>p&&p.k==='bonecrown');
+  assert(loaded && loaded.x===savedCrown.x && loaded.y===savedCrown.y && !loaded.gone,
+    'load puts the crown back on that floor tile');
+  const loadedCalls=[];
+  ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ loadedCalls.push({img,x,y,w,h}); }}, loaded, z);
+  assert(ctx.boneCrownDroppedOnFloor(loaded) && loadedCalls.length===1
+    && loadedCalls[0].img===ctx.sceneCrownSprite()
+    && loadedCalls[0].y===floorSeat-floorHead,
+    'after save and load the crown is still drawn at the drop');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

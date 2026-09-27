@@ -11876,9 +11876,11 @@ function dropBoneCrown(){
      already shows it on the slab, so clear the flag here too. */
   const atAltar=!!(altar&&p&&typeof dist==='function'&&dist(p,altar)<=3);
   if(L&&L.flags){
-    L.flags.crownDropped=1;
     L.flags.crownTaken=0;
-    if(atAltar) L.flags.crownTouched=0;
+    /* Back on the slab it is seated again, so a melee swing beside the
+       altar does not treat it as a dropped prop. */
+    if(atAltar){ L.flags.crownTouched=0; L.flags.crownDropped=0; }
+    else L.flags.crownDropped=1;
   }
   let crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown');
   if(crown){
@@ -14378,53 +14380,94 @@ function memoryShadeDiscRect(s,H){
   const rx=TW*0.62, ry=TH*0.9+H*0.28, cy=s.y-H*0.38;
   return {x0:s.x-rx, y0:cy-ry, x1:s.x+rx, y1:cy+ry};
 }
-/* Screen rectangle of the chapel face plate, the north and east wall
-   faces, and the altar. A remembered disc whose own rectangle meets this
-   one is skipped. Hall discs that miss it, including (86,15) and (101,15),
-   stay. Camera translation cancels, so the test is the overlap itself. */
-function chapelShadeGuardRect(L){
+/* Screen pieces of the whole chapel: west wall through the door jambs,
+   north and east walls, every floor tile, the face, and the altar.
+   Camera translation cancels, so the test is the overlap itself. */
+function chapelShadeFeatureRects(L){
   const b=teethBounds(L);
   if(!b||typeof w2s!=='function') return null;
-  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-  const add=r=>{
-    if(!r||!(r.x1>r.x0)||!(r.y1>r.y0)) return;
-    if(r.x0<x0) x0=r.x0; if(r.y0<y0) y0=r.y0;
-    if(r.x1>x1) x1=r.x1; if(r.y1>y1) y1=r.y1;
-  };
+  const rects=[];
+  const add=r=>{ if(r&&r.x1>r.x0&&r.y1>r.y0) rects.push(r); };
   const quad=(ax,ay,bx,by,H)=>{
     const a=w2s(ax,ay), c=w2s(bx,by);
     add({x0:Math.min(a.x,c.x), y0:Math.min(a.y,c.y)-H, x1:Math.max(a.x,c.x), y1:Math.max(a.y,c.y)});
   };
   const wy=b.y0-1;
   const inset=0.42;
+  const westX=b.x0-inset;
+  for(let y=b.y0-1; y<=b.y1+2; y++) quad(westX, y, westX, y+1.14, hallWallH(L));
+  const jambY=b.y1+1-inset;
+  for(let x=b.x0-1; x<b.x1; x++) quad(x, jambY, x+1.14, jambY, hallWallH(L));
   for(let x=b.x0;x<b.x1;x++){
     const H=isTeethFaceWall(L,x,wy)?teethFaceWallH(L):teethNorthWallH(L);
     quad(x, b.y0-inset, x+1.14, b.y0-inset, H);
   }
   for(let y=b.y0;y<b.y1;y++) quad(b.x1+inset, y, b.x1+inset, y+1.14, hallWallH(L));
-  const plateH=wallFaceH(L)*DEMON_FACE_CONTENT_SCALE/(360/DEMON_FACE_PLATE.h);
-  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
-  const half=clamp(plateH*(DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h)/(2*perTile), 0.70, 2.80);
+  for(let y=b.y0;y<b.y1;y++) for(let x=b.x0;x<b.x1;x++){
+    const s=w2s(x,y);
+    add({x0:s.x-TW/2, y0:s.y-TH/2, x1:s.x+TW/2, y1:s.y+TH/2});
+  }
   const props=(typeof G!=='undefined'&&G.props)||[];
-  const face=props.find(p=>p&&p.k==='demonface'&&!p.gone&&p.wall!=='e');
-  const fx=face?face.x:(b.x0+b.x1)*0.5;
+  const face=props.find(p=>p&&p.k==='demonface'&&!p.gone&&p.wall!=='e')
+    ||{wall:'n', x:(b.x0+b.x1)*0.5, y:b.y0+0.48};
   let yPlane=b.y0-0.42;
-  if(face&&typeof demonFacePlaneY==='function'&&L.grid) yPlane=demonFacePlaneY(face);
-  quad(fx-half, yPlane, fx+half, yPlane, plateH);
+  if(face.k&&typeof demonFacePlaneY==='function'&&L.grid) yPlane=demonFacePlaneY(face);
+  const img=typeof demonFaceImg==='function'?demonFaceImg(face):null;
+  const plateH=demonFaceDrawH(img, face);
+  const half=demonFaceHalf(face);
+  quad(face.x-half, yPlane, face.x+half, yPlane, plateH);
   const altar=props.find(p=>p&&p.teethAltar&&!p.gone);
   const z=typeof ZOOM==='number'?ZOOM:1;
   const ax=altar?altar.x:b.x0+1.25, ay=altar?altar.y:b.y0+2.35;
   const aH=altar?teethAltarSheetH(altar,z):150*z*1.55;
   let aAspect=1075/718;
   if(typeof teethAltarSheetImg==='function'){
-    const img=teethAltarSheetImg();
-    if(img&&img.width&&img.height) aAspect=img.width/img.height;
+    const sheet=teethAltarSheetImg();
+    if(sheet&&sheet.width&&sheet.height) aAspect=sheet.width/sheet.height;
   }
   const aW=aH*aAspect;
   const as=w2s(ax,ay);
   add({x0:as.x-aW/2, y0:as.y-aH, x1:as.x+aW/2, y1:as.y});
-  if(!(x1>x0&&y1>y0)) return null;
-  return {x0:x0,y0:y0,x1:x1,y1:y1};
+  return rects.length?rects:null;
+}
+/* The hall wall just south of the chapel's west corner meets the door
+   jamb. That disc is hall shade and stays. Cut it out of the guard; every
+   other disc that meets a chapel face or floor tile still hits a piece. */
+function chapelShadeKeepDisc(L){
+  const b=teethBounds(L);
+  if(!b) return null;
+  const H=useWallFaces(L)?wallFaceH(L):TH;
+  return memoryShadeDiscRect(w2s(b.x0, b.y1+1), H);
+}
+function carveShadeKeep(r, cut){
+  if(!r||!cut||!shadeRectOverlap(r, cut)) return [r];
+  const out=[];
+  const push=q=>{ if(q&&q.x1-q.x0>0.5&&q.y1-q.y0>0.5) out.push(q); };
+  if(r.y0<cut.y0) push({x0:r.x0, y0:r.y0, x1:r.x1, y1:cut.y0});
+  if(cut.y1<r.y1) push({x0:r.x0, y0:cut.y1, x1:r.x1, y1:r.y1});
+  const y0=Math.max(r.y0, cut.y0), y1=Math.min(r.y1, cut.y1);
+  if(y1>y0){
+    if(r.x0<cut.x0) push({x0:r.x0, y0:y0, x1:cut.x0, y1:y1});
+    if(cut.x1<r.x1) push({x0:cut.x1, y0:y0, x1:r.x1, y1:y1});
+  }
+  return out;
+}
+function chapelShadeGuardRects(L){
+  const rects=chapelShadeFeatureRects(L);
+  if(!rects) return null;
+  const keep=chapelShadeKeepDisc(L);
+  if(!keep) return rects;
+  const out=[];
+  for(let i=0;i<rects.length;i++){
+    const parts=carveShadeKeep(rects[i], keep);
+    for(let k=0;k<parts.length;k++) out.push(parts[k]);
+  }
+  return out.length?out:null;
+}
+function chapelShadeGuardHit(disc, rects){
+  if(!disc||!rects) return false;
+  for(let i=0;i<rects.length;i++) if(shadeRectOverlap(disc, rects[i])) return true;
+  return false;
 }
 function drawMemoryShade(g,L){
   if(!L||!L.grid||!L.seen) return;
@@ -14433,7 +14476,7 @@ function drawMemoryShade(g,L){
   const maxx=Math.min(L.w-1,Math.ceil(Math.max(c[0].x,c[1].x,c[2].x,c[3].x))+1);
   const miny=Math.max(0,Math.floor(Math.min(c[0].y,c[1].y,c[2].y,c[3].y))-1);
   const maxy=Math.min(L.h-1,Math.ceil(Math.max(c[0].y,c[1].y,c[2].y,c[3].y))+1);
-  const chapelGuard=chapelShadeGuardRect(L);
+  const chapelGuard=chapelShadeGuardRects(L);
   g.save();
   g.fillStyle='rgba(0,0,0,0.78)';
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
@@ -14453,9 +14496,9 @@ function drawMemoryShade(g,L){
       g.closePath(); g.fill();
     } else if(t===1||t===2){
       const H=useWallFaces(L)?wallFaceH(L):TH;
-      /* Buried rock just outside the chapel box still throws this disc
-         onto the face and the east wall. Skip only that overlap. */
-      if(shadeRectOverlap(memoryShadeDiscRect(s,H), chapelGuard)) continue;
+      /* Buried rock just outside the chapel still throws this disc onto
+         the west wall, the door, the floor, and the face. */
+      if(chapelShadeGuardHit(memoryShadeDiscRect(s,H), chapelGuard)) continue;
       g.beginPath();
       g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
       g.fill();
@@ -14968,21 +15011,34 @@ function boneCrownHeadH(z){
   const altarH=a?teethAltarSheetH(a,z):100*z;
   return Math.max(14, altarH*TEETH_CROWN_ON_ALTAR);
 }
+function boneCrownFloorSeatY(z){
+  const H=100*z;
+  const m=typeof tilesetPropMetric==='function'?tilesetPropMetric('altar'):null;
+  const foot=m?((m.h-m.oy)/Math.max(1,m.h)):0.149;
+  return (-1+foot+0.20)*H;
+}
 function boneCrownSeatY(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   if(a){
     const H=teethAltarSheetH(a,z);
     return -H*(1-TEETH_ALTAR_SLAB)+TEETH_CROWN_SEAT_TUCK*z;
   }
-  const H=100*z;
-  const m=typeof tilesetPropMetric==='function'?tilesetPropMetric('altar'):null;
-  const foot=m?((m.h-m.oy)/Math.max(1,m.h)):0.149;
-  return (-1+foot+0.20)*H;
+  return boneCrownFloorSeatY(z);
+}
+/* Far from the altar, crownTouched stays set so the slab billboard hides.
+   The prop is still on the floor and has to draw there. */
+function boneCrownDroppedOnFloor(p){
+  if(teethCrownStillSeated()) return false;
+  const f=G.lvl&&G.lvl.flags;
+  if(!f||!f.crownDropped||f.crownTaken||f.crownDestroyed) return false;
+  if(!p||p.gone||p.destroyed||p.taken) return false;
+  return true;
 }
 function drawBoneCrownProp(g,p,z){
-  if(!teethCrownStillSeated()) return;
+  const onFloor=boneCrownDroppedOnFloor(p);
+  if(!teethCrownStillSeated() && !onFloor) return;
   const img=sceneCrownSprite();
-  const seat=boneCrownSeatY(z);
+  const seat=onFloor?boneCrownFloorSeatY(z):boneCrownSeatY(z);
   if(img){
     const H=boneCrownHeadH(z);
     const W=H*(img.width/Math.max(1,img.height));
