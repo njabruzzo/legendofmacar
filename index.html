@@ -3221,6 +3221,10 @@ function fadeMasonryCanvas(img){
   return c;
 }
 function entSpriteKey(e){
+  /* Spawn may run before the idle sheet finishes loading. Use it once it has. */
+  if(e && e.name==='Skeletal Dwarf' && e.singlePose && !e.dead
+     && typeof sprReady==='function' && sprReady('dwarf_skeleton_idle'))
+    return 'dwarf_skeleton_idle';
   if(e.kind==='dwarf'){
     const k=e.col && e.col.key;
     if(e.ghost && k) return k+'_ghost';
@@ -11509,6 +11513,114 @@ function teethHordeSpots(L, origin, n){
   }
   return picked.slice(0,n);
 }
+/* The room-edge ring is walkable, but the south and east faces are about
+   four iso-depths tall and paint over that lip. Skeletal dwarves are not
+   living dwarves, so they do not get the +4 sort that clears the cap.
+   Keep them on open floor along the altar approach, inside that span. */
+/* Screen-north run of the steps, in world tiles. Same 150px sheet height
+   and 42px tile half as teethAltarLipHalf. Zoom cancels. Negative: the
+   tread sits screen-north of the lip. */
+function teethAltarStepDepth(altar){
+  const s=(altar&&altar.s)||1;
+  return ((TEETH_ALTAR_STEP_FY-1)*150*s)/42;
+}
+function teethChapelAltar(){
+  const props=(typeof G!=='undefined' && G.props)||[];
+  for(let i=0;i<props.length;i++){
+    const pr=props[i];
+    if(pr&&pr.teethAltar&&!pr.gone&&pr.x!=null) return pr;
+  }
+  return null;
+}
+/* Lip, the step run back to the tread, and one tile around that footprint.
+   The floor grid under the altar is still 0, so this is what keeps a
+   dwarf off the slab. */
+function teethAltarBlocksTile(altar, ix, iy){
+  if(!altar||altar.x==null) return false;
+  const half=teethAltarLipHalf(altar);
+  const depth=teethAltarStepDepth(altar);
+  const n=Math.max(1, Math.ceil(half*8));
+  const steps=Math.max(1, Math.ceil(Math.abs(depth)*4));
+  const ax=altar.x, ay=altar.y;
+  for(let i=0;i<=n;i++){
+    const t=-half+(2*half)*i/n;
+    for(let k=0;k<=steps;k++){
+      const u=k/steps;
+      const tx=Math.floor(ax+t+u*depth), ty=Math.floor(ay-t+u*depth);
+      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1) return true;
+    }
+  }
+  return false;
+}
+function skeletalDwarfClearOfWalls(L, x, y){
+  const g=L&&L.grid;
+  if(!g) return true;
+  const ix=x|0, iy=y|0;
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-1;dx<=1;dx++){
+      if(!dx && !dy) continue;
+      const row=g[iy+dy];
+      if(row && row[ix+dx]===1) return false;
+    }
+  }
+  return true;
+}
+function skeletalDwarfOpen(L, x, y){
+  if(!teethHordeWalkable(L, x, y)) return false;
+  if(typeof wallHidesFloor==='function' && wallHidesFloor(L, x, y)) return false;
+  const b=teethHordeBox(L);
+  /* East wall is the cell at x1. Tile x1-1 is the lip its face covers.
+     Two tiles in is x1-3. The face is still ~4 iso-depths tall, so the
+     body also stays inside that span, on the altar approach. */
+  if((x|0) > (b.x1|0)-3) return false;
+  if(x>b.x1-4.2 || y>b.y1-4.2) return false;
+  /* North and west faces are not covered by that east/south cap. */
+  if(!skeletalDwarfClearOfWalls(L, x, y)) return false;
+  if(teethAltarBlocksTile(teethChapelAltar(), x|0, y|0)) return false;
+  return true;
+}
+function skeletalDwarfSpots(L, origin, n){
+  const b=teethHordeBox(L);
+  const px=origin&&origin.x!=null?origin.x:(b.x0+b.x1)*0.5;
+  const py=origin&&origin.y!=null?origin.y:(b.y0+b.y1)*0.5;
+  const minDist=TEETH_HORDE_MIN_DIST;
+  let ax=b.x0+1.25, ay=b.y0+2.35;
+  const props=(typeof G!=='undefined' && G.props)||[];
+  for(let i=0;i<props.length;i++){
+    const pr=props[i];
+    if(pr&&pr.teethAltar&&!pr.gone&&pr.x!=null){ ax=pr.x; ay=pr.y; break; }
+  }
+  const doorX=Math.min(Math.max((b.x0+b.x1)*0.5, b.x0+1.5), b.x1-4.6);
+  const doorY=b.y1-4.6;
+  const cx=(ax+doorX)*0.5, cy=(ay+doorY)*0.5;
+  const xa0=b.x0|0, ya0=b.y0|0, xb0=(b.x1|0)-1, yb0=(b.y1|0)-1;
+  const cands=[];
+  for(let iy=ya0; iy<=yb0; iy++){
+    for(let ix=xa0; ix<=xb0; ix++){
+      const x=ix+0.5, y=iy+0.5;
+      if(!skeletalDwarfOpen(L,x,y)) continue;
+      if(Math.hypot(x-px,y-py)<minDist) continue;
+      cands.push({x:x,y:y,d:Math.hypot(x-cx,y-cy)});
+    }
+  }
+  cands.sort(function(a,c){
+    return (a.d-c.d)||(a.x-c.x)||(a.y-c.y);
+  });
+  const picked=[];
+  const seps=[2.15,1.7,1.2];
+  for(let s=0;s<seps.length && picked.length<n;s++){
+    for(let i=0;i<cands.length && picked.length<n;i++){
+      const c=cands[i];
+      let clash=0;
+      for(let k=0;k<picked.length;k++){
+        if(picked[k].x===c.x && picked[k].y===c.y){ clash=1; break; }
+        if(Math.hypot(picked[k].x-c.x, picked[k].y-c.y)<seps[s]){ clash=1; break; }
+      }
+      if(!clash) picked.push(c);
+    }
+  }
+  return picked.slice(0,n);
+}
 function riseTeethHorde(where){
   const L=G.lvl;
   if(!L||L.flags.teethRisen) return 0;
@@ -11546,14 +11658,12 @@ const SKELETAL_DWARF_N=4;
 function riseSkeletalDwarves(where){
   const L=G.lvl;
   if(!L||(L.flags&&L.flags.skeletalDwarves)) return 0;
-  L.flags=L.flags||{};
-  L.flags.skeletalDwarves=1;
   const make=typeof FOE!=='undefined' && FOE.skeletalDwarf;
   if(typeof make!=='function') return 0;
   const p=typeof player==='function'?player():null;
   const origin=(p&&p.x!=null)?p:(where||{});
   const n=SKELETAL_DWARF_N;
-  const spots=(typeof teethHordeSpots==='function')?teethHordeSpots(L, origin, n):[];
+  const spots=(typeof skeletalDwarfSpots==='function')?skeletalDwarfSpots(L, origin, n):[];
   const risen=[];
   let last=null;
   for(let i=0;i<spots.length;i++){
@@ -11568,10 +11678,13 @@ function riseSkeletalDwarves(where){
     last=e;
     burst(e.x,e.y,'#d8d0c4',8,2.1);
   }
-  if(risen.length){
-    say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
-    if(typeof beginFight==='function') beginFight(last);
-  }
+  /* The flag used to land before the spots were chosen, so a missed
+     spawn still counted as raised. Set it only once a dwarf is in. */
+  if(!risen.length) return 0;
+  L.flags=L.flags||{};
+  L.flags.skeletalDwarves=1;
+  say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
+  if(typeof beginFight==='function') beginFight(last);
   return risen.length;
 }
 function takeBoneCrown(crown){
@@ -11588,7 +11701,6 @@ function takeBoneCrown(crown){
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
   hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
-  riseTeethHorde(crown);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
   return {ok:1, worn:1};
 }
@@ -11614,7 +11726,6 @@ function destroyBoneCrown(crown){
   say('Macar shatters the bone crown.','#ffe08a');
   const xp=awardCrownDestroyXp(where);
   collapseCrownThrall();
-  riseTeethHorde(where);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
@@ -15139,6 +15250,9 @@ const TEETH_CROWN_ON_ALTAR=66/718;
    (535, 475) is a front stair tread, not this lid. */
 const TEETH_ALTAR_SLAB_FX=445/1075;
 const TEETH_ALTAR_SLAB_FY=212/718;
+/* Front stair tread on the same sheet. The lip is the foot of the
+   billboard; this row is how far the steps run screen-north of it. */
+const TEETH_ALTAR_STEP_FY=475/718;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;
