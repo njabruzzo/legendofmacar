@@ -14886,9 +14886,12 @@ function teethAltarSheetActive(){
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
-/* Front lip of the top slab, fraction down from the top of the sheet.
-   0.157 was the back rim, so the crown sat on the wall behind the altar. */
-const TEETH_ALTAR_SLAB=0.22;
+/* Center of the slab's top face, fraction down the altar sheet.
+   0.22 was the back rim: at 1280 the base hung ~40px above that face,
+   on the wall behind the altar. */
+const TEETH_ALTAR_SLAB=0.345;
+/* A few screen pixels into the stone so the base reads as seated. */
+const TEETH_CROWN_SEAT_TUCK=3;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;
@@ -14898,7 +14901,7 @@ function boneCrownSeatY(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   if(a){
     const H=teethAltarSheetH(a,z);
-    return -H*(1-TEETH_ALTAR_SLAB);
+    return -H*(1-TEETH_ALTAR_SLAB)+TEETH_CROWN_SEAT_TUCK*z;
   }
   const H=100*z;
   const m=typeof tilesetPropMetric==='function'?tilesetPropMetric('altar'):null;
