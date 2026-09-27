@@ -11591,27 +11591,42 @@ function destroyBoneCrown(crown){
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
-function tryStrikeBoneCrown(e, reach){
-  if(!e||!e.hero) return 0;
-  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
-  /* The swing already in the air when the crown is set down must not
-     erase it before it can be seen. The next swing still can. */
-  if(e.crownDropGuard){ e.crownDropGuard=0; return 0; }
-  const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
-  if(!crown) return 0;
-  /* A swing at a live foe, or any swing while a foe is in reach, never
-     hits the crown. It breaks only when that crown is the swing and no
-     foe is in reach. */
+/* A live foe aimed at, or any live foe inside the swing, blocks a crown break. */
+function liveFoeBlocksCrown(e, reach){
+  if(!e) return null;
   const aim=e.aim;
-  if(aim && !aim.dead && aim.team==='foe' && !(aim.hp!=null && aim.hp<=0)) return 0;
+  if(aim && !aim.dead && aim.team==='foe' && !(aim.hp!=null && aim.hp<=0)) return aim;
   const rad=Math.max(0.4,(reach||e.range||1)+0.2);
   const ents=G.ents||[];
   for(let i=0;i<ents.length;i++){
     const o=ents[i];
     if(!o||o.dead||o.team===e.team||o.npc||o.sleeping) continue;
     if(o.hp!=null && o.hp<=0) continue;
-    if(dist(e,o)<=rad+(o.r||0.35)) return 0;
+    if(dist(e,o)<=rad+(o.r||0.35)) return o;
   }
+  return null;
+}
+function tryStrikeBoneCrown(e, reach){
+  if(!e||!e.hero) return 0;
+  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped)) return 0;
+  /* The swing already in the air when the crown is set down must not
+     erase it before it can be seen. The next swing still can. */
+  if(e.crownDropGuard){ e.crownDropGuard=0; return 0; }
+  /* Ghost swings, foe swings, shots, bombs, and Macar's own Attack
+     never set crownTarget. Only an explicit crown action does. */
+  if(!e.crownTarget) return 0;
+  const crown=nearestBoneCrown(e, (reach||e.range||1)+0.85);
+  if(!crown){ e.crownTarget=0; return 0; }
+  if(liveFoeBlocksCrown(e, reach)){ e.crownTarget=0; return 0; }
+  e.crownTarget=0;
+  destroyBoneCrown(crown);
+  return 1;
+}
+/* Attack the bone crown / Destroy the crown. Macar, crown chosen, no foe in reach. */
+function playerDestroyBoneCrown(crown){
+  const p=typeof player==='function'?player():null;
+  if(!p||!p.hero||!crown) return 0;
+  if(liveFoeBlocksCrown(p, p.range||1)) return 0;
   destroyBoneCrown(crown);
   return 1;
 }
@@ -11831,7 +11846,7 @@ function teethCrownChoices(){
     /* Destroy leads on the first talk and again after a drop. */
     choices.push({t:'Destroy the crown.', then:()=>{
       const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
-      if(c) destroyBoneCrown(c);
+      if(c && typeof playerDestroyBoneCrown==='function') playerDestroyBoneCrown(c);
     }});
     choices.push({t:'Take the bone crown.', then:()=>{
       const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 6):null;
@@ -13287,11 +13302,9 @@ function fire(key){
     ensureShadowCleaverWielded();
     p.dest=null; p.moving=0; p.ix=0; p.iy=0;
     p.atkKind='melee';
+    /* Attack swings at a foe. It never chooses the bone crown. */
     const foe=nearestFoe(p, p.range+2.8)||(p.aim&&!p.aim.dead?p.aim:null);
-    const crown=typeof nearestBoneCrown==='function'?nearestBoneCrown(p, p.range+1.15):null;
-    if(crown && (!foe || dist(p,crown)<=dist(p,foe)+0.2)){
-      faceToward(p, crown.x, crown.y);
-    } else if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
+    if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
@@ -13651,7 +13664,9 @@ function update(dt){
     if(!PROMPT && typeof nearestBoneCrown==='function'){
       const smash=nearestBoneCrown(p,1.75);
       const dropped=G.lvl&&G.lvl.flags&&G.lvl.flags.crownDropped;
-      if(smash && dropped) interact('Attack the bone crown',()=>destroyBoneCrown(smash));
+      if(smash && dropped) interact('Attack the bone crown',()=>{
+        if(typeof playerDestroyBoneCrown==='function') playerDestroyBoneCrown(smash);
+      });
     }
     if(!PROMPT && typeof primaryCrownPrompt==='function'){
       const crownLab=primaryCrownPrompt(p);

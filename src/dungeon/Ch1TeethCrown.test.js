@@ -316,7 +316,7 @@ ctx.beginFight=function(){};
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
   'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
-  'destroyBoneCrown','tryStrikeBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
+  'destroyBoneCrown','liveFoeBlocksCrown','tryStrikeBoneCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
@@ -911,14 +911,194 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
 
   ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
   hero.aim=null; hero._attack=null; hero.fdx=0; hero.fdy=1; hero.crownDropGuard=0;
+  hero.crownTarget=0;
   ctx.G.lvl.flags.crownXp=0;
   const before=ctx.xpAwards.length;
-  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===1 && crown.destroyed===1,
+  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && !crown.destroyed,
+    'a swing with no foe still leaves the crown when Macar did not choose it');
+  hero.crownTarget=1;
+  assert(ctx.tryStrikeBoneCrown(hero, 1.6)===1 && crown.destroyed===1 && !hero.crownTarget,
     'a deliberate strike with no foe in reach destroys the crown');
   assert(ctx.xpAwards.length===before+1 && ctx.G.lvl.flags.crownXp===1,
     'that strike awards the destroy XP exactly once');
+  hero.crownTarget=1;
   assert(ctx.tryStrikeBoneCrown(hero, 1.6)===0 && ctx.xpAwards.length===before+1,
     'a second strike does not award the XP again');
+  assert(/e\.crownTarget/.test(extractFn('tryStrikeBoneCrown')),
+    'a combat swing destroys the crown only when Macar chose it');
+  assert(!/nearestBoneCrown/.test(extractFn('fire')),
+    'the Attack button does not choose the bone crown');
+  assert(!/\bdestroyBoneCrown\b|\btryStrikeBoneCrown\b/.test(extractFn('explode'))
+    && !/\bdestroyBoneCrown\b|\btryStrikeBoneCrown\b/.test(extractFn('damage'))
+    && !/\btryStrikeBoneCrown\b/.test(extractFn('update')),
+    'shots, bombs, and the update loop do not strike the crown themselves');
+}
+
+/* Ten seconds of the real update loop: a live skeleton beside a floor crown,
+   the four ghosts engaged, Macar swinging while that foe is outside his reach. */
+{
+  const fsSkill=fs.readFileSync(path.join(__dirname,'../../SkillSystem.js'),'utf8');
+  const base={
+    Math, Object, Array, Number, String, Date, JSON, parseInt, parseFloat, isNaN, isFinite,
+    console,
+    swingN:{hero:0, party:0, foe:0, shots:0, bombs:0},
+    xpAwards:[],
+    TAU:Math.PI*2,
+    GHOST_DAY_SECS:1e9,
+    PARTY_SEP_LEAD:0.85,
+    PARTY_SEP_KIN:0.72,
+    BONE_CROWN_DESTROY_XP:5000,
+    ABIL:[],
+    cds:{},
+    PROMPT:null,
+    IN:{stick:{moved:0,x:0,y:0,ox:0,oy:0}, keys:{}, taps:[]},
+    TW:84, TH:42, UIS:1, VW:1280, VH:800,
+    PartyOrders:{use(){return false;}, settle(){}, clear(){}, decide(){return null;}, order(){return null;}, commands(){return false;}},
+    Navigation:{use(){return false;}, isPilot(){return false;}},
+    EnemyIntent:{use(){return false;}, meleeClear(){return true;}, isMeleePursuer(){return false;}},
+    MacarStrikeQA:{hold:0},
+    window:undefined
+  };
+  const sandbox=new Proxy(base,{
+    get(t,p){
+      if(p in t) return t[p];
+      if(typeof p==='symbol') return undefined;
+      const f=function(){ return 0; };
+      t[p]=f;
+      return f;
+    },
+    set(t,p,v){ t[p]=v; return true; }
+  });
+  vm.createContext(sandbox);
+  vm.runInContext(fsSkill, sandbox);
+  sandbox.skillSystem=new sandbox.SkillSystem();
+  function ang(x,y){ return Math.atan2(y,x); }
+  function dist(a,b){ return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  Object.assign(sandbox,{
+    ang, dist, clamp,
+    tileVisible(){ return true; },
+    walk(){ return true; },
+    canBe(){ return true; },
+    diggable(){ return false; },
+    ri(){ return 1; },
+    rollDice(){ return 1; },
+    skillLvl(){ return 0; },
+    rnd(){ return 0; },
+    chanceOk(){ return false; },
+    addAttack(){ return 4; },
+    onHitFx(a,o,d){ return d; },
+    damage(e,amt){ if(e&&e.hp!=null) e.hp=Math.max(1,(e.hp||1)-0.01); },
+    awardPartyXp(n,why,where){ sandbox.xpAwards.push({n,why,where}); return n; },
+    say(){}, hint(){}, burst(){}, shake(){}, ftext(){}, wear(){},
+    packOf(){ return {bombs:0}; },
+    player(){ return (sandbox.G.ents||[]).find(e=>e&&e.hero)||null; },
+    riseTeethHorde(){},
+    riseSkeletalDwarves(){},
+    collapseCrownThrall(){},
+    armLivingMacarWindup(){},
+    armLivingMacarStrike(){},
+    beginSpecialtySwing(){ return 0; },
+    endSpecialtySwing(){},
+    partyHoldMelee(){ return 0; },
+    shotStyle(){ return ['bolt','#d8c49a',10]; },
+    wornAttackCd(e){ return e.cd||1.1; },
+    interact(label,fn){ sandbox.PROMPT={label,fn}; }
+  });
+  [
+    'wearingBoneCrown','nearestBoneCrown','awardCrownDestroyXp','destroyBoneCrown',
+    'liveFoeBlocksCrown','tryStrikeBoneCrown','playerDestroyBoneCrown',
+    'nearestFoe','nearestAlly','kinCanAutoFight','foeInTheFight','faceToward','shoot','explode','updateBombs',
+    'ghostSapperBomb','fire'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', sandbox));
+  vm.runInContext(extractFn('meleeSwing').replace('function meleeSwing','function meleeSwingReal')+';', sandbox);
+  vm.runInContext(`
+function meleeSwing(e,arc,reach,dmg,col){
+  if(e&&e.hero) swingN.hero++;
+  else if(e&&e.team==='party') swingN.party++;
+  else swingN.foe++;
+  return meleeSwingReal(e,arc,reach,dmg,col);
+}
+`, sandbox);
+  const realShoot=sandbox.shoot;
+  sandbox.shoot=function(){
+    sandbox.swingN.shots++;
+    return realShoot.apply(null, arguments);
+  };
+  const realExplode=sandbox.explode;
+  sandbox.explode=function(){
+    sandbox.swingN.bombs++;
+    return realExplode.apply(null, arguments);
+  };
+  vm.runInContext(extractFn('update')+';', sandbox);
+
+  const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0};
+  const crown={x:107.80,y:8.35,k:'bonecrown',s:1.70,gone:0,destroyed:0};
+  const hero={
+    id:1, hero:1, name:'Macar', team:'party', kind:'dwarf', col:{key:'macar'},
+    x:106.25, y:8.35, hp:400, maxhp:400, dead:0, range:1.4, cd:1.05, ct:0,
+    atk:0, atkMax:0.78, atkKind:'melee', swung:0, fdx:1, fdy:0, aim:null,
+    crownTarget:0, crownDropGuard:0, moving:0, r:0.36, dmg:8, sp:4.3, defending:0
+  };
+  assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)<2.6, 'the floor crown sits inside a crown-strike radius');
+  assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)>0.5, 'the floor crown is not under Macar\'s feet');
+  const skel={
+    id:2, hero:0, name:'Fanged Skeleton', team:'foe', kind:'undead',
+    x:crown.x+0.95, y:crown.y, hp:9999, maxhp:9999, dead:0, range:1.05, cd:0.7, ct:0,
+    atk:0, atkMax:0.42, swung:0, fdx:-1, fdy:0, r:0.34, dmg:6, sp:2.2, aggro:99, engaged:1
+  };
+  const macarToSkel=Math.hypot(hero.x-skel.x, hero.y-skel.y);
+  const crownToSkel=Math.hypot(crown.x-skel.x, crown.y-skel.y);
+  assert(crownToSkel<1.15, 'the live skeleton stands about one tile from the floor crown');
+  assert(macarToSkel>(hero.range+0.35+0.2+skel.r),
+    'that skeleton is outside the reach that would block a crown strike');
+  assert(macarToSkel>hero.range+0.75, 'auto-attack does not have the skeleton in reach');
+  const ghosts=[
+    ['pordoom','Pordum','pick',1.15,1.15],
+    ['fendur','Fendur','bolt',6.5,1.7],
+    ['orbo','Orbo','shield',1.15,1.15],
+    ['talpor','Talpor','faith',1.05,1.25]
+  ].map((g,i)=>({
+    id:10+i, hero:0, ghost:1, name:g[1], team:'party', kind:'dwarf', col:{key:g[0]},
+    role:g[2], x:skel.x+((i%2)?0.7:-0.7), y:skel.y+((i<2)?0.55:-0.55),
+    hp:9999, maxhp:9999, dead:0, range:g[3], cd:g[4], ct:0, atk:0, atkMax:0.42,
+    swung:0, fdx:0, fdy:0, r:0.36, dmg:8, sp:4, ranged:g[0]==='fendur'?1:0,
+    glow:'#7ad8ff', defending:0, moving:0
+  }));
+  sandbox.G={
+    scene:'play', paused:0, talk:null, sleepShow:null, elapsed:0, day:1, dayClock:0,
+    hint:null, flash:null, craftGuideT:0, hurt:0, digging:0, searching:0, secretSearch:0,
+    fightOn:1, songBuff:0, shake:0, hitstop:0, aim:null, cam:{x:106.25,y:8.35},
+    thrown:[], shots:[], parts:[],
+    texts:[], log:[], loot:[], props:[altar, crown], ents:[hero].concat(ghosts, [skel]),
+    equipped:{}, packs:{macar:{magic:[]}, pordoom:{bombs:0}},
+    lvl:{n:1, flags:{crownDropped:1, crownTouched:1, crownTaken:0, crownDestroyed:0, crownXp:0},
+      w:132, h:90, grid:null, plug:null}
+  };
+  sandbox.G.thrown.push({
+    sx:crown.x, sy:crown.y, tx:crown.x, ty:crown.y, x:crown.x, y:crown.y,
+    t:1, dur:0.62, fuse:0.08, state:1, spin:0, kind:'bomb', done:0
+  });
+  const dt=1/30;
+  let heroSwingsArmed=0;
+  for(let t=0;t<10;t+=dt){
+    if(hero.atk<=0 && hero.ct<=0 && (Math.floor(t*2)!==heroSwingsArmed)){
+      heroSwingsArmed=Math.floor(t*2);
+      sandbox.G.scene='play';
+      vm.runInContext("fire('attack');", sandbox);
+    }
+    vm.runInContext('update('+dt+');', sandbox);
+  }
+  assert(sandbox.swingN.hero>=8, 'Macar swung through the update loop ('+sandbox.swingN.hero+')');
+  assert(sandbox.swingN.party>=8, 'ghost allies swung through the update loop ('+sandbox.swingN.party+')');
+  assert(sandbox.swingN.foe>=8, 'the skeleton swung through the update loop ('+sandbox.swingN.foe+')');
+  assert(sandbox.swingN.shots>=1, 'a ghost shot was fired ('+sandbox.swingN.shots+')');
+  assert(sandbox.swingN.bombs>=1, 'a bomb exploded on the crown tile ('+sandbox.swingN.bombs+')');
+  assert(!crown.destroyed && !crown.gone && sandbox.G.lvl.flags.crownDestroyed!==1,
+    'ten seconds of party and foe combat leaves the floor crown');
+  assert(!sandbox.xpAwards.some(a=>/Bone Crown destroyed/.test(a.why||'')),
+    'that fight awards no crown-destroy XP');
+  assert(!hero.crownTarget, 'combat never armed a crown target');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
