@@ -1544,22 +1544,12 @@ function nickSpectralGhostSheet(img){
     ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
     ||img===SPR.talpor_ghost_w1||img===SPR.talpor_ghost_w2;
 }
-function paintedGhostBackWalk(img){
-  if(!img) return false;
-  return img===SPR.pordoom_ghost_back_w1||img===SPR.pordoom_ghost_back_w2
-    ||img===SPR.fendur_ghost_back_w1||img===SPR.fendur_ghost_back_w2
-    ||img===SPR.orbo_ghost_back_w1||img===SPR.orbo_ghost_back_w2
-    ||img===SPR.talpor_ghost_back_w1||img===SPR.talpor_ghost_back_w2;
-}
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
   if(e.ghost){
     if(img===SPR.talpor_ghost) return colorizeTalporStanding(img);
     if(nickSpectralGhostSheet(img)) return img;
-    /* North walk plants are already icy cyan and fully filled. Lifting
-       them would recolor a body that is already the front-walk family. */
-    if(paintedGhostBackWalk(img)) return img;
     return liftGhostSpirit(img);
   }
   return blitLivingMacar(img)||img;
@@ -2130,10 +2120,6 @@ function partyGhostKeyReady(key, idleKey){
   /* Brown back is narrower than idle, so the family match would plant
      the teal idle and never lift the back sheet. */
   if(talporInterimGhostKey(key)) return true;
-  /* Screen-north walk. back_w1/back_w2 hold a full body. Rejecting them
-     planted the idle back for both gait halves, and Orbo's idle back is
-     an outline (see-through torso). Compass and w3 still fail below. */
-  if(/_ghost_back_w[12]$/.test(key||'')) return true;
   if(!sheetLivingColors(img, key)) return false;
   if(matchingPartyAtkReady(key, idleKey)) return true;
   /* Nick-GOOD front walk is this kin's own sheet. Stride and weapon
