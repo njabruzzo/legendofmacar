@@ -7556,6 +7556,14 @@ function packRowToPile(r, taken){
 function dropPackRow(r){
   if(!r) return;
   if(r.kind==='drop-ep'){ askDropElectrum(); return; }
+  const crownIt=r.it||null;
+  if(crownIt && (crownIt.boneCrown || crownIt.id==='bone_crown')
+     && typeof wearingBoneCrown==='function' && wearingBoneCrown()
+     && typeof dropBoneCrown==='function'){
+    dropBoneCrown();
+    G.packSel=null;
+    return;
+  }
   if(G.packWho && G.packWho!=='macar' && !isGhostPack()){
     say('Drop kit from MACAR\'s pack.','#c9b895');
     return;
@@ -11975,9 +11983,7 @@ function crownWasDropped(){
 function teethCrownChoices(){
   const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
   const choices=[];
-  if(worn){
-    choices.push({t:'Drop the crown.', then:()=>{ if(typeof dropBoneCrown==='function') dropBoneCrown(); }});
-  } else {
+  if(!worn){
     /* Destroy leads on the first talk and again after a drop. */
     choices.push({t:'Destroy the crown.', then:()=>{
       const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
@@ -12035,11 +12041,7 @@ function openTeethChapelLook(key){
 }
 function primaryCrownPrompt(p){
   const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
-  /* Drop owns the action button for as long as the crown is worn.
-     A nearby corpse ('Animate the dead') or a living thrall
-     ('Thrall: stay') used to claim it first, so Drop could not be
-     reached while standing among the bodies. */
-  if(worn && typeof dropBoneCrown==='function') return 'Drop the bone crown';
+  /* The crown leaves only from its inventory Drop. No on-screen prompt. */
   if(worn && typeof nearestAnimatableCorpse==='function'){
     if(nearestAnimatableCorpse(p,1.95)) return 'Animate the dead';
   }
@@ -13816,8 +13818,7 @@ function update(dt){
     }
     if(!PROMPT && typeof primaryCrownPrompt==='function'){
       const crownLab=primaryCrownPrompt(p);
-      if(crownLab==='Drop the bone crown') interact(crownLab,()=>openTeethChapelLook('teeth_chapel_crown'));
-      else if(crownLab==='Animate the dead'){
+      if(crownLab==='Animate the dead'){
         const body=nearestAnimatableCorpse(p,1.95);
         if(body) interact(crownLab,()=>tryAnimateDead(p,body));
       } else if(crownLab){
