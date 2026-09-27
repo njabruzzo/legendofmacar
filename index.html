@@ -2675,10 +2675,11 @@ function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
    predicate still applies when a save has no map. */
 /* v5 plate is 298×392, upright, with no pre-skew. Content box is 266×360
    (16px pad). The portrait draws that content box at 2.40× wallFaceH, so
-   the canvas quad is about 2.61× wallFaceH. This segment is 3.15× wallFaceH,
-   taller than the canvas, so the horns sit on masonry with margin. */
+   the canvas quad is about 2.61× wallFaceH. This segment is 2.96× wallFaceH:
+   taller than the canvas, so both horns sit on the same masonry, and the
+   cap still lands on screen above them from the chapel floor. */
 const DEMON_FACE_PLATE={w:298,h:392,pad:16};
-const WALL_TEETH_FACE_SCALE=3.15;
+const WALL_TEETH_FACE_SCALE=2.96;
 const DEMON_FACE_CONTENT_SCALE=2.40;
 function isTeethFaceWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
@@ -15111,9 +15112,10 @@ function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
 /* Center of the slab's top face, fraction down the altar sheet.
-   0.22 was the back rim: at 1280 the base hung ~40px above that face,
-   on the wall behind the altar. */
-const TEETH_ALTAR_SLAB=0.345;
+   0.22 was the back rim. 0.345 still sat the base on that rim, so the
+   crown read as perched on the far ledge. 0.50 is the middle of the
+   top face, front to back. */
+const TEETH_ALTAR_SLAB=0.50;
 /* A few screen pixels into the stone so the base reads as seated. */
 const TEETH_CROWN_SEAT_TUCK=3;
 function boneCrownHeadH(z){
@@ -15299,7 +15301,7 @@ function demonFaceScreen(p){
 function chapelFaceContentFrac(){
   /* Content box is 360 of 392 (16px pad). A live spriteBounds miss
      (plate not decoded yet, or a box that failed the portrait test)
-     used to return dwarfFaceH()*1.08 — a small mask on the 3.15 wall.
+     used to return dwarfFaceH()*1.08 — a small mask on the face wall.
      This fraction is dimensionless, so face/wall is the same at every zoom. */
   return 360/DEMON_FACE_PLATE.h;
 }
