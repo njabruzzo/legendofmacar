@@ -11582,6 +11582,10 @@ function riseSkeletalDwarves(where){
   if(risen.length){
     say('Skeletal dwarves climb out of the crown\'s shadow.','#ff6a5a');
     if(typeof beginFight==='function') beginFight(last);
+    /* beginFight can clear the stir. Pin it so the open is a short beat. */
+    for(let i=0;i<risen.length;i++){
+      if(risen[i] && !risen[i].dead) risen[i].stun=0.4;
+    }
   }
   return risen.length;
 }
@@ -15057,14 +15061,14 @@ function drawWornBoneCrown(g, W, H, dx, dy, flip, z, src){
   /* Full TAKE crown (crownSprite), punched for the face opening. */
   const img=crownSprite()?wornCrownSheet():null;
   const b=src && typeof spriteBounds==='function'?spriteBounds(src):null;
-  const hy=(b&&b.browY!=null)?b.browY:0.24;
+  const hy=(b&&b.browY!=null)?b.browY+0.015:0.25;
   const hx=(b&&b.browX!=null)?b.browX:0.5;
   const cx=dx+W*(flip?(1-hx):hx);
   const cy=dy+H*hy;
   g.save();
   if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
   if(img){
-    const h=Math.max(12, H*0.20), w=h*(img.width/Math.max(1,img.height));
+    const h=Math.max(12, H*0.32), w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, cx-w/2, cy-h, w, h);
   } else {
     g.translate(cx, cy);
