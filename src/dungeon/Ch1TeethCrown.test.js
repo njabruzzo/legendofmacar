@@ -332,7 +332,7 @@ ctx.beginFight=function(){};
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
-  'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','riseSkeletalDwarves','takeBoneCrown','awardCrownDestroyXp',
+  'teethHordeBox','teethHordeWalkable','teethHordeSpots','skeletalDwarfOpen','skeletalDwarfSpots','riseTeethHorde','riseSkeletalDwarves','takeBoneCrown','awardCrownDestroyXp',
   'destroyBoneCrown','liveFoeBlocksCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -358,10 +358,21 @@ assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
   'TAKE does not spawn fanged skeletons');
 {
   const mac=ctx.G.ents.find(e=>e.hero);
-  const spots=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const spots=ctx.skeletalDwarfSpots(ctx.G.lvl, mac, 4);
   const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
-  assert(spots.length===4 && dwarves.every((e,i)=>e.x===spots[i].x && e.y===spots[i].y),
-    'TAKE skeletal dwarves stand on their spawn spots');
+  const want=[[104.5,6.5],[105.5,8.5],[102.5,7.5],[106.5,5.5]];
+  assert(spots.length===4 && dwarves.length===4, 'TAKE places four approach spots');
+  dwarves.forEach((e,i)=>{
+    assert(e.x===spots[i].x && e.y===spots[i].y, 'TAKE dwarf '+i+' stands on its approach spot');
+    assert(e.x===want[i][0] && e.y===want[i][1], 'TAKE dwarf '+i+' is on the altar approach');
+    assert(ctx.teethHordeWalkable(ctx.G.lvl, e.x, e.y), 'TAKE dwarf '+i+' is on walkable chapel floor');
+    assert(e.x<=113-4.2 && e.y<=14-4.2, 'TAKE dwarf '+i+' is clear of the south and east caps');
+  });
+  let nearest=99;
+  for(let i=0;i<dwarves.length;i++) for(let j=i+1;j<dwarves.length;j++){
+    nearest=Math.min(nearest, Math.hypot(dwarves[i].x-dwarves[j].x, dwarves[i].y-dwarves[j].y));
+  }
+  assert(nearest>=2.1, 'TAKE dwarves do not overlap ('+nearest.toFixed(2)+')');
 }
 assert(ctx.takeBoneCrown(altarCrown).ok===0, 'taking again is a no-op');
 assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
@@ -398,11 +409,19 @@ assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
   'DESTROY does not spawn fanged skeletons');
 {
   const mac=ctx.G.ents.find(e=>e.hero);
-  const spots=ctx.teethHordeSpots(ctx.G.lvl, mac, 4);
+  const spots=ctx.skeletalDwarfSpots(ctx.G.lvl, mac, 4);
   const dwarves=ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf');
-  assert(spots.length===4 && dwarves.every((e,i)=>e.x===spots[i].x && e.y===spots[i].y),
-    'DESTROY skeletal dwarves stand on their spawn spots');
+  const want=[[104.5,6.5],[105.5,8.5],[102.5,7.5],[106.5,5.5]];
+  assert(spots.length===4 && dwarves.length===4, 'DESTROY places four approach spots');
+  dwarves.forEach((e,i)=>{
+    assert(e.x===spots[i].x && e.y===spots[i].y, 'DESTROY dwarf '+i+' stands on its approach spot');
+    assert(e.x===want[i][0] && e.y===want[i][1], 'DESTROY dwarf '+i+' is on the altar approach');
+    assert(ctx.skeletalDwarfOpen(ctx.G.lvl, e.x, e.y), 'DESTROY dwarf '+i+' is open floor inside the cap');
+  });
 }
+assert(/skeletalDwarfSpots\(L, origin, n\)/.test(extractFn('riseSkeletalDwarves'))
+  && !/teethHordeSpots\(/.test(extractFn('riseSkeletalDwarves')),
+  'skeletal dwarves use the approach spots, not the room-edge horde ring');
 
 /* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
    Wall cells on the far edge must be skipped. beginFight may lengthen stun;

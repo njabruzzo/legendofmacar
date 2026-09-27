@@ -80,7 +80,7 @@ const ctx={
   beginFight(){ ctx.fights++; },
   player(){ return {x:5,y:5,hero:1}; },
   sprReady(k){ return !!(ctx.SPR[k] && ctx.SPR[k].width); },
-  teethHordeSpots(){ return [{x:6,y:6},{x:7,y:6},{x:6,y:7},{x:7,y:7}]; },
+  skeletalDwarfSpots(){ return [{x:6,y:6},{x:7,y:6},{x:6,y:7},{x:7,y:7}]; },
   FOE:{skeletalDwarf(){ return {kind:'undead', sprite:'undead', team:'foe', hp:16}; }}
 };
 vm.createContext(ctx);
