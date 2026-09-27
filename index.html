@@ -8426,6 +8426,8 @@ function wearingElvenkind(e){
   if(cloak && /cloak of elvenkind/i.test(cloak.n||'')) return true;
   return false;
 }
+/* Carried weight and pack items never change Macar's step. */
+function macarCarryMoveMul(_e){ return 1; }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
 function wornMoveMul(e){
   let mul=1;
@@ -8438,6 +8440,8 @@ function wornMoveMul(e){
     /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
     else if(/striding and springing/i.test(n)) mul=1.5;
   }
+  if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof macarCarryMoveMul==='function')
+    mul*=macarCarryMoveMul(e);
   if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof electrumMoveMul==='function')
     mul*=electrumMoveMul();
   return mul;
@@ -13034,7 +13038,16 @@ function partyPortraitFrame(){
   if(hudMobile()){
     const x=Math.max(8, (inset.l||0));
     const y=Math.max(8, (inset.t||0));
-    const w=PORT?118:124, h=PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
+    const w=PORT?118:124;
+    let h=PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
+    /* An extra raised-dead card must stay above the thumb cluster. */
+    let limit=(typeof VH==='number'?VH:0)-8;
+    if(UI && UI.hudTop) limit=Math.min(limit, UI.hudTop-6);
+    if(shown>0 && y+shown*(h+gap)>limit){
+      gap=2;
+      const avail=Math.max(shown*20, limit-y);
+      h=Math.max(20, Math.floor((avail-shown*gap)/shown));
+    }
     const cards=[];
     for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
     return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap), compact:1};
