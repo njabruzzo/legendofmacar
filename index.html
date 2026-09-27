@@ -2674,13 +2674,14 @@ function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
    stores a multiple of wallFaceH per tile; a set value wins, and the
    predicate still applies when a save has no map. */
 /* v5 plate is 298×392, upright, with no pre-skew. Content box is 266×360
-   (16px pad). The portrait draws that content box at 2.40× wallFaceH, so
-   the canvas quad is about 2.61× wallFaceH. This segment is 2.96× wallFaceH:
+   (16px pad). The portrait draws that content box at 2.12× wallFaceH, so
+   the canvas quad is about 2.31× wallFaceH. This segment is 2.40× wallFaceH:
    taller than the canvas, so both horns sit on the same masonry, and the
-   cap still lands on screen above them from the chapel floor. */
+   cap still lands on screen above them from the closest chapel stand
+   (the short 844×390 view included). */
 const DEMON_FACE_PLATE={w:298,h:392,pad:16};
-const WALL_TEETH_FACE_SCALE=2.96;
-const DEMON_FACE_CONTENT_SCALE=2.40;
+const WALL_TEETH_FACE_SCALE=2.40;
+const DEMON_FACE_CONTENT_SCALE=2.12;
 function isTeethFaceWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
 }
@@ -15113,9 +15114,9 @@ function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 const TEETH_CROWN_ON_ALTAR=66/718;
 /* Center of the slab's top face, fraction down the altar sheet.
    0.22 was the back rim. 0.345 still sat the base on that rim, so the
-   crown read as perched on the far ledge. 0.50 is the middle of the
-   top face, front to back. */
-const TEETH_ALTAR_SLAB=0.50;
+   crown read as perched on the far ledge. 0.50 put the base on the front
+   lip (the top face ends near 0.51). 0.42 seats the base in the middle. */
+const TEETH_ALTAR_SLAB=0.42;
 /* A few screen pixels into the stone so the base reads as seated. */
 const TEETH_CROWN_SEAT_TUCK=3;
 function boneCrownHeadH(z){

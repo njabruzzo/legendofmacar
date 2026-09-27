@@ -104,10 +104,10 @@ box.s2w=function(){ return corners[corner++%4]; };
 vm.createContext(box);
 vm.runInContext(
   ['const DEMON_FACE_PLATE={w:298,h:392,pad:16};',
-   'const DEMON_FACE_CONTENT_SCALE=2.40;',
+   'const DEMON_FACE_CONTENT_SCALE=2.12;',
    'const WALL_HALL_SCALE=0.70;',
    'const WALL_TEETH_NORTH_SCALE=2.25;',
-   'const WALL_TEETH_FACE_SCALE=2.96;',
+   'const WALL_TEETH_FACE_SCALE=2.40;',
    extractFn('isWalkTile'), extractFn('teethBounds'), extractFn('nearTeethChapel'),
    extractFn('isTeethNorthWall'), extractFn('isTeethFaceWall'),
    extractFn('hallWallH'), extractFn('teethNorthWallH'), extractFn('teethFaceWallH'),
