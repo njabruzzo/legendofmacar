@@ -744,47 +744,22 @@ async function proveTitleNewGame() {
     }
 
     const click = await cdp.eval('window.__MACAR_VERIFY__.clickName("New descent")');
+    let play = s;
     if (!click || !click.ok) {
       recordCheck('enter-the-deep', 'fail', JSON.stringify(click));
     } else {
-      const introLimit = Date.now() + 20000;
-      let intro = s;
-      while (Date.now() < introLimit) {
-        intro = await snapshot(cdp);
-        if (intro.scene === 'intro') break;
-        await new Promise((r) => setTimeout(r, 200));
+      const playLimit = Date.now() + 60000;
+      while (Date.now() < playLimit) {
+        play = await snapshot(cdp);
+        if (play.scene === 'intro') break;
+        if (play.scene === 'play' && play.worldArtReady !== false) break;
+        await new Promise((r) => setTimeout(r, 250));
       }
       await shot('enter-the-deep');
       await snapWrite('enter-the-deep');
-      if (intro.scene !== 'intro') recordCheck('enter-the-deep', 'fail', 'scene=' + intro.scene);
-      else recordCheck('enter-the-deep', 'pass', 'scene=intro after New descent');
-    }
-
-    s = await snapshot(cdp);
-    await shot('intro-visible');
-    await snapWrite('intro-visible');
-    const descend = (s.menus || []).some((m) => m.name === 'Descend');
-    if (s.scene !== 'intro' || !descend) {
-      recordCheck('intro-visible', 'fail', 'missing Descend; scene=' + s.scene);
-    } else {
-      recordCheck('intro-visible', 'pass', 'intro Descend ready');
-    }
-
-    const dclick = await cdp.eval('window.__MACAR_VERIFY__.clickName("Descend")');
-    if (!dclick || !dclick.ok) recordCheck('descend-to-play', 'fail', JSON.stringify(dclick));
-    const playLimit = Date.now() + 60000;
-    let play = s;
-    while (Date.now() < playLimit) {
-      play = await snapshot(cdp);
-      if (play.scene === 'play') break;
-      await new Promise((r) => setTimeout(r, 250));
-    }
-    await shot('descend-to-play');
-    await snapWrite('descend-to-play');
-    if (play.scene !== 'play') {
-      recordCheck('descend-to-play', 'fail', 'scene=' + play.scene + ' worldArtReady=' + play.worldArtReady);
-    } else {
-      recordCheck('descend-to-play', 'pass', 'scene=play');
+      if (play.scene === 'intro') recordCheck('enter-the-deep', 'fail', 'chapter intro still gates play');
+      else if (play.scene !== 'play') recordCheck('enter-the-deep', 'fail', 'scene=' + play.scene + ' worldArtReady=' + play.worldArtReady);
+      else recordCheck('enter-the-deep', 'pass', 'scene=play after New descent; no Descend gate');
     }
 
     await new Promise((r) => setTimeout(r, 400));
@@ -805,7 +780,7 @@ async function proveTitleNewGame() {
     const cons = path.join(evidenceDir(state), 'console.jsonl');
     if (fs.existsSync(CONSOLE_PATH)) fs.copyFileSync(CONSOLE_PATH, cons);
     else fs.writeFileSync(cons, '');
-    required.push('title-visible', 'title-menu-visible', 'enter-the-deep', 'intro-visible', 'descend-to-play', 'play-hud');
+    required.push('title-visible', 'title-menu-visible', 'enter-the-deep', 'play-hud');
   } finally {
     cdp.close();
   }

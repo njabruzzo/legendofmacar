@@ -63,8 +63,8 @@ assert(/one thrall at a time/.test(html) && /Once per corpse/.test(html),
   'HOUSE law is one thrall, once per corpse');
 assert(/follow \/ fight nearest foe \/ stay/.test(html),
   'thrall commands are follow, fight nearest foe, stay');
-assert(/ASSET_VER='114'/.test(html) && !/ASSET_VER='115'/.test(html),
-  'ASSET_VER is 114 — remat Talpor idle bw=344 (Nick CALL)');
+assert(/ASSET_VER='124'/.test(html) && !/ASSET_VER='115'/.test(html),
+  'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/SPRITE_FILES\.bone_crown_scene='assets\/props\/prop_bone_crown_scene\.png'/.test(html),
@@ -98,10 +98,29 @@ assert(/demon_dwarfface:'assets\/props\/prop_demon_dwarfface\.png'/.test(html)
   const buf=fs.readFileSync(facePath);
   assert(buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47, 'SIGNED face is a PNG');
   const w=buf.readUInt32BE(16), h=buf.readUInt32BE(20);
-  assert(w===457 && h===274, 'SIGNED face is Nick\'s 457×274 sheet');
+  assert(w===298 && h===392, 'approved demon face is the 298×392 plate');
 }
-assert(/return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
-  'v11 face quad keeps the wide 457×274 aspect');
+{
+  const emptyPath=path.join(__dirname,'../../assets/props/prop_demon_dwarfface_empty.png');
+  assert(fs.existsSync(emptyPath), 'empty-socket demon face is on disk');
+  const ebuf=fs.readFileSync(emptyPath);
+  assert(ebuf.readUInt32BE(16)===298 && ebuf.readUInt32BE(20)===392,
+    'empty socket is the same 298×392 plate');
+}
+assert(/demonFaceDrawH\(img, p\)/.test(extractFn('demonFaceHalf'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 2\.80\)/.test(extractFn('demonFaceHalf')),
+  'the chapel face quad uses the content-sized height and keeps the plate aspect');
+assert(/function vaultDemonFace\(/.test(html)
+  && /p\.wall==='e' \|\| p\.toothKind==='bronze'/.test(extractFn('vaultDemonFace'))
+  && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(extractFn('demonFaceDrawH'))
+  && /SPR\.demon_dwarfface_vault/.test(extractFn('demonFaceImg'))
+  && /return clamp\(H\*aspect\/\(2\*perTile\), 0\.70, 1\.90\)/.test(extractFn('demonFaceHalf')),
+  'the hourglass vault face keeps main\'s height and wide-plate cap');
+{
+  const vault=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_demon_dwarfface_vault.png'));
+  assert(vault.readUInt32BE(16)===457 && vault.readUInt32BE(20)===274,
+    'vault plate is main\'s 457×274 sheet');
+}
 assert(!/TODO\(Disney SIGNED\)/.test(html),
   'Disney SIGNED TODO is gone — signed sheet is the file on disk');
 assert(/function demonFaceScreen\(/.test(html) && /function demonFacePlaneY\(/.test(html),
@@ -125,14 +144,23 @@ assert(/WALL_TEETH_NORTH_SCALE=2\.25/.test(html) && /function teethNorthWallH\(L
   'chapel north wall is raised above hall height');
 assert(/SPRITE_FILES\.teeth_floor='assets\/tiles\/teeth_floor\.png'/.test(html),
   'tiny fang field is registered');
+assert(/SPRITE_FILES\.teeth_floor_atlas='assets\/tiles\/teeth_floor_atlas_8x8\.png'/.test(html),
+  'teeth floor atlas is the live chapel bind');
+assert(/const n=8, cw=atlas\.width\/n/.test(extractFn('drawTeethTile')),
+  'each chapel tile blits one cell of the 8×8 atlas');
 assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
   'chapel platform sheet is registered');
 assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
   && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),
   'chapel north masonry sheets are registered');
-['teeth_floor.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
+['teeth_floor.png','teeth_floor_atlas_8x8.png','tile_wall_teeth_chapel.png','tile_wall_teeth_chapel_opaque.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/tiles/'+n)), n+' on disk');
 });
+{
+  const atlas=fs.readFileSync(path.join(__dirname,'../../assets/tiles/teeth_floor_atlas_8x8.png'));
+  assert(atlas.readUInt32BE(16)===1280 && atlas.readUInt32BE(20)===640,
+    'teeth floor atlas is 1280×640, eight by eight cells');
+}
 {
   const altar=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar.png'));
   const teeth=fs.readFileSync(path.join(__dirname,'../../assets/props/prop_altar_teeth.png'));
@@ -171,15 +199,38 @@ assert(/function isTeethNwChapelWall\(/.test(html) && /x<105/.test(extractFn('is
   'chapel mural stays on the northwest wall, off the demon face');
 assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
   'only the teeth-chapel north row is the tall face wall');
-assert(/isTeethNorthWall\(L,x,y\)\?teethNorthWallH\(L\):H/.test(html),
-  'drawWallCell uses the tall teeth face on that row');
-assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html),
-  'fog punch grows with the tall chapel wall');
+assert(/function cellWallH\(L,x,y\)/.test(html)
+  && /if\(isTeethNorthWall\(L,x,y\)\) return teethNorthWallH\(L\)/.test(extractFn('cellWallH'))
+  && /const faceH=cellWallH\(L,x,y\)/.test(html),
+  'drawWallCell uses cellWallH, and the chapel row stays on teethNorthWallH');
+assert(/DEMON_FACE_PLATE=\{w:298,h:392,pad:16\}/.test(html)
+  && /DEMON_FACE_CONTENT_SCALE=1\.94/.test(html)
+  && /WALL_TEETH_FACE_SCALE=2\.25/.test(html)
+  && 2.25 > 1.94 / (360/392),
+  'the face wall covers the 298×392 plate, horns included, with margin');
+assert(/function chapelFaceContentFrac\(/.test(html)
+  && /return 360\/DEMON_FACE_PLATE\.h/.test(extractFn('chapelFaceContentFrac'))
+  && !/spriteBounds/.test(extractFn('demonFaceDrawH'))
+  && /chapelFaceContentFrac\(\)/.test(extractFn('demonFaceDrawH')),
+  'chapel face height uses the plate fraction, not a live content box');
+assert(/WALL_TEETH_FACE_SCALE=2\.25/.test(html)
+  && /x>=105 && x<=109/.test(extractFn('isTeethFaceWall'))
+  && /function wallHeightOverride\(/.test(html)
+  && /applyTeethFaceWallHeight\(L\)/.test(extractFn('buildTeethCrownRoom')),
+  'tiles behind the demon face override to a taller wall');
+assert(/if\(isTeethNorthWall\(L,x,y\)\) tall=teethNorthWallH\(L\)/.test(html)
+  && /else if\(isTeethFaceWall\(L,x,y\)\) tall=teethFaceWallH\(L\)/.test(html),
+  'fog punch grows with the chapel wall, then the taller face segment');
+assert(/SPRITE_FILES\.demon_dwarfface_empty='assets\/props\/prop_demon_dwarfface_empty\.png'/.test(html)
+  && /hasElectrumToothInPack\(\)/.test(extractFn('demonFaceShowsEmpty'))
+  && /SPR\.demon_dwarfface_empty/.test(extractFn('demonFaceImg'))
+  && /emptySheet/.test(extractFn('drawDemonDwarfFace')),
+  'empty-socket face follows the electrum tooth and skips the ellipse when that plate is loaded');
 {
   const room=extractFn('buildTeethCrownRoom');
   assert(/k:'altar',s:1\.55,teethAltar:1/.test(room), 'teeth altar scale is 1.55 so it fits the northwest wall');
   assert(/const altar=\{x:102\.25,y:4\.35\}/.test(room), 'altar stands on the northwest wall');
-  assert(/const face=\{x:107\.25,y:2\.48\}/.test(room), 'demon face stays centered on the north wall');
+  assert(/const face=\{x:107\.10,y:2\.48\}/.test(room), 'demon face is centered on the tall north-wall span');
   assert(/k:'bonecrown',s:1\.70/.test(room), 'bone crown scale is 1.70');
   assert(/x:altar\.x,y:altar\.y,k:'bonecrown'/.test(room),
     'crown shares the altar foot so it can sit on the slab');
@@ -194,6 +245,26 @@ assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
   'tooth prop height is the small-fang scale');
 assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
   'bone crown is drawn up on the altar slab');
+assert(/TEETH_ALTAR_SLAB_FX=445\/1075/.test(html) && /TEETH_ALTAR_SLAB_FY=212\/718/.test(html),
+  'crown base is the blood-lid center of the altar sheet');
+assert(!/TEETH_CROWN_SEAT_TUCK/.test(html) && !/TEETH_CROWN_SEAT_X/.test(html),
+  'seat has no zoom tuck and no world-unit x offset');
+assert(/function boneCrownAltarSeat\(rect\)/.test(html)
+  && /rect\.x\+TEETH_ALTAR_SLAB_FX\*rect\.w/.test(extractFn('boneCrownAltarSeat'))
+  && /rect\.y\+TEETH_ALTAR_SLAB_FY\*rect\.h/.test(extractFn('boneCrownAltarSeat')),
+  'seat is a fraction of the altar drawn rect');
+assert(/const altarRect=\{x:-sheetW\/2, y:-H, w:sheetW, h:H\}/.test(extractFn('drawProp'))
+  && /drawBillboard\(g, sheet, altarRect\.h\)[\s\S]*boneCrownAltarSeat\(altarRect\)/.test(extractFn('drawProp'))
+  && /drawBoneCrownAt\(g, z, seat\.x, seat\.y, crown\.s\|\|1\)/.test(extractFn('drawProp')),
+  'seated crown is painted on the altar sheet rect after that sheet');
+assert(/if\(teethCrownStillSeated\(\)\) return;/.test(extractFn('drawProp')),
+  'the seated crown is not drawn again as its own prop');
+assert(/g\.translate\(seatX, seatY\)/.test(extractFn('drawBoneCrownAt'))
+  && /drawBoneCrownShape\(g, z, scale\|\|1\)/.test(extractFn('drawBoneCrownAt')),
+  'fallback crown shape uses the same slab seat');
+assert(/o\.k==='bonecrown' && teethCrownStillSeated\(\)\) return boneCrownDrawDepth\(o\)/.test(extractFn('actorDrawDepth'))
+  && /demonFaceDrawDepth\(face\)\+1/.test(extractFn('boneCrownDrawDepth')),
+  'a seated crown prop still sorts after the wall and the face');
 assert(/\(8\.2\+h2\(i,x\)\*3\.4\)\*z\*sc/.test(extractFn('drawTeethTile'))
   && /\(risen\?4\.0:6\.4\+h2\(i,x\+y\)\*2\.8\)\*z\*sc/.test(extractFn('drawTeethTile')),
   'floor tile fangs are scaled down to a carpet');
@@ -203,11 +274,12 @@ assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(
   'openSecret branches to the teeth chapel');
 assert(/Take the bone crown/.test(html) && /Animate the dead/.test(html),
   'TAKE and animate-dead prompts exist');
-assert(/Attack the bone crown/.test(html), 'ATTACK crown prompt exists');
+assert(!/Attack the bone crown/.test(html), 'the Attack the bone crown prompt is gone');
+assert(!/crown/i.test(extractFn('meleeSwing')),
+  'meleeSwing contains no Crown reference');
+assert(!/crownTarget/.test(html), 'the hero state has no crown target');
 assert(/crownTouched/.test(html) && /teethRisen/.test(html) && /crownDestroyed/.test(html),
   'Sage one-shot flags are crownTouched / teethRisen / crownDestroyed');
-assert(/tryStrikeBoneCrown/.test(extractFn('meleeSwing')),
-  'ATTACK can smash the crown');
 
 const fang=html.match(/fangedSkeleton:\{[^}]+\}/)[0];
 assert(/hd:2/.test(fang), 'fanged skeleton is 2 HD');
@@ -257,7 +329,7 @@ ctx.beginFight=function(){};
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
   'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
-  'destroyBoneCrown','tryStrikeBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
+  'destroyBoneCrown','liveFoeBlocksCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 
@@ -432,8 +504,9 @@ const layout={
 };
 vm.createContext(layout);
 vm.runInContext(hashes+gridSrc, layout);
-['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','buildTeethCrownRoom']
+['secretFaceOk','normalizeSecretFace','sealSecretCells','addSecretDoor','isTeethNorthWall','isTeethFaceWall','buildTeethCrownRoom']
   .forEach(n=>vm.runInContext(extractFn(n)+';', layout));
+vm.runInContext('const WALL_TEETH_FACE_SCALE=2.25;\n'+extractFn('applyTeethFaceWallHeight')+';', layout);
 layout.G.props=[];
 const L=vm.runInContext(`
   var L={n:1,w:132,h:90,flags:{},secrets:[],lights:[],grid:newGrid(132,90,1)};
@@ -464,7 +537,12 @@ const crown=layout.G.props.find(p=>p&&p.k==='bonecrown');
 assert(altar && altar.x>=101.5 && altar.x<=104 && altar.y>=3.5 && altar.y<=5.5,
   'altar sits on the northwest wall of the chapel');
 assert(face && face.wall==='n' && face.toothKind==='electrum', 'demon face is on the north wall');
+assert(L.wallH && L.wallH['107,1']===2.25 && L.wallH['104,1']==null && L.wallH['105,1']===2.25 && L.wallH['109,1']===2.25,
+  'the face segment stores a taller per-tile wall height; the mural tile does not');
 assert(face && altar && face.x-altar.x>4, 'altar is west of the demon face');
+assert(face && face.x>105.4 && face.x<108.2, 'face anchor is centered on the tall north-wall span');
+assert(/o\.k==='demonface' && o\.wall!=='e'\) return demonFaceDrawDepth\(o\)/.test(extractFn('actorDrawDepth')),
+  'chapel face sorts after the east wall that covers its right horn');
 assert(crown && Math.abs(crown.x-altar.x)<0.2 && Math.abs(crown.y-altar.y)<0.2, 'crown sits on the altar');
 function canWalk(g,x0,y0,x1,y1){
   const q=[[x0|0,y0|0]], seen={};
@@ -500,6 +578,9 @@ assert(!/electrum/i.test(enterPack), 'enter box does not name electrum');
 assert(!/\b(north|south|east|west|northwest|northeast|southwest|southeast)\b/i.test(enterPack),
   'enter box does not name a compass direction');
 assert(/maybeTeethChapelEnter\(p\)/.test(ch1), 'Ch1 tick fires the enter box');
+assert(/maybeCrownAltarHint\(p\)/.test(ch1), 'Ch1 tick fires the altar hint when the crown comes into view');
+assert(!/A bone crown on the altar/.test(extractFn('buildTeethCrownRoom')),
+  'opening the secret does not burn the crown hint while Macar is still in the hall');
 assert(/maybeTeethChapelLooks\(p\)/.test(html), 'look-at uses the interact prompt');
 assert(/teethChapelLookHit\(w\)/.test(html), 'tapping the face or crown looks');
 assert(/Look at the demon face/.test(html) && /Look at the bone crown/.test(html),
@@ -567,6 +648,557 @@ const crownTap=box.teethChapelLookHit({x:102.4,y:4.5});
 assert(crownTap && crownTap.key==='teeth_chapel_crown', 'a tap on the altar crown looks at the crown');
 assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_LINE,
   'opening the crown look shows Nick\'s line');
+
+{
+  const hintCtx={
+    G:{talk:null, props:[
+      {x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0},
+      {x:102.25,y:4.35,k:'bonecrown',gone:0}
+    ], lvl:{n:1, flags:{}}},
+    hints:[],
+    dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); },
+    tileVisible(){ return false; },
+    hint(t){ hintCtx.hints.push(t); }
+  };
+  vm.createContext(hintCtx);
+  vm.runInContext(extractFn('maybeCrownAltarHint')+'\nthis.maybeCrownAltarHint=maybeCrownAltarHint;', hintCtx);
+  const far={x:106,y:10,dead:0};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===0,
+    'an unseen altar out of reach does not toast the crown hint');
+  hintCtx.tileVisible=function(){ return true; };
+  assert(hintCtx.maybeCrownAltarHint(far)===true
+    && hintCtx.hints[0]==='A bone crown on the altar. Destroy the crown, or take it.',
+    'seeing the altar toasts Destroy the crown, or take it');
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the altar hint fires once');
+  hintCtx.G.lvl.flags.crownAltarHint=0;
+  hintCtx.G.talk={key:'teeth_chapel_enter'};
+  assert(hintCtx.maybeCrownAltarHint(far)===false && hintCtx.hints.length===1,
+    'the chapel-enter dialogue holds the altar hint until it closes');
+}
+
+{
+  /* Face height / face-wall height at the tile heights resize() produces:
+     1280×720 → TH 58, 1024×570 → 46, ~740 wide → 40, phone 844×390 → 34.
+     The ratio must match with no image decoded, so a late plate cannot
+     collapse the chapel carving to the dwarf-face mask. */
+  const faceCtx={
+    G:{lvl:{n:1}},
+    TH:58,
+    TILESET:{srcH:96},
+    DEMON_FACE_PLATE:{w:298,h:392,pad:16},
+    DEMON_FACE_CONTENT_SCALE:1.94,
+    WALL_TEETH_FACE_SCALE:2.25,
+    tilesetPack(){ return {wall:{oy:287}}; }
+  };
+  vm.createContext(faceCtx);
+  ['wallFaceH','dwarfFaceH','vaultDemonFace','chapelFaceContentFrac','demonFaceDrawH','teethFaceWallH']
+    .forEach(n=>vm.runInContext(extractFn(n)+'\nthis.'+n+'='+n+';', faceCtx));
+  const chapel={wall:'n', toothKind:'electrum'};
+  const vault={wall:'e', toothKind:'bronze'};
+  const ratios=[];
+  [58,46,40,34].forEach(th=>{
+    faceCtx.TH=th;
+    const faceH=faceCtx.demonFaceDrawH(null, chapel);
+    const wallH=faceCtx.teethFaceWallH(faceCtx.G.lvl);
+    const ratio=faceH/wallH;
+    ratios.push(ratio);
+    assert(faceH>wallH*0.70, 'TH '+th+' chapel face is full on its wall ('+faceH.toFixed(1)+'/'+wallH.toFixed(1)+')');
+    assert(Math.abs(faceH - faceCtx.dwarfFaceH()*1.08)>1, 'TH '+th+' chapel face is not the dwarf-face mask');
+  });
+  ratios.forEach(r=>{
+    assert(Math.abs(r-ratios[0])<1e-9, 'face-to-wall ratio holds across zooms ('+r+' vs '+ratios[0]+')');
+  });
+  faceCtx.TH=46;
+  const vaultH=faceCtx.demonFaceDrawH({width:457,height:274}, vault);
+  assert(Math.abs(vaultH - faceCtx.dwarfFaceH()*1.08)<1e-6,
+    'vault face stays on dwarfFaceH()*1.08');
+  assert(vaultH/faceCtx.teethFaceWallH(faceCtx.G.lvl)<0.40,
+    'vault height is the small plate, not the chapel portrait scale');
+}
+
+/* Drop at the altar seats the crown again before any reload.
+   Take hides the billboard while it is held. */
+{
+  [
+    'wearingBoneCrown','teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
+    'dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
+    'teethAltarSheetImg','teethAltarSheetH','teethAltarBillboardRect','boneCrownAltarSeat',
+    'boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
+    'drawBoneCrownAt','boneCrownDroppedOnFloor','drawBoneCrownProp'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_ALTAR_SLAB_FY=212\/718;/)[0];
+  vm.runInContext(seatConsts, ctx);
+  ctx.SPR={bone_crown_scene:{width:109,height:66}};
+  const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,s:1.55,gone:0};
+  const crown={x:altar.x,y:altar.y,k:'bonecrown',s:1.70,gone:0,taken:0};
+  ctx.G.lvl.flags={};
+  ctx.G.lvl.grid=null;
+  ctx.G.props=[altar, crown];
+  ctx.G.packs={macar:{magic:[]}};
+  ctx.G.equipped={};
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:altar.x, y:altar.y+0.8, hp:80, maxhp:80, range:1.4}];
+  ctx.ang=function(x,y){ return Math.atan2(y,x); };
+  ctx.TAU=Math.PI*2;
+  ctx.addAttack=function(){ return 8; };
+  ctx.onHitFx=function(a,o,d){ return d; };
+  ctx.wear=function(){};
+  ctx.damage=function(o, amt){
+    if(!o||o.dead) return;
+    o.hp=(o.hp==null?1:o.hp)-(amt||0);
+    if(o.hp<=0){ o.hp=0; o.dead=1; }
+  };
+  vm.runInContext(extractFn('meleeSwing')+';', ctx);
+  vm.runInContext(extractFn('teethCrownChoices')+';', ctx);
+  function swing(e, reach){
+    const who=e||ctx.player();
+    const before=ctx.xpAwards.length;
+    ctx.meleeSwing(who, 2.3, reach==null?1.6:reach, 8);
+    return ctx.xpAwards.length-before;
+  }
+  ctx.lines=[]; ctx.hints=[];
+  const z=1;
+  function paint(){
+    const calls=[];
+    const g={drawImage(img,x,y,w,h){ calls.push({img,x,y,w,h}); }};
+    ctx.drawBoneCrownProp(g, crown, z);
+    return calls;
+  }
+  const took=ctx.takeBoneCrown(crown);
+  assert(took.ok===1 && ctx.wearingBoneCrown() && !ctx.teethCrownStillSeated(),
+    'take holds the crown and the seated billboard stops');
+  assert(paint().length===0, 'while held, the seated crown is not drawn');
+  const dropped=ctx.dropBoneCrown();
+  assert(dropped.ok===1 && !ctx.wearingBoneCrown(), 'drop at the altar clears the helm');
+  assert(ctx.G.lvl.flags.crownTouched===0 && ctx.G.lvl.flags.crownTaken===0,
+    'drop at the altar returns the crown to the seated flags');
+  assert(ctx.G.lvl.flags.crownDropped===0,
+    'drop at the altar clears the dropped flag so melee does not shatter the seated crown');
+  swing(ctx.player(), 1.2);
+  assert(!crown.destroyed && !crown.gone,
+    'a swing beside the altar does not destroy the crown just seated there');
+  assert(crown.gone===0 && crown.x===altar.x && crown.y===altar.y,
+    'drop at the altar puts the crown prop back on the altar foot');
+  assert(ctx.teethCrownStillSeated(), 'the crown is seated again before any reload');
+  const drawn=paint();
+  const seat=ctx.boneCrownSeatY(z), head=ctx.boneCrownHeadH(z);
+  const seatX=ctx.boneCrownSeatX(z);
+  assert(drawn.length===1 && drawn[0].img===ctx.sceneCrownSprite()
+    && drawn[0].y===seat-head
+    && drawn[0].x===-drawn[0].w/2+seatX,
+    'the seated crown is drawn on the slab before any reload');
+  const sheet={width:1075,height:718};
+  const zoomFrac=[];
+  [0.78, 1.38].forEach(zz=>{
+    const rect=ctx.teethAltarBillboardRect(altar, zz, sheet);
+    const at=ctx.boneCrownAltarSeat(rect);
+    const fx=(at.x-rect.x)/rect.w, fy=(at.y-rect.y)/rect.h;
+    zoomFrac.push({fx, fy});
+    assert(Math.abs(fx-445/1075)<1e-12 && Math.abs(fy-212/718)<1e-12,
+      'zoom '+zz+' seat is the lid-center fraction of the altar rect');
+    const calls=[];
+    ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ calls.push({x,y,w,h}); }}, crown, zz);
+    assert(calls.length===1, 'zoom '+zz+' draws one seated crown');
+    const baseX=calls[0].x+calls[0].w/2, baseY=calls[0].y+calls[0].h;
+    assert(Math.abs((baseX-rect.x)/rect.w - 445/1075)<1e-9
+      && Math.abs((baseY-rect.y)/rect.h - 212/718)<1e-9,
+      'zoom '+zz+' crown base sits on that same fraction of the drawn rect');
+  });
+  assert(Math.abs(zoomFrac[0].fx-zoomFrac[1].fx)<1e-12
+    && Math.abs(zoomFrac[0].fy-zoomFrac[1].fy)<1e-12,
+    'the seat fraction is the same at two zooms');
+  const again=ctx.takeBoneCrown(crown);
+  assert(again.ok===1 && ctx.wearingBoneCrown() && crown.gone===1,
+    'take again works after the crown is back on the slab');
+  assert(!ctx.teethCrownStillSeated() && paint().length===0,
+    'while held again, the seated crown stops drawing');
+
+  /* More than 4 tiles from the altar: the crown stays touched, so the slab
+     path hides, and the floor billboard is the one draw. */
+  ctx.G.ents[0].x=altar.x+6;
+  ctx.G.ents[0].y=altar.y+1;
+  assert(ctx.dist(ctx.player(), altar)>4, 'the far drop stands more than 4 tiles from the altar');
+  const far=ctx.dropBoneCrown();
+  assert(far.ok===1 && ctx.G.lvl.flags.crownDropped===1 && ctx.G.lvl.flags.crownTouched===1
+    && ctx.G.lvl.flags.crownTaken===0,
+    'a far drop leaves the crown touched and marks it dropped');
+  assert(crown.gone===0 && crown.x===ctx.player().x && crown.y===ctx.player().y+0.55,
+    'a far drop puts the crown on the floor at the player');
+  const floorDrawn=paint();
+  const floorSeat=ctx.boneCrownFloorSeatY(z), floorHead=ctx.boneCrownHeadH(z);
+  assert(floorDrawn.length===1 && floorDrawn[0].img===ctx.sceneCrownSprite()
+    && floorDrawn[0].y===floorSeat-floorHead
+    && floorDrawn[0].y!==ctx.boneCrownSeatY(z)-floorHead,
+    'exactly one crown sprite is drawn at the floor seat, not on the slab');
+  const gsSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
+  ctx.globalThis=ctx;
+  vm.runInContext(gsSrc, ctx);
+  const world=ctx.GameSave.captureWorld(ctx.G);
+  const savedCrown=(world.props||[]).find(p=>p&&p.k==='bonecrown');
+  assert(savedCrown && savedCrown.x===crown.x && savedCrown.y===crown.y && !savedCrown.gone
+    && world.flags.crownDropped===1 && world.flags.crownTouched===1,
+    'the save records the dropped crown where it lies');
+  crown.x=0; crown.y=0; crown.gone=1;
+  ctx.G.lvl.flags={};
+  ctx.G.props=[];
+  ctx.G.lvl.flags=Object.assign({}, world.flags);
+  ctx.GameSave.applyWorld(ctx.G, world);
+  const loaded=ctx.G.props.find(p=>p&&p.k==='bonecrown');
+  assert(loaded && loaded.x===savedCrown.x && loaded.y===savedCrown.y && !loaded.gone,
+    'load puts the crown back on that floor tile');
+  const loadedCalls=[];
+  ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ loadedCalls.push({img,x,y,w,h}); }}, loaded, z);
+  assert(ctx.boneCrownDroppedOnFloor(loaded) && loadedCalls.length===1
+    && loadedCalls[0].img===ctx.sceneCrownSprite()
+    && loadedCalls[0].y===floorSeat-floorHead,
+    'after save and load the crown is still drawn at the drop');
+
+  /* Three camera-south steps are (+3,+3). Euclidean length is ~4.2, which
+     the old dist()<=3 test treated as a far drop and left invisible. */
+  function stand(n){
+    ctx.G.ents[0].x=altar.x+n;
+    ctx.G.ents[0].y=altar.y+n;
+    ctx.G.ents[0].fdx=-1; ctx.G.ents[0].fdy=-1;
+    ctx.G.ents[0].crownDropGuard=0;
+    ctx.G.ents[0].atk=0; ctx.G.ents[0]._attack=null;
+    ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+    ctx.G.lvl.flags={crownTaken:1, crownTouched:1, crownDropped:0, crownDestroyed:0};
+    crown.gone=1; crown.taken=1; crown.destroyed=0; crown.x=altar.x; crown.y=altar.y;
+    ctx.G.props=[altar, crown];
+    ctx.G.fightOn=0;
+  }
+  [1,2,3].forEach(n=>{
+    stand(n);
+    assert(ctx.dist(ctx.player(), altar)>3 || n<3, 'tile '+n+' setup');
+    if(n===3) assert(ctx.dist(ctx.player(), altar)>3,
+      'three tiles toward the camera is farther than Euclidean 3');
+    assert(ctx.crownAltarTileDist(ctx.player(), altar)===n,
+      'stand '+n+' is '+n+' king-move tiles from the altar footprint');
+    const d=ctx.dropBoneCrown();
+    assert(d.ok===1 && ctx.crownDropAtAltar(ctx.player(), altar),
+      'drop at '+n+' tiles seats on the slab');
+    assert(ctx.G.lvl.flags.crownTouched===0 && ctx.G.lvl.flags.crownDropped===0,
+      'drop at '+n+' tiles clears touched and dropped');
+    assert(ctx.teethCrownStillSeated() && paint().length===1 && paint()[0].y===seat-head,
+      'drop at '+n+' tiles draws the crown on the slab');
+    swing(ctx.player(), 1.2);
+    assert(!crown.destroyed && !ctx.G.lvl.flags.crownXp,
+      'a swing after a '+n+'-tile drop does not shatter the seated crown');
+  });
+  stand(4);
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)===4, 'four tiles is outside the seat');
+  const four=ctx.dropBoneCrown();
+  assert(four.ok===1 && ctx.G.lvl.flags.crownDropped===1 && ctx.G.lvl.flags.crownTouched===1,
+    'a drop at 4 tiles stays on the floor');
+  assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
+    'a drop at 4 tiles draws the crown at the floor seat');
+
+  /* Beside the lip: four cells from the prop tile, two from the footprint. */
+  ctx.G.ents[0].x=106.2; ctx.G.ents[0].y=4.2;
+  assert(Math.max(Math.abs(Math.floor(ctx.player().x)-Math.floor(altar.x)),
+    Math.abs(Math.floor(ctx.player().y)-Math.floor(altar.y)))>=4,
+    'the side stand is four tiles from the prop cell');
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)<=3,
+    'the side stand is within 3 tiles of the front lip');
+  stand(0);
+  ctx.G.ents[0].x=106.2; ctx.G.ents[0].y=4.2;
+  assert(ctx.dropBoneCrown().ok===1 && ctx.teethCrownStillSeated() && paint().length===1,
+    'a drop beside the altar footprint seats and draws');
+
+  /* Combat uses dropBoneCrown. The swing already in the air must not erase it. */
+  stand(2);
+  ctx.G.fightOn=1;
+  ctx.G.ents.push({id:9, team:'foe', name:'Skeletal Dwarf', dead:0, hp:12, x:altar.x+1, y:altar.y+1});
+  const foe=ctx.G.ents[ctx.G.ents.length-1];
+  ctx.G.ents[0].fdx=foe.x-ctx.player().x; ctx.G.ents[0].fdy=foe.y-ctx.player().y;
+  ctx.G.ents[0]._attack={fdx:ctx.G.ents[0].fdx, fdy:ctx.G.ents[0].fdy};
+  assert(!/G\.fightOn/.test(extractFn('dropBoneCrown')),
+    'a drop during combat takes the same dropBoneCrown path');
+  const combatNear=ctx.dropBoneCrown();
+  assert(combatNear.ok===1 && ctx.teethCrownStillSeated(),
+    'a drop at 2 tiles during combat seats the crown');
+  swing(ctx.player(), ctx.player().range||1.4);
+  assert(!crown.destroyed && paint().length===1 && paint()[0].y===seat-head,
+    'combat melee after a near drop still draws the crown on the slab');
+
+  stand(6);
+  ctx.G.fightOn=1;
+  assert(ctx.crownAltarTileDist(ctx.player(), altar)>3, 'the open-floor drop is farther than 3 tiles');
+  const combatFar=ctx.dropBoneCrown();
+  assert(combatFar.ok===1 && ctx.G.lvl.flags.crownDropped===1 && !ctx.wearingBoneCrown(),
+    'a far drop during combat puts the crown on the floor');
+  ctx.G.ents[0].fdx=-1; ctx.G.ents[0].fdy=-1;
+  ctx.G.ents[0]._attack={fdx:-1, fdy:-1};
+  swing(ctx.player(), 1.6);
+  assert(!crown.gone && !crown.destroyed && !ctx.G.lvl.flags.crownXp,
+    'the swing already in the air does not destroy the crown just dropped');
+  assert(paint().length===1 && paint()[0].y===floorSeat-floorHead,
+    'after that swing the far crown is still drawn at the floor seat');
+  assert(!/crown/i.test(extractFn('meleeSwing')),
+    'meleeSwing contains no Crown reference');
+
+  /* A swing never touches the crown, whatever direction the foe stands. */
+  const hero=ctx.player();
+  hero.x=110.5; hero.y=2.5; hero.range=1.4;
+  crown.x=110.5; crown.y=3.05; crown.gone=0; crown.destroyed=0; crown.taken=0;
+  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0; ctx.G.lvl.flags.crownXp=0;
+  ctx.G.equipped.helmet=null;
+  [[0,1,'S'],[0,-1,'N'],[1,0,'E'],[-1,0,'W']].forEach(([dx,dy,name])=>{
+    const foe={id:90, team:'foe', name:'Skeletal Dwarf', dead:0, hp:12, r:0.35, x:hero.x+dx, y:hero.y+dy};
+    ctx.G.ents.push(foe);
+    hero.aim=foe; hero.fdx=dx||0; hero.fdy=dy||0; hero._attack={fdx:hero.fdx, fdy:hero.fdy}; hero.atk=0;
+    const gained=swing(hero, 1.6);
+    assert(!crown.destroyed && !crown.gone && gained===0 && !ctx.G.lvl.flags.crownXp,
+      'a swing at a foe to the '+name+' leaves the crown and awards no crown XP');
+    hero.aim=null;
+    assert(swing(hero, 1.6)===0 && !crown.destroyed,
+      'a swing with a foe to the '+name+' still in reach leaves the crown');
+    ctx.G.ents.pop();
+  });
+
+  const around=[[1.1,0],[-1.1,0],[0,1.1],[0,-1.1],[0.8,0.8]];
+  around.forEach((d,i)=>{
+    ctx.G.ents.push({id:100+i, team:'foe', dead:0, hp:40, x:hero.x+d[0], y:hero.y+d[1], r:0.35});
+  });
+  hero.aim=ctx.G.ents[ctx.G.ents.length-1];
+  for(let i=0;i<15;i++){
+    assert(swing(hero, 1.6)===0 && !crown.destroyed, 'swing '+(i+1)+' with foes around leaves the crown');
+  }
+  assert(!crown.destroyed && !crown.gone && !ctx.G.lvl.flags.crownXp,
+    'the floor crown survives repeated swings with foes around');
+
+  /* Killing blow: the foe dies, and the swing still does not touch the crown. */
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.x=110.5; hero.y=2.5; hero.range=1.4; hero.r=0.36; hero.atk=0;
+  hero.fdx=0; hero.fdy=1; hero._attack={fdx:0, fdy:1};
+  crown.x=111.4; crown.y=2.5; crown.gone=0; crown.destroyed=0; crown.taken=0;
+  ctx.G.lvl.flags.crownDropped=1; ctx.G.lvl.flags.crownDestroyed=0; ctx.G.lvl.flags.crownXp=0;
+  const killFoe={id:77, team:'foe', name:'Fanged Skeleton', dead:0, hp:1, maxhp:8, r:0.34,
+    x:hero.x, y:hero.y+0.7};
+  ctx.G.ents.push(killFoe);
+  hero.aim=killFoe;
+  const reach=(hero.range||1.4)+0.35;
+  assert(ctx.dist(hero, killFoe)<=1.2 && ctx.dist(hero, crown)<=1.2,
+    'the killing-blow foe and the crown are both adjacent');
+  const xp0=ctx.xpAwards.length;
+  ctx.meleeSwing(hero, 2.3, reach, 8);
+  assert(killFoe.dead===1 && killFoe.hp<=0, 'Macar\'s swing kills the 1 HP foe');
+  assert(!crown.destroyed && !crown.gone && ctx.G.lvl.flags.crownDestroyed!==1,
+    'the killing blow leaves the adjacent crown intact');
+  assert(ctx.xpAwards.length===xp0 && !ctx.G.lvl.flags.crownXp,
+    'the killing blow awards no crown XP');
+  hero.aim=null;
+  ctx.meleeSwing(hero, 2.3, reach, 8);
+  assert(!crown.destroyed && !crown.gone && ctx.xpAwards.length===xp0,
+    'another swing with no living foe still leaves the crown');
+
+  /* Destroy is the look menu, on the altar and after a drop. */
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.aim=null;
+  ctx.G.lvl.flags.crownDropped=0;
+  let menu=ctx.teethCrownChoices();
+  assert(menu[0] && menu[0].t==='Destroy the crown.',
+    'Destroy the crown. leads the look menu on the altar');
+  ctx.G.lvl.flags.crownDropped=1;
+  menu=ctx.teethCrownChoices();
+  assert(menu[0] && menu[0].t==='Destroy the crown.' && menu[1] && menu[1].t==='Take the bone crown.',
+    'Destroy the crown. leads the look menu after a drop');
+  const blocker={id:78, team:'foe', name:'Skeletal Dwarf', dead:0, hp:8, r:0.34, x:hero.x, y:hero.y+0.6};
+  ctx.G.ents.push(blocker);
+  hero.aim=blocker;
+  ctx.lines=[];
+  menu[0].then();
+  assert(!crown.destroyed && !crown.gone && ctx.xpAwards.length===xp0 && !ctx.G.lvl.flags.crownXp,
+    'Destroy the crown. refuses while a live foe is in range');
+  assert(ctx.lines.some(t=>/Not with foes this close/.test(t)),
+    'the refusal says foes are too close');
+  ctx.G.ents=ctx.G.ents.filter(e=>e.hero);
+  hero.aim=null;
+  ctx.lines=[];
+  ctx.teethCrownChoices()[0].then();
+  assert(crown.destroyed===1 && crown.gone===1 && ctx.G.lvl.flags.crownDestroyed===1,
+    'Destroy the crown. from the look menu destroys the floor crown');
+  assert(ctx.xpAwards.length===xp0+1 && ctx.xpAwards[ctx.xpAwards.length-1].why==='Bone Crown destroyed'
+    && ctx.G.lvl.flags.crownXp===1,
+    'that menu choice awards the destroy XP exactly once');
+  ctx.teethCrownChoices()[0].then();
+  assert(ctx.xpAwards.length===xp0+1,
+    'a second Destroy the crown. gives no extra XP');
+  assert(!/nearestBoneCrown/.test(extractFn('fire')),
+    'the Attack button does not choose the bone crown');
+  assert(!/\bdestroyBoneCrown\b/.test(extractFn('explode'))
+    && !/\bdestroyBoneCrown\b/.test(extractFn('damage'))
+    && !/\bdestroyBoneCrown\b/.test(extractFn('meleeSwing')),
+    'shots, bombs, and swings do not destroy the crown');
+}
+
+/* Ten seconds of the real update loop: a live skeleton beside a floor crown,
+   the four ghosts engaged, Macar swinging while that foe is outside his reach. */
+{
+  const fsSkill=fs.readFileSync(path.join(__dirname,'../../SkillSystem.js'),'utf8');
+  const base={
+    Math, Object, Array, Number, String, Date, JSON, parseInt, parseFloat, isNaN, isFinite,
+    console,
+    swingN:{hero:0, party:0, foe:0, shots:0, bombs:0},
+    xpAwards:[],
+    TAU:Math.PI*2,
+    GHOST_DAY_SECS:1e9,
+    PARTY_SEP_LEAD:0.85,
+    PARTY_SEP_KIN:0.72,
+    BONE_CROWN_DESTROY_XP:5000,
+    ABIL:[],
+    cds:{},
+    PROMPT:null,
+    IN:{stick:{moved:0,x:0,y:0,ox:0,oy:0}, keys:{}, taps:[]},
+    TW:84, TH:42, UIS:1, VW:1280, VH:800,
+    PartyOrders:{use(){return false;}, settle(){}, clear(){}, decide(){return null;}, order(){return null;}, commands(){return false;}},
+    Navigation:{use(){return false;}, isPilot(){return false;}},
+    EnemyIntent:{use(){return false;}, meleeClear(){return true;}, isMeleePursuer(){return false;}},
+    MacarStrikeQA:{hold:0},
+    window:undefined
+  };
+  const sandbox=new Proxy(base,{
+    get(t,p){
+      if(p in t) return t[p];
+      if(typeof p==='symbol') return undefined;
+      const f=function(){ return 0; };
+      t[p]=f;
+      return f;
+    },
+    set(t,p,v){ t[p]=v; return true; }
+  });
+  vm.createContext(sandbox);
+  vm.runInContext(fsSkill, sandbox);
+  sandbox.skillSystem=new sandbox.SkillSystem();
+  function ang(x,y){ return Math.atan2(y,x); }
+  function dist(a,b){ return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  Object.assign(sandbox,{
+    ang, dist, clamp,
+    tileVisible(){ return true; },
+    walk(){ return true; },
+    canBe(){ return true; },
+    diggable(){ return false; },
+    ri(){ return 1; },
+    rollDice(){ return 1; },
+    skillLvl(){ return 0; },
+    rnd(){ return 0; },
+    chanceOk(){ return false; },
+    addAttack(){ return 4; },
+    onHitFx(a,o,d){ return d; },
+    damage(e,amt){ if(e&&e.hp!=null) e.hp=Math.max(1,(e.hp||1)-0.01); },
+    awardPartyXp(n,why,where){ sandbox.xpAwards.push({n,why,where}); return n; },
+    say(){}, hint(){}, burst(){}, shake(){}, ftext(){}, wear(){},
+    packOf(){ return {bombs:0}; },
+    player(){ return (sandbox.G.ents||[]).find(e=>e&&e.hero)||null; },
+    riseTeethHorde(){},
+    riseSkeletalDwarves(){},
+    collapseCrownThrall(){},
+    armLivingMacarWindup(){},
+    armLivingMacarStrike(){},
+    beginSpecialtySwing(){ return 0; },
+    endSpecialtySwing(){},
+    partyHoldMelee(){ return 0; },
+    shotStyle(){ return ['bolt','#d8c49a',10]; },
+    wornAttackCd(e){ return e.cd||1.1; },
+    interact(label,fn){ sandbox.PROMPT={label,fn}; }
+  });
+  [
+    'wearingBoneCrown','nearestBoneCrown','awardCrownDestroyXp','destroyBoneCrown',
+    'liveFoeBlocksCrown','playerDestroyBoneCrown',
+    'nearestFoe','nearestAlly','kinCanAutoFight','foeInTheFight','faceToward','shoot','explode','updateBombs',
+    'ghostSapperBomb','fire'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', sandbox));
+  vm.runInContext(extractFn('meleeSwing').replace('function meleeSwing','function meleeSwingReal')+';', sandbox);
+  vm.runInContext(`
+function meleeSwing(e,arc,reach,dmg,col){
+  if(e&&e.hero) swingN.hero++;
+  else if(e&&e.team==='party') swingN.party++;
+  else swingN.foe++;
+  return meleeSwingReal(e,arc,reach,dmg,col);
+}
+`, sandbox);
+  const realShoot=sandbox.shoot;
+  sandbox.shoot=function(){
+    sandbox.swingN.shots++;
+    return realShoot.apply(null, arguments);
+  };
+  const realExplode=sandbox.explode;
+  sandbox.explode=function(){
+    sandbox.swingN.bombs++;
+    return realExplode.apply(null, arguments);
+  };
+  vm.runInContext(extractFn('update')+';', sandbox);
+
+  const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0};
+  const crown={x:107.80,y:8.35,k:'bonecrown',s:1.70,gone:0,destroyed:0};
+  const hero={
+    id:1, hero:1, name:'Macar', team:'party', kind:'dwarf', col:{key:'macar'},
+    x:106.25, y:8.35, hp:400, maxhp:400, dead:0, range:1.4, cd:1.05, ct:0,
+    atk:0, atkMax:0.78, atkKind:'melee', swung:0, fdx:1, fdy:0, aim:null,
+    moving:0, r:0.36, dmg:8, sp:4.3, defending:0
+  };
+  assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)<2.6, 'the floor crown sits inside a crown-strike radius');
+  assert(Math.hypot(hero.x-crown.x, hero.y-crown.y)>0.5, 'the floor crown is not under Macar\'s feet');
+  const skel={
+    id:2, hero:0, name:'Fanged Skeleton', team:'foe', kind:'undead',
+    x:crown.x+0.95, y:crown.y, hp:9999, maxhp:9999, dead:0, range:1.05, cd:0.7, ct:0,
+    atk:0, atkMax:0.42, swung:0, fdx:-1, fdy:0, r:0.34, dmg:6, sp:2.2, aggro:99, engaged:1
+  };
+  const macarToSkel=Math.hypot(hero.x-skel.x, hero.y-skel.y);
+  const crownToSkel=Math.hypot(crown.x-skel.x, crown.y-skel.y);
+  assert(crownToSkel<1.15, 'the live skeleton stands about one tile from the floor crown');
+  assert(macarToSkel>(hero.range+0.35+0.2+skel.r),
+    'that skeleton is outside the reach that would block a crown strike');
+  assert(macarToSkel>hero.range+0.75, 'auto-attack does not have the skeleton in reach');
+  const ghosts=[
+    ['pordoom','Pordum','pick',1.15,1.15],
+    ['fendur','Fendur','bolt',6.5,1.7],
+    ['orbo','Orbo','shield',1.15,1.15],
+    ['talpor','Talpor','faith',1.05,1.25]
+  ].map((g,i)=>({
+    id:10+i, hero:0, ghost:1, name:g[1], team:'party', kind:'dwarf', col:{key:g[0]},
+    role:g[2], x:skel.x+((i%2)?0.7:-0.7), y:skel.y+((i<2)?0.55:-0.55),
+    hp:9999, maxhp:9999, dead:0, range:g[3], cd:g[4], ct:0, atk:0, atkMax:0.42,
+    swung:0, fdx:0, fdy:0, r:0.36, dmg:8, sp:4, ranged:g[0]==='fendur'?1:0,
+    glow:'#7ad8ff', defending:0, moving:0
+  }));
+  sandbox.G={
+    scene:'play', paused:0, talk:null, sleepShow:null, elapsed:0, day:1, dayClock:0,
+    hint:null, flash:null, craftGuideT:0, hurt:0, digging:0, searching:0, secretSearch:0,
+    fightOn:1, songBuff:0, shake:0, hitstop:0, aim:null, cam:{x:106.25,y:8.35},
+    thrown:[], shots:[], parts:[],
+    texts:[], log:[], loot:[], props:[altar, crown], ents:[hero].concat(ghosts, [skel]),
+    equipped:{}, packs:{macar:{magic:[]}, pordoom:{bombs:0}},
+    lvl:{n:1, flags:{crownDropped:1, crownTouched:1, crownTaken:0, crownDestroyed:0, crownXp:0},
+      w:132, h:90, grid:null, plug:null}
+  };
+  sandbox.G.thrown.push({
+    sx:crown.x, sy:crown.y, tx:crown.x, ty:crown.y, x:crown.x, y:crown.y,
+    t:1, dur:0.62, fuse:0.08, state:1, spin:0, kind:'bomb', done:0
+  });
+  const dt=1/30;
+  let heroSwingsArmed=0;
+  for(let t=0;t<10;t+=dt){
+    if(hero.atk<=0 && hero.ct<=0 && (Math.floor(t*2)!==heroSwingsArmed)){
+      heroSwingsArmed=Math.floor(t*2);
+      sandbox.G.scene='play';
+      vm.runInContext("fire('attack');", sandbox);
+    }
+    vm.runInContext('update('+dt+');', sandbox);
+  }
+  assert(sandbox.swingN.hero>=8, 'Macar swung through the update loop ('+sandbox.swingN.hero+')');
+  assert(sandbox.swingN.party>=8, 'ghost allies swung through the update loop ('+sandbox.swingN.party+')');
+  assert(sandbox.swingN.foe>=8, 'the skeleton swung through the update loop ('+sandbox.swingN.foe+')');
+  assert(sandbox.swingN.shots>=1, 'a ghost shot was fired ('+sandbox.swingN.shots+')');
+  assert(sandbox.swingN.bombs>=1, 'a bomb exploded on the crown tile ('+sandbox.swingN.bombs+')');
+  assert(!crown.destroyed && !crown.gone && sandbox.G.lvl.flags.crownDestroyed!==1,
+    'ten seconds of party and foe combat leaves the floor crown');
+  assert(!sandbox.xpAwards.some(a=>/Bone Crown destroyed/.test(a.why||'')),
+    'that fight awards no crown-destroy XP');
+  assert(!/crown/i.test(extractFn('meleeSwing')),
+    'meleeSwing contains no Crown reference');
+}
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');

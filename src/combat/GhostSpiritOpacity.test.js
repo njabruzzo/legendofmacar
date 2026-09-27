@@ -1,7 +1,8 @@
 'use strict';
 /**
- * Ghost atk lifts from the signed α168 gray-blue stamp to spectral white.
- * Nick-GOOD idle and front walk w1/w2 are already icy blue-white and are not lifted.
+ * Ghost atk and back lift from the living-color stamp onto Nick's icy cyan.
+ * Nick-GOOD idle and front walk w1/w2 blit as painted.
+ * Talpor's standing idle keeps its folds: luminance mapped onto his walk cyan, plus that sheet's dark rim.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
  * A thin cool line traces the silhouette and the main luminance ridge
  * (face, beard, helm, weapon) without punching the spirit opaque.
@@ -41,20 +42,29 @@ assert(!/const GHOST_DRAW_ALPHA=0\.96/.test(html)
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html),
   'drawEnt uses the named ghost draw alpha');
 assert(/const GHOST_ALPHA_CAP=224/.test(html) && /const GHOST_ALPHA_LIFT=1\.28;/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.76;/.test(html) && /const GHOST_COOL_LIFT=0\.40;/.test(html)
-  && /const GHOST_SHADE_KEEP=0\.62;/.test(html),
-  'lift is spectral white — cool mix, shade kept, cap under 255');
+  && /const GHOST_CYAN_MIX=0\.84;/.test(html)
+  && /const GHOST_ICE_R=72;/.test(html) && /const GHOST_ICE_B=214;/.test(html)
+  && /const GHOST_SHADE_KEEP=0\.62;/.test(html)
+  && !/const GHOST_WHITE_LIFT=/.test(html),
+  'lift grades living stamps onto icy cyan — shade kept, cap under 255, no white wash');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html)
   && /function inkGhostFeatureEdges\(/.test(html),
   'pixel lift is a dedicated ghost pipe with a feature-edge pass');
 assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
   'liftGhostSpirit inks key-feature edges after the white lift');
 assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
-  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'Nick spectral idle and front walk blit as painted; atk/back still lift');
+  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite'))
+  && /img===SPR\.talpor_ghost\) return colorizeTalporStanding\(img\)/.test(extractFn('solidDwarfSprite')),
+  'Nick spectral idle and front walk blit as painted; Talpor standing is colorized; atk/back still lift');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet')),
-  'painted list is the four idles plus front w1/w2');
+  && !/img===SPR\.talpor_ghost\|\|/.test(extractFn('nickSpectralGhostSheet'))
+  && !/\|\|img===SPR\.talpor_ghost(?:\||\s|;)/.test(extractFn('nickSpectralGhostSheet'))
+  && /SPR\.talpor_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
+  && /SPR\.talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
+  && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
+  && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
+  'Talpor standing idle is colorized off the painted list; his front walks stay painted');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
@@ -74,15 +84,18 @@ const ctx={};
 vm.createContext(ctx);
 vm.runInContext(
   'const GHOST_ALPHA_LO=40,GHOST_ALPHA_CAP=224,GHOST_ALPHA_LIFT=1.28,'
-  +'GHOST_WHITE_LIFT=0.76,GHOST_COOL_LIFT=0.40,'
+  +'GHOST_CYAN_MIX=0.84,GHOST_ICE_R=72,GHOST_ICE_G=150,GHOST_ICE_B=214,'
   +'GHOST_SHADE_KEEP=0.62,GHOST_SHADE_PIVOT=82,'
   +'GHOST_EDGE_BLUR=10,GHOST_EDGE_CUT=0.50,'
   +'GHOST_SIL_BLUR=6,GHOST_SIL_CUT=0.45,GHOST_EDGE_DILATE=1;'
   +extractFn('liftGhostAlpha')
   +extractFn('ghostBoxBlur')
-  +extractFn('inkGhostFeatureEdges'),
+  +extractFn('inkGhostFeatureEdges')
+  +extractFn('colorizeTalporIdlePixels'),
   ctx
 );
+assert(!/GHOST_CYAN_MIX/.test(extractFn('colorizeTalporIdlePixels')),
+  'Talpor standing colorize does not use the flat ice mix');
 
 function liftCopy(rgba){
   const d=new Uint8ClampedArray(rgba);
@@ -94,15 +107,15 @@ const mid140=new Uint8ClampedArray([90,80,70,140]);
 const out140=liftCopy(mid140);
 assert(out140[3]>140 && out140[3]<224 && out140[3]!==255,
   'a=140 rises but stays translucent (got a='+out140[3]+')');
-assert(out140[0]>180 && out140[2]>out140[0],
-  'a gray-brown pixel becomes cool white, not warm dust');
+assert(out140[2]>out140[0]+40 && out140[1]>out140[0]+20 && out140[0]<140,
+  'a gray-brown pixel becomes icy cyan, not solid gray or warm dust (got '+out140[0]+','+out140[1]+','+out140[2]+')');
 
 const mid168=new Uint8ClampedArray([82,78,89,168]);
 const out168=liftCopy(mid168);
 assert(out168[3]===215 && out168[3]<255,
   'α168 lifts to 215 and does not punch opaque');
-assert(out168[0]>=210 && out168[1]>=210 && out168[2]>=210 && out168[2]>=out168[0],
-  'α168 gray-blue becomes spectral white (got '+out168[0]+','+out168[1]+','+out168[2]+')');
+assert(out168[2]>out168[0]+40 && out168[1]>out168[0]+20,
+  'α168 gray-blue becomes icy cyan (got '+out168[0]+','+out168[1]+','+out168[2]+')');
 
 const shadow=new Uint8ClampedArray([49,40,59,168]);
 const outShadow=liftCopy(shadow);
@@ -111,19 +124,18 @@ const outHi=liftCopy(hi);
 const yOf=px=>px[0]*0.3+px[1]*0.59+px[2]*0.11;
 assert(yOf(outHi)-yOf(outShadow)>18,
   'kit folds survive — highlight stays lighter than shadow');
-assert(yOf(outShadow)>170,
-  'even the shadow fold is white, not gray dust');
+assert(outShadow[2]>outShadow[0]+40 && yOf(outShadow)>70,
+  'even the shadow fold stays icy cyan, not gray dust (got '+outShadow[0]+','+outShadow[1]+','+outShadow[2]+')');
 
 const warm=new Uint8ClampedArray([120,90,60,168]);
 const outWarm=liftCopy(warm);
-assert(outWarm[0]>210 && outWarm[1]>210 && outWarm[2]>210
-  && (outWarm[0]-outWarm[2])<16,
-  'a warm dust pixel is lifted into white (got '+outWarm[0]+','+outWarm[1]+','+outWarm[2]+')');
+assert(outWarm[2]>outWarm[0]+40 && outWarm[1]>outWarm[0],
+  'a warm dust pixel is graded to icy cyan (got '+outWarm[0]+','+outWarm[1]+','+outWarm[2]+')');
 
 const chalk=new Uint8ClampedArray([220,220,220,168]);
 const outChalk=liftCopy(chalk);
-assert(outChalk[0]>=230 && outChalk[1]>=230 && outChalk[2]>=230 && outChalk[3]<255,
-  'a near-white dither pixel stays white and translucent');
+assert(outChalk[2]>=outChalk[0] && outChalk[3]<255 && outChalk[3]>160,
+  'a near-white dither pixel stays bright cyan and translucent (got '+outChalk[0]+','+outChalk[1]+','+outChalk[2]+')');
 
 const denser=new Uint8ClampedArray([110,96,88,195]);
 const out195=liftCopy(denser);
@@ -133,6 +145,27 @@ assert(out195[3]===224 && out195[3]!==255,
 const already=new Uint8ClampedArray([200,200,200,255]);
 const out255=liftCopy(already);
 assert(out255[3]===224, 'a source a=255 is capped — west flip cannot go solid');
+
+{
+  const W=40, H=48;
+  const src=new Uint8ClampedArray(W*H*4);
+  for(let y=4;y<44;y++) for(let x=4;x<36;x++){
+    const p=(y*W+x)*4;
+    const dark=x<20;
+    src[p]=dark?4:169; src[p+1]=dark?32:216; src[p+2]=dark?49:243; src[p+3]=220;
+  }
+  ctx.colorizeTalporIdlePixels(src, W, H);
+  const at=(x,y)=>((y*W+x)*4);
+  const lum=p=>(src[p]*30+src[p+1]*59+src[p+2]*11)/100;
+  const left=at(10,24), right=at(28,24), rim=at(4,24), out=at(1,1);
+  assert(src[out+3]===0, 'colorize clears the empty margin');
+  assert(src[left+3]===255 && src[right+3]===255, 'standing figure alpha matches the opaque walk sheets');
+  assert(lum(right)-lum(left)>80, 'light and dark folds survive the cyan ramp (gap '+(lum(right)-lum(left)).toFixed(1)+')');
+  assert(src[right+2]>src[right]+20 && src[right+1]>src[right],
+    'the lit fold stays icy cyan (got '+src[right]+','+src[right+1]+','+src[right+2]+')');
+  assert(src[rim]===7 && src[rim+1]===17 && src[rim+2]===23 && src[rim+3]===255,
+    'the silhouette takes the walk sheet dark cool rim');
+}
 
 const fringe=new Uint8ClampedArray([40,30,20,30, 10,10,10,40]);
 const outFringe=liftCopy(fringe);
@@ -156,7 +189,7 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
   const lum=p=>(dst[p]*30+dst[p+1]*59+dst[p+2]*11)/100;
   const interior=at(18,32);
   assert(dst[interior]===fill[interior] && dst[interior+3]===fill[interior+3] && dst[interior+3]<255,
-    'the middle of a flat fold is untouched spectral fill');
+    'the middle of a flat fold is untouched cyan fill');
   let ridge=0, ink=0, opaque=0, cool=0, darker=0, a255=0;
   for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
     const p=at(x,y);
@@ -175,7 +208,7 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
   assert(ink>ridge && ink<opaque*0.45,
     'the line is thin — ink is '+ink+' of '+opaque+' opaque px');
   assert(cool===ink && darker>ink*0.8,
-    'every feature line is cooler and darker than the white fill');
+    'every feature line is cooler and darker than the cyan fill');
 }
 
 {
@@ -200,7 +233,7 @@ assert(outFringe[3]===0 && outFringe[7]===0, 'a<=40 fringe is cleared (not lifte
   assert(a255===0 && frac>0.04 && frac<0.32,
     'pordoom ghost atk lines cover the figure thinly (frac '+(frac*100).toFixed(1)+'%)');
   assert(cool===ink && (yInk/ink)+14<(yFill/(opaque-ink)),
-    'pordoom atk feature lines read darker and cool against the spectral fill');
+    'pordoom atk feature lines read darker and cool against the cyan fill');
 }
 
 const oldChalk=228*0.96/255;
@@ -232,13 +265,13 @@ const IDLE_SHA={
   'dwarf_fendur_ghost.png':'efbc2623',
   'dwarf_orbo_ghost.png':'a077fef6',
   'dwarf_pordoom_ghost.png':'6ef58ed6',
-  'dwarf_talpor_ghost.png':'c73fa0ad'
+  'dwarf_talpor_ghost.png':'c519730f'
 };
 const IDLE_DIM={
   'dwarf_fendur_ghost.png':[470,512],
   'dwarf_orbo_ghost.png':[480,512],
   'dwarf_pordoom_ghost.png':[470,512],
-  'dwarf_talpor_ghost.png':[674,512]
+  'dwarf_talpor_ghost.png':[470,512]
 };
 const WALK_SHA={
   'dwarf_fendur_ghost_w1.png':'4e7b7e25',

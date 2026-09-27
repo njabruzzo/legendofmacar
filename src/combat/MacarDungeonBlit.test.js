@@ -85,7 +85,8 @@ Object.keys(registry).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk'
-     || k==='macar_e_w3' || k==='macar_se_w3' || k==='macar_ne_w2' || k==='macar_ne_w3'
+     || k==='macar_e_w1' || k==='macar_e_w2' || k==='macar_se_w1' || k==='macar_se_w2'
+     || k==='macar_ne_w1' || k==='macar_ne_w2'
      || k==='macar_back_w1' || k==='macar_back_w2') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
@@ -118,7 +119,7 @@ vm.runInContext(
   +extractFn('sheetCrownId')
   +extractFn('partySheetMatchesIdle')
   +extractFn('matchingPartyAtkReady')
-  +extractFn('partyAnimKeyReady')
+  +extractFn('restoredMacarMotionKey')+extractFn('partyAnimKeyReady')
   +extractFn('pickReadyPartyKey')
   +extractFn('livingMacarBlitKey')
   +extractFn('walkCycleKey')
