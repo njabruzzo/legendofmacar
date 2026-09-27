@@ -11656,7 +11656,7 @@ function buildTeethCrownRoom(L, sec){
   const face={x:107.10,y:2.48};
   G.props.push({x:altar.x,y:altar.y,k:'altar',s:1.55,teethAltar:1,seed:880});
   if(!L.flags.crownTaken && !L.flags.crownTouched && !L.flags.crownDestroyed){
-    /* Same foot as the altar. drawBoneCrownProp lifts it onto the slab. */
+    /* Same foot as the altar. The altar pass seats it on the slab rect. */
     G.props.push({x:altar.x,y:altar.y,k:'bonecrown',s:1.70,seed:881});
   }
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:882,
@@ -11955,9 +11955,10 @@ function dropBoneCrown(){
   const p=typeof player==='function'?player():null;
   const altar=(G.props||[]).find(pr=>pr&&pr.k==='altar'&&pr.teethAltar&&!pr.gone);
   /* Drop in front of the slab returns the crown to the seated prop.
-     crownTouched is what hides the billboard in live play; a reload
-     already shows it on the slab, so clear the flag here too.
-     A fight does not take another drop path. */
+     The painted seat is boneCrownAltarSeat of the altar rect, the same
+     function the altar pass uses. crownTouched is what hides that
+     billboard in live play; a reload already shows it on the slab, so
+     clear the flag here too. A fight does not take another drop path. */
   const atAltar=crownDropAtAltar(p, altar);
   if(L&&L.flags){
     L.flags.crownTaken=0;
@@ -15112,16 +15113,12 @@ function teethAltarSheetActive(){
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
-/* Crown base, fraction down the altar sheet.
-   0.38–0.42 is the enclosure's back-wall cap. The flat bloody top
-   slab (the pool on the top step) centers here; the tuck then puts
-   the base on that center, in front of the back wall. */
-const TEETH_ALTAR_SLAB=0.623;
-/* Fraction of the altar sheet width. Negative pulls the base left
-   off the billboard center onto the pool. */
-const TEETH_CROWN_SEAT_X=-0.0573;
-/* A few screen pixels into the stone so the base reads as seated. */
-const TEETH_CROWN_SEAT_TUCK=3;
+/* Slab-center pixel on prop_altar_teeth.png (1075×718): the top face
+   of the raised block, the blood pool in the box with the carved band.
+   Back lip y=460, front lip y=490, side edges x=480 and x=590.
+   Center is (535, 475). Not the stairs and not the back-wall cap. */
+const TEETH_ALTAR_SLAB_FX=535/1075;
+const TEETH_ALTAR_SLAB_FY=475/718;
 function boneCrownHeadH(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   const altarH=a?teethAltarSheetH(a,z):100*z;
@@ -15133,19 +15130,44 @@ function boneCrownFloorSeatY(z){
   const foot=m?((m.h-m.oy)/Math.max(1,m.h)):0.149;
   return (-1+foot+0.20)*H;
 }
+/* Billboard rect in the altar's translated space. Same numbers drawBillboard
+   uses: origin is the sheet's top-left, foot is (0, 0). */
+function teethAltarBillboardRect(p, z, img){
+  const H=teethAltarSheetH(p,z);
+  const ih=Math.max(1,(img&&img.height)||718);
+  const iw=(img&&img.width)||1075;
+  const W=H*(iw/ih);
+  return {x:-W/2, y:-H, w:W, h:H};
+}
+/* Crown base, in that same rect. Fractions of the sheet only. */
+function boneCrownAltarSeat(rect){
+  return {
+    x:rect.x+TEETH_ALTAR_SLAB_FX*rect.w,
+    y:rect.y+TEETH_ALTAR_SLAB_FY*rect.h
+  };
+}
 function boneCrownSeatY(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
-  if(a){
-    const H=teethAltarSheetH(a,z);
-    return -H*(1-TEETH_ALTAR_SLAB)+TEETH_CROWN_SEAT_TUCK*z;
-  }
+  if(a) return boneCrownAltarSeat(teethAltarBillboardRect(a,z,teethAltarSheetImg())).y;
   return boneCrownFloorSeatY(z);
 }
-/* Same sheet the altar billboard uses, so the x shift scales with zoom. */
 function boneCrownSeatX(z){
   const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
   if(!a) return 0;
-  return teethAltarSheetH(a,z)*(1075/718)*TEETH_CROWN_SEAT_X;
+  return boneCrownAltarSeat(teethAltarBillboardRect(a,z,teethAltarSheetImg())).x;
+}
+function drawBoneCrownAt(g, z, seatX, seatY, scale){
+  const img=sceneCrownSprite();
+  if(img){
+    const H=boneCrownHeadH(z);
+    const W=H*(img.width/Math.max(1,img.height));
+    g.drawImage(img, seatX-W/2, seatY-H, W, H);
+    return;
+  }
+  g.save();
+  g.translate(seatX, seatY);
+  drawBoneCrownShape(g, z, scale||1);
+  g.restore();
 }
 /* Far from the altar, crownTouched stays set so the slab billboard hides.
    The prop is still on the floor and has to draw there. */
@@ -15159,19 +15181,25 @@ function boneCrownDroppedOnFloor(p){
 function drawBoneCrownProp(g,p,z){
   const onFloor=boneCrownDroppedOnFloor(p);
   if(!teethCrownStillSeated() && !onFloor) return;
-  const img=sceneCrownSprite();
-  const seat=onFloor?boneCrownFloorSeatY(z):boneCrownSeatY(z);
-  if(img){
-    const H=boneCrownHeadH(z);
-    const W=H*(img.width/Math.max(1,img.height));
-    const dx=onFloor?0:boneCrownSeatX(z);
-    g.drawImage(img, -W/2+dx, seat-H, W, H);
+  if(onFloor){
+    const img=sceneCrownSprite();
+    const seat=boneCrownFloorSeatY(z);
+    if(img){
+      const H=boneCrownHeadH(z);
+      const W=H*(img.width/Math.max(1,img.height));
+      g.drawImage(img, -W/2, seat-H, W, H);
+      return;
+    }
+    g.save();
+    g.translate(0, seat);
+    drawBoneCrownShape(g, z, p.s||1);
+    g.restore();
     return;
   }
-  g.save();
-  g.translate(0, seat);
-  drawBoneCrownShape(g, z, p.s||1);
-  g.restore();
+  const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+  const rect=teethAltarBillboardRect(altar||p, z, teethAltarSheetImg());
+  const seat=boneCrownAltarSeat(rect);
+  drawBoneCrownAt(g, z, seat.x, seat.y, p.s||1);
 }
 function drawHourglassProp(g,p,z){
   const img=SPR.hourglass_flaming||SPR.hourglass_signed||SPR.hourglass||null;
@@ -15758,13 +15786,10 @@ function drawProp(g,p,pal){
     return;
   }
   if(p.k==='bonecrown'){
-    /* Screen anchor is the altar tile, then boneCrownSeatY lifts to the slab. */
-    let foot=s;
-    if(teethCrownStillSeated()){
-      const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
-      if(altar) foot=w2s(altar.x, altar.y);
-    }
-    g.save(); g.translate(foot.x,foot.y);
+    /* Seated crown is painted in the altar pass, on that sheet's rect. */
+    if(teethCrownStillSeated()) return;
+    if(!boneCrownDroppedOnFloor(p)) return;
+    g.save(); g.translate(s.x,s.y);
     drawBoneCrownProp(g,p,z);
     g.restore();
     return;
@@ -15805,7 +15830,16 @@ function drawProp(g,p,pal){
     softShadow(g,2*z,1*z,22*z*sca,9*z*sca,.45);
     g.globalAlpha=1;
     g.globalCompositeOperation='source-over';
-    drawBillboard(g, sheet, H);
+    const sheetW=H*(sheet.width/Math.max(1,sheet.height));
+    const altarRect={x:-sheetW/2, y:-H, w:sheetW, h:H};
+    drawBillboard(g, sheet, altarRect.h);
+    if(teethCrownStillSeated()){
+      const crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown'&&!pr.gone&&!pr.taken);
+      if(crown){
+        const seat=boneCrownAltarSeat(altarRect);
+        drawBoneCrownAt(g, z, seat.x, seat.y, crown.s||1);
+      }
+    }
     const b=.4+Math.sin(G.elapsed*1.8)*.2;
     emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;

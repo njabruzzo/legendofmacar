@@ -245,16 +245,26 @@ assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
   'tooth prop height is the small-fang scale');
 assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
   'bone crown is drawn up on the altar slab');
-assert(/TEETH_ALTAR_SLAB=0\.623/.test(html),
-  'crown base seats on the bloody top slab, not the back-wall cap');
-assert(/TEETH_CROWN_SEAT_X=-0\.0573/.test(html),
-  'crown base is left of the sheet center, on the blood pool');
-assert(/TEETH_CROWN_SEAT_TUCK\*z/.test(extractFn('boneCrownSeatY')),
-  'crown base tucks a few pixels into the slab');
+assert(/TEETH_ALTAR_SLAB_FX=535\/1075/.test(html) && /TEETH_ALTAR_SLAB_FY=475\/718/.test(html),
+  'crown base is the slab-center pixel of the altar sheet');
+assert(!/TEETH_CROWN_SEAT_TUCK/.test(html) && !/TEETH_CROWN_SEAT_X/.test(html),
+  'seat has no zoom tuck and no world-unit x offset');
+assert(/function boneCrownAltarSeat\(rect\)/.test(html)
+  && /rect\.x\+TEETH_ALTAR_SLAB_FX\*rect\.w/.test(extractFn('boneCrownAltarSeat'))
+  && /rect\.y\+TEETH_ALTAR_SLAB_FY\*rect\.h/.test(extractFn('boneCrownAltarSeat')),
+  'seat is a fraction of the altar drawn rect');
+assert(/const altarRect=\{x:-sheetW\/2, y:-H, w:sheetW, h:H\}/.test(extractFn('drawProp'))
+  && /drawBillboard\(g, sheet, altarRect\.h\)[\s\S]*boneCrownAltarSeat\(altarRect\)/.test(extractFn('drawProp'))
+  && /drawBoneCrownAt\(g, z, seat\.x, seat\.y, crown\.s\|\|1\)/.test(extractFn('drawProp')),
+  'seated crown is painted on the altar sheet rect after that sheet');
+assert(/if\(teethCrownStillSeated\(\)\) return;/.test(extractFn('drawProp')),
+  'the seated crown is not drawn again as its own prop');
+assert(/g\.translate\(seatX, seatY\)/.test(extractFn('drawBoneCrownAt'))
+  && /drawBoneCrownShape\(g, z, scale\|\|1\)/.test(extractFn('drawBoneCrownAt')),
+  'fallback crown shape uses the same slab seat');
 assert(/o\.k==='bonecrown' && teethCrownStillSeated\(\)\) return boneCrownDrawDepth\(o\)/.test(extractFn('actorDrawDepth'))
-  && /demonFaceDrawDepth\(face\)\+1/.test(extractFn('boneCrownDrawDepth'))
-  && /w2s\(altar\.x, altar\.y\)/.test(extractFn('drawProp')),
-  'seated crown anchors to the altar tile and sorts after the wall, the face, and the altar');
+  && /demonFaceDrawDepth\(face\)\+1/.test(extractFn('boneCrownDrawDepth')),
+  'a seated crown prop still sorts after the wall and the face');
 assert(/\(8\.2\+h2\(i,x\)\*3\.4\)\*z\*sc/.test(extractFn('drawTeethTile'))
   && /\(risen\?4\.0:6\.4\+h2\(i,x\+y\)\*2\.8\)\*z\*sc/.test(extractFn('drawTeethTile')),
   'floor tile fangs are scaled down to a carpet');
@@ -713,10 +723,11 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   [
     'wearingBoneCrown','teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
     'dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
-    'teethAltarSheetH','boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
-    'boneCrownDroppedOnFloor','drawBoneCrownProp'
+    'teethAltarSheetImg','teethAltarSheetH','teethAltarBillboardRect','boneCrownAltarSeat',
+    'boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
+    'drawBoneCrownAt','boneCrownDroppedOnFloor','drawBoneCrownProp'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
-  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_CROWN_SEAT_TUCK=3;/)[0];
+  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_ALTAR_SLAB_FY=475\/718;/)[0];
   vm.runInContext(seatConsts, ctx);
   ctx.SPR={bone_crown_scene:{width:109,height:66}};
   const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,s:1.55,gone:0};
@@ -776,6 +787,26 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     && drawn[0].y===seat-head
     && drawn[0].x===-drawn[0].w/2+seatX,
     'the seated crown is drawn on the slab before any reload');
+  const sheet={width:1075,height:718};
+  const zoomFrac=[];
+  [0.78, 1.38].forEach(zz=>{
+    const rect=ctx.teethAltarBillboardRect(altar, zz, sheet);
+    const at=ctx.boneCrownAltarSeat(rect);
+    const fx=(at.x-rect.x)/rect.w, fy=(at.y-rect.y)/rect.h;
+    zoomFrac.push({fx, fy});
+    assert(Math.abs(fx-535/1075)<1e-12 && Math.abs(fy-475/718)<1e-12,
+      'zoom '+zz+' seat is the slab-center fraction of the altar rect');
+    const calls=[];
+    ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ calls.push({x,y,w,h}); }}, crown, zz);
+    assert(calls.length===1, 'zoom '+zz+' draws one seated crown');
+    const baseX=calls[0].x+calls[0].w/2, baseY=calls[0].y+calls[0].h;
+    assert(Math.abs((baseX-rect.x)/rect.w - 535/1075)<1e-9
+      && Math.abs((baseY-rect.y)/rect.h - 475/718)<1e-9,
+      'zoom '+zz+' crown base sits on that same fraction of the drawn rect');
+  });
+  assert(Math.abs(zoomFrac[0].fx-zoomFrac[1].fx)<1e-12
+    && Math.abs(zoomFrac[0].fy-zoomFrac[1].fy)<1e-12,
+    'the seat fraction is the same at two zooms');
   const again=ctx.takeBoneCrown(crown);
   assert(again.ok===1 && ctx.wearingBoneCrown() && crown.gone===1,
     'take again works after the crown is back on the slab');
