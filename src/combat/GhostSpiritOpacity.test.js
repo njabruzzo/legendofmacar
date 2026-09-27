@@ -1,7 +1,8 @@
 'use strict';
 /**
  * Ghost atk and back lift from the living-color stamp onto Nick's icy cyan.
- * Nick-GOOD idle and front walk w1/w2 (Talpor included) blit as painted.
+ * Nick-GOOD idle and front walk w1/w2 blit as painted.
+ * Talpor's standing idle is the pale sheet, so it takes the ice-cyan lift.
  * Cool, not warm dust. Shade stays so the kit does not flatten to chalk.
  * A thin cool line traces the silhouette and the main luminance ridge
  * (face, beard, helm, weapon) without punching the spirit opaque.
@@ -55,13 +56,14 @@ assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSp
   && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
   'Nick spectral idle and front walk blit as painted; atk/back still lift');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && /img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
+  && !/img===SPR\.talpor_ghost\|\|/.test(extractFn('nickSpectralGhostSheet'))
+  && !/\|\|img===SPR\.talpor_ghost(?:\||\s|;)/.test(extractFn('nickSpectralGhostSheet'))
   && /SPR\.talpor_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
   && /SPR\.talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
-  && /assets\/creatures\/dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
-  'Talpor idle and front walk blit as painted; attack and back still lift');
+  && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
+  'Talpor standing idle takes the ice-cyan lift; his front walks stay painted');
 assert(/const punch=!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');

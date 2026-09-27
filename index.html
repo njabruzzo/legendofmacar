@@ -1528,15 +1528,17 @@ function blitLivingMacar(img){
 function solidMacarSprite(img){ return blitLivingMacar(img); }
 /* Living kin take the Macar punch. Ghost atk and back are signed
    living-color stamps — lift those onto Nick's icy cyan. Nick idle and
-   front walk (Talpor included) blit as painted. Never punch a ghost to 255. */
+   front walk blit as painted. Talpor's standing sheet is the pale solid
+   paint, so it takes that same lift. His walks stay painted. Never punch
+   a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
-  /* Nick icy-cyan idle and front walk, Talpor included
-     (assets/creatures/dwarf_talpor_ghost.png and _w1/_w2). Lifting those
-     chalked the blue into a solid pale dwarf. Attack and back stay off
-     this list: they are living-color stamps and liftGhostSpirit grades
-     them onto the same cyan. */
-  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
+  /* Nick icy-cyan idle and front walk blit as painted. Talpor's standing
+     sheet (assets/creatures/dwarf_talpor_ghost.png) is not on this list:
+     it is pale and solid as painted, and liftGhostSpirit grades it onto
+     the same ice cyan and capped alpha as the other ghosts' lifted
+     sheets. His front walks stay here so the first step does not flash. */
+  return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
     ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
