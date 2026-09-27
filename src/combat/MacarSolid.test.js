@@ -143,9 +143,10 @@ assert(!/c&&SPR\[c\.key\]/.test(faceFn) || /c\.key!=='macar'\?SPR\[c\.key\]/.tes
 assert(/e\.ghost && !e\.dead\) g\.globalAlpha=GHOST_DRAW_ALPHA/.test(html)
   && /const GHOST_DRAW_ALPHA=1;/.test(html)
   && /const GHOST_ALPHA_CAP=224/.test(html)
-  && /const GHOST_WHITE_LIFT=0\.76;/.test(html)
-  && /const GHOST_COOL_LIFT=0\.40;/.test(html),
-  'kin ghosts lift to spectral white without punching to 255');
+  && /const GHOST_CYAN_MIX=0\.84;/.test(html)
+  && /const GHOST_ICE_B=214;/.test(html)
+  && !/const GHOST_WHITE_LIFT=/.test(html),
+  'kin ghosts lift onto icy cyan without punching to 255');
 assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.test(html),
   'ghost mid-alpha is remapped in liftGhostAlpha, not living punch');
 assert(!/if\(e\.hero && !e\.dead && !e\.ghost\) img=solidMacarSprite\(img\)/.test(html),

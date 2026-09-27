@@ -340,7 +340,55 @@ function trailSlot(i){
     acc+=Math.hypot(t[k].x-t[k-1].x, t[k].y-t[k-1].y);
     if(acc>=need) return t[k];
   }
-  return t[0];
+  /* A short trail used to return the same oldest crumb for every follower
+     whose spacing had not been walked yet, so two ghosts occupied one tile
+     just behind Macar. No distinct crumb means partyForm, which is spaced. */
+  return null;
+}
+/* 78px billboards. 2.15 world units is about a body-width on screen,
+   including the vertical iso axis where a smaller gap still overlaps. */
+const PARTY_SEP_LEAD=2.15;
+const PARTY_SEP_KIN=2.05;
+function nudgeParty(e, ux, uy, dist){
+  if(!e || !(dist>0)) return;
+  const nx=e.x+ux*dist, ny=e.y+uy*dist;
+  if(canBe(nx, ny, e.r, e)){ e.x=nx; e.y=ny; return; }
+  if(canBe(nx, e.y, e.r, e)){ e.x=nx; return; }
+  if(canBe(e.x, ny, e.r, e)) e.y=ny;
+}
+function separateParty(p){
+  if(!p || p.dead) return;
+  const kin=[];
+  for(const e of G.ents){
+    if(!e || e.team!=='party' || e.hero || e.dead || e.crushed || e.sleeping || e.tied || e.hidden) continue;
+    kin.push(e);
+  }
+  for(let pass=0; pass<4; pass++){
+    for(const e of kin){
+      const fighting=e.aim && !e.aim.dead && e.aim.team==='foe' && dist(e, e.aim)<=(e.range||1)+0.55;
+      if(fighting) continue;
+      let dx=e.x-p.x, dy=e.y-p.y, d=Math.hypot(dx, dy);
+      if(d>=PARTY_SEP_LEAD) continue;
+      if(d<0.04){
+        dx=-(p.fdy||0); dy=(p.fdx||1);
+        const m=Math.hypot(dx, dy)||1;
+        dx/=m; dy/=m; d=0;
+      } else { dx/=d; dy/=d; }
+      nudgeParty(e, dx, dy, PARTY_SEP_LEAD-d);
+    }
+    for(let i=0;i<kin.length;i++){
+      for(let j=i+1;j<kin.length;j++){
+        const a=kin[i], b=kin[j];
+        let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx, dy);
+        if(d>=PARTY_SEP_KIN) continue;
+        if(d<0.04){ dx=1; dy=0; d=0; }
+        else { dx/=d; dy/=d; }
+        const push=(PARTY_SEP_KIN-d)*0.5;
+        nudgeParty(a, -dx, -dy, push);
+        nudgeParty(b, dx, dy, push);
+      }
+    }
+  }
 }
 function steerWalk(e,dx,dy,sp,dt){
   if(!(dx||dy) || sp<=0){ e.ix=0; e.iy=0; e.moving=0; return 0; }
@@ -1478,20 +1526,21 @@ function blitLivingMacar(img){
   return out;
 }
 function solidMacarSprite(img){ return blitLivingMacar(img); }
-/* Living kin take the Macar punch. Ghost atk and back are still a signed
-   α168 gray-blue — lift those to spectral white. Nick-GOOD idle and front
-   walk w1/w2 (soft-eye walk v7) are already icy blue-white; the lift chalks
-   that kit and caps its alpha. Never punch a ghost to 255. */
+/* Living kin take the Macar punch. Ghost atk and back are signed
+   living-color stamps — lift those onto Nick's icy cyan. Nick idle and
+   front walk (Talpor included) blit as painted. Never punch a ghost to 255. */
 function nickSpectralGhostSheet(img){
   if(!img) return false;
-  /* Pordoom, Fendur, and Orbo idle and front walk are already spectral.
-     Talpor's approved standing idle is too (assets/creatures/dwarf_talpor_ghost.png).
-     Walk, attack, and back stay off this list so the interim lift still
-     covers those three. Their drop-in names live on talporInterimGhostKey. */
+  /* Nick icy-cyan idle and front walk, Talpor included
+     (assets/creatures/dwarf_talpor_ghost.png and _w1/_w2). Lifting those
+     chalked the blue into a solid pale dwarf. Attack and back stay off
+     this list: they are living-color stamps and liftGhostSpirit grades
+     them onto the same cyan. */
   return img===SPR.pordoom_ghost||img===SPR.fendur_ghost||img===SPR.orbo_ghost||img===SPR.talpor_ghost
     ||img===SPR.pordoom_ghost_w1||img===SPR.pordoom_ghost_w2
     ||img===SPR.fendur_ghost_w1||img===SPR.fendur_ghost_w2
-    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2;
+    ||img===SPR.orbo_ghost_w1||img===SPR.orbo_ghost_w2
+    ||img===SPR.talpor_ghost_w1||img===SPR.talpor_ghost_w2;
 }
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
@@ -1514,8 +1563,14 @@ const GHOST_DRAW_ALPHA=1;
 const GHOST_ALPHA_LO=40;
 const GHOST_ALPHA_CAP=224;
 const GHOST_ALPHA_LIFT=1.28;
-const GHOST_WHITE_LIFT=0.76;
-const GHOST_COOL_LIFT=0.40;
+/* Living-color back and attack are gray-green or gray-blue. The old white
+   wash (0.76 toward 255, then 0.40 toward moon-white) painted those as
+   solid pale dwarves on a north walk. Grade them onto Nick's icy cyan
+   and keep the luminance folds. Alpha still caps under 255. */
+const GHOST_CYAN_MIX=0.84;
+const GHOST_ICE_R=72;
+const GHOST_ICE_G=150;
+const GHOST_ICE_B=214;
 const GHOST_SHADE_KEEP=0.62;
 const GHOST_SHADE_PIVOT=82;
 const GHOST_EDGE_BLUR=10;
@@ -1527,21 +1582,20 @@ const GHOST_SPIRIT=typeof WeakMap==='function'?new WeakMap():null;
 function liftGhostAlpha(d){
   if(!d||!d.length) return d;
   const LO=GHOST_ALPHA_LO, CAP=GHOST_ALPHA_CAP, LIFT=GHOST_ALPHA_LIFT;
-  const WHITE=GHOST_WHITE_LIFT, COOL=GHOST_COOL_LIFT, SHADE=GHOST_SHADE_KEEP, PIVOT=GHOST_SHADE_PIVOT;
-  const moonR=246, moonG=251, moonB=255;
+  const MIX=GHOST_CYAN_MIX, SHADE=GHOST_SHADE_KEEP, PIVOT=GHOST_SHADE_PIVOT;
+  const iceR=GHOST_ICE_R, iceG=GHOST_ICE_G, iceB=GHOST_ICE_B;
   for(let p=0;p<d.length;p+=4){
     const a=d[p+3];
     if(a<=LO){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; continue; }
     const r0=d[p], g0=d[p+1], b0=d[p+2];
     const y0=(r0*30+g0*59+b0*11)/100;
-    let r=r0+(((255-r0)*WHITE)|0);
-    let g=g0+(((255-g0)*WHITE)|0);
-    let b=b0+(((255-b0)*WHITE)|0);
-    r=r+(((moonR-r)*COOL)|0);
-    g=g+(((moonG-g)*COOL)|0);
-    b=b+(((moonB-b)*COOL)|0);
+    let r=r0+(((iceR-r0)*MIX)|0);
+    let g=g0+(((iceG-g0)*MIX)|0);
+    let b=b0+(((iceB-b0)*MIX)|0);
     const dy=((y0-PIVOT)*SHADE)|0;
     r+=dy; g+=dy; b+=dy;
+    if(b<r+16) b=r+16;
+    if(g<r+6) g=r+6;
     d[p]=r<0?0:r>255?255:r;
     d[p+1]=g<0?0:g>255?255:g;
     d[p+2]=b<0?0:b>255?255:b;
@@ -1645,10 +1699,11 @@ function inkGhostFeatureEdges(dst, src, w, h){
   }
   for(let i=0,p=0;i<N;i++,p+=4){
     if(!edge[i]||dst[p+3]===0) continue;
-    let r=dst[p]-48, g=dst[p+1]-32, b=dst[p+2]-10;
-    if(r<128) r=128; if(g<150) g=150; if(b<176) b=176;
-    if(r>206) r=206; if(g>220) g=220; if(b>238) b=238;
-    if(b<g+8) b=g+8;
+    let r=dst[p]-36, g=dst[p+1]-28, b=dst[p+2]-18;
+    if(r<40) r=40; if(g<70) g=70; if(b<110) b=110;
+    if(r>170) r=170; if(g>190) g=190; if(b>220) b=220;
+    if(g<r+6) g=r+6;
+    if(b<r+16) b=r+16;
     dst[p]=r; dst[p+1]=g; dst[p+2]=b;
   }
   return dst;
@@ -13658,6 +13713,7 @@ function update(dt){
       if(e.moving) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
     }
+    separateParty(p);
   }
 
   for(const s of G.shots){

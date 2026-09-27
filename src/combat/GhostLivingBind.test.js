@@ -54,7 +54,8 @@ assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSp
   'spectral idle and front walk blit as painted; atk/back still lift');
 assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost\|\|img===SPR\.talpor_ghost/.test(extractFn('nickSpectralGhostSheet'))
   && /pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
-  && !/SPR\.talpor_ghost_w/.test(extractFn('nickSpectralGhostSheet'))
+  && /SPR\.talpor_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
+  && /SPR\.talpor_ghost_w2/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_atk/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
   && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet'))
