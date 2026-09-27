@@ -15112,11 +15112,14 @@ function teethAltarSheetActive(){
 function teethAltarSheetH(p,z){ return 150*z*((p&&p.s)||1); }
 /* Scene sheet is 109×66 on the 1075×718 platform — Nick's Macar-head fit. */
 const TEETH_CROWN_ON_ALTAR=66/718;
-/* Center of the slab's top face, fraction down the altar sheet.
-   0.22 was the back rim. 0.345 still sat the base on that rim, so the
-   crown read as perched on the far ledge. 0.50 put the base on the front
-   lip (the top face ends near 0.51). 0.42 seats the base in the middle. */
-const TEETH_ALTAR_SLAB=0.42;
+/* Crown base, fraction down the altar sheet.
+   0.38–0.42 sits on the enclosure's back-wall cap. The flat bloody
+   slab (the top step, where the pool is) centers near 0.65 down and
+   left of the sheet midline. 0.634 plus the tuck lands the base there. */
+const TEETH_ALTAR_SLAB=0.634;
+/* Fraction of the altar sheet width. Negative pulls the base left
+   off the billboard center onto the pool. */
+const TEETH_CROWN_SEAT_X=-0.057;
 /* A few screen pixels into the stone so the base reads as seated. */
 const TEETH_CROWN_SEAT_TUCK=3;
 function boneCrownHeadH(z){
@@ -15138,6 +15141,12 @@ function boneCrownSeatY(z){
   }
   return boneCrownFloorSeatY(z);
 }
+/* Same sheet the altar billboard uses, so the x shift scales with zoom. */
+function boneCrownSeatX(z){
+  const a=(G.props||[]).find(p=>p&&p.k==='altar'&&p.teethAltar&&!p.gone);
+  if(!a) return 0;
+  return teethAltarSheetH(a,z)*(1075/718)*TEETH_CROWN_SEAT_X;
+}
 /* Far from the altar, crownTouched stays set so the slab billboard hides.
    The prop is still on the floor and has to draw there. */
 function boneCrownDroppedOnFloor(p){
@@ -15155,7 +15164,8 @@ function drawBoneCrownProp(g,p,z){
   if(img){
     const H=boneCrownHeadH(z);
     const W=H*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -W/2, seat-H, W, H);
+    const dx=onFloor?0:boneCrownSeatX(z);
+    g.drawImage(img, -W/2+dx, seat-H, W, H);
     return;
   }
   g.save();

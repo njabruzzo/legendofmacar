@@ -245,8 +245,10 @@ assert(/if\(k==='tooth'\) return 10\*z\*\(p\.s\|\|1\)/.test(html),
   'tooth prop height is the small-fang scale');
 assert(/function boneCrownSeatY\(/.test(html) && /seat-H/.test(extractFn('drawBoneCrownProp')),
   'bone crown is drawn up on the altar slab');
-assert(/TEETH_ALTAR_SLAB=0\.42/.test(html),
-  'crown seat is the center of the altar top face');
+assert(/TEETH_ALTAR_SLAB=0\.634/.test(html),
+  'crown base seats on the bloody top slab, not the back-wall cap');
+assert(/TEETH_CROWN_SEAT_X=-0\.057/.test(html),
+  'crown base is left of the sheet center, on the blood pool');
 assert(/TEETH_CROWN_SEAT_TUCK\*z/.test(extractFn('boneCrownSeatY')),
   'crown base tucks a few pixels into the slab');
 assert(/o\.k==='bonecrown' && teethCrownStillSeated\(\)\) return boneCrownDrawDepth\(o\)/.test(extractFn('actorDrawDepth'))
@@ -711,7 +713,7 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   [
     'wearingBoneCrown','teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
     'dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
-    'teethAltarSheetH','boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY',
+    'teethAltarSheetH','boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
     'boneCrownDroppedOnFloor','drawBoneCrownProp'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
   const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_CROWN_SEAT_TUCK=3;/)[0];
@@ -769,8 +771,10 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
   assert(ctx.teethCrownStillSeated(), 'the crown is seated again before any reload');
   const drawn=paint();
   const seat=ctx.boneCrownSeatY(z), head=ctx.boneCrownHeadH(z);
+  const seatX=ctx.boneCrownSeatX(z);
   assert(drawn.length===1 && drawn[0].img===ctx.sceneCrownSprite()
-    && drawn[0].y===seat-head,
+    && drawn[0].y===seat-head
+    && drawn[0].x===-drawn[0].w/2+seatX,
     'the seated crown is drawn on the slab before any reload');
   const again=ctx.takeBoneCrown(crown);
   assert(again.ok===1 && ctx.wearingBoneCrown() && crown.gone===1,
