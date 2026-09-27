@@ -47,8 +47,10 @@ assert(/assets\/tiles\/teeth_floor_hq\.png/.test(html)
     'the fang field does not return before the readable tooth stamps');
 }
 assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_crown.png'))
-  && !/dwarf_macar_crown/.test(html) && !/macar_crown_w/.test(html),
-  'no crowned-walk sheet exists; worn crown stays an overlay');
+  && !/dwarf_macar_crown\.png/.test(html),
+  'no crowned-walk file is fetched; the worn crown is drawn on the living sheet');
+assert(/macar_crown_w1/.test(html) && /browY/.test(extractFn('drawWornBoneCrown')),
+  'the title-law strip keeps macar_crown, and the overlay uses the brow');
 
 const labels=cs=>cs.map(c=>c.t);
 const ctx={

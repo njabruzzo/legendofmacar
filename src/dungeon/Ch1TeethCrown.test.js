@@ -301,7 +301,11 @@ const ctx={
   TEETH_HORDE_STIR:0.8,
   TEETH_HORDE_MIN_DIST:2.8,
   isWalkTile(t){ return t===0||t===3||t===4; },
-  FOE:{fangedSkeleton(){ return {id:eid++, kind:'undead', name:'Fanged Skeleton', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; }},
+  SKELETAL_DWARF_N:4,
+  FOE:{
+    fangedSkeleton(){ return {id:eid++, kind:'undead', name:'Fanged Skeleton', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; },
+    skeletalDwarf(){ return {id:eid++, kind:'undead', name:'Skeletal Dwarf', team:'foe', x:0,y:0, hp:16, maxhp:16, dead:0, hd:2, ac:7, dmg:4.5, dice:'1d6+1'}; }
+  },
   lines:[],
   hints:[],
   xpAwards:[],
@@ -328,7 +332,7 @@ ctx.beginFight=function(){};
   'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
-  'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','takeBoneCrown','awardCrownDestroyXp',
+  'teethHordeBox','teethHordeWalkable','teethHordeSpots','riseTeethHorde','riseSkeletalDwarves','takeBoneCrown','awardCrownDestroyXp',
   'destroyBoneCrown','liveFoeBlocksCrown','playerDestroyBoneCrown','smashWornBoneCrown','doffBoneCrownAtCamp',
   'buildTeethCrownRoom','tryTalporTurnThrall'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
@@ -346,9 +350,38 @@ assert(take.ok===1 && take.worn===1, 'TAKE seats the crown');
 assert(altarCrown.gone===1 && ctx.G.lvl.flags.crownTaken===1, 'taken crown is spent');
 assert(ctx.G.lvl.flags.crownTouched===1, 'TAKE sets crownTouched');
 assert(ctx.G.equipped.helmet && ctx.G.equipped.helmet.boneCrown, 'crown is on Macar\'s head');
-assert(ctx.G.lvl.flags.teethRisen===1, 'TAKE raises the teeth horde');
-assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
-  'TAKE horde is eight fanged skeletons');
+assert(ctx.G.lvl.flags.skeletalDwarves===1, 'TAKE raises the skeletal dwarves once');
+assert(!ctx.G.lvl.flags.teethRisen, 'TAKE does not raise the fanged horde');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'TAKE raises four skeletal dwarves');
+assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
+  'TAKE does not spawn fanged skeletons');
+assert(ctx.takeBoneCrown(altarCrown).ok===0, 'taking again is a no-op');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'wearing after take does not raise the dwarves twice');
+ctx.destroyBoneCrown({worn:1, x:124, y:21});
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'destroy after take does not raise a second pack');
+assert(ctx.xpAwards.length===1, 'that destroy still awards XP once');
+ctx.xpAwards.length=0;
+assert(!/riseTeethHorde\(/.test(extractFn('takeBoneCrown'))
+  && !/riseTeethHorde\(/.test(extractFn('destroyBoneCrown')),
+  'take and destroy do not call the fanged horde');
+assert(/riseSkeletalDwarves\(crown\)/.test(extractFn('takeBoneCrown'))
+  && /riseSkeletalDwarves\(where\)/.test(extractFn('destroyBoneCrown')),
+  'take and destroy raise skeletal dwarves');
+assert(/macar_crown/.test(html.slice(html.indexOf('Title-law Macar'), html.indexOf('SPRITE_FILES.macar_atk_contact'))),
+  'title-law strip keeps crowned Macar keys');
+assert(/function crownedMacarSwap\(/.test(html)
+  && /wearingBoneCrown\(\)/.test(extractFn('crownedMacarSwap'))
+  && /return key/.test(extractFn('crownedMacarSwap')),
+  'a worn crown swaps to the crowned sheet, and doffing returns the plain key');
+assert(/browY/.test(extractFn('drawWornBoneCrown'))
+  && /crownSprite\(\)/.test(extractFn('drawWornBoneCrown'))
+  && !/H\*0\.15/.test(extractFn('drawWornBoneCrown')),
+  'the worn crown sits on the sheet brow, one crown, not the maul ledge');
+assert(/crownedMacarSwap\(livingMacarAnimKey/.test(extractFn('drawLivingMacar')),
+  'idle, walk, and attack all pass through the crowned swap');
 assert(ctx.xpAwards.length===0, 'TAKE does not award the destroy XP');
 
 ctx.G.lvl.flags={};
@@ -364,8 +397,10 @@ assert(ctx.G.lvl.flags.crownDestroyed===1, 'destroy flag is set');
 assert(ctx.xpAwards[0] && ctx.xpAwards[0].n===5000, 'awardPartyXp got 5000');
 assert(/Bone Crown destroyed/.test(ctx.xpAwards[0].why), 'XP reason names the crown');
 assert(ctx.G.equipped.helmet==null, 'destroy does not wear the crown');
-assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===8,
-  'DESTROY still raises the same horde');
+assert(ctx.G.ents.filter(e=>e.name==='Skeletal Dwarf').length===4,
+  'DESTROY raises four skeletal dwarves');
+assert(ctx.G.ents.filter(e=>e.name==='Fanged Skeleton').length===0,
+  'DESTROY does not spawn fanged skeletons');
 
 /* Altar foot, inside the chapel: the old ring (radius 1.35–2.2) was melee.
    Wall cells on the far edge must be skipped. beginFight may lengthen stun;

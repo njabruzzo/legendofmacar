@@ -101,7 +101,7 @@ assert(/pickReadyPartyKey\(atk, idle\)/.test(liveKey) || /pickReadyPartyKey\('ma
 assert(/matchingPartyAtkReady\(atk, idle\)/.test(liveKey),
   'matching equipped atk is used even when crown/family would plant idle');
 assert(/macar_axe_atk/.test(liveKey), 'cleaver melee uses macar_axe_atk');
-assert(/const key=livingMacarAnimKey\(e\)/.test(extractFn('drawLivingMacar'))
+assert(/const key=crownedMacarSwap\(livingMacarAnimKey\(e\)\)/.test(extractFn('drawLivingMacar'))
   && /img=livingMacarImg\(key\)/.test(extractFn('drawLivingMacar')),
   'dungeon blit goes through the whitelist img gate');
 assert(/liveKey=livingMacarAnimKey\(e\)/.test(html)
