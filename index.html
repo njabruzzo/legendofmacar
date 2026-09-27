@@ -14369,6 +14369,11 @@ function drawMemoryShade(g,L){
       g.moveTo(s.x, s.y-TH/2); g.lineTo(s.x+TW/2, s.y);
       g.lineTo(s.x, s.y+TH/2); g.lineTo(s.x-TW/2, s.y);
       g.closePath(); g.fill();
+    } else if(t===1||t===2){
+      const H=useWallFaces(L)?wallFaceH(L):TH;
+      g.beginPath();
+      g.ellipse(s.x, s.y-H*0.38, TW*0.62, TH*0.9+H*0.28, 0, 0, TAU);
+      g.fill();
     }
   }
   g.restore();

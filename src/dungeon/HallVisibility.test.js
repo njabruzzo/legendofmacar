@@ -5,6 +5,7 @@
  */
 const fs=require('fs');
 const path=require('path');
+const vm=require('vm');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 
 let failed=0;
@@ -53,9 +54,63 @@ assert(/rect\(g,14,14,18,16,0\)/.test(html) && /rect\(g,24,7,28,28,0\)/.test(htm
   'chapter I start rooms stay isometric chambers (grid was never a 1-tile tunnel)');
 
 const shade=html.slice(html.indexOf('function drawMemoryShade'), html.indexOf('function drawBeyondMask'));
-assert(!/ellipse\(/.test(shade), 'memory shade does not paint black discs on walls');
-assert(/nearTeethChapel\(L,x,y\)\) continue/.test(shade),
-  'the revealed chapel is not covered by memory-shade discs');
+const chapelSkip=shade.indexOf('if(nearTeethChapel(L,x,y)) continue;');
+const wallDisc=shade.indexOf('} else if(t===1||t===2){');
+assert(chapelSkip>=0 && wallDisc>chapelSkip, 'chapel skip runs before the wall disc');
+assert(/else if\(t===1\|\|t===2\)\{\s*const H=useWallFaces\(L\)\?wallFaceH\(L\):TH;\s*g\.beginPath\(\);\s*g\.ellipse\(s\.x, s\.y-H\*0\.38, TW\*0\.62, TH\*0\.9\+H\*0\.28, 0, 0, TAU\);\s*g\.fill\(\);/.test(shade),
+  'remembered hall walls still take the main wall disc');
+function extractFn(name){
+  const start=html.indexOf('function '+name+'(');
+  if(start<0) throw new Error('missing '+name);
+  let i=html.indexOf('{', start), depth=0;
+  for(;i<html.length;i++){
+    if(html[i]==='{') depth++;
+    else if(html[i]==='}'){ depth--; if(depth===0) return html.slice(start, i+1); }
+  }
+  throw new Error('unclosed '+name);
+}
+const room=/const x0=(\d+), y0=(\d+), rw=(\d+), rh=(\d+)/.exec(html);
+assert(!!room, 'teeth chapel room origin is the bound used by the skip');
+const x0=+room[1], y0=+room[2], rw=+room[3], rh=+room[4];
+const discs=[];
+let cell=null;
+const box={
+  VW:200, VH:200, TW:84, TH:42, TAU:Math.PI*2, G:{},
+  s2w(){ return {x:70, y:0}; },
+  w2s(x,y){ cell={x,y}; return {x:0,y:0}; },
+  useWallFaces(){ return true; },
+  wallFaceH(){ return 40; }
+};
+/* Four frustum corners must cover the hall sample and the chapel wall. */
+let corner=0;
+const corners=[{x:70,y:0},{x:120,y:0},{x:70,y:20},{x:120,y:20}];
+box.s2w=function(){ return corners[corner++%4]; };
+vm.createContext(box);
+vm.runInContext(
+  [extractFn('isWalkTile'), extractFn('teethBounds'), extractFn('nearTeethChapel'), extractFn('drawMemoryShade')].join('\n'),
+  box);
+const W=130, H=24;
+const grid=[], seen=[], vis=[];
+for(let y=0;y<H;y++){
+  grid[y]=[]; seen[y]=[]; vis[y]=[];
+  for(let x=0;x<W;x++){
+    grid[y][x]=1; seen[y][x]=1; vis[y][x]=0;
+  }
+}
+const L={
+  w:W, h:H, grid, seen, vis,
+  teethBounds:{x0, y0, x1:x0+rw, y1:y0+rh}
+};
+const g={
+  save(){}, restore(){}, beginPath(){}, moveTo(){}, lineTo(){}, closePath(){},
+  fill(){},
+  ellipse(){ discs.push(cell.x+','+cell.y); }
+};
+box.drawMemoryShade(g, L);
+assert(box.nearTeethChapel(L,102,1) && discs.indexOf('102,1')<0,
+  'discs are skipped near the teeth chapel');
+assert(discs.indexOf('86,15')>=0, 'a disc is still drawn on remembered hall wall (86,15)');
+assert(discs.indexOf('101,15')>=0, 'a disc is still drawn on remembered hall wall (101,15)');
 assert(/isWalkTile\(t\)/.test(shade), 'out-of-sight floor still shades as the tile diamond');
 assert(/function drawBeyondMask/.test(html) && /fillStyle=rock/.test(html),
   'unexplored rock stays a solid mask, not a disc');
