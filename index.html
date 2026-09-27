@@ -11869,18 +11869,29 @@ function dropBoneCrown(){
     pk.magic=pk.magic.filter(x=>!(x&&(x===it||x.boneCrown||x.id==='bone_crown')));
   }
   const L=G.lvl;
+  const p=typeof player==='function'?player():null;
+  const altar=(G.props||[]).find(pr=>pr&&pr.k==='altar'&&pr.teethAltar&&!pr.gone);
+  /* Drop in front of the slab returns the crown to the seated prop.
+     crownTouched is what hides the billboard in live play; a reload
+     already shows it on the slab, so clear the flag here too. */
+  const atAltar=!!(altar&&p&&typeof dist==='function'&&dist(p,altar)<=3);
   if(L&&L.flags){
     L.flags.crownDropped=1;
     L.flags.crownTaken=0;
+    if(atAltar) L.flags.crownTouched=0;
   }
-  const p=typeof player==='function'?player():null;
   let crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown');
   if(crown){
     crown.gone=0; crown.taken=0; crown.destroyed=0;
-    if(p){ crown.x=p.x; crown.y=p.y+0.55; }
+    if(atAltar){ crown.x=altar.x; crown.y=altar.y; }
+    else if(p){ crown.x=p.x; crown.y=p.y+0.55; }
   } else if(p){
     G.props=G.props||[];
-    G.props.push({x:p.x, y:p.y+0.55, k:'bonecrown', s:1.70, seed:881});
+    G.props.push({
+      x:atAltar?altar.x:p.x,
+      y:atAltar?altar.y:p.y+0.55,
+      k:'bonecrown', s:1.70, seed:881
+    });
   }
   say('Macar sets the bone crown down.','#c9b895');
   return {ok:1};

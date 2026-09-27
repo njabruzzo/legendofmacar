@@ -704,5 +704,54 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'vault height is the small plate, not the chapel portrait scale');
 }
 
+/* Drop at the altar seats the crown again before any reload.
+   Take hides the billboard while it is held. */
+{
+  [
+    'wearingBoneCrown','dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
+    'teethAltarSheetH','boneCrownHeadH','boneCrownSeatY','drawBoneCrownProp'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+  const seatConsts=html.match(/const TEETH_CROWN_ON_ALTAR=[\s\S]*?const TEETH_CROWN_SEAT_TUCK=3;/)[0];
+  vm.runInContext(seatConsts, ctx);
+  ctx.SPR={bone_crown_scene:{width:109,height:66}};
+  const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,s:1.55,gone:0};
+  const crown={x:altar.x,y:altar.y,k:'bonecrown',s:1.70,gone:0,taken:0};
+  ctx.G.lvl.flags={};
+  ctx.G.lvl.grid=null;
+  ctx.G.props=[altar, crown];
+  ctx.G.packs={macar:{magic:[]}};
+  ctx.G.equipped={};
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:altar.x, y:altar.y+0.8, hp:80, maxhp:80}];
+  ctx.lines=[]; ctx.hints=[];
+  const z=1;
+  function paint(){
+    const calls=[];
+    const g={drawImage(img,x,y,w,h){ calls.push({img,x,y,w,h}); }};
+    ctx.drawBoneCrownProp(g, crown, z);
+    return calls;
+  }
+  const took=ctx.takeBoneCrown(crown);
+  assert(took.ok===1 && ctx.wearingBoneCrown() && !ctx.teethCrownStillSeated(),
+    'take holds the crown and the seated billboard stops');
+  assert(paint().length===0, 'while held, the seated crown is not drawn');
+  const dropped=ctx.dropBoneCrown();
+  assert(dropped.ok===1 && !ctx.wearingBoneCrown(), 'drop at the altar clears the helm');
+  assert(ctx.G.lvl.flags.crownTouched===0 && ctx.G.lvl.flags.crownTaken===0,
+    'drop at the altar returns the crown to the seated flags');
+  assert(crown.gone===0 && crown.x===altar.x && crown.y===altar.y,
+    'drop at the altar puts the crown prop back on the altar foot');
+  assert(ctx.teethCrownStillSeated(), 'the crown is seated again before any reload');
+  const drawn=paint();
+  const seat=ctx.boneCrownSeatY(z), head=ctx.boneCrownHeadH(z);
+  assert(drawn.length===1 && drawn[0].img===ctx.sceneCrownSprite()
+    && drawn[0].y===seat-head,
+    'the seated crown is drawn on the slab before any reload');
+  const again=ctx.takeBoneCrown(crown);
+  assert(again.ok===1 && ctx.wearingBoneCrown() && crown.gone===1,
+    'take again works after the crown is back on the slab');
+  assert(!ctx.teethCrownStillSeated() && paint().length===0,
+    'while held again, the seated crown stops drawing');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nch1 teeth crown checks passed');
