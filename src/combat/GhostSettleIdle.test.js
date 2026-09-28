@@ -1196,6 +1196,23 @@ function acceptTinyGain(){
 }
 acceptTinyGain();
 
+/* Open pair. The axis accept keeps a gain under 0.01. Restoring +0.01
+   walks the follower farther along that axis. */
+function acceptUnderHundredth(){
+  mark();
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const a=makeGhost('pordoom', -1, -1, {x:1, y:0});
+  const b=makeGhost('fendur', 1, -1, {x:1, y:0});
+  a._ox=0.5; a._oy=-0.6; b._ox=1; b._oy=-1;
+  ctx.G.ents=[mac, a, b];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  console.log('under hundredth x '+a.x.toFixed(3));
+  assert(a.x<0.58, 'a sub-0.01 axis gain is not replaced by the +0.01 step (x '+a.x.toFixed(3)+')');
+}
+acceptUnderHundredth();
+
 /* The compass fallback is the only legal step out of this pocket. */
 function bubbleStepOpens(){
   mark();
@@ -1241,6 +1258,411 @@ function steerDoesNotEnterBody(){
   assert(d1+1e-6>=Math.min(d0, 2), 'steer does not close inside the body (d0 '+d0.toFixed(3)+' d1 '+d1.toFixed(3)+')');
 }
 steerDoesNotEnterBody();
+
+/* Macar idle on a west wall. ORBO stands due south, outside the body.
+   A north slide used to walk through him (gaps down to 0.028). The slide
+   stops at the body or takes the other tangent. */
+function westWallSlideMissesBody(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  mac.x=10.72; mac.y=20; mac.fdx=-1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const orbo=makeGhost('orbo', 10.72, 19.46, {x:0, y:1});
+  ctx.G.ents=[mac, orbo];
+  let minGap=99, through=0;
+  const gaps=[];
+  for(let f=0; f<20; f++){
+    const sx=orbo.x, sy=orbo.y;
+    const sd=Math.hypot(sx-mac.x, sy-mac.y);
+    orbo._ox=sx; orbo._oy=sy; orbo._steerStep=0;
+    mac.moving=0; mac._frameStep=0; mac._sepDt=0.05;
+    ctx.separateParty(mac);
+    const ed=Math.hypot(orbo.x-mac.x, orbo.y-mac.y);
+    if(ed<minGap) minGap=ed;
+    gaps.push(+ed.toFixed(3));
+    if(sd>0.36){
+      const vx=orbo.x-sx, vy=orbo.y-sy, L=vx*vx+vy*vy;
+      if(L>1e-8){
+        let t=((mac.x-sx)*vx+(mac.y-sy)*vy)/L;
+        if(t<0) t=0; else if(t>1) t=1;
+        if(Math.hypot(sx+vx*t-mac.x, sy+vy*t-mac.y)<=0.36) through++;
+      }
+    }
+  }
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('west-wall slide min '+minGap.toFixed(3)+' through '+through+' gaps '+gaps.slice(0,6).join(','));
+  assert(through===0, 'a west-wall slide does not enter Macar (through '+through+')');
+  assert(minGap>0.3, 'a west-wall slide does not reach the center (min '+minGap.toFixed(3)+')');
+}
+westWallSlideMissesBody();
+
+/* Two followers in a corner. FENDUR's slide must not pass through PORDUM. */
+function slideRespectsOtherFollower(){
+  mark();
+  const prev=ctx.canBe;
+  ctx.canBe=function(x,y,r){ return (x+(r||0))<40 && (y+(r||0))<40; };
+  mac.x=38.2; mac.y=38.2; mac.fdx=1; mac.fdy=1; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const pord=makeGhost('pordoom', 39.15, 38.35, {x:1, y:0});
+  const fend=makeGhost('fendur', 38.35, 39.15, {x:0, y:1});
+  ctx.G.ents=[mac, pord, fend];
+  let minPair=99, through=0;
+  for(let f=0; f<24; f++){
+    const bodies=[pord, fend].map(e=>({e:e, x:e.x, y:e.y}));
+    pord._ox=pord.x; pord._oy=pord.y; fend._ox=fend.x; fend._oy=fend.y;
+    mac.moving=0; mac._frameStep=0; mac._sepDt=0.05;
+    ctx.separateParty(mac);
+    const pair=Math.hypot(pord.x-fend.x, pord.y-fend.y);
+    if(pair<minPair) minPair=pair;
+    bodies.forEach(b=>{
+      const o=b.e===pord?fend:pord;
+      const sd=Math.hypot(b.x-o.x, b.y-o.y);
+      if(sd<=0.36) return;
+      const vx=b.e.x-b.x, vy=b.e.y-b.y, L=vx*vx+vy*vy;
+      if(L<1e-8) return;
+      let t=((o.x-b.x)*vx+(o.y-b.y)*vy)/L;
+      if(t<0) t=0; else if(t>1) t=1;
+      if(Math.hypot(b.x+vx*t-o.x, b.y+vy*t-o.y)<=0.36) through++;
+    });
+  }
+  ctx.canBe=prev;
+  console.log('kin slide minPair '+minPair.toFixed(3)+' through '+through);
+  assert(through===0, 'a follower slide does not pass through another follower ('+through+')');
+  assert(minPair>0.3, 'a follower pair does not collapse through a body (min '+minPair.toFixed(3)+')');
+}
+slideRespectsOtherFollower();
+
+/* Held into a wall with moving still set. Only the wall-held return
+   keeps a follower who is already under 2.0 from steering. */
+function wallHeldReturnFreezes(){
+  mark();
+  mac.x=20; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('fendur', 21.2, 10.4, {x:0, y:1});
+  ghost.gait=1.25;
+  ctx.G.ents=[mac, ghost];
+  const g0=ghost.gait, x0=ghost.x, y0=ghost.y;
+  ctx.stepPartyFollower(ghost, {x:24, y:14}, 0.38, mac, DT);
+  console.log('wall-held stay '+(ghost.x-x0).toFixed(3)+','+(ghost.y-y0).toFixed(3)+' gait '+(ghost.gait-g0).toFixed(3)+' moving '+ghost.moving);
+  assert(Math.hypot(ghost.x-x0, ghost.y-y0)<1e-4, 'a wall-held follower does not steer');
+  assert(ghost.gait===g0, 'a wall-held follower does not advance gait');
+  assert(ghost.moving===0, 'a wall-held follower is idle');
+}
+wallHeldReturnFreezes();
+
+/* Idle snap is what clears the moving flag on a follower who already
+   stands clear, when separateParty is the only call. */
+function idleHoldStillClearsMoving(){
+  mark();
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('orbo', 14, 10, {x:0, y:1});
+  ghost.moving=1; ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=DT;
+  ctx.separateParty(mac);
+  console.log('idle snap moving '+ghost.moving+' at '+ghost.x.toFixed(3)+','+ghost.y.toFixed(3));
+  assert(ghost.moving===0, 'an idle clear follower is snapped to idle');
+  assert(Math.hypot(ghost.x-14, ghost.y-10)<1e-4, 'an idle clear follower stays on the start spot');
+}
+idleHoldStillClearsMoving();
+
+/* Pinned on the wall, Macar still walking. The far-side return skips
+   steer, so the facing and the gait stay put. */
+function pinnedFarSideSkipsSteer(){
+  mark();
+  const prev=ctx.canBe;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  mac.x=11.1; mac.y=20; mac.fdx=-1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0.07; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 10.36, 20.15, {x:0, y:1});
+  ghost.gait=0.4; ghost.fdx=0; ghost.fdy=1;
+  ctx.G.ents=[mac, ghost];
+  const g0=ghost.gait;
+  ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+  ctx.canBe=prev;
+  console.log('pinned steer gait '+(ghost.gait-g0).toFixed(3)+' face '+ghost.fdx.toFixed(2)+','+ghost.fdy.toFixed(2)+' moving '+ghost.moving);
+  assert(ghost.gait===g0, 'a pinned far-side follower does not steer the gait');
+  assert(Math.abs(ghost.fdy-1)<1e-6 && Math.abs(ghost.fdx)<1e-6, 'a pinned far-side follower keeps its facing');
+}
+pinnedFarSideSkipsSteer();
+
+/* The current-position chord, not only the frame-start chord. */
+function secondChordBlocks(){
+  mark();
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const a=makeGhost('pordoom', 0.25, 0.55, {x:1, y:0});
+  const b=makeGhost('fendur', 0.25, -1.6, {x:1, y:0});
+  a._ox=2.2; a._oy=1.4; b._ox=2.2; b._oy=-1.6;
+  ctx.G.ents=[mac, a, b];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const vx=a.x-0.25, vy=a.y-0.55, L=vx*vx+vy*vy;
+  let md=Math.hypot(0.25, 0.55);
+  if(L>1e-8){
+    let t=((0-0.25)*vx+(0-0.55)*vy)/L;
+    if(t<0) t=0; else if(t>1) t=1;
+    md=Math.hypot(0.25+vx*t, 0.55+vy*t);
+  }
+  console.log('second chord end '+a.x.toFixed(3)+','+a.y.toFixed(3)+' md '+md.toFixed(3));
+  assert(md>0.2, 'the current chord does not cut Macar (md '+md.toFixed(3)+')');
+}
+secondChordBlocks();
+
+/* Inside 0.2, sideOk must still allow a step that moves away. */
+function insideBubbleMayLeave(){
+  mark();
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const a=makeGhost('pordoom', -0.2, 0, {x:1, y:0});
+  const b=makeGhost('fendur', -0.3, -0.3, {x:1, y:0});
+  a._ox=a.x; a._oy=a.y; b._ox=b.x; b._oy=b.y;
+  ctx.G.ents=[mac, a, b];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  console.log('inside leave '+a.x.toFixed(3)+','+a.y.toFixed(3));
+  assert(a.y>0.05, 'the inside-0.2 check still steps off the chord (y '+a.y.toFixed(3)+')');
+}
+insideBubbleMayLeave();
+
+/* nudge's axis fallback can land on the far side after a legal aim.
+   The post-move check puts the follower back. */
+function postMoveCheckReverts(){
+  mark();
+  const prev=ctx.canBe;
+  ctx.canBe=function(x,y){
+    if(Math.hypot(x-0.4, y-0.5)<0.02) return true;
+    if(y>0.15) return false;
+    return x>0;
+  };
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const a=makeGhost('pordoom', 0.4, 0.5, {x:1, y:0});
+  const b=makeGhost('fendur', 0.4, 1.8, {x:1, y:0});
+  a._ox=a.x; a._oy=a.y; b._ox=b.x; b._oy=b.y;
+  ctx.G.ents=[mac, a, b];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const dot=0.4*(a.x)+0.5*(a.y);
+  ctx.canBe=prev;
+  console.log('post-move '+a.x.toFixed(3)+','+a.y.toFixed(3)+' dot '+dot.toFixed(3));
+  assert(dot>0, 'a nudged axis slide is reverted when it crosses (dot '+dot.toFixed(3)+')');
+}
+postMoveCheckReverts();
+
+/* sameHalf holds, misses is what rejects a chord through the bubble. */
+function missesAloneBlocksChord(){
+  mark();
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('orbo', 0.5, 0.15, {x:0, y:1});
+  ghost._ox=2.4; ghost._oy=0.2;
+  const b=makeGhost('fendur', 0.5, 1.7, {x:0, y:1});
+  b._ox=2.4; b._oy=1.7;
+  ctx.G.ents=[mac, ghost, b];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const vx=ghost.x-0.5, vy=ghost.y-0.15, L=vx*vx+vy*vy;
+  let md=Math.hypot(0.5, 0.15);
+  if(L>1e-8){
+    let t=((0-0.5)*vx+(0-0.15)*vy)/L;
+    if(t<0) t=0; else if(t>1) t=1;
+    md=Math.hypot(0.5+vx*t, 0.15+vy*t);
+  }
+  console.log('misses chord end '+ghost.x.toFixed(3)+','+ghost.y.toFixed(3)+' md '+md.toFixed(3));
+  assert(md>0.2, 'misses keeps the chord out of the 0.2 bubble (md '+md.toFixed(3)+')');
+}
+missesAloneBlocksChord();
+
+/* Start inside 0.2, and the only opening is the away goal, not a compass
+   ray. misses() has to exempt that start or the step never leaves. */
+function bubbleExemptionLeaves(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  ctx.canBe=function(x,y){
+    const dx=x-10.05, dy=y-10;
+    if(dx*dx+dy*dy<1e-8) return true;
+    const ang=Math.atan2(dy, dx);
+    return Math.abs(ang-0.4)<0.08 && Math.hypot(dx, dy)<3;
+  };
+  mac.x=10; mac.y=10; mac.fdx=Math.cos(0.4); mac.fdy=Math.sin(0.4); mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 10.05+Math.cos(0.4)*0.12, 10+Math.sin(0.4)*0.12, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  const d0=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const d1=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('bubble exempt d0 '+d0.toFixed(3)+' d1 '+d1.toFixed(3));
+  assert(d0<0.2 && d1>d0+0.02, 'the inside-0.2 goal exemption still steps out (d1 '+d1.toFixed(3)+')');
+}
+bubbleExemptionLeaves();
+
+/* A spaced follower's steer speed is the leader step, not a full walk. */
+function steerSpacedCapHolds(){
+  mark();
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0.02; mac.name='MACAR';
+  const ghost=makeGhost('fendur', 14, 10.2, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  ctx.stepPartyFollower(ghost, {x:18, y:10.2}, 0.38, mac, 0.05);
+  const step=Math.hypot(ghost.x-14, ghost.y-10.2);
+  console.log('steer spaced step '+step.toFixed(4));
+  assert(step<=mac._frameStep*1.05+1e-3, 'a spaced steer stays within 1.05× (step '+step.toFixed(4)+')');
+}
+steerSpacedCapHolds();
+
+/* Steady walk along a wall. Facing holds across small step jitter. */
+function facingHoldsOnSteadyWalk(){
+  mark();
+  const prev=ctx.canBe, prevMove=ctx.move, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.canBe=function(x,y,r){ return (y-(r||0))>=8; };
+  ctx.move=function(e,dx,dy,dt){
+    let nx=e.x+dx*dt, ny=e.y+dy*dt;
+    if(!ctx.canBe(nx, ny, e.r)){
+      if(ctx.canBe(nx, e.y, e.r)) ny=e.y;
+      else if(ctx.canBe(e.x, ny, e.r)) nx=e.x;
+      else return 0;
+    }
+    e.x=nx; e.y=ny; return 1;
+  };
+  ctx.TW=116; ctx.TH=58;
+  const face={x:1, y:0};
+  mac.x=20; mac.y=8.5; mac.fdx=face.x; mac.fdy=face.y; mac.moving=1; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
+  const ghost=makeGhost('fendur', 18.2, 8.55, face);
+  ctx.G.ents=[mac, ghost];
+  function oct(e){
+    const sx=(e.fdx||0)-(e.fdy||0), sy=(e.fdx||0)+(e.fdy||0);
+    if(!(sx||sy)) return 's';
+    const deg=((Math.atan2(sy, sx)*180/Math.PI)+360)%360;
+    return ['e','se','s','sw','w','nw','n','ne'][Math.round(deg/45)%8];
+  }
+  let flips=0, prevOct=oct(ghost);
+  const frames=120;
+  for(let f=0; f<frames; f++){
+    mac.x+=mac.sp*DT; mac.moving=1; mac._frameStep=mac.sp*DT; mac.fdx=1; mac.fdy=0;
+    ghost._ox=ghost.x; ghost._oy=ghost.y;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    ghost._steerStep=Math.hypot(ghost.x-ghost._ox, ghost.y-ghost._oy);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const now=oct(ghost);
+    if(now!==prevOct){ flips++; prevOct=now; }
+  }
+  ctx.canBe=prev; ctx.move=prevMove; ctx.TW=prevTW; ctx.TH=prevTH;
+  const per=flips/(frames*DT);
+  console.log('steady facing flips '+flips+' /s '+per.toFixed(2));
+  assert(per<=2, 'steady walking flips at most 2/s (got '+per.toFixed(2)+')');
+}
+facingHoldsOnSteadyWalk();
+
+/* Seed 0xC0FFEE, 400 trials, dt 0.05, west wall, four followers, 20 frames.
+   Trial 179 is the one that used to slide ORBO north through an idle Macar. */
+function seededBodyFuzz(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=66; ctx.TH=34;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  let s=0xC0FFEE;
+  function rnd(){
+    s=(s+0x6D2B79F5)|0;
+    let t=Math.imul(s^s>>>15, 1|s);
+    t=t+Math.imul(t^t>>>7, 61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  }
+  const names=['pordoom','fendur','orbo','talpor'];
+  let crosses=0, through=0, trial179=null, sample=null;
+  for(let n=0; n<400; n++){
+    mac.x=10.4+rnd()*1.2; mac.y=16+rnd()*8;
+    mac.fdx=-1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3; mac._frameStep=0; mac.name='MACAR';
+    const crew=names.map(name=>{
+      const g=makeGhost(name, mac.x+(rnd()*3.2-1.2), mac.y+(rnd()*4-2), {x:-1, y:0});
+      if(g.x<10.36) g.x=10.36;
+      return g;
+    });
+    ctx.G.ents=[mac].concat(crew);
+    const log=[];
+    for(let f=0; f<20; f++){
+      const start=crew.map(e=>({x:e.x, y:e.y}));
+      crew.forEach(e=>{ e._ox=e.x; e._oy=e.y; e._steerStep=0; e._slideUx=0; e._slideUy=0; });
+      mac.moving=0; mac._frameStep=0; mac._sepDt=0.05;
+      ctx.separateParty(mac);
+      crew.forEach((e,i)=>{
+        const sx=start[i].x, sy=start[i].y;
+        const sd=Math.hypot(sx-mac.x, sy-mac.y);
+        const dot=(sx-mac.x)*(e.x-mac.x)+(sy-mac.y)*(e.y-mac.y);
+        if(sd>0.2 && dot<=0) crosses++;
+        const bodies=[{x:mac.x,y:mac.y,r:0.36,sx:mac.x,sy:mac.y}];
+        for(let j=0;j<crew.length;j++){
+          if(j===i) continue;
+          bodies.push({x:crew[j].x,y:crew[j].y,r:0.36,sx:start[j].x,sy:start[j].y});
+        }
+        bodies.forEach(b=>{
+          const d0=Math.hypot(sx-b.sx, sy-b.sy);
+          if(d0<=(b.r||0.36)) return;
+          function hit(px, py){
+            const vx=e.x-sx, vy=e.y-sy, L=vx*vx+vy*vy;
+            if(L<1e-8) return Math.hypot(sx-px, sy-py)<=(b.r||0.36)-0.02;
+            let t=((px-sx)*vx+(py-sy)*vy)/L;
+            if(t<0) t=0; else if(t>1) t=1;
+            return Math.hypot(sx+vx*t-px, sy+vy*t-py)<=(b.r||0.36)-0.02;
+          }
+          if(hit(b.sx, b.sy) && hit(b.x, b.y)){
+            through++;
+            if(!sample) sample={n:n, f:f, name:e.name, from:[sx,sy], to:[e.x,e.y], body0:[b.sx,b.sy], body1:[b.x,b.y], mac:[mac.x,mac.y], crew:start.map(p=>[p.x,p.y])};
+          }
+        });
+        if(n===179 && e.name==='orbo' && f>=16 && f<=19) log.push(+Math.hypot(e.x-mac.x, e.y-mac.y).toFixed(3));
+      });
+    }
+    if(n===179) trial179=log;
+  }
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('fuzz crosses '+crosses+' through '+through+' trial179 '+JSON.stringify(trial179)+' sample '+JSON.stringify(sample));
+  assert(crosses===0, 'seeded 50ms fuzz has no centre crossing ('+crosses+')');
+  assert(through===0, 'seeded 50ms fuzz has no body pass-through ('+through+')');
+}
+seededBodyFuzz();
+
+/* Real-input cases QA replays. Spawn, keys, frame counts, dt, and tile size. */
+const PARTY_PROOF_CASES=[
+  {name:'straight', dt:1/60, tw:116, th:58, go:[[24,22,500]], hold:[['s','d',200]], rest:50},
+  {name:'d-then-diagonal', dt:1/60, tw:116, th:58, go:[[26,20,500]], hold:[['d',30],['s','d',140]], rest:40},
+  {name:'s-then-d', dt:1/60, tw:116, th:58, go:[[24,18,500]], hold:[['s',70],['d',110]], rest:40},
+  {name:'d-then-wd', dt:1/60, tw:116, th:58, go:[[32,20,700]], hold:[['d',36],['w','d',220]], rest:30},
+  {name:'s-then-sd', dt:1/60, tw:116, th:58, go:[[26,22,500]], hold:[['s',60],['s','d',140]], rest:30},
+  {name:'wall-s-corner', dt:1/60, tw:116, th:58, go:[[34,28,800],[20,28,800],[18.6,27.2,400]], hold:[['s','a',220]], rest:40},
+  {name:'gridW', dt:1/60, tw:116, th:58, go:[[22,20,700],[25.2,14.5,600],[26.2,11,500]], hold:[['w','a',260]], rest:30},
+  {name:'gridN', dt:1/60, tw:116, th:58, go:[[29.6,11.2,700]], hold:[['w','d',120],['s','a',60],['w','d',180]], rest:30},
+  {name:'idle-stacked', dt:1/60, tw:116, th:58, go:[[25,14.8,700],[20,22,600],[18.6,26.2,500]], hold:[['s','a',200]], rest:80},
+  {name:'idleTriple', dt:1/60, tw:116, th:58, go:[[22.5,24,500]], hold:[['s','d',30]], rest:80},
+  {name:'double-blocked', dt:1/60, tw:116, th:58, go:[[16.2,26.5,600],[15.5,28.2,400]], hold:[['s','a',140],['a',80]], rest:40},
+  {name:'west-pin', dt:1/60, tw:116, th:58, go:[[22,18,700],[25.6,13.2,600],[26.4,10.8,400]], hold:[['w','a',240]], rest:0},
+  {name:'west-walk', dt:1/60, tw:116, th:58, go:[], hold:[['w','a',90]], rest:0},
+  {name:'west-rest', dt:1/60, tw:116, th:58, go:[], hold:[], rest:90},
+  {name:'se-corner', dt:1/60, tw:116, th:58, go:[[40,11.2,900],[42,30,900],[50.2,33.2,700]], hold:[['s',120]], rest:40},
+  {name:'reverse-turn', dt:1/60, tw:116, th:58, go:[[42,22,800]], hold:[['s','d',50],['w','a',36]], rest:70},
+  {name:'wall-hold', dt:1/60, tw:116, th:58, go:[[36,12,800],[32,9.4,500]], hold:[['w','d',90],['w','d',140]], rest:20}
+];
+function proofCatalog(){
+  mark();
+  const names=PARTY_PROOF_CASES.map(c=>c.name);
+  const need=['straight','d-then-diagonal','s-then-d','d-then-wd','s-then-sd','wall-s-corner','gridW','gridN','idle-stacked','idleTriple','double-blocked','west-pin','west-walk','west-rest','se-corner','reverse-turn','wall-hold'];
+  need.forEach(n=>assert(names.indexOf(n)>=0, 'proof catalog has '+n));
+  PARTY_PROOF_CASES.forEach(c=>{
+    assert(c.dt>0 && c.tw>0 && c.th>0, c.name+' names dt and tile size');
+    assert(Array.isArray(c.hold) && Array.isArray(c.go), c.name+' names the key sequence');
+  });
+  assert(PARTY_PROOF_CASES.length===17, 'proof catalog covers the reported cases');
+}
+proofCatalog();
 
 if(failed){
   console.log('COUNTS cases='+cases+' asserts='+asserts);

@@ -543,6 +543,34 @@ function separateParty(p, dt){
     }
     return chord(fx, fy, nx, ny) && chord(ox, oy, nx, ny);
   }
+  function segmentMissesParty(mover, ax, ay, bx, by, leader){
+    const bodies=[];
+    if(leader) bodies.push(leader);
+    const ents=G.ents||[];
+    for(let i=0;i<ents.length;i++){
+      const o=ents[i];
+      if(!o || o===mover || o===leader || o.dead || o.crushed) continue;
+      if(o.team==='party') bodies.push(o);
+    }
+    for(let i=0;i<bodies.length;i++){
+      const b=bodies[i];
+      const R=b.r||0.36;
+      const vx=bx-ax, vy=by-ay, L2=vx*vx+vy*vy;
+      const sd=Math.hypot(ax-b.x, ay-b.y);
+      let md=sd;
+      if(L2>1e-8){
+        let t=((b.x-ax)*vx+(b.y-ay)*vy)/L2;
+        if(t<0) t=0; else if(t>1) t=1;
+        md=Math.hypot(ax+vx*t-b.x, ay+vy*t-b.y);
+      }
+      if(sd<R-1e-4){
+        const ed=Math.hypot(bx-b.x, by-b.y);
+        if(ed+1e-6<sd-0.01) return false;
+        if(md+1e-6<Math.min(sd, 0.02)) return false;
+      } else if(md<=R) return false;
+    }
+    return true;
+  }
   function kinMove(e, tx, ty, slackPx){
     if(!e) return;
     const ox=e.x, oy=e.y;
@@ -586,6 +614,7 @@ function separateParty(p, dt){
     if(!(md>1e-8)) return;
     const ox=e.x, oy=e.y;
     nudgeParty(e, mx/md, my/md, md);
+    if(frameDt>0 && !segmentMissesParty(e, ox, oy, e.x, e.y, leader)){ e.x=ox; e.y=oy; return; }
     if(frameDt>0 && e._ox!=null){
       const cap=partyFrameCap(leader, e, frameDt);
       const vx=e.x-e._ox, vy=e.y-e._oy, vd=Math.hypot(vx, vy);
@@ -722,7 +751,41 @@ function separateParty(p, dt){
       }
       return true;
     }
+    /* A slide may pass a shoulder. It may not enter a body it started
+       outside, and it may not get closer to one it is already inside. */
+    function pathMissesBodies(ax, ay, bx, by){
+      const bodies=[];
+      if(leader) bodies.push(leader);
+      const ents=G.ents||[];
+      for(let i=0;i<ents.length;i++){
+        const o=ents[i];
+        if(!o || o===e || o===leader || o.dead || o.crushed) continue;
+        if(o.team==='party') bodies.push(o);
+      }
+      for(let i=0;i<bodies.length;i++){
+        const b=bodies[i];
+        const R=b.r||0.36;
+        const vx=bx-ax, vy=by-ay, L2=vx*vx+vy*vy;
+        const sd=Math.hypot(ax-b.x, ay-b.y);
+        let md=sd;
+        if(L2>1e-8){
+          let t=((b.x-ax)*vx+(b.y-ay)*vy)/L2;
+          if(t<0) t=0; else if(t>1) t=1;
+          md=Math.hypot(ax+vx*t-b.x, ay+vy*t-b.y);
+        }
+        if(sd<R-1e-4){
+          const ed=Math.hypot(bx-b.x, by-b.y);
+          /* Already overlapping: leave. Do not finish closer, and do not
+             dive nearer the center than both the start and 0.02. */
+          if(ed+1e-6<sd-0.01) return false;
+          if(md+1e-6<Math.min(sd, 0.02)) return false;
+        } else if(md<=R) return false;
+      }
+      return true;
+    }
     function slideClear(ax0, ay0, bx, by, ux, uy){
+      if(dt>0 && !pathMissesBodies(ax0, ay0, bx, by)) return false;
+      if(!misses(ax0, ay0, bx, by)) return false;
       if(pathClears(ax0, ay0, bx, by)) return true;
       return besideWall(ax0, ay0, ux, uy) && pathAlongWall(ax0, ay0, bx, by);
     }
@@ -781,7 +844,8 @@ function separateParty(p, dt){
         let t=tMax;
         const farx=e.x+ux*t, fary=e.y+uy*t;
         const stepOk=function(nx, ny){
-          return canBe(nx, ny, e.r, e) && (sameHalf(nx, ny) || pathClears(e.x, e.y, nx, ny));
+          return canBe(nx, ny, e.r, e) && (sameHalf(nx, ny) || pathClears(e.x, e.y, nx, ny))
+            && pathMissesBodies(e.x, e.y, nx, ny);
         };
         if(!stepOk(farx, fary)){
           let lo=0, hi=tMax;
@@ -804,14 +868,18 @@ function separateParty(p, dt){
       bubble=best;
     }
     const goal=clampGoal(leader.x+ax*PARTY_SEP_LEAD, leader.y+ay*PARTY_SEP_LEAD);
-    if(sameHalf(goal.x, goal.y) && misses(x0, y0, goal.x, goal.y) && canBe(goal.x, goal.y, e.r, e)){
+    function goalOk(nx, ny){
+      return sameHalf(nx, ny) && misses(x0, y0, nx, ny) && canBe(nx, ny, e.r, e)
+        && (!(dt>0) || pathMissesBodies(x0, y0, nx, ny));
+    }
+    if(goalOk(goal.x, goal.y)){
       e.x=goal.x; e.y=goal.y;
     } else {
       let lo=0, hi=1;
       for(let i=0;i<14;i++){
         const mid=(lo+hi)*0.5;
         const nx=x0+(goal.x-x0)*mid, ny=y0+(goal.y-y0)*mid;
-        if(sameHalf(nx, ny) && misses(x0, y0, nx, ny) && canBe(nx, ny, e.r, e)) lo=mid;
+        if(goalOk(nx, ny)) lo=mid;
         else hi=mid;
       }
       if(lo>0.002){ e.x=x0+(goal.x-x0)*lo; e.y=y0+(goal.y-y0)*lo; }
@@ -858,7 +926,7 @@ function separateParty(p, dt){
       const nd=Math.hypot(nx-leader.x, ny-leader.y);
       /* A capped slide along a wall gains only a few thousandths.
          Any step that does not lose distance is progress. */
-      if(nd+1e-6>=hold || nd+1e-9>=d){ e.x=nx; e.y=ny; break; }
+      if((nd+1e-6>=hold || nd+1e-9>=d) && (!(dt>0) || pathMissesBodies(e.x, e.y, nx, ny))){ e.x=nx; e.y=ny; break; }
     }
     clampNet();
     /* Still pinned. Slide along the wall toward a spot 2.0 out, even when
@@ -939,10 +1007,13 @@ function separateParty(p, dt){
       dx/=m; dy/=m; d=0;
     } else { dx/=d; dy/=d; }
     if(dt>0 && d<2){
+      const bx=e.x, by=e.y;
       shoveFree(e, p);
       /* The away shove already spent this frame. Kin pushes stay capped,
-         and must not add another full step on top of the restore. */
-      e._gapFree=1;
+         and must not add another full step on top of the restore.
+         A slide that could not move (another body is in the way) leaves
+         the step for the kin push. */
+      if(Math.hypot(e.x-bx, e.y-by)>0.004) e._gapFree=1;
       return;
     }
     if(idle) return;
@@ -1036,7 +1107,19 @@ function separateParty(p, dt){
       const snap=e._gait0;
       e.moving=1;
       const m=Math.hypot(dx, dy)||1;
-      e.fdx=dx/m; e.fdy=dy/m;
+      const wx=dx/m, wy=dy/m;
+      /* Raw per-frame steps chatter across an octant edge. Hold the
+         facing until the new heading is a real turn, or the hold expires. */
+      const align=(e.fdx||0)*wx+(e.fdy||0)*wy;
+      const have=(e.fdx||e.fdy);
+      if(!have || align<0 || (align<0.5 && !((e._faceHold||0)>0))){
+        e.fdx=wx; e.fdy=wy;
+        e._faceHold=0.4;
+      } else if(align>0.94){
+        e._faceHold=0.4;
+      } else {
+        e._faceHold=Math.max(0, (e._faceHold||0)-dt);
+      }
       e.ix=e.fdx*(e.sp||4); e.iy=e.fdy*(e.sp||4);
       /* Steer already advanced the gait this frame. Do not step it twice.
          A frame that never steered leaves the snapshot unset and steps once. */
