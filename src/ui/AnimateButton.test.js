@@ -168,8 +168,11 @@ assert(/refreshAnimateButton\(\)/.test(extractFn('takeBoneCrown'))
   && /refreshAnimateButton\(\)/.test(extractFn('dropBoneCrown'))
   && /refreshAnimateButton\(\)/.test(extractFn('tryAnimateDead')),
   'take, an inventory drop, and a spent charge refresh Animate');
-assert(/Use Animate in the bottom bar/.test(extractFn('takeBoneCrown')),
-  'the take hint points at the Animate button in the bottom bar');
+assert(/Animate is ready: the cross button\. One thrall\./.test(extractFn('takeBoneCrown')),
+  'the take hint names the cross button and one thrall');
+assert(/The slot frees when it falls, is turned\./.test(extractFn('tryAnimateDead'))
+  && !/crown leaves/.test(extractFn('tryAnimateDead')),
+  'the post-animate hint frees the slot when the thrall falls or is turned');
 
 /* No second layoutUI from the test. The take and the drop must refresh. */
 H.ctx.G.equipped={};

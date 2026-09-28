@@ -11495,7 +11495,7 @@ function tryAnimateDead(actor, body){
   if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
   say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
-  hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
+  hint('One thrall. The slot frees when it falls, is turned.',3.6);
   return {ok:1, thrall:body, form:bones?'skeleton':'zombie'};
 }
 function teethHordeBox(L){
@@ -11762,7 +11762,7 @@ function takeBoneCrown(crown){
   }
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
-  hint('Use Animate in the bottom bar. One thrall.',3.6);
+  hint('Animate is ready: the cross button. One thrall.',3.6);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
   if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1, worn:1};
@@ -13066,14 +13066,19 @@ const PARTY_TOUCH_H=30, PARTY_TOUCH_GAP=4;
 function partyPortraitFrame(){
   const s=UIS;
   const inset=UI.pad||{l:0,t:0};
-  const shown=typeof partyPortraitList==='function'
-    ? partyPortraitList().length
+  const list=typeof partyPortraitList==='function'?partyPortraitList():null;
+  const shown=list
+    ? list.length
     : (G.ents||[]).filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||e.crushed)).length;
   if(hudMobile()){
     const x=Math.max(8, (inset.l||0));
     const y=Math.max(8, (inset.t||0));
     const w=PORT?118:124;
-    let h=PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
+    /* A raised card shows the hp/AC line in the same box as the kin.
+       40px fits that line above the shared bottom bar. Kin-only strips
+       stay on the slim 30px card. */
+    const raisedOn=!!(list&&list.some(e=>e&&!e.col));
+    let h=raisedOn?40:PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
     /* An extra raised-dead card must stay above the thumb cluster. */
     let limit=(typeof VH==='number'?VH:0)-8;
     if(UI && UI.hudTop) limit=Math.min(limit, UI.hudTop-6);
@@ -18268,24 +18273,22 @@ function drawPortraitStackTouch(g, party, frame){
       g.fillText('FALLEN', tx, by+5);
     } else {
       const f=clamp((e.hp||0)/(e.maxhp||1),0,1);
-      const raised=!e.col;
-      /* Raised cards use the dwarf line: name, bar, hp numbers, AC.
-         Kin stay slim; their numbers live on the sheet. */
-      if(raised && h>=28){
-        const barY=yy+14;
-        g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,barY,bw,4);
-        g.fillStyle=f<.3?'#e0644a':'#7ad45a';
-        g.fillRect(tx,barY,bw*f,4);
-        g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,barY,bw,4);
-        g.font='700 8px '+FONT_UI;
+      /* Same box as the kin: name, then the bar on the bottom.
+         A raised card adds its hp/AC line in the band above that bar
+         so the ink stays inside the card. */
+      if(!e.col){
+        const label=sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e);
+        let fs=8;
+        g.font='700 '+fs+'px '+FONT_UI;
+        while(fs>6.5 && g.measureText(label).width>bw){ fs-=0.5; g.font='700 '+fs+'px '+FONT_UI; }
+        const baseline=Math.max(yy+16, Math.min(by-3, yy+h-8));
         g.fillStyle='rgba(214,186,130,0.95)';
-        g.fillText(sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e), tx, yy+h-2);
-      } else {
-        g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,by,bw,bh);
-        g.fillStyle=e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a');
-        g.fillRect(tx,by,bw*f,bh);
-        g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,by,bw,bh);
+        g.fillText(label, tx, baseline);
       }
+      g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,by,bw,bh);
+      g.fillStyle=e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a');
+      g.fillRect(tx,by,bw*f,bh);
+      g.strokeStyle='rgba(220,190,130,0.35)'; g.lineWidth=1; g.strokeRect(tx,by,bw,bh);
     }
   });
 }
@@ -19080,10 +19083,36 @@ function drawHint(g,s){
   const a=clamp(G.hint.life/Math.min(1,G.hint.max),0,1)*clamp((G.hint.max-G.hint.life)/.3,0,1);
   g.globalAlpha=a;
   g.font='700 '+(13*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-  const w=g.measureText(G.hint.t).width+30*s, x=VW/2-w/2;
-  const y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
-  plate(g,x,y,w,30*s,5,.78);
-  g.fillStyle='#f0dcb0'; g.fillText(G.hint.t,VW/2,y+20*s); g.textAlign='left';
+  const plateH=30*s;
+  const w=g.measureText(G.hint.t).width+30*s;
+  let x=VW/2-w/2;
+  let y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
+  /* Phone portrait only. The top pin covers the party name, the HP bar,
+     and Pause for the whole hint. Landscape and laptop keep that pin. */
+  if(PORT){
+    const gap=8;
+    let clear=y;
+    if(typeof partyPortraitFrame==='function'){
+      const f=partyPortraitFrame();
+      if(f && f.stackBottom) clear=Math.max(clear, f.stackBottom+gap);
+    }
+    if(typeof miniRect==='function'){
+      const m=miniRect();
+      if(m && m.sz){
+        const pauseH=(typeof HUD_TAP==='number'?HUD_TAP:44);
+        clear=Math.max(clear, m.y+m.sz+gap, m.y+pauseH+gap);
+      }
+    }
+    const floor=((UI&&typeof UI.hudTop==='number')?UI.hudTop:VH)-gap;
+    if(clear+plateH<=floor) y=clear;
+    else {
+      const low=Math.max(gap, floor-plateH);
+      y=low>clear ? clear+(low-clear)*0.5 : low;
+    }
+    x=Math.max(8, Math.min(x, Math.max(8, VW-w-8)));
+  }
+  plate(g,x,y,w,plateH,5,.78);
+  g.fillStyle='#f0dcb0'; g.fillText(G.hint.t,x+w/2,y+20*s); g.textAlign='left';
   g.globalAlpha=1;
 }
 

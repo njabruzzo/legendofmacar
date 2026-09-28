@@ -59,6 +59,8 @@ const hint=html.match(/function drawHint\(g,s\)\{[\s\S]*?\n\}/)[0];
 assert(/y=Math\.max\(10\*s, \(UI\.pad&&UI\.pad\.t\|\|0\)\+10\*s\)/.test(hint),
   'hint plate is pinned to the top of the screen');
 assert(!/PORT\?VH\*0\.30:VH\*0\.16/.test(hint), 'hint is not parked mid-viewport behind walls');
+assert(/if\(PORT\)/.test(hint) && /partyPortraitFrame\(/.test(hint) && /miniRect\(/.test(hint),
+  'phone portrait parks the hint under the party cards, clear of the corner');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nDialogue layer checks passed');
