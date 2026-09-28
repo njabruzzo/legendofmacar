@@ -164,5 +164,39 @@ function labelInk(b, vw, vh){
   }
 });
 
+assert(/refreshAnimateButton\(\)/.test(extractFn('takeBoneCrown'))
+  && /refreshAnimateButton\(\)/.test(extractFn('dropBoneCrown'))
+  && /refreshAnimateButton\(\)/.test(extractFn('tryAnimateDead')),
+  'take, an inventory drop, and a spent charge refresh Animate');
+assert(/Use Animate in the bottom bar/.test(extractFn('takeBoneCrown')),
+  'the take hint points at the Animate button in the bottom bar');
+
+/* No second layoutUI from the test. The take and the drop must refresh. */
+H.ctx.G.equipped={};
+H.ctx.G.packs={macar:{magic:[]}};
+H.ctx.G.props=[];
+H.ctx.G.lvl={flags:{}};
+H.ctx.G.animateDeadSpent=0;
+H.ctx.say=function(){};
+H.ctx.hint=function(){};
+H.ctx.burst=function(){};
+H.ctx.stowPackItem=function(it){ H.ctx.G.packs.macar.magic.push(it); return it; };
+H.ctx.equipPackItem=function(it){ H.ctx.G.equipped.helmet=it; return 'helmet'; };
+H.ctx.player=function(){ return {x:20, y:20, hero:1}; };
+H.ctx.crownDropAtAltar=function(){ return false; };
+['refreshAnimateButton','makeBoneCrownItem','wearingBoneCrown','takeBoneCrown','dropBoneCrown','dropPackRow']
+  .forEach(n=>vm.runInContext(extractFn(n)+';', H.ctx));
+const before=H.layout({vw:1280, vh:800, touch:false, cards:5});
+assert(!before.find('animate'), 'Animate is absent before the crown is taken');
+const loose={x:20, y:20, k:'bonecrown', gone:0};
+H.ctx.G.props=[loose];
+const took=H.ctx.takeBoneCrown(loose);
+const shown=H.ctx.UIBTN.find(b=>b.key==='animate');
+assert(took.ok===1 && !!shown && !shown.disabled,
+  'Animate is on the bar right after a take, with no resize');
+H.ctx.dropPackRow({kind:'magic', it:H.ctx.G.equipped.helmet, t:'Bone Crown'});
+assert(!H.ctx.UIBTN.find(b=>b.key==='animate') && !H.ctx.wearingBoneCrown(),
+  'Animate is gone right after an inventory drop, with no resize');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate button checks passed');

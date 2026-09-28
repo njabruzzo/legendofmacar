@@ -11492,6 +11492,7 @@ function tryAnimateDead(actor, body){
   body.kind='undead';
   G.thrallId=body.id;
   G.animateDeadSpent=1;
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
   say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
   hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
@@ -11761,8 +11762,9 @@ function takeBoneCrown(crown){
   }
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
-  hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
+  hint('Use Animate in the bottom bar. One thrall.',3.6);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1, worn:1};
 }
 function awardCrownDestroyXp(where){
@@ -12169,6 +12171,7 @@ function dropBoneCrown(){
     });
   }
   say('Macar sets the bone crown down.','#c9b895');
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1};
 }
 function pryGrondTooth(face, kind){
@@ -13109,6 +13112,11 @@ function partyPortraitFrame(){
   const cards=[];
   for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
   return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap)};
+}
+/* Take, an inventory drop, and spending Animate change the bar.
+   layoutUI otherwise runs on resize and on load. */
+function refreshAnimateButton(){
+  if(typeof layoutUI==='function') layoutUI();
 }
 function layoutUI(){
   UIBTN.length=0;
