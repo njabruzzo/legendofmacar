@@ -1221,6 +1221,27 @@ function bubbleStepOpens(){
 }
 bubbleStepOpens();
 
+/* Phone 50ms, small tiles: the slot is through Macar and one steer
+   would land inside his body. The clamp keeps the old distance. */
+function steerDoesNotEnterBody(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=66; ctx.TH=34;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  mac.x=12.2; mac.y=10; mac.fdx=-1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=4.3*0.05; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 10.5, 10.4, {x:-1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  const d0=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.G.ents=[mac, ghost];
+  ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, 0.05);
+  const d1=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('steer floor d0 '+d0.toFixed(3)+' d1 '+d1.toFixed(3));
+  assert(d1+1e-6>=Math.min(d0, 2), 'steer does not close inside the body (d0 '+d0.toFixed(3)+' d1 '+d1.toFixed(3)+')');
+}
+steerDoesNotEnterBody();
+
 if(failed){
   console.log('COUNTS cases='+cases+' asserts='+asserts);
   console.error(failed+' failed');

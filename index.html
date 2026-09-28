@@ -424,7 +424,28 @@ function stepPartyFollower(e, tgt, want, p, dt){
     const push=partyGap?1.15:0.35;
     if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; }
   }
+  const sx=e.x, sy=e.y;
   steerWalk(e, vx, vy, go, dt);
+  /* A slot on the far side of him would spend the whole frame disk
+     walking into his body. Stop at 2.0 (or at the distance we already
+     had, if we were closer) so the wall slide still has a step left. */
+  if(p && dt>0){
+    const d0=Math.hypot(sx-p.x, sy-p.y);
+    const d1=Math.hypot(e.x-p.x, e.y-p.y);
+    const floor=d0<2?d0:2;
+    if(d1+1e-9<floor){
+      const vx2=e.x-sx, vy2=e.y-sy;
+      let lo=0, hi=1;
+      for(let i=0;i<12;i++){
+        const mid=(lo+hi)*0.5;
+        const nx=sx+vx2*mid, ny=sy+vy2*mid;
+        if(Math.hypot(nx-p.x, ny-p.y)+1e-9>=floor && canBe(nx, ny, e.r, e)) lo=mid;
+        else hi=mid;
+      }
+      e.x=sx+vx2*lo; e.y=sy+vy2*lo;
+      if(!(lo>0.02)){ e.ix=0; e.iy=0; e.moving=0; }
+    }
+  }
 }
 function separateParty(p, dt){
   if(!p || p.dead) return;
