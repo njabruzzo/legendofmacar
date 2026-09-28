@@ -7840,12 +7840,21 @@ function toyScreenFace(dx, dy, prev){
   return sx<0?-1:1;
 }
 /* prop_winduptoy is painted facing screen-left (beard on the left, key
-   on the right). toyScreenFace is +1 when the toy moves screen-right, so
-   the blit scale is the opposite of that sign. A near-zero heading keeps
-   prev — the last left or right face — on straight north and south. */
-function windupToyBlitFace(heading, prev){
+   on the right). prop_winduptoy_wound is painted facing screen-right
+   (beard on the right, key on the left). The blit scale is the screen
+   heading times that painted sign, so the face that is drawn leads the
+   way the toy is moving. A near-zero heading keeps prev — the last
+   left or right screen face — on straight north and south. */
+const TOY_PAINTED_FACE={prop_winduptoy:-1,prop_winduptoy_wound:1};
+function windupToySheetKey(p){
+  if(p&&p.k==='winduptoy'&&G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound&&SPR.winduptoy_wound)
+    return 'prop_winduptoy_wound';
+  return 'prop_winduptoy';
+}
+function windupToyBlitFace(heading, prev, key){
   const screen=(Math.abs(heading)<0.02?(prev<0?-1:1):heading)<0?-1:1;
-  return -screen;
+  const painted=TOY_PAINTED_FACE[key||'prop_winduptoy'];
+  return screen*(painted<0?-1:1);
 }
 /* Painted idle/wound sheets only — bob, lean, flip, and a faster key rock while scampering. */
 function drawWindupToyProp(g,p,z){
@@ -7853,7 +7862,7 @@ function drawWindupToyProp(g,p,z){
   const wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
   const run=p.scampT>0;
   const heading=run?((p.scampDx||0)-(p.scampDy||0)):(p.scampFace||1);
-  const face=windupToyBlitFace(heading, p.scampFace||1);
+  const face=windupToyBlitFace(heading, p.scampFace||1, windupToySheetKey(p));
   const H=propSpriteH(p,z);
   const t=G.elapsed||0;
   const phase=t*(run?14:2.4)+(p.seed||0);

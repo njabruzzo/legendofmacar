@@ -25,6 +25,10 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
+const toyPaint=html.match(/const TOY_PAINTED_FACE=\{[^}]*\};/);
+assert(toyPaint && toyPaint[0]==='const TOY_PAINTED_FACE={prop_winduptoy:-1,prop_winduptoy_wound:1};',
+  'prop_winduptoy faces left and prop_winduptoy_wound faces right');
+
 const table=html.match(/const SPRITE_PAINTED_LEFT=\{[^}]*\};/);
 assert(table && table[0]==='const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1};',
   'painted-left is one object literal: rat, beetle, goblin');
@@ -32,7 +36,7 @@ assert(html.indexOf('SPRITE_PAINTED_LEFT')===html.lastIndexOf('SPRITE_PAINTED_LE
   || (html.match(/SPRITE_PAINTED_LEFT=\{/g)||[]).length===1,
   'the painted-left table is declared once');
 
-const SPR={};
+const SPR={winduptoy_wound:{width:8}};
 ['rat','beetle','goblin','undead'].forEach(k=>{
   SPR[k]={width:8};
   SPR[k+'_w1']={width:8};
@@ -41,6 +45,7 @@ const SPR={};
 });
 const ctx={
   SPR,
+  G:{lvl:{flags:{}}},
   TW:80, TH:40,
   sprReady(k){ return !!(k && SPR[k] && SPR[k].width); },
   player(){ return null; },
@@ -51,7 +56,8 @@ const ctx={
 };
 vm.createContext(ctx);
 vm.runInContext(
-  table[0]+'\n'
+  toyPaint[0]+'\n'
+  +table[0]+'\n'
   +extractFn('walkCycleKey')+'\n'
   +extractFn('faceVec')+'\n'
   +extractFn('moveHeadingSX')+'\n'
@@ -61,8 +67,9 @@ vm.runInContext(
   +extractFn('wantsSpriteFlip')+'\n'
   +extractFn('entAnimKey')+'\n'
   +extractFn('toyScreenFace')+'\n'
+  +extractFn('windupToySheetKey')+'\n'
   +extractFn('windupToyBlitFace')+'\n'
-  +'this.wantsSpriteFlip=wantsSpriteFlip; this.entAnimKey=entAnimKey; this.toyScreenFace=toyScreenFace; this.windupToyBlitFace=windupToyBlitFace;',
+  +'this.wantsSpriteFlip=wantsSpriteFlip; this.entAnimKey=entAnimKey; this.toyScreenFace=toyScreenFace; this.windupToySheetKey=windupToySheetKey; this.windupToyBlitFace=windupToyBlitFace;',
   ctx
 );
 
@@ -122,14 +129,36 @@ assert(ctx.toyScreenFace(0.38, 0.92, 1)===-1, 'toy world +x that is screen-left 
 assert(ctx.toyScreenFace(0.7, 0.7, -1)===-1, 'toy straight south keeps the last face');
 assert(ctx.toyScreenFace(-0.7, -0.7, 1)===1, 'toy straight north keeps the last face');
 
-/* prop_winduptoy faces left. Screen-right must mirror; screen-left stays
-   as painted. Near-vertical moves keep that last scale. */
+/* Default key is the left-painted idle sheet. Screen-right mirrors it;
+   screen-left stays as painted. Near-vertical moves keep that last scale. */
 assert(ctx.windupToyBlitFace(1, 1)===-1, 'toy moving screen-right is flipped');
 assert(ctx.windupToyBlitFace(-1, 1)===1, 'toy moving screen-left is unflipped');
 assert(ctx.windupToyBlitFace(0.01, -1)===1, 'toy near-vertical keeps the last left face unflipped');
 assert(ctx.windupToyBlitFace(0, 1)===-1, 'toy near-vertical keeps the last right face flipped');
 assert(/windupToyBlitFace\(heading, p\.scampFace/.test(extractFn('drawWindupToyProp')),
-  'the walker blit uses the inverted face');
+  'the walker blit uses the sheet facing');
+assert(/windupToySheetKey\(p\)/.test(extractFn('drawWindupToyProp')),
+  'the walker chooses the mirror from the sheet it draws');
+
+assert(ctx.windupToySheetKey({k:'winduptoy'})==='prop_winduptoy', 'unwound toy draws prop_winduptoy');
+ctx.G.lvl.flags.toyWound=1;
+assert(ctx.windupToySheetKey({k:'winduptoy'})==='prop_winduptoy_wound', 'wound toy draws prop_winduptoy_wound');
+ctx.G.lvl.flags.toyWound=0;
+
+/* Beard leads the screen heading on both sheets. Left-painted art flips
+   for east; right-painted art stays unflipped for east. North and south
+   keep the last screen face, then apply that sheet's painted sign. */
+function lead(key, heading, prev){
+  return ctx.windupToyBlitFace(heading, prev, key);
+}
+assert(lead('prop_winduptoy', 1, 1)===-1, 'prop_winduptoy moving east leads right');
+assert(lead('prop_winduptoy', -1, 1)===1, 'prop_winduptoy moving west leads left');
+assert(lead('prop_winduptoy', 0, 1)===-1, 'prop_winduptoy holds the last east lead on north/south');
+assert(lead('prop_winduptoy', 0.01, -1)===1, 'prop_winduptoy holds the last west lead on north/south');
+assert(lead('prop_winduptoy_wound', 1, -1)===1, 'prop_winduptoy_wound moving east leads right');
+assert(lead('prop_winduptoy_wound', -1, 1)===-1, 'prop_winduptoy_wound moving west leads left');
+assert(lead('prop_winduptoy_wound', 0, 1)===1, 'prop_winduptoy_wound holds the last east lead on north/south');
+assert(lead('prop_winduptoy_wound', 0, -1)===-1, 'prop_winduptoy_wound holds the last west lead on north/south');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\npainted-left facing checks passed');
