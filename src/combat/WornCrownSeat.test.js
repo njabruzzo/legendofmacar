@@ -1,8 +1,9 @@
 'use strict';
 /**
- * Worn bone crown: on every walk and strike sheet the band's bottom
- * sits on that frame's head top (alpha), within a few pixels.
- * Standing idle keeps the wrapped seat. Run: node src/combat/WornCrownSeat.test.js
+ * Worn bone crown seats on each frame's head top (the old H*0.15 anchor).
+ * The open middle is not filled. From frame to frame the crown stays
+ * within 2px of that head top, standing through swing.
+ * Run: node src/combat/WornCrownSeat.test.js
  */
 const fs=require('fs');
 const path=require('path');
@@ -38,10 +39,12 @@ vm.runInContext(
   ctx
 );
 
-assert(ctx.wornCrownMotionKey('macar')===false, 'standing idle is not a motion seat');
-assert(/dy\+H\*0\.15/.test(extractFn('drawWornBoneCrown')), 'standing idle keeps the wrapped crown seat');
-assert(/crownHoleColored\(/.test(extractFn('drawWornBoneCrown')), 'walk and strike frames can fill the open middle');
-assert(/crownSprite\(/.test(extractFn('drawWornBoneCrown')), 'wear still draws the painted crown');
+const draw=extractFn('drawWornBoneCrown');
+assert(!/dy\+H\*0\.15/.test(draw), 'the fixed H*0.15 anchor is gone');
+assert(!/crownHoleColored|crownInteriorMask|macarScalpColor/.test(html), 'the crown middle is not filled in code');
+assert(/crownSprite\(/.test(draw), 'wear still draws the painted crown');
+assert((draw.match(/g\.drawImage\(img/g)||[]).length===1, 'exactly one crown image is drawn');
+assert(ctx.wornCrownMotionKey('macar')===true, 'standing idle seats on its own head top');
 
 /* Topmost opaque pixel near the head's x. That is the frame's head top. */
 function alphaHeadTop(rgba, hx){
@@ -58,6 +61,7 @@ function alphaHeadTop(rgba, hx){
 }
 
 const FILE={
+  macar:'dwarf_macar.png',
   macar_w1:'dwarf_macar_w1.png',
   macar_w2:'dwarf_macar_w2.png',
   macar_e_w1:'dwarf_macar_e_w1.png',
@@ -90,29 +94,52 @@ function sheet(key){
   return cache[key];
 }
 
+/* Crown landmark minus this frame's head top, in destination pixels.
+   Same blit height for every frame, so a pop shows up as pixels. */
+function headOffset(key, destH){
+  const head=ctx.WORN_CROWN_HEAD[key];
+  const rgba=sheet(key);
+  const alpha=alphaHeadTop(rgba, head.x);
+  const dy=-destH;
+  const seat=ctx.wornCrownSeat(80, destH, -40, dy, false, head, 682/414);
+  const headY=dy+destH*(alpha/rgba.h);
+  return seat.cy-headY;
+}
+
 function check(dir, key, flip){
   const head=ctx.WORN_CROWN_HEAD[key];
-  assert(head && ctx.wornCrownMotionKey(key)===true, dir+' '+key+' is a seated motion frame');
+  assert(head && ctx.wornCrownMotionKey(key)===true, dir+' '+key+' has a head anchor');
   const rgba=sheet(key);
   const W=rgba.w, H=rgba.h, dx=-W*0.5, dy=-H;
   const seat=ctx.wornCrownSeat(W, H, dx, dy, !!flip, head, 682/414);
   const headY=dy+H*head.y;
   const top=alphaHeadTop(rgba, head.x);
-  const bandPx=seat.bandY-dy;
-  assert(Math.abs(seat.bandY-headY)<=2, dir+' '+key+' band bottom is the seated head row');
-  assert(top>=0 && Math.abs(bandPx-top)<=4,
-    dir+' '+key+' band bottom within a few px of the alpha head top (band '+bandPx.toFixed(1)+' head '+top+')');
+  assert(Math.abs(seat.cy-headY)<=0.01, dir+' '+key+' seat is the head-top anchor');
+  assert(top>=0 && Math.abs((seat.cy-dy)-top)<=2,
+    dir+' '+key+' anchor within 2px of the alpha head top (cy '+((seat.cy-dy).toFixed(1))+' head '+top+')');
   if(flip){
     const unflipped=ctx.wornCrownSeat(W, H, dx, dy, false, head, 682/414);
-    assert(Math.abs(seat.bandY-unflipped.bandY)<=1, dir+' '+key+' mirror keeps the band on the same row');
+    assert(Math.abs(seat.cy-unflipped.cy)<=1, dir+' '+key+' mirror keeps the crown on the same row');
   }
 }
 
 Object.keys(DIRS).forEach(dir=>{
   DIRS[dir].forEach(key=>check(dir, key, FLIP[dir]));
 });
+check('stand', 'macar', false);
 ['e','w','n','s','ne','nw','se','sw'].forEach(dir=>{
   SWING.forEach(key=>check(dir+'-swing', key, FLIP[dir]));
+});
+
+/* Standing, both walk steps, and both swing sheets, at one blit height. */
+const DRIFT_KEYS=['macar','macar_w1','macar_w2','macar_e_w1','macar_e_w2',
+  'macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2',
+  'macar_back_w1','macar_back_w2','macar_atk','macar_atk_contact'];
+[80, 140].forEach(destH=>{
+  const offs=DRIFT_KEYS.map(key=>({key, off:headOffset(key, destH)}));
+  const values=offs.map(o=>o.off);
+  const drift=Math.max.apply(null, values)-Math.min.apply(null, values);
+  assert(drift<=2, 'crown stays within 2px of the head top across frames at H='+destH+' (drift '+drift.toFixed(2)+'px)');
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
