@@ -2502,7 +2502,7 @@ function drawLivingMacar(g,e){
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
   }
   g.restore();
 }
@@ -15130,50 +15130,58 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-/* Head top of each living sheet, as a fraction of that sheet.
-   Measured from the alpha (the head, not the maul). This replaces the
-   fixed H*0.15 crown anchor on standing, walk, and swing. The middle
-   of the crown stays open — nothing is painted into it. */
-const WORN_CROWN_HEAD={
-  macar:{y:0.0348,x:0.57},
-  macar_w1:{y:0.0762,x:0.50},
-  macar_w2:{y:0.1523,x:0.51},
-  macar_e_w1:{y:0.0195,x:0.51},
-  macar_e_w2:{y:0.0078,x:0.48},
-  macar_se_w1:{y:0.0078,x:0.52},
-  macar_se_w2:{y:0.0078,x:0.59},
-  macar_ne_w1:{y:0.0078,x:0.75},
-  macar_ne_w2:{y:0.0059,x:0.72},
-  macar_back_w1:{y:0.0879,x:0.58},
-  macar_back_w2:{y:0.0664,x:0.62},
-  macar_atk:{y:0.0556,x:0.74},
-  macar_atk_contact:{y:0.0556,x:0.82}
-};
-function wornCrownMotionKey(key){
-  return !!(key && WORN_CROWN_HEAD[key]);
+/* prop_bone_crown.png at ASSET_VER 125 opens the middle for the altar and
+   the floor crown. Live wear still uses the pre-125 sheet, whose RGB is
+   the same file with that middle opaque. Close the enclosed alpha back
+   to 255 and keep it on its own key. No second art file. */
+function wornCrownSprite(){
+  if(typeof SPR!=='undefined' && SPR.bone_crown_worn && SPR.bone_crown_worn.width)
+    return SPR.bone_crown_worn;
+  const src=crownSprite();
+  if(!src||!src.width||typeof document==='undefined') return src;
+  try{
+    const w=src.width|0, h=src.height|0, n=w*h;
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(src,0,0);
+    const data=x.getImageData(0,0,w,h);
+    const d=data.data;
+    const ext=new Uint8Array(n);
+    const q=new Int32Array(n);
+    let qs=0, qe=0;
+    const push=i=>{
+      if(ext[i]||d[(i<<2)+3]>0) return;
+      ext[i]=1; q[qe++]=i;
+    };
+    for(let x0=0;x0<w;x0++){ push(x0); push((h-1)*w+x0); }
+    for(let y0=0;y0<h;y0++){ push(y0*w); push(y0*w+w-1); }
+    while(qs<qe){
+      const i=q[qs++], px=i%w, py=(i/w)|0;
+      if(px>0) push(i-1);
+      if(px+1<w) push(i+1);
+      if(py>0) push(i-w);
+      if(py+1<h) push(i+w);
+    }
+    for(let i=0;i<n;i++){
+      if(!ext[i] && d[(i<<2)+3]<255) d[(i<<2)+3]=255;
+    }
+    x.putImageData(data,0,0);
+    if(typeof SPR!=='undefined') SPR.bone_crown_worn=c;
+    return c;
+  }catch(_){ return src; }
 }
-/* cy is the head top. The crown keeps the same wrap it had around
-   H*0.15, so the band stays a fixed distance from that edge.
-   flip mirrors the sheet, so the head's x mirrors with it. */
-function wornCrownSeat(W, H, dx, dy, flip, head, aspect){
-  const crownH=Math.max(14, H*0.20);
-  const crownW=crownH*(aspect>0?aspect:1.647);
-  const cy=dy+H*head.y;
-  const x=flip?dx+W*(1-head.x):dx+W*head.x;
-  const top=cy-crownH*0.82;
-  return {crownH:crownH, crownW:crownW, left:x-crownW/2, top:top, x:x, cy:cy, bandY:top+crownH};
-}
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z, animKey){
-  const img=crownSprite();
-  const head=WORN_CROWN_HEAD[animKey]||WORN_CROWN_HEAD.macar;
-  const aspect=img&&img.height?img.width/img.height:1.647;
-  const seat=wornCrownSeat(W, H, dx, dy, flip, head, aspect);
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
+  const img=wornCrownSprite()||crownSprite();
+  const cx=dx+W*0.5;
+  const cy=dy+H*0.15;
   g.save();
-  if(flip){ g.translate(seat.x, seat.cy); g.scale(-1,1); g.translate(-seat.x, -seat.cy); }
+  if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
   if(img){
-    g.drawImage(img, seat.left, seat.top, seat.crownW, seat.crownH);
+    const h=Math.max(14, H*0.20), w=h*(img.width/Math.max(1,img.height));
+    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
   } else {
-    g.translate(seat.x, seat.cy);
+    g.translate(cx, cy);
     drawBoneCrownShape(g, z, 0.72);
   }
   g.restore();
