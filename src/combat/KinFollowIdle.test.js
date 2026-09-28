@@ -50,5 +50,18 @@ assert(/if\(ghostFoes\.has\(e\)\) continue;/.test(html), 'foes fighting a ghost 
 assert(/const GHOST_FIGHT_R=2\.6;/.test(html) && /dist\(gh,f\)<=GHOST_FIGHT_R/.test(extractFn('ghostFightFoes')),
   'a foe within melee reach of a ghost counts as fighting it');
 
+/* Rejoin: a lost kin always paths back, even while Macar stands. */
+const iRejoin=html.indexOf('if(tickRejoin(e, p, dt)){'), iIdle=html.indexOf('if(!p.moving){\n          e.moving=0; e.ix=0; e.iy=0; e.dest=null;');
+assert(iRejoin>0 && iIdle>iRejoin && iIdle-iRejoin<200, 'rejoin runs right before the stand-when-Macar-stands rule');
+const rj=extractFn('tickRejoin');
+assert(/Navigation\.planRoute\(\{x:e\.x,y:e\.y\}, goal, e, \{canBe, maxExpand:REJOIN_EXPAND\}\)/.test(rj),
+  'a lost kin plans an A* route to Macar (canBe-aware lattice)');
+assert(!/e\.x=|e\.y=/.test(rj), 'rejoin walks the route; it never teleports');
+assert(/if\(d<=REJOIN_DONE && sees\)/.test(rj), 'rejoin hands back to plain follow once near and in sight');
+const lost=extractFn('kinLost');
+assert(/d>REJOIN_LEASH/.test(lost) && /!hasLOS\(e\.x, e\.y, p\.x, p\.y\)/.test(lost) && /followStuck/.test(lost),
+  'lost means beyond the leash, out of sight, or stuck against rock');
+assert(/if\(form\) e\.followStuck=\(stepped>0\.002\)\?0:/.test(html), 'a follower pushing against rock builds up followStuck');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nkin follow / idle / fight-layer checks passed');

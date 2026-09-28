@@ -301,6 +301,62 @@ function partyForm(i,p){
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
   return {x:p.x+fx*s[0]+rx*s[1], y:p.y+fy*s[0]+ry*s[1]};
 }
+/* ---- Rejoin: kin always come back to Macar ----
+   A follower that is lost — beyond the leash, out of sight behind a wall,
+   or pushing against rock — paths back to him on the Navigation A*
+   lattice (canBe-aware), even while he stands. It hands back to the plain
+   follow (stand when he stands, take his heading) once it is near and can
+   see him. It walks; it never teleports. */
+const REJOIN_LEASH=5.5, REJOIN_SIGHT=2.8, REJOIN_DONE=3.0, REJOIN_STUCK=0.6;
+const REJOIN_REPATH=0.45, REJOIN_EXPAND=16000;
+function kinLost(e, p){
+  const d=dist(e, p);
+  if(d>REJOIN_LEASH) return 'far';
+  if(d>REJOIN_SIGHT && typeof hasLOS==='function' && !hasLOS(e.x, e.y, p.x, p.y)) return 'sight';
+  if((e.followStuck||0)>REJOIN_STUCK && d>PARTY_SEP_LEAD+0.6) return 'stuck';
+  return '';
+}
+function rejoinGoal(p){
+  /* Aim a step behind Macar so the goal is not his own body. */
+  const bx=p.x-(p.fdx||0)*1.3, by=p.y-(p.fdy||0)*1.3;
+  return (typeof walk==='function' && walk(bx, by))?{x:bx,y:by}:{x:p.x,y:p.y};
+}
+function tickRejoin(e, p, dt){
+  if(!e || !p) return false;
+  let st=e._rejoin;
+  if(!st){
+    const why=kinLost(e, p);
+    if(!why) return false;
+    st=e._rejoin={why, age:REJOIN_REPATH, path:null, goal:null, stuck:0};
+  }
+  const d=dist(e, p);
+  const sees=typeof hasLOS!=='function' || hasLOS(e.x, e.y, p.x, p.y);
+  if(d<=REJOIN_DONE && sees){
+    e._rejoin=null; e.followStuck=0;
+    return false;
+  }
+  st.age+=dt;
+  const goal=rejoinGoal(p);
+  const nav=typeof Navigation!=='undefined' && Navigation.planRoute;
+  const need=!st.path || !st.path.length || st.age>=REJOIN_REPATH || st.stuck>0.5
+    || !st.goal || Math.hypot(st.goal.x-goal.x, st.goal.y-goal.y)>0.8;
+  if(need && nav){
+    const plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {canBe, maxExpand:REJOIN_EXPAND});
+    st.path=plan.ok?plan.path.slice():null;
+    st.goal=goal; st.age=0; st.stuck=0; st.fail=plan.ok?0:(st.fail||0)+1;
+  }
+  let tx=goal.x, ty=goal.y;
+  if(st.path){
+    while(st.path.length && Math.hypot(st.path[0].x-e.x, st.path[0].y-e.y)<0.22) st.path.shift();
+    if(st.path.length){ tx=st.path[0].x; ty=st.path[0].y; }
+  }
+  /* Catch-up pace: a touch quicker than Macar so a lost kin closes. */
+  const go=(e.sp||4)*1.15*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+  if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return true; }
+  const moved=steerWalk(e, tx-e.x, ty-e.y, go, dt);
+  if(!(moved>0.002)) st.stuck+=dt; else st.stuck=0;
+  return true;
+}
 function followBearingSlot(e, p, rank){
   const gap=PARTY_SEP_LEAD+0.35+0.95*(rank|0);
   let dx=e.x-p.x, dy=e.y-p.y;
@@ -14305,6 +14361,10 @@ function update(dt){
         e.aim=null;
         /* Kin follow Macar's feet: when he stands, they stand, facing where he
            faces. No settling shuffle, no path-pilot creep, no walk-in-place. */
+        if(tickRejoin(e, p, dt)){
+          ghostSapperBomb(e, dt);
+          continue;
+        }
         if(!p.moving){
           e.moving=0; e.ix=0; e.iy=0; e.dest=null;
           e.fdx=p.fdx; e.fdy=p.fdy;
@@ -14361,10 +14421,12 @@ function update(dt){
           const reach=(e.r+o.r)*(partyGap?3.2:1.15);
           const push=partyGap?1.15:0.35;
           if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; } }
-        steerWalk(e, vx, vy, go, dt);
+        const stepped=steerWalk(e, vx, vy, go, dt);
+        if(form) e.followStuck=(stepped>0.002)?0:(e.followStuck||0)+dt;
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
+        if(form) e.followStuck=0;
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
         if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
