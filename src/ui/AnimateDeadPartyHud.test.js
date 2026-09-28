@@ -140,6 +140,8 @@ assert(/party\.forEach/.test(touch) && /col\.name/.test(touch) && /e\.hp/.test(t
   'touch raised-dead cards use the kin face, name, and hp bar');
 assert(/sheetHpNow\(e\)/.test(touch) && /effectiveAC\(e\)/.test(touch),
   'touch raised-dead cards also show hp numbers and AC');
+assert(/!e\.col && PORT/.test(touch),
+  'landscape touch thrall cards omit the hp line and keep the kin bar');
 
 assert(/miniRect\(\)/.test(extractFn('partyPortraitFrame'))
   && /touchPanelRect\(160\)/.test(extractFn('partyPortraitFrame')),
@@ -176,6 +178,13 @@ function rectGap(a, b){
     name+' raised-dead column clears minimap '+miniG.toFixed(1)
     +'px, log tabs '+tabG.toFixed(1)+'px, open log '+logG.toFixed(1)+'px');
 });
+
+const kinLand=H.layout({vw:844, vh:390, touch:true, cards:6});
+const raisedLand=H.layout({vw:844, vh:390, touch:true, cards:6, raised:true});
+assert(raisedLand.frame.h===kinLand.frame.h && raisedLand.frame.cards.every(c=>c.h===kinLand.frame.h),
+  'phone landscape thrall card matches the kin card height ('+raisedLand.frame.h+'px)');
+const raisedPort=H.layout({vw:390, vh:844, touch:true, cards:6, raised:true});
+assert(raisedPort.frame.h===40, 'phone portrait still gives the raised card room for the hp line');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate-dead party HUD checks passed');

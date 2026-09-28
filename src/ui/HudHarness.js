@@ -35,7 +35,10 @@ const ctx={UIBTN:[], UI:{}, IS_TOUCH:true, PORT:false, VW:0, VH:0, UIS:1,
   G:{ents:[], hudMore:0, miniBig:0}, Math};
 ctx.clamp=(v,a,b)=>v<a?a:v>b?b:v;
 ctx.safeInsets=()=>ctx._inset;
-ctx.partyPortraitList=()=>Array.from({length:ctx._n},(_,i)=>({team:'party', col:{key:'k'+i}, hero:i===0}));
+ctx.partyPortraitList=()=>Array.from({length:ctx._n},(_,i)=>{
+  if(ctx._raised && i===ctx._n-1) return {team:'party', ally:1, thrall:1, name:'Skeleton', hp:16, maxhp:16};
+  return {team:'party', col:{key:'k'+i}, hero:i===0};
+});
 vm.createContext(ctx);
 vm.runInContext(hudBlock+'\n'+extractConsts(), ctx);
 vm.runInContext(html.match(/const PARTY_TOUCH_H=[^;]*;/)[0].replace(/^const /,'var '), ctx);
@@ -50,6 +53,7 @@ function layout(o){
   ctx.UIS=ctx.clamp(Math.min(o.vw,o.vh)/(ctx.PORT?430:700), 0.66, 1.30);
   ctx._inset=o.inset||{t:0,r:0,b:0,l:0};
   ctx._n=o.cards==null?5:o.cards;
+  ctx._raised=!!o.raised;
   ctx.layoutUI();
   const btns=ctx.UIBTN.slice();
   return {

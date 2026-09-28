@@ -9064,10 +9064,7 @@ function unequipPackSlot(slot, opts){
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
-  if(out.item && out.item.boneCrown){
-    G.campDoff=0;
-    if(typeof collapseCrownThrall==='function') collapseCrownThrall();
-  }
+  if(out.item && out.item.boneCrown) G.campDoff=0;
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
   return out.item||null;
 }
@@ -11468,8 +11465,9 @@ function setThrallStay(on){
   return {ok:1, stay:!!on};
 }
 /* HOUSE: Bone Crown animate dead — one thrall at a time. Macar commands
-   that thrall (follow / fight nearest foe / stay). The slot frees when
-   the thrall dies, is turned, or the crown leaves. Once per corpse.
+   that thrall (follow / fight nearest foe / stay). Once raised, the thrall
+   stays until it falls or is turned. The crown leaving does not collapse it.
+   Once per corpse.
    PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
    no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
@@ -11788,7 +11786,6 @@ function destroyBoneCrown(crown){
   shake(12);
   say('Macar shatters the bone crown.','#ffe08a');
   const xp=awardCrownDestroyXp(where);
-  collapseCrownThrall();
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
@@ -11828,7 +11825,6 @@ function doffBoneCrownAtCamp(){
   const it=eq.helmet;
   eq.helmet=null;
   if(it&&typeof stowPackItem==='function') stowPackItem(it);
-  collapseCrownThrall();
   say('Macar sets the bone crown aside. One turn at camp.','#c9b895');
   return {ok:1};
 }
@@ -13074,11 +13070,10 @@ function partyPortraitFrame(){
     const x=Math.max(8, (inset.l||0));
     const y=Math.max(8, (inset.t||0));
     const w=PORT?118:124;
-    /* A raised card shows the hp/AC line in the same box as the kin.
-       40px fits that line above the shared bottom bar. Kin-only strips
-       stay on the slim 30px card. */
+    /* Portrait has room for the hp/AC line on a raised card. Landscape
+       uses the kin card height, and the line is not drawn there. */
     const raisedOn=!!(list&&list.some(e=>e&&!e.col));
-    let h=raisedOn?40:PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
+    let h=(raisedOn && PORT)?40:PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
     /* An extra raised-dead card must stay above the thumb cluster. */
     let limit=(typeof VH==='number'?VH:0)-8;
     if(UI && UI.hudTop) limit=Math.min(limit, UI.hudTop-6);
@@ -18273,10 +18268,10 @@ function drawPortraitStackTouch(g, party, frame){
       g.fillText('FALLEN', tx, by+5);
     } else {
       const f=clamp((e.hp||0)/(e.maxhp||1),0,1);
-      /* Same box as the kin: name, then the bar on the bottom.
-         A raised card adds its hp/AC line in the band above that bar
-         so the ink stays inside the card. */
-      if(!e.col){
+      /* Portrait raised cards add hp/AC above the kin bar. Landscape
+         matches the kin card: the bar only, so a short card does not
+         squash the line into the name. */
+      if(!e.col && PORT){
         const label=sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e);
         let fs=8;
         g.font='700 '+fs+'px '+FONT_UI;

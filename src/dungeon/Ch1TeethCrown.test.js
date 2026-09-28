@@ -662,7 +662,59 @@ assert(boneRaise.ok===1 && boneRaise.form==='skeleton', 'bone corpse rises as a 
 ctx.G.packs={macar:{magic:[]}};
 const doff=ctx.doffBoneCrownAtCamp();
 assert(doff.ok===1 && ctx.G.equipped.helmet==null, 'camp doffs the crown in one turn');
-assert(ctx.G.thrallId==null, 'doff collapses the commanded dead');
+assert(ctx.livingThrall()===skel && skel.team==='party' && skel.hp===16,
+  'camp removal leaves the thrall in the party');
+
+/* Each way the crown leaves is its own raise. The thrall stays. */
+require('../packs/EquipmentSlots.js');
+function crownExit(label, run){
+  const w={
+    G:{
+      equipped:{}, ents:[], props:[],
+      lvl:{n:1, flags:{}, w:20, h:20},
+      packs:{macar:{magic:[]}},
+      thrallId:null, animateDeadSpent:0, campDoff:0, sleepShow:null, gear:{}
+    },
+    EquipmentSlots: global.EquipmentSlots,
+    BONE_CROWN_DESTROY_XP: 5000,
+    Math, Object,
+    lines:[],
+    say(t){ w.lines.push(t); },
+    hint(){}, burst(){}, shake(){}, ftext(){},
+    awardPartyXp(){ return 0; },
+    stowPackItem(it){ w.G.packs.macar.magic.push(it); return it; },
+    player(){ return (w.G.ents||[]).find(e=>e&&e.hero)||null; },
+    crownDropAtAltar(){ return false; },
+    refreshAnimateButton(){},
+    riseSkeletalDwarves(){},
+    ensureEquippedShape(){ w.G.equipped=w.G.equipped||{}; return w.G.equipped; },
+    ensureMacarHammer(){},
+    applyEquipped(){},
+    convertCoinsToElectrum(){},
+    dist(a,b){ return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)); }
+  };
+  vm.createContext(w);
+  [
+    'makeBoneCrownItem','wearingBoneCrown','livingThrall','isAnimateDeadEligible','corpseIsBones',
+    'tryAnimateDead','awardCrownDestroyXp','dropBoneCrown','destroyBoneCrown','doffBoneCrownAtCamp','unequipPackSlot'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', w));
+  const crown=w.makeBoneCrownItem();
+  w.G.equipped={helmet:crown};
+  const mac={id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:10, y:10, hp:80, maxhp:80};
+  const body={id:77, name:'Goblin', kind:'goblin', team:'foe', dead:1, corpse:1, x:11, y:10, hp:0, maxhp:16};
+  w.G.ents=[mac, body];
+  const raised=w.tryAnimateDead(mac, body);
+  assert(raised.ok===1 && w.livingThrall()===body, label+' raises a thrall');
+  const hp=body.hp;
+  const left=run(w, crown, body);
+  assert(left && !w.wearingBoneCrown(), label+' takes the crown off');
+  assert(w.livingThrall()===body && body.team==='party' && body.thrall===1 && !body.dead && body.hp===hp,
+    label+' leaves the thrall in the party at '+hp+' hp');
+}
+crownExit('inventory Drop', w=>w.dropBoneCrown().ok===1);
+crownExit('unequip', w=>!!w.unequipPackSlot('helmet', {camp:1}));
+crownExit('destroy', w=>w.destroyBoneCrown({worn:1, x:10, y:10}).ok===1);
+crownExit('camp removal', w=>w.doffBoneCrownAtCamp().ok===1);
 
 /* Layout: north-wall seam + chapel carved north, reachable from the east hall. */
 function sliceBetween(a,b){
