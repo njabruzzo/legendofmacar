@@ -6310,7 +6310,8 @@ function applyPlaySave(play){
     G.loot=[];
     (play.loot||[]).forEach(z=>spawnLoot(z.x,z.y,{
       kind:z.kind, coins:z.coins||{}, gems:z.gems||0, jew:z.jew||0,
-      potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow
+      potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow,
+      packDrop:z.packDrop||null, dropHold:z.dropHold?1:0
     }));
     (play.party||[]).forEach(sv=>{
       const e=(G.ents||[]).find(z=>z.col&&z.col.key===sv.key);
@@ -7603,8 +7604,13 @@ function packRowToPile(r, taken){
     return {kind: /sword|axe|cleaver|maul/i.test(it.n||it.cat||'')?'axe':'chest', items:[it], potions:[], glow:'#ffd27a', label:it.n};
   }
   if(r.kind==='potion' && it) return {kind:'potion', potions:[it], items:[], glow:'#e0d2ff', label:it.n||r.t};
-  if(r.kind==='gem' && it) return {kind:'gems', items:[it], gems:1, glow:'#c8fff0', label:it.n||r.t};
-  if(r.kind==='herb') return {kind:'herb', herbs:{[r.n]:1}, glow:'#6aff8a', label:r.n};
+  /* No gems:1 here — that count rolled a fresh "Gemstone" on pickup and
+     duplicated the drop. The gem itself rides in items. */
+  if(r.kind==='gem' && it) return {kind:'gems', items:[it], glow:'#c8fff0', label:it.n||r.t};
+  if(r.kind==='herb') return {kind:'herb', items:[], glow:'#6aff8a', label:r.n};
+  if(r.kind==='note' && it) return {kind:'pile', items:[it], glow:'#e6d6b0', label:it.n||r.t};
+  if(r.kind==='res') return {kind:'pile', items:[], glow:'#cfd6de',
+    label:((typeof RESMETA!=='undefined' && RESMETA[r.field] && RESMETA[r.field].n)||r.field)};
   if(r.kind==='ale' && it) return {kind:'potion', potions:[it], items:[], glow:'#e0d2ff', label:it.n||'Draught'};
   if(r.kind==='kit' && it) return {kind:'pile', items:[{k:'pack', field:'bombKit', count:1, n:'Bomb-making kit'}], glow:'#cfd6de'};
   const field=r.field||(r.kind==='burp'?'burps':null);
@@ -7638,10 +7644,94 @@ function dropPackRow(r){
   if(!taken){ say('Nothing to drop.','#9a8a78'); return; }
   const p=player();
   const x=(p?p.x:0)+0.6, y=(p?p.y:0)+0.35;
-  spawnLoot(x, y, packRowToPile(r, taken));
-  say('MACAR drops '+(r.t||taken.n||'kit')+'.','#ffe08a');
+  const pile=packRowToPile(r, taken);
+  /* The pile remembers exactly what left the pack so pickup puts the same
+     thing back: no treasure XP, no hoard conversion, no re-rolled gem. */
+  pile.packDrop=packDropRecord(r, taken);
+  pile.label=packDropName(pile.packDrop);
+  pile.dropHold=1;
+  spawnLoot(x, y, pile);
+  say('MACAR drops '+packDropName(pile.packDrop)+'.','#ffe08a');
   G.packSel=null;
   syncPackTotals();
+}
+/* ---- Drop / pick back up ----
+   Every pack row can be dropped and picked back up as the same item.
+   A fresh drop is held from walk-over autoloot until Macar steps away
+   (PACK_DROP_HOLD_R); a tap or the Pick up prompt takes it at any time. */
+const PACK_DROP_HOLD_R=1.6;
+function packDropClone(o){
+  if(o==null || typeof o!=='object') return o;
+  try { return JSON.parse(JSON.stringify(o)); } catch(_){ return Object.assign({}, o); }
+}
+/* Row titles read "Rations  ×7"; one dropped is just "Rations". */
+function packDropTitle(r){ return String((r&&r.t)||'').replace(/\s*\u00d7\s*\d+\s*$/,'').trim(); }
+function packDropRecord(r, taken){
+  const d={kind:r.kind, n:1};
+  if(r.kind==='supply'||r.kind==='burp'){ d.field=(taken&&taken.field)||r.field||'burps'; d.name=packDropTitle(r)||r.tag||d.field; }
+  else if(r.kind==='kit'){ d.field='bombKit'; d.name='Bomb-making kit'; }
+  else if(r.kind==='herb'){ d.herb=r.n; d.name=r.n; }
+  else if(r.kind==='res'){ d.field=r.field; d.name=(taken&&taken.n)||r.field; }
+  else if(r.kind==='ale'){ d.ale=!!(taken&&taken.k==='ale'); d.obj=d.ale?null:packDropClone(taken); d.name=(taken&&taken.n)||'Draught of beer'; }
+  else { d.obj=packDropClone(taken); d.name=(taken&&taken.n)||packDropTitle(r)||'kit'; }
+  return d;
+}
+function packDropName(d){ return (d&&d.name)||'kit'; }
+function restorePackDrop(d){
+  if(!d) return '';
+  ensurePacks();
+  const pk=packOf('macar');
+  const n=Math.max(1, d.n|0);
+  switch(d.kind){
+    case 'supply': case 'burp': case 'kit':
+      pk[d.field]=(pk[d.field]||0)+n; break;
+    case 'ale':
+      if(d.ale) pk.ales=(pk.ales||0)+n;
+      else if(d.obj){ pk.healPots=pk.healPots||[]; pk.healPots.push(d.obj); }
+      break;
+    case 'potion':
+      pk.potions=pk.potions||[]; if(d.obj) pk.potions.push(d.obj); break;
+    case 'gem':
+      pk.gems=pk.gems||[]; if(d.obj) pk.gems.push(d.obj); break;
+    case 'note':
+      pk.notes=pk.notes||[]; if(d.obj) pk.notes.push(d.obj); break;
+    case 'herb':
+      pk.herbs=pk.herbs||{}; if(d.herb) pk.herbs[d.herb]=(pk.herbs[d.herb]||0)+n; break;
+    case 'res':
+      if(d.field){ if(!G.res) G.res={}; G.res[d.field]=(G.res[d.field]||0)+n; } break;
+    case 'coin':
+      if(d.coin){ if(!G.coin) G.coin={cp:0,sp:0,ep:0,gp:0,pp:0}; G.coin[d.coin]=(G.coin[d.coin]||0)+n; } break;
+    case 'magic': default: {
+      const it=d.obj; if(!it) break;
+      pk.magic=pk.magic||[];
+      /* Macar's hammer respawns when it is dropped. Picking the original
+         back up swaps it in for the stand-in instead of making two. */
+      const dup=it.id?pk.magic.findIndex(x=>x&&x.id===it.id):-1;
+      if(dup>=0){
+        const stand=pk.magic[dup];
+        pk.magic[dup]=it;
+        const eq=G.equipped||{};
+        Object.keys(eq).forEach(k=>{ if(eq[k]===stand) eq[k]=it; });
+        if(typeof mapPackItemToEquipment==='function') mapPackItemToEquipment(it);
+        if(typeof applyEquipped==='function') applyEquipped();
+      } else {
+        pk.magic.push(it);
+        if(typeof mapPackItemToEquipment==='function') mapPackItemToEquipment(it);
+        if(typeof rememberShadowCleaver==='function') rememberShadowCleaver(it);
+      }
+    }
+  }
+  syncPackTotals();
+  return packDropName(d);
+}
+function nearestHeldDrop(e, r){
+  let best=null, bd=r;
+  (G.loot||[]).forEach(pile=>{
+    if(!pile||pile.gone||!pile.dropHold) return;
+    const d=dist(e,pile);
+    if(d<bd){ bd=d; best=pile; }
+  });
+  return best;
 }
 function removePackRow(r){
   const bag=packOf(G.packWho||'macar');
@@ -7666,6 +7756,11 @@ function removePackRow(r){
     if((bag.healPots||[]).length) return bag.healPots.shift();
   }
   if(r.kind==='kit'&&(bag.bombKit||0)>0){ bag.bombKit--; return {n:'Bomb-making kit',k:'kit'}; }
+  if(r.kind==='note') return (bag.notes||[]).splice(r.i,1)[0]||null;
+  if(r.kind==='res' && r.field && G.res && (G.res[r.field]||0)>0){
+    G.res[r.field]--;
+    return {n:((typeof RESMETA!=='undefined' && RESMETA[r.field] && RESMETA[r.field].n)||r.field), k:'res', field:r.field};
+  }
   return null;
 }
 /* Pack salvage. World dress props still use scavengeCraft — this is inventory only. */
@@ -12485,7 +12580,10 @@ function dropElectrum(n){
   G.coin.ep=have-n;
   const p=typeof player==='function'?player():null;
   const x=(p?p.x:0)+0.55, y=(p?p.y:0)+0.32;
-  if(typeof spawnLoot==='function') spawnLoot(x, y, {kind:'coins', coins:{ep:n}, glow:'#6ec8b0', label:n+' electrum'});
+  /* Same drop contract as the pack: pick it back up as the same coin, not as
+     a fresh hoard (no deepsilver, no treasure XP a second time). */
+  if(typeof spawnLoot==='function') spawnLoot(x, y, {kind:'coins', coins:{ep:n}, glow:'#6ec8b0', label:n+' electrum',
+    packDrop:{kind:'coin', coin:'ep', n, name:n+' electrum'}, dropHold:1});
   say('Macar drops '+n+' electrum. The pack lightens.','#6ec8b0');
   return n;
 }
@@ -13935,6 +14033,10 @@ function update(dt){
     }
     const pile=nearestLoot(p,1.12);
     if(pile) takeLoot(pile, true);
+    if(!PROMPT){
+      const held=nearestHeldDrop(p,1.3);
+      if(held) interact('Pick up '+(held.label||'it'),()=>takeLoot(held));
+    }
     if(!PROMPT){
       const sh=nearestShroom(p,1.35);
       if(sh) interact('Search for herbs',()=>{ p.searchCd=5; forageHerbs(sh); });
@@ -17396,6 +17498,7 @@ function spawnLoot(x,y, pile){
     res:pile.res||null,
     glow:pile.glow||(pile.kind==='ruby'?'#ff2a3c':'#ffd27a')
   };
+  if(pile.packDrop){ loot.packDrop=pile.packDrop; loot.dropHold=pile.dropHold?1:0; }
   loot.label=lootLabel(Object.assign({label:pile.label}, loot));
   G.loot.push(loot);
   burst(x,y,loot.glow,10,2.2);
@@ -17406,6 +17509,11 @@ function nearestLoot(e, r){
   let best=null, bd=r;
   for(const pile of G.loot){
     if(pile.gone) continue;
+    /* A fresh drop stays on the floor until Macar has walked away from it. */
+    if(pile.dropHold){
+      if(dist(e,pile)>PACK_DROP_HOLD_R) pile.dropHold=0;
+      else continue;
+    }
     if(pile._corpse){
       const body=(G.ents||[]).find(z=>z.id===pile._corpse);
       if(body&&body.lootBlocked) continue;
@@ -17419,6 +17527,11 @@ function takeLoot(pile, quiet){
   if(!pile||pile.gone) return;
   pile.gone=1;
   G.loot=(G.loot||[]).filter(x=>x!==pile);
+  if(pile.packDrop){
+    const got=restorePackDrop(pile.packDrop);
+    say('MACAR picks up '+(got||'kit')+'.','#ffe08a');
+    return;
+  }
   const bits=[];
   convertHoard(pile.coins||{}, pile.gems||0, pile.jew||0, 0, 'none', pile, true);
   const c=pile.coins||{};
@@ -19419,7 +19532,9 @@ function layoutHighPlate(g, spec){
   const ceil=spec.ceil, floor=spec.floor;
   function measure(ls, ts, fs, ms, lg, tg, mg){
     g.font='700 '+ls+'px '+FONT_TITLE;
-    const labLines=lab?wrapLines(g, lab, maxW):[];
+    /* Letterspaced labels (B O O K   O N E) keep their word gap: wrapLines
+       collapses runs of spaces, so only wrap a label that will not fit. */
+    const labLines=lab?(g.measureText(lab).width<=maxW?[lab]:wrapLines(g, lab, maxW)):[];
     g.font='700 '+ts+'px '+FONT_DISPLAY;
     const tLines=title?wrapLines(g, title, maxW):[];
     g.font='italic 600 '+fs+'px '+FONT_QUOTE;
@@ -19482,6 +19597,8 @@ function paintHighPlate(g, lay, spec){
     if(spec.rule!==false && lay.fl.length) drawGoldRule(g, VW/2, lay.ruleY, spec.ruleW||Math.min(200*UIS, (spec.maxW||VW*0.7)*0.42));
   }
   if(lay.fl.length){
+    /* displayTitle leaves textAlign at left; the quote is centred. */
+    g.textAlign='center';
     g.font='italic 600 '+lay.flSize+'px '+FONT_QUOTE;
     let y=lay.flavorY;
     const step=Math.max(16*UIS, lay.flSize*1.32);
@@ -19511,6 +19628,13 @@ function drawArtRect(g, img, x, y, w, h, r){
 function enterTitleMenu(){
   G.scene='title_menu';
 }
+/* Second-screen copy. Matches title_menu.jpg: the ruby door burning on the
+   left, the carved dwarf king's face on the right, one lantern between. */
+const TITLE_MENU_COPY={
+  label:'C H A P T E R   I',
+  title:'THE RUBY DOOR',
+  flavor:'Beneath the stone king’s gaze, the ruby door burns in the dark. It knows your name.'
+};
 function titleMenuArt(){
   /* Disney ruby-door hall plate only. Never the party splash or the cave-in. */
   const scene=SPR.title_menu;
@@ -19693,10 +19817,13 @@ function drawTitleMenu(g){
   const maxW=VW-pad.l-pad.r;
   const titleGap=Math.max(24, 28*s);
   const wipeReserve=G.wipeAsk?40*s:0;
+  /* Screen 2 copy speaks to the plate it sits on: the Chapter I hall —
+     the ruby door, the stone king's face, the lantern. The splash keeps
+     Book One and the rise-to-hero line; this screen does not repeat them. */
   const titleLay=layoutHighPlate(g, {
     s, maxW, ceil:pad.t, floor:stackTop-gap-wipeReserve,
-    label:'B O O K   O N E', title:'THE LEGEND OF MACAR',
-    flavor:'From simple beginnings Macar would rise to become a hero among dwarves.',
+    label:TITLE_MENU_COPY.label, title:TITLE_MENU_COPY.title,
+    flavor:TITLE_MENU_COPY.flavor,
     music:'',
     labSize:Math.max(12, 13*s), titleSize:(PORT?30:26)*s,
     flSize:Math.max(16, (PORT?15:14)*s), musSize:8*s,
@@ -20551,6 +20678,170 @@ function drawEquipDoll(g, x, y, w, h){
     menuHits.push({x:c.x,y:c.y,w:c.w,h:c.h,fn:()=>togglePackSlot(c.k)});
   });
 }
+/* ---- Macar's sheet (PACK screen) ----
+   Macar's portrait opens PACK, not the kin inspect card, so his numbers
+   live here: level and experience, AC, THAC0 and to-hit, damage, and a
+   plain list of what he can do. Read-only. It uses the same helpers the
+   dice use (thacNeed, hitBonus, strMods, effectiveAC). The crossbow line
+   toggles e.ranged the same way a bolt hit does, and restores it. */
+function fmtSigned(n){ n=n|0; return (n>=0?'+':'−')+Math.abs(n); }
+function macarSheetSummary(){
+  const e=typeof player==='function'?player():null;
+  if(!e) return null;
+  if(typeof ensureCharXp==='function') ensureCharXp();
+  const ab=entityAbil(e)||{};
+  const cls=ab.cls||e.cls||'f';
+  const lvl=e.lvl||ab.lvl||PARTY_LVL;
+  const xp=(G.charXp&&G.charXp.macar)||0;
+  const next=xpForNext(cls, lvl);
+  const prev=xpTable(cls)[lvl-1]||0;
+  const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
+  const acNote=(ES&&ES.describeAC)?(ES.describeAC(G.equipped||{}).note||''):'';
+  const ac=effectiveAC(e);
+  const thac0=thacNeed(e, 0);
+  const prevR=e.ranged;
+  let melee=0, bolt=0;
+  try {
+    e.ranged=0; melee=hitBonus(e, null);
+    e.ranged=1; bolt=hitBonus(e, null);
+  } finally { e.ranged=prevR; }
+  const eq=G.equipped||{};
+  const wep=eq.primary||eq.weapon||null;
+  const bow=eq.secondary||null;
+  const hasBow=!!(bow && !(ES&&ES.isShield&&ES.isShield(bow)) && /crossbow|bow/i.test((bow.n||'')+' '+(bow.cat||'')));
+  const sm=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(e):ab, 'f');
+  const dice=e.dice||(wep&&wep.dice)||'1d8';
+  const dmgPlus=(sm.dmg||0)+((wep&&wep.plus)||0);
+  const pk=packOf('macar');
+  const combat=[
+    'THAC0 '+thac0,
+    'Melee '+fmtSigned(melee)+' (hits AC 0 on '+Math.max(2, thac0-melee)+')',
+    'Dmg '+dice+(dmgPlus?fmtSigned(dmgPlus):'')
+  ];
+  if(hasBow || (pk&&pk.ammo)) combat.push('Crossbow '+fmtSigned(bolt)+' · 1d4'+(pk&&pk.ammo?(' · '+pk.ammo+' bolts'):''));
+  const specials=[];
+  const bands=Object.keys(SPECIALTY).map(k=>{
+    const B=SPECIALTY[k];
+    return '×'+B.mult+' on '+(B.hi>=99?(B.lo+'+'):(B.lo+'–'+B.hi));
+  });
+  specials.push('Specialty strikes I–IV: '+bands.join(', '));
+  if(isDwarf(e)){
+    const dw=dwarfSaveBonus(e,'poison');
+    if(dw) specials.push('Dwarf: +'+dw+' saves vs poison, rods & spells');
+    specials.push('Sees in the dark (no −4 to hit)');
+  }
+  specials.push('STR '+strLabel(ab)+': '+fmtSigned(sm.hit)+' hit, '+fmtSigned(sm.dmg)+' dmg');
+  const worn=[];
+  const mr=typeof wornMagicResistPct==='function'?(wornMagicResistPct(e)|0):0;
+  if(mr>0) worn.push('Magic resist '+mr+'%');
+  [[typeof wearingFireResistance==='function'?wearingFireResistance:null,'Fire resistance'],
+   [typeof wearingWarmth==='function'?wearingWarmth:null,'Warmth'],
+   [typeof wearingFreeAction==='function'?wearingFreeAction:null,'Free action'],
+   [typeof wearingFeatherFalling==='function'?wearingFeatherFalling:null,'Feather fall'],
+   [typeof wearingLevitation==='function'?wearingLevitation:null,'Levitation'],
+   [typeof wearingElvenkind==='function'?wearingElvenkind:null,'Silent step'],
+   [typeof wearingDisplacement==='function'?wearingDisplacement:null,'Displacement']].forEach(([fn,label])=>{
+    try { if(fn && fn(e)) worn.push(label); } catch(_){}
+  });
+  if(worn.length) specials.push('Worn: '+worn.join(', '));
+  if(typeof SKILLS!=='undefined' && typeof skillLvl==='function' && G.xp){
+    const mine=SKILLS.filter(k=>k.who==='MACAR').map(k=>k.n+' '+skillLvl(k.k));
+    if(mine.length) specials.push('Skills: '+mine.join(', '));
+  }
+  return {
+    name:(e.col&&e.col.name)||'MACAR',
+    head:clsName(cls)+' '+lvl+' · Dwarf',
+    hp:'HP '+sheetHpNow(e)+'/'+sheetHpMax(e),
+    ac:'AC '+ac+(acNote?(' '+acNote):''),
+    xp, next, prev, lvl,
+    xpText:'XP '+xp+' / '+next,
+    xpFrac:clamp((xp-prev)/Math.max(1, next-prev), 0, 1),
+    thac0, melee, bolt, hasBow,
+    combat, specials
+  };
+}
+function drawMacarSheetPanel(g, x, y, w, s, supply){
+  const S=macarSheetSummary();
+  if(!S) return 0;
+  const inner=w-24*s;
+  const lh=Math.max(13, 12.5*s);
+  const fHead='700 '+Math.max(11, 10.5*s)+'px '+FONT_UI;
+  const fCombat='800 '+Math.max(11, 10.5*s)+'px '+FONT_UI;
+  const fSupply='600 '+Math.max(10, 9*s)+'px '+FONT_UI;
+  const fSpec='600 '+Math.max(10, 9.5*s)+'px '+FONT_UI;
+  const fXp='700 '+Math.max(10, 9*s)+'px '+FONT_UI;
+  /* Portrait stacks: head, XP bar, combat (wrapped), supplies, specials.
+     Landscape keeps XP on the head row's right. Nothing is ellipsized
+     except a specials overflow. */
+  const stack=PORT || w<560*s;
+  g.font='800 '+Math.max(13, 12*s)+'px '+FONT_TITLE;
+  const nameW=g.measureText(S.name).width;
+  const headTxt=S.head+' \u00b7 '+S.hp+' \u00b7 '+S.ac;
+  g.font=fHead;
+  const xpW=stack?0:Math.min(170*s, w*0.30);
+  const headLines=wrapLines(g, headTxt, inner-nameW-8*s-(xpW?xpW+10*s:0));
+  g.font=fCombat;
+  const combatLines=wrapLines(g, S.combat.join('   \u00b7   '), inner);
+  g.font=fSupply;
+  const maxSupply=2;
+  const supplyLines=supply?wrapLines(g, supply, inner).slice(0, maxSupply):[];
+  g.font=fSpec;
+  const specAll=wrapLines(g, S.specials.join('   \u00b7   '), inner);
+  const maxSpec=stack?4:2;
+  const specLines=specAll.slice(0, maxSpec);
+  if(specAll.length>maxSpec){
+    const k=specLines.length-1;
+    specLines[k]=ellipsize(g, specLines[k]+' \u2026', inner);
+  }
+  const xpRowH=stack?(lh+6*s):0;
+  const h=10*s + headLines.length*lh + xpRowH + 4*s + combatLines.length*lh
+    + supplyLines.length*lh + specLines.length*lh + 8*s;
+  plate(g, x, y, w, h, 6, .78);
+  const px=x+12*s;
+  let yy=y+10*s+lh*0.82;
+  /* Name + class/level, HP, AC */
+  g.font='800 '+Math.max(13, 12*s)+'px '+FONT_TITLE;
+  g.fillStyle='#ffe9c0';
+  g.fillText(S.name, px, yy);
+  g.font=fHead;
+  g.fillStyle='rgba(215,190,145,0.94)';
+  headLines.forEach((ln,i)=>{ g.fillText(ln, px+nameW+8*s, yy+i*lh); });
+  function xpBar(bx, by, bw){
+    const bh=Math.max(5, 6*s);
+    g.fillStyle='rgba(0,0,0,0.7)'; g.fillRect(bx, by, bw, bh);
+    const xg=g.createLinearGradient(bx, 0, bx+bw, 0);
+    xg.addColorStop(0,'#6a8a3a'); xg.addColorStop(1,'#c9e8a8');
+    g.fillStyle=xg; g.fillRect(bx, by, bw*S.xpFrac, bh);
+    g.strokeStyle='rgba(220,190,130,0.45)'; g.lineWidth=1; g.strokeRect(bx, by, bw, bh);
+  }
+  const xpLabel=S.xpText+'  \u2192  Lv '+(S.lvl+1);
+  if(!stack){
+    g.font=fXp; g.fillStyle='#c9e8a8'; g.textAlign='right';
+    g.fillText(xpLabel, x+w-12*s, yy-2*s);
+    g.textAlign='left';
+    xpBar(x+w-12*s-xpW, yy+3*s, xpW);
+  }
+  yy+=(headLines.length-1)*lh;
+  if(stack){
+    yy+=lh;
+    g.font=fXp; g.fillStyle='#c9e8a8';
+    const lw=g.measureText(xpLabel).width;
+    g.fillText(xpLabel, px, yy);
+    xpBar(px+lw+10*s, yy-Math.max(5,6*s)-1*s, Math.max(40*s, inner-lw-10*s));
+    yy+=6*s;
+  }
+  yy+=4*s;
+  /* THAC0, melee / crossbow to-hit, damage */
+  g.font=fCombat; g.fillStyle='#ffd27a';
+  combatLines.forEach(ln=>{ yy+=lh; g.fillText(ln, px, yy); });
+  /* Supplies */
+  g.font=fSupply; g.fillStyle='rgba(200,180,140,0.82)';
+  supplyLines.forEach(ln=>{ yy+=lh; g.fillText(ln, px, yy); });
+  /* Special abilities */
+  g.font=fSpec; g.fillStyle='rgba(180,210,160,0.94)';
+  specLines.forEach(ln=>{ yy+=lh; g.fillText(ln, px, yy); });
+  return h;
+}
 function drawPack(g){
   menuHits=[]; const s=UIS;
   if(G.scene==='pack') UI.overlayHits=[];
@@ -20614,7 +20905,8 @@ function drawPack(g){
 
   const whoE=packUser();
   const sheet=G.abil&&G.abil[G.packWho];
-  const kitY=tabY+tabH+6*s, kitH=PORT?24*s:26*s;
+  const kitY=tabY+tabH+6*s;
+  let kitH=PORT?24*s:26*s;
   const kit=[
     whoE?('HP '+sheetHpNow(whoE)+'/'+sheetHpMax(whoE)): (sheet?('HP '+sheet.maxhp):''),
     pk.bombs?('Bombs '+pk.bombs):'',
@@ -20627,14 +20919,21 @@ function drawPack(g){
   ].filter(Boolean);
   const mac=player();
   const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
-  if(mac && ES && ES.describeAC){
-    const d=ES.describeAC(G.equipped||{});
-    kit.unshift('AC '+effectiveAC(mac)+(d.note?(' '+d.note):''));
+  /* Macar's own tab carries his full sheet: XP, AC, THAC0 / to-hit, specials. */
+  const macarSheet=(!G.packWho||G.packWho==='macar') && !!mac && typeof drawMacarSheetPanel==='function';
+  if(macarSheet){
+    const supply=kit.slice(1).join('   \u00b7   ');
+    kitH=drawMacarSheetPanel(g, 10*s, kitY, VW-20*s, s, supply)||kitH;
+  } else {
+    if(mac && ES && ES.describeAC){
+      const d=ES.describeAC(G.equipped||{});
+      kit.unshift('AC '+effectiveAC(mac)+(d.note?(' '+d.note):''));
+    }
+    plate(g,10*s,kitY,VW-20*s,kitH,5,.7);
+    g.font='700 '+(8.5*s)+'px '+FONT_UI;
+    g.fillStyle='rgba(220,200,160,0.88)';
+    g.fillText(ellipsize(g, kit.join('   \u00b7   '), VW-36*s), 18*s, kitY+kitH*0.66);
   }
-  plate(g,10*s,kitY,VW-20*s,kitH,5,.7);
-  g.font='700 '+(8.5*s)+'px '+FONT_UI;
-  g.fillStyle='rgba(220,200,160,0.88)';
-  g.fillText(ellipsize(g, kit.join('   \u00b7   '), VW-36*s), 18*s, kitY+kitH*0.66);
 
   const split=!PORT && VW>=640;
   const cmpOn=typeof useEquipCompare==='function' && useEquipCompare() && G.packSel && isPackEquipable({kind:'magic',it:G.packSel});

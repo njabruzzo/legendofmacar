@@ -141,10 +141,22 @@ assert(!/drawArtFrame/.test(menu) && !/drawLetterbox/.test(menu),
   'menu has no gold frame and no black letterbox');
 assert(!/UIBTN|stickHome|drawHUD|icon_pack/.test(menu),
   'menu has no HUD chrome, stick, or inventory');
-assert(/title:'THE LEGEND OF MACAR'/.test(menu) && /titleGapMin:24/.test(menu),
+assert(/title:TITLE_MENU_COPY\.title/.test(menu) && /titleGapMin:24/.test(menu),
   'canvas title is always painted with ≥24px air before the quote');
-assert(/From simple beginnings Macar would rise to become a hero among dwarves\./.test(menu),
+const copyDecl=html.match(/const TITLE_MENU_COPY=\{[\s\S]*?\n\};/);
+assert(!!copyDecl, 'second-screen copy is one named block');
+const copy=copyDecl?copyDecl[0]:'';
+assert(/label:'C H A P T E R   I'/.test(copy),
+  'second screen is labelled Chapter I, the hall on the plate — not a Book One repeat');
+assert(/title:'THE RUBY DOOR'/.test(copy), 'second-screen title names the ruby door on the plate');
+assert(/ruby door/i.test(copy) && /stone king/i.test(copy),
+  'second-screen line speaks to the door and the carved face in title_menu.jpg');
+assert(/flavor:TITLE_MENU_COPY\.flavor/.test(menu),
   'quote stays on the canvas; it is not baked into the art');
+assert(!/From simple beginnings/.test(menu) && !/B O O K   O N E/.test(menu),
+  'the splash line and Book One label are not repeated on screen 2');
+assert(!/label:'C H A P T E R/.test(copy) || copy.match(/label:'([^']*)'/)[1].length<=20,
+  'the letterspaced label stays short enough not to wrap on a phone');
 assert(/wrapLines/.test(html.match(/function layoutHighPlate\(g, spec\)\{[\s\S]*?function paintHighPlate/)[0]),
   'quote wraps on word boundaries');
 assert(/menuBtn\(g,'New descent'[\s\S]*startChapter\(1\)[\s\S]*'primary'/.test(menu),

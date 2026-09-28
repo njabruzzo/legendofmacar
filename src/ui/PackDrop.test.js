@@ -25,7 +25,9 @@ assert(/dropPackRow\(r\)/.test(block), 'Drop calls dropPackRow');
 
 assert(/function dropPackRow\(/.test(html), 'dropPackRow exists');
 assert(/function packRowToPile\(/.test(html), 'dropped kit becomes a floor pile');
-assert(/spawnLoot\(x, y, packRowToPile\(r, taken\)\)/.test(html), 'drop puts the pile at Macar\'s feet');
+assert(/const pile=packRowToPile\(r, taken\)/.test(html) && /spawnLoot\(x, y, pile\)/.test(html),
+  'drop puts the pile at Macar\'s feet');
+assert(/pile\.packDrop=packDropRecord\(r, taken\)/.test(html), 'the pile remembers what was dropped');
 assert(/removePackRow\(r\)/.test(html.match(/function dropPackRow[\s\S]*?\nfunction removePackRow/)[0]),
   'drop removes the item from the pack');
 assert(/MACAR drops /.test(html), 'drop speaks a log line');

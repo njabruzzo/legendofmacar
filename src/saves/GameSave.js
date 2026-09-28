@@ -153,7 +153,9 @@
       potions: clone(z.potions || []), items: clone(z.items || []),
       res: z.res ? clone(z.res) : null,
       label: z.label, glow: z.glow,
-      _corpse: z._corpse
+      _corpse: z._corpse,
+      packDrop: z.packDrop ? clone(z.packDrop) : null,
+      dropHold: z.dropHold ? 1 : 0
     };
   }
 
@@ -269,7 +271,9 @@
           potions: clone(z.potions || []), items: clone(z.items || []),
           res: z.res ? clone(z.res) : null,
           label: z.label, glow: z.glow,
-          _corpse: z._corpse
+          _corpse: z._corpse,
+          packDrop: z.packDrop ? clone(z.packDrop) : null,
+          dropHold: z.dropHold ? 1 : 0
         };
       });
       applied.loot = true;
@@ -333,7 +337,8 @@
       loot: (play.loot || []).map(function (z) {
         return {
           x: z.x, y: z.y, kind: z.kind, coins: z.coins, gems: z.gems, jew: z.jew,
-          potions: z.potions, items: z.items, label: z.label, glow: z.glow
+          potions: z.potions, items: z.items, label: z.label, glow: z.glow,
+          packDrop: z.packDrop || null, dropHold: z.dropHold ? 1 : 0
         };
       }),
       warrenSeed: play.warrenSeed || 0,
