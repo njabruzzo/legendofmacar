@@ -25,7 +25,7 @@ function extractFn(name){
   return m[0];
 }
 
-assert(/ASSET_VER='125'/.test(html) && !/ASSET_VER='115'/.test(html),
+assert(/ASSET_VER='126'/.test(html) && !/ASSET_VER='115'/.test(html),
   'ASSET_VER is 117 — remat Talpor idle bw=344 (Nick CALL)');
 
 assert(/function pickPlayDpr\(/.test(html) && /function gfxDprCap\(/.test(html),
@@ -126,7 +126,7 @@ vm.runInContext(
   +extractFn('wantsLivingMacarStrike')
   +extractFn('macarStrikeHoldAt')
   +extractFn('macarStrikeHoldMid')
-  +extractFn('livingMacarAnimKey'),
+  +extractFn('livingMacarStandKey')+extractFn('livingMacarAnimKey'),
   ctx
 );
 

@@ -25,7 +25,7 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/ASSET_VER='125'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
+assert(/ASSET_VER='126'/.test(html) && !/ASSET_VER='115'/.test(html) && !/ASSET_VER='116'/.test(html),
   'ASSET_VER is 117');
 assert(!/G\.scene='intro'/.test(html), 'new descent does not open the chapter intro');
 assert(/function drawIntro\(g\)\{/.test(html), 'drawIntro remains in source but is not the player gate');
@@ -47,8 +47,10 @@ assert(/assets\/tiles\/teeth_floor_hq\.png/.test(html)
     'the fang field does not return before the readable tooth stamps');
 }
 assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_crown.png'))
-  && !/dwarf_macar_crown/.test(html) && !/macar_crown_w/.test(html),
-  'no crowned-walk sheet exists; worn crown stays an overlay');
+  && !/macar_crown_w/.test(html)
+  && /dwarf_macar_crowned\.png/.test(html)
+  && !/dwarf_macar_crowned_w/.test(html),
+  'the worn idle is dwarf_macar_crowned; there is no crowned walk sheet');
 
 const labels=cs=>cs.map(c=>c.t);
 const ctx={
@@ -93,10 +95,11 @@ assert(/riseSkeletalDwarves\(where\)/.test(extractFn('destroyBoneCrown')),
 ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
 ctx.G.lvl.flags.crownDropped=0;
 choices=labels(ctx.teethCrownChoices());
-assert(choices[0]==='Drop the crown.' && choices.indexOf('Destroy the crown.')<0,
-  'while the crown is worn the talk offers drop, not destroy');
+assert(choices.indexOf('Drop the crown.')<0 && choices.indexOf('Leave it.')>=0
+  && choices.indexOf('Destroy the crown.')<0,
+  'while the crown is worn the talk does not offer drop or destroy');
 assert(ctx.dropBoneCrown().ok===1 && ctx.G.equipped.helmet==null && ctx.G.lvl.flags.crownDropped===1,
-  'drop clears the helm and marks the crown dropped');
+  'inventory drop clears the helm and marks the crown dropped');
 
 ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
 ctx.G.thrallId=41;
@@ -107,11 +110,17 @@ ctx.G.ents=[
 ];
 assert(ctx.nearestAnimatableCorpse(ctx.G.ents[0], 1.95)!=null, 'a corpse is in animate range');
 assert(ctx.livingThrall() && ctx.dist(ctx.G.ents[0], ctx.livingThrall())<3.2, 'a living thrall is in stay range');
-assert(ctx.primaryCrownPrompt(ctx.G.ents[0])==='Drop the bone crown',
-  'while the crown is worn, Drop wins over Animate the dead and Thrall: stay');
-assert(/primaryCrownPrompt\(p\)/.test(html)
-  && html.indexOf("crownLab==='Drop the bone crown'")<html.indexOf("crownLab==='Animate the dead'"),
-  'the action button asks primaryCrownPrompt and honors Drop first');
+assert(ctx.primaryCrownPrompt(ctx.G.ents[0])==null,
+  'a nearby corpse and thrall do not float a plate on the play field');
+assert(!/return 'Animate the dead'/.test(html)
+  && !/return 'Thrall: stay'/.test(html)
+  && !/crownLab==='Animate the dead'/.test(html),
+  'the floating Animate the dead prompt is gone');
+assert(!/return 'Drop the bone crown'/.test(html) && !/crownLab==='Drop the bone crown'/.test(html),
+  'the on-screen Drop the bone crown prompt is gone');
+assert(/crownIt\.boneCrown/.test(html.match(/function dropPackRow[\s\S]*?\nfunction removePackRow/)[0])
+  && /dropBoneCrown\(\)/.test(html.match(/function dropPackRow[\s\S]*?\nfunction removePackRow/)[0]),
+  'inventory Drop of the worn crown calls dropBoneCrown');
 assert(ctx.G.props.some(p=>p.k==='bonecrown' && !p.gone), 'drop puts the crown back in the room');
 
 const face={x:12,y:4,k:'demonface',toothKind:'electrum',emptySocket:0,gone:0};

@@ -146,7 +146,7 @@ vm.runInContext(
   +extractFn('wantsLivingMacarStrike')
   +extractFn('macarStrikeHoldAt')
   +extractFn('macarStrikeHoldMid')
-  +extractFn('livingMacarAnimKey'),
+  +extractFn('livingMacarStandKey')+extractFn('livingMacarAnimKey'),
   ctx
 );
 

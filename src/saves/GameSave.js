@@ -458,6 +458,8 @@
       bombs: G.bombs || 0,
       ales: G.ales || 0,
       curseStrain: G.curseStrain || 0,
+      animateDeadSpent: G.animateDeadSpent ? 1 : 0,
+      thrallId: G.thrallId == null ? null : G.thrallId,
       curseGrowT: G.curseGrowT || 0,
       curseDecayT: G.curseDecayT || 0,
       hourglassT: G.hourglassT || 0,
@@ -493,6 +495,8 @@
     if (snap.bombs != null) G.bombs = snap.bombs;
     if (snap.ales != null) G.ales = snap.ales;
     G.curseStrain = snap.curseStrain || 0;
+    G.animateDeadSpent = snap.animateDeadSpent ? 1 : 0;
+    G.thrallId = snap.thrallId == null ? null : snap.thrallId;
     G.curseGrowT = snap.curseGrowT || 0;
     G.curseDecayT = snap.curseDecayT || 0;
     G.hourglassT = snap.hourglassT || 0;

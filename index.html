@@ -436,7 +436,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='125';
+const ASSET_VER='126';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -767,6 +767,8 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   if(k==='macar' || k==='macar_w1' || k==='macar_w2' || k==='macar_atk' || k==='macar_atk_contact'
      || k==='macar_axe' || k==='macar_axe_w1' || k==='macar_axe_w2' || k==='macar_axe_atk'
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk') return;
+  /* Crowned idle is not a helmeted leftover. Keep every _crowned key. */
+  if(/_crowned/.test(k)) return;
   if(/^macar(_|$)/.test(k)) delete SPRITE_FILES[k];
 });
 /* Shadow Cleaver + crossbow carry/atk — registered after the strip so they survive. */
@@ -793,6 +795,10 @@ SPRITE_FILES.macar_ne_w1='assets/creatures/dwarf_macar_ne_w1.png';
 SPRITE_FILES.macar_ne_w2='assets/creatures/dwarf_macar_ne_w2.png';
 SPRITE_FILES.macar_back_w1='assets/creatures/dwarf_macar_back_w1.png';
 SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
+/* Bone-crown idle. One front sheet for every facing (mirror is wantsSpriteFlip).
+   Registered after the title-law strip and the walk/dead derivation so those
+   passes cannot invent a crowned sibling frame or delete a _crowned key. */
+SPRITE_FILES.dwarf_macar_crowned='assets/creatures/dwarf_macar_crowned.png';
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -825,7 +831,7 @@ function loadSprites(done){
   const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
-    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2','dwarf_macar_crowned',
     'teeth_floor','teeth_floor_atlas','tooth','tooth_2','tooth_3',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
@@ -1498,7 +1504,8 @@ function blitLivingMacar(img){
     out=null;
   }
   /* 0-size / failed bake would blit a see-through sliver. Fall back to
-     punching the source, then idle — never cache an empty canvas. */
+     the same capped lift repair uses, then punch. An uncapped 255/a here
+     turns a=41 edge paint white (~6×). Never cache an empty canvas. */
   if(!out||!out.width||!out.height){
     try{
       const c=document.createElement('canvas');
@@ -1508,6 +1515,22 @@ function blitLivingMacar(img){
       x.globalAlpha=1;
       x.globalCompositeOperation='source-over';
       x.drawImage(img,0,0);
+      const id=x.getImageData(0,0,c.width,c.height), fd=id.data;
+      const fn=c.width*c.height;
+      for(let i=0,p=0;i<fn;i++,p+=4){
+        const a=fd[p+3];
+        if(a<=40 || isMagentaMatte(fd[p],fd[p+1],fd[p+2]) || isBlackMatte(fd[p],fd[p+1],fd[p+2])){
+          fd[p]=0; fd[p+1]=0; fd[p+2]=0; fd[p+3]=0; continue;
+        }
+        if(a<255){
+          const s=Math.min(1.25, 255/a);
+          fd[p]=Math.min(255,(fd[p]*s+0.5)|0);
+          fd[p+1]=Math.min(255,(fd[p+1]*s+0.5)|0);
+          fd[p+2]=Math.min(255,(fd[p+2]*s+0.5)|0);
+        }
+        fd[p+3]=255;
+      }
+      x.putImageData(id,0,0);
       out=punchLivingMacarCanvas(c);
     }catch(_){ out=null; }
   }
@@ -1521,6 +1544,7 @@ function blitLivingMacar(img){
     if(!keepAtk && idle&&idle!==img) return blitLivingMacar(idle);
     return null;
   }
+  out.__livingBake=1;
   if(SOLID_MACAR) SOLID_MACAR.set(img,out);
   else img.__solidMacar=out;
   return out;
@@ -1817,14 +1841,22 @@ function flippedSprite(img, punch){
   const doPunch=punch!==false;
   const cache=doPunch?FLIP_CACHE:FLIP_CACHE_RAW;
   if(cache&&cache.has(img)) return cache.get(img);
+  /* West mirrors the same capped repair bake as the south idle. A raw
+     punch (s=255/a) blows faint edges white. A sheet livingMacarImg
+     already baked is not repaired again — that would move the live idle. */
+  let src=img;
+  if(doPunch && !img.__livingBake){
+    const baked=blitLivingMacar(img);
+    if(baked&&baked.width&&baked.height) src=baked;
+  }
   const c=document.createElement('canvas');
-  c.width=img.width; c.height=img.height;
+  c.width=src.width; c.height=src.height;
   const fg=c.getContext('2d',{willReadFrequently:true});
   fg.imageSmoothingEnabled=false;
   fg.globalAlpha=1;
   fg.globalCompositeOperation='source-over';
   fg.translate(c.width,0); fg.scale(-1,1);
-  fg.drawImage(img,0,0);
+  fg.drawImage(src,0,0);
   /* Living sheets re-punch so a flip cannot reintroduce fringe. Ghost sheets
      are mid-alpha by design — punching them to a=255 is the solid↔ghost flash. */
   if(doPunch) punchLivingMacarCanvas(c);
@@ -1923,7 +1955,8 @@ const MACAR_PLAN={
 const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
-  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1
+  macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1,
+  dwarf_macar_crowned:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
@@ -2167,7 +2200,16 @@ function ghostAnimKey(e, k){
 /* Sheet that livingMacarImg will actually bake. Ready matching _atk skips
    pickReadyPartyKey so a second crown/family pass cannot plant idle after
    livingMacarAnimKey already chose the mid-swing sheet. */
+/* Worn bone crown, standing only. Walk and attack keep their own sheets.
+   The floating prop is not drawn on this key — the crown is in the paint. */
+function livingMacarStandKey(idle){
+  if(idle==='macar' && typeof wearingBoneCrown==='function' && wearingBoneCrown()
+     && typeof sprReady==='function' && sprReady('dwarf_macar_crowned'))
+    return 'dwarf_macar_crowned';
+  return idle||'macar';
+}
 function livingMacarBlitKey(key){
+  if(key==='dwarf_macar_crowned' && sprReady('dwarf_macar_crowned')) return key;
   const idle=livingMacarIdleKey();
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
@@ -2301,7 +2343,7 @@ function livingMacarAnimKey(e){
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || idle;
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
@@ -2312,12 +2354,12 @@ function livingMacarAnimKey(e){
         return 'macar_atk_contact';
     }
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || idle;
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
   }
   if(wantsMeleeRecover(e)){
     const rec=(idle==='macar_axe')?'macar_axe_atk_recover':(idle==='macar_xbow')?'macar_xbow_atk_recover':'macar_atk_recover';
     if(matchingPartyAtkReady(rec, idle)) return rec;
-    return idle;
+    return livingMacarStandKey(idle);
   }
   /* Original compass walks only while moving, so a standing Macar
      stays the front idle (no size pop onto a side sheet). South stays
@@ -2344,8 +2386,14 @@ function livingMacarAnimKey(e){
   }
   /* Cleaver / xbow walk uses matching w1/w2 when ready; else plant that idle.
      South maul uses the front w1/w2 pair of the live idle. */
-  const hit=(e.moving && !e.defending)?walkCycleKey(e, idle):null;
-  return pickReadyPartyKey(isLivingMacarKey(hit)?hit:null, idle) || idle;
+  if(e.moving && !e.defending){
+    const hit=walkCycleKey(e, idle);
+    if(isLivingMacarKey(hit) && hit!==idle){
+      const walk=pickReadyPartyKey(hit, idle);
+      if(walk && walk!==idle) return walk;
+    }
+  }
+  return livingMacarStandKey(idle);
 }
 /* Crown-to-boots fraction of a sheet. The column is the densest lower
    body (legs and torso), not the overhead maul. Contact's helm sits left
@@ -2447,6 +2495,12 @@ function livingMacarPlantFit(e, key, img){
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
   const idleFit=heroFigureFit(e, idle);
+  /* Crowned idle is the same 1100×920 canvas as the live idle. The crown
+     moves the painted top from y=32 to y=56; the body below the head is
+     the live idle's paint. Draw at that idle's pixel scale and plant on
+     botY, the shared foot. Fitting the shorter content height would
+     resize the body. */
+  if(key==='dwarf_macar_crowned') return heroFigureFit(e, SPR.macar||idle);
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
@@ -2454,6 +2508,15 @@ function livingMacarPlantFit(e, key, img){
   const liveBody=livingSheetStature(live);
   if(!(idleBody>0.55) || !(liveBody>0.55)) return idleFit;
   return idleFit*(idleBody/liveBody);
+}
+/* Prop crown only on a sheet that does not already wear the painted crown.
+   Idle, the plant when a walk stops, and the snap back to the front idle
+   after a swing (recover, then t>0.96) are dwarf_macar_crowned: one crown
+   in the paint, never the prop on top. Walk and swing are the other sheets,
+   so they get the prop and never zero crowns. */
+function livingMacarDrawsPropCrown(key){
+  if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return false;
+  return key!=='dwarf_macar_crowned';
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -2501,7 +2564,7 @@ function drawLivingMacar(g,e){
   const dx=-W*cx;
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
-  if(typeof wearingBoneCrown==='function' && wearingBoneCrown()){
+  if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z);
   }
   g.restore();
@@ -4025,7 +4088,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
-  hudMore:0, miniBig:0 };
+  hudMore:0, miniBig:0, animateDeadSpent:0 };
 
 function say(t,c,k){
   const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
@@ -6269,7 +6332,18 @@ function applyPlaySave(play){
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
+  if(typeof rebindSavedThrall==='function') rebindSavedThrall();
   try{ rebuildVision(); }catch(e){}
+}
+/* Continue used to restore the thrall body and drop G.thrallId, so the
+   party card and the follow order both vanished. Prefer the saved id,
+   then any living allied thrall still in the ent list. */
+function rebindSavedThrall(){
+  const ents=G.ents||[];
+  let t=null;
+  if(G.thrallId!=null) t=ents.find(e=>e&&e.id===G.thrallId&&e.thrall&&!e.dead)||null;
+  if(!t) t=ents.find(e=>e&&e.thrall&&!e.dead&&(e.team==='party'||e.ally))||null;
+  G.thrallId=t?t.id:null;
 }
 function loadSavedGame(){
   if(typeof GameSave==='undefined') return;
@@ -7539,6 +7613,14 @@ function packRowToPile(r, taken){
 function dropPackRow(r){
   if(!r) return;
   if(r.kind==='drop-ep'){ askDropElectrum(); return; }
+  const crownIt=r.it||null;
+  if(crownIt && (crownIt.boneCrown || crownIt.id==='bone_crown')
+     && typeof wearingBoneCrown==='function' && wearingBoneCrown()
+     && typeof dropBoneCrown==='function'){
+    dropBoneCrown();
+    G.packSel=null;
+    return;
+  }
   if(G.packWho && G.packWho!=='macar' && !isGhostPack()){
     say('Drop kit from MACAR\'s pack.','#c9b895');
     return;
@@ -8425,6 +8507,8 @@ function wearingElvenkind(e){
   if(cloak && /cloak of elvenkind/i.test(cloak.n||'')) return true;
   return false;
 }
+/* Carried weight and pack items never change Macar's step. */
+function macarCarryMoveMul(_e){ return 1; }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
 function wornMoveMul(e){
   let mul=1;
@@ -8437,6 +8521,8 @@ function wornMoveMul(e){
     /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
     else if(/striding and springing/i.test(n)) mul=1.5;
   }
+  if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof macarCarryMoveMul==='function')
+    mul*=macarCarryMoveMul(e);
   if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof electrumMoveMul==='function')
     mul*=electrumMoveMul();
   return mul;
@@ -9021,10 +9107,7 @@ function unequipPackSlot(slot, opts){
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
-  if(out.item && out.item.boneCrown){
-    G.campDoff=0;
-    if(typeof collapseCrownThrall==='function') collapseCrownThrall();
-  }
+  if(out.item && out.item.boneCrown) G.campDoff=0;
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
   return out.item||null;
 }
@@ -11425,8 +11508,9 @@ function setThrallStay(on){
   return {ok:1, stay:!!on};
 }
 /* HOUSE: Bone Crown animate dead — one thrall at a time. Macar commands
-   that thrall (follow / fight nearest foe / stay). The slot frees when
-   the thrall dies, is turned, or the crown leaves. Once per corpse.
+   that thrall (follow / fight nearest foe / stay). Once raised, the thrall
+   stays until it falls or is turned. The crown leaving does not collapse it.
+   Once per corpse.
    PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
    no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
@@ -11448,9 +11532,11 @@ function tryAnimateDead(actor, body){
   body.name=bones?'Skeleton':'Zombie';
   body.kind='undead';
   G.thrallId=body.id;
+  G.animateDeadSpent=1;
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
   say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
-  hint('One thrall. The slot frees when it falls, is turned, or the crown leaves.',3.6);
+  hint('One thrall. The slot frees when it falls or is turned.',3.6);
   return {ok:1, thrall:body, form:bones?'skeleton':'zombie'};
 }
 function teethHordeBox(L){
@@ -11564,7 +11650,7 @@ function teethAltarBlocksTile(altar, ix, iy){
     for(let k=0;k<=steps;k++){
       const u=k/steps;
       const tx=Math.floor(ax+t+u*depth), ty=Math.floor(ay-t+u*depth);
-      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1) return true;
+      if(Math.max(Math.abs(ix-tx), Math.abs(iy-ty))<=1 || (ix===104 && iy===5) || (ix===103 && iy===6)) return true;
     }
   }
   return false;
@@ -11717,8 +11803,9 @@ function takeBoneCrown(crown){
   }
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
-  hint('Animate dead: one thrall. SEARCH a corpse, or the crown commands.',4.4);
+  hint('Animate is ready: the cross button. One thrall.',3.6);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1, worn:1};
 }
 function awardCrownDestroyXp(where){
@@ -11742,7 +11829,6 @@ function destroyBoneCrown(crown){
   shake(12);
   say('Macar shatters the bone crown.','#ffe08a');
   const xp=awardCrownDestroyXp(where);
-  collapseCrownThrall();
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
@@ -11782,7 +11868,6 @@ function doffBoneCrownAtCamp(){
   const it=eq.helmet;
   eq.helmet=null;
   if(it&&typeof stowPackItem==='function') stowPackItem(it);
-  collapseCrownThrall();
   say('Macar sets the bone crown aside. One turn at camp.','#c9b895');
   return {ok:1};
 }
@@ -11982,9 +12067,7 @@ function crownWasDropped(){
 function teethCrownChoices(){
   const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
   const choices=[];
-  if(worn){
-    choices.push({t:'Drop the crown.', then:()=>{ if(typeof dropBoneCrown==='function') dropBoneCrown(); }});
-  } else {
+  if(!worn){
     /* Destroy leads on the first talk and again after a drop. */
     choices.push({t:'Destroy the crown.', then:()=>{
       const c=typeof nearestBoneCrown==='function'?nearestBoneCrown(player(), 8):null;
@@ -12040,20 +12123,9 @@ function openTeethChapelLook(key){
     G.talk.choices=teethFaceChoices();
   return true;
 }
-function primaryCrownPrompt(p){
-  const worn=typeof wearingBoneCrown==='function' && wearingBoneCrown();
-  /* Drop owns the action button for as long as the crown is worn.
-     A nearby corpse ('Animate the dead') or a living thrall
-     ('Thrall: stay') used to claim it first, so Drop could not be
-     reached while standing among the bodies. */
-  if(worn && typeof dropBoneCrown==='function') return 'Drop the bone crown';
-  if(worn && typeof nearestAnimatableCorpse==='function'){
-    if(nearestAnimatableCorpse(p,1.95)) return 'Animate the dead';
-  }
-  if(typeof livingThrall==='function' && typeof setThrallStay==='function'){
-    const pet=livingThrall();
-    if(pet && p && dist(p,pet)<3.2) return pet.thrallStay?'Thrall: follow':'Thrall: stay';
-  }
+function primaryCrownPrompt(){
+  /* Crown actions stay off the play field. Drop is inventory.
+     Raising a corpse is the Animate bar button. */
   return null;
 }
 /* The teeth altar sheet is 1075×718, drawn 150*s px tall, and TW is 84*ZOOM.
@@ -12138,6 +12210,7 @@ function dropBoneCrown(){
     });
   }
   say('Macar sets the bone crown down.','#c9b895');
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1};
 }
 function pryGrondTooth(face, kind){
@@ -12961,6 +13034,7 @@ const HUDSKILLS=[
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
+  {key:'animate', ico:'cross', label:'Animate'},
 ];
 /* Rally is not a HUD verb (bar or More). Key 5 still fires the war-horn if remembered. */
 const HUD_TAP=44;
@@ -12970,7 +13044,7 @@ const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','
    Defend sits outermost, nearest the thumb's resting arc. */
 const HUD_TOUCH_COMBAT=['ale','bomb','bow','wall'];
 /* Desktop bar groups: PACK ‖ combat ‖ field work. */
-const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale'],['search','secret','shovel','camp','craft']];
+const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale','animate'],['search','secret','shovel','camp','craft']];
 /* Keycaps drawn on mouse/keyboard only. Mirrors the keydown table. */
 const HUD_KEYS={pack:'I', wall:'V', attack:'1', bow:'X', bomb:'B', ale:'2',
   search:'F', secret:'T', shovel:'G', camp:'C', craft:'K'};
@@ -13031,16 +13105,58 @@ const PARTY_TOUCH_H=30, PARTY_TOUCH_GAP=4;
 function partyPortraitFrame(){
   const s=UIS;
   const inset=UI.pad||{l:0,t:0};
-  const shown=typeof partyPortraitList==='function'
-    ? partyPortraitList().length
+  const list=typeof partyPortraitList==='function'?partyPortraitList():null;
+  const shown=list
+    ? list.length
     : (G.ents||[]).filter(e=>e.team==='party'&&e.col&&(e.hero||e.ghost||e.crushed)).length;
   if(hudMobile()){
     const x=Math.max(8, (inset.l||0));
     const y=Math.max(8, (inset.t||0));
-    const w=PORT?118:124, h=PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
+    let w=PORT?118:124, gap=PARTY_TOUCH_GAP;
+    /* Kin cards stay at the live touch size (30×118 portrait, gap 4).
+       Only a raised card grows, and only in portrait, so its hp/AC
+       line has a band of its own. Landscape keeps one shared height. */
+    const kinH=PARTY_TOUCH_H;
+    const heights=[];
+    for(let i=0;i<shown;i++){
+      const raised=!!(list&&list[i]&&!list[i].col);
+      heights.push((raised && PORT)?40:kinH);
+    }
+    /* Landscape may shrink that shared height so the column, thrall
+       included, stays above the thumb cluster. Portrait kin stay 30
+       and the raised card stays 40. */
+    let limit=(typeof VH==='number'?VH:0)-8;
+    if(UI && UI.hudTop) limit=Math.min(limit, UI.hudTop-6);
+    if(!PORT && shown>0 && y+shown*(kinH+gap)>limit){
+      gap=2;
+      const avail=Math.max(shown*20, limit-y);
+      const fit=Math.max(20, Math.floor((avail-shown*gap)/shown));
+      for(let i=0;i<shown;i++) heights[i]=fit;
+    }
+    /* Phone landscape: the column, including a raised-dead card, stays
+       left of the minimap, the LOG / QUEST tabs, and the open log. */
+    if(!PORT && typeof miniRect==='function'){
+      let rightLim=(typeof VW==='number')?VW:x+w;
+      const mini=miniRect();
+      if(mini && mini.sz) rightLim=Math.min(rightLim, mini.x-8);
+      if(typeof touchTabs==='function'){
+        const tabs=touchTabs();
+        if(tabs && tabs.log) rightLim=Math.min(rightLim, tabs.log.x-8);
+      }
+      if(typeof touchPanelRect==='function'){
+        const panel=touchPanelRect(160);
+        if(panel && panel.w) rightLim=Math.min(rightLim, panel.x-8);
+      }
+      if(x+w>rightLim) w=Math.max(88, rightLim-x);
+    }
     const cards=[];
-    for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
-    return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap), compact:1};
+    let yy=y;
+    for(let i=0;i<shown;i++){
+      cards.push({x:x, y:yy, w:w, h:heights[i]});
+      yy+=heights[i]+gap;
+    }
+    const h=heights.length?heights[0]:kinH;
+    return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:yy, compact:1};
   }
   const x=Math.max(8*s, (inset.l||0)+8);
   const y=Math.max(8*s, (inset.t||0)+8);
@@ -13052,6 +13168,11 @@ function partyPortraitFrame(){
   const cards=[];
   for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
   return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap)};
+}
+/* Take, an inventory drop, and spending Animate change the bar.
+   layoutUI otherwise runs on resize and on load. */
+function refreshAnimateButton(){
+  if(typeof layoutUI==='function') layoutUI();
 }
 function layoutUI(){
   UIBTN.length=0;
@@ -13066,7 +13187,10 @@ function layoutUI(){
   UI.pad={l:padL,r:padR,b:padB,t:padT};
   UI.more=null; UI.overflow=[]; UI.overflowBox=null; UI.barDividers=[];
   UI.labelPx = mobile ? Math.max(10, (PORT?9.5:8.5)*s) : hudLabelPx(56);
-  const find=k=>HUDSKILLS.find(b=>b.key===k);
+  const find=k=>{
+    if(k==='animate' && !(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return null;
+    return HUDSKILLS.find(b=>b.key===k);
+  };
 
   if(mobile){
     /* Left thumb: stick. Right thumb: one tight cluster —
@@ -13080,6 +13204,8 @@ function layoutUI(){
     const edge=8;
     const gap=PORT?6:5;
     const combatRow=HUD_TOUCH_COMBAT.map(find).filter(Boolean);
+    const animSkill=find('animate');
+    if(animSkill) combatRow.push(animSkill);
     const util=HUD_MOBILE_ORDER.filter(k=>HUD_TOUCH_COMBAT.indexOf(k)<0)
       .map(find).filter(b=>b && !HUD_OVERFLOW[b.key]);
 
@@ -13094,7 +13220,8 @@ function layoutUI(){
     const rowY=attackY-atkH/2-8-TAP/2;
     combatRow.forEach((b,i)=>{
       UIBTN.push({x:clusterLeft+TAP/2+i*(TAP+gap), y:rowY, r:TAP/2,
-        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:1});
+        key:b.key, ico:b.ico, label:b.label, slot:1, nolabel:1,
+        disabled:b.key==='animate'&&!!G.animateDeadSpent});
     });
     const atk={x:cx, y:attackY, w:clusterW, h:atkH, r:atkH/2,
       key:'attack', ico:'attack', label:'Attack', slot:1, nolabel:1};
@@ -13219,7 +13346,8 @@ function layoutUI(){
     gr.forEach((b,i)=>{
       const wide = b.key==='attack';
       const w = wide ? L.atkW : slot;
-      const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key]};
+      const btn = {x:x + w/2, y, r:slot/2, key:b.key, ico:b.ico, label:b.label, slot:1, kc:HUD_KEYS[b.key],
+        disabled:b.key==='animate'&&!!G.animateDeadSpent};
       if(wide){ btn.w=w; btn.h=L.atkH; btn.y=L.atkY; UI.attack=btn; }
       if(b.key==='pack') UI.orb={r:slot/2, x:btn.x, y};
       UIBTN.push(btn);
@@ -13476,6 +13604,14 @@ function fire(key){
     return;
   }
   if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
+  if(key==='animate'){
+    if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return;
+    if(G.animateDeadSpent) return;
+    const body=typeof nearestAnimatableCorpse==='function'?nearestAnimatableCorpse(p,1.95):null;
+    if(!body){ say('No corpse is close enough.','#c9b895'); return; }
+    if(typeof tryAnimateDead==='function') tryAnimateDead(p, body);
+    return;
+  }
   if(key==='wall'){
     p.defending=!p.defending;
     if(p.defending){
@@ -13821,17 +13957,7 @@ function update(dt){
       const crown=nearestBoneCrown(p,1.75);
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
-    if(!PROMPT && typeof primaryCrownPrompt==='function'){
-      const crownLab=primaryCrownPrompt(p);
-      if(crownLab==='Drop the bone crown') interact(crownLab,()=>openTeethChapelLook('teeth_chapel_crown'));
-      else if(crownLab==='Animate the dead'){
-        const body=nearestAnimatableCorpse(p,1.95);
-        if(body) interact(crownLab,()=>tryAnimateDead(p,body));
-      } else if(crownLab){
-        const pet=livingThrall();
-        if(pet) interact(crownLab,()=>setThrallStay(!pet.thrallStay));
-      }
-    }
+    /* Crown plates used to float here. Animate is the bar button. */
     if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
       const face=nearestDemonFace(p,2.05);
       if(face && !chapelFaceToothTaken(face)) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
@@ -18075,20 +18201,35 @@ function portraitIdentity(e){
     cap:null
   };
 }
+/* Crown-raised skeletal dwarves spawn as foes (team foe, beginFight).
+   They do not join this column. An allied one would. The Animate Dead
+   thrall is team party and always does, under the dwarf boxes. */
+function partyRaisedAllies(){
+  const ents=G.ents||[];
+  const dwarves=[], thralls=[];
+  for(let i=0;i<ents.length;i++){
+    const e=ents[i];
+    if(!e||e.dead||e.hero||e.col) continue;
+    if(e.hp!=null && e.hp<=0) continue;
+    const allied=e.team==='party' || e.ally;
+    if(!allied) continue;
+    if(e.thrall){ if(thralls.indexOf(e)<0) thralls.push(e); }
+    else if(e.name==='Skeletal Dwarf' && dwarves.indexOf(e)<0) dwarves.push(e);
+  }
+  return dwarves.concat(thralls);
+}
 function partyPortraitList(){
   const roster=(typeof ROSTER!=='undefined'?ROSTER:[]);
   const ents=G.ents||[];
   const kin=roster.map(r=>ents.find(e=>e&&e.team==='party'&&e.col&&e.col.key===r.key))
     .filter(e=>e && (e.hero || e.ghost || e.crushed));
   const macar=ents.find(e=>e&&e.team==='party'&&(e.hero||(e.col&&e.col.key==='macar')))||null;
-  const on=animateDeadPartyOn();
+  const raised=partyRaisedAllies();
+  const on=animateDeadPartyOn() || raised.length>0;
   const out=[];
   if(on && macar) out.push(macar);
   kin.forEach(e=>{ if(out.indexOf(e)<0) out.push(e); });
-  if(on){
-    const thrall=typeof livingThrall==='function'?livingThrall():null;
-    if(thrall && out.indexOf(thrall)<0) out.push(thrall);
-  }
+  if(on) raised.forEach(e=>{ if(out.indexOf(e)<0) out.push(e); });
   return out;
 }
 function drawPortraitStack(g,s){
@@ -18099,7 +18240,7 @@ function drawPortraitStack(g,s){
   UI.portraitHits=[];
   party.forEach((e,i)=>{
     const col=portraitIdentity(e);
-    const hitKey=(e.col&&e.col.key)||(e.thrall?'thrall':col.key);
+    const hitKey=(e.col&&e.col.key)||((e.thrall||e.name==='Skeletal Dwarf')?'thrall':col.key);
     const yy=y+i*(h+gap);
     UI.portraitHits.push({x,y:yy,w,h,key:hitKey});
     carveFrame(g,x,yy,w,h,6,.88);
@@ -18142,12 +18283,14 @@ function drawPortraitStack(g,s){
 /* Slim touch card: face, name + rank, one bar. Fallen kin grey out and
    read FALLEN; a ghost on its way back shows the return clock. */
 function drawPortraitStackTouch(g, party, frame){
-  const x=frame.x, w=frame.w, h=frame.h, gap=frame.gap;
+  const x=frame.x, w=frame.w, gap=frame.gap;
   UI.portraitHits=[];
   party.forEach((e,i)=>{
     const col=portraitIdentity(e);
-    const hitKey=(e.col&&e.col.key)||(e.thrall?'thrall':col.key);
-    const yy=frame.y+i*(h+gap);
+    const hitKey=(e.col&&e.col.key)||((e.thrall||e.name==='Skeletal Dwarf')?'thrall':col.key);
+    const card=frame.cards&&frame.cards[i];
+    const h=card?card.h:frame.h;
+    const yy=card?card.y:frame.y+i*(h+gap);
     /* Tap slop reaches halfway into the gap; cards stay 30px to draw. */
     UI.portraitHits.push({x, y:yy-gap/2, w, h:h+gap, key:hitKey});
     const down=!!(e.dead||e.crushed) && !(e.ghost && !e.dead);
@@ -18182,7 +18325,19 @@ function drawPortraitStackTouch(g, party, frame){
       g.font='700 8.5px '+FONT_UI; g.fillStyle='rgba(214,120,96,0.85)';
       g.fillText('FALLEN', tx, by+5);
     } else {
-      const f=clamp(e.hp/e.maxhp,0,1);
+      const f=clamp((e.hp||0)/(e.maxhp||1),0,1);
+      /* Portrait raised cards add hp/AC above the kin bar. Landscape
+         matches the kin card: the bar only, so a short card does not
+         squash the line into the name. */
+      if(!e.col && PORT){
+        const label=sheetHpNow(e)+'/'+sheetHpMax(e)+' hp  AC '+effectiveAC(e);
+        let fs=8;
+        g.font='700 '+fs+'px '+FONT_UI;
+        while(fs>6.5 && g.measureText(label).width>bw){ fs-=0.5; g.font='700 '+fs+'px '+FONT_UI; }
+        const baseline=Math.max(yy+16, Math.min(by-3, yy+h-8));
+        g.fillStyle='rgba(214,186,130,0.95)';
+        g.fillText(label, tx, baseline);
+      }
       g.fillStyle='rgba(0,0,0,0.72)'; g.fillRect(tx,by,bw,bh);
       g.fillStyle=e.ghost?'#6ec8ff':(f<.3?'#e0644a':'#7ad45a');
       g.fillRect(tx,by,bw*f,bh);
@@ -18709,7 +18864,8 @@ function drawSlot(g,b,s){
   const wide=w>h*1.25;
   const A=b.quiet?0.88:1;
   const ab=ABIL.find(a=>a.key===b.key);
-  const ready=!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0;
+  const animateSpent=b.key==='animate' && !!(b.disabled || (typeof G!=='undefined' && G.animateDeadSpent));
+  const ready=(!ab || !(ab.cd>0) || (cds[ab.key]||0)<=0) && !animateSpent;
   const atForge=b.key!=='craft' || (!foesVisible() && !!(player()&&nearestCraftStation(player(),1.7)));
   const ico=(b.key==='attack'&&typeof attackHudIco==='function')?attackHudIco():(b.ico||(b.key==='attack'?'attack':(ab&&ab.ico)));
   g.globalAlpha=A;
@@ -18801,6 +18957,9 @@ function drawSlot(g,b,s){
   }
   if(b.key==='craft' && !atForge){
     g.fillStyle='rgba(8,5,3,0.46)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
+  }
+  if(animateSpent){
+    g.fillStyle='rgba(8,5,3,0.58)'; roundPath(g,x+3,y+3,w-6,h-6,3); g.fill();
   }
   if(ab&&(ab.key==='bomb'||ab.key==='ale'||ab.key==='bow')){
     syncPackTotals();
@@ -18977,10 +19136,36 @@ function drawHint(g,s){
   const a=clamp(G.hint.life/Math.min(1,G.hint.max),0,1)*clamp((G.hint.max-G.hint.life)/.3,0,1);
   g.globalAlpha=a;
   g.font='700 '+(13*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
-  const w=g.measureText(G.hint.t).width+30*s, x=VW/2-w/2;
-  const y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
-  plate(g,x,y,w,30*s,5,.78);
-  g.fillStyle='#f0dcb0'; g.fillText(G.hint.t,VW/2,y+20*s); g.textAlign='left';
+  const plateH=30*s;
+  const w=g.measureText(G.hint.t).width+30*s;
+  let x=VW/2-w/2;
+  let y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
+  /* Phone portrait only. The top pin covers the party name, the HP bar,
+     and Pause for the whole hint. Landscape and laptop keep that pin. */
+  if(PORT){
+    const gap=8;
+    let clear=y;
+    if(typeof partyPortraitFrame==='function'){
+      const f=partyPortraitFrame();
+      if(f && f.stackBottom) clear=Math.max(clear, f.stackBottom+gap);
+    }
+    if(typeof miniRect==='function'){
+      const m=miniRect();
+      if(m && m.sz){
+        const pauseH=(typeof HUD_TAP==='number'?HUD_TAP:44);
+        clear=Math.max(clear, m.y+m.sz+gap, m.y+pauseH+gap);
+      }
+    }
+    const floor=((UI&&typeof UI.hudTop==='number')?UI.hudTop:VH)-gap;
+    if(clear+plateH<=floor) y=clear;
+    else {
+      const low=Math.max(gap, floor-plateH);
+      y=low>clear ? clear+(low-clear)*0.5 : low;
+    }
+    x=Math.max(8, Math.min(x, Math.max(8, VW-w-8)));
+  }
+  plate(g,x,y,w,plateH,5,.78);
+  g.fillStyle='#f0dcb0'; g.fillText(G.hint.t,x+w/2,y+20*s); g.textAlign='left';
   g.globalAlpha=1;
 }
 
