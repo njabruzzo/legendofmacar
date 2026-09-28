@@ -170,7 +170,7 @@ assert(/refreshAnimateButton\(\)/.test(extractFn('takeBoneCrown'))
   'take, an inventory drop, and a spent charge refresh Animate');
 assert(/Animate is ready: the cross button\. One thrall\./.test(extractFn('takeBoneCrown')),
   'the take hint names the cross button and one thrall');
-assert(/The slot frees when it falls, is turned\./.test(extractFn('tryAnimateDead'))
+assert(/The slot frees when it falls or is turned\./.test(extractFn('tryAnimateDead'))
   && !/crown leaves/.test(extractFn('tryAnimateDead')),
   'the post-animate hint frees the slot when the thrall falls or is turned');
 

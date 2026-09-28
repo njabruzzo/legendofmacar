@@ -11495,7 +11495,7 @@ function tryAnimateDead(actor, body){
   if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   burst(body.x, body.y, '#e8d0b8', 16, 2.8);
   say(body.name+' rises and waits on Macar\'s word.','#e8d0b8');
-  hint('One thrall. The slot frees when it falls, is turned.',3.6);
+  hint('One thrall. The slot frees when it falls or is turned.',3.6);
   return {ok:1, thrall:body, form:bones?'skeleton':'zombie'};
 }
 function teethHordeBox(L){
