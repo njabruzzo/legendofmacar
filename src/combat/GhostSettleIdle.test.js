@@ -9,14 +9,17 @@ const path=require('path');
 const vm=require('vm');
 const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 
-let failed=0;
+let failed=0, asserts=0, cases=0;
 function assert(cond, msg){
+  asserts++;
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
 function check(cond, msg){
+  asserts++;
   if(!cond){ failed++; console.error('FAIL  '+msg); }
 }
+function mark(){ cases++; }
 function extractFn(name){
   const start=html.indexOf('function '+name+'(');
   if(start<0) throw new Error('missing '+name);
@@ -103,6 +106,7 @@ function tick(){
   ctx.separateParty(mac);
 }
 
+mark();
 let settledAt=-1;
 for(let t=1;t<=N;t++){
   tick();
@@ -148,6 +152,7 @@ function makeGhost(name, x, y, face){
   };
 }
 function resumeCase(label, parkFace, frames){
+  mark();
   const origin={x:30, y:18};
   mac.x=origin.x; mac.y=origin.y; mac.moving=0; mac.fdx=parkFace.x; mac.fdy=parkFace.y;
   mac._frameStep=0; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
@@ -227,6 +232,7 @@ function moveLimit(dx, dy, cap, under){
 /* A follower already inside the lead ring, ahead of Macar, used to walk
    into him: the steer spent the cap and the push had nothing left. */
 function aheadCase(){
+  mark();
   const face=east;
   mac.x=30; mac.y=18; mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
   mac._frameStep=0; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
@@ -314,6 +320,7 @@ function settleDrift(crew){
   return worst;
 }
 function pinCase(label, face, macPos, ghostPos, blocked){
+  mark();
   const prevCan=ctx.canBe, prevMove=ctx.move;
   ctx.canBe=function(x,y,r){ return !blocked(x, y, r||0); };
   ctx.move=slideMove;
@@ -363,11 +370,15 @@ function pinCase(label, face, macPos, ghostPos, blocked){
 pinCase('wall', {x:0, y:1}, {x:30, y:16.8}, {x:30, y:19.62}, function(x,y,r){
   return y+r>=20;
 });
+/* Bisector into two walls. Every free step loses distance, and the
+   same-half segment never gets farther than the corner. Not asserted
+   to 2.0: that needs Macar himself to stop on the follower. */
 pinCase('corner', unit(1,1), {x:36.6, y:36.6}, {x:39.62, y:39.62}, function(x,y,r){
   return x+r>=40 || y+r>=40;
 });
 
 function insideRingSettle(){
+  mark();
   mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
   mac._frameStep=0;
   const ghost=makeGhost('orbo', 11.961, 10, {x:1, y:0});
@@ -388,6 +399,7 @@ function insideRingSettle(){
 insideRingSettle();
 
 function dt0Unstack(){
+  mark();
   mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
   mac._frameStep=mac.sp*DT; mac._sepDt=DT;
   const kin=[
@@ -411,6 +423,7 @@ dt0Unstack();
 /* Two followers stacked on each other, and one sitting inside Macar's ring,
    still separate while he is idle. After they clear 2.0 they stop. */
 function idleStacked(){
+  mark();
   mac.x=12; mac.y=12; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
   mac._frameStep=0; mac._sepDt=0;
   const kin=[
@@ -445,6 +458,7 @@ idleStacked();
 
 /* North wall, the frame that used to throw PORDUM past Macar. */
 function pinnedNorth(dt, label){
+  mark();
   const prevCan=ctx.canBe, prevMove=ctx.move;
   ctx.canBe=function(x,y,r){ return (y-(r||0))>=8; };
   ctx.move=slideMove;
@@ -494,6 +508,7 @@ pinnedNorth(0.05, 'pin-north-dt05');
 /* Four followers walking into a north wall stay a body apart, including
    follower pairs, and a frame that starts clear of 2.0 stays inside 1.05×. */
 function gridNorthPairs(){
+  mark();
   const prevCan=ctx.canBe, prevMove=ctx.move;
   ctx.canBe=function(x,y,r){ return (y-(r||0))>=8; };
   ctx.move=slideMove;
@@ -566,5 +581,240 @@ function gridNorthPairs(){
 }
 gridNorthPairs();
 
-if(failed){ console.error(failed+' failed'); process.exit(1); }
+/* A follower inside 0.2 of an idle Macar used to have every chord rejected. */
+function nearMacarEscape(){
+  mark();
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac._sepDt=0;
+  const kin=[
+    makeGhost('pordoom', 10.1, 10, {x:1, y:0}),
+    makeGhost('fendur', 10, 10.028, {x:1, y:0})
+  ];
+  ctx.G.ents=[mac].concat(kin);
+  const prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  let far=0, maxPx=0;
+  for(let f=0; f<80; f++){
+    const before=kin.map(e=>({x:e.x, y:e.y, sx:e.x-mac.x, sy:e.y-mac.y, d:Math.hypot(e.x-mac.x, e.y-mac.y)}));
+    kin.forEach(e=>{ e._ox=e.x; e._oy=e.y; e._steerStep=0; });
+    mac.moving=0; mac._frameStep=0; mac._sepDt=DT;
+    ctx.separateParty(mac);
+    kin.forEach((e,i)=>{
+      const stepX=e.x-before[i].x, stepY=e.y-before[i].y;
+      const px=Math.hypot((stepX-stepY)*58, (stepX+stepY)*29);
+      if(px>maxPx) maxPx=px;
+      if(before[i].d>0.2){
+        const dot=before[i].sx*(e.x-mac.x)+before[i].sy*(e.y-mac.y);
+        if(dot<=0) far++;
+      }
+      check(px<=8, 'near escape f'+(f+1)+' '+e.name+' '+px.toFixed(2)+'px');
+    });
+  }
+  ctx.TW=prevTW; ctx.TH=prevTH;
+  const gaps=kin.map(e=>Math.hypot(e.x-mac.x, e.y-mac.y));
+  const pair=Math.hypot(kin[0].x-kin[1].x, kin[0].y-kin[1].y);
+  console.log('near escape gaps '+gaps.map(n=>n.toFixed(3)).join(',')+' pair '+pair.toFixed(3)+' maxPx '+maxPx.toFixed(2)+' far '+far);
+  assert(gaps.every(n=>n+1e-4>=2), 'a follower within 0.2 of Macar escapes (got '+gaps.map(n=>n.toFixed(3)).join(', ')+')');
+  assert(pair+1e-4>=2, 'near followers stay apart (pair '+pair.toFixed(3)+')');
+  assert(far===0, 'near escape does not cross to Macar\'s far side');
+  assert(maxPx<=8, 'near escape screen step '+maxPx.toFixed(2)+'px');
+}
+nearMacarEscape();
+
+/* One wall, Macar due north. The along-wall step gains a few thousandths,
+   under the old +0.01 accept, so a restored threshold leaves him pinned. */
+function tangentWallSlide(){
+  mark();
+  const prevCan=ctx.canBe, prevMove=ctx.move;
+  ctx.canBe=function(x,y,r){ return (y+(r||0))<20; };
+  ctx.move=slideMove;
+  mac.x=30; mac.y=17.739; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('orbo', 30, 19.639, {x:1, y:0});
+  ctx.G.ents=[mac, ghost];
+  const start=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  let firstGain=null, far=0;
+  for(let f=0; f<80; f++){
+    const gx=ghost.x, gy=ghost.y;
+    const sideX=gx-mac.x, sideY=gy-mac.y;
+    const started=Math.hypot(sideX, sideY);
+    ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
+    mac.moving=0; mac._frameStep=0; mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const opened=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    if(firstGain==null) firstGain=opened-started;
+    if(started>0.2){
+      const dot=sideX*(ghost.x-mac.x)+sideY*(ghost.y-mac.y);
+      if(dot<=0) far++;
+    }
+  }
+  const end=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.canBe=prevCan; ctx.move=prevMove;
+  console.log('tangent wall start '+start.toFixed(3)+' firstGain '+firstGain.toFixed(4)+' end '+end.toFixed(3)+' far '+far);
+  assert(firstGain>0 && firstGain<0.01, 'the wall slide gains under 0.01 (got '+firstGain.toFixed(4)+')');
+  assert(end+1e-4>=2, 'a corner-pinned follower reaches 2.0 (got '+end.toFixed(3)+')');
+  assert(far===0, 'tangent slide stays on Macar\'s near side');
+}
+tangentWallSlide();
+
+/* Pair push at dt 0.05. Without the far-side guard the nearer follower
+   steps through Macar (dot goes negative). */
+function pairFarSide(){
+  mark();
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0;
+  const a=makeGhost('pordoom', 10.05, 10, {x:1, y:0});
+  const b=makeGhost('fendur', 10.85, 10, {x:1, y:0});
+  ctx.G.ents=[mac, a, b];
+  const sx=a.x-mac.x, sy=a.y-mac.y;
+  a._ox=a.x; a._oy=a.y; b._ox=b.x; b._oy=b.y; a._steerStep=0; b._steerStep=0;
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const dot=sx*(a.x-mac.x)+sy*(a.y-mac.y);
+  console.log('pair far-side A '+a.x.toFixed(3)+','+a.y.toFixed(3)+' dot '+dot.toFixed(4));
+  assert(dot>1e-4, 'a pair push does not cross to Macar\'s far side (dot '+dot.toFixed(4)+')');
+}
+pairFarSide();
+
+/* The walk cap is already spent. Only the under-2.0 slack opens the pair. */
+function pairUnderSlack(){
+  mark();
+  mac.x=10; mac.y=24; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0;
+  const cap=4*DT;
+  const a=makeGhost('pordoom', 10, 10, {x:1, y:0});
+  const b=makeGhost('talpor', 11.97, 10, {x:1, y:0});
+  a._ox=a.x+cap; a._oy=a.y; b._ox=b.x-cap; b._oy=b.y;
+  a._steerStep=cap; b._steerStep=cap;
+  ctx.G.ents=[mac, a, b];
+  mac._sepDt=DT;
+  ctx.separateParty(mac);
+  const pair=Math.hypot(a.x-b.x, a.y-b.y);
+  console.log('pair slack '+pair.toFixed(3));
+  assert(pair+1e-4>=2, 'a follower pair under 2.0 opens on the slack (got '+pair.toFixed(3)+')');
+}
+pairUnderSlack();
+
+/* Macar's stride is shorter than a ghost's walk. A clear follower matches him. */
+function shortLeaderRatio(){
+  mark();
+  const face=east;
+  mac.x=30; mac.y=18; mac.fdx=face.x; mac.fdy=face.y; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac.name='MACAR';
+  const crew=[
+    makeGhost('pordoom', 30+2.4, 18, face),
+    makeGhost('fendur', 30-2.4, 18, face),
+    makeGhost('orbo', 30, 18+2.5, face),
+    makeGhost('talpor', 30, 18-2.5, face)
+  ];
+  ctx.G.ents=[mac].concat(crew);
+  let worst=0;
+  const leadStep=0.03;
+  for(let f=0; f<8; f++){
+    mac.moving=1; mac._frameStep=leadStep;
+    mac.x+=face.x*leadStep; mac.y+=face.y*leadStep;
+    const before=crew.map(e=>({x:e.x, y:e.y}));
+    crew.forEach((e,i)=>{
+      e._ox=e.x; e._oy=e.y;
+      ctx.stepPartyFollower(e, ctx.partyForm(i+1, mac), 0.38, mac, DT);
+      e._steerStep=Math.hypot(e.x-e._ox, e.y-e._oy);
+    });
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    crew.forEach((e,i)=>{
+      const step=Math.hypot(e.x-before[i].x, e.y-before[i].y);
+      const beforeMac=Math.hypot(before[i].x-(mac.x-face.x*leadStep), before[i].y-(mac.y-face.y*leadStep));
+      const afterMac=Math.hypot(before[i].x-mac.x, before[i].y-mac.y);
+      let kinClear=true;
+      for(let k=0;k<crew.length;k++) if(k!==i){
+        if(Math.hypot(before[i].x-before[k].x, before[i].y-before[k].y)<2) kinClear=false;
+      }
+      if(beforeMac>=2 && afterMac>=2 && kinClear){
+        const ratio=step/leadStep;
+        if(ratio>worst) worst=ratio;
+        check(step<=leadStep*1.05+1e-4, 'short lead f'+(f+1)+' '+e.name+' ratio '+ratio.toFixed(3));
+      }
+    });
+  }
+  console.log('short lead ratio '+worst.toFixed(3));
+  assert(worst>0, 'short-lead ratio was measured');
+  assert(worst<=1.05+1e-3, 'a clear follower stays within 1.05× a short stride ('+worst.toFixed(3)+')');
+}
+shortLeaderRatio();
+
+/* Laptop tile. Three stacked ghosts, Macar idle. No frame over 8px. */
+function idleTriplePx(){
+  mark();
+  const prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  mac.x=12; mac.y=12; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0;
+  const kin=[
+    makeGhost('pordoom', 12.02, 12.01, {x:1, y:0}),
+    makeGhost('fendur', 12.04, 11.99, {x:1, y:0}),
+    makeGhost('orbo', 12.01, 12.03, {x:1, y:0})
+  ];
+  ctx.G.ents=[mac].concat(kin);
+  let maxPx=0;
+  for(let f=0; f<40; f++){
+    const before=kin.map(e=>({x:e.x, y:e.y}));
+    kin.forEach(e=>{ e._ox=e.x; e._oy=e.y; e._steerStep=0; });
+    mac.moving=0; mac._frameStep=0; mac._sepDt=DT;
+    ctx.separateParty(mac);
+    kin.forEach((e,i)=>{
+      const dx=e.x-before[i].x, dy=e.y-before[i].y;
+      const px=Math.hypot((dx-dy)*58, (dx+dy)*29);
+      if(px>maxPx) maxPx=px;
+      check(px<=8, 'idle triple f'+(f+1)+' '+e.name+' '+px.toFixed(2)+'px');
+    });
+  }
+  ctx.TW=prevTW; ctx.TH=prevTH;
+  const gaps=kin.map(e=>Math.hypot(e.x-mac.x, e.y-mac.y));
+  console.log('idle triple maxPx '+maxPx.toFixed(3)+' leads '+gaps.map(n=>n.toFixed(3)).join(','));
+  assert(maxPx<=8, 'idle triple screen step '+maxPx.toFixed(2)+'px at 16.7ms');
+  assert(gaps.every(n=>n+1e-4>=2), 'idle triple separates (got '+gaps.map(n=>n.toFixed(3)).join(', ')+')');
+}
+idleTriplePx();
+
+/* dt 0.05, follower inside 0.2, diagonal into two walls. He still leaves. */
+function doubleBlockedDiagonal(){
+  mark();
+  const prevCan=ctx.canBe, prevMove=ctx.move;
+  ctx.canBe=function(x,y,r){ return (x+(r||0))<40 && (y+(r||0))<40; };
+  ctx.move=slideMove;
+  mac.x=39.0; mac.y=39.0; mac.fdx=1; mac.fdy=1; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 39.07, 39.04, {x:1, y:1});
+  ctx.G.ents=[mac, ghost];
+  const start=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  let far=0, stuck=0;
+  for(let f=0; f<40; f++){
+    const gx=ghost.x, gy=ghost.y;
+    const sideX=gx-mac.x, sideY=gy-mac.y;
+    const started=Math.hypot(sideX, sideY);
+    ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
+    mac.moving=0; mac._frameStep=0; mac._sepDt=0.05;
+    ctx.separateParty(mac);
+    const step=Math.hypot(ghost.x-gx, ghost.y-gy);
+    if(step<1e-4 && started<2) stuck++;
+    if(started>0.2){
+      const dot=sideX*(ghost.x-mac.x)+sideY*(ghost.y-mac.y);
+      if(dot<=0) far++;
+    }
+  }
+  const end=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.canBe=prevCan; ctx.move=prevMove;
+  console.log('double-blocked start '+start.toFixed(3)+' end '+end.toFixed(3)+' stuck '+stuck+' far '+far);
+  assert(start<0.2, 'double-blocked starts inside 0.2 (got '+start.toFixed(3)+')');
+  assert(end>0.5, 'double-blocked diagonal leaves the 0.2 bubble (got '+end.toFixed(3)+')');
+  assert(far===0, 'double-blocked diagonal stays on Macar\'s near side');
+}
+doubleBlockedDiagonal();
+
+if(failed){
+  console.log('COUNTS cases='+cases+' asserts='+asserts);
+  console.error(failed+' failed');
+  process.exit(1);
+}
 console.log('ghost settle idle ok');
+console.log('COUNTS cases='+cases+' asserts='+asserts);
