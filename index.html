@@ -388,8 +388,32 @@ function stepPartyFollower(e, tgt, want, p, dt){
   }
   steerWalk(e, vx, vy, go, dt);
 }
-function separateParty(p){
+function separateParty(p, dt){
   if(!p || p.dead) return;
+  /* One-arg calls from the party step read the frame dt off the leader.
+     Steer plus this push stays within his step (a little slack) or the
+     follower's own walk step. A ghost parked on the 2.15 ring otherwise
+     takes the whole gap back in one frame when Macar walks into them. */
+  if(!(dt>0) && p._sepDt>0) dt=p._sepDt;
+  function partyFrameCap(leader, follower, frameDt){
+    if(!(frameDt>0) || !leader || !follower) return Infinity;
+    const leadStep=leader._frameStep>0 ? leader._frameStep : 0;
+    const walkStep=Math.max(0, follower.sp||0)*frameDt;
+    const slack=leadStep*1.05;
+    return slack>walkStep ? slack : walkStep;
+  }
+  function spendNudge(e, ux, uy, dist, leader, frameDt){
+    if(!e || !(dist>0)) return;
+    let allow=dist;
+    if(frameDt>0){
+      const room=partyFrameCap(leader, e, frameDt)-(e._steerStep||0);
+      if(!(room>1e-8)) return;
+      if(allow>room) allow=room;
+    }
+    const ox=e.x, oy=e.y;
+    nudgeParty(e, ux, uy, allow);
+    if(frameDt>0) e._steerStep=(e._steerStep||0)+Math.hypot(e.x-ox, e.y-oy);
+  }
   const kin=[];
   for(const e of G.ents){
     if(!e || e.team!=='party' || e.hero || e.dead || e.crushed || e.sleeping || e.tied || e.hidden) continue;
@@ -406,7 +430,7 @@ function separateParty(p){
         const m=Math.hypot(dx, dy)||1;
         dx/=m; dy/=m; d=0;
       } else { dx/=d; dy/=d; }
-      nudgeParty(e, dx, dy, PARTY_SEP_LEAD-d);
+      spendNudge(e, dx, dy, PARTY_SEP_LEAD-d, p, dt);
     }
     for(let i=0;i<kin.length;i++){
       for(let j=i+1;j<kin.length;j++){
@@ -416,8 +440,8 @@ function separateParty(p){
         if(d<0.04){ dx=1; dy=0; d=0; }
         else { dx/=d; dy/=d; }
         const push=(PARTY_SEP_KIN-d)*0.5;
-        nudgeParty(a, -dx, -dy, push);
-        nudgeParty(b, dx, dy, push);
+        spendNudge(a, -dx, -dy, push, p, dt);
+        spendNudge(b, dx, dy, push, p, dt);
       }
     }
   }
@@ -13909,7 +13933,9 @@ function update(dt){
     if(G.secretSearch) sp*=0.18;
     if(G.digging) sp*=0.14;
     if(analog && analog<1) sp*=analog;
+    const stepX=p.x, stepY=p.y;
     steerWalk(p, dx, dy, sp, dt);
+    p._frameStep=Math.hypot(p.x-stepX, p.y-stepY);
     if(p.moving) recordTrail(p);
     p.guardT=Math.max(0,(p.guardT||0)-dt);
     p.guard = !!p.defending || p.guardT>0;
@@ -14039,8 +14065,10 @@ function update(dt){
         if(e.ghostReturn<=0) returnGhost(e);
       }
       if(!e.crushed) e.deadT=(e.deadT||0)+dt;
+      e._ox=null;
       continue;
     }
+    e._ox=e.x; e._oy=e.y;
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
     if(e.stun>0){ e.stun-=dt; continue; }
@@ -14256,6 +14284,10 @@ function update(dt){
       if(e.moving) continue;
       e.fdx=p.fdx; e.fdy=p.fdy;
     }
+    for(const e of G.ents){
+      e._steerStep=(e._ox==null)?0:Math.hypot(e.x-e._ox, e.y-e._oy);
+    }
+    p._sepDt=dt;
     separateParty(p);
   }
 

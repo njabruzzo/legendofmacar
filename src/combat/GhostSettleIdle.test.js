@@ -14,6 +14,9 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+function check(cond, msg){
+  if(!cond){ failed++; console.error('FAIL  '+msg); }
+}
 function extractFn(name){
   const start=html.indexOf('function '+name+'(');
   if(start<0) throw new Error('missing '+name);
@@ -131,6 +134,80 @@ const gait0=walker.gait;
 ctx.G.ents=[mac, walker];
 ctx.stepPartyFollower(walker, ctx.partyForm(1, mac), 0.38, mac, DT);
 assert(walker.moving===1 && walker.gait>gait0, 'a walking leader still advances the follow gait');
+
+/* Resume must not let separateParty launch a follower faster than Macar. */
+function unit(dx, dy){
+  const m=Math.hypot(dx, dy)||1;
+  return {x:dx/m, y:dy/m};
+}
+function makeGhost(name, x, y, face){
+  return {
+    team:'party', hero:0, dead:0, ghost:1, name, r:0.36, sp:4,
+    gait:0.3, moving:0, ix:0, iy:0, fdx:face.x, fdy:face.y,
+    slowT:0, webbed:0, defending:0, atk:0, aim:null, x, y, _steerStep:0
+  };
+}
+function resumeCase(label, parkFace, frames){
+  const origin={x:30, y:18};
+  mac.x=origin.x; mac.y=origin.y; mac.moving=0; mac.fdx=parkFace.x; mac.fdy=parkFace.y;
+  mac._frameStep=0; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
+  const side={x:-parkFace.y, y:parkFace.x};
+  const crew=[
+    makeGhost('pordoom', origin.x+parkFace.x*2.15, origin.y+parkFace.y*2.15, parkFace),
+    makeGhost('fendur', origin.x+side.x*2.4, origin.y+side.y*2.4, parkFace),
+    makeGhost('orbo', origin.x-parkFace.x*2.6+side.x*1.2, origin.y-parkFace.y*2.6+side.y*1.2, parkFace),
+    makeGhost('talpor', origin.x-side.x*2.4, origin.y-side.y*2.4, parkFace)
+  ];
+  ctx.G.ents=[mac].concat(crew);
+  for(let t=0;t<8;t++){
+    crew.forEach((e,i)=>{
+      e._steerStep=0;
+      ctx.stepPartyFollower(e, ctx.partyForm(i+1, mac), 0.38, mac, DT);
+    });
+    ctx.separateParty(mac, DT);
+  }
+  crew.forEach(e=>{
+    check(e.moving===0, label+' '+e.name+' settled before resume');
+  });
+  let minGap=99, worst=0, worstName='';
+  for(let f=0; f<frames.length; f++){
+    const h=frames[f];
+    const mx=mac.x, my=mac.y;
+    mac.moving=1; mac.fdx=h.x; mac.fdy=h.y;
+    mac.x+=h.x*mac.sp*DT; mac.y+=h.y*mac.sp*DT;
+    mac._frameStep=Math.hypot(mac.x-mx, mac.y-my);
+    const before=crew.map(e=>({x:e.x, y:e.y}));
+    crew.forEach((e,i)=>{
+      e._ox=e.x; e._oy=e.y;
+      const tgt=ctx.partyForm(i+1, mac);
+      ctx.stepPartyFollower(e, tgt, 0.38, mac, DT);
+      e._steerStep=Math.hypot(e.x-e._ox, e.y-e._oy);
+    });
+    ctx.separateParty(mac, DT);
+    crew.forEach((e,i)=>{
+      const step=Math.hypot(e.x-before[i].x, e.y-before[i].y);
+      const cap=Math.max(mac._frameStep*1.05, e.sp*DT);
+      if(step>worst){ worst=step; worstName=e.name; }
+      check(step<=cap+1e-4, label+' f'+(f+1)+' '+e.name+' step '+step.toFixed(4)+' cap '+cap.toFixed(4));
+    });
+    const bodies=[mac].concat(crew);
+    for(let a=0;a<bodies.length;a++) for(let b=a+1;b<bodies.length;b++){
+      const gap=Math.hypot(bodies[a].x-bodies[b].x, bodies[a].y-bodies[b].y);
+      const need=(bodies[a].r||0.36)+(bodies[b].r||0.36);
+      if(gap<minGap) minGap=gap;
+      check(gap+1e-6>=need, label+' f'+(f+1)+' overlap '+(bodies[a].name||'?')+'/'+(bodies[b].name||'?')+' gap '+gap.toFixed(3));
+    }
+  }
+  const ratio=worst/(mac.sp*DT);
+  console.log('resume '+label+' max '+worstName+' '+worst.toFixed(4)+' ratio '+ratio.toFixed(3)+' minGap '+minGap.toFixed(3));
+  assert(ratio<=1.05+1e-3, label+' max follower/leader step '+ratio.toFixed(3));
+}
+const down=unit(1,1), diag=unit(1,-1), east=unit(1,0);
+const framesOf=(h,n)=>Array.from({length:n},()=>h);
+resumeCase('straight-east', east, framesOf(east, 30));
+resumeCase('straight-down', down, framesOf(down, 30));
+resumeCase('diagonal', diag, framesOf(diag, 30));
+resumeCase('down-then-diagonal', down, framesOf(down, 8).concat(framesOf(diag, 22)));
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('ghost settle idle ok');
