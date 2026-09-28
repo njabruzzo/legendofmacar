@@ -93,6 +93,7 @@ vm.runInContext(
   +extractFn('entAnimKey')+'\n'
   +extractFn('faceVec')+'\n'
   +extractFn('moveHeadingSX')+'\n'
+  +html.match(/const SPRITE_PAINTED_LEFT=\{[^}]*\};/)[0]+'\n'
   +extractFn('wantsSpriteFlip')+'\n'
   +'function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }\n'
   +extractFn('ghostStatureFrac')+'\n'

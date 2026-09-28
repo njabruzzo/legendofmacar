@@ -283,6 +283,7 @@ vm.runInContext(
   +extractFn('faceVec')
   +extractFn('screenOctant')
   +extractFn('moveHeadingSX')
+  +html.match(/const SPRITE_PAINTED_LEFT=\{[^}]*\};/)[0]+'\n'
   +extractFn('wantsSpriteFlip'),
   ctx
 );
