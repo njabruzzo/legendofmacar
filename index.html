@@ -409,7 +409,7 @@ function separateParty(p, dt){
      his step (a little slack) or the follower's own walk step. A ghost on the
      2.15 ring otherwise takes the whole gap back in one frame. */
   function moveCapped(e, tx, ty, leader, frameDt){
-    if(!e) return;
+    if(!e || e._gapFree) return;
     let x=tx, y=ty;
     if(frameDt>0 && e._ox!=null){
       const cap=partyFrameCap(leader, e, frameDt);
@@ -491,7 +491,9 @@ function separateParty(p, dt){
     } else { dx/=d; dy/=d; }
     if(dt>0 && d<2){
       shoveFree(e, p);
-      e._ox=e.x; e._oy=e.y; e._steerStep=0;
+      /* The away shove already spent this frame. Kin pushes stay capped,
+         and must not add another full step on top of the restore. */
+      e._gapFree=1;
       return;
     }
     moveCapped(e, e.x+dx*(PARTY_SEP_LEAD-d), e.y+dy*(PARTY_SEP_LEAD-d), p, dt);
@@ -501,6 +503,7 @@ function separateParty(p, dt){
     if(!e || e.team!=='party' || e.hero || e.dead || e.crushed || e.sleeping || e.tied || e.hidden) continue;
     kin.push(e);
   }
+  for(const e of kin) e._gapFree=0;
   for(let pass=0; pass<4; pass++){
     for(const e of kin) leadPush(e);
     for(let i=0;i<kin.length;i++){
