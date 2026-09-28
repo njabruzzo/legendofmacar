@@ -352,27 +352,48 @@ function pinCase(label, face, macPos, ghostPos, blocked){
     if(px>maxPx) maxPx=px;
     check(step<=lim+1e-3, label+' f'+(f+1)+' step '+step.toFixed(4)+' lim '+lim.toFixed(4));
     check(px<=8.05, label+' f'+(f+1)+' screen '+px.toFixed(2)+'px');
-    if(started>0.2){
+    if(label!=='corner' && started>0.2){
       const dot=sideX*(ghost.x-mac.x)+sideY*(ghost.y-mac.y);
       if(dot<=0) far++;
     }
-    check(gap+1e-6>=0.72, label+' f'+(f+1)+' overlap '+gap.toFixed(3));
+    /* A corner slide has to pass his shoulder. Overlap while he is still
+       walking into the pin is allowed; crossing back through him is not. */
+    if(label==='corner'){
+      if(started>0.25) check(gap>0.2, label+' f'+(f+1)+' re-entered Macar '+gap.toFixed(3));
+    } else check(gap+1e-6>=0.72, label+' f'+(f+1)+' overlap '+gap.toFixed(3));
+  }
+  mac.moving=0; mac._frameStep=0;
+  let poseBad=0, easeFrames=0;
+  for(; easeFrames<90; easeFrames++){
+    const gapNow=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    if(gapNow>=2) break;
+    const gx=ghost.x, gy=ghost.y, g0=ghost.gait;
+    ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const px=screenOf(ghost.x-gx, ghost.y-gy);
+    if(px>maxPx) maxPx=px;
+    check(px<=8.05, label+' ease screen '+px.toFixed(2)+'px');
+    if(px>0.5 && (ghost.moving!==1 || !(ghost.gait>g0))) poseBad++;
+    const gap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    if(gapNow>0.25) check(gap>0.2, label+' ease re-entered Macar '+gap.toFixed(3));
   }
   const endGap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
   const drift=settleDrift([ghost]);
   ctx.canBe=prevCan; ctx.move=prevMove;
-  console.log(label+' minGap '+minGap.toFixed(3)+' end '+endGap.toFixed(3)+' maxPx '+maxPx.toFixed(2)+' drift '+drift.toFixed(4));
-  assert(far===0, label+' never crosses to Macar\'s far side');
+  console.log(label+' minGap '+minGap.toFixed(3)+' end '+endGap.toFixed(3)+' ease '+easeFrames+' maxPx '+maxPx.toFixed(2)+' drift '+drift.toFixed(4)+' pose '+poseBad);
+  if(label!=='corner') assert(far===0, label+' never crosses to Macar\'s far side');
   assert(maxPx<=8.05, label+' max screen step '+maxPx.toFixed(2)+'px');
+  assert(endGap+1e-4>=2, label+' slides clear along the wall (end '+endGap.toFixed(3)+')');
+  assert(poseBad===0, label+' slide plays the walk pose');
   assert(drift<0.06, label+' settle drift '+drift.toFixed(4)+' px/frame');
-  if(label==='wall') assert(endGap+1e-4>=2, label+' eases clear of the wall (end '+endGap.toFixed(3)+')');
 }
 pinCase('wall', {x:0, y:1}, {x:30, y:16.8}, {x:30, y:19.62}, function(x,y,r){
   return y+r>=20;
 });
-/* Bisector into two walls. Every free step loses distance, and the
-   same-half segment never gets farther than the corner. Not asserted
-   to 2.0: that needs Macar himself to stop on the follower. */
+/* Bisector into two walls. The free axes lose distance, so the ghost
+   commits to a slide along the wall and keeps that heading until 2.0. */
 pinCase('corner', unit(1,1), {x:36.6, y:36.6}, {x:39.62, y:39.62}, function(x,y,r){
   return x+r>=40 || y+r>=40;
 });
@@ -757,7 +778,7 @@ function idleTriplePx(){
   ctx.G.ents=[mac].concat(kin);
   let maxPx=0;
   for(let f=0; f<40; f++){
-    const before=kin.map(e=>({x:e.x, y:e.y}));
+    const before=kin.map(e=>({x:e.x, y:e.y, g:e.gait}));
     kin.forEach(e=>{ e._ox=e.x; e._oy=e.y; e._steerStep=0; });
     mac.moving=0; mac._frameStep=0; mac._sepDt=DT;
     ctx.separateParty(mac);
@@ -766,6 +787,7 @@ function idleTriplePx(){
       const px=Math.hypot((dx-dy)*58, (dx+dy)*29);
       if(px>maxPx) maxPx=px;
       check(px<=8, 'idle triple f'+(f+1)+' '+e.name+' '+px.toFixed(2)+'px');
+      if(px>0.5) check(e.moving===1 && e.gait>before[i].g, 'idle triple f'+(f+1)+' '+e.name+' walk pose');
     });
   }
   ctx.TW=prevTW; ctx.TH=prevTH;
@@ -787,29 +809,145 @@ function doubleBlockedDiagonal(){
   const ghost=makeGhost('pordoom', 39.07, 39.04, {x:1, y:1});
   ctx.G.ents=[mac, ghost];
   const start=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
-  let far=0, stuck=0;
+  let stuck=0, reenter=0, poseBad=0;
   for(let f=0; f<40; f++){
-    const gx=ghost.x, gy=ghost.y;
-    const sideX=gx-mac.x, sideY=gy-mac.y;
-    const started=Math.hypot(sideX, sideY);
+    const gx=ghost.x, gy=ghost.y, g0=ghost.gait;
+    const started=Math.hypot(gx-mac.x, gy-mac.y);
+    if(started>=2) break;
     ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
     mac.moving=0; mac._frameStep=0; mac._sepDt=0.05;
     ctx.separateParty(mac);
     const step=Math.hypot(ghost.x-gx, ghost.y-gy);
+    const gap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
     if(step<1e-4 && started<2) stuck++;
-    if(started>0.2){
-      const dot=sideX*(ghost.x-mac.x)+sideY*(ghost.y-mac.y);
-      if(dot<=0) far++;
-    }
+    if(started>0.25 && gap<=0.2) reenter++;
+    const px=screenOf(ghost.x-gx, ghost.y-gy);
+    if(px>0.5 && (ghost.moving!==1 || !(ghost.gait>g0))) poseBad++;
   }
   const end=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
   ctx.canBe=prevCan; ctx.move=prevMove;
-  console.log('double-blocked start '+start.toFixed(3)+' end '+end.toFixed(3)+' stuck '+stuck+' far '+far);
+  console.log('double-blocked start '+start.toFixed(3)+' end '+end.toFixed(3)+' stuck '+stuck+' reenter '+reenter+' pose '+poseBad);
   assert(start<0.2, 'double-blocked starts inside 0.2 (got '+start.toFixed(3)+')');
-  assert(end>0.5, 'double-blocked diagonal leaves the 0.2 bubble (got '+end.toFixed(3)+')');
-  assert(far===0, 'double-blocked diagonal stays on Macar\'s near side');
+  assert(end+1e-4>=2, 'double-blocked diagonal slides out to 2.0 (got '+end.toFixed(3)+')');
+  assert(reenter===0, 'double-blocked slide does not pass through Macar');
+  assert(poseBad===0, 'double-blocked slide plays the walk pose');
+  assert(stuck<5, 'double-blocked diagonal does not freeze (stuck '+stuck+')');
 }
 doubleBlockedDiagonal();
+
+/* QA rest: a ghost already inside Macar, pinned on a wall, has to slide
+   to a free spot after he stops. 0.033 / 0.055 are the walk-throughs;
+   0.931 and 1.085 are the rests that used to stay there. */
+function pinnedRest(label, blocked, macPos, ghostPos){
+  mark();
+  const prevCan=ctx.canBe, prevMove=ctx.move, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.canBe=function(x,y,r){ return !blocked(x, y, r||0); };
+  ctx.move=slideMove;
+  ctx.TW=116; ctx.TH=58;
+  mac.x=macPos.x; mac.y=macPos.y; mac.fdx=-1; mac.fdy=0;
+  mac.moving=0; mac.sp=4.3; mac.r=0.36; mac.name='MACAR'; mac._frameStep=0; mac._sepDt=0;
+  const ghost=makeGhost('fendur', ghostPos.x, ghostPos.y, {x:-1, y:0});
+  ctx.G.ents=[mac, ghost];
+  const start=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  let poseBad=0, maxPx=0, reenter=0, frames=0;
+  for(; frames<90; frames++){
+    const gapNow=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    if(gapNow>=2) break;
+    const gx=ghost.x, gy=ghost.y, g0=ghost.gait;
+    ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const gap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    const px=Math.hypot((ghost.x-gx-(ghost.y-gy))*58, (ghost.x-gx+(ghost.y-gy))*29);
+    if(px>maxPx) maxPx=px;
+    check(px<=8.05, label+' f'+(frames+1)+' screen '+px.toFixed(2)+'px');
+    if(px>0.5 && (ghost.moving!==1 || !(ghost.gait>g0))) poseBad++;
+    if(gapNow>0.25 && gap<=0.2) reenter++;
+  }
+  const end=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  const drift=settleDrift([ghost]);
+  const still=ghost.moving;
+  ctx.canBe=prevCan; ctx.move=prevMove; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log(label+' start '+start.toFixed(3)+' frames '+frames+' end '+end.toFixed(3)+' maxPx '+maxPx.toFixed(2)+' drift '+drift.toFixed(4)+' pose '+poseBad);
+  assert(end+1e-4>=2, label+' reaches 2.0 after the stop (got '+end.toFixed(3)+')');
+  assert(poseBad===0, label+' motion over 0.5px uses the walk pose');
+  assert(reenter===0, label+' slide does not pass through Macar');
+  assert(maxPx<=8.05, label+' screen step '+maxPx.toFixed(2)+'px');
+  assert(drift<0.06, label+' holds still once clear ('+drift.toFixed(4)+' px/frame)');
+  assert(still===0, label+' idle pose once the slide is done');
+}
+pinnedRest('west pin 0.033', function(x,y,r){ return x-r<10; }, {x:10.393, y:20}, {x:10.36, y:20});
+pinnedRest('west rest 0.931', function(x,y,r){ return x-r<10; }, {x:11.291, y:20}, {x:10.36, y:20});
+pinnedRest('west rest 1.085', function(x,y,r){ return x-r<10; }, {x:11.445, y:20}, {x:10.36, y:20});
+pinnedRest('corner pin 0.055', function(x,y,r){ return x+r>=40 || y+r>=40; }, {x:39.591, y:39.591}, {x:39.63, y:39.63});
+
+/* Reverse, then stop, with the restore still unfinished. Any frame that
+   moves the follower more than about half a pixel has to be the walk pose. */
+function reverseTurnPose(){
+  mark();
+  const prevCan=ctx.canBe, prevMove=ctx.move, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.canBe=function(){ return true; };
+  ctx.move=function(e,dx,dy,dt){ e.x+=dx*dt; e.y+=dy*dt; return 1; };
+  ctx.TW=116; ctx.TH=58;
+  const eastF={x:1, y:0}, westF={x:-1, y:0};
+  mac.x=30; mac.y=18; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
+  const names=['pordoom','fendur','orbo','talpor'];
+  const crew=names.map((name,i)=>{
+    const slot=ctx.partyForm(i+1, mac);
+    return makeGhost(name, slot.x, slot.y, eastF);
+  });
+  ctx.G.ents=[mac].concat(crew);
+  function step(face){
+    const ox=mac.x, oy=mac.y;
+    mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
+    mac.x+=face.x*mac.sp*DT; mac.y+=face.y*mac.sp*DT;
+    mac._frameStep=Math.hypot(mac.x-ox, mac.y-oy);
+    crew.forEach((e,i)=>{
+      e._ox=e.x; e._oy=e.y;
+      ctx.stepPartyFollower(e, ctx.partyForm(i+1, mac), 0.38, mac, DT);
+      e._steerStep=Math.hypot(e.x-e._ox, e.y-e._oy);
+    });
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+  }
+  for(let i=0;i<24;i++) step(eastF);
+  for(let i=0;i<6;i++) step(westF);
+  mac.moving=0; mac._frameStep=0;
+  const fendur=crew[1];
+  /* Open ground is already clear. The glide QA measured is the restore
+     that is still running when he stops, so she is put back inside 2.0. */
+  fendur.x=mac.x-1.15; fendur.y=mac.y;
+  fendur._slideUx=0; fendur._slideUy=0;
+  let poseBad=0, glide=0, frames=0;
+  for(; frames<40; frames++){
+    const gapNow=Math.hypot(fendur.x-mac.x, fendur.y-mac.y);
+    if(gapNow>=2) break;
+    const before=crew.map(e=>({x:e.x, y:e.y, g:e.gait}));
+    crew.forEach(e=>{ e._ox=e.x; e._oy=e.y; e._steerStep=0; });
+    crew.forEach((e,i)=>ctx.stepPartyFollower(e, ctx.partyForm(i+1, mac), 0.38, mac, DT));
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    crew.forEach((e,i)=>{
+      const dx=e.x-before[i].x, dy=e.y-before[i].y;
+      const px=Math.hypot((dx-dy)*58, (dx+dy)*29);
+      const tiles=Math.hypot(dx, dy);
+      if(e===fendur) glide+=tiles;
+      if(px>0.5 && (e.moving!==1 || !(e.gait>before[i].g))) poseBad++;
+      if(e.moving===0) check(px<=0.5, 'reverse stop '+e.name+' idle pose moved '+px.toFixed(2)+'px');
+    });
+  }
+  const end=Math.hypot(fendur.x-mac.x, fendur.y-mac.y);
+  const drift=settleDrift(crew);
+  ctx.canBe=prevCan; ctx.move=prevMove; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('reverse-turn glide '+glide.toFixed(3)+' tiles in '+frames+' frames end '+end.toFixed(3)+' pose '+poseBad+' drift '+drift.toFixed(4));
+  assert(glide>0.4, 'reverse-turn stop still has FENDUR easing ('+glide.toFixed(3)+' tiles)');
+  assert(poseBad===0, 'a step over 0.5px after the stop is the walk pose');
+  assert(end+1e-4>=2, 'reverse-turn restore reaches 2.0 (got '+end.toFixed(3)+')');
+  assert(drift<0.06, 'reverse-turn restore stops once clear ('+drift.toFixed(4)+' px/frame)');
+  assert(crew.every(e=>e.moving===0), 'followers are idle once the restore is done');
+}
+reverseTurnPose();
 
 if(failed){
   console.log('COUNTS cases='+cases+' asserts='+asserts);

@@ -571,6 +571,51 @@ function separateParty(p, dt){
     const sx=e._ox!=null?e._ox:e.x, sy=e._oy!=null?e._oy:e.y;
     const startGap=Math.hypot(sx-leader.x, sy-leader.y);
     const slack=slackFor(e, ax, ay, startGap<2);
+    /* Keep sliding along a wall that leads to a free spot. A step back
+       into the corner gains a hair of distance and undoes the escape.
+       A pure north or south heading has a zero on x, so both components
+       have to count. Once this frame's cap is spent, leave the heading
+       set: a later pass must not walk back into the pin. */
+    if(dt>0 && d0<hold && (e._slideUx || e._slideUy)){
+      const ux=e._slideUx, uy=e._slideUy;
+      let tMax=0;
+      if(e._ox==null) tMax=Math.max(0.02, (e.sp||4)*dt);
+      else {
+        const cap=partyFrameCap(leader, e, dt);
+        const R=limitRadius(ux, uy, cap, slack);
+        const vx=e.x-e._ox, vy=e.y-e._oy;
+        const b=vx*ux+vy*uy, c=vx*vx+vy*vy-R*R, disc=b*b-c;
+        if(disc>=0) tMax=Math.max(0, -b+Math.sqrt(disc));
+      }
+      let t=tMax;
+      if(!(t>0.002) || !canBe(e.x+ux*t, e.y+uy*t, e.r, e) || !slideClear(e.x, e.y, e.x+ux*t, e.y+uy*t, ux, uy)){
+        let lo=0, hi=Math.max(t, 0);
+        for(let k=0;k<12;k++){
+          const mid=(lo+hi)*0.5;
+          const qx=e.x+ux*mid, qy=e.y+uy*mid;
+          if(canBe(qx, qy, e.r, e) && slideClear(e.x, e.y, qx, qy, ux, uy)) lo=mid;
+          else hi=mid;
+        }
+        t=lo;
+      }
+      if(t>0.002){
+        let qx=e.x+ux*t, qy=e.y+uy*t;
+        if(e._ox!=null){
+          const cap=partyFrameCap(leader, e, dt);
+          const fit=fitScreen(e._ox, e._oy, qx, qy, cap, slack);
+          if(canBe(fit.x, fit.y, e.r, e) && slideClear(e.x, e.y, fit.x, fit.y, ux, uy)){ qx=fit.x; qy=fit.y; }
+        }
+        e.x=qx; e.y=qy;
+        if(Math.hypot(e.x-leader.x, e.y-leader.y)>=hold){ e._slideUx=0; e._slideUy=0; }
+        return;
+      }
+      if(e._ox!=null){
+        const cap=partyFrameCap(leader, e, dt);
+        const R=limitRadius(ux, uy, cap, slack);
+        if(Math.hypot(e.x-e._ox, e.y-e._oy)>R-0.008) return;
+      }
+      e._slideUx=0; e._slideUy=0;
+    }
     function sameHalf(nx, ny){
       /* Coincident with him: the escape heading is the near side.
          Anyone else keeps the half-plane they already stand in. */
@@ -587,6 +632,50 @@ function separateParty(p, dt){
       let t=((leader.x-x)*vx+(leader.y-y)*vy)/L;
       if(t<0) t=0; else if(t>1) t=1;
       return Math.hypot(x+vx*t-leader.x, y+vy*t-leader.y)>0.2;
+    }
+    /* A wall slide may cross the half-plane. It may not pass through him.
+       Leaving the 0.2 bubble is allowed; coming back into it is not. */
+    function pathClears(ax0, ay0, bx, by){
+      const startD=Math.hypot(ax0-leader.x, ay0-leader.y);
+      let exited=startD>0.25;
+      for(let i=1;i<=10;i++){
+        const t=i/10;
+        const nx=ax0+(bx-ax0)*t, ny=ay0+(by-ay0)*t;
+        const nd=Math.hypot(nx-leader.x, ny-leader.y);
+        if(!exited){
+          if(nd+1e-6<startD-0.002) return false;
+          if(nd>0.25) exited=true;
+          continue;
+        }
+        if(nd<=0.2) return false;
+      }
+      return true;
+    }
+    /* A corner pin: he stands on the bisector and both free axes pass his
+       shoulder. That slide may come closer than it started. It may not
+       cross his center, and once it is clear of 0.25 it stays out of 0.2.
+       Open ground keeps the strict test. */
+    function besideWall(x, y, ux, uy){
+      const px=-uy, py=ux;
+      return !canBe(x+px*0.12, y+py*0.12, e.r, e) || !canBe(x-px*0.12, y-py*0.12, e.r, e);
+    }
+    function pathAlongWall(ax0, ay0, bx, by){
+      const startD=Math.hypot(ax0-leader.x, ay0-leader.y);
+      if(startD>0.25) return pathClears(ax0, ay0, bx, by);
+      let exited=false;
+      for(let i=1;i<=10;i++){
+        const t=i/10;
+        const nx=ax0+(bx-ax0)*t, ny=ay0+(by-ay0)*t;
+        const nd=Math.hypot(nx-leader.x, ny-leader.y);
+        if(nd<0.02) return false;
+        if(!exited){ if(nd>0.25) exited=true; continue; }
+        if(nd<=0.2) return false;
+      }
+      return true;
+    }
+    function slideClear(ax0, ay0, bx, by, ux, uy){
+      if(pathClears(ax0, ay0, bx, by)) return true;
+      return besideWall(ax0, ay0, ux, uy) && pathAlongWall(ax0, ay0, bx, by);
     }
     function clampGoal(tx, ty){
       if(!(dt>0) || e._ox==null) return {x:tx, y:ty};
@@ -622,7 +711,10 @@ function separateParty(p, dt){
       e.x=e._ox+vx*lo; e.y=e._oy+vy*lo;
     }
     /* Inside his body bubble the ring ray is not a legal chord. Take the
-       shortest free step that stays on this side of him. */
+       shortest free step that stays on this side of him. A step that is
+       still inside 0.2 does not count: the wall slide below has to be
+       allowed to commit to the long way out. */
+    let bubble=null;
     if(dt>0 && d0<0.2){
       let best=null;
       for(let i=0;i<8;i++){
@@ -639,12 +731,15 @@ function separateParty(p, dt){
         if(!(tMax>1e-4)) continue;
         let t=tMax;
         const farx=e.x+ux*t, fary=e.y+uy*t;
-        if(!sameHalf(farx, fary) || !canBe(farx, fary, e.r, e)){
+        const stepOk=function(nx, ny){
+          return canBe(nx, ny, e.r, e) && (sameHalf(nx, ny) || pathClears(e.x, e.y, nx, ny));
+        };
+        if(!stepOk(farx, fary)){
           let lo=0, hi=tMax;
           for(let k=0;k<12;k++){
             const mid=(lo+hi)*0.5;
             const nx=e.x+ux*mid, ny=e.y+uy*mid;
-            if(sameHalf(nx, ny) && canBe(nx, ny, e.r, e)) lo=mid; else hi=mid;
+            if(stepOk(nx, ny)) lo=mid; else hi=mid;
           }
           t=lo;
         }
@@ -656,7 +751,8 @@ function separateParty(p, dt){
         if(!best || nd>best.nd+1e-6 || (nd>=best.nd-1e-6 && align>best.align))
           best={x:nx, y:ny, nd:nd, align:align};
       }
-      if(best){ e.x=best.x; e.y=best.y; clampNet(); return; }
+      if(best && best.nd>0.25){ e.x=best.x; e.y=best.y; clampNet(); return; }
+      bubble=best;
     }
     const goal=clampGoal(leader.x+ax*PARTY_SEP_LEAD, leader.y+ay*PARTY_SEP_LEAD);
     if(sameHalf(goal.x, goal.y) && misses(x0, y0, goal.x, goal.y) && canBe(goal.x, goal.y, e.r, e)){
@@ -716,14 +812,78 @@ function separateParty(p, dt){
       if(nd+1e-6>=hold || nd+1e-9>=d){ e.x=nx; e.y=ny; break; }
     }
     clampNet();
+    /* Still pinned. Slide along the wall toward a spot 2.0 out, even when
+       the first steps lose a little distance. Against a wall the slide may
+       pass his shoulder; it does not cross his center. */
+    if(dt>0 && Math.hypot(e.x-leader.x, e.y-leader.y)<hold && Math.hypot(e.x-x0, e.y-y0)<0.004){
+      const originX=e.x, originY=e.y;
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      let best=null;
+      for(let n=0;n<dirs.length;n++){
+        const ux=dirs[n][0], uy=dirs[n][1];
+        /* Open ground already has a direct shove. A committed slide is for
+           a wall, where the direct step is the one that walks back into the pin. */
+        if(!besideWall(originX, originY, ux, uy)) continue;
+        let freeAt=0;
+        for(let s=0.12;s<=4.5;s+=0.12){
+          const qx=originX+ux*s, qy=originY+uy*s;
+          if(!canBe(qx, qy, e.r, e)) break;
+          if(!slideClear(originX, originY, qx, qy, ux, uy)) break;
+          if(Math.hypot(qx-leader.x, qy-leader.y)>=hold){ freeAt=s; break; }
+        }
+        if(!(freeAt>0)) continue;
+        let tMax=freeAt;
+        if(e._ox!=null){
+          const cap=partyFrameCap(leader, e, dt);
+          const R=limitRadius(ux, uy, cap, slack);
+          const vx=originX-e._ox, vy=originY-e._oy;
+          const b=vx*ux+vy*uy, c=vx*vx+vy*vy-R*R, disc=b*b-c;
+          if(!(disc>=0)) continue;
+          tMax=Math.min(freeAt, Math.max(0, -b+Math.sqrt(disc)));
+        }
+        let t=tMax;
+        if(!canBe(originX+ux*t, originY+uy*t, e.r, e) || !slideClear(originX, originY, originX+ux*t, originY+uy*t, ux, uy)){
+          let lo=0, hi=tMax;
+          for(let k=0;k<12;k++){
+            const mid=(lo+hi)*0.5;
+            const qx=originX+ux*mid, qy=originY+uy*mid;
+            if(canBe(qx, qy, e.r, e) && slideClear(originX, originY, qx, qy, ux, uy)) lo=mid;
+            else hi=mid;
+          }
+          t=lo;
+        }
+        if(!(t>0.002)) continue;
+        const qx=originX+ux*t, qy=originY+uy*t;
+        const nd=Math.hypot(qx-leader.x, qy-leader.y);
+        if(!best || freeAt<best.freeAt-1e-6 || (freeAt<=best.freeAt+1e-6 && nd>best.nd))
+          best={x:qx, y:qy, nd:nd, freeAt:freeAt};
+      }
+      if(best && e._ox!=null){
+        const cap=partyFrameCap(leader, e, dt);
+        const fit=fitScreen(e._ox, e._oy, best.x, best.y, cap, slack);
+        if(canBe(fit.x, fit.y, e.r, e) && slideClear(originX, originY, fit.x, fit.y, best.x-originX, best.y-originY)){
+          best.x=fit.x; best.y=fit.y;
+        }
+      }
+      if(best){
+        e.x=best.x; e.y=best.y;
+        const sdx=best.x-originX, sdy=best.y-originY, sm=Math.hypot(sdx, sdy)||1;
+        e._slideUx=sdx/sm; e._slideUy=sdy/sm;
+        if(Math.hypot(e.x-leader.x, e.y-leader.y)>=hold){ e._slideUx=0; e._slideUy=0; }
+      }
+    }
+    if(bubble && Math.hypot(e.x-x0, e.y-y0)<0.004){
+      e.x=bubble.x; e.y=bubble.y;
+      clampNet();
+    }
   }
   function leadPush(e){
     const fighting=e.aim && !e.aim.dead && e.aim.team==='foe' && dist(e, e.aim)<=(e.range||1)+0.55;
     if(fighting) return;
     let dx=e.x-p.x, dy=e.y-p.y, d=Math.hypot(dx, dy);
-    if(d>=PARTY_SEP_LEAD) return;
+    if(d>=PARTY_SEP_LEAD){ e._slideUx=0; e._slideUy=0; return; }
     /* Idle and already clear of 2.0: do not creep the rest of the way out. */
-    if(idle && d>=2) return;
+    if(idle && d>=2){ e._slideUx=0; e._slideUy=0; return; }
     if(d<0.04){
       dx=-(p.fdy||0); dy=(p.fdx||1);
       const m=Math.hypot(dx, dy)||1;
@@ -795,6 +955,20 @@ function separateParty(p, dt){
         else hi=mid;
       }
       e.x=e._ox+vx*lo; e.y=e._oy+vy*lo;
+    }
+  }
+  /* Macar is still. A follower who actually moves this frame is walking,
+     not gliding in the idle pose. Under half a pixel stays idle. */
+  if(idle && dt>0){
+    for(const e of kin){
+      const ox=e._ox!=null?e._ox:e.x, oy=e._oy!=null?e._oy:e.y;
+      const dx=e.x-ox, dy=e.y-oy;
+      if(!(screenOf(dx, dy)>0.5)) continue;
+      e.moving=1;
+      const m=Math.hypot(dx, dy)||1;
+      e.fdx=dx/m; e.fdy=dy/m;
+      e.ix=e.fdx*(e.sp||4); e.iy=e.fdy*(e.sp||4);
+      gaitAdvance(e, dt);
     }
   }
 }
