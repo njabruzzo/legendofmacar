@@ -356,6 +356,38 @@ function nudgeParty(e, ux, uy, dist){
   if(canBe(nx, e.y, e.r, e)){ e.x=nx; return; }
   if(canBe(e.x, ny, e.r, e)) e.y=ny;
 }
+function partyFollowSeparate(form, leaderMoving){
+  /* Wide push keeps a walking column from stacking. Once Macar stops,
+     the same push holds the rear rank outside the 0.38 slot, so moving
+     stays set and the walk frames never settle. */
+  return !!(form && leaderMoving);
+}
+function stepPartyFollower(e, tgt, want, p, dt){
+  /* Macar has stopped. Hold the idle facing here. Chasing the standing
+     slot — especially with the wide column push — keeps the walk cycle
+     running after the leader is still. */
+  if(p && !p.moving){
+    e.ix=0; e.iy=0; e.moving=0;
+    e.fdx=p.fdx; e.fdy=p.fdy;
+    return;
+  }
+  const d=dist(e, tgt);
+  if(!(d>want)){
+    e.ix=0; e.iy=0; e.moving=0;
+    if(p){ e.fdx=p.fdx; e.fdy=p.fdy; }
+    return;
+  }
+  let vx=tgt.x-e.x, vy=tgt.y-e.y;
+  const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+  if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return; }
+  for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
+    const partyGap=partyFollowSeparate(1, !!(p&&p.moving)) && o.team==='party' && e.team==='party';
+    const reach=(e.r+o.r)*(partyGap?3.2:1.15);
+    const push=partyGap?1.15:0.35;
+    if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; }
+  }
+  steerWalk(e, vx, vy, go, dt);
+}
 function separateParty(p){
   if(!p || p.dead) return;
   const kin=[];
@@ -14150,10 +14182,10 @@ function update(dt){
         e.aim=null;
         /* One-follower Follow default (pordoom / first living kin). No order set.
            Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
-        if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
+        if(p.moving && typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
           const nr=Navigation.tickFollower(e, p, dt, navHost());
           if(nr && nr.handled){
-            if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
+            if(!e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
             ghostSapperBomb(e, dt);
             continue;
           }
@@ -14183,7 +14215,9 @@ function update(dt){
       }
       want=e.ranged?e.range*.75:e.range;
     }
-    if(tgt){
+    if(tgt && form){
+      stepPartyFollower(e, tgt, want, p, dt);
+    } else if(tgt){
       const d=dist(e,tgt);
       if(d>want){
         let vx=tgt.x-e.x, vy=tgt.y-e.y;
