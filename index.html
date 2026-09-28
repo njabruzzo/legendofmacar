@@ -301,6 +301,18 @@ function partyForm(i,p){
   const s=slots[(i-1)%4], fx=p.fdx, fy=p.fdy, rx=-fy, ry=fx;
   return {x:p.x+fx*s[0]+rx*s[1], y:p.y+fy*s[0]+ry*s[1]};
 }
+function followBearingSlot(e, p, rank){
+  const gap=PARTY_SEP_LEAD+0.35+0.95*(rank|0);
+  let dx=e.x-p.x, dy=e.y-p.y;
+  const d=Math.hypot(dx, dy);
+  if(d<0.05) return partyForm((rank|0)+1, p);
+  /* Only ever pull toward Macar. Already inside the gap: stay put (the
+     separation pass keeps bodies apart) — never walk away from him. */
+  if(d<=gap) return {x:e.x, y:e.y};
+  dx/=d; dy/=d;
+  const slot={x:p.x+dx*gap, y:p.y+dy*gap};
+  return walk(slot.x, slot.y, e)?slot:partyForm((rank|0)+1, p);
+}
 function bestSlide(e,dx,dy){
   let best=null, score=-1e9;
   for(let i=0;i<8;i++){
@@ -2830,6 +2842,25 @@ function wallHidesFloor(L,x,y){
   const sw=g[iy+1]&&g[iy+1][ix-1]===1;
   return !!(south||east||se||sw);
 }
+/* Living foes in melee reach of a ghost kin this frame. They paint after the
+   ghosts in the late pass, so in a fight the monster is in front and the
+   translucent ghost behind it. Cached per frame (G.t). */
+const GHOST_FIGHT_R=2.6;
+function ghostFightFoes(){
+  const c=ghostFightFoes._c;
+  if(c && c.t===G.t && c.n===(G.ents||[]).length) return c.set;
+  const set=new Set();
+  const ghosts=(G.ents||[]).filter(e=>e && e.ghost && !e.dead && !e.crushed && !e.hidden && e.team==='party' && e.kind==='dwarf');
+  if(ghosts.length){
+    for(const f of G.ents){
+      if(!f || f.team!=='foe' || f.dead || f.npc || f.hidden) continue;
+      if(typeof showEnt==='function' && !showEnt(f)) continue;
+      if(ghosts.some(gh=>dist(gh,f)<=GHOST_FIGHT_R)) set.add(f);
+    }
+  }
+  ghostFightFoes._c={t:G.t, n:(G.ents||[]).length, set};
+  return set;
+}
 function actorDrawDepth(o){
   /* The signed sheet is wider than one north-wall cell. Sorting on the
      door's own x+y lets the next east face (drawn later on that diagonal)
@@ -3357,6 +3388,18 @@ function faceVec(e){
     const dx=e.aim.x-e.x, dy=e.aim.y-e.y;
     if(dx||dy) return {dx,dy};
   }
+  /* Kin walking in formation behind a walking Macar face his heading, so
+     the party reads as one column instead of steering jitter. Fights,
+     orders, and swings are handled above / below and keep their facing. */
+  if(e.team==='party' && !e.hero && e.moving && !e.defending && !(e.atk>0) && !e.aim){
+    const lead=player();
+    if(lead && lead.moving && !(typeof kinUnderOrders==='function' && kinUnderOrders(e))){
+      const hx=lead.fdx||0, hy=lead.fdy||0;
+      /* Same general way as Macar: take his exact heading. Walking against
+         him (the moment he turns round) keeps own travel — no moonwalk. */
+      if((hx||hy) && (hx*(e.ix||0)+hy*(e.iy||0))>0) return {dx:hx, dy:hy};
+    }
+  }
   /* Every moving sprite faces its own travel, all 8 screen octants. */
   if(e.moving && ((e.ix||0)||(e.iy||0))) return {dx:e.ix||0, dy:e.iy||0};
   /* Idle party kin share Macar heading so a stopped line does not scramble.
@@ -3369,6 +3412,10 @@ function faceVec(e){
     if(hx||hy) return {dx:hx, dy:hy};
   }
   return {dx:e.fdx||0, dy:e.fdy||0};
+}
+function kinUnderOrders(e){
+  return !!(typeof PartyOrders!=='undefined' && PartyOrders.use && PartyOrders.use()
+    && PartyOrders.order && PartyOrders.order() && PartyOrders.commands && PartyOrders.commands(e));
 }
 function screenOctant(e){
   const v=faceVec(e);
@@ -3405,6 +3452,10 @@ function dwarfAngleKey(e,k){
   const oct=screenOctant(e);
   const moving=e.moving && !e.defending;
   function gait(a,b,idle){
+    /* Ghost kin have one signed standing sheet (the spectral idle, k). A
+       stopped ghost facing e / w / s / ne used to fall to a mid-stride walk
+       frame and never looked like it was standing. */
+    if(!moving && e.ghost && !(idle && sprReady(idle)) && sprReady(k)) return k;
     if(moving){
       const stem=(a&&a.replace(/_w1$/,''))||(b&&b.replace(/_w2$/,''));
       const hit=walkCycleKey(e, stem);
@@ -14252,6 +14303,14 @@ function update(dt){
       } else if(fight&&foe){ tgt=foe; want=e.ranged?e.range*.7:e.range; e.aim=foe; }
       else if(p){
         e.aim=null;
+        /* Kin follow Macar's feet: when he stands, they stand, facing where he
+           faces. No settling shuffle, no path-pilot creep, no walk-in-place. */
+        if(!p.moving){
+          e.moving=0; e.ix=0; e.iy=0; e.dest=null;
+          e.fdx=p.fdx; e.fdy=p.fdy;
+          ghostSapperBomb(e, dt);
+          continue;
+        }
         /* One-follower Follow default (pordoom / first living kin). No order set.
            Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
         if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
@@ -14262,8 +14321,11 @@ function update(dt){
             continue;
           }
         }
-        if(p.moving) tgt=trailSlot(idx<0?0:idx)||partyForm(idx<0?1:idx+1, p);
-        else tgt=partyForm(idx<0?1:idx+1, p);
+        /* Walk the breadcrumb trail when there is one. Before it exists
+           (Macar just set off, or turned), keep this kin's bearing from him
+           and close to its rank gap — do not swing round to a rotated
+           partyForm slot, which ran kin across and against his path. */
+        tgt=trailSlot(idx<0?0:idx)||followBearingSlot(e, p, idx<0?0:idx);
         want=.38; form=1;
       }
     } else {
@@ -14436,6 +14498,22 @@ function render(){
      cannot cover them. Foes / dead / crushed stay in actorDrawDepth. */
   if(inWorld && DIAG.world){
     const mac=player();
+    const lateKin=e=>{
+      if(!e || e.hero || e.dead || e.crushed || e.hidden) return false;
+      if(e.kind!=='dwarf' || e.team!=='party') return false;
+      return true;
+    };
+    /* Ghost kin are the background of a fight: ghosts first, then the foes
+       they are locked with, then Macar and living kin on top. */
+    for(const e of G.ents){
+      if(!lateKin(e) || !e.ghost) continue;
+      g.globalAlpha=1; g.globalCompositeOperation='source-over';
+      drawEnt(g,e);
+    }
+    for(const e of ghostFightFoes()){
+      g.globalAlpha=1; g.globalCompositeOperation='source-over';
+      drawEnt(g,e);
+    }
     if(mac && !mac.dead && !mac.ghost){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawLivingMacar(g,mac);
@@ -14443,8 +14521,7 @@ function render(){
          A source-over arc covered the maul head and read as idle+swoosh. */
     }
     for(const e of G.ents){
-      if(!e || e.hero || e.dead || e.crushed || e.hidden) continue;
-      if(e.kind!=='dwarf' || e.team!=='party') continue;
+      if(!lateKin(e) || e.ghost) continue;
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawEnt(g,e);
     }
@@ -14508,11 +14585,14 @@ function drawWorld(g,L){
   for(const d of G.decals) if(near(d)&&seenAt(d)) push(actorDrawDepth(d),()=>drawDecal(g,d));
   for(const p of G.props) if(near(p)&&seenAt(p)&&!p.pin&&!p.cover) push(actorDrawDepth(p),()=>drawProp(g,p,pal));
   for(const q of (G.loot||[])) if(!q.gone&&near(q)&&seenAt(q)) push(actorDrawDepth(q),()=>drawLoot(g,q));
+  const ghostFoes=ghostFightFoes();
   for(const e of G.ents){
     if(e.crushed||!showEnt(e)) continue;
     // Living Macar and living party paint after grain so a south/SE/SW face
     // cannot eat them. Dead / crushed / foes stay in the wall sort.
     if(e.hero && !e.dead && !e.ghost) continue;
+    // Foes locked in melee with a ghost paint in the late pass, over the ghost.
+    if(ghostFoes.has(e)) continue;
     if(e.kind==='dwarf' && e.team==='party' && !e.dead && !e.crushed) continue;
     push(actorDrawDepth(e),()=>drawEnt(g,e));
   }
