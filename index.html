@@ -7249,6 +7249,7 @@ function takeTributeMagic(){
     const it=eq[slot];
     if(it && (it.plus||it.dexPlus||it.k==='dex'||it.charges||it.cat)){
       eq[slot]=null;
+      if(it.boneCrown && typeof refreshAnimateButton==='function') refreshAnimateButton();
       return it.n||slot;
     }
   }

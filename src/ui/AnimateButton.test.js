@@ -305,5 +305,38 @@ const greyHit=greyBack && H.ctx.btnAt(greyBack.x, greyBack.y);
 assert(!!greyBack && !!greyBack.disabled && greyHit && greyHit.key==='animate',
   're-equip after Animate was spent draws the key grey');
 
+H.ctx.ensurePacks=function(){
+  const packs=H.ctx.G.packs||(H.ctx.G.packs={});
+  const mac=packs.macar||(packs.macar={magic:[]});
+  if(!mac.magic) mac.magic=[];
+};
+H.ctx.packOf=function(){ H.ctx.ensurePacks(); return H.ctx.G.packs.macar; };
+vm.runInContext(extractFn('takeTributeMagic')+';', H.ctx);
+/* One layout while the crown is worn. Tribute refreshes the bar itself.
+   The test does not call layoutUI again. */
+function wearCrownForTribute(){
+  const crown=H.ctx.makeBoneCrownItem();
+  H.ctx.G.equipped={helmet:crown};
+  H.ctx.G.packs={macar:{magic:[]}};
+  H.ctx.G.animateDeadSpent=0;
+  H.layout({vw:1280, vh:800, touch:false, cards:5});
+  const anim=H.ctx.UIBTN.find(b=>b.key==='animate');
+  assert(!!anim && !anim.disabled && H.ctx.wearingBoneCrown(),
+    'Animate is lit while the crown is worn, before tribute');
+  return anim;
+}
+let tributeAnim=wearCrownForTribute();
+assert(H.ctx.takeTributeMagic()==='Bone Crown' && !H.ctx.G.equipped.helmet,
+  'tribute takes the worn bone crown when the magic pack is empty');
+animateGone('tribute', tributeAnim);
+tributeAnim=wearCrownForTribute();
+H.ctx.G.packs.macar.magic=[{n:'Iron Helm', cat:'Helm', slot:'helmet'}];
+assert(H.ctx.takeTributeMagic()==='Iron Helm' && H.ctx.wearingBoneCrown()
+  && H.ctx.G.equipped.helmet && H.ctx.G.equipped.helmet.boneCrown,
+  'tribute takes a packed non-crown helm and leaves the crown worn');
+assert(H.ctx.UIBTN.indexOf(tributeAnim)>=0 && !tributeAnim.disabled
+  && H.ctx.btnAt(tributeAnim.x, tributeAnim.y).key==='animate',
+  'tribute taking a non-crown helm leaves the lit Animate key alone');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate button checks passed');
