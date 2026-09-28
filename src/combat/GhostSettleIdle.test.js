@@ -238,8 +238,13 @@ function aheadCase(){
     crew.forEach((e,i)=>{
       const step=Math.hypot(e.x-before[i].x, e.y-before[i].y);
       const cap=Math.max(mac._frameStep*1.05, e.sp*DT);
-      if(step>worst){ worst=step; worstName=e.name; }
-      check(step<=cap+1e-4, 'ahead f'+(f+1)+' '+e.name+' step '+step.toFixed(4)+' cap '+cap.toFixed(4));
+      const opened=Math.hypot(e.x-mac.x, e.y-mac.y);
+      /* Under 2.0 the away push may exceed the cap to restore the gap. */
+      if(Math.hypot(before[i].x-mac.x, before[i].y-mac.y)>=2){
+        if(step>worst){ worst=step; worstName=e.name; }
+        check(step<=cap+1e-4, 'ahead f'+(f+1)+' '+e.name+' step '+step.toFixed(4)+' cap '+cap.toFixed(4));
+      }
+      check(opened+1e-4>=2, 'ahead f'+(f+1)+' '+e.name+' gap '+opened.toFixed(3));
     });
     const bodies=[mac].concat(crew);
     for(let a=0;a<bodies.length;a++) for(let b=a+1;b<bodies.length;b++){
@@ -255,6 +260,103 @@ function aheadCase(){
   assert(minGap+1e-6>=0.72, 'ahead bodies stay apart (minGap '+minGap.toFixed(3)+')');
 }
 aheadCase();
+
+/* Screen pixels at the play tile (TW 84, TH 42, zoom 1). */
+function pxOf(dx, dy){
+  return Math.hypot((dx-dy)*42, (dx+dy)*21);
+}
+function slideMove(e, ix, iy, dt){
+  const nx=e.x+ix*dt, ny=e.y+iy*dt;
+  if(ctx.canBe(nx, ny, e.r, e)){ e.x=nx; e.y=ny; return 1; }
+  if(ctx.canBe(nx, e.y, e.r, e)){ e.x=nx; return 1; }
+  if(ctx.canBe(e.x, ny, e.r, e)){ e.y=ny; return 1; }
+  return 0;
+}
+function settleDrift(crew){
+  mac.moving=0; mac._frameStep=0;
+  let worst=0;
+  const prev=crew.map(e=>({x:e.x, y:e.y}));
+  for(let t=0;t<10;t++){
+    crew.forEach((e,i)=>{
+      e._ox=e.x; e._oy=e.y;
+      ctx.stepPartyFollower(e, ctx.partyForm(1, mac), 0.38, mac, DT);
+    });
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    crew.forEach((e,i)=>{
+      const px=pxOf(e.x-prev[i].x, e.y-prev[i].y);
+      if(px>worst) worst=px;
+      prev[i].x=e.x; prev[i].y=e.y;
+    });
+  }
+  return worst;
+}
+function pinCase(label, face, macPos, ghostPos, blocked){
+  const prevCan=ctx.canBe, prevMove=ctx.move;
+  ctx.canBe=function(x,y,r){ return !blocked(x, y, r||0); };
+  ctx.move=slideMove;
+  mac.x=macPos.x; mac.y=macPos.y; mac.fdx=face.x; mac.fdy=face.y;
+  mac.moving=1; mac.sp=4.3; mac.r=0.36; mac.name='MACAR'; mac._sepDt=0;
+  const ghost=makeGhost('fendur', ghostPos.x, ghostPos.y, face);
+  ctx.G.ents=[mac, ghost];
+  let minGap=99;
+  for(let f=0; f<40; f++){
+    const ox=mac.x, oy=mac.y;
+    mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
+    slideMove(mac, face.x*mac.sp, face.y*mac.sp, DT);
+    mac._frameStep=Math.hypot(mac.x-ox, mac.y-oy);
+    ghost._ox=ghost.x; ghost._oy=ghost.y;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    ghost._steerStep=Math.hypot(ghost.x-ghost._ox, ghost.y-ghost._oy);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const gap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+    if(gap<minGap) minGap=gap;
+    check(gap+1e-4>=2, label+' f'+(f+1)+' spacing '+gap.toFixed(3));
+  }
+  const drift=settleDrift([ghost]);
+  ctx.canBe=prevCan; ctx.move=prevMove;
+  console.log(label+' minGap '+minGap.toFixed(3)+' drift '+drift.toFixed(4)+' px/frame');
+  assert(minGap+1e-4>=2, label+' min spacing '+minGap.toFixed(3));
+  assert(drift<0.06, label+' settle drift '+drift.toFixed(4)+' px/frame');
+}
+pinCase('wall', {x:0, y:1}, {x:30, y:16.8}, {x:30, y:19.62}, function(x,y,r){
+  return y+r>=20;
+});
+pinCase('corner', unit(1,1), {x:36.6, y:36.6}, {x:39.62, y:39.62}, function(x,y,r){
+  return x+r>=40 || y+r>=40;
+});
+
+function insideRingSettle(){
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  const ghost=makeGhost('orbo', 11.961, 10, {x:1, y:0});
+  ctx.G.ents=[mac, ghost];
+  const drift=settleDrift([ghost]);
+  console.log('inside-ring drift '+drift.toFixed(4)+' px/frame at '+Math.hypot(ghost.x-mac.x, ghost.y-mac.y).toFixed(3));
+  assert(drift<0.06, 'follower left inside the ring does not creep ('+drift.toFixed(4)+' px/frame)');
+}
+insideRingSettle();
+
+function dt0Unstack(){
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=mac.sp*DT; mac._sepDt=DT;
+  const kin=[
+    makeGhost('pordoom', 10.05, 10.02, {x:1, y:0}),
+    makeGhost('talpor', 10.08, 10.04, {x:1, y:0})
+  ];
+  ctx.G.ents=[mac].concat(kin);
+  ctx.separateParty(mac);
+  kin[0].x=10.05; kin[0].y=10.02; kin[1].x=10.08; kin[1].y=10.04;
+  mac._sepDt=DT;
+  ctx.separateParty(mac, 0);
+  const dLead=kin.map(e=>Math.hypot(e.x-mac.x, e.y-mac.y));
+  const dKin=Math.hypot(kin[0].x-kin[1].x, kin[0].y-kin[1].y);
+  console.log('dt=0 unstack lead '+dLead.map(n=>n.toFixed(2)).join(',')+' kin '+dKin.toFixed(2));
+  assert(dLead[0]>=2.1 && dLead[1]>=2.1, 'dt=0 call fully unstacks off Macar (got '+dLead.map(n=>n.toFixed(2)).join(', ')+')');
+  assert(dKin>=2.0, 'dt=0 call fully unstacks kin (got '+dKin.toFixed(2)+')');
+  assert(!(mac._sepDt>0), 'separateParty clears _sepDt');
+}
+dt0Unstack();
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('ghost settle idle ok');
