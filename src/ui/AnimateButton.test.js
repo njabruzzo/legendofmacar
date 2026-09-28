@@ -201,5 +201,53 @@ H.ctx.dropPackRow({kind:'magic', it:H.ctx.G.equipped.helmet, t:'Bone Crown'});
 assert(!H.ctx.UIBTN.find(b=>b.key==='animate') && !H.ctx.wearingBoneCrown(),
   'Animate is gone right after an inventory drop, with no resize');
 
+assert(/refreshAnimateButton\(\)/.test(extractFn('unequipPackSlot'))
+  && /refreshAnimateButton\(\)/.test(extractFn('destroyBoneCrown'))
+  && /refreshAnimateButton\(\)/.test(extractFn('doffBoneCrownAtCamp')),
+  'unequip, destroy, and camp removal refresh Animate');
+require('../packs/EquipmentSlots.js');
+H.ctx.EquipmentSlots=global.EquipmentSlots;
+H.ctx.BONE_CROWN_DESTROY_XP=5000;
+H.ctx.shake=function(){};
+H.ctx.ftext=function(){};
+H.ctx.awardPartyXp=function(){ return 0; };
+H.ctx.riseSkeletalDwarves=function(){};
+H.ctx.ensureEquippedShape=function(){ H.ctx.G.equipped=H.ctx.G.equipped||{}; return H.ctx.G.equipped; };
+H.ctx.ensureMacarHammer=function(){};
+H.ctx.applyEquipped=function(){};
+H.ctx.convertCoinsToElectrum=function(){};
+['unequipPackSlot','destroyBoneCrown','doffBoneCrownAtCamp','awardCrownDestroyXp']
+  .forEach(n=>vm.runInContext(extractFn(n)+';', H.ctx));
+/* The test lays the bar out once while the crown is worn. It does not
+   call layoutUI again. Each exit has to refresh the bar itself. */
+function armGreyAnimate(){
+  const crown=H.ctx.makeBoneCrownItem();
+  H.ctx.G.equipped={helmet:crown};
+  H.ctx.G.packs={macar:{magic:[]}};
+  H.ctx.G.lvl={flags:{}};
+  H.ctx.G.animateDeadSpent=1;
+  H.ctx.G.campDoff=1;
+  const laid=H.layout({vw:1280, vh:800, touch:false, cards:5});
+  const anim=laid.find('animate');
+  assert(!!anim && anim.disabled && H.ctx.wearingBoneCrown(),
+    'a grey Animate button is on the bar while the crown is worn');
+  return anim;
+}
+function animateGone(label, anim){
+  const hit=H.ctx.btnAt(anim.x, anim.y);
+  assert(!H.ctx.wearingBoneCrown(), label+' leaves the crown unworn');
+  assert(!H.ctx.UIBTN.find(b=>b.key==='animate'), label+' does not draw Animate');
+  assert(!hit || hit.key!=='animate', label+' removes the Animate hit');
+}
+let grey=armGreyAnimate();
+assert(!!H.ctx.unequipPackSlot('helmet', {camp:1}), 'unequip stows the crown');
+animateGone('unequip', grey);
+grey=armGreyAnimate();
+assert(H.ctx.destroyBoneCrown({worn:1, x:10, y:10}).ok===1, 'destroy shatters the crown');
+animateGone('destroy', grey);
+grey=armGreyAnimate();
+assert(H.ctx.doffBoneCrownAtCamp().ok===1, 'camp removal sets the crown aside');
+animateGone('camp removal', grey);
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate button checks passed');

@@ -9107,7 +9107,10 @@ function unequipPackSlot(slot, opts){
   if(slot==='primary') ensureMacarHammer(packOf('macar'));
   applyEquipped();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
-  if(out.item && out.item.boneCrown) G.campDoff=0;
+  if(out.item && out.item.boneCrown){
+    G.campDoff=0;
+    if(typeof refreshAnimateButton==='function') refreshAnimateButton();
+  }
   if(out.item && !opts.silent) say('Stowed: '+out.item.n+'.','#c9b895');
   return out.item||null;
 }
@@ -11830,6 +11833,7 @@ function destroyBoneCrown(crown){
   say('Macar shatters the bone crown.','#ffe08a');
   const xp=awardCrownDestroyXp(where);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(where);
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1, xp:xp||BONE_CROWN_DESTROY_XP};
 }
 /* A live foe aimed at, or any live foe inside the swing, blocks a crown break. */
@@ -11869,6 +11873,7 @@ function doffBoneCrownAtCamp(){
   eq.helmet=null;
   if(it&&typeof stowPackItem==='function') stowPackItem(it);
   say('Macar sets the bone crown aside. One turn at camp.','#c9b895');
+  if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1};
 }
 function buildTeethCrownRoom(L, sec){
