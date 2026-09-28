@@ -949,6 +949,278 @@ function reverseTurnPose(){
 }
 reverseTurnPose();
 
+/* While Macar is walking, a follower's gait steps once per frame, at his
+   3.35/s, not twice. */
+function followGaitRate(){
+  mark();
+  const face=east;
+  mac.x=30; mac.y=18; mac.fdx=face.x; mac.fdy=face.y; mac.moving=1;
+  mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 24, 16, face);
+  ghost.gait=0.1;
+  ctx.G.ents=[mac, ghost];
+  const frames=90;
+  const g0=ghost.gait;
+  const m0=mac.gait||0;
+  for(let f=0; f<frames; f++){
+    const ox=mac.x, oy=mac.y;
+    mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
+    mac.x+=face.x*mac.sp*DT; mac.y+=face.y*mac.sp*DT;
+    mac._frameStep=Math.hypot(mac.x-ox, mac.y-oy);
+    ctx.gaitAdvance(mac, DT);
+    ghost._ox=ghost.x; ghost._oy=ghost.y; ghost._steerStep=0;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    ghost._steerStep=Math.hypot(ghost.x-ghost._ox, ghost.y-ghost._oy);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+  }
+  const rate=(ghost.gait-g0)/(frames*DT);
+  const macRate=((mac.gait||0)-m0)/(frames*DT);
+  console.log('follow gait '+rate.toFixed(3)+'/s macar '+macRate.toFixed(3)+'/s');
+  assert(Math.abs(macRate-3.35)<0.02, 'Macar walks at 3.35/s (got '+macRate.toFixed(3)+')');
+  assert(Math.abs(rate-3.35)<0.05, 'a following ghost walks at 3.35/s (got '+rate.toFixed(3)+')');
+  assert(rate<5, 'a following ghost does not double-step the gait ('+rate.toFixed(3)+'/s)');
+}
+followGaitRate();
+
+/* Macar held into a wall: moving stays set, the frame step is ~0.
+   The follower must not jitter or flip sheets. */
+function wallHoldSheet(){
+  mark();
+  const prevCan=ctx.canBe, prevMove=ctx.move, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.canBe=function(x,y,r){ return (y-(r||0))>=8; };
+  ctx.move=slideMove;
+  ctx.TW=116; ctx.TH=58;
+  const face={x:0, y:-1};
+  mac.x=20; mac.y=8.4; mac.fdx=face.x; mac.fdy=face.y;
+  mac.moving=1; mac.sp=4.3; mac.r=0.36; mac.name='MACAR'; mac._frameStep=0;
+  const slot=ctx.partyForm(1, mac);
+  const ghost=makeGhost('fendur', slot.x, slot.y, face);
+  ctx.G.ents=[mac, ghost];
+  function sheet(e){
+    const sx=(e.fdx||0)-(e.fdy||0), sy=(e.fdx||0)+(e.fdy||0);
+    let oct='s';
+    if(sx||sy){
+      const deg=((Math.atan2(sy, sx)*180/Math.PI)+360)%360;
+      oct=['e','se','s','sw','w','nw','n','ne'][Math.round(deg/45)%8];
+    }
+    return (oct==='n'?'back':'front')+':'+(e.moving?'walk':'idle');
+  }
+  const first=sheet(ghost);
+  let flips=0, maxPx=0;
+  for(let f=0; f<120; f++){
+    const gx=ghost.x, gy=ghost.y;
+    ghost._ox=gx; ghost._oy=gy; ghost._steerStep=0;
+    mac.moving=1; mac._frameStep=0; mac.fdx=face.x; mac.fdy=face.y;
+    ctx.stepPartyFollower(ghost, ctx.partyForm(1, mac), 0.38, mac, DT);
+    mac._sepDt=DT;
+    ctx.separateParty(mac);
+    const dx=ghost.x-gx, dy=ghost.y-gy;
+    const px=Math.hypot((dx-dy)*58, (dx+dy)*29);
+    if(px>maxPx) maxPx=px;
+    const now=sheet(ghost);
+    if(now!==first) flips++;
+  }
+  ctx.canBe=prevCan; ctx.move=prevMove; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('wall hold flips '+flips+' maxPx '+maxPx.toFixed(4)+' sheet '+first+' -> '+sheet(ghost));
+  assert(flips===0, 'wall hold does not flip sheets ('+flips+' in 120)');
+  assert(maxPx<0.06, 'wall hold stays under 0.06px/frame (got '+maxPx.toFixed(4)+')');
+}
+wallHoldSheet();
+
+/* Seeded pair pushes at dt 0.05. None may cross to Macar's far side or
+   through the 0.2 bubble once they started outside it. */
+function pairRandomFarSide(){
+  mark();
+  let s=0xC0FFEE;
+  function rnd(){
+    s=(s+0x6D2B79F5)|0;
+    let t=Math.imul(s^s>>>15, 1|s);
+    t=t+Math.imul(t^t>>>7, 61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  }
+  mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3; mac.name='MACAR';
+  let crosses=0;
+  const trials=400;
+  for(let n=0; n<trials; n++){
+    mac.x=20; mac.y=20; mac._frameStep=0; mac.moving=0;
+    const a=makeGhost('pordoom', mac.x+(rnd()*6-3), mac.y+(rnd()*6-3), {x:1, y:0});
+    const b=makeGhost('fendur', mac.x+(rnd()*6-3), mac.y+(rnd()*6-3), {x:1, y:0});
+    if(Math.hypot(a.x-mac.x, a.y-mac.y)<0.05) a.x+=0.2;
+    if(Math.hypot(b.x-mac.x, b.y-mac.y)<0.05) b.x+=0.2;
+    ctx.G.ents=[mac, a, b];
+    const start=[a, b].map(e=>({x:e.x, y:e.y, d:Math.hypot(e.x-mac.x, e.y-mac.y)}));
+    a._ox=a.x; a._oy=a.y; b._ox=b.x; b._oy=b.y; a._steerStep=0; b._steerStep=0;
+    mac._sepDt=0.05;
+    ctx.separateParty(mac);
+    [a, b].forEach((e,i)=>{
+      const rx=start[i].x-mac.x, ry=start[i].y-mac.y;
+      const dot=rx*(e.x-mac.x)+ry*(e.y-mac.y);
+      if(start[i].d>0.2 && dot<=0) crosses++;
+      else if(start[i].d>0.2){
+        const vx=e.x-start[i].x, vy=e.y-start[i].y, L=vx*vx+vy*vy;
+        if(L>1e-8){
+          let t=((mac.x-start[i].x)*vx+(mac.y-start[i].y)*vy)/L;
+          if(t<0) t=0; else if(t>1) t=1;
+          if(Math.hypot(start[i].x+vx*t-mac.x, start[i].y+vy*t-mac.y)<=0.2) crosses++;
+        }
+      } else if(start[i].d>1e-3 && dot<=0) crosses++;
+    });
+  }
+  console.log('pair random crosses '+crosses+' / '+trials);
+  assert(crosses===0, 'random 50ms pair pushes do not cross Macar ('+crosses+'/'+trials+')');
+}
+pairRandomFarSide();
+
+/* Four followers, one inside 0.2. A per-pass half-plane rotates that one
+   onto Macar's far side at dt 0.05. The frame-start plane does not. */
+function pairMultiPassCross(){
+  mark();
+  mac.x=0; mac.y=0; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=4.3*0.05; mac.name='MACAR';
+  const pts=[
+    [-0.02597072347998619, 0.025771367363631725],
+    [-1.97046715952456, 1.095564273186028],
+    [-0.9339031353592873, -0.1721120262518525],
+    [0.17377502657473087, 1.8203811952844262]
+  ];
+  const crew=pts.map((p,i)=>makeGhost('g'+i, p[0], p[1], {x:1, y:0}));
+  crew.forEach(e=>{ e._ox=e.x; e._oy=e.y; });
+  ctx.G.ents=[mac].concat(crew);
+  const sx=crew[0].x, sy=crew[0].y;
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const dot=sx*(crew[0].x)+sy*(crew[0].y);
+  console.log('multi-pass g0 '+crew[0].x.toFixed(3)+','+crew[0].y.toFixed(3)+' dot '+dot.toFixed(4));
+  assert(dot>0, 'a multi-pass pair push keeps the inside follower on the near side (dot '+dot.toFixed(4)+')');
+}
+pairMultiPassCross();
+
+/* Steer already overshot. The closing clamp is what pulls a spaced
+   follower back inside 1.05× his step. */
+function spacedClampPulls(){
+  mark();
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=1; mac.r=0.36; mac.sp=4.3;
+  mac.name='MACAR'; mac._frameStep=0.03;
+  const ghost=makeGhost('pordoom', 13.2, 10, {x:1, y:0});
+  ghost._ox=13; ghost._oy=10; ghost._steerStep=0.2;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=DT;
+  ctx.separateParty(mac);
+  const step=Math.hypot(ghost.x-ghost._ox, ghost.y-ghost._oy);
+  console.log('spaced clamp step '+step.toFixed(4));
+  assert(step<=mac._frameStep*1.05+1e-4, 'a spaced follower is clamped to 1.05× (step '+step.toFixed(4)+')');
+}
+spacedClampPulls();
+
+/* sameHalf/misses forced true lets the only open step pass through Macar. */
+function sameHalfBlocksCross(){
+  mark();
+  const prev=ctx.canBe;
+  ctx.canBe=function(x,y){
+    if(Math.hypot(x-10.12, y-10)<1e-3) return true;
+    return x<10.05;
+  };
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 10.12, 10, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  ctx.canBe=prev;
+  const dot=(0.12)*(ghost.x-mac.x);
+  console.log('sameHalf block x '+ghost.x.toFixed(3)+' dot '+dot.toFixed(4));
+  assert(ghost.x>10.05, 'a blocked near side does not step through Macar (x '+ghost.x.toFixed(3)+')');
+  assert(dot>0, 'sameHalf keeps the follower on the near side (dot '+dot.toFixed(4)+')');
+}
+sameHalfBlocksCross();
+
+/* Uncapped axis search picks a cardinal and leaves the away diagonal. */
+function axisSlideStaysCapped(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.canBe=function(){ return true; };
+  ctx.TW=116; ctx.TH=58;
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('fendur', 9.85, 9.85, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  const dx=ghost.x-9.85, dy=ghost.y-9.85;
+  console.log('axis diagonal dx '+dx.toFixed(4)+' dy '+dy.toFixed(4));
+  assert(Math.abs(dx-dy)<0.02, 'a diagonal shove does not become an uncapped cardinal (dx '+dx.toFixed(3)+' dy '+dy.toFixed(3)+')');
+  assert(Math.hypot(dx,dy)<0.3, 'diagonal shove stays inside the frame cap');
+}
+axisSlideStaysCapped();
+
+/* clampGoal off walks the long goal and finishes on the other side of the wall slide. */
+function clampGoalShortens(){
+  mark();
+  const prev=ctx.canBe;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('orbo', 10.25, 10.5, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  ctx.canBe=prev;
+  console.log('clampGoal end '+ghost.x.toFixed(3)+','+ghost.y.toFixed(3));
+  assert(ghost.y<10.45, 'the shove goal is the capped point (y '+ghost.y.toFixed(3)+')');
+}
+clampGoalShortens();
+
+/* Acceptance of +0.01 rejects the short tangent and the wall-escape then jumps to 2.0. */
+function acceptTinyGain(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  ctx.canBe=function(x,y,r){ return (x-(r||0))>=10; };
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('talpor', 10.25, 8.25, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y; ghost._slideUx=0; ghost._slideUy=0;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=0.05;
+  ctx.separateParty(mac);
+  const gap=Math.hypot(ghost.x-mac.x, ghost.y-mac.y);
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('tiny accept gap '+gap.toFixed(3)+' y '+ghost.y.toFixed(3)+' slide '+(ghost._slideUx||0));
+  assert(gap<1.95, 'a sub-0.01 tangent gain is kept (gap '+gap.toFixed(3)+')');
+  assert(Math.abs(ghost.y-8.25)<0.02, 'the short tangent does not hand off to the far slide');
+}
+acceptTinyGain();
+
+/* The compass fallback is the only legal step out of this pocket. */
+function bubbleStepOpens(){
+  mark();
+  const prev=ctx.canBe, prevTW=ctx.TW, prevTH=ctx.TH;
+  ctx.TW=116; ctx.TH=58;
+  ctx.canBe=function(x,y){
+    const dx=x-10.05, dy=y-10;
+    if(dx*dx+dy*dy<1e-10) return true;
+    if(dy<=0.015 || dx<=0.015) return false;
+    return Math.abs(dx-dy)<0.06;
+  };
+  mac.x=10; mac.y=10; mac.fdx=1; mac.fdy=0; mac.moving=0; mac.r=0.36; mac.sp=4.3;
+  mac._frameStep=0; mac.name='MACAR';
+  const ghost=makeGhost('pordoom', 10.05, 10, {x:1, y:0});
+  ghost._ox=ghost.x; ghost._oy=ghost.y;
+  ctx.G.ents=[mac, ghost];
+  mac._sepDt=DT;
+  ctx.separateParty(mac);
+  const step=Math.hypot(ghost.x-10.05, ghost.y-10);
+  ctx.canBe=prev; ctx.TW=prevTW; ctx.TH=prevTH;
+  console.log('bubble step '+step.toFixed(4)+' pos '+ghost.x.toFixed(3)+','+ghost.y.toFixed(3));
+  assert(step>0.04, 'the inside-0.2 compass step still moves the follower (step '+step.toFixed(4)+')');
+}
+bubbleStepOpens();
+
 if(failed){
   console.log('COUNTS cases='+cases+' asserts='+asserts);
   console.error(failed+' failed');

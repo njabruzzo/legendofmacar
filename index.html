@@ -363,6 +363,9 @@ function partyFollowSeparate(form, leaderMoving){
   return !!(form && leaderMoving);
 }
 function stepPartyFollower(e, tgt, want, p, dt){
+  /* Taken before steerWalk. separateParty advances gait only when this
+     frame has not already stepped the cycle. */
+  if(e) e._gait0=e.gait||0;
   /* Macar has stopped. Hold the idle facing here. Chasing the standing
      slot — especially with the wide column push — keeps the walk cycle
      running after the leader is still. */
@@ -370,6 +373,24 @@ function stepPartyFollower(e, tgt, want, p, dt){
     e.ix=0; e.iy=0; e.moving=0;
     e.fdx=p.fdx; e.fdy=p.fdy;
     return;
+  }
+  /* Held into a wall: his moving flag stays set, but this frame did not
+     move him. Steering the slot jitters the follower and flips sheets. */
+  if(p && p._frameStep!=null && !(p._frameStep>0.004)){
+    e.ix=0; e.iy=0; e.moving=0;
+    e.fdx=p.fdx; e.fdy=p.fdy;
+    return;
+  }
+  /* Pinned on the far side of Macar: a steer step spends the frame disk
+     walking into him, and the wall slide then has nothing left. Leave the
+     disk for separateParty. */
+  if(p && dt>0 && dist(e, p)<2){
+    let rx=e.x-p.x, ry=e.y-p.y, rd=Math.hypot(rx, ry)||1;
+    rx/=rd; ry/=rd;
+    if(!canBe(e.x+rx*0.08, e.y+ry*0.08, e.r, e)){
+      e.ix=0; e.iy=0; e.moving=0;
+      return;
+    }
   }
   const d=dist(e, tgt);
   if(!(d>want)){
@@ -482,36 +503,43 @@ function separateParty(p, dt){
     if(capPx<8) return Math.min(PARTY_SHOVE_SLACK_PX, 8-capPx);
     return PARTY_SHOVE_SLACK_PX;
   }
-  /* Pair pushes use the same side-of-Macar rule as the lead shove.
-     Inside 0.2 the chord test would reject the only way out. */
-  function sideOk(ox, oy, nx, ny, leader){
-    const rx=ox-leader.x, ry=oy-leader.y, d=Math.hypot(rx, ry);
-    if(d<1e-3) return Math.hypot(nx-leader.x, ny-leader.y)+1e-9>=d;
+  /* Pair pushes stay on the half-plane the follower had at frame start.
+     A later pass must not rotate them around Macar. Inside 0.2 the chord
+     is already in the bubble, so that case only refuses a closer end. */
+  function sideOk(ox, oy, nx, ny, leader, ax0, ay0){
+    const fx=ax0!=null?ax0:ox, fy=ay0!=null?ay0:oy;
+    const rx=fx-leader.x, ry=fy-leader.y, d0=Math.hypot(rx, ry);
+    const nd=Math.hypot(nx-leader.x, ny-leader.y);
+    if(d0<1e-3) return nd+1e-9>=d0;
     if(rx*(nx-leader.x)+ry*(ny-leader.y)<=1e-4) return false;
-    if(d<=0.2) return true;
-    const vx=nx-ox, vy=ny-oy, L=vx*vx+vy*vy;
-    if(L<1e-8) return true;
-    let t=((leader.x-ox)*vx+(leader.y-oy)*vy)/L;
-    if(t<0) t=0; else if(t>1) t=1;
-    return Math.hypot(ox+vx*t-leader.x, oy+vy*t-leader.y)>0.2;
+    if(d0<=0.2) return nd+1e-9>=d0;
+    function chord(x, y, bx, by){
+      const vx=bx-x, vy=by-y, L=vx*vx+vy*vy;
+      if(L<1e-8) return true;
+      let t=((leader.x-x)*vx+(leader.y-y)*vy)/L;
+      if(t<0) t=0; else if(t>1) t=1;
+      return Math.hypot(x+vx*t-leader.x, y+vy*t-leader.y)>0.2;
+    }
+    return chord(fx, fy, nx, ny) && chord(ox, oy, nx, ny);
   }
   function kinMove(e, tx, ty, slackPx){
     if(!e) return;
     const ox=e.x, oy=e.y;
+    const ax0=e._ox!=null?e._ox:ox, ay0=e._oy!=null?e._oy:oy;
     let gx=tx, gy=ty;
-    if(!sideOk(ox, oy, gx, gy, p)){
+    if(!sideOk(ox, oy, gx, gy, p, ax0, ay0)){
       let lo=0, hi=1;
       for(let k=0;k<14;k++){
         const mid=(lo+hi)*0.5;
         const nx=ox+(tx-ox)*mid, ny=oy+(ty-oy)*mid;
-        if(sideOk(ox, oy, nx, ny, p)) lo=mid; else hi=mid;
+        if(sideOk(ox, oy, nx, ny, p, ax0, ay0)) lo=mid; else hi=mid;
       }
       gx=ox+(tx-ox)*lo; gy=oy+(ty-oy)*lo;
     }
     const held=e._gapFree;
     e._gapFree=0;
     moveCapped(e, gx, gy, p, dt, slackPx);
-    if(!sideOk(ox, oy, e.x, e.y, p)){ e.x=ox; e.y=oy; }
+    if(!sideOk(ox, oy, e.x, e.y, p, ax0, ay0)){ e.x=ox; e.y=oy; }
     e._gapFree=held;
   }
   function moveCapped(e, tx, ty, leader, frameDt, slackPx){
@@ -957,6 +985,25 @@ function separateParty(p, dt){
       e.x=e._ox+vx*lo; e.y=e._oy+vy*lo;
     }
   }
+  /* Macar did not move this frame. A follower who started clear of everyone
+     stays put: a wall-hold steer chatters about a pixel and flips the sheet. */
+  if(idle){
+    for(const e of kin){
+      if(e._ox==null) continue;
+      const sx=e._ox, sy=e._oy;
+      if(Math.hypot(sx-p.x, sy-p.y)<2) continue;
+      let clear=true;
+      for(const o of kin){
+        if(o===e) continue;
+        const ox=o._ox!=null?o._ox:o.x, oy=o._oy!=null?o._oy:o.y;
+        if(Math.hypot(sx-ox, sy-oy)<2){ clear=false; break; }
+      }
+      if(!clear) continue;
+      e.x=sx; e.y=sy;
+      e.moving=0; e.ix=0; e.iy=0;
+      e.fdx=p.fdx; e.fdy=p.fdy;
+    }
+  }
   /* A follower who actually moves this frame is walking, not gliding in
      the idle pose. Under half a pixel stays idle. This holds after a stop
      and also while he is still stepping, if the shove is what moved them. */
@@ -965,17 +1012,21 @@ function separateParty(p, dt){
       const ox=e._ox!=null?e._ox:e.x, oy=e._oy!=null?e._oy:e.y;
       const dx=e.x-ox, dy=e.y-oy;
       if(!(screenOf(dx, dy)>0.5)) continue;
-      const gait0=e.gait||0;
+      const snap=e._gait0;
       e.moving=1;
       const m=Math.hypot(dx, dy)||1;
       e.fdx=dx/m; e.fdy=dy/m;
       e.ix=e.fdx*(e.sp||4); e.iy=e.fdy*(e.sp||4);
-      /* Steer already advanced the gait this frame. Do not step it twice. */
-      if((e.gait||0)===gait0) gaitAdvance(e, dt);
+      /* Steer already advanced the gait this frame. Do not step it twice.
+         A frame that never steered leaves the snapshot unset and steps once. */
+      if(snap==null || (e.gait||0)===snap) gaitAdvance(e, dt);
     }
   }
 }
 function steerWalk(e,dx,dy,sp,dt){
+  /* Pose reads this. A second gaitAdvance in separateParty must see that
+     this call already stepped the cycle. */
+  if(e) e._gait0=e.gait||0;
   if(!(dx||dy) || sp<=0){ e.ix=0; e.iy=0; e.moving=0; return 0; }
   const m=Math.hypot(dx,dy)||1;
   dx/=m; dy/=m;
