@@ -249,5 +249,61 @@ grey=armGreyAnimate();
 assert(H.ctx.doffBoneCrownAtCamp().ok===1, 'camp removal sets the crown aside');
 animateGone('camp removal', grey);
 
+assert(/it\.boneCrown && typeof refreshAnimateButton==='function'\) refreshAnimateButton\(\)/.test(extractFn('equipPackItem'))
+  && /equipPackItem\(it\)/.test(extractFn('confirmPackEquip'))
+  && /equipPackItem\(sel\)/.test(extractFn('togglePackSlot')),
+  'pack Equip and the helmet slot wear the crown through a refresh');
+H.ctx.isGhostPack=function(){ return false; };
+H.ctx.knownShadowCleaver=function(){ return null; };
+H.ctx.ensureShadowCleaverPacked=function(){ return null; };
+['mapPackItemToEquipment','snapshotWornKit','restowDisplacedKit','wornSlotOf','packSelItem','isPackEquipable','equipPackItem','confirmPackEquip']
+  .forEach(n=>vm.runInContext(extractFn(n)+';', H.ctx));
+/* One layout while the crown is off. Take, pack unequip, and pack Equip
+   refresh the bar themselves. The test does not call layoutUI again. */
+function crownOff(){
+  H.ctx.G.equipped={};
+  H.ctx.G.packs={macar:{magic:[]}};
+  H.ctx.G.props=[];
+  H.ctx.G.lvl={flags:{}};
+  H.ctx.G.animateDeadSpent=0;
+  H.ctx.G.campDoff=0;
+  H.ctx.G.packWho='macar';
+  H.ctx.G.packSel=null;
+  H.ctx.G.sleepShow=null;
+}
+crownOff();
+H.layout({vw:1280, vh:800, touch:false, cards:5});
+assert(!H.ctx.UIBTN.find(b=>b.key==='animate'), 'Animate is off the bar before the re-equip sequence');
+const loose2={x:20, y:20, k:'bonecrown', gone:0};
+H.ctx.G.props=[loose2];
+assert(H.ctx.takeBoneCrown(loose2).ok===1 && H.ctx.wearingBoneCrown(), 'take seats the crown');
+let lit=H.ctx.UIBTN.find(b=>b.key==='animate');
+let litHit=lit && H.ctx.btnAt(lit.x, lit.y);
+assert(!!lit && !lit.disabled && litHit && litHit.key==='animate',
+  'Animate is drawn, lit, and hittable right after a take');
+H.ctx.G.campDoff=1;
+H.ctx.G.packSel=H.ctx.G.equipped.helmet;
+const stowed=H.ctx.confirmPackEquip();
+assert(stowed && stowed.boneCrown && !H.ctx.wearingBoneCrown(), 'pack unequip stows the crown');
+assert(!H.ctx.UIBTN.find(b=>b.key==='animate'), 'Animate is gone right after pack unequip, with no resize');
+H.ctx.G.packSel=stowed;
+assert(H.ctx.confirmPackEquip()==='helmet' && H.ctx.wearingBoneCrown(), 'pack Equip wears the crown again');
+lit=H.ctx.UIBTN.find(b=>b.key==='animate');
+litHit=lit && H.ctx.btnAt(lit.x, lit.y);
+assert(!!lit && !lit.disabled && !H.ctx.G.animateDeadSpent && litHit && litHit.key==='animate',
+  're-equip from the Pack draws a lit Animate key with a hit area, with no resize');
+H.ctx.G.animateDeadSpent=1;
+H.ctx.G.campDoff=1;
+H.ctx.G.packSel=H.ctx.G.equipped.helmet;
+const stowedSpent=H.ctx.confirmPackEquip();
+assert(stowedSpent && !H.ctx.UIBTN.find(b=>b.key==='animate'), 'unequip after a spent charge still clears Animate');
+H.ctx.G.packSel=stowedSpent;
+assert(H.ctx.confirmPackEquip()==='helmet' && H.ctx.wearingBoneCrown() && H.ctx.G.animateDeadSpent===1,
+  'pack Equip after a spent charge wears the crown again');
+const greyBack=H.ctx.UIBTN.find(b=>b.key==='animate');
+const greyHit=greyBack && H.ctx.btnAt(greyBack.x, greyBack.y);
+assert(!!greyBack && !!greyBack.disabled && greyHit && greyHit.key==='animate',
+  're-equip after Animate was spent draws the key grey');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate button checks passed');

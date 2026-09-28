@@ -9059,6 +9059,8 @@ function equipPackItem(it, opts){
     if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
     if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+    /* Pack Equip, the helmet slot, and every other wear path land here. */
+    if(it.boneCrown && typeof refreshAnimateButton==='function') refreshAnimateButton();
     if(!opts.silent){
       if(out.slot==='primary' && out.prev && out.prev.id==='macar_hammer')
         say('Macar stows his hammer and takes '+it.n+'.','#ffd27a');
