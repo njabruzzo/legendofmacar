@@ -183,8 +183,15 @@ const kinLand=H.layout({vw:844, vh:390, touch:true, cards:6});
 const raisedLand=H.layout({vw:844, vh:390, touch:true, cards:6, raised:true});
 assert(raisedLand.frame.h===kinLand.frame.h && raisedLand.frame.cards.every(c=>c.h===kinLand.frame.h),
   'phone landscape thrall card matches the kin card height ('+raisedLand.frame.h+'px)');
+const kinPort=H.layout({vw:390, vh:844, touch:true, cards:5});
 const raisedPort=H.layout({vw:390, vh:844, touch:true, cards:6, raised:true});
-assert(raisedPort.frame.h===40, 'phone portrait still gives the raised card room for the hp line');
+const portKin=raisedPort.frame.cards.slice(0,-1);
+const portThrall=raisedPort.frame.cards[raisedPort.frame.cards.length-1];
+assert(kinPort.frame.h===30 && kinPort.frame.w===118 && kinPort.frame.gap===4
+  && kinPort.frame.cards.every(c=>c.h===30 && c.w===118),
+  'phone portrait kin cards stay at the live 30×118 size');
+assert(portKin.every(c=>c.h===30 && c.w===118) && portThrall.h===40 && portThrall.w===118,
+  'a portrait thrall is 40px and does not grow the kin cards');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate-dead party HUD checks passed');

@@ -13069,18 +13069,26 @@ function partyPortraitFrame(){
   if(hudMobile()){
     const x=Math.max(8, (inset.l||0));
     const y=Math.max(8, (inset.t||0));
-    const w=PORT?118:124;
-    /* Portrait has room for the hp/AC line on a raised card. Landscape
-       uses the kin card height, and the line is not drawn there. */
-    const raisedOn=!!(list&&list.some(e=>e&&!e.col));
-    let h=(raisedOn && PORT)?40:PARTY_TOUCH_H, gap=PARTY_TOUCH_GAP;
-    /* An extra raised-dead card must stay above the thumb cluster. */
+    let w=PORT?118:124, gap=PARTY_TOUCH_GAP;
+    /* Kin cards stay at the live touch size (30×118 portrait, gap 4).
+       Only a raised card grows, and only in portrait, so its hp/AC
+       line has a band of its own. Landscape keeps one shared height. */
+    const kinH=PARTY_TOUCH_H;
+    const heights=[];
+    for(let i=0;i<shown;i++){
+      const raised=!!(list&&list[i]&&!list[i].col);
+      heights.push((raised && PORT)?40:kinH);
+    }
+    /* Landscape may shrink that shared height so the column, thrall
+       included, stays above the thumb cluster. Portrait kin stay 30
+       and the raised card stays 40. */
     let limit=(typeof VH==='number'?VH:0)-8;
     if(UI && UI.hudTop) limit=Math.min(limit, UI.hudTop-6);
-    if(shown>0 && y+shown*(h+gap)>limit){
+    if(!PORT && shown>0 && y+shown*(kinH+gap)>limit){
       gap=2;
       const avail=Math.max(shown*20, limit-y);
-      h=Math.max(20, Math.floor((avail-shown*gap)/shown));
+      const fit=Math.max(20, Math.floor((avail-shown*gap)/shown));
+      for(let i=0;i<shown;i++) heights[i]=fit;
     }
     /* Phone landscape: the column, including a raised-dead card, stays
        left of the minimap, the LOG / QUEST tabs, and the open log. */
@@ -13099,8 +13107,13 @@ function partyPortraitFrame(){
       if(x+w>rightLim) w=Math.max(88, rightLim-x);
     }
     const cards=[];
-    for(let i=0;i<shown;i++) cards.push({x:x, y:y+i*(h+gap), w:w, h:h});
-    return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:y+shown*(h+gap), compact:1};
+    let yy=y;
+    for(let i=0;i<shown;i++){
+      cards.push({x:x, y:yy, w:w, h:heights[i]});
+      yy+=heights[i]+gap;
+    }
+    const h=heights.length?heights[0]:kinH;
+    return {x:x, y:y, w:w, h:h, gap:gap, n:shown, cards:cards, stackBottom:yy, compact:1};
   }
   const x=Math.max(8*s, (inset.l||0)+8);
   const y=Math.max(8*s, (inset.t||0)+8);
@@ -18227,12 +18240,14 @@ function drawPortraitStack(g,s){
 /* Slim touch card: face, name + rank, one bar. Fallen kin grey out and
    read FALLEN; a ghost on its way back shows the return clock. */
 function drawPortraitStackTouch(g, party, frame){
-  const x=frame.x, w=frame.w, h=frame.h, gap=frame.gap;
+  const x=frame.x, w=frame.w, gap=frame.gap;
   UI.portraitHits=[];
   party.forEach((e,i)=>{
     const col=portraitIdentity(e);
     const hitKey=(e.col&&e.col.key)||((e.thrall||e.name==='Skeletal Dwarf')?'thrall':col.key);
-    const yy=frame.y+i*(h+gap);
+    const card=frame.cards&&frame.cards[i];
+    const h=card?card.h:frame.h;
+    const yy=card?card.y:frame.y+i*(h+gap);
     /* Tap slop reaches halfway into the gap; cards stay 30px to draw. */
     UI.portraitHits.push({x, y:yy-gap/2, w, h:h+gap, key:hitKey});
     const down=!!(e.dead||e.crushed) && !(e.ghost && !e.dead);
