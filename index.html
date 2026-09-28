@@ -412,10 +412,10 @@ function separateParty(p, dt){
      later direct call cannot stay on the cap. */
   if(dt==null && p._sepDt>0) dt=p._sepDt;
   p._sepDt=0;
-  /* Macar has stopped. Pairs already at 2.0 stay put (no settle drift).
-     Anyone still under 2.0 — him and a follower, or two followers — keeps
-     separating, one capped step at a time. */
-  const idle=dt>0 && p.moving===0;
+  /* Macar has stopped, or he is held against a wall and this frame did not
+     move him. Pairs already at 2.0 stay put (no settle drift). Anyone still
+     under 2.0 keeps separating, one capped step at a time. */
+  const idle=dt>0 && (p.moving===0 || (p._frameStep!=null && !(p._frameStep>0.004)));
   /* Screen pixels past the frame cap while a gap is still under 2.
      At 60fps the whole move stays near 8px. */
   const PARTY_SHOVE_SLACK_PX=3;
@@ -957,18 +957,21 @@ function separateParty(p, dt){
       e.x=e._ox+vx*lo; e.y=e._oy+vy*lo;
     }
   }
-  /* Macar is still. A follower who actually moves this frame is walking,
-     not gliding in the idle pose. Under half a pixel stays idle. */
-  if(idle && dt>0){
+  /* A follower who actually moves this frame is walking, not gliding in
+     the idle pose. Under half a pixel stays idle. This holds after a stop
+     and also while he is still stepping, if the shove is what moved them. */
+  if(dt>0){
     for(const e of kin){
       const ox=e._ox!=null?e._ox:e.x, oy=e._oy!=null?e._oy:e.y;
       const dx=e.x-ox, dy=e.y-oy;
       if(!(screenOf(dx, dy)>0.5)) continue;
+      const gait0=e.gait||0;
       e.moving=1;
       const m=Math.hypot(dx, dy)||1;
       e.fdx=dx/m; e.fdy=dy/m;
       e.ix=e.fdx*(e.sp||4); e.iy=e.fdy*(e.sp||4);
-      gaitAdvance(e, dt);
+      /* Steer already advanced the gait this frame. Do not step it twice. */
+      if((e.gait||0)===gait0) gaitAdvance(e, dt);
     }
   }
 }
