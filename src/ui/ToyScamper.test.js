@@ -27,7 +27,7 @@ function extractFn(name){
 }
 
 const steerFns=['toyScamperOpen','toyScamperAway','pickToyScamperDir','stepToyScamper','toyFlankBlocked',
-  'windupToyProp','kickToyScamper','tickToyScamper'].map(extractFn).join('\n');
+  'windupToyProp','kickToyScamper','tickToyScamper','toyScreenFace'].map(extractFn).join('\n');
 
 assert(/const TOY_SCAMPER_SECS=5/.test(html), 'scamper duration is 5 real seconds');
 assert(!/Math\.random/.test(extractFn('kickToyScamper')), 'kick steering is scored, not a random octant');

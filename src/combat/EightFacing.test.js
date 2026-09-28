@@ -40,7 +40,8 @@ const ctx={
 };
 vm.createContext(ctx);
 vm.runInContext(
-  extractFn('faceVec')+extractFn('screenOctant')+extractFn('moveHeadingSX')
+  html.match(/const SPRITE_PAINTED_LEFT=\{[^}]*\};/)[0]+'\n'
+  +extractFn('faceVec')+extractFn('screenOctant')+extractFn('moveHeadingSX')
   +extractFn('wantsBackView')+extractFn('wantsSpriteFlip'), ctx);
 
 const DIRS=[
@@ -64,7 +65,9 @@ function actor(kind, dir){
   DIRS.forEach(dir=>{
     const e=actor(kind, dir);
     assert(ctx.screenOctant(e)===dir.oct, kind+' '+dir.name+' octant is '+dir.oct);
-    assert(ctx.wantsSpriteFlip(e)===dir.flip, kind+' '+dir.name+(dir.flip?' flips':' stays unflipped'));
+    const paintedLeft=kind==='monster';
+    const expectFlip=paintedLeft?!dir.flip:dir.flip;
+    assert(ctx.wantsSpriteFlip(e)===expectFlip, kind+' '+dir.name+(expectFlip?' flips':' stays unflipped'));
     assert(ctx.wantsBackView(e)===dir.back, kind+' '+dir.name+(dir.back?' shows its back':' does not show its back'));
   });
 });

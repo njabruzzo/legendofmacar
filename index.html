@@ -3440,6 +3440,10 @@ function dwarfAngleKey(e,k){
   if(oct==='se') return gait(k+'_se_w1', k+'_se_w2', k);
   return gait(k+'_e_w1', k+'_e_w2', k+'_e');
 }
+/* Idle, walk, and attack sheets for these kinds are painted facing
+   screen-left. Add a kind here when its art faces left. Everyone else
+   is painted facing screen-right. */
+const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1};
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
   const key=entAnimKey(e)||'';
@@ -3449,7 +3453,15 @@ function wantsSpriteFlip(e){
   // for screen-left, so west mirrors east, SW mirrors SE, NW mirrors NE.
   // A _ne_ early-out left NW on the unflipped up-right sheet.
   if(e.hero && !e.ghost) return moveHeadingSX(e) < -0.02;
-  return moveHeadingSX(e) < -0.02;
+  /* Straight screen-north and screen-south have dx-dy of 0, which the
+     threshold treats as "not left" and un-mirrors the sprite. Keep the
+     last horizontal facing instead, then XOR kinds painted facing left. */
+  const sx=moveHeadingSX(e);
+  let left=sx<-0.02;
+  if(Math.abs(sx)<0.02) left=!!e.faceLeft;
+  else e.faceLeft=left?1:0;
+  const paintedLeft=!!(SPRITE_PAINTED_LEFT[e.kind]||SPRITE_PAINTED_LEFT[e.sprite]);
+  return paintedLeft?!left:left;
 }
 function attackProgress(e){
   if(!e||!(e.atk>0)) return 0;
@@ -3564,6 +3576,13 @@ function entAnimKey(e){
       const stepped=walkCycleKey(e, backStem);
       if(stepped) key=stepped;
       else if(SPR[k+'_back']) key=k+'_back';
+      else {
+        /* No back sheet. N (and a defend that takes this branch) used
+           to stay on the idle key and slide. NE and NW already reach
+           the front walk below; this is the same plant. */
+        const front=walkCycleKey(e, k);
+        if(front) key=front;
+      }
     } else if(SPR[k+'_back']) key=k+'_back';
   } else if(e.moving){
     const stepped=walkCycleKey(e, k);
@@ -7854,7 +7873,7 @@ function kickToyScamper(){
   const toy=windupToyProp(); if(!toy) return;
   const d=pickToyScamperDir(toy, 0, 0);
   toy.scampDx=d.dx; toy.scampDy=d.dy;
-  if(d.dx<0) toy.scampFace=-1; else if(d.dx>0) toy.scampFace=1;
+  toy.scampFace=toyScreenFace(d.dx, d.dy, toy.scampFace);
   toy.scampT=TOY_SCAMPER_SECS;
   toy.scampStuck=0;
 }
@@ -7893,15 +7912,39 @@ function tickToyScamper(dt){
       }
     }
   } else toy.scampStuck=0;
-  if(toy.scampDx<0) toy.scampFace=-1;
-  else if(toy.scampDx>0) toy.scampFace=1;
+  toy.scampFace=toyScreenFace(toy.scampDx, toy.scampDy, toy.scampFace);
+}
+/* Screen heading is dx-dy, the same axis wantsSpriteFlip uses.
+   World +x is not screen-right. A near-zero heading keeps the last face. */
+function toyScreenFace(dx, dy, prev){
+  const sx=(dx||0)-(dy||0);
+  if(Math.abs(sx)<0.02) return (prev<0)?-1:1;
+  return sx<0?-1:1;
+}
+/* prop_winduptoy is painted facing screen-left (beard on the left, key
+   on the right). prop_winduptoy_wound is painted facing screen-right
+   (beard on the right, key on the left). The blit scale is the screen
+   heading times that painted sign, so the face that is drawn leads the
+   way the toy is moving. A near-zero heading keeps prev — the last
+   left or right screen face — on straight north and south. */
+const TOY_PAINTED_FACE={prop_winduptoy:-1,prop_winduptoy_wound:1};
+function windupToySheetKey(p){
+  if(p&&p.k==='winduptoy'&&G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound&&SPR.winduptoy_wound)
+    return 'prop_winduptoy_wound';
+  return 'prop_winduptoy';
+}
+function windupToyBlitFace(heading, prev, key){
+  const screen=(Math.abs(heading)<0.02?(prev<0?-1:1):heading)<0?-1:1;
+  const painted=TOY_PAINTED_FACE[key||'prop_winduptoy'];
+  return screen*(painted<0?-1:1);
 }
 /* Painted idle/wound sheets only — bob, lean, flip, and a faster key rock while scampering. */
 function drawWindupToyProp(g,p,z){
   const ts=p.s||1;
   const wound=!!(G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound);
   const run=p.scampT>0;
-  const face=(run?p.scampDx:p.scampFace)<0?-1:1;
+  const heading=run?((p.scampDx||0)-(p.scampDy||0)):(p.scampFace||1);
+  const face=windupToyBlitFace(heading, p.scampFace||1, windupToySheetKey(p));
   const H=propSpriteH(p,z);
   const t=G.elapsed||0;
   const phase=t*(run?14:2.4)+(p.seed||0);
