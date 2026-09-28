@@ -402,17 +402,41 @@ function separateParty(p, dt){
     const slack=leadStep*1.05;
     return slack>walkStep ? slack : walkStep;
   }
-  function spendNudge(e, ux, uy, dist, leader, frameDt){
-    if(!e || !(dist>0)) return;
-    let allow=dist;
-    if(frameDt>0){
+  /* Final spot stays inside the cap disk around the pre-steer point, so a
+     steer into Macar can be spent opening the gap instead. Net tiles this
+     frame never exceed the cap. No frame dt means the old full shove. */
+  function moveCapped(e, tx, ty, leader, frameDt){
+    if(!e) return;
+    let x=tx, y=ty;
+    if(frameDt>0 && e._ox!=null){
+      const cap=partyFrameCap(leader, e, frameDt);
+      const vx=x-e._ox, vy=y-e._oy, vd=Math.hypot(vx, vy);
+      if(vd>cap){
+        if(!(cap>1e-8)) return;
+        x=e._ox+vx/vd*cap; y=e._oy+vy/vd*cap;
+      }
+    } else if(frameDt>0){
       const room=partyFrameCap(leader, e, frameDt)-(e._steerStep||0);
       if(!(room>1e-8)) return;
-      if(allow>room) allow=room;
+      const mx=x-e.x, my=y-e.y, md=Math.hypot(mx, my);
+      if(md>room){ x=e.x+mx/md*room; y=e.y+my/md*room; }
     }
+    const mx=x-e.x, my=y-e.y, md=Math.hypot(mx, my);
+    if(!(md>1e-8)) return;
     const ox=e.x, oy=e.y;
-    nudgeParty(e, ux, uy, allow);
-    if(frameDt>0) e._steerStep=(e._steerStep||0)+Math.hypot(e.x-ox, e.y-oy);
+    nudgeParty(e, mx/md, my/md, md);
+    if(frameDt>0 && e._ox!=null){
+      const cap=partyFrameCap(leader, e, frameDt);
+      const vx=e.x-e._ox, vy=e.y-e._oy, vd=Math.hypot(vx, vy);
+      if(vd>cap+1e-6){
+        const bx=e._ox+vx/vd*cap, by=e._oy+vy/vd*cap;
+        if(canBe(bx, by, e.r, e)){ e.x=bx; e.y=by; }
+        else { e.x=ox; e.y=oy; }
+      }
+      e._steerStep=Math.hypot(e.x-e._ox, e.y-e._oy);
+    } else if(frameDt>0){
+      e._steerStep=(e._steerStep||0)+Math.hypot(e.x-ox, e.y-oy);
+    }
   }
   const kin=[];
   for(const e of G.ents){
@@ -430,7 +454,7 @@ function separateParty(p, dt){
         const m=Math.hypot(dx, dy)||1;
         dx/=m; dy/=m; d=0;
       } else { dx/=d; dy/=d; }
-      spendNudge(e, dx, dy, PARTY_SEP_LEAD-d, p, dt);
+      moveCapped(e, e.x+dx*(PARTY_SEP_LEAD-d), e.y+dy*(PARTY_SEP_LEAD-d), p, dt);
     }
     for(let i=0;i<kin.length;i++){
       for(let j=i+1;j<kin.length;j++){
@@ -440,8 +464,8 @@ function separateParty(p, dt){
         if(d<0.04){ dx=1; dy=0; d=0; }
         else { dx/=d; dy/=d; }
         const push=(PARTY_SEP_KIN-d)*0.5;
-        spendNudge(a, -dx, -dy, push, p, dt);
-        spendNudge(b, dx, dy, push, p, dt);
+        moveCapped(a, a.x-dx*push, a.y-dy*push, p, dt);
+        moveCapped(b, b.x+dx*push, b.y+dy*push, p, dt);
       }
     }
   }

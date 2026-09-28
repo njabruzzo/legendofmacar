@@ -209,5 +209,52 @@ resumeCase('straight-down', down, framesOf(down, 30));
 resumeCase('diagonal', diag, framesOf(diag, 30));
 resumeCase('down-then-diagonal', down, framesOf(down, 8).concat(framesOf(diag, 22)));
 
+/* A follower already inside the lead ring, ahead of Macar, used to walk
+   into him: the steer spent the cap and the push had nothing left. */
+function aheadCase(){
+  const face=east;
+  mac.x=30; mac.y=18; mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
+  mac._frameStep=0; mac.sp=4.3; mac.r=0.36; mac.name='MACAR';
+  const crew=[
+    makeGhost('pordoom', mac.x+face.x*1.2, mac.y+face.y*1.2, face),
+    makeGhost('fendur', mac.x-face.x*2.6, mac.y-face.y*2.6, face),
+    makeGhost('orbo', mac.x-face.y*2.4, mac.y+face.x*2.4, face),
+    makeGhost('talpor', mac.x+face.y*2.4, mac.y-face.x*2.4, face)
+  ];
+  ctx.G.ents=[mac].concat(crew);
+  let minGap=99, worst=0, worstName='';
+  for(let f=0; f<30; f++){
+    const mx=mac.x, my=mac.y;
+    mac.moving=1; mac.fdx=face.x; mac.fdy=face.y;
+    mac.x+=face.x*mac.sp*DT; mac.y+=face.y*mac.sp*DT;
+    mac._frameStep=Math.hypot(mac.x-mx, mac.y-my);
+    const before=crew.map(e=>({x:e.x, y:e.y}));
+    crew.forEach((e,i)=>{
+      e._ox=e.x; e._oy=e.y;
+      ctx.stepPartyFollower(e, ctx.partyForm(i+1, mac), 0.38, mac, DT);
+      e._steerStep=Math.hypot(e.x-e._ox, e.y-e._oy);
+    });
+    ctx.separateParty(mac, DT);
+    crew.forEach((e,i)=>{
+      const step=Math.hypot(e.x-before[i].x, e.y-before[i].y);
+      const cap=Math.max(mac._frameStep*1.05, e.sp*DT);
+      if(step>worst){ worst=step; worstName=e.name; }
+      check(step<=cap+1e-4, 'ahead f'+(f+1)+' '+e.name+' step '+step.toFixed(4)+' cap '+cap.toFixed(4));
+    });
+    const bodies=[mac].concat(crew);
+    for(let a=0;a<bodies.length;a++) for(let b=a+1;b<bodies.length;b++){
+      const gap=Math.hypot(bodies[a].x-bodies[b].x, bodies[a].y-bodies[b].y);
+      const need=(bodies[a].r||0.36)+(bodies[b].r||0.36);
+      if(gap<minGap) minGap=gap;
+      check(gap+1e-6>=need, 'ahead f'+(f+1)+' overlap '+(bodies[a].name||'?')+'/'+(bodies[b].name||'?')+' gap '+gap.toFixed(3));
+    }
+  }
+  const ratio=worst/(mac.sp*DT);
+  console.log('resume ahead max '+worstName+' '+worst.toFixed(4)+' ratio '+ratio.toFixed(3)+' minGap '+minGap.toFixed(3));
+  assert(ratio<=1.05+1e-3, 'ahead max follower/leader step '+ratio.toFixed(3));
+  assert(minGap+1e-6>=0.72, 'ahead bodies stay apart (minGap '+minGap.toFixed(3)+')');
+}
+aheadCase();
+
 if(failed){ console.error(failed+' failed'); process.exit(1); }
 console.log('ghost settle idle ok');
