@@ -22,8 +22,8 @@ assert(!/title_splash_2:/.test(html),
   'title_splash_2 alias is gone');
 assert(/href="assets\/ui\/title_menu\.jpg\?v=122"/.test(html),
   'title_menu preload matches ASSET_VER 117');
-assert(/const first=\['title_splash','title_menu','rubydoor','dwarfface'/.test(html),
-  'title_menu, the signed ruby door, and the dwarf face lead the sprite queue');
+assert(/const first=\['title_splash','title_menu','title_logo','rubydoor','dwarfface'/.test(html),
+  'title_menu, the title logo, the signed ruby door, and the dwarf face lead the sprite queue');
 assert(/SIGNED ruby-door hall/.test(html),
   'title_menu.jpg comment names the signed ruby-door hall plate');
 const menuJpg=path.join(root,'assets/ui/title_menu.jpg');
@@ -137,26 +137,33 @@ assert(/titleMenuArt\(\)/.test(menu) && /drawTitleMenuCover/.test(menu) &&
 assert(!/drawTitleCavern/.test(menu) && !/intro_cavein/.test(menu) && !/title_splash/.test(menu),
   'menu plate is not the cavern fallback, the cave-in, or the party splash');
 assert(!/drawSplashCover/.test(menu), 'menu does not reuse the splash cover zoom');
-assert(!/drawArtFrame/.test(menu) && !/drawLetterbox/.test(menu),
-  'menu has no gold frame and no black letterbox');
+assert(/drawArtFrame/.test(menu) && /drawLetterbox/.test(menu) && /embers\(g\)/.test(menu),
+  'menu is dressed like the splash: gold frame, soft letterbox, embers');
+assert(/drawTitleLogo\(g, VW\/2/.test(menu),
+  'menu title is the splash\'s own painted LEGEND OF MACAR logo');
+assert(fs.existsSync(path.join(root,'assets/ui/title_logo.png')), 'title_logo.png ships in assets/ui');
+assert(/title_logo:'assets\/ui\/title_logo\.png'/.test(html), 'title_logo is a registered sprite');
 assert(!/UIBTN|stickHome|drawHUD|icon_pack/.test(menu),
   'menu has no HUD chrome, stick, or inventory');
-assert(/title:TITLE_MENU_COPY\.title/.test(menu) && /titleGapMin:24/.test(menu),
-  'canvas title is always painted with ≥24px air before the quote');
+assert(/TITLE_MENU_COPY\.subtitle/.test(menu) && /titleGapMin:26/.test(menu),
+  'chapter subtitle sits under the logo with ≥26px air before the quote');
 const copyDecl=html.match(/const TITLE_MENU_COPY=\{[\s\S]*?\n\};/);
 assert(!!copyDecl, 'second-screen copy is one named block');
 const copy=copyDecl?copyDecl[0]:'';
-assert(/label:'C H A P T E R   I'/.test(copy),
-  'second screen is labelled Chapter I, the hall on the plate — not a Book One repeat');
-assert(/title:'THE RUBY DOOR'/.test(copy), 'second-screen title names the ruby door on the plate');
+assert(/title:'THE LEGEND OF MACAR'/.test(copy), 'second screen keeps the game title (fallback text if the logo has not loaded)');
+assert(/subtitle:'CHAPTER 1: THE RUBY DOOR'/.test(copy), 'subtitle reads Chapter 1: The Ruby Door');
 assert(/ruby door/i.test(copy) && /stone king/i.test(copy),
   'second-screen line speaks to the door and the carved face in title_menu.jpg');
-assert(/flavor:TITLE_MENU_COPY\.flavor/.test(menu),
-  'quote stays on the canvas; it is not baked into the art');
+assert(/TITLE_MENU_COPY\.flavor/.test(menu), 'quote stays on the canvas; it is not baked into the art');
+assert(/drawTitleMusicLine\(g,/.test(menu), 'menu shows the music line');
+const splashFn=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawTitleMenu/)[0];
+assert(/drawTitleMusicLine\(g,/.test(splashFn), 'splash shows the music line');
+assert(/Tap anywhere for music/.test(html) && /musicNowLabel\(\)/.test(html.match(/function titleMusicLine\(\)\{[\s\S]*?\n\}/)[0]),
+  'music line names the playing track, or cues a tap while sound is locked');
+assert(/splashLogoCropped\(splash\)/.test(splashFn) && /drawSplashLogoBand\(g, splash\)/.test(splashFn),
+  'a phone splash that would crop the baked logo shows the whole cut-out logo instead');
 assert(!/From simple beginnings/.test(menu) && !/B O O K   O N E/.test(menu),
   'the splash line and Book One label are not repeated on screen 2');
-assert(!/label:'C H A P T E R/.test(copy) || copy.match(/label:'([^']*)'/)[1].length<=20,
-  'the letterspaced label stays short enough not to wrap on a phone');
 assert(/wrapLines/.test(html.match(/function layoutHighPlate\(g, spec\)\{[\s\S]*?function paintHighPlate/)[0]),
   'quote wraps on word boundaries');
 assert(/menuBtn\(g,'New descent'[\s\S]*startChapter\(1\)[\s\S]*'primary'/.test(menu),

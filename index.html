@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/ui/title_splash.jpg?v=122">
 <link rel="preload" as="image" href="assets/ui/title_menu.jpg?v=122">
+<link rel="preload" as="image" href="assets/ui/title_logo.png?v=126">
 <link rel="preload" as="image" href="assets/ui/intro_ch1.jpg?v=66">
 <link rel="preload" as="image" href="assets/ui/chapters_plate.jpg?v=62">
 <link rel="preload" as="image" href="assets/tiles/tile_floor_mine.png?v=60">
@@ -624,6 +625,7 @@ const SPRITE_FILES={
   /* SIGNED ruby-door hall v5 (Nick pass), 1920×1080, full-canvas cover.
      Screen 1 stays title_splash. If this JPG fails, the prop hall fills the canvas. */
   title_menu:'assets/ui/title_menu.jpg',
+  title_logo:'assets/ui/title_logo.png',
   chapters_plate:'assets/ui/chapters_plate.jpg',
   intro_cavein:'assets/ui/intro_cavein.jpg',
   intro_ch1:'assets/ui/intro_ch1.jpg',
@@ -664,7 +666,7 @@ Object.keys(SPRITE_FILES).forEach(k=>{
   const src=SPRITE_FILES[k];
   if(/_(w1|w2|atk|dead|sleep|back|wound)\.png$/.test(src)) return;
   if(/_(dead|sleep|back|wound)$/.test(k)) return;
-  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /title_menu/.test(src) || /_title$/.test(k)) return;
+  if(/\.(jpe?g)$/i.test(src) || /title_splash/.test(src) || /title_menu/.test(src) || /title_logo/.test(src) || /_title$/.test(k)) return;
   if(/loot_/.test(src)) return;
   if(/tile_wall_/.test(src)) return;
   if(/_face\.png$/.test(src)) return;
@@ -828,7 +830,7 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','title_menu','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
+  const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
     'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2','dwarf_macar_crowned',
@@ -19628,13 +19630,45 @@ function drawArtRect(g, img, x, y, w, h, r){
 function enterTitleMenu(){
   G.scene='title_menu';
 }
-/* Second-screen copy. Matches title_menu.jpg: the ruby door burning on the
-   left, the carved dwarf king's face on the right, one lantern between. */
+/* Second-screen copy. Same title as the splash (its painted logo), then the
+   chapter the hall belongs to. The quote speaks to title_menu.jpg: the ruby
+   door burning on the left, the carved dwarf king's face on the right. */
 const TITLE_MENU_COPY={
-  label:'C H A P T E R   I',
-  title:'THE RUBY DOOR',
-  flavor:'Beneath the stone king’s gaze, the ruby door burns in the dark. It knows your name.'
+  title:'THE LEGEND OF MACAR',
+  subtitle:'CHAPTER 1: THE RUBY DOOR',
+  flavor:'Beneath the stone king\u2019s gaze, the ruby door burns in the dark. It knows your name.'
 };
+/* The splash's own painted LEGEND OF MACAR slab, cut from title_splash.jpg
+   with feathered edges (assets/ui/title_logo.png). Returns drawn height. */
+function drawTitleLogo(g, cx, top, maxW, maxH){
+  const img=SPR.title_logo;
+  if(!(img&&img.width&&img.height)) return 0;
+  let w=maxW, h=w*img.height/img.width;
+  if(h>maxH){ h=maxH; w=h*img.width/img.height; }
+  const prev=g.imageSmoothingEnabled;
+  g.imageSmoothingEnabled=true;
+  if(g.imageSmoothingQuality) g.imageSmoothingQuality='high';
+  g.drawImage(img, cx-w/2, top, w, h);
+  g.imageSmoothingEnabled=prev;
+  return h;
+}
+/* Music line shared by both intro screens: the track credit while it plays,
+   a tap cue while the browser still holds sound back. */
+function titleMusicLine(){
+  const on=typeof musicIsPlaying==='function' && musicIsPlaying();
+  if(on) return '\u266a  '+(typeof musicNowLabel==='function'?musicNowLabel().replace(/^Music:\s*/,''):'Song of the Forge \u2014 Scott Buckley');
+  return '\u266a  Tap anywhere for music';
+}
+function drawTitleMusicLine(g, y){
+  const s=UIS;
+  g.save();
+  g.textAlign='center';
+  g.font='600 '+Math.max(11, (PORT?11:12)*s)+'px '+FONT_UI;
+  const txt=titleMusicLine();
+  g.lineWidth=3; g.strokeStyle='rgba(0,0,0,0.75)'; g.strokeText(txt, VW/2, y);
+  g.fillStyle='rgba(232,208,160,0.86)'; g.fillText(txt, VW/2, y);
+  g.restore();
+}
 function titleMenuArt(){
   /* Disney ruby-door hall plate only. Never the party splash or the cave-in. */
   const scene=SPR.title_menu;
@@ -19742,13 +19776,48 @@ function drawTitleMenuCover(g, img){
   if(prevQ) g.imageSmoothingQuality=prevQ;
   return true;
 }
+/* title_splash.jpg bakes the LEGEND OF MACAR slab into rows 0..SPLASH_LOGO_ROWS
+   and ~1130px of its 1536px width. A tall phone's cover crop cuts it to
+   "ND OF MA", so there the splash hides the baked slab under a dark band
+   and draws the whole cut-out logo (title_logo.png) — the screen-2 layout. */
+const SPLASH_LOGO_ROWS=212, SPLASH_LOGO_SRC_W=1130;
+function splashLogoCropped(img){
+  if(!(img&&img.width&&img.height)) return false;
+  const sc=Math.max(VW/img.width, VH/img.height)*1.11;
+  return SPLASH_LOGO_SRC_W*sc > VW*0.96;
+}
+function drawSplashLogoBand(g, img){
+  const logo=SPR.title_logo;
+  if(!(logo&&logo.width&&img&&img.width)) return 0;
+  const s=UIS;
+  const inset=(typeof safeInsets==='function')?safeInsets():{t:0};
+  const logoW=Math.min(VW*0.88, 900*s);
+  const logoH=logoW*logo.height/logo.width;
+  const top=Math.max(20*s, (inset.t||0)+14);
+  const labY=top+logoH+16*s;
+  const bandH=labY+18*s;
+  const sc=Math.max(VW/img.width, (VH-bandH)/(img.height-SPLASH_LOGO_ROWS))*1.02;
+  const w=img.width*sc, h=img.height*sc;
+  drawPhoto(g, img, VW/2-w/2, bandH-SPLASH_LOGO_ROWS*sc, w, h);
+  g.fillStyle='#0a0706'; g.fillRect(0, 0, VW, bandH);
+  const fade=g.createLinearGradient(0, bandH, 0, bandH+40*s);
+  fade.addColorStop(0,'rgba(10,7,6,1)'); fade.addColorStop(1,'rgba(10,7,6,0)');
+  g.fillStyle=fade; g.fillRect(0, bandH, VW, 40*s);
+  /* Logo itself is painted after the letterbox (drawTitle) so the shade
+     does not dim it — same brightness as on the menu. */
+  drawSplashLogoBand.geom={top, logoW, logoH};
+  return labY;
+}
 function drawTitle(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#0a0706'; g.fillRect(0,0,VW,VH);
-  let splashOk=0;
+  let splashOk=0, bandLabY=0;
   if(SPLASH_STATE==='ready'){
     const splash=SPR.title_splash;
-    if(splash&&splash.width){
+    if(splash&&splash.width&&splashLogoCropped(splash)&&SPR.title_logo&&SPR.title_logo.width){
+      splashOk=1;
+      bandLabY=drawSplashLogoBand(g, splash);
+    } else if(splash&&splash.width){
       /* Shift the party plate down so BOOK ONE sits on dark cave, not hats.
          Scale in to enlarge the tunnel; crop overflow.
          Splash already bakes LEGEND OF MACAR and the rise-to-hero flavor —
@@ -19773,6 +19842,10 @@ function drawTitle(g){
   }
   embers(g);
   drawLetterbox(g, VH*0.22, VH*0.24, PHONE_GFX?0.80:0.70, 0.90);
+  if(bandLabY && drawSplashLogoBand.geom){
+    const L=drawSplashLogoBand.geom;
+    drawTitleLogo(g, VW/2, L.top, L.logoW, L.logoH);
+  }
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const a=clamp((G.t-0.12)/1.1,0,1);
   const m=highPlateMetrics(s, PORT);
@@ -19780,7 +19853,9 @@ function drawTitle(g){
   const safeB=titleSafeBottom(s, PORT);
   const btnFloor=VH-safeB-btnH;
   const titleLay=layoutHighPlate(g, {
-    s, maxW:VW*0.86, ceil:VH*m.ceilK, floor:btnFloor-12*s,
+    s, maxW:VW*0.86,
+    /* Phone band: BOOK ONE sits right under the cut-out logo. */
+    ceil:bandLabY?(bandLabY-14*s):VH*m.ceilK, floor:bandLabY?(bandLabY+24*s):(btnFloor-12*s),
     label:'B O O K   O N E', title:splashOk?'':'THE LEGEND OF MACAR',
     flavor:splashOk?'':'From simple beginnings Macar would rise to become a hero among dwarves.',
     music:'',
@@ -19794,6 +19869,7 @@ function drawTitle(g){
   });
   g.globalAlpha=1;
   const bw=Math.min(320*s, VW*.78);
+  drawTitleMusicLine(g, btnFloor-12*s);
   menuBtn(g,'Continue', VW/2, VH-safeB-btnH/2, bw, btnH, ()=>enterTitleMenu());
   g.textAlign='left';
 }
@@ -19805,6 +19881,18 @@ function drawTitleMenu(g){
   if(!drawTitleMenuCover(g, titleMenuArt())){
     drawRubyHallPlate(g, 0, 0, VW, VH);
   }
+  /* Dressed like the splash: ruby pulse, embers, soft letterbox, gold frame. */
+  if(!PHONE_GFX){
+    const pulse=.55+Math.sin(G.t*2.1)*.45;
+    const rg=g.createRadialGradient(VW/2, VH*0.36, 10, VW/2, VH*0.40, Math.max(VW,VH)*0.50);
+    rg.addColorStop(0,'rgba(255,36,48,'+(0.08*pulse)+')');
+    rg.addColorStop(0.45,'rgba(140,16,24,0.03)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=rg; g.fillRect(0,0,VW,VH);
+  }
+  embers(g);
+  drawLetterbox(g, VH*0.22, VH*0.24, PHONE_GFX?0.80:0.70, 0.90);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   const inset=(typeof safeInsets==='function')?safeInsets():{t:0,r:0,b:0,l:0};
   const pad=titleMenuSafe(inset);
   const btnH=titleMenuBtnH(s, PORT);
@@ -19815,26 +19903,29 @@ function drawTitleMenu(g){
   const stackTop=VH-pad.b-stackH;
   const bw=titleMenuPillW(VW, pad.l, pad.r);
   const maxW=VW-pad.l-pad.r;
-  const titleGap=Math.max(24, 28*s);
-  const wipeReserve=G.wipeAsk?40*s:0;
-  /* Screen 2 copy speaks to the plate it sits on: the Chapter I hall —
-     the ruby door, the stone king's face, the lantern. The splash keeps
-     Book One and the rise-to-hero line; this screen does not repeat them. */
+  const musicGap=Math.max(26, 24*s);
+  const wipeReserve=G.wipeAsk?40*s:musicGap;
+  /* Title: the same painted LEGEND OF MACAR as the splash. */
+  const logoTop=pad.t+4*s;
+  const logoH=drawTitleLogo(g, VW/2, logoTop, Math.min(maxW, 900*s, VW*0.86), Math.max(60, VH*(PORT?0.16:0.24)));
+  const ceil=logoH?(logoTop+logoH+4*s):pad.t;
+  const floor=Math.min(stackTop-gap-wipeReserve, ceil+VH*(PORT?0.30:0.24));
   const titleLay=layoutHighPlate(g, {
-    s, maxW, ceil:pad.t, floor:stackTop-gap-wipeReserve,
-    label:TITLE_MENU_COPY.label, title:TITLE_MENU_COPY.title,
-    flavor:TITLE_MENU_COPY.flavor,
+    s, maxW, ceil, floor,
+    label:'', title:logoH?TITLE_MENU_COPY.subtitle:TITLE_MENU_COPY.title,
+    flavor:(logoH?'':TITLE_MENU_COPY.subtitle+'. ')+TITLE_MENU_COPY.flavor,
     music:'',
-    labSize:Math.max(12, 13*s), titleSize:(PORT?30:26)*s,
+    labSize:Math.max(12, 13*s), titleSize:(logoH?(PORT?22:26):(PORT?30:26))*s,
     flSize:Math.max(16, (PORT?15:14)*s), musSize:8*s,
-    labGap:8*s, titleGap:titleGap, titleGapMin:24, musGap:10*s
+    labGap:8*s, titleGap:Math.max(28, 30*s), titleGapMin:26, musGap:10*s
   });
-  /* Local veil so the gold title reads on the stone. Not a letterbox bar. */
+  /* Local veil so the gold copy reads on the stone. Not a letterbox bar. */
   drawCopyVeil(g, VW/2, titleLay.t0+titleLay.h/2, Math.min(maxW, 780*s), titleLay.h+28*s, 0.42);
   paintHighPlate(g, titleLay, {
     alpha:1, maxW, ruleW:Math.min(200, maxW*0.42),
     paintTitle:(gg,ln,y,sz)=>displayTitle(gg, ln, y, sz)
   });
+  if(!G.wipeAsk) drawTitleMusicLine(g, stackTop-gap-6*s);
   const scrimTop=Math.max(0, stackTop-(G.wipeAsk?52:16)*s);
   const scrim=g.createLinearGradient(0, scrimTop, 0, VH);
   scrim.addColorStop(0, 'rgba(0,0,0,0)');
