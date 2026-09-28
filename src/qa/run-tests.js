@@ -29,7 +29,7 @@ console.log('discovered '+files.length+' test files under src/');
 console.log('invoke: npm test  →  node src/qa/run-tests.js');
 console.log('');
 
-let passed=0, failed=0;
+let passed=0, failed=0, caseTotal=0, assertTotal=0;
 const failList=[];
 for(const file of files){
   const rel=path.relative(root, file).replace(/\\/g,'/');
@@ -37,6 +37,16 @@ for(const file of files){
     cwd:root, encoding:'utf8', env:process.env
   });
   const out=((r.stdout||'')+(r.stderr||'')).trimEnd();
+  const counted=out.match(/COUNTS cases=(\d+) asserts=(\d+)/);
+  if(counted){
+    caseTotal+=Number(counted[1]);
+    assertTotal+=Number(counted[2]);
+  }else{
+    const ok=(out.match(/^ok    /gm)||[]).length;
+    const bad=(out.match(/^FAIL  /gm)||[]).length;
+    caseTotal+=1;
+    assertTotal+=ok+bad;
+  }
   if(r.status===0){
     passed++;
     console.log('PASS  '+rel);
@@ -51,7 +61,7 @@ for(const file of files){
 }
 
 console.log('');
-console.log('baseline: '+passed+' pass / '+failed+' fail / 0 skip / '+files.length+' total');
+console.log('baseline: '+passed+' pass / '+failed+' fail / 0 skip / '+files.length+' files / '+caseTotal+' cases / '+assertTotal+' asserts');
 if(failList.length){
   console.error('failed files:');
   failList.forEach(f=>console.error('  '+f));
