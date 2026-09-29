@@ -14158,6 +14158,7 @@ function update(dt){
   G.hurt=Math.max(0,G.hurt-dt*1.4);
 
   const p=player();
+  const fightNow=foeInTheFight();
   if(p){
     let dx=0,dy=0, analog=0;
     if(IN.stick && IN.stick.moved){
@@ -14467,7 +14468,7 @@ function update(dt){
           burst(hu.x,hu.y,'#ffe9a8',10,2); ftext(hu.x,hu.y,'+24','#ffe9a8'); e.ct=4.5; } }
       const kin=G.ents.filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
-      const fight=kinCanAutoFight(e)&&foeInTheFight();
+      const fight=kinCanAutoFight(e)&&fightNow;
       const foe=fight?nearestFoe(e, e.ranged?9:6.2):null;
       const po=(typeof PartyOrders!=='undefined' && PartyOrders.use())
         ? PartyOrders.decide(e, p, partyOrderHost()) : null;
@@ -14582,7 +14583,7 @@ function update(dt){
   if(typeof PartyOrders!=='undefined' && PartyOrders.use && PartyOrders.settle)
     PartyOrders.settle(partyOrderHost());
   if(p){
-    const threat=foeInTheFight();
+    const threat=fightNow;
     for(const e of G.ents){
       if(e.team!=='party'||e.hero||e.dead||e.crushed||e.sleeping||e.tied) continue;
       if(e.defending||(e.atk>0)) continue;

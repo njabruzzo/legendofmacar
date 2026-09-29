@@ -25,8 +25,12 @@ function extractFn(name){
 assert(/function kinCanAutoFight\(/.test(html), 'living-kin fight gate exists');
 assert(/function foeInTheFight\(/.test(html), 'party threat helper exists');
 assert(!/macarFighting/.test(html), 'kin no longer wait for Macar to stand and swing');
-assert(/kinCanAutoFight\(e\)&&foeInTheFight\(\)/.test(html),
+assert(/const fightNow=foeInTheFight\(\);/.test(html),
+  'combat threat is checked once per update frame');
+assert(/const fight=kinCanAutoFight\(e\)&&fightNow;/.test(html),
   'every living party dwarf auto-closes once a foe is in the fight');
+assert(/const threat=fightNow;/.test(html),
+  'heading lock reuses the per-frame combat threat check');
 assert(/e\.ranged\?9:6\.2/.test(html), 'auto-fight search is wide enough to walk into a pack');
 assert(/e\.aim=foe/.test(html), 'closing kin keep the foe as aim so they face it');
 assert(/threat && kinCanAutoFight\(e\)\) continue/.test(html),

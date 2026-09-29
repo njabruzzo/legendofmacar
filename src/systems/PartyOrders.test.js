@@ -295,7 +295,7 @@ assert(/PartyOrders\.settle\(/.test(html), 'the host settles Regroup and Focus e
 assert(/PartyOrders\.noteMoraleFlee/.test(html), 'morale flee notifies PartyOrders');
 assert(/partyHoldMelee\(e\)/.test(html), 'Hold does not loose a ranged shot');
 assert(!/Focus armed/.test(html), 'a failed Focus does not arm an empty order');
-assert(/kinCanAutoFight\(e\)&&foeInTheFight\(\)/.test(html),
+assert(/const fight=kinCanAutoFight\(e\)&&fightNow;/.test(html),
   'auto-fight gate remains when no order handles the kin');
 assert(/One-follower Follow default/.test(html), 'follow default remains when no order is set');
 assert(/po\.verb==='hold'/.test(html) && /po\.verb==='regroup'/.test(html) && /po\.verb==='focus'/.test(html),
