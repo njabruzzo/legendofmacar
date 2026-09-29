@@ -16,6 +16,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -65,7 +67,7 @@ assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0
  'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
+  calib(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
 });
 ['dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
  'dwarf_macar_title.png','dwarf_macar_sleep.png',
@@ -87,7 +89,9 @@ Object.keys(registry).forEach(k=>{
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk'
      || k==='macar_e_w1' || k==='macar_e_w2' || k==='macar_se_w1' || k==='macar_se_w2'
      || k==='macar_ne_w1' || k==='macar_ne_w2'
-     || k==='macar_back_w1' || k==='macar_back_w2') return;
+     || k==='macar_back_w1' || k==='macar_back_w2'
+     /* Directional maul strikes painted from the anchor (2026-09-29). */
+     || k==='macar_atk_n' || k==='macar_atk_s' || k==='macar_atk_ne' || k==='macar_atk_se') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 

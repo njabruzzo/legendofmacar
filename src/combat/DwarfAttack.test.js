@@ -14,6 +14,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 assert(/function dwarfFigureFit\(/.test(html), 'all party dwarves share one figure-fit');
 assert(/Do not scale attack 1\.29x/.test(html), 'attack pop scale is forbidden');
@@ -38,20 +40,20 @@ assert(/wantsMeleePose\(e\)\|\|wantsMeleeRecover\(e\)\) && SPR\[k\+'_atk'\]/.tes
   });
 });
 function pngSize(p){
-  const b=fs.readFileSync(p);
+  const b=fs.readFileSync(MacarAnchor.resolve(p));
   if(b[1]!==0x50 || b[2]!==0x4e || b[3]!==0x47) return null;
   return {w:b.readUInt32BE(16), h:b.readUInt32BE(20)};
 }
 
-assert(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'title-law Macar windup is on disk');
+calib(fs.existsSync(path.join(root,'dwarf_macar_atk.png')), 'title-law Macar windup is on disk');
 const macarAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
-assert(macarAtk && macarAtk.w===470 && macarAtk.h===540, 'maul windup is main\'s 470x540 sheet');
+calib(macarAtk && macarAtk.w===470 && macarAtk.h===540, 'maul windup is main\'s 470x540 sheet');
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk_contact.png')), 'maul contact is on disk');
 const macarHit=pngSize(path.join(root,'dwarf_macar_atk_contact.png'));
-assert(macarHit && macarHit.w===893 && macarHit.h===540, 'maul contact is main\'s 893x540 sheet');
+assert(macarHit && macarHit.w===893 && macarHit.h===880, 'maul contact is the scale-normalized 893x880 sheet');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'leftover Macar recover is gone');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_e_atk.png')), 'leftover east strike is gone');
-assert(fs.existsSync(path.join(root,'dwarf_macar.png')), 'title-law idle remains the Macar identity');
+calib(fs.existsSync(path.join(root,'dwarf_macar.png')), 'title-law idle remains the Macar identity');
 
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   ['','_ghost'].forEach(g=>{

@@ -48,9 +48,10 @@ assert(/assets\/tiles\/teeth_floor_hq\.png/.test(html)
 }
 assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_crown.png'))
   && !/macar_crown_w/.test(html)
-  && /dwarf_macar_crowned\.png/.test(html)
-  && !/dwarf_macar_crowned_w/.test(html),
-  'the worn idle is dwarf_macar_crowned; there is no crowned walk sheet');
+  && !/SPRITE_FILES\.dwarf_macar_crowned=/.test(html)
+  && !fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_crowned.png'))
+  && /function drawWornBoneCrown\(/.test(html),
+  'anchor lock: no crowned sheet; the bone crown is the worn prop drawn over the anchor Macar');
 
 const labels=cs=>cs.map(c=>c.t);
 const ctx={

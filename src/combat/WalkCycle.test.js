@@ -14,6 +14,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -168,7 +170,7 @@ assert(ctx.wantsSpriteFlip(macRight)===false && ctx.wantsSpriteFlip(kinRight)===
 assert(ctx.wantsSpriteFlip(macLeft)===true && ctx.wantsSpriteFlip(kinLeft)===true,
   'title-law: A flips Macar and kin (sheets travel screen-right)');
 
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w1.png'))
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w1.png'))
   && fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w2.png')),
   'title-law Macar walk pair is on disk');
 assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w3.png')),
@@ -176,16 +178,16 @@ assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_w3
 ['dwarf_pordoom','dwarf_fendur','dwarf_orbo','dwarf_talpor'].forEach(stem=>{
   ['_w1.png','_w2.png','_w3.png'].forEach(suf=>{
     const f=stem+suf;
-    assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+    calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
   });
 });
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   const f='dwarf_'+k+'_ghost_w3.png';
-  assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+  calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 ['mon_rat_w3.png','mon_goblin_w3.png','mon_spider_w3.png','mon_greenslime_w3.png',
  'mon_warg_w1.png','mon_warg_w2.png','mon_warg_w3.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+  calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

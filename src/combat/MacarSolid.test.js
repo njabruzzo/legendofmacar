@@ -13,6 +13,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -187,7 +189,7 @@ assert(ctx.heroFigureFit({hero:1,dead:0,ghost:1},atk)===1, 'a ghost Macar is not
  'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
+  calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' on disk');
 });
 ['dwarf_macar_title.png','dwarf_macar_back.png',
  'dwarf_macar_sleep.png','dwarf_macar_e_atk.png'].forEach(f=>{

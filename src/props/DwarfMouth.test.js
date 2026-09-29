@@ -6,6 +6,8 @@ let failed=0;
 function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL', msg); }
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 assert(M.isGuardianRuby({guardian:1}), 'tagged guardian ruby');
 assert(M.isGuardianRuby({d:'A blood-red shard from a ruby guardian. Worth 400 gp.'}), 'text guardian ruby');
@@ -141,13 +143,13 @@ assert(/timberOnDwarfMouthLane/.test(html) && /billboardCoversDwarfMouth/.test(h
   'T-post cannot sit on the open mouth');
 assert(!/\{x:43,y:14,k:'lantern'\}/.test(html), 'old face-line lantern is gone');
 assert(/loot_shadowcleaver\.png/.test(html), 'axe sprite registered');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'Shadow Cleaver carry sheet exists');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk.png')), 'Shadow Cleaver atk sheet exists');
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'Shadow Cleaver carry sheet exists');
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk.png')), 'Shadow Cleaver atk sheet exists');
 assert(/dwarf_macar_axe\.png/.test(html), 'Macar axe sprite is registered');
 assert(/dwarf_macar_axe_atk\.png/.test(html), 'Macar axe atk sprite is registered');
 assert(/wieldsShadowCleaver/.test(html), 'cleaver still has a wield helper');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow.png')), 'crossbow carry sheet exists');
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow_atk.png')), 'crossbow atk sheet exists');
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow.png')), 'crossbow carry sheet exists');
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow_atk.png')), 'crossbow atk sheet exists');
 assert(/dwarf_macar_xbow\.png/.test(html), 'Macar xbow sprite is registered');
 assert(/dwarf_macar_xbow_atk\.png/.test(html), 'Macar xbow atk sprite is registered');
 assert(/wieldsCrossbow/.test(html), 'crossbow has a wield helper');

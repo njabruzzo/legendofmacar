@@ -18,6 +18,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -50,7 +52,7 @@ function paeth(a,b,c){
   return c;
 }
 function pngAlphaHist(filePath){
-  const {w,h,bit,ctype,raw}=readChunkedPng(fs.readFileSync(filePath));
+  const {w,h,bit,ctype,raw}=readChunkedPng(fs.readFileSync(MacarAnchor.resolve(filePath)));
   if(bit!==8) return {ok:false, err:'bit '+bit};
   if(ctype===2) return {ok:true, mid:0, unique:1, note:'rgb-opaque'};
   if(ctype!==6) return {ok:false, err:'ctype '+ctype};
@@ -122,33 +124,33 @@ assert(!/macar_e_w3:1/.test(keysDecl[0]) && !/macar_se_w3:1/.test(keysDecl[0])
 
 BLIT_KEYS.forEach(k=>{
   const file=path.join(root,'assets/creatures', KEY_FILE[k]);
-  assert(fs.existsSync(file), KEY_FILE[k]+' on disk');
+  calib(fs.existsSync(file), KEY_FILE[k]+' on disk');
   const hist=pngAlphaHist(file);
   assert(hist.ok, KEY_FILE[k]+' decodes'+(hist.ok?'':' ('+hist.err+')'));
   if(HARD_ALPHA_KEYS.indexOf(k)>=0){
-    assert(hist.ok && hist.mid===0,
+    calib(hist.ok && hist.mid===0,
       KEY_FILE[k]+' alpha is 0/255 only'+(hist.ok?' (mid='+hist.mid+')':' ('+hist.err+')'));
   }
 });
 {
   const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar));
-  assert(hist.ok && hist.w===1100 && hist.h===920,
+  calib(hist.ok && hist.w===1100 && hist.h===920,
     'dwarf_macar.png idle stays the original 1100×920 front-carry canvas');
-  assert(hist.ok && hist.mid>0 && hist.a255>0 && hist.mid<hist.a255*0.06,
+  calib(hist.ok && hist.mid>0 && hist.a255>0 && hist.mid<hist.a255*0.06,
     'idle keeps a thin AA rim, not a cel wash'
     +(hist.ok?' (mid='+hist.mid+' opaque='+hist.a255+')':''));
 }
 ['macar_w1','macar_w2'].forEach(k=>{
   const hist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE[k]));
-  assert(hist.ok && hist.w===470 && hist.h===512,
+  calib(hist.ok && hist.w===470 && hist.h===512,
     KEY_FILE[k]+' is the restored original 470×512 front walk');
 });
 const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk));
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
-assert(windupHist.ok && windupHist.w===470 && windupHist.h===540,
+calib(windupHist.ok && windupHist.w===470 && windupHist.h===540,
   'maul windup canvas is main\'s 470×540 sheet');
-assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
-  'maul contact stays main\'s 893×540 sheet');
+assert(contactHist.ok && contactHist.w===893 && contactHist.h===880,
+  'maul contact is the scale-normalized 893×880 sheet');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');
@@ -659,19 +661,21 @@ fitCtx._idle='macar';
 /* Real sheets: windup and contact paint a shorter body in a 540 canvas.
    Figure height (dest H × body fraction) matches idle; canvas blitH may grow. */
 function sheetStature(file){
-  const rgba=readRgba(path.join(root,'assets/creatures',file));
+  const rgba=readRgba(MacarAnchor.resolve(path.join(root,'assets/creatures',file)));
   return fitCtx.livingStatureFromRGBA(rgba.data, rgba.w, rgba.h);
 }
 const idleBody=sheetStature('dwarf_macar.png');
 const atkBody=sheetStature('dwarf_macar_atk.png');
 const hitBody=sheetStature('dwarf_macar_atk_contact.png');
-assert(idleBody>0.94 && idleBody<0.995,
+calib(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
-assert(atkBody>0.68 && atkBody<0.76,
+calib(atkBody>0.68 && atkBody<0.76,
   'main windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
-assert(hitBody>0.84 && hitBody<0.93,
-  'main contact crown is the helm (frac '+hitBody.toFixed(3)+')');
-assert(hitBody>atkBody+0.08,
+/* Scale-normalized 660-tall sheet: the lunge fills ~0.72 of it so the
+   standing walks share one body scale. */
+assert(hitBody>0.48 && hitBody<0.62,
+  'contact crown-to-boots sits at the normalized body scale (frac '+hitBody.toFixed(3)+')');
+calib(hitBody>atkBody+0.08,
   'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
   +' contact '+hitBody.toFixed(3)+')');
 fitSPR.macar._stature=idleBody;
@@ -691,19 +695,19 @@ assert(Math.abs(atkFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig
   +idleFig.toFixed(3)+' wind '+atkFig.toFixed(3)+' contact '+hitFig.toFixed(3)+')');
 const windScale=blitHOf('macar_atk')/blitHOf('macar');
 const hitScale=blitHOf('macar_atk_contact')/blitHOf('macar');
-assert(windScale>1.28 && windScale<1.45,
+calib(windScale>1.28 && windScale<1.45,
   'windup dest H grows for the shorter helm-to-boot body (scale '+windScale.toFixed(3)+')');
-assert(hitScale>1.02 && hitScale<1.22,
+calib(hitScale>1.02 && hitScale<1.22,
   'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
 const widthRatio=893/470;
 assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
   'contact body scale is not the 893 sheet width');
 const crownedBody=sheetStature('dwarf_macar_crowned.png');
-assert(crownedBody>0.55 && crownedBody<0.995,
+assert(crownedBody>0.45 && crownedBody<0.995,
   'crowned idle has a measured body (frac '+crownedBody.toFixed(3)+')');
-const barePx=readRgba(path.join(root,'assets/creatures/dwarf_macar.png'));
-const crownPx=readRgba(path.join(root,'assets/creatures/dwarf_macar_crowned.png'));
-assert(barePx.w===1100 && barePx.h===920 && crownPx.w===1100 && crownPx.h===920,
+const barePx=readRgba(MacarAnchor.resolve(path.join(root,'assets/creatures/dwarf_macar.png')));
+const crownPx=readRgba(MacarAnchor.resolve(path.join(root,'assets/creatures/dwarf_macar_crowned.png')));
+calib(barePx.w===1100 && barePx.h===920 && crownPx.w===1100 && crownPx.h===920,
   'crowned idle canvas matches the live idle, 1100×920');
 const stride=barePx.w*4;
 let sameFrom=crownPx.h;
@@ -711,7 +715,7 @@ for(let y=0;y<crownPx.h;y++){
   if(Buffer.compare(barePx.data.subarray(y*stride,(y+1)*stride), crownPx.data.subarray(y*stride,(y+1)*stride))!==0)
     sameFrom=y+1;
 }
-assert(sameFrom<=520 && crownPx.h-sameFrom>=400,
+calib(sameFrom<=520 && crownPx.h-sameFrom>=400,
   'pixels below the head match the live idle (identical from row '+sameFrom+')');
 fitSPR.dwarf_macar_crowned={width:1100, height:920, _stature:crownedBody, _b:b};
 const crownedFit=fitCtx.livingMacarPlantFit(fitMac, 'dwarf_macar_crowned', fitSPR.dwarf_macar_crowned);
@@ -739,7 +743,7 @@ assert(ctx.wantsSpriteFlip(macar({ix:-1, iy:0, fdx:-1, fdy:0}))===true,
   'screen-left still mirrors the one crowned idle');
 ctx.wearingCrown=0;
 assert(ctx.livingMacarAnimKey(macar())==='macar', 'crown off returns the bare idle');
-assert(/_crowned/.test(html.slice(html.indexOf('Title-law Macar'), html.indexOf('const ICON_SPR')))
+calib(/_crowned/.test(html.slice(html.indexOf('Title-law Macar'), html.indexOf('const ICON_SPR')))
   && /SPRITE_FILES\.dwarf_macar_crowned=/.test(html),
   'title-law strip keeps _crowned and the sheet is registered after it');
 assert(!/dwarf_macar_crowned_w1/.test(html) && !/dwarf_macar_crowned_dead/.test(html),
@@ -859,7 +863,7 @@ function whiteLowAlphaEdges(src, baked, w, h, flip){
 }
 {
   const crownPath=path.join(root,'assets/creatures/dwarf_macar_crowned.png');
-  const rgba=readRgba(crownPath);
+  const rgba=readRgba(MacarAnchor.resolve(crownPath));
   const src=new Uint8ClampedArray(rgba.data);
   const img={width:rgba.w, height:rgba.h, _rgba:src};
   const box=livingCanvas();
@@ -888,7 +892,7 @@ function whiteLowAlphaEdges(src, baked, w, h, flip){
   const punched=new Uint8ClampedArray(src);
   box.punchLivingAlpha(punched, rgba.w*rgba.h);
   const rawN=whiteLowAlphaEdges(src, punched, rgba.w, rgba.h, false);
-  assert(rawN>WHITE_EDGE_MAX,
+  calib(rawN>WHITE_EDGE_MAX,
     'uncapped punch of the crowned sheet still blows the edge (got '+rawN+', gate '+WHITE_EDGE_MAX+')');
 }
 

@@ -868,7 +868,39 @@ SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 /* Bone-crown idle. One front sheet for every facing (mirror is wantsSpriteFlip).
    Registered after the title-law strip and the walk/dead derivation so those
    passes cannot invent a crowned sibling frame or delete a _crowned key. */
-SPRITE_FILES.dwarf_macar_crowned='assets/creatures/dwarf_macar_crowned.png';
+/* MACAR ANCHOR (Nick, 2026-09-28): dwarf_macar_atk_contact.png — auburn
+   hair and braided beard, bare head, studded leather with a fur mantle,
+   rune-square maul, painterly. Every other Macar sheet was off-model and
+   is gone. Each Macar key (idle, walks, compass, strike, axe, crossbow)
+   plays the anchor until matching frames are painted from it. There is
+   no crowned sheet now: the bone crown is the worn prop drawn over him. */
+const MACAR_ANCHOR_SRC='assets/creatures/dwarf_macar_atk_contact.png';
+Object.keys(SPRITE_FILES).forEach(k=>{
+  if(/^macar(_|$)/.test(k)) SPRITE_FILES[k]=MACAR_ANCHOR_SRC;
+});
+/* On-model frames painted from the anchor (Grok Imagine, Nick-approved
+   2026-09-29), registered after the lock so they replace the stand-in.
+   Walks (maul on the shoulder): right e_w1/e_w2, up back_w1/back_w2,
+   down w1/w2. Strikes: n (up), s (down), ne (up-right), se (down-right);
+   right is the anchor contact sheet. Screen-left mirrors every one of
+   them. Diagonal walks use the side walk until their own sheets exist. */
+const MACAR_ONMODEL={
+  macar_e_w1:'assets/creatures/dwarf_macar_e_w1.png',
+  macar_e_w2:'assets/creatures/dwarf_macar_e_w2.png',
+  macar_back_w1:'assets/creatures/dwarf_macar_back_w1.png',
+  macar_back_w2:'assets/creatures/dwarf_macar_back_w2.png',
+  macar_w1:'assets/creatures/dwarf_macar_w1.png',
+  macar_w2:'assets/creatures/dwarf_macar_w2.png',
+  macar_atk_n:'assets/creatures/dwarf_macar_atk_n.png',
+  macar_atk_s:'assets/creatures/dwarf_macar_atk_s.png',
+  macar_atk_ne:'assets/creatures/dwarf_macar_atk_ne.png',
+  macar_atk_se:'assets/creatures/dwarf_macar_atk_se.png'
+};
+Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
+['se','ne'].forEach(d=>{
+  if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
+  if(!MACAR_ONMODEL['macar_'+d+'_w2']) SPRITE_FILES['macar_'+d+'_w2']=MACAR_ONMODEL.macar_e_w2;
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -1204,14 +1236,18 @@ function spriteBounds(img){
     crown:crownId
   });
 }
+/* Macar's sheets share one 880-tall canvas at one body scale. The lunge
+   idle fills only ~half of it (the overhead strike needs the rest), so the
+   painted-fraction floor sits below that; kin idles fill their sheets. */
+const MACAR_STATURE_FLOOR=0.45;
 function figurePersonFrac(b){
   if(!b||!b.ok||b.y1==null||b.y0==null) return 0;
-  const box=clamp(b.y1-b.y0, 0.55, 1);
+  const box=clamp(b.y1-b.y0, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
   if(b.personY0==null) return box;
   const person=b.y1-b.personY0;
   // Foot-column can miss a leaned helmet and land on the boots — ignore that.
   if(person<box*0.72) return box;
-  return clamp(person, 0.55, 1);
+  return clamp(person, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
 }
 function heroFigureFit(e,img){
   if(!e||!e.hero||e.dead||e.ghost) return 1;
@@ -1226,7 +1262,7 @@ function dwarfIdleFrac(e){
   const b=spriteBounds(idle);
   // Idle sheets still carry fringe on some kin — use the opaque box, not
   // a foot-column crown that can undershoot on those older plants.
-  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, 0.55, 1);
+  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
   return MACAR_IDLE_FRAC;
 }
 /* Every party dwarf — living and ghost — keeps one world height from idle
@@ -2026,6 +2062,7 @@ const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
   macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1,
+  macar_atk_n:1, macar_atk_s:1, macar_atk_ne:1, macar_atk_se:1,
   dwarf_macar_crowned:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
@@ -2116,7 +2153,8 @@ function matchingPartyAtkReady(key, idleKey){
 function restoredMacarMotionKey(key){
   return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
-    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2';
+    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
+    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se';
 }
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
@@ -2406,6 +2444,13 @@ function macarPose(e){
    timer-end clear strikeHold so idle carry returns as soon as t≥0.84.
    Same FACE, opposite FOOT. Shoot pose is render-time wall clock
    (bowPoseUntil), not update(dt). */
+function macarStrikeDirKey(e){
+  if(typeof screenOctant!=='function') return null;
+  const oct=screenOctant(e);
+  const k=(oct==='n')?'macar_atk_n':(oct==='s')?'macar_atk_s'
+    :(oct==='ne'||oct==='nw')?'macar_atk_ne':(oct==='se'||oct==='sw')?'macar_atk_se':null;
+  return (k && sprReady(k))?k:null;
+}
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
@@ -2418,6 +2463,10 @@ function livingMacarAnimKey(e){
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(idle==='macar'){
+      /* Directional maul strike (painted from the anchor). Facing comes from
+         the foe being struck (faceVec). Screen-left octants mirror. */
+      const dirKey=(typeof macarStrikeDirKey==='function')?macarStrikeDirKey(e):null;
+      if(dirKey) return dirKey;
       const t=(typeof attackProgress==='function')?attackProgress(e):0;
       const forceWindup=(typeof wantsMacarWindup==='function')&&wantsMacarWindup(e);
       if(!forceWindup && t>=MACAR_MAUL_CONTACT_T && matchingPartyAtkReady('macar_atk_contact', idle))
@@ -2524,7 +2573,7 @@ function livingStatureFromRGBA(d, w, h){
   }
   if(foot<0) return 0;
   const frac=(foot-crown+1)/h;
-  if(!(frac>0.55) || frac>0.995) return 0;
+  if(!(frac>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || frac>0.995) return 0;
   return frac;
 }
 function measureLivingStature(img){
@@ -2549,7 +2598,7 @@ function livingSheetStature(img){
   const cache=(typeof LIVING_STATURE!=='undefined')?LIVING_STATURE:null;
   if(cache&&cache.has(img)) return cache.get(img);
   const frac=measureLivingStature(img)||0;
-  if(frac>0.55 && cache) cache.set(img, frac);
+  if(frac>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45) && cache) cache.set(img, frac);
   return frac;
 }
 /* Idle / walk / cleaver / xbow share one canvas height, so they keep the
@@ -2576,7 +2625,7 @@ function livingMacarPlantFit(e, key, img){
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
   const idleBody=livingSheetStature(idle);
   const liveBody=livingSheetStature(live);
-  if(!(idleBody>0.55) || !(liveBody>0.55)) return idleFit;
+  if(!(idleBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || !(liveBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))) return idleFit;
   return idleFit*(idleBody/liveBody);
 }
 /* Prop crown only on a sheet that does not already wear the painted crown.
@@ -2617,7 +2666,7 @@ function drawLivingMacar(g,e){
   MacarStrikeQA.blitH=H;
   const statureSheet=(blitKey&&SPR[blitKey]&&SPR[blitKey].height)?SPR[blitKey]:img;
   const stature=livingSheetStature(statureSheet);
-  MacarStrikeQA.figureH=(stature>0.55)?H*stature:0;
+  MacarStrikeQA.figureH=(stature>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))?H*stature:0;
   MacarStrikeQA.sheetW=img.width;
   MacarStrikeQA.sheetH=img.height;
   const b=spriteBounds(img);
