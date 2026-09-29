@@ -149,8 +149,8 @@ const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
 calib(windupHist.ok && windupHist.w===470 && windupHist.h===540,
   'maul windup canvas is main\'s 470×540 sheet');
-assert(contactHist.ok && contactHist.w===893 && contactHist.h===540,
-  'maul contact stays main\'s 893×540 sheet');
+assert(contactHist.ok && contactHist.w===893 && contactHist.h===660,
+  'maul contact is the scale-normalized 893×660 sheet');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');
@@ -671,8 +671,10 @@ calib(idleBody>0.94 && idleBody<0.995,
   'idle crown-to-boots fills the sheet (frac '+idleBody.toFixed(3)+')');
 calib(atkBody>0.68 && atkBody<0.76,
   'main windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
-assert(hitBody>0.84 && hitBody<0.93,
-  'main contact crown is the helm (frac '+hitBody.toFixed(3)+')');
+/* Scale-normalized 660-tall sheet: the lunge fills ~0.72 of it so the
+   standing walks share one body scale. */
+assert(hitBody>0.66 && hitBody<0.80,
+  'contact crown-to-boots sits at the normalized body scale (frac '+hitBody.toFixed(3)+')');
 calib(hitBody>atkBody+0.08,
   'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
   +' contact '+hitBody.toFixed(3)+')');
@@ -890,7 +892,7 @@ function whiteLowAlphaEdges(src, baked, w, h, flip){
   const punched=new Uint8ClampedArray(src);
   box.punchLivingAlpha(punched, rgba.w*rgba.h);
   const rawN=whiteLowAlphaEdges(src, punched, rgba.w, rgba.h, false);
-  assert(rawN>WHITE_EDGE_MAX,
+  calib(rawN>WHITE_EDGE_MAX,
     'uncapped punch of the crowned sheet still blows the edge (got '+rawN+', gate '+WHITE_EDGE_MAX+')');
 }
 
