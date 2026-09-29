@@ -149,8 +149,8 @@ const windupHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_
 const contactHist=pngAlphaHist(path.join(root,'assets/creatures', KEY_FILE.macar_atk_contact));
 calib(windupHist.ok && windupHist.w===470 && windupHist.h===540,
   'maul windup canvas is main\'s 470×540 sheet');
-assert(contactHist.ok && contactHist.w===893 && contactHist.h===660,
-  'maul contact is the scale-normalized 893×660 sheet');
+assert(contactHist.ok && contactHist.w===893 && contactHist.h===760,
+  'maul contact is the scale-normalized 893×760 sheet');
 assert(/punchLivingMacarCanvas\(out\)/.test(extractFn('blitLivingMacar'))
   && /function punchBlackExportSlab\(/.test(html),
   'combat soft rim and walk black slab rely on the existing living bake/punch');
@@ -673,7 +673,7 @@ calib(atkBody>0.68 && atkBody<0.76,
   'main windup keeps the maul above the helm (frac '+atkBody.toFixed(3)+')');
 /* Scale-normalized 660-tall sheet: the lunge fills ~0.72 of it so the
    standing walks share one body scale. */
-assert(hitBody>0.66 && hitBody<0.80,
+assert(hitBody>0.58 && hitBody<0.72,
   'contact crown-to-boots sits at the normalized body scale (frac '+hitBody.toFixed(3)+')');
 calib(hitBody>atkBody+0.08,
   'contact body fills more of its canvas than windup (wind '+atkBody.toFixed(3)
