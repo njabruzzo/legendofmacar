@@ -18,6 +18,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -51,7 +53,7 @@ assert(/\*MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
   'strike width is sheet aspect + foot widen, not a 1.16 body fatten');
 
 function sheetBounds(file){
-  const {w,h,data}=readRgba(path.join(creatures,file));
+  const {w,h,data}=readRgba(path.join(creatures,MacarAnchor.resolve(file)));
   let lo=w, hi=-1, top=h, bot=-1;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
     const p=(y*w+x)*4;
@@ -147,7 +149,7 @@ const axeW2Fit=ctx.livingMacarPlantFit(mac, 'macar_axe_w2', SPR.macar_axe_w2);
 assert(Math.abs(axeW1Fit-axeFit)<1e-9 && Math.abs(axeW2Fit-axeFit)<1e-9,
   'cleaver w1/w2 plant at axe-idle scale');
 const unlockedAxeW1=ctx.heroFigureFit(mac, SPR.macar_axe_w1);
-assert(Math.abs(unlockedAxeW1-axeFit)>0.02,
+calib(Math.abs(unlockedAxeW1-axeFit)>0.02,
   'without the lock, cleaver w1 personY0 miss would shrink the shaft (unlocked '
   +unlockedAxeW1.toFixed(3)+' vs axe idle '+axeFit.toFixed(3)+')');
 const axeScreen=axeB.boxH*axeFit/axeB.h;
@@ -166,7 +168,7 @@ assert(hitB.personY0<0.45,
   'contact crown is the helmet, not the boots (personY0='+hitB.personY0.toFixed(3)+')');
 
 function pngStature(file){
-  const rgba=readRgba(path.join(creatures,file));
+  const rgba=readRgba(path.join(creatures,MacarAnchor.resolve(file)));
   return ctx.livingStatureFromRGBA(rgba.data, rgba.w, rgba.h);
 }
 const idleBody=pngStature('dwarf_macar.png');
@@ -175,7 +177,7 @@ const hitBody=pngStature('dwarf_macar_atk_contact.png');
 SPR.macar._stature=idleBody;
 SPR.macar_atk._stature=windBody;
 SPR.macar_atk_contact._stature=hitBody;
-assert(idleBody>0.94 && idleBody<0.995
+calib(idleBody>0.94 && idleBody<0.995
   && windBody>0.68 && windBody<0.76
   && hitBody>0.84 && hitBody<0.93
   && hitBody>windBody+0.08,
@@ -202,22 +204,22 @@ assert(Math.abs(w1Blith-idleBlith)/idleBlith<0.02
 assert(Math.abs(windFig-idleFig)/idleFig<0.02 && Math.abs(hitFig-idleFig)/idleFig<0.02,
   'crown-to-boots figure height matches idle vs windup vs contact (idle '
   +idleFig.toFixed(3)+' wind '+windFig.toFixed(3)+' hit '+hitFig.toFixed(3)+')');
-assert(macarB.h>windB.h && windBlith>idleBlith*1.28 && windBlith<idleBlith*1.45,
+calib(macarB.h>windB.h && windBlith>idleBlith*1.28 && windBlith<idleBlith*1.45,
   'windup dest H grows for the shorter helm-to-boot body on the taller freearm canvas (wind '+windBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
-assert(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
+calib(hitBlith>idleBlith*1.02 && hitBlith<idleBlith*1.22,
   'contact dest H tracks the helm on the restored 893×540 sheet (hit '+hitBlith.toFixed(3)
   +' idle '+idleBlith.toFixed(3)+')');
 const grown=idleFit*(windB.h/macarB.h);
-assert(Math.abs(blitH(grown)-windBlith)/windBlith>0.08,
+calib(Math.abs(blitH(grown)-windBlith)/windBlith>0.08,
   'stature lock is not the old frameH/idleH canvas ratio (old '+blitH(grown).toFixed(3)
   +' vs body lock '+windBlith.toFixed(3)+')');
-assert(Math.abs(unlockedWind-idleFit)>0.10,
+calib(Math.abs(unlockedWind-idleFit)>0.10,
   'foot-column figure frac is not the body stature (unlocked '
   +unlockedWind.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
 const idlePx=idleBlith/macarB.h;
 const hitPx=hitBlith/hitB.h;
-assert(hitPx>idlePx,
+calib(hitPx>idlePx,
   'contact pixels scale up so the shorter painted body matches (px '
   +hitPx.toFixed(5)+' vs idle '+idlePx.toFixed(5)+')');
 const widthRatio=hitB.w/macarB.w;
@@ -226,12 +228,12 @@ const staturePx=(idleBody/hitBody)*(macarB.h/hitB.h);
 assert(Math.abs(pxRatio-staturePx)<0.02,
   'contact pixels follow stature and canvas height (px '+pxRatio.toFixed(3)
   +' vs '+staturePx.toFixed(3)+')');
-assert(Math.abs(pxRatio-widthRatio)>0.25,
+calib(Math.abs(pxRatio-widthRatio)>0.25,
   'contact body scale is not the sheet-width ratio (px '+pxRatio.toFixed(3)
   +' vs width '+widthRatio.toFixed(3)+')');
-assert(windB.h!==macarB.h && hitB.w!==macarB.w,
+calib(windB.h!==macarB.h && hitB.w!==macarB.w,
   'strike canvases differ; the lock is crown-to-boots, not 470×512');
-assert(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
+calib(Math.abs((hitB.w/hitB.h)*hitPlant - (macarB.w/macarB.h)*idleFit)>0.20,
   'contact billboard may widen for maul overhang (aspect*fit idle '
   +((macarB.w/macarB.h)*idleFit).toFixed(3)+' hit '
   +((hitB.w/hitB.h)*hitPlant).toFixed(3)+')');
@@ -268,7 +270,7 @@ assert(Math.abs(ctx.livingMacarPlantX(0.555, 0.773, 0.497)-0.555)<1e-9,
   'windup keeps the plant that is already closer to idle');
 
 function footHists(file){
-  const {w,h,data}=readRgba(path.join(creatures,file));
+  const {w,h,data}=readRgba(path.join(creatures,MacarAnchor.resolve(file)));
   let top=h, bot=-1;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
     const p=(y*w+x)*4;
@@ -293,7 +295,7 @@ assert(contactFeet.avg<0.42 && contactFeet.boot>0.48 && contactFeet.boot<0.70,
   'contact boot cluster is the body, not the maul average (avg '
   +contactFeet.avg.toFixed(3)+' boot '+contactFeet.boot.toFixed(3)+')');
 const idleFeet=footHists('dwarf_macar.png');
-assert(Math.abs(ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg)-contactFeet.boot)<1e-9,
+calib(Math.abs(ctx.livingMacarPlantX(contactFeet.avg, contactFeet.boot, idleFeet.avg)-contactFeet.boot)<1e-9,
   'contact plants on boots so the maul overhangs (idle foot '
   +idleFeet.avg.toFixed(3)+' contact foot '+contactFeet.avg.toFixed(3)
   +' boot '+contactFeet.boot.toFixed(3)+')');

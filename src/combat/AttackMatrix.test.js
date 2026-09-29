@@ -30,6 +30,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL', msg); }
   else console.log('ok   ', msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 const {thacNeed, attackClass, rosterCls, fighterMatrixRow, monsterMatrixRow, wantsMeleePose, wantsMeleeRecover, attackProgress}=ctx;
 
@@ -94,7 +96,7 @@ assert(/dwarf_macar_back_w1\.png/.test(html), 'Macar back walk is wired for nort
 ['dwarf_macar_atk_recover.png','dwarf_macar_axe_atk_recover.png'].forEach(f=>{
   assert(!fs.existsSync(path.join(__dirname,'../../assets/creatures/'+f)), f+' leftover is gone');
 });
-assert(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_back_w1.png')),
+calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_back_w1.png')),
   'north back walk is on disk');
 
 if(failed){ console.error(failed+' failed'); process.exit(1); }

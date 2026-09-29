@@ -868,7 +868,16 @@ SPRITE_FILES.macar_back_w2='assets/creatures/dwarf_macar_back_w2.png';
 /* Bone-crown idle. One front sheet for every facing (mirror is wantsSpriteFlip).
    Registered after the title-law strip and the walk/dead derivation so those
    passes cannot invent a crowned sibling frame or delete a _crowned key. */
-SPRITE_FILES.dwarf_macar_crowned='assets/creatures/dwarf_macar_crowned.png';
+/* MACAR ANCHOR (Nick, 2026-09-28): dwarf_macar_atk_contact.png — auburn
+   hair and braided beard, bare head, studded leather with a fur mantle,
+   rune-square maul, painterly. Every other Macar sheet was off-model and
+   is gone. Each Macar key (idle, walks, compass, strike, axe, crossbow)
+   plays the anchor until matching frames are painted from it. There is
+   no crowned sheet now: the bone crown is the worn prop drawn over him. */
+const MACAR_ANCHOR_SRC='assets/creatures/dwarf_macar_atk_contact.png';
+Object.keys(SPRITE_FILES).forEach(k=>{
+  if(/^macar(_|$)/.test(k)) SPRITE_FILES[k]=MACAR_ANCHOR_SRC;
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',

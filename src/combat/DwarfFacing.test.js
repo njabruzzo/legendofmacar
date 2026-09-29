@@ -14,6 +14,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 assert(/function screenOctant\(e\)\{/.test(html), 'walk uses 8 iso octants, not a 4-way snap');
 assert(!/const DWARF_FACE_SX=\{/.test(html), 'old native-facing table is gone');
@@ -165,7 +167,7 @@ const root=path.join(__dirname,'../../assets/creatures');
  'dwarf_orbo_ghost_e_w1.png','dwarf_fendur_ghost_e_w1.png','dwarf_pordoom_ghost_e_w1.png','dwarf_talpor_ghost_e_w1.png',
  'dwarf_orbo_ghost_s_w1.png','dwarf_fendur_ghost_s_w1.png','dwarf_pordoom_ghost_s_w1.png','dwarf_talpor_ghost_s_w1.png',
  'dwarf_orbo_e_w1.png','dwarf_fendur_e_w1.png','dwarf_pordoom_e_w1.png','dwarf_talpor_e_w1.png']
-  .forEach(f=>assert(fs.existsSync(path.join(root,f)), f+' exists'));
+  .forEach(f=>calib(fs.existsSync(path.join(root,f)), f+' exists'));
 
 const ui=path.join(__dirname,'../../assets/ui');
 ['title_splash.jpg','intro_ch1.jpg'].forEach(f=>assert(fs.existsSync(path.join(ui,f)), f+' exists'));

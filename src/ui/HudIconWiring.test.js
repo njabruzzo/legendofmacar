@@ -53,7 +53,7 @@ dead.forEach(k=>{
   assert(!registry[k+'_w1'] && !registry[k+'_w2'] && !registry[k+'_atk'],
     k+' has no derived _w1/_w2/_atk fetch');
 });
-assert(registry.macar_w1 && /dwarf_macar_w1/.test(registry.macar_w1), 'Macar walk derivation is intact');
+assert(registry.macar_w1 && /dwarf_macar_atk_contact\.png/.test(registry.macar_w1), 'Macar walk key is registered and plays the anchor (dwarf_macar_atk_contact.png)');
 assert(registry.rat_w1 && /mon_rat_w1/.test(registry.rat_w1), 'monster walk derivation is intact');
 assert(registry.lantern_atk && /prop_lantern_atk/.test(registry.lantern_atk) && !registry.lantern_w1,
   'prop sprung-frame derivation is intact (no walk cycle)');

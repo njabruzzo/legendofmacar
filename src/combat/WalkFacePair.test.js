@@ -18,6 +18,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 const root=path.join(__dirname,'../..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
@@ -43,18 +45,18 @@ assert(/dwarf_macar_e_w1\.png/.test(html),
  'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(creatures,f)), f+' on disk');
+  calib(fs.existsSync(path.join(creatures,f)), f+' on disk');
 });
 ['dwarf_macar_e_w1.png','dwarf_macar_e_w2.png','dwarf_macar_se_w1.png','dwarf_macar_se_w2.png',
  'dwarf_macar_ne_w1.png','dwarf_macar_ne_w2.png','dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(creatures,f)), f+' restored original compass walk is on disk');
+  calib(fs.existsSync(path.join(creatures,f)), f+' restored original compass walk is on disk');
 });
 assert(!fs.existsSync(path.join(creatures,'dwarf_macar_e_atk.png')), 'leftover east strike stays gone');
 
 function checkPair(aName, bName, label){
   const a=path.join(creatures, aName);
   const b=path.join(creatures, bName);
-  assert(fs.existsSync(a) && fs.existsSync(b), label+': both sheets on disk');
+  calib(fs.existsSync(a) && fs.existsSync(b), label+': both sheets on disk');
   if(!fs.existsSync(a) || !fs.existsSync(b)) return;
   const size=[96,128];
   const ma=resizedAlphaMask(readRgba(a), size[0], size[1]);

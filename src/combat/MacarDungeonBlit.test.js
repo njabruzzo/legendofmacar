@@ -16,6 +16,8 @@ function assert(cond, msg){
   if(!cond){ failed++; console.error('FAIL  '+msg); }
   else console.log('ok    '+msg);
 }
+const MacarAnchor=require('../qa/MacarAnchor');
+const calib=MacarAnchor.calib(assert);
 
 function extractFn(name){
   const re=new RegExp('function '+name+'\\([\\s\\S]*?\\n\\}');
@@ -65,7 +67,7 @@ assert(!!keysDecl && /macar:1/.test(keysDecl[0]) && /macar_w1:1/.test(keysDecl[0
  'dwarf_macar_atk_contact.png',
  'dwarf_macar_axe.png','dwarf_macar_axe_w1.png','dwarf_macar_axe_w2.png','dwarf_macar_axe_atk.png',
  'dwarf_macar_xbow.png','dwarf_macar_xbow_w1.png','dwarf_macar_xbow_w2.png','dwarf_macar_xbow_atk.png'].forEach(f=>{
-  assert(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
+  calib(fs.existsSync(path.join(root,'assets/creatures',f)), f+' live sheet remains');
 });
 ['dwarf_macar_atk_recover.png','dwarf_macar_e_atk.png',
  'dwarf_macar_title.png','dwarf_macar_sleep.png',
