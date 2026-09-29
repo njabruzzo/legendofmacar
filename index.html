@@ -814,6 +814,12 @@ SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaqu
     SPRITE_FILES[k+'_ghost_'+ang+'_w2']='assets/creatures/dwarf_'+k+'_ghost_'+ang+'_w2.png';
   });
 });
+const GHOST_ART_KEYS=[
+  'pordoom_ghost_back_w1','pordoom_ghost_back_w2','pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2','pordoom_ghost_nw_w1','pordoom_ghost_nw_w2','pordoom_ghost_ne_w1','pordoom_ghost_ne_w2','pordoom_ghost_se_w1','pordoom_ghost_se_w2',
+  'fendur_ghost_back_w1','fendur_ghost_back_w2','fendur_ghost_e_w1','fendur_ghost_e_w2','fendur_ghost_s_w1','fendur_ghost_s_w2','fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
+  'orbo_ghost_back_w1','orbo_ghost_back_w2','orbo_ghost_e_w1','orbo_ghost_e_w2','orbo_ghost_s_w1','orbo_ghost_s_w2','orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
+  'talpor_ghost_back_w1','talpor_ghost_back_w2','talpor_ghost_e_w1','talpor_ghost_e_w2','talpor_ghost_s_w1','talpor_ghost_s_w2','talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2'
+];
 /* Optional passing beat. After every _w1 registration so we never spawn
    _w1_w3 or prop walks. Missing files simply never land in SPR. */
 Object.keys(SPRITE_FILES).forEach(k=>{
@@ -938,13 +944,14 @@ function loadSprites(done){
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2',
-    'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross','icon_attack','icon_defend','icon_save'];
+    'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross','icon_attack','icon_defend','icon_helm','icon_quiver','icon_save'];
   const seen={};
   const critical=[];
   const background=[];
   const add=(list,k)=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; list.push(k); } };
   first.forEach(k=>add(critical,k));
   Object.keys(WORLD_ART_KEYS).forEach(n=>{ (WORLD_ART_KEYS[n]||[]).forEach(k=>add(critical,k)); });
+  GHOST_ART_KEYS.forEach(k=>add(background,k));
   Object.keys(SPRITE_FILES).forEach(k=>{ if(!seen[k]){ seen[k]=1; background.push(k); } });
   if(!critical.length && !background.length){ SPLASH_STATE='fail'; done(); return; }
   SPLASH_STATE=SPRITE_FILES.title_splash?'loading':'fail';
