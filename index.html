@@ -924,12 +924,22 @@ const ICON_SPR={
 const WORLD_ART_KEYS={
   1:['floor_mine','wall_worked','wall_face','wall_face_shade','macar',
      'macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
      'rubble','rubble2','boulder','boulder2','lantern'],
-  2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
-  3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
-  4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'],
-  5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact']
+  2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+  3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+  4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+  5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 function worldArtReady(n){
