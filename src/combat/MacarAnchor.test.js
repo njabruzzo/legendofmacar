@@ -37,5 +37,24 @@ const wa=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\n\};/);
 assert(wa && cats.every(k=>new RegExp("'"+k+"'").test(wa[0])),
   'world-ready keys still name the Macar slots the loader waits for (all served by the anchor)');
 
+/* Painting intact: the black-matte key once punched ~60k px of dark paint out
+   of the figure (holes showed the floor through Macar). No enclosed
+   see-through pocket may remain inside the anchor's silhouette. */
+{
+  const {readRgba}=require('../qa/pngRgba');
+  const {w,h,data}=readRgba(path.join(creatures, MacarAnchor.ANCHOR));
+  const clear=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) clear[i]=data[i*4+3]<128?1:0;
+  // flood the transparent region reachable from the canvas edge
+  const outside=new Uint8Array(w*h), q=[];
+  const push=(x,y)=>{ const k=y*w+x; if(clear[k]&&!outside[k]){ outside[k]=1; q.push(k); } };
+  for(let x=0;x<w;x++){ push(x,0); push(x,h-1); }
+  for(let y=0;y<h;y++){ push(0,y); push(w-1,y); }
+  while(q.length){ const k=q.pop(), x=k%w, y=(k/w)|0;
+    if(x>0) push(x-1,y); if(x<w-1) push(x+1,y); if(y>0) push(x,y-1); if(y<h-1) push(x,y+1); }
+  let holes=0; for(let i=0;i<w*h;i++) if(clear[i]&&!outside[i]) holes++;
+  assert(holes<=40, 'anchor painting has no see-through holes inside the figure ('+holes+' enclosed clear px)');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nMacar anchor lock checks passed');
