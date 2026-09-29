@@ -30,6 +30,11 @@ assert(firstBlock && !/pordoom_ghost_nw_w1/.test(firstBlock) && !/spider_giant_d
   'non-opening ghost and monster sheets stay out of the first wave');
 assert(firstBlock && /'floor_mine','wall_worked','wall_face'/.test(firstBlock),
   'Chapter I mine tiles remain in the first wave');
+const worldBlock=(html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\};/)||[''])[0];
+['macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+ 'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'].forEach(k=>{
+  assert(worldBlock && new RegExp("'"+k+"'").test(worldBlock), k+' is ready before play starts');
+});
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nstartup performance checks passed');
