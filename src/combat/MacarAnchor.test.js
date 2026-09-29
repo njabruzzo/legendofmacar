@@ -19,8 +19,10 @@ function assert(c,m){ if(!c){ failed++; console.error('FAIL  '+m); } else consol
 assert(fs.existsSync(path.join(creatures, MacarAnchor.ANCHOR)), 'the anchor '+MacarAnchor.ANCHOR+' is on disk');
 MacarAnchor.REMOVED.forEach(f=>assert(!fs.existsSync(path.join(creatures,f)), f+' stays off disk (off-model)'));
 const onDisk=fs.readdirSync(creatures).filter(f=>/^dwarf_macar/.test(f));
-assert(onDisk.length===1 && onDisk[0]===MacarAnchor.ANCHOR,
-  'the anchor is the only Macar sheet on disk (found: '+onDisk.join(', ')+')');
+const allowed=[MacarAnchor.ANCHOR].concat(MacarAnchor.ONMODEL);
+assert(onDisk.every(f=>allowed.includes(f)),
+  'every Macar sheet on disk is the anchor or an approved on-model frame (found: '+onDisk.join(', ')+')');
+MacarAnchor.ONMODEL.forEach(f=>assert(fs.existsSync(path.join(creatures,f)), f+' (approved on-model frame) is on disk'));
 assert(!fs.existsSync(path.join(root,'assets/macar_headings_axe.png')) && !fs.existsSync(path.join(root,'assets/macar_headings_maul.png')),
   'the helmeted-plate heading boards are gone');
 assert(/const MACAR_ANCHOR_SRC='assets\/creatures\/dwarf_macar_atk_contact\.png';/.test(html),
@@ -29,8 +31,9 @@ const lock=html.indexOf('const MACAR_ANCHOR_SRC=');
 const after=html.slice(lock);
 assert(/if\(\/\^macar\(_\|\$\)\/\.test\(k\)\) SPRITE_FILES\[k\]=MACAR_ANCHOR_SRC;/.test(after.slice(0,400)),
   'every macar* sprite key is pointed at the anchor');
-const laterMacar=after.slice(400).match(/SPRITE_FILES\.macar[a-z0-9_]*\s*=\s*'[^']+'/g)||[];
-assert(!laterMacar.length, 'nothing re-registers an off-model Macar sheet after the lock ('+laterMacar.join('; ')+')');
+const laterMacar=(after.slice(400).match(/assets\/creatures\/dwarf_macar[a-z0-9_]*\.png/g)||[])
+  .map(p=>p.split('/').pop()).filter(f=>!MacarAnchor.ONMODEL.includes(f));
+assert(!laterMacar.length, 'nothing after the lock registers an off-model Macar sheet ('+laterMacar.join('; ')+')');
 assert(!/SPRITE_FILES\.dwarf_macar_crowned=/.test(html), 'no crowned sheet: the bone crown is drawn as the worn prop');
 const cats=['macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'];
 const wa=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\n\};/);

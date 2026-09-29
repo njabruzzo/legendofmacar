@@ -878,6 +878,20 @@ const MACAR_ANCHOR_SRC='assets/creatures/dwarf_macar_atk_contact.png';
 Object.keys(SPRITE_FILES).forEach(k=>{
   if(/^macar(_|$)/.test(k)) SPRITE_FILES[k]=MACAR_ANCHOR_SRC;
 });
+/* On-model frames painted from the anchor (Grok Imagine, Nick-approved
+   2026-09-29), registered after the lock so they replace the stand-in.
+   Walk right, maul on the shoulder: w1 full stride, w2 passing step.
+   Screen-left mirrors. Diagonals use the side walk until their own
+   sheets exist. */
+const MACAR_ONMODEL={
+  macar_e_w1:'assets/creatures/dwarf_macar_e_w1.png',
+  macar_e_w2:'assets/creatures/dwarf_macar_e_w2.png'
+};
+Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
+['se','ne'].forEach(d=>{
+  if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
+  if(!MACAR_ONMODEL['macar_'+d+'_w2']) SPRITE_FILES['macar_'+d+'_w2']=MACAR_ONMODEL.macar_e_w2;
+});
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
