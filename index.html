@@ -87,7 +87,7 @@ const BL  = document.createElement('canvas'), blx = BL.getContext('2d');   // bl
 const BX  = document.createElement('canvas'), bxx = BX.getContext('2d');   // beyond-rock mask
 let VW=0, VH=0, DPR=1, UIS=1, ZOOM=1, TW=80, TH=40, PORT=false;
 let QUALITY = 1;           // 0 = Fast. 1 = High (default) — albedo is painted bright for the lightmap.
-let GFX_MODE = IS_TOUCH ? 'auto' : 'high';   // fast | auto | high — phones start adaptive
+let GFX_MODE = 'auto';   // fast | auto | high — start adaptive on every platform
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
 let GRAINPAT = null;
@@ -185,7 +185,7 @@ function syncCamProj(){
 let GFX_SLOW=0, GFX_FAST=0;
 function tickGfx(dt){
   FRAME_MS = FRAME_MS*0.9 + (dt*1000)*0.1;
-  if(GFX_MODE!=='auto' || IS_ANDROID) return;
+  if(GFX_MODE!=='auto') return;
   /* Hysteresis: act on sustained trends, never a single spike, and allow
      recovery back to High if the device turns out to have headroom. */
   if(FRAME_MS>21.5){ GFX_SLOW++; GFX_FAST=0; }
@@ -933,73 +933,92 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2','intro_ch3','intro_ch4','intro_ch5','intro_cavein',
-    'floor_mine','wall_worked','wall_face','wall_face_shade','wall_cave','wall_cave_face','wall_cave_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk','macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk',
-    'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2','dwarf_macar_crowned',
-    'teeth_floor','teeth_floor_atlas','tooth','tooth_2','tooth_3',
+  const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1',
+    'floor_mine','wall_worked','wall_face','wall_face_shade',
+    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-    'rubble','rubble2','boulder','boulder2','lantern','winduptoy','winduptoy_wound',
-    'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross',
-    'icon_plant','icon_shovel','icon_campfire','icon_bomb','icon_crossbow','icon_secret','icon_climb','icon_attack','icon_attack_wide','icon_attack_long','icon_defend','icon_craft',
-    'icon_specialty_i','icon_specialty_ii','icon_specialty_iii','icon_specialty_iv',
-    'icon_helm','icon_necklace','icon_chest','icon_bracers','icon_gloves','icon_pants','icon_boots','icon_quiver','icon_save',
-    'pordoom','pordoom_w1','pordoom_w2','pordoom_w3','fendur','fendur_w1','fendur_w2','fendur_w3','orbo','orbo_w1','orbo_w2','orbo_w3','talpor','talpor_w1','talpor_w2','talpor_w3',
-    'pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost',
-    'pordoom_ghost_back','fendur_ghost_back','orbo_ghost_back','talpor_ghost_back',
-    'pordoom_atk_recover','fendur_atk_recover','orbo_atk_recover','talpor_atk_recover',
-    'pordoom_ghost_w1','pordoom_ghost_w2','pordoom_ghost_w3','pordoom_ghost_atk','pordoom_ghost_atk_recover','pordoom_ghost_back_w1','pordoom_ghost_back_w2',
-    'fendur_ghost_w1','fendur_ghost_w2','fendur_ghost_w3','fendur_ghost_atk','fendur_ghost_atk_recover','fendur_ghost_back_w1','fendur_ghost_back_w2',
-    'orbo_ghost_w1','orbo_ghost_w2','orbo_ghost_w3','orbo_ghost_atk','orbo_ghost_atk_recover','orbo_ghost_back_w1','orbo_ghost_back_w2',
-    'talpor_ghost_w1','talpor_ghost_w2','talpor_ghost_w3','talpor_ghost_atk','talpor_ghost_atk_recover','talpor_ghost_back_w1','talpor_ghost_back_w2',
-    'pordoom_ghost_e_w1','pordoom_ghost_e_w2','pordoom_ghost_s_w1','pordoom_ghost_s_w2',
-    'fendur_ghost_e_w1','fendur_ghost_e_w2','fendur_ghost_s_w1','fendur_ghost_s_w2',
-    'orbo_ghost_e_w1','orbo_ghost_e_w2','orbo_ghost_s_w1','orbo_ghost_s_w2',
-    'talpor_ghost_e_w1','talpor_ghost_e_w2','talpor_ghost_s_w1','talpor_ghost_s_w2',
-    'pordoom_ghost_nw_w1','pordoom_ghost_nw_w2','pordoom_ghost_ne_w1','pordoom_ghost_ne_w2','pordoom_ghost_se_w1','pordoom_ghost_se_w2',
-    'fendur_ghost_nw_w1','fendur_ghost_nw_w2','fendur_ghost_ne_w1','fendur_ghost_ne_w2','fendur_ghost_se_w1','fendur_ghost_se_w2',
-    'orbo_ghost_nw_w1','orbo_ghost_nw_w2','orbo_ghost_ne_w1','orbo_ghost_ne_w2','orbo_ghost_se_w1','orbo_ghost_se_w2',
-    'talpor_ghost_nw_w1','talpor_ghost_nw_w2','talpor_ghost_ne_w1','talpor_ghost_ne_w2','talpor_ghost_se_w1','talpor_ghost_se_w2',
-    'thinone_dead','goblin_dead','goblin_king','warg','spider_dead','spider_giant_dead','loot_coins','loot_ruby','loot_ruby_shard','loot_chest','loot_gems','loot_jewelry','loot_potion','loot_herbs','loot_ore',
-    'cavein',
-    'rubydoor','rubydoor_face','dwarfface','craftstation','shadowcleaver','dwarfkey','bronzedoor','bell','shroom','stairs','floor_ruin','floor_hall','floor_fungi',
-    'barrel','stalagmite','crystal','moss','eggs','urn','idol','orepile','pickpile','slime','banner','roots','ruin_house','secret_door',
-    'glowcap','cavefern','sporepuff','nightbloom','lichen'];
+    'rubble','rubble2','boulder','boulder2',
+    'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross','icon_attack','icon_defend','icon_save'];
   const seen={};
-  const queue=[];
-  first.forEach(k=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; queue.push(k); } });
-  Object.keys(SPRITE_FILES).forEach(k=>{ if(!seen[k]){ seen[k]=1; queue.push(k); } });
-  const total=queue.length;
-  if(!total){ SPLASH_STATE='fail'; done(); return; }
+  const critical=[];
+  const background=[];
+  const add=(list,k)=>{ if(SPRITE_FILES[k]&&!seen[k]){ seen[k]=1; list.push(k); } };
+  first.forEach(k=>add(critical,k));
+  Object.keys(WORLD_ART_KEYS).forEach(n=>{ (WORLD_ART_KEYS[n]||[]).forEach(k=>add(critical,k)); });
+  Object.keys(SPRITE_FILES).forEach(k=>{ if(!seen[k]){ seen[k]=1; background.push(k); } });
+  if(!critical.length && !background.length){ SPLASH_STATE='fail'; done(); return; }
   SPLASH_STATE=SPRITE_FILES.title_splash?'loading':'fail';
-  let i=0, inflight=0, finished=0;
-  const MAX=6;
-  function next(){
-    while(inflight<MAX && i<total){
-      const k=queue[i++];
-      inflight++;
-      const img=new Image();
-      const fin=ok=>{
-        if(ok) SPR[k]=img;
-        if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
-        inflight--; finished++;
-        try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
-        if(finished>=total){ ensureDeadSprites(); ensureAttackFrames(); try{ warmLivingMacarSheets(); }catch(_){} try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){} done(); }
-        else next();
-      };
-      img.onload=()=>fin(true);
-      img.onerror=()=>{
-        if(!img.__retried){
-          img.__retried=1;
-          img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
-          return;
-        }
-        fin(false);
-      };
-      img.src=assetUrl(SPRITE_FILES[k]);
+  let allFinished=0, criticalDone=0, criticalCallback=0;
+  const allTotal=critical.length+background.length;
+  function afterAny(k, img, ok){
+    if(ok) SPR[k]=img;
+    if(k==='title_splash') SPLASH_STATE=ok?'ready':'fail';
+    allFinished++;
+    try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
+    if(allFinished>=allTotal){
+      ensureDeadSprites(); ensureAttackFrames();
+      try{ warmLivingMacarSheets(); }catch(_){}
+      try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
     }
   }
-  next();
+  function finishCritical(){
+    if(criticalCallback) return;
+    criticalCallback=1;
+    ensureDeadSprites(); ensureAttackFrames();
+    try{ warmLivingMacarSheets(); }catch(_){}
+    try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
+    done();
+    scheduleIdle(pumpBackground);
+  }
+  function loadOne(k, cb){
+    const img=new Image();
+    const fin=ok=>{
+      if(ok && img.decode){
+        img.decode().then(()=>cb(k,img,true), ()=>cb(k,img,true));
+      } else cb(k,img,ok);
+    };
+    img.onload=()=>fin(true);
+    img.onerror=()=>{
+      if(!img.__retried){
+        img.__retried=1;
+        img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
+        return;
+      }
+      fin(false);
+    };
+    img.src=assetUrl(SPRITE_FILES[k]);
+  }
+  let ci=0, cin=0;
+  const CRITICAL_MAX=6;
+  function pumpCritical(){
+    while(cin<CRITICAL_MAX && ci<critical.length){
+      cin++;
+      loadOne(critical[ci++], (k,img,ok)=>{
+        cin--; criticalDone++;
+        afterAny(k,img,ok);
+        if(criticalDone>=critical.length) finishCritical();
+        else pumpCritical();
+      });
+    }
+  }
+  let bi=0, bin=0;
+  const BACKGROUND_MAX=2;
+  function scheduleIdle(fn){
+    if(typeof requestIdleCallback==='function') requestIdleCallback(fn, {timeout:900});
+    else setTimeout(fn, 32);
+  }
+  function pumpBackground(){
+    while(bin<BACKGROUND_MAX && bi<background.length){
+      bin++;
+      loadOne(background[bi++], (k,img,ok)=>{
+        bin--;
+        afterAny(k,img,ok);
+        if(bi<background.length) scheduleIdle(pumpBackground);
+      });
+    }
+  }
+  if(critical.length) pumpCritical();
+  else finishCritical();
 }
 function ensureAttackFrames(){
   // Measure the hero's frames up front so the pixel read never lands mid-fight.
