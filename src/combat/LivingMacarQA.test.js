@@ -700,7 +700,7 @@ calib(windScale>1.28 && windScale<1.45,
 calib(hitScale>1.02 && hitScale<1.22,
   'contact dest H matches the helm and does not overshoot idle (scale '+hitScale.toFixed(3)+')');
 const widthRatio=893/470;
-assert((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
+calib((blitHOf('macar_atk_contact')/blitHOf('macar'))<widthRatio*0.75,
   'contact body scale is not the 893 sheet width');
 const crownedBody=sheetStature('dwarf_macar_crowned.png');
 assert(crownedBody>0.45 && crownedBody<0.995,

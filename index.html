@@ -880,11 +880,14 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 });
 /* On-model frames painted from the anchor (Grok Imagine, Nick-approved
    2026-09-29), registered after the lock so they replace the stand-in.
+   Idle (2026-09-29): dwarf_macar.png, the front walk w1 with both boots
+   planted, maul on the shoulder; one front sheet for every facing.
    Walks (maul on the shoulder): right e_w1/e_w2, up back_w1/back_w2,
    down w1/w2. Strikes: n (up), s (down), ne (up-right), se (down-right);
    right is the anchor contact sheet. Screen-left mirrors every one of
    them. Diagonal walks use the side walk until their own sheets exist. */
 const MACAR_ONMODEL={
+  macar:'assets/creatures/dwarf_macar.png',
   macar_e_w1:'assets/creatures/dwarf_macar_e_w1.png',
   macar_e_w2:'assets/creatures/dwarf_macar_e_w2.png',
   macar_back_w1:'assets/creatures/dwarf_macar_back_w1.png',

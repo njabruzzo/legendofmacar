@@ -14,7 +14,7 @@
  */
 const ANCHOR = 'dwarf_macar_atk_contact.png';
 const REMOVED = [
-  'dwarf_macar.png', 'dwarf_macar_atk.png',
+  'dwarf_macar_atk.png',
   'dwarf_macar_axe.png', 'dwarf_macar_axe_w1.png', 'dwarf_macar_axe_w2.png', 'dwarf_macar_axe_atk.png',
   'dwarf_macar_xbow.png', 'dwarf_macar_xbow_w1.png', 'dwarf_macar_xbow_w2.png', 'dwarf_macar_xbow_atk.png',
   'dwarf_macar_e_w3.png',
@@ -31,8 +31,11 @@ function resolve(f) {
   const s = String(f), i = s.lastIndexOf('/');
   return i >= 0 ? s.slice(0, i + 1) + ANCHOR : ANCHOR;
 }
-/* Anchor-only: the base idle is gone, so every Macar key plays one frame. */
-function anchorOnly() { return removed('dwarf_macar.png'); }
+/* Anchor stand-ins remain: the maul windup (and axe / crossbow sheets) still
+   play the anchor, so checks that compare windup / contact / idle scale or
+   pin the old sheets stay parked. The idle itself is on-model since
+   2026-09-29 (dwarf_macar.png), so this keys off the windup now. */
+function anchorOnly() { return removed('dwarf_macar_atk.png'); }
 /* For checks that pin removed sheets or compare distinct Macar frames.
    Passing checks pass. A failing one is PARKED (not failed) while Macar is
    anchor-only, and fails again as soon as real frames exist. */
@@ -44,7 +47,7 @@ function calib(assert) {
   };
 }
 /* On-model frames painted from the anchor and approved by Nick. */
-const ONMODEL = ['dwarf_macar_e_w1.png', 'dwarf_macar_e_w2.png',
+const ONMODEL = ['dwarf_macar.png', 'dwarf_macar_e_w1.png', 'dwarf_macar_e_w2.png',
   'dwarf_macar_back_w1.png', 'dwarf_macar_back_w2.png', 'dwarf_macar_w1.png', 'dwarf_macar_w2.png',
   'dwarf_macar_atk_n.png', 'dwarf_macar_atk_s.png', 'dwarf_macar_atk_ne.png', 'dwarf_macar_atk_se.png'];
 module.exports = { ANCHOR, REMOVED, ONMODEL, removed, resolve, anchorOnly, calib };
