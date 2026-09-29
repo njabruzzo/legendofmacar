@@ -1972,12 +1972,66 @@ function flippedSprite(img, punch){
   if(cache) cache.set(img,c);
   return c;
 }
+/* Living Macar sheets are ~880 tall and land ~100 px tall on screen. A
+   crisp (nearest) blit at that ratio samples about one texel in eight, so
+   the paint speckles and the studs shimmer. Pre-filter once to the size it
+   is drawn at (halving steps, high-quality smoothing), re-punch to binary
+   alpha so no ramped edge or fringe comes back, then the crisp blit is 1:1.
+   Cached per sheet and size; zoom changes add a size, not a rebuild. */
+const LIVING_MIP=(typeof WeakMap==='function')?new WeakMap():null;
+function livingMacarMip(src, W, H, g){
+  if(!src||!src.width||!src.height||typeof document==='undefined') return src;
+  let sx=1, sy=1;
+  try{
+    const m=(g&&g.getTransform)?g.getTransform():null;
+    if(m){ sx=Math.hypot(m.a,m.b)||1; sy=Math.hypot(m.c,m.d)||1; }
+  }catch(_){}
+  const tw=Math.max(1,Math.round(Math.abs(W)*sx)), th=Math.max(1,Math.round(Math.abs(H)*sy));
+  if(th>=src.height*0.66 || tw>=src.width*0.66) return src;
+  let bySize=LIVING_MIP?LIVING_MIP.get(src):null;
+  const key=tw+'x'+th;
+  if(bySize&&bySize.has(key)) return bySize.get(key);
+  let out=null;
+  try{
+    let cur=src, cw=src.width, ch=src.height;
+    while(ch/2>=th*1.5 && cw/2>=tw*1.5){
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(cw/2)); c.height=Math.max(1,Math.round(ch/2));
+      const x=c.getContext('2d');
+      x.imageSmoothingEnabled=true;
+      if(x.imageSmoothingQuality) x.imageSmoothingQuality='high';
+      x.drawImage(cur,0,0,c.width,c.height);
+      cur=c; cw=c.width; ch=c.height;
+    }
+    const c=document.createElement('canvas');
+    c.width=tw; c.height=th;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.imageSmoothingEnabled=true;
+    if(x.imageSmoothingQuality) x.imageSmoothingQuality='high';
+    x.drawImage(cur,0,0,tw,th);
+    const idat=x.getImageData(0,0,tw,th), d=idat.data;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]<128){ d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0; }
+      else d[i+3]=255;
+    }
+    x.putImageData(idat,0,0);
+    out=c;
+  }catch(_){ return src; }
+  if(!bySize && LIVING_MIP){ bySize=new Map(); LIVING_MIP.set(src,bySize); }
+  if(bySize){
+    if(bySize.size>=6) bySize.delete(bySize.keys().next().value);
+    bySize.set(key,out);
+  }
+  return out;
+}
 function blitFacing(g,img,dx,dy,W,H,flip,crisp,punch){
   // Bake a mirrored canvas and draw it unflipped so west never depends on
   // negative-width drawImage (some GPU paths ignore dest-width sign).
   // Crisp = nearest-neighbor. Title-law idle is ~470x512; a smoothed ~70x74
   // blit collapses painted-mini detail and amplifies magenta fringe.
-  const src=flip?flippedSprite(img, punch):img;
+  // Living Macar bakes are pre-filtered to the drawn size first (see above).
+  let src=flip?flippedSprite(img, punch):img;
+  if(crisp && img && img.__livingBake) src=livingMacarMip(src, W, H, g);
   const prevS=g.imageSmoothingEnabled;
   const prevQ=g.imageSmoothingQuality;
   if(crisp){
@@ -20913,7 +20967,11 @@ function drawEquipDoll(g, x, y, w, h){
     g.globalCompositeOperation='source-over';
     const prevS=g.imageSmoothingEnabled;
     g.imageSmoothingEnabled=false;
-    g.drawImage(img, sx, sy, sw, sh, body.x+body.w/2-dw/2, body.y+body.h/2-dh/2, dw, dh);
+    /* Same pre-filtered size as the world blit, so the doll is not a
+       nearest-neighbour decimation of the 880-tall sheet. */
+    const mip=(typeof livingMacarMip==='function')?livingMacarMip(img, img.width*sc, img.height*sc, g):img;
+    const mf=mip.width/img.width;
+    g.drawImage(mip, sx*mf, sy*mf, sw*mf, sh*mf, body.x+body.w/2-dw/2, body.y+body.h/2-dh/2, dw, dh);
     g.imageSmoothingEnabled=prevS;
     g.restore();
   } else {
