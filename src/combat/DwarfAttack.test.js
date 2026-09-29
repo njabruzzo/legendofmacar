@@ -50,7 +50,7 @@ const macarAtk=pngSize(path.join(root,'dwarf_macar_atk.png'));
 calib(macarAtk && macarAtk.w===470 && macarAtk.h===540, 'maul windup is main\'s 470x540 sheet');
 assert(fs.existsSync(path.join(root,'dwarf_macar_atk_contact.png')), 'maul contact is on disk');
 const macarHit=pngSize(path.join(root,'dwarf_macar_atk_contact.png'));
-assert(macarHit && macarHit.w===893 && macarHit.h===760, 'maul contact is the scale-normalized 893x760 sheet');
+assert(macarHit && macarHit.w===893 && macarHit.h===880, 'maul contact is the scale-normalized 893x880 sheet');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_atk_recover.png')), 'leftover Macar recover is gone');
 assert(!fs.existsSync(path.join(root,'dwarf_macar_e_atk.png')), 'leftover east strike is gone');
 calib(fs.existsSync(path.join(root,'dwarf_macar.png')), 'title-law idle remains the Macar identity');

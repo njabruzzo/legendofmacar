@@ -1236,14 +1236,18 @@ function spriteBounds(img){
     crown:crownId
   });
 }
+/* Macar's sheets share one 880-tall canvas at one body scale. The lunge
+   idle fills only ~half of it (the overhead strike needs the rest), so the
+   painted-fraction floor sits below that; kin idles fill their sheets. */
+const MACAR_STATURE_FLOOR=0.45;
 function figurePersonFrac(b){
   if(!b||!b.ok||b.y1==null||b.y0==null) return 0;
-  const box=clamp(b.y1-b.y0, 0.55, 1);
+  const box=clamp(b.y1-b.y0, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
   if(b.personY0==null) return box;
   const person=b.y1-b.personY0;
   // Foot-column can miss a leaned helmet and land on the boots — ignore that.
   if(person<box*0.72) return box;
-  return clamp(person, 0.55, 1);
+  return clamp(person, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
 }
 function heroFigureFit(e,img){
   if(!e||!e.hero||e.dead||e.ghost) return 1;
@@ -1258,7 +1262,7 @@ function dwarfIdleFrac(e){
   const b=spriteBounds(idle);
   // Idle sheets still carry fringe on some kin — use the opaque box, not
   // a foot-column crown that can undershoot on those older plants.
-  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, 0.55, 1);
+  if(b&&b.ok&&b.y0!=null&&b.y1!=null) return clamp(b.y1-b.y0, ((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45), 1);
   return MACAR_IDLE_FRAC;
 }
 /* Every party dwarf — living and ghost — keeps one world height from idle
@@ -2569,7 +2573,7 @@ function livingStatureFromRGBA(d, w, h){
   }
   if(foot<0) return 0;
   const frac=(foot-crown+1)/h;
-  if(!(frac>0.55) || frac>0.995) return 0;
+  if(!(frac>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || frac>0.995) return 0;
   return frac;
 }
 function measureLivingStature(img){
@@ -2594,7 +2598,7 @@ function livingSheetStature(img){
   const cache=(typeof LIVING_STATURE!=='undefined')?LIVING_STATURE:null;
   if(cache&&cache.has(img)) return cache.get(img);
   const frac=measureLivingStature(img)||0;
-  if(frac>0.55 && cache) cache.set(img, frac);
+  if(frac>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45) && cache) cache.set(img, frac);
   return frac;
 }
 /* Idle / walk / cleaver / xbow share one canvas height, so they keep the
@@ -2621,7 +2625,7 @@ function livingMacarPlantFit(e, key, img){
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
   const idleBody=livingSheetStature(idle);
   const liveBody=livingSheetStature(live);
-  if(!(idleBody>0.55) || !(liveBody>0.55)) return idleFit;
+  if(!(idleBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || !(liveBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))) return idleFit;
   return idleFit*(idleBody/liveBody);
 }
 /* Prop crown only on a sheet that does not already wear the painted crown.
@@ -2662,7 +2666,7 @@ function drawLivingMacar(g,e){
   MacarStrikeQA.blitH=H;
   const statureSheet=(blitKey&&SPR[blitKey]&&SPR[blitKey].height)?SPR[blitKey]:img;
   const stature=livingSheetStature(statureSheet);
-  MacarStrikeQA.figureH=(stature>0.55)?H*stature:0;
+  MacarStrikeQA.figureH=(stature>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))?H*stature:0;
   MacarStrikeQA.sheetW=img.width;
   MacarStrikeQA.sheetH=img.height;
   const b=spriteBounds(img);
