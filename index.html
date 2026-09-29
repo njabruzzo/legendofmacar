@@ -880,12 +880,21 @@ Object.keys(SPRITE_FILES).forEach(k=>{
 });
 /* On-model frames painted from the anchor (Grok Imagine, Nick-approved
    2026-09-29), registered after the lock so they replace the stand-in.
-   Walk right, maul on the shoulder: w1 full stride, w2 passing step.
-   Screen-left mirrors. Diagonals use the side walk until their own
-   sheets exist. */
+   Walks (maul on the shoulder): right e_w1/e_w2, up back_w1/back_w2,
+   down w1/w2. Strikes: n (up), s (down), ne (up-right), se (down-right);
+   right is the anchor contact sheet. Screen-left mirrors every one of
+   them. Diagonal walks use the side walk until their own sheets exist. */
 const MACAR_ONMODEL={
   macar_e_w1:'assets/creatures/dwarf_macar_e_w1.png',
-  macar_e_w2:'assets/creatures/dwarf_macar_e_w2.png'
+  macar_e_w2:'assets/creatures/dwarf_macar_e_w2.png',
+  macar_back_w1:'assets/creatures/dwarf_macar_back_w1.png',
+  macar_back_w2:'assets/creatures/dwarf_macar_back_w2.png',
+  macar_w1:'assets/creatures/dwarf_macar_w1.png',
+  macar_w2:'assets/creatures/dwarf_macar_w2.png',
+  macar_atk_n:'assets/creatures/dwarf_macar_atk_n.png',
+  macar_atk_s:'assets/creatures/dwarf_macar_atk_s.png',
+  macar_atk_ne:'assets/creatures/dwarf_macar_atk_ne.png',
+  macar_atk_se:'assets/creatures/dwarf_macar_atk_se.png'
 };
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
@@ -2049,6 +2058,7 @@ const LIVING_MACAR_KEYS={
   macar:1, macar_w1:1, macar_w2:1, macar_atk:1, macar_atk_contact:1, macar_axe:1, macar_axe_w1:1, macar_axe_w2:1, macar_axe_atk:1,
   macar_xbow:1, macar_xbow_w1:1, macar_xbow_w2:1, macar_xbow_atk:1,
   macar_e_w1:1, macar_e_w2:1, macar_se_w1:1, macar_se_w2:1, macar_ne_w1:1, macar_ne_w2:1, macar_back_w1:1, macar_back_w2:1,
+  macar_atk_n:1, macar_atk_s:1, macar_atk_ne:1, macar_atk_se:1,
   dwarf_macar_crowned:1
 };
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
@@ -2139,7 +2149,8 @@ function matchingPartyAtkReady(key, idleKey){
 function restoredMacarMotionKey(key){
   return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
-    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2';
+    ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
+    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se';
 }
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
@@ -2429,6 +2440,13 @@ function macarPose(e){
    timer-end clear strikeHold so idle carry returns as soon as t≥0.84.
    Same FACE, opposite FOOT. Shoot pose is render-time wall clock
    (bowPoseUntil), not update(dt). */
+function macarStrikeDirKey(e){
+  if(typeof screenOctant!=='function') return null;
+  const oct=screenOctant(e);
+  const k=(oct==='n')?'macar_atk_n':(oct==='s')?'macar_atk_s'
+    :(oct==='ne'||oct==='nw')?'macar_atk_ne':(oct==='se'||oct==='sw')?'macar_atk_se':null;
+  return (k && sprReady(k))?k:null;
+}
 function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
@@ -2441,6 +2459,10 @@ function livingMacarAnimKey(e){
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(idle==='macar'){
+      /* Directional maul strike (painted from the anchor). Facing comes from
+         the foe being struck (faceVec). Screen-left octants mirror. */
+      const dirKey=(typeof macarStrikeDirKey==='function')?macarStrikeDirKey(e):null;
+      if(dirKey) return dirKey;
       const t=(typeof attackProgress==='function')?attackProgress(e):0;
       const forceWindup=(typeof wantsMacarWindup==='function')&&wantsMacarWindup(e);
       if(!forceWindup && t>=MACAR_MAUL_CONTACT_T && matchingPartyAtkReady('macar_atk_contact', idle))

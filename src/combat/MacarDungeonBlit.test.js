@@ -89,7 +89,9 @@ Object.keys(registry).forEach(k=>{
      || k==='macar_xbow' || k==='macar_xbow_w1' || k==='macar_xbow_w2' || k==='macar_xbow_atk'
      || k==='macar_e_w1' || k==='macar_e_w2' || k==='macar_se_w1' || k==='macar_se_w2'
      || k==='macar_ne_w1' || k==='macar_ne_w2'
-     || k==='macar_back_w1' || k==='macar_back_w2') return;
+     || k==='macar_back_w1' || k==='macar_back_w2'
+     /* Directional maul strikes painted from the anchor (2026-09-29). */
+     || k==='macar_atk_n' || k==='macar_atk_s' || k==='macar_atk_ne' || k==='macar_atk_se') return;
   assert(!/^macar(_|$)/.test(k), 'registry has no leftover Macar key '+k);
 });
 
