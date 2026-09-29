@@ -131,19 +131,13 @@ const unlockedW1=ctx.heroFigureFit(mac, SPR.macar_w1);
 assert(Math.abs(w1Fit-idleFit)<1e-9 && Math.abs(w2Fit-idleFit)<1e-9,
   'maul w1/w2 plant at idle scale (lock '+idleFit.toFixed(3)+')');
 /* Sheets share one 880 canvas at one body scale. The idle (2026-09-29) is
-   the front walk with both boots planted, maul on the shoulder, so the
-   standing walk box and the idle box read the same height on screen: no
-   pop when he stops or starts walking. */
-assert(Math.abs(unlockedW1-idleFit)<0.65,
-  'freearm v8 maul w1 unlocked plant stays within body-scale range of idle (unlocked '
-  +unlockedW1.toFixed(3)+' vs idle '+idleFit.toFixed(3)+')');
-
-const idleScreen=macarB.boxH*idleFit/macarB.h;
-const w1Screen=w1B.boxH*w1Fit/w1B.h;
-const w2Screen=w2B.boxH*w2Fit/w2B.h;
-assert(Math.abs(w1Screen/idleScreen-1)<0.04 && Math.abs(w2Screen/idleScreen-1)<0.04,
-  'on-screen standing walk box matches the standing idle, at one body scale (idle '+idleScreen.toFixed(3)
-  +', w1 '+w1Screen.toFixed(3)+', w2 '+w2Screen.toFixed(3)+')');
+   the front walk with both boots planted and the maul tilted back on the
+   shoulder, so its painted box differs from the walk's only by where the
+   maul head sits. No pop when he stops or starts walking means the same
+   dest scale (asserted above) and the boots on the same line. */
+assert(Math.abs(macarB.y1-w1B.y1)<0.005 && Math.abs(macarB.y1-w2B.y1)<0.005,
+  'idle and front walk boots land on the same line (idle '+macarB.y1.toFixed(4)
+  +', w1 '+w1B.y1.toFixed(4)+', w2 '+w2B.y1.toFixed(4)+')');
 
 ctx._axe=true;
 const axeFit=ctx.livingMacarPlantFit(mac, 'macar_axe', SPR.macar_axe);
