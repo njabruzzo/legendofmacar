@@ -2401,16 +2401,11 @@ function ghostAnimKey(e, k){
 /* Sheet that livingMacarImg will actually bake. Ready matching _atk skips
    pickReadyPartyKey so a second crown/family pass cannot plant idle after
    livingMacarAnimKey already chose the mid-swing sheet. */
-/* Worn bone crown, standing only. Walk and attack keep their own sheets.
-   The floating prop is not drawn on this key — the crown is in the paint. */
+/* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
 function livingMacarStandKey(idle){
-  if(idle==='macar' && typeof wearingBoneCrown==='function' && wearingBoneCrown()
-     && typeof sprReady==='function' && sprReady('dwarf_macar_crowned'))
-    return 'dwarf_macar_crowned';
   return idle||'macar';
 }
 function livingMacarBlitKey(key){
-  if(key==='dwarf_macar_crowned' && sprReady('dwarf_macar_crowned')) return key;
   const idle=livingMacarIdleKey();
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
@@ -2707,12 +2702,6 @@ function livingMacarPlantFit(e, key, img){
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
   const idleFit=heroFigureFit(e, idle);
-  /* Crowned idle is the same 1100×920 canvas as the live idle. The crown
-     moves the painted top from y=32 to y=56; the body below the head is
-     the live idle's paint. Draw at that idle's pixel scale and plant on
-     botY, the shared foot. Fitting the shorter content height would
-     resize the body. */
-  if(key==='dwarf_macar_crowned') return heroFigureFit(e, SPR.macar||idle);
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
   if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
@@ -2721,14 +2710,10 @@ function livingMacarPlantFit(e, key, img){
   if(!(idleBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || !(liveBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))) return idleFit;
   return idleFit*(idleBody/liveBody);
 }
-/* Prop crown only on a sheet that does not already wear the painted crown.
-   Idle, the plant when a walk stops, and the snap back to the front idle
-   after a swing (recover, then t>0.96) are dwarf_macar_crowned: one crown
-   in the paint, never the prop on top. Walk and swing are the other sheets,
-   so they get the prop and never zero crowns. */
+/* No crowned Macar sheet ships: the worn crown is the prop on every live pose. */
 function livingMacarDrawsPropCrown(key){
   if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return false;
-  return key!=='dwarf_macar_crowned';
+  return true;
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
    softShadow only — no gold ellipse, radial disc, emit, melee arc, or lighter flash. */
@@ -6690,6 +6675,7 @@ function throwCh1LiftLever(){
   L.flags.leverThrown=1;
   shake(10);
   say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
+  hint('Touch the ruby pillar to wake the lift.',5);
   return true;
 }
 function beginCh1ElevatorDescent(){
@@ -6732,8 +6718,8 @@ function ch1ElevatorPrompt(p){
   const nearPillar=!!L.flags.touched && dHub<2.3;
   const leverCloser=dLev+0.12<dHub;
   if(L.flags.leverThrown){
-    if(nearLever && (!nearPillar || leverCloser)) return {action:'lever_spent'};
     if(nearPillar) return {action:'pillar'};
+    if(nearLever) return {action:'lever_spent'};
     return null;
   }
   if(nearLever && nearPillar) return leverCloser?{action:'lever'}:{action:'pillar_locked'};
@@ -15665,11 +15651,11 @@ function drawTeethTile(g,x,y){
 function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
   const img=crownSprite();
   const cx=dx+W*0.5;
-  const cy=dy+H*0.15;
+  const cy=dy+H*0.27;
   g.save();
   if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
   if(img){
-    const h=Math.max(14, H*0.20), w=h*(img.width/Math.max(1,img.height));
+    const h=Math.max(13, H*0.17), w=h*(img.width/Math.max(1,img.height));
     g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
   } else {
     g.translate(cx, cy);

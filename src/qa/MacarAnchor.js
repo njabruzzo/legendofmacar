@@ -15,8 +15,6 @@
 const ANCHOR = 'dwarf_macar_atk_contact.png';
 const REMOVED = [
   'dwarf_macar_atk.png',
-  'dwarf_macar_axe.png', 'dwarf_macar_axe_w1.png', 'dwarf_macar_axe_w2.png', 'dwarf_macar_axe_atk.png',
-  'dwarf_macar_xbow.png', 'dwarf_macar_xbow_w1.png', 'dwarf_macar_xbow_w2.png', 'dwarf_macar_xbow_atk.png',
   'dwarf_macar_e_w3.png',
   'dwarf_macar_se_w1.png', 'dwarf_macar_se_w2.png', 'dwarf_macar_se_w3.png',
   'dwarf_macar_ne_w1.png', 'dwarf_macar_ne_w2.png', 'dwarf_macar_ne_w3.png',
@@ -49,5 +47,7 @@ function calib(assert) {
 /* On-model frames painted from the anchor and approved by Nick. */
 const ONMODEL = ['dwarf_macar.png', 'dwarf_macar_e_w1.png', 'dwarf_macar_e_w2.png',
   'dwarf_macar_back_w1.png', 'dwarf_macar_back_w2.png', 'dwarf_macar_w1.png', 'dwarf_macar_w2.png',
-  'dwarf_macar_atk_n.png', 'dwarf_macar_atk_s.png', 'dwarf_macar_atk_ne.png', 'dwarf_macar_atk_se.png'];
+  'dwarf_macar_atk_n.png', 'dwarf_macar_atk_s.png', 'dwarf_macar_atk_ne.png', 'dwarf_macar_atk_se.png',
+  'dwarf_macar_axe.png', 'dwarf_macar_axe_w1.png', 'dwarf_macar_axe_w2.png', 'dwarf_macar_axe_atk.png',
+  'dwarf_macar_xbow.png', 'dwarf_macar_xbow_w1.png', 'dwarf_macar_xbow_w2.png', 'dwarf_macar_xbow_atk.png'];
 module.exports = { ANCHOR, REMOVED, ONMODEL, removed, resolve, anchorOnly, calib };

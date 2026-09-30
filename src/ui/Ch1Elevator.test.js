@@ -108,6 +108,8 @@ assert(/!L\.flags\.cleared\) return null/.test(html.match(/function ch1ElevatorP
 const throwFn=html.match(/function throwCh1LiftLever\(\)\{[\s\S]*?\n\}/)[0];
 assert(/L\.flags\.leverThrown=1/.test(throwFn) && !/elevReady\s*=/.test(throwFn),
   'Throw it sets leverThrown and does not set elevReady');
+assert(/Touch the ruby pillar to wake the lift\./.test(throwFn),
+  'Throw it hints that the pillar is the next action');
 const descentFn=html.match(/function beginCh1ElevatorDescent\(\)\{[\s\S]*?\n\}/)[0];
 assert(/if\(!L\.flags\.leverThrown\) return false/.test(descentFn) && /L\.flags\.elevReady=1/.test(descentFn)
   && /L\.flags\.elevatorGone=1/.test(descentFn),
@@ -203,7 +205,7 @@ assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && !seq
   'lever-only sets leverThrown and does not descend');
 assert(seq.said.indexOf(BITE)>=0 && seq.said.indexOf(DESCENT)<0,
   'lever-only says the bite-home line and not elevator_descent');
-assert(seq.ch1ElevatorPrompt(atLever).action==='lever_spent', 'a thrown lever offers the spent talk');
+assert(seq.ch1ElevatorPrompt(atLever).action==='pillar', 'after the throw the lever overlap advances to the armed pillar');
 assert(seq.throwCh1LiftLever()===false, 'the lever cannot be thrown twice');
 assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'after the throw the pillar is the armed touch');
 assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1 && seq.G.lvl.flags.elevatorGone===1,
