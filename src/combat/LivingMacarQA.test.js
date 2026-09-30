@@ -735,10 +735,16 @@ assert(/livingMacarDrawsPropCrown\(blitKey\|\|key\)/.test(draw) && /drawWornBone
   'the prop crown is gated on the blit key and the live sheet still plants on the feet');
 assert(!/dwarf_macar_crowned/.test(propFn) && /wearingBoneCrown/.test(propFn) && /return true/.test(propFn),
   'the prop crown draws for every worn-crown pose');
-assert(/loadSpriteKeyNow\('bone_crown'\)/.test(propFn),
+assert(/loadSpriteKeyNow\('bone_crown_worn'\)/.test(propFn),
   'the worn-crown render path requests the crown sprite immediately');
-assert(/const cy=dy\+H\*0\.27/.test(extractFn('drawWornBoneCrown')) && /H\*0\.17/.test(extractFn('drawWornBoneCrown')),
-  'the worn crown is placed down on Macar brow at readable size');
+const crownDraw=extractFn('drawWornBoneCrown');
+assert(/wornCrownSprite\(\)/.test(crownDraw) && /wornCrownAnchor\(key\)/.test(crownDraw)
+  && /flip\?1-a\.x:a\.x/.test(crownDraw) && /H\*a\.h/.test(crownDraw),
+  'the hollow worn crown follows each pose head anchor and mirrors with Macar');
+const crownAnchor=extractFn('wornCrownAnchor');
+assert(/macar_axe_atk/.test(crownAnchor) && /macar_xbow_atk/.test(crownAnchor)
+  && /h:0\.072/.test(crownAnchor),
+  'axe and crossbow lunges use compact attack crown anchors');
 function crownCount(e){
   const key=ctx.livingMacarAnimKey(e);
   const blit=ctx.livingMacarBlitKey(key)||key;

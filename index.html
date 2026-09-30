@@ -790,6 +790,7 @@ SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
 SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
+SPRITE_FILES.bone_crown_worn='assets/props/prop_bone_crown_worn.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
 SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
@@ -1003,7 +1004,7 @@ function requestMacarEquipmentArt(){
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow())
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
-    keys.push('bone_crown');
+    keys.push('bone_crown_worn');
   const sig=keys.join('|');
   if(sig===MACAR_EQUIP_ART_SIG){
     let ready=1;
@@ -2783,7 +2784,7 @@ function livingMacarPlantFit(e, key, img){
 /* No crowned Macar sheet ships: the worn crown is the prop on every live pose. */
 function livingMacarDrawsPropCrown(key){
   if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return false;
-  if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
+  if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown_worn');
   return true;
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
@@ -2833,7 +2834,7 @@ function drawLivingMacar(g,e){
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
   }
   g.restore();
 }
@@ -15511,6 +15512,11 @@ function sceneCrownSprite(){
   if(img&&img.width) return img;
   return crownSprite();
 }
+function wornCrownSprite(){
+  const img=SPR.bone_crown_worn;
+  if(img&&img.width) return img;
+  return crownSprite();
+}
 function toothSprite(p){
   const keys=p&&p.spr?[p.spr,'tooth','tooth_2','tooth_3']:['tooth','tooth_2','tooth_3'];
   for(let i=0;i<keys.length;i++){
@@ -15725,17 +15731,30 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
-  const img=crownSprite();
-  const cx=dx+W*0.5;
-  const cy=dy+H*0.27;
+function wornCrownAnchor(key){
+  if(key==='macar_axe') return {x:0.46,y:0.20,h:0.078,r:0};
+  if(key==='macar_axe_w1') return {x:0.62,y:0.235,h:0.078,r:0};
+  if(key==='macar_axe_w2') return {x:0.66,y:0.225,h:0.078,r:0};
+  if(key==='macar_axe_atk') return {x:0.49,y:0.52,h:0.072,r:-0.08};
+  if(key==='macar_xbow') return {x:0.50,y:0.30,h:0.078,r:0};
+  if(key==='macar_xbow_w1'||key==='macar_xbow_w2') return {x:0.50,y:0.265,h:0.078,r:0};
+  if(key==='macar_xbow_atk') return {x:0.36,y:0.49,h:0.072,r:-0.08};
+  if(key==='macar_atk'||key==='macar_atk_contact') return {x:0.43,y:0.50,h:0.072,r:-0.08};
+  return {x:0.50,y:0.265,h:0.078,r:0};
+}
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z, key){
+  const img=wornCrownSprite();
+  const a=wornCrownAnchor(key);
+  const cx=dx+W*(flip?1-a.x:a.x);
+  const cy=dy+H*a.y;
   g.save();
-  if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
+  g.translate(cx,cy);
+  g.rotate((flip?-1:1)*a.r);
+  if(flip) g.scale(-1,1);
   if(img){
-    const h=Math.max(13, H*0.17), w=h*(img.width/Math.max(1,img.height));
-    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
+    const h=Math.max(10, H*a.h), w=h*(img.width/Math.max(1,img.height));
+    g.drawImage(img, -w/2, -h*0.82, w, h);
   } else {
-    g.translate(cx, cy);
     drawBoneCrownShape(g, z, 0.72);
   }
   g.restore();
@@ -21075,8 +21094,8 @@ function drawEquipDoll(g, x, y, w, h){
     g.drawImage(mip, sx*mf, sy*mf, sw*mf, sh*mf, dx, dy, dw, dh);
     if(typeof wearingBoneCrown==='function' && wearingBoneCrown()
        && typeof drawWornBoneCrown==='function'){
-      if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
-      drawWornBoneCrown(g, dw, dh, dx, dy, false, s);
+      if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown_worn');
+      drawWornBoneCrown(g, dw, dh, dx, dy, false, s, livingMacarIdleKey());
     }
     g.imageSmoothingEnabled=prevS;
     g.restore();

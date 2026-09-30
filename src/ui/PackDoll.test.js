@@ -23,7 +23,7 @@ assert(/livingMacarIdleKey\(\)/.test(block),
   'doll follows livingMacarIdleKey so Shadow Cleaver matches the dungeon blit');
 assert(/wearingBoneCrown/.test(block) && /drawWornBoneCrown/.test(block),
   'doll overlays the worn Bone Crown on Macar');
-assert(/loadSpriteKeyNow\('bone_crown'\)/.test(block),
+assert(/loadSpriteKeyNow\('bone_crown_worn'\)/.test(block),
   'doll requests the crown sprite if the delayed loader has not decoded it yet');
 assert(/globalAlpha=1/.test(block) && /globalCompositeOperation='source-over'/.test(block),
   'doll blit is source-over at alpha 1');

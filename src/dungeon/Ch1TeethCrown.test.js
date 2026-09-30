@@ -69,11 +69,13 @@ assert(/bone_crown:'assets\/props\/prop_bone_crown\.png'/.test(html),
   'bone_crown is registered to the painted prop');
 assert(/SPRITE_FILES\.bone_crown_scene='assets\/props\/prop_bone_crown_scene\.png'/.test(html),
   'scene crown is registered for the altar diorama');
+assert(/SPRITE_FILES\.bone_crown_worn='assets\/props\/prop_bone_crown_worn\.png'/.test(html),
+  'hollow worn crown is registered for Macar');
 assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
   && /tooth_2:'assets\/props\/prop_tooth_2\.png'/.test(html)
   && /tooth_3:'assets\/props\/prop_tooth_3\.png'/.test(html),
   'tooth sprites are registered');
-['prop_bone_crown.png','prop_bone_crown_scene.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
+['prop_bone_crown.png','prop_bone_crown_scene.png','prop_bone_crown_worn.png','prop_tooth.png','prop_tooth_2.png','prop_tooth_3.png'].forEach(n=>{
   assert(fs.existsSync(path.join(__dirname,'../../assets/props/'+n)), n+' on disk');
 });
 {
@@ -85,6 +87,10 @@ assert(/tooth:'assets\/props\/prop_tooth\.png'/.test(html)
   const sbuf=fs.readFileSync(scenePath);
   assert(sbuf.readUInt32BE(16)===109 && sbuf.readUInt32BE(20)===66,
     'altar scene crown is the 109×66 Macar-head fit');
+  const wornPath=path.join(__dirname,'../../assets/props/prop_bone_crown_worn.png');
+  const wbuf=fs.readFileSync(wornPath);
+  assert(wbuf.readUInt32BE(16)===512 && wbuf.readUInt32BE(20)===250,
+    'worn crown is the compact 512×250 hollow overlay');
 }
 assert(/function drawProceduralFang\(/.test(html) && /function crownSprite\(/.test(html)
   && /function toothSprite\(/.test(html),
@@ -187,9 +193,9 @@ assert(/function teethAltarSheetActive\(/.test(html)
   && /SPR\.altar_teeth/.test(html)
   && /function sceneCrownSprite\(/.test(html)
   && /sceneCrownSprite\(/.test(extractFn('drawBoneCrownProp'))
-  && /crownSprite\(/.test(extractFn('drawWornBoneCrown'))
+  && /wornCrownSprite\(/.test(extractFn('drawWornBoneCrown'))
   && !/if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
-  'v11 platform is the altar; the scene crown draws on the slab; wear uses the full crown');
+  'v11 platform is the altar; the scene crown draws on the slab; wear uses the hollow crown');
 assert(/function solidTeethAltarImg\(/.test(html)
   && /solidifyPunchedCutout\(img, 8\)/.test(html)
   && /solidTeethAltarImg\(\)\|\|teethAltarSheetImg\(\)/.test(extractFn('drawProp')),
