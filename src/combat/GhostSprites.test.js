@@ -33,6 +33,11 @@ assert(/function screenCardinal\(e\)\{/.test(html) && /wantsSpriteFlip/.test(htm
 assert(/function ghostAnimKey\(/.test(html) && /function livingColorStats\(/.test(html)
   && /function pickReadyGhostKey\(/.test(html),
   'ghost bind keeps spectral idle and plants it when walk/atk fail');
+assert(/function holdFollowWalk\(e, lead\)/.test(html)
+  && /function followWalkMoving\(e\)/.test(html)
+  && /const moving=\(typeof followWalkMoving==='function'\?followWalkMoving\(e\):e\.moving\) && !e\.defending/.test(html)
+  && /holdFollowWalk\(e, p\)/.test(html),
+  'ghost follow keeps walk art through one-frame steering settles while Macar is moving');
 assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
   'unsigned flag does not include front w1/w2/atk');
 assert(/punch!==false/.test(html) && /const punch=!e\.ghost/.test(html),

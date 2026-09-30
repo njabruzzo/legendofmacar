@@ -372,6 +372,32 @@
     return true;
   }
 
+  function itemKey(it) {
+    if (!it) return '';
+    if (it.id) return 'id:' + it.id;
+    if (it.boneCrown) return 'bone_crown';
+    return (it.n || '') + '|' + (it.slot || '') + '|' + (it.cat || '') + '|' + (it.k || '');
+  }
+
+  function relinkEquippedToPack(G) {
+    if (!G || !G.equipped || !G.packs) return G;
+    var byKey = {};
+    Object.keys(G.packs).forEach(function (owner) {
+      var pk = G.packs[owner] || {};
+      (pk.magic || []).forEach(function (it) {
+        var key = itemKey(it);
+        if (key && !byKey[key]) byKey[key] = it;
+      });
+    });
+    Object.keys(G.equipped).forEach(function (slot) {
+      var key = itemKey(G.equipped[slot]);
+      if (key && byKey[key]) G.equipped[slot] = byKey[key];
+    });
+    if (G.equipped.primary) G.equipped.weapon = G.equipped.primary;
+    if (G.equipped.chest) G.equipped.armor = G.equipped.chest;
+    return G;
+  }
+
   function migrate(snap) {
     if (!snap || typeof snap !== 'object') return null;
     snap = clone(snap);
@@ -505,6 +531,7 @@
     G.curseGrowT = snap.curseGrowT || 0;
     G.curseDecayT = snap.curseDecayT || 0;
     G.hourglassT = snap.hourglassT || 0;
+    relinkEquippedToPack(G);
     return snap;
   }
 
@@ -651,6 +678,7 @@
     unpackRows: unpackRows,
     isRosterParty: isRosterParty,
     maxSavedId: maxSavedId,
+    relinkEquippedToPack: relinkEquippedToPack,
     stripWorld: stripWorld
   };
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

@@ -173,6 +173,7 @@ ctx._player=null;
     isEquipArmor(it){ return !!(it&&it.k==='armor'); },
     isPackEquipable(){ return true; },
     isShadowCleaver(){ return false; },
+    refreshAnimateButton(){},
     claimItemToMacar(){},
     knownShadowCleaver(){ return null; },
     ensureShadowCleaverPacked(){},
@@ -187,7 +188,8 @@ ctx._player=null;
     'restowDisplacedKit','ensureWornKitPacked','packSelItem','confirmPackEquip',
     'ensureEquippedShape','mapPackItemToEquipment','wornSlotOf','equipPackItem',
     'unequipPackSlot','maybeAutoEquip','ensureMacarStartingGear','newPack',
-    'ensurePacks','packOf','livingMacarIdleKey','attackHudIco','slotAnimImg'
+    'ensurePacks','packOf','livingMacarIdleKey','attackHudIco','slotAnimImg',
+    'takeTributeMagic'
   ].forEach(n=>vm.runInContext(extractFn(n), live));
   live.ensurePacks();
   const worn=live.G.equipped||{};
@@ -213,6 +215,16 @@ ctx._player=null;
     'PACK Equip Light Crossbow switches living blit to macar_xbow');
   assert(live.attackHudIco()==='crossbow',
     'PACK Equip Light Crossbow switches Attack HUD to xbow');
+
+  const beforeTributeIds=live.G.packs.macar.magic.map(it=>it&&it.id).filter(Boolean);
+  const paid=live.takeTributeMagic();
+  const afterTributeIds=live.G.packs.macar.magic.map(it=>it&&it.id).filter(Boolean);
+  live.ensurePacks();
+  const afterEnsureIds=live.G.packs.macar.magic.map(it=>it&&it.id).filter(Boolean);
+  assert(paid && afterTributeIds.length===beforeTributeIds.length-1,
+    'shaman tribute with real ensurePacks removes one starter pack item');
+  assert(afterEnsureIds.length===afterTributeIds.length,
+    'ensurePacks does not refill a starter item after tribute once gear is ready');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

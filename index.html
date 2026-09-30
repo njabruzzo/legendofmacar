@@ -278,6 +278,15 @@ function turnToward(e,dx,dy,dt,rate){
   return Math.abs(d)-max;
 }
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
+function holdFollowWalk(e, lead){
+  if(!e||!lead||!lead.moving) return;
+  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  e._followWalkHold=t+0.12;
+}
+function followWalkMoving(e){
+  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  return !!(e && (e.moving || ((e._followWalkHold||0)>t)));
+}
 /* Limner walk: planted boot swaps every half gait. w1 and w2 must be the
    SAME painted facing — opposite FOOT, never opposite heading. Do not
    insert a _w3 pass; several of those sheets were painted turned around
@@ -2432,6 +2441,7 @@ function ghostAnimKey(e, k){
   if(!e||!k) return null;
   const idle=k;
   const back=ghostIdleKey(k, true);
+  const moving=(typeof followWalkMoving==='function'?followWalkMoving(e):e.moving) && !e.defending;
   if(e.atk>0 && e.atkKind==='bow')
     return pickReadyGhostKey(k+'_atk_bow', idle);
   if(wantsMeleeRecover(e))
@@ -2439,13 +2449,13 @@ function ghostAnimKey(e, k){
   if(wantsMeleePose(e)||wantsMeleeRecover(e))
     return pickReadyGhostKey(k+'_atk', idle);
   if(wantsBackView(e)){
-    if(e.moving && !e.defending){
+    if(moving){
       const ghostStep=walkCycleGhostKey(e, k+'_back', back);
       return pickReadyGhostKey(ghostStep, back);
     }
     return pickReadyGhostKey(back, idle);
   }
-  if(e.moving && !e.defending){
+  if(moving){
     const ghostStep=walkCycleGhostKey(e, k, idle);
     return pickReadyGhostKey(ghostStep, idle);
   }
@@ -3628,7 +3638,8 @@ function faceVec(e){
   /* Kin walking in formation behind a walking Macar face his heading, so
      the party reads as one column instead of steering jitter. Fights,
      orders, and swings are handled above / below and keep their facing. */
-  if(e.team==='party' && !e.hero && e.moving && !e.defending && !(e.atk>0) && !e.aim){
+  const followMoving=(typeof followWalkMoving==='function'?followWalkMoving(e):e.moving);
+  if(e.team==='party' && !e.hero && followMoving && !e.defending && !(e.atk>0) && !e.aim){
     const lead=player();
     if(lead && lead.moving && !(typeof kinUnderOrders==='function' && kinUnderOrders(e))){
       const hx=lead.fdx||0, hy=lead.fdy||0;
@@ -9552,6 +9563,7 @@ function ensureMacarStartingGear(pk){
     mapPackItemToEquipment(it);
     let have=pk.magic.find(x=>x&&x.id===it.id);
     if(!have){
+      if(G.macarGearReady) return;
       if(it.id==='macar_hammer') pk.magic.unshift(it);
       else pk.magic.push(it);
       have=it;
@@ -9574,8 +9586,6 @@ function ensureMacarStartingGear(pk){
     G.equipped.armor=G.equipped.chest;
     G.macarGearReady=1;
     applyEquipped();
-  } else {
-    ensureMacarHammer(pk);
   }
 }
 function wieldWeapon(it){
@@ -14562,6 +14572,7 @@ function update(dt){
         if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
           const nr=Navigation.tickFollower(e, p, dt, navHost());
           if(nr && nr.handled){
+            holdFollowWalk(e, p);
             if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
             ghostSapperBomb(e, dt);
             continue;
@@ -14608,10 +14619,12 @@ function update(dt){
           const push=partyGap?1.15:0.35;
           if(dd<reach&&dd>.001){ vx+=(e.x-o.x)/dd*push; vy+=(e.y-o.y)/dd*push; } }
         const stepped=steerWalk(e, vx, vy, go, dt);
+        if(form) holdFollowWalk(e, p);
         if(form) e.followStuck=(stepped>0.002)?0:(e.followStuck||0)+dt;
         }
       } else {
         e.ix=0; e.iy=0; e.moving=0;
+        if(form) holdFollowWalk(e, p);
         if(form) e.followStuck=0;
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);

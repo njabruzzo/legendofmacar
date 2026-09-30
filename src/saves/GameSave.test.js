@@ -52,6 +52,20 @@ GS.applyCampaign(G2, got);
 assert(G2.unlocked===3 && G2.coin.gp===40 && G2.ghostAllies.pordoom===1, 'applyCampaign restores campaign fields');
 assert(G2.day===4 && G2.macarGearReady===1, 'applyCampaign restores day and kit flags');
 
+const crown={id:'bone_crown', n:'Bone Crown', boneCrown:1, slot:'helmet'};
+const leather={id:'macar_leather', n:'Leather Armor', slot:'chest', cat:'Armor/Shield'};
+const sharedSnap=GS.snapshot({
+  scene:'play', ch:1, macarGearReady:1,
+  packs:{macar:{magic:[crown, leather]}},
+  equipped:{helmet:crown, chest:leather, armor:leather}
+});
+const G3={};
+GS.applyCampaign(G3, sharedSnap);
+assert(G3.equipped.helmet===G3.packs.macar.magic[0],
+  'reload relinks worn crown to the pack row instead of making a second object');
+assert(G3.equipped.chest===G3.packs.macar.magic[1] && G3.equipped.armor===G3.equipped.chest,
+  'reload relinks worn armor and its legacy alias to one pack object');
+
 GS.clear(store);
 assert(GS.has(store)===false && GS.read(store)===null, 'clear empties the slot');
 assert(GS.label(null)==='No save', 'empty label');
