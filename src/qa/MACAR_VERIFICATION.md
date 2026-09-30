@@ -19,3 +19,5 @@ The repository's verify-legend-of-macar Chrome harness could not start on this h
 Crown follow-up: lowered all calibrated seats by about 22% of their rim width, and removed the connected gray interior-fill patches from a cached worn-render copy. The original prop, rim, fangs and sprite files stay unchanged. New regressions check each opening between the front fangs, unchanged RGB paint, and the lower idle seat. All 111 test files and 811 browser fixture checks pass after this correction.
 
 Eye-clearance follow-up: raised the worn crown by about 15% of its rim width from the previous lowered placement. The idle seat is now y=285 source pixels; transparent openings remain unchanged. The production-render close-up shows both eyes unobstructed, and all 111 test files pass.
+
+Diameter follow-up: reduced the calibrated worn-crown widths by approximately 8%, leaving all seat positions and eye clearance unchanged. Crown regression checks pass and the updated close-up was inspected using the production renderer.

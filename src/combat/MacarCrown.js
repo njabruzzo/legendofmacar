@@ -5,26 +5,26 @@
      The lower rim hugs the upper forehead, leaving painted scalp visible
      through the ring opening; weapon overhang is irrelevant. */
   const seats={
-    'dwarf_macar.png':[232,285,94,0],
-    'dwarf_macar_w1.png':[242,288,94,0],
-    'dwarf_macar_w2.png':[249,292,94,0],
-    'dwarf_macar_e_w1.png':[246,369,88,-0.08],
-    'dwarf_macar_e_w2.png':[244,360,88,-0.08],
-    'dwarf_macar_back_w1.png':[215,283,92,0],
-    'dwarf_macar_back_w2.png':[221,284,92,0],
-    'dwarf_macar_atk_contact.png':[400,422,92,0.12],
-    'dwarf_macar_atk_n.png':[231,413,90,0],
-    'dwarf_macar_atk_s.png':[110,359,85,-0.08],
-    'dwarf_macar_atk_ne.png':[308,384,88,-0.08],
-    'dwarf_macar_atk_se.png':[354,406,93,0.12],
-    'dwarf_macar_axe.png':[232,285,94,0],
-    'dwarf_macar_axe_w1.png':[242,288,94,0],
-    'dwarf_macar_axe_w2.png':[249,292,94,0],
-    'dwarf_macar_axe_atk.png':[400,422,92,0.12],
-    'dwarf_macar_xbow.png':[232,285,94,0],
-    'dwarf_macar_xbow_w1.png':[242,288,94,0],
-    'dwarf_macar_xbow_w2.png':[249,292,94,0],
-    'dwarf_macar_xbow_atk.png':[400,422,92,0.12]
+    'dwarf_macar.png':[232,285,86,0],
+    'dwarf_macar_w1.png':[242,288,86,0],
+    'dwarf_macar_w2.png':[249,292,86,0],
+    'dwarf_macar_e_w1.png':[246,369,81,-0.08],
+    'dwarf_macar_e_w2.png':[244,360,81,-0.08],
+    'dwarf_macar_back_w1.png':[215,283,85,0],
+    'dwarf_macar_back_w2.png':[221,284,85,0],
+    'dwarf_macar_atk_contact.png':[400,422,85,0.12],
+    'dwarf_macar_atk_n.png':[231,413,83,0],
+    'dwarf_macar_atk_s.png':[110,359,78,-0.08],
+    'dwarf_macar_atk_ne.png':[308,384,81,-0.08],
+    'dwarf_macar_atk_se.png':[354,406,86,0.12],
+    'dwarf_macar_axe.png':[232,285,86,0],
+    'dwarf_macar_axe_w1.png':[242,288,86,0],
+    'dwarf_macar_axe_w2.png':[249,292,86,0],
+    'dwarf_macar_axe_atk.png':[400,422,85,0.12],
+    'dwarf_macar_xbow.png':[232,285,86,0],
+    'dwarf_macar_xbow_w1.png':[242,288,86,0],
+    'dwarf_macar_xbow_w2.png':[249,292,86,0],
+    'dwarf_macar_xbow_atk.png':[400,422,85,0.12]
   };
   function layout(file, sheet, rect, flip, crop){
     const seat=seats[String(file||'').split('?')[0].split('/').pop()];

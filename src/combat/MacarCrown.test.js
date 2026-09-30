@@ -13,7 +13,7 @@ for(const [file,seat] of Object.entries(Crown.seats)){
   const mirror=Crown.layout(file,{width:w,height:h},rect,true);
   assert(Math.abs(normal.x+mirror.x-(2*rect.x+rect.w))<1e-9,file+' mirrors around the sprite');
   assert(normal.y===mirror.y && normal.w===mirror.w && normal.angle===-mirror.angle);
-  assert(normal.w>16 && normal.w<20,file+' crown matches head width regardless of weapon canvas');
+  assert(normal.w>15 && normal.w<18,file+' crown matches head width regardless of weapon canvas');
   const crop={x:20,y:100,w:w-40,h:h-120};
   const cropped=Crown.layout(file,{width:w,height:h},
     {x:rect.x+crop.x*.2,y:rect.y+crop.y*.2,w:crop.w*.2,h:crop.h*.2},false,crop);
