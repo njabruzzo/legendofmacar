@@ -51,6 +51,9 @@ assert(/liveKey\?livingMacarPlantFit\(e,liveKey,img\):frameFit\(e,img\)/.test(ht
 assert(/\*MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
   && !/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
   'strike width is sheet aspect + foot widen, not a 1.16 body fatten');
+assert(/function livingMacarScalePeerKey\(/.test(html)
+  && /macar_axe_atk/.test(extractFn('livingMacarScalePeerKey')),
+  'axe art uses maul scale peers so Macar does not resize when equipped');
 
 function sheetBounds(file){
   const {w,h,data}=readRgba(path.join(creatures,MacarAnchor.resolve(file)));
@@ -83,8 +86,8 @@ function sheetBounds(file){
   }
   return {
     ok:true, w, h,
-    y0:top/h, y1:(bot+1)/h, personY0:crown/h,
-    boxH:bot-top+1
+    x0:lo/w, x1:(hi+1)/w, y0:top/h, y1:(bot+1)/h, personY0:crown/h,
+    boxW:hi-lo+1, boxH:bot-top+1
   };
 }
 
@@ -118,7 +121,7 @@ vm.createContext(ctx);
 vm.runInContext('const MACAR_IDLE_FRAC=0.986;', ctx);
 vm.runInContext(extractFn('figurePersonFrac')+extractFn('heroFigureFit')
   +extractFn('livingStatureFromRGBA')+extractFn('measureLivingStature')+extractFn('livingSheetStature')
-  +extractFn('livingMacarPlantFit')
+  +extractFn('livingMacarScalePeerKey')+extractFn('livingMacarPlantFit')
   +extractFn('bootPlantFrac')+extractFn('livingMacarPlantX'), ctx);
 
 const mac={hero:1, dead:0, ghost:0};
@@ -153,6 +156,17 @@ const axeScreen=axeB.boxH*axeFit/axeB.h;
 const axeW1Screen=axeW1B.boxH*axeW1Fit/axeW1B.h;
 assert(Math.abs(axeW1Screen-axeScreen)/axeScreen<0.02,
   'on-screen cleaver box height matches axe idle');
+const maulIdleScreen={
+  w:macarB.boxW*idleFit/macarB.h,
+  h:macarB.boxH*idleFit/macarB.h
+};
+const axeIdleScreen={
+  w:axeB.boxW*axeFit/axeB.h,
+  h:axeB.boxH*axeFit/axeB.h
+};
+assert(Math.abs(axeIdleScreen.h-maulIdleScreen.h)/maulIdleScreen.h<0.015
+  && Math.abs(axeIdleScreen.w-maulIdleScreen.w)/maulIdleScreen.w<0.015,
+  'equipped axe idle keeps Macar the same height/width as maul idle');
 
 ctx._axe=false;
 const windB=sheetBounds('dwarf_macar_atk.png');
@@ -245,6 +259,22 @@ assert(Math.abs(axeTallBlith-axeIdleBlith)/axeIdleBlith<0.02
   && axeTallBlith<=axeIdleBlith+1e-6,
   'axe strike blitH matches axe idle even when the sheet is 540 (axe '
   +axeIdleBlith.toFixed(3)+' strike '+axeTallBlith.toFixed(3)+')');
+const axeAtkB=sheetBounds('dwarf_macar_axe_atk.png');
+SPR.macar_axe_atk={width:axeAtkB.w, height:axeAtkB.h, _b:axeAtkB};
+const axeAtkBody=pngStature('dwarf_macar_axe_atk.png');
+SPR.macar_axe_atk._stature=axeAtkBody;
+const axeAtkPlant=ctx.livingMacarPlantFit(mac, 'macar_axe_atk', SPR.macar_axe_atk);
+const maulHitScreen={
+  w:hitB.boxW*hitPlant/hitB.h,
+  h:hitB.boxH*hitPlant/hitB.h
+};
+const axeHitScreen={
+  w:axeAtkB.boxW*axeAtkPlant/axeAtkB.h,
+  h:axeAtkB.boxH*axeAtkPlant/axeAtkB.h
+};
+assert(Math.abs(axeHitScreen.h-maulHitScreen.h)/maulHitScreen.h<0.015
+  && Math.abs(axeHitScreen.w-maulHitScreen.w)/maulHitScreen.w<0.015,
+  'equipped axe attack keeps Macar the same height/width as maul attack');
 ctx._axe=false;
 
 const xbowB=sheetBounds('dwarf_macar_xbow.png');

@@ -2752,6 +2752,11 @@ function livingSheetStature(img){
   if(frac>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45) && cache) cache.set(img, frac);
   return frac;
 }
+function livingMacarScalePeerKey(key){
+  if(key==='macar_axe'||key==='macar_axe_w1'||key==='macar_axe_w2') return 'macar';
+  if(key==='macar_axe_atk') return 'macar';
+  return key;
+}
 /* Idle / walk / cleaver / xbow share one canvas height, so they keep the
    idle plant (free-arm maul length stays put). Windup and contact are
    540-tall. Windup's helm-to-boot body is ~0.71 of that canvas (idle is
@@ -2761,6 +2766,8 @@ function livingSheetStature(img){
    Width still follows sheet aspect, so the maul may overhang. */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
+  const scaleKey=(typeof livingMacarScalePeerKey==='function')?livingMacarScalePeerKey(key):key;
+  if(scaleKey && scaleKey!==key && SPR[scaleKey]) return heroFigureFit(e, SPR[scaleKey]);
   const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
