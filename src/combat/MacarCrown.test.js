@@ -31,12 +31,13 @@ for(const [file,seat] of Object.entries({
 // Both profile steps fit the same narrower ring above the painted eye line.
 for(const [file,eyeY] of [['dwarf_macar_e_w1.png',378],['dwarf_macar_e_w2.png',369]]){
   const [x,y,w]=Crown.seats[file];
-  assert(x>=245&&x<=255&&w===68&&y+6<eyeY,file+' profile ring seats on scalp above eyes');
+  assert(x>=240&&x<=248&&w===68&&y+6<eyeY,file+' profile ring seats on scalp above eyes');
 }
 for(const file of ['dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'])
   assert(Crown.seats[file][2]===72&&Crown.seats[file][1]<=270,file+' rear ring fits hair cap');
 assert(Crown.seats['dwarf_macar_atk_se.png'][1]+8<406,'down diagonals clear the former brow overlap');
-assert(Crown.seats['dwarf_macar_atk_s.png'][0]===124 && Crown.seats['dwarf_macar_atk_s.png'][1]===357,'down strike centres the opening on the scalp behind the shaft');
+assert(Crown.seats['dwarf_macar_atk_s.png'][0]===138 && Crown.seats['dwarf_macar_atk_s.png'][1]===357,'down strike centres the opening on the scalp behind the shaft');
+assert(Crown.seats['dwarf_macar_atk_se.png'][0]===370 && Crown.seats['dwarf_macar_atk_se.png'][3]===.28,'down diagonal crown follows forward head lean');
 const prop=readRgba(path.join(root,'assets/props/prop_bone_crown.png'));
 const worn=new Uint8ClampedArray(prop.data);
 const removed=Crown.punchOpening(worn,prop.w,prop.h);
