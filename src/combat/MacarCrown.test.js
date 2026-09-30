@@ -13,13 +13,30 @@ for(const [file,seat] of Object.entries(Crown.seats)){
   const mirror=Crown.layout(file,{width:w,height:h},rect,true);
   assert(Math.abs(normal.x+mirror.x-(2*rect.x+rect.w))<1e-9,file+' mirrors around the sprite');
   assert(normal.y===mirror.y && normal.w===mirror.w && normal.angle===-mirror.angle);
-  assert(normal.w>15 && normal.w<18,file+' crown matches head width regardless of weapon canvas');
+  assert(normal.w>=13 && normal.w<18,file+' crown matches head width regardless of weapon canvas');
   const crop={x:20,y:100,w:w-40,h:h-120};
   const cropped=Crown.layout(file,{width:w,height:h},
     {x:rect.x+crop.x*.2,y:rect.y+crop.y*.2,w:crop.w*.2,h:crop.h*.2},false,crop);
   assert(Math.abs(cropped.x-normal.x)<1e-9 && Math.abs(cropped.y-normal.y)<1e-9);
   assert(Math.abs(cropped.w-normal.w)<1e-9,file+' pack crop matches full world coordinates');
 }
+// Keep the accepted front walk and unaffected strike placements stable.
+for(const [file,seat] of Object.entries({
+  'dwarf_macar_w1.png':[242,288,86,0],
+  'dwarf_macar_w2.png':[249,292,86,0],
+  'dwarf_macar_atk_contact.png':[400,422,85,.12],
+  'dwarf_macar_atk_n.png':[231,413,83,0],
+  'dwarf_macar_atk_ne.png':[308,384,81,-.08]
+})) assert.deepStrictEqual(Crown.seats[file],seat,file+' accepted pose stays unchanged');
+// Both profile steps fit the same narrower ring above the painted eye line.
+for(const [file,eyeY] of [['dwarf_macar_e_w1.png',378],['dwarf_macar_e_w2.png',369]]){
+  const [x,y,w]=Crown.seats[file];
+  assert(x>=245&&x<=255&&w===68&&y+6<eyeY,file+' profile ring seats on scalp above eyes');
+}
+for(const file of ['dwarf_macar_back_w1.png','dwarf_macar_back_w2.png'])
+  assert(Crown.seats[file][2]===72&&Crown.seats[file][1]<=270,file+' rear ring fits hair cap');
+assert(Crown.seats['dwarf_macar_atk_se.png'][1]+8<406,'down diagonals clear the former brow overlap');
+assert(Crown.seats['dwarf_macar_atk_s.png'][1]<350,'down strike seats above forehead');
 const prop=readRgba(path.join(root,'assets/props/prop_bone_crown.png'));
 const worn=new Uint8ClampedArray(prop.data);
 const removed=Crown.punchOpening(worn,prop.w,prop.h);

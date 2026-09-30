@@ -2833,6 +2833,18 @@ function drawLivingMacar(g,e){
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
+    /* In the downward strike the maul passes in front of the forehead.
+       Restore its painted shaft over the worn crown, using source coordinates
+       so the same overlap survives mirroring and render scale changes. */
+    if(SPRITE_FILES[blitKey||key]==='assets/creatures/dwarf_macar_atk_s.png'){
+      const shaftX=118/418, shaftW=23/418;
+      g.save();
+      g.beginPath();
+      g.rect(dx+W*(flip?1-shaftX-shaftW:shaftX),dy+H*320/880,W*shaftW,H*60/880);
+      g.clip();
+      blitFacing(g,img,dx,dy,W,H,flip,true);
+      g.restore();
+    }
   }
   g.restore();
 }
