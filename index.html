@@ -942,6 +942,51 @@ const WORLD_ART_KEYS={
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
+const SPRITE_LOADING={};
+function loadSpriteKeyNow(k, cb){
+  cb=cb||function(){};
+  if(!k||!SPRITE_FILES[k]){ cb(false); return false; }
+  if(sprReady(k)){ cb(true); return true; }
+  if(SPRITE_LOADING[k]){ SPRITE_LOADING[k].push(cb); return true; }
+  SPRITE_LOADING[k]=[cb];
+  const img=new Image();
+  const done=ok=>{
+    if(ok) SPR[k]=img;
+    const list=SPRITE_LOADING[k]||[];
+    delete SPRITE_LOADING[k];
+    for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
+    if(ok){
+      try{ ensureAttackFrames(); }catch(_){}
+      try{ warmLivingMacarSheets(); }catch(_){}
+      try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
+    }
+  };
+  const fin=ok=>{
+    if(ok && img.decode) img.decode().then(()=>done(true), ()=>done(true));
+    else done(ok);
+  };
+  img.onload=()=>fin(true);
+  img.onerror=()=>{
+    if(!img.__retried){
+      img.__retried=1;
+      img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
+      return;
+    }
+    fin(false);
+  };
+  img.src=assetUrl(SPRITE_FILES[k]);
+  return true;
+}
+function requestMacarEquipmentArt(){
+  const keys=[];
+  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver())
+    keys.push('macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk');
+  if(typeof wieldsCrossbow==='function' && wieldsCrossbow())
+    keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
+  if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
+    keys.push('bone_crown');
+  for(let i=0;i<keys.length;i++) loadSpriteKeyNow(keys[i]);
+}
 function worldArtReady(n){
   n=n||(G&&G.ch)||1;
   const keys=WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1];
@@ -988,22 +1033,7 @@ function loadSprites(done){
     scheduleIdle(pumpBackground);
   }
   function loadOne(k, cb){
-    const img=new Image();
-    const fin=ok=>{
-      if(ok && img.decode){
-        img.decode().then(()=>cb(k,img,true), ()=>cb(k,img,true));
-      } else cb(k,img,ok);
-    };
-    img.onload=()=>fin(true);
-    img.onerror=()=>{
-      if(!img.__retried){
-        img.__retried=1;
-        img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
-        return;
-      }
-      fin(false);
-    };
-    img.src=assetUrl(SPRITE_FILES[k]);
+    loadSpriteKeyNow(k, ok=>cb(k,SPR[k],ok));
   }
   let ci=0, cin=0;
   const CRITICAL_MAX=6;
@@ -2161,6 +2191,7 @@ const LIVING_MACAR_KEYS={
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
+  if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
   if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
   if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
     return 'macar_axe';
@@ -2713,6 +2744,7 @@ function livingMacarPlantFit(e, key, img){
 /* No crowned Macar sheet ships: the worn crown is the prop on every live pose. */
 function livingMacarDrawsPropCrown(key){
   if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return false;
+  if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
   return true;
 }
 /* Single source-over blit after multiply / bloom / grain. Floor contact is
@@ -9391,6 +9423,7 @@ function equipPackItem(it, opts){
     if(looseWep && looseWep!==it && !wornSlotOf(looseWep)) stowPackItem(looseWep);
     if(loosePri && loosePri!==it && !wornSlotOf(loosePri)) stowPackItem(loosePri);
     applyEquipped();
+    if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
     if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
     /* Pack Equip, the helmet slot, and every other wear path land here. */
     if(it.boneCrown && typeof refreshAnimateButton==='function') refreshAnimateButton();
@@ -9407,6 +9440,7 @@ function equipPackItem(it, opts){
     restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
     applyEquipped();
+    if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
     if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
     return 'primary';
   }
@@ -9416,6 +9450,7 @@ function equipPackItem(it, opts){
     restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
     applyEquipped();
+    if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
     if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
     return 'chest';
   }
@@ -20994,7 +21029,13 @@ function drawEquipDoll(g, x, y, w, h){
        nearest-neighbour decimation of the 880-tall sheet. */
     const mip=(typeof livingMacarMip==='function')?livingMacarMip(img, img.width*sc, img.height*sc, g):img;
     const mf=mip.width/img.width;
-    g.drawImage(mip, sx*mf, sy*mf, sw*mf, sh*mf, body.x+body.w/2-dw/2, body.y+body.h/2-dh/2, dw, dh);
+    const dx=body.x+body.w/2-dw/2, dy=body.y+body.h/2-dh/2;
+    g.drawImage(mip, sx*mf, sy*mf, sw*mf, sh*mf, dx, dy, dw, dh);
+    if(typeof wearingBoneCrown==='function' && wearingBoneCrown()
+       && typeof drawWornBoneCrown==='function'){
+      if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
+      drawWornBoneCrown(g, dw, dh, dx, dy, false, s);
+    }
     g.imageSmoothingEnabled=prevS;
     g.restore();
   } else {

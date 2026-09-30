@@ -26,6 +26,12 @@ assert(/requestIdleCallback/.test(html) && /scheduleIdle\(pumpBackground\)/.test
 assert(/done\(\);\s*scheduleIdle\(pumpBackground\)/.test(html),
   'boot callback fires after the critical wave, before background loading');
 assert(/img\.decode\(\)/.test(html), 'loaded images are decoded before becoming ready sprites');
+assert(/function loadSpriteKeyNow\(k, cb\)/.test(html) && /SPRITE_LOADING/.test(html),
+  'single sprites can be requested immediately without duplicating active loads');
+assert(/function requestMacarEquipmentArt\(\)/.test(html)
+  && /macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk/.test(html)
+  && /macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk/.test(html),
+  'equipped Macar axe and crossbow art can bypass the idle background queue');
 assert(firstBlock && !/pordoom_ghost_nw_w1/.test(firstBlock) && !/spider_giant_dead/.test(firstBlock),
   'non-opening ghost and monster sheets stay out of the first wave');
 assert(firstBlock && /'floor_mine','wall_worked','wall_face'/.test(firstBlock),
