@@ -356,6 +356,8 @@ SPR.macar_axe={width:8};
 SPR.macar_axe_atk={width:8};
 ctx._axe=true;
 assert(ctx.livingMacarIdleKey()==='macar_axe', 'cleaver swaps idle to macar_axe when sheet ready');
+assert(/requestMacarEquipmentArt/.test(extractFn('livingMacarIdleKey')),
+  'idle key requests equipped art so the axe can appear after delayed loading');
 assert(ctx.livingMacarAnimKey(macar())==='macar_axe', 'idle is macar_axe when the cleaver is on');
 SPR.macar_axe_w1={width:8}; SPR.macar_axe_w2={width:8};
 assert(ctx.livingMacarAnimKey(macar({moving:1, gait:0.12}))==='macar_axe_w1', 'cleaver walk binds axe_w1 when ready');
@@ -733,6 +735,8 @@ assert(/livingMacarDrawsPropCrown\(blitKey\|\|key\)/.test(draw) && /drawWornBone
   'the prop crown is gated on the blit key and the live sheet still plants on the feet');
 assert(!/dwarf_macar_crowned/.test(propFn) && /wearingBoneCrown/.test(propFn) && /return true/.test(propFn),
   'the prop crown draws for every worn-crown pose');
+assert(/loadSpriteKeyNow\('bone_crown'\)/.test(propFn),
+  'the worn-crown render path requests the crown sprite immediately');
 assert(/const cy=dy\+H\*0\.27/.test(extractFn('drawWornBoneCrown')) && /H\*0\.17/.test(extractFn('drawWornBoneCrown')),
   'the worn crown is placed down on Macar brow at readable size');
 function crownCount(e){
