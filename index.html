@@ -54,6 +54,7 @@
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
+<script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -2826,7 +2827,7 @@ function drawLivingMacar(g,e){
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
   }
   g.restore();
 }
@@ -15718,21 +15719,26 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z, key, crop){
   const img=crownSprite();
-  const cx=dx+W*0.5;
-  const cy=dy+H*0.27;
+  const sheet=SPR[key||livingMacarIdleKey()];
+  const seat=MacarCrown.layout(SPRITE_FILES[key||livingMacarIdleKey()], sheet,
+    {x:dx,y:dy,w:W,h:H}, flip, crop);
+  if(!seat) return;
   g.save();
-  if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
+  g.translate(seat.x, seat.y);
+  g.rotate(seat.angle);
+  if(flip) g.scale(-1,1);
   if(img){
-    const h=Math.max(13, H*0.17), w=h*(img.width/Math.max(1,img.height));
-    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
+    const w=seat.w, h=w*img.height/Math.max(1,img.width);
+    /* The bottom rim, not the tips or canvas centre, meets the brow. */
+    g.drawImage(img, -w/2, -h*0.88, w, h);
   } else {
-    g.translate(cx, cy);
-    drawBoneCrownShape(g, z, 0.72);
+    drawBoneCrownShape(g, seat.w/28, 0.72);
   }
   g.restore();
 }
+
 /* Local Y of the altar slab lip (above the red pool), in the crown's foot space. */
 function teethCrownStillSeated(){
   const f=G.lvl&&G.lvl.flags;
@@ -21069,7 +21075,8 @@ function drawEquipDoll(g, x, y, w, h){
     if(typeof wearingBoneCrown==='function' && wearingBoneCrown()
        && typeof drawWornBoneCrown==='function'){
       if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
-      drawWornBoneCrown(g, dw, dh, dx, dy, false, s);
+      drawWornBoneCrown(g, dw, dh, dx, dy, false, s, livingMacarIdleKey(),
+        {x:sx,y:sy,w:sw,h:sh});
     }
     g.imageSmoothingEnabled=prevS;
     g.restore();
