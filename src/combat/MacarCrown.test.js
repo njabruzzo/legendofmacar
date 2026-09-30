@@ -33,7 +33,7 @@ for(let i=0;i<worn.length;i+=4){
   assert(worn[i]===prop.data[i]&&worn[i+1]===prop.data[i+1]&&worn[i+2]===prop.data[i+2],'RGB artwork is unchanged');
 }
 assert(prop.data[at(341,220)+3]===255,'original prop remains opaque and unmodified');
-assert(Crown.seats['dwarf_macar.png'][1]===299,'idle crown seats lower on the forehead');
+assert(Crown.seats['dwarf_macar.png'][1]===285,'idle crown seats above the eyes while retaining scalp in the opening');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(html.includes('flip, z, blitKey||key)'), 'world uses actual blit pose, including alias fallback');
 assert(html.includes('{x:sx,y:sy,w:sw,h:sh}'), 'pack passes source crop');
