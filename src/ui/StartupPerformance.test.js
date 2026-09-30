@@ -15,7 +15,10 @@ function assert(cond, msg){
 
 const firstBlock=(html.match(/const first=\[[\s\S]*?\];/)||[''])[0];
 assert(/let GFX_MODE = 'auto'/.test(html), 'graphics starts in adaptive mode on every platform');
+assert(/let QUALITY = 0/.test(html), 'first playable frame starts in fast graphics mode');
+assert(/typeof QUALITY!=='undefined' && !QUALITY/.test(html), 'fast graphics keeps desktop DPR capped at 1');
 assert(/if\(GFX_MODE!=='auto'\) return;/.test(html), 'adaptive frame pacing is not disabled on desktop');
+assert(/GFX_FAST>900/.test(html), 'auto graphics waits for sustained headroom before restoring high quality');
 assert(/const critical=\[\];/.test(html) && /const background=\[\];/.test(html),
   'sprite loading is split into critical and background queues');
 assert(/Object\.keys\(WORLD_ART_KEYS\)[\s\S]*add\(critical,k\)/.test(html),
@@ -29,9 +32,14 @@ assert(/img\.decode\(\)/.test(html), 'loaded images are decoded before becoming 
 assert(/function loadSpriteKeyNow\(k, cb\)/.test(html) && /SPRITE_LOADING/.test(html),
   'single sprites can be requested immediately without duplicating active loads');
 assert(/function requestMacarEquipmentArt\(\)/.test(html)
+  && /MACAR_EQUIP_ART_SIG/.test(html)
   && /macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk/.test(html)
   && /macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk/.test(html),
-  'equipped Macar axe and crossbow art can bypass the idle background queue');
+  'equipped Macar axe and crossbow art can bypass the idle background queue without repeated ready requests');
+assert(/function scheduleWarmLivingMacarSheets\(\)/.test(html)
+  && /MACAR_WARM_SCHEDULED/.test(html)
+  && /isLivingMacarKey\(k\)\) scheduleWarmLivingMacarSheets/.test(html),
+  'living Macar sheet warming is debounced and limited to Macar art loads');
 assert(firstBlock && !/pordoom_ghost_nw_w1/.test(firstBlock) && !/spider_giant_dead/.test(firstBlock),
   'non-opening ghost and monster sheets stay out of the first wave');
 assert(firstBlock && /'floor_mine','wall_worked','wall_face'/.test(firstBlock),

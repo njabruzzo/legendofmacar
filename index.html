@@ -86,7 +86,7 @@ const LM  = document.createElement('canvas'), lmx = LM.getContext('2d');   // li
 const BL  = document.createElement('canvas'), blx = BL.getContext('2d');   // bloom
 const BX  = document.createElement('canvas'), bxx = BX.getContext('2d');   // beyond-rock mask
 let VW=0, VH=0, DPR=1, UIS=1, ZOOM=1, TW=80, TH=40, PORT=false;
-let QUALITY = 1;           // 0 = Fast. 1 = High (default) — albedo is painted bright for the lightmap.
+let QUALITY = 0;           // 0 = Fast. 1 = High — start fast, upgrade only after sustained headroom.
 let GFX_MODE = 'auto';   // fast | auto | high — start adaptive on every platform
 let FRAME_MS = 16.6;
 let CAN_BLUR = false;
@@ -112,6 +112,7 @@ let LAST_LAYOUT={w:0,h:0,dpr:0};
    Phones stay 1× — non-integer / 2× offscreen still scanlines there. */
 function gfxDprCap(){
   if(PHONE_GFX) return 1;
+  if(typeof QUALITY!=='undefined' && !QUALITY) return 1;
   return 2;
 }
 function pickPlayDpr(){
@@ -191,9 +192,9 @@ function tickGfx(dt){
   if(FRAME_MS>21.5){ GFX_SLOW++; GFX_FAST=0; }
   else if(FRAME_MS<14.5){ GFX_FAST++; GFX_SLOW=0; }
   else { GFX_SLOW=0; GFX_FAST=0; }
-  if(QUALITY && GFX_SLOW>30){        // ~0.5s of sustained slow frames
+  if(QUALITY && GFX_SLOW>12){        // sustained slow frames
     QUALITY=0; GFX_SLOW=0; GFX_FAST=0; resize(true);
-  } else if(!QUALITY && GFX_FAST>420){ // ~7s of comfortable headroom
+  } else if(!QUALITY && GFX_FAST>900){ // ~15s of comfortable headroom
     QUALITY=1; GFX_SLOW=0; GFX_FAST=0; resize(true);
   }
 }
@@ -965,7 +966,7 @@ function loadSpriteKeyNow(k, cb){
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
     if(ok){
       try{ ensureAttackFrames(); }catch(_){}
-      try{ warmLivingMacarSheets(); }catch(_){}
+      try{ if(typeof isLivingMacarKey==='function' && isLivingMacarKey(k)) scheduleWarmLivingMacarSheets(); }catch(_){}
       try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
     }
   };
@@ -985,6 +986,7 @@ function loadSpriteKeyNow(k, cb){
   img.src=assetUrl(SPRITE_FILES[k]);
   return true;
 }
+let MACAR_EQUIP_ART_SIG='';
 function requestMacarEquipmentArt(){
   const keys=[];
   if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver())
@@ -993,6 +995,12 @@ function requestMacarEquipmentArt(){
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
     keys.push('bone_crown');
+  const sig=keys.join('|');
+  if(sig===MACAR_EQUIP_ART_SIG){
+    let ready=1;
+    for(let i=0;i<keys.length;i++) if(!sprReady(keys[i])){ ready=0; break; }
+    if(ready) return;
+  } else MACAR_EQUIP_ART_SIG=sig;
   for(let i=0;i<keys.length;i++) loadSpriteKeyNow(keys[i]);
 }
 function worldArtReady(n){
@@ -1027,7 +1035,7 @@ function loadSprites(done){
     try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
     if(allFinished>=allTotal){
       ensureDeadSprites(); ensureAttackFrames();
-      try{ warmLivingMacarSheets(); }catch(_){}
+      try{ scheduleWarmLivingMacarSheets(); }catch(_){}
       try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
     }
   }
@@ -1035,7 +1043,7 @@ function loadSprites(done){
     if(criticalCallback) return;
     criticalCallback=1;
     ensureDeadSprites(); ensureAttackFrames();
-    try{ warmLivingMacarSheets(); }catch(_){}
+    try{ scheduleWarmLivingMacarSheets(); }catch(_){}
     try{ if(typeof tryEnterPlay==='function') tryEnterPlay(); }catch(_){}
     done();
     scheduleIdle(pumpBackground);
@@ -1087,6 +1095,12 @@ function ensureAttackFrames(){
 }
 /* Bake the repaired Macar sheets ahead of time, a few per tick, so the first
    step never pays for the repair mid-stride. Walks LIVING_MACAR_KEYS only. */
+let MACAR_WARM_SCHEDULED=0;
+function scheduleWarmLivingMacarSheets(){
+  if(MACAR_WARM_SCHEDULED) return;
+  MACAR_WARM_SCHEDULED=1;
+  setTimeout(()=>{ MACAR_WARM_SCHEDULED=0; warmLivingMacarSheets(); },0);
+}
 function warmLivingMacarSheets(){
   const keys=[];
   const add=k=>{ if(k && SPR[k] && keys.indexOf(k)<0) keys.push(k); };
