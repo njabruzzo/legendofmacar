@@ -6690,6 +6690,7 @@ function throwCh1LiftLever(){
   L.flags.leverThrown=1;
   shake(10);
   say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
+  hint('Touch the ruby pillar to wake the lift.',5);
   return true;
 }
 function beginCh1ElevatorDescent(){
@@ -6732,8 +6733,8 @@ function ch1ElevatorPrompt(p){
   const nearPillar=!!L.flags.touched && dHub<2.3;
   const leverCloser=dLev+0.12<dHub;
   if(L.flags.leverThrown){
-    if(nearLever && (!nearPillar || leverCloser)) return {action:'lever_spent'};
     if(nearPillar) return {action:'pillar'};
+    if(nearLever) return {action:'lever_spent'};
     return null;
   }
   if(nearLever && nearPillar) return leverCloser?{action:'lever'}:{action:'pillar_locked'};
