@@ -152,21 +152,10 @@ const unlockedAxeW1=ctx.heroFigureFit(mac, SPR.macar_axe_w1);
 calib(Math.abs(unlockedAxeW1-axeFit)>0.02,
   'without the lock, cleaver w1 personY0 miss would shrink the shaft (unlocked '
   +unlockedAxeW1.toFixed(3)+' vs axe idle '+axeFit.toFixed(3)+')');
-const axeScreen=axeB.boxH*axeFit/axeB.h;
-const axeW1Screen=axeW1B.boxH*axeW1Fit/axeW1B.h;
-assert(Math.abs(axeW1Screen-axeScreen)/axeScreen<0.02,
-  'on-screen cleaver box height matches axe idle');
-const maulIdleScreen={
-  w:macarB.boxW*idleFit/macarB.h,
-  h:macarB.boxH*idleFit/macarB.h
-};
-const axeIdleScreen={
-  w:axeB.boxW*axeFit/axeB.h,
-  h:axeB.boxH*axeFit/axeB.h
-};
-assert(Math.abs(axeIdleScreen.h-maulIdleScreen.h)/maulIdleScreen.h<0.015
-  && Math.abs(axeIdleScreen.w-maulIdleScreen.w)/maulIdleScreen.w<0.015,
-  'equipped axe idle keeps Macar the same height/width as maul idle');
+assert(Math.abs(axeFit-idleFit)<1e-9
+  && Math.abs(axeW1Fit-idleFit)<1e-9
+  && Math.abs(axeW2Fit-idleFit)<1e-9,
+  'equipped axe idle/walk keeps Macar body at maul scale');
 
 ctx._axe=false;
 const windB=sheetBounds('dwarf_macar_atk.png');
@@ -264,17 +253,8 @@ SPR.macar_axe_atk={width:axeAtkB.w, height:axeAtkB.h, _b:axeAtkB};
 const axeAtkBody=pngStature('dwarf_macar_axe_atk.png');
 SPR.macar_axe_atk._stature=axeAtkBody;
 const axeAtkPlant=ctx.livingMacarPlantFit(mac, 'macar_axe_atk', SPR.macar_axe_atk);
-const maulHitScreen={
-  w:hitB.boxW*hitPlant/hitB.h,
-  h:hitB.boxH*hitPlant/hitB.h
-};
-const axeHitScreen={
-  w:axeAtkB.boxW*axeAtkPlant/axeAtkB.h,
-  h:axeAtkB.boxH*axeAtkPlant/axeAtkB.h
-};
-assert(Math.abs(axeHitScreen.h-maulHitScreen.h)/maulHitScreen.h<0.015
-  && Math.abs(axeHitScreen.w-maulHitScreen.w)/maulHitScreen.w<0.015,
-  'equipped axe attack keeps Macar the same height/width as maul attack');
+assert(Math.abs(axeAtkPlant-idleFit)<1e-9,
+  'equipped axe attack keeps Macar body at maul scale');
 ctx._axe=false;
 
 const xbowB=sheetBounds('dwarf_macar_xbow.png');
