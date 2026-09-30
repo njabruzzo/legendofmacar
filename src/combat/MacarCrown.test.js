@@ -20,6 +20,20 @@ for(const [file,seat] of Object.entries(Crown.seats)){
   assert(Math.abs(cropped.x-normal.x)<1e-9 && Math.abs(cropped.y-normal.y)<1e-9);
   assert(Math.abs(cropped.w-normal.w)<1e-9,file+' pack crop matches full world coordinates');
 }
+const prop=readRgba(path.join(root,'assets/props/prop_bone_crown.png'));
+const worn=new Uint8ClampedArray(prop.data);
+const removed=Crown.punchOpening(worn,prop.w,prop.h);
+const at=(x,y)=>(y*prop.w+x)*4;
+assert(removed>20000,'opaque interior matte is opened');
+assert(worn[at(341,220)+3]===0 && worn[at(200,250)+3]===0,'Macar can show through the centre and side of the ring');
+for(const x of [.17,.35,.5,.65,.83]) assert(worn[at(Math.round(prop.w*x),Math.round(prop.h*.6))+3]===0,'all openings between front fangs are transparent');
+assert(worn[at(341,350)+3]===prop.data[at(341,350)+3] && worn[at(341,350)+3]>0,'front bone rim stays painted');
+assert(worn[at(354,80)+3]===prop.data[at(354,80)+3],'crown tips stay painted');
+for(let i=0;i<worn.length;i+=4){
+  assert(worn[i]===prop.data[i]&&worn[i+1]===prop.data[i+1]&&worn[i+2]===prop.data[i+2],'RGB artwork is unchanged');
+}
+assert(prop.data[at(341,220)+3]===255,'original prop remains opaque and unmodified');
+assert(Crown.seats['dwarf_macar.png'][1]===299,'idle crown seats lower on the forehead');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(html.includes('flip, z, blitKey||key)'), 'world uses actual blit pose, including alias fallback');
 assert(html.includes('{x:sx,y:sy,w:sw,h:sh}'), 'pack passes source crop');

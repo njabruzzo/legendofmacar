@@ -187,7 +187,8 @@ assert(/function teethAltarSheetActive\(/.test(html)
   && /SPR\.altar_teeth/.test(html)
   && /function sceneCrownSprite\(/.test(html)
   && /sceneCrownSprite\(/.test(extractFn('drawBoneCrownProp'))
-  && /crownSprite\(/.test(extractFn('drawWornBoneCrown'))
+  && /wornBoneCrownSprite\(/.test(extractFn('drawWornBoneCrown'))
+  && /crownSprite\(/.test(extractFn('wornBoneCrownSprite'))
   && !/if\(teethAltarSheetActive\(\)\) return/.test(extractFn('drawProp')),
   'v11 platform is the altar; the scene crown draws on the slab; wear uses the full crown');
 assert(/function solidTeethAltarImg\(/.test(html)

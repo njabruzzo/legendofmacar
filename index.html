@@ -15732,8 +15732,21 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z, key, crop){
+const WORN_CROWN_CACHE=new WeakMap();
+function wornBoneCrownSprite(){
   const img=crownSprite();
+  if(!img) return null;
+  if(WORN_CROWN_CACHE.has(img)) return WORN_CROWN_CACHE.get(img);
+  try{
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+    const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+    const pixels=ctx.getImageData(0,0,c.width,c.height);
+    MacarCrown.punchOpening(pixels.data,c.width,c.height);
+    ctx.putImageData(pixels,0,0);WORN_CROWN_CACHE.set(img,c);return c;
+  }catch(_){return img;}
+}
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z, key, crop){
+  const img=wornBoneCrownSprite();
   const sheet=SPR[key||livingMacarIdleKey()];
   const seat=MacarCrown.layout(SPRITE_FILES[key||livingMacarIdleKey()], sheet,
     {x:dx,y:dy,w:W,h:H}, flip, crop);
