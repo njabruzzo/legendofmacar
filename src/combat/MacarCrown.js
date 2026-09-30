@@ -5,25 +5,25 @@
      The lower rim hugs the upper forehead, leaving painted scalp visible
      through the ring opening; weapon overhang is irrelevant. */
   const seats={
-    'dwarf_macar.png':[232,285,86,0],
-    'dwarf_macar_w1.png':[242,288,86,0],
-    'dwarf_macar_w2.png':[249,292,86,0],
+    'dwarf_macar.png':[232,279,86,0],
+    'dwarf_macar_w1.png':[242,282,86,0],
+    'dwarf_macar_w2.png':[249,286,86,0],
     'dwarf_macar_e_w1.png':[252,359,68,0.04],
     'dwarf_macar_e_w2.png':[250,350,68,0.04],
     'dwarf_macar_back_w1.png':[215,269,72,0],
     'dwarf_macar_back_w2.png':[221,270,72,0],
     'dwarf_macar_atk_contact.png':[400,422,85,0.12],
     'dwarf_macar_atk_n.png':[231,413,83,0],
-    'dwarf_macar_atk_s.png':[111,345,68,-0.08],
+    'dwarf_macar_atk_s.png':[124,357,68,0.04],
     'dwarf_macar_atk_ne.png':[308,384,81,-0.08],
-    'dwarf_macar_atk_se.png':[354,383,82,0.06],
-    'dwarf_macar_axe.png':[232,285,86,0],
-    'dwarf_macar_axe_w1.png':[242,288,86,0],
-    'dwarf_macar_axe_w2.png':[249,292,86,0],
+    'dwarf_macar_atk_se.png':[358,369,76,0.16],
+    'dwarf_macar_axe.png':[232,279,86,0],
+    'dwarf_macar_axe_w1.png':[242,282,86,0],
+    'dwarf_macar_axe_w2.png':[249,286,86,0],
     'dwarf_macar_axe_atk.png':[400,422,85,0.12],
-    'dwarf_macar_xbow.png':[232,285,86,0],
-    'dwarf_macar_xbow_w1.png':[242,288,86,0],
-    'dwarf_macar_xbow_w2.png':[249,292,86,0],
+    'dwarf_macar_xbow.png':[232,279,86,0],
+    'dwarf_macar_xbow_w1.png':[242,282,86,0],
+    'dwarf_macar_xbow_w2.png':[249,286,86,0],
     'dwarf_macar_xbow_atk.png':[400,422,85,0.12]
   };
   function layout(file, sheet, rect, flip, crop){
