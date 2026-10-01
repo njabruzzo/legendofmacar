@@ -47,4 +47,20 @@ for(const weapon of ['axe','crossbow','maul','axe','maul'])for(const state of ['
  check(state==='bow'?key==='macar_xbow_atk':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&/_w[12]$/.test(key):key===stem,'equipment switch '+weapon+' '+state+' got '+key);
  check(ctx.livingMacarBlitKey(key)===key,'switch survives blit '+weapon+' '+state);
 }
+ctx.wieldsShadowCleaver=()=>true;ctx.wieldsCrossbow=()=>true;Object.assign(ctx.hero,{atk:0,atkKind:'melee',moving:0,bowPoseUntil:0});
+check(ctx.livingMacarIdleKey()==='macar_xbow','equipped secondary crossbow takes priority over primary axe');
+ctx.hero.moving=1;check(ctx.livingMacarAnimKey(ctx.hero).startsWith('macar_xbow_w'),'combined axe/crossbow walks use crossbow');
+// A newly equipped crossbow must request its entire art family, then replace
+// the usable primary-weapon fallback when the asynchronous load completes.
+const requested=[];ctx.wearingBoneCrown=()=>false;ctx.loadSpriteKeyNow=k=>requested.push(k);
+vm.runInContext("let MACAR_EQUIP_ART_SIG='';\n"+fn('requestMacarEquipmentArt'),ctx);
+const bowKeys=['macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk'];
+const savedBow=Object.fromEntries(bowKeys.map(k=>[k,SPR[k]]));bowKeys.forEach(k=>delete SPR[k]);
+ctx.hero.moving=0;
+check(ctx.livingMacarIdleKey()==='macar_axe','cold crossbow keeps a usable fallback during loading');
+check(bowKeys.every(k=>requested.includes(k)),'equipping a cold crossbow requests idle, both walks and attack');
+Object.assign(SPR,savedBow);
+check(ctx.livingMacarIdleKey()==='macar_xbow','completed load replaces primary axe with equipped crossbow');
+ctx.wieldsCrossbow=()=>false;
+check(ctx.livingMacarIdleKey()==='macar_axe','doffing crossbow restores the retained axe');
 console.log('COUNTS cases='+cases+' asserts='+asserts);

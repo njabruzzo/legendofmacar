@@ -2230,10 +2230,10 @@ function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
   if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
   if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
-  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
-    return 'macar_axe';
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
+  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+    return 'macar_axe';
   return 'macar';
 }
 /* Extra mass is WIDTH, not height. Dungeon height stays kin 78*z so Macar
