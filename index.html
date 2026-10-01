@@ -7982,9 +7982,20 @@ function completeDigSquare(L){
   if(!dig||!L) return 0;
   const i=dig.i, j=dig.j;
   const turns=digTerrainTurns(digTerrainAt(L, i, j));
-  breakRock(L, i, j);
+  const crownWall=ch1CrownWallAt(L,i,j);
+  if(crownWall){
+    // Open the authored room, rather than leaving a hole in an unopened
+    // secret. This also persists the passage and initializes its contents.
+    openSecret(crownWall);
+    G.digging=0;
+    learn('mining',3);
+    say('Macar digs through the wall. A passage to the crown chamber opens.','#d8c49a');
+    hint('The crown chamber lies beyond the wall.',4);
+  } else {
+    breakRock(L, i, j);
+    say('A square foot of stone comes away.','#d8c49a');
+  }
   if(G.digBoost>0) G.digBoost--;
-  say('A square foot of stone comes away.','#d8c49a');
   G.dig=null;
   if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(turns, 'noisy');
   return turns;
@@ -18321,17 +18332,28 @@ function rockAt(L,i,j){
   if(!L.wallHP[k]) L.wallHP[k]={hp:isVein(i,j)?48:120, max:isVein(i,j)?48:120};
   return L.wallHP[k];
 }
-function diggable(L,i,j){
+function ch1CrownWallAt(L,i,j){
+  if(!L||L.n!==1||i<1||j<1||i>=L.w-1||j>=L.h-1||!L.grid||!L.grid[j]||L.grid[j][i]!==1) return null;
+  return (L.secrets||[]).find(sec=>{
+    if(!sec||sec.open||sec.kind!=='teeth') return false;
+    const x=sec.i!=null?sec.i:(sec.x|0),y=sec.j!=null?sec.j:(sec.y|0);
+    return i>=x&&i<x+(sec.w||3)&&j>=y&&j<y+Math.max(1,sec.h||1);
+  })||null;
+}
+function diggable(L,i,j,shovel){
   if(L.n===1 && i<14) return false;
+  // Only intentional shovel excavation may open this authored entrance.
+  // Bombs and generic terrain damage retain the progression protections.
+  if(shovel && ch1CrownWallAt(L,i,j)) return true;
   if(typeof Interaction!=='undefined' && Interaction.isProtectedCell && Interaction.isProtectedCell(L,i,j))
     return false;
   return i>=1 && j>=1 && i<L.w-1 && j<L.h-1 && L.grid[j] && L.grid[j][i]===1;
 }
-function digTarget(e){
+function digTarget(e,shovel=true){
   const L=G.lvl; if(!L) return null;
   for(const reach of [0.85,1.15]){
     const i=(e.x+e.fdx*reach)|0, j=(e.y+e.fdy*reach)|0;
-    if(diggable(L,i,j)) return {i,j};
+    if(diggable(L,i,j,shovel)) return {i,j};
   }
   return null;
 }
@@ -18388,7 +18410,7 @@ function breakRock(L,i,j){
 /* returns true if the swing was spent on rock */
 function digSwing(e,dmg){
   const L=G.lvl; if(!L||!e.hero) return false;
-  const t=digTarget(e); if(!t) return false;
+  const t=digTarget(e,false); if(!t) return false;
   const r=rockAt(L,t.i,t.j);
   const power=dmg*(1+skillLvl('mining')*0.14);
   r.hp-=power;

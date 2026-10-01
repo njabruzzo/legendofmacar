@@ -79,6 +79,26 @@
   G.hitstop=0;IN.keys={};for(let i=0;i<300&&!G.talk;i++){G.t+=dt;update(dt);}
   check(G.talk&&G.talk.key==='ch1_lift_pull','walking arrival opens actionable lever '+dt);
  }
+ // Exercise the actual shovel timer, with passive discovery already tried.
+ for(const dt of [1/60,.05])for(const column of [105,106,107]){
+  fresh();let lead=player();const wall=G.lvl.secrets.find(s=>s.kind==='teeth');wall.passTried=1;
+  G.lvl.flags.farEast=1;G.secretSearch=0;G.searching=0;G.hitstop=0;G.digBoost=0;
+  lead.x=column+.5;lead.y=16.55;lead.fdx=0;lead.fdy=-1;lead.dest=null;
+  const tag='crown wall column '+column+' dt='+dt;
+  check(!diggable(G.lvl,column,15)&&diggable(G.lvl,column,15,true),tag+' shovel allowed while generic terrain damage stays blocked');
+  fire('shovel');check(G.digging&&G.dig&&G.dig.i===column&&G.dig.j===15,tag+' shovel starts on wall');
+  const need=digNeedMinutes(),steps=Math.ceil((need-.2)/dt);
+  for(let i=0;i<steps;i++){G.t+=dt;update(dt);}
+  check(!wall.open&&G.lvl.grid[15][column]===1,tag+' wall stays sealed until dig finishes');
+  for(let i=0;i<30&&!wall.open;i++){G.t+=dt;update(dt);}
+  check(wall.open&&G.lvl.flags.teethRoom&&G.lvl.grid[15].slice(105,108).every(v=>v===0),tag+' timed dig opens whole passage and builds chamber');
+  check(!G.digging&&!G.dig&&G.props.filter(pr=>pr.k==='bonecrown'&&!pr.taken).length===1,tag+' dig stops and crown exists once');
+  lead=reload();check(G.lvl.secrets.find(s=>s.kind==='teeth').open&&G.lvl.grid[15].slice(105,108).every(v=>v===0),tag+' dug opening survives reload');
+  lead.x=106.5;lead.y=16.55;lead.dest={x:107.5,y:10.5};G.hitstop=0;
+  for(let i=0;i<500&&lead.y>13.5;i++){G.t+=dt;update(dt);if(G.talk&&G.talk.key==='teeth_chapel_enter')G.talk=null;}
+  result.observations.push({tag,x:lead.x,y:lead.y,talk:G.talk&&G.talk.key});
+  check(lead.y<13.5,tag+' Macar walks through dug wall into chamber');
+ }
  fresh();openSecret(G.lvl.secrets.find(s=>s.kind==='teeth'));const opened=GameSave.captureWorld(G);
  const crown=opened.props.find(pr=>pr.k==='bonecrown');if(crown)crown.taken=1;
  opened.grid[25]=opened.grid[25].slice(0,110)+'4'+opened.grid[25].slice(111);
