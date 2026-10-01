@@ -11881,6 +11881,15 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
   G.shots.push(s);
   return s;
 }
+function stepShot(s,dt){
+  s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
+  s.spin=s.kind==='bolt'?0:(s.spin||0)+dt*14;
+}
+function shotScreenAngle(s){
+  // Project velocity with the same isometric axes as w2s, independently
+  // of camera position and elapsed time.
+  return Math.atan2((s.vx+s.vy)*TH,(s.vx-s.vy)*TW);
+}
 function strengthCheck(e){
   const ab=(typeof meleeStrAbil==='function'?meleeStrAbil(e):entityAbil(e))||{};
   const str=ab.str||10, exc=ab.exc||0;
@@ -14904,7 +14913,7 @@ function update(dt){
   }
 
   for(const s of G.shots){
-    s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
+    stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
       if(dist(s,o)<o.r+.45){
@@ -17790,7 +17799,21 @@ function drawKing(g,e,z,sw){
 function drawShot(g,s){
   const p=w2s(s.x,s.y), z=ZOOM;
   g.save(); g.translate(p.x,p.y-28*z);
-  if(s.kind==='web'){
+  if(s.kind==='bolt'){
+    const angle=shotScreenAngle(s),img=SPR.fx_bolt;
+    if(img&&img.width){
+      // Existing bolt art points right and slightly down: nock (28,90),
+      // tip (736,246). Cancel that painted tilt before aiming the sprite.
+      const hh=28*z,ww=hh*(img.width/img.height);
+      g.rotate(angle-Math.atan2(156,708));
+      g.drawImage(img,-ww/2,-hh/2,ww,hh);
+    } else {
+      g.rotate(angle);
+      g.strokeStyle=s.col||'#d8c49a';g.lineWidth=2*z;
+      g.beginPath();g.moveTo(-12*z,0);g.lineTo(10*z,0);g.stroke();
+      g.fillStyle='#d4dbe4';g.beginPath();g.moveTo(14*z,0);g.lineTo(7*z,-3*z);g.lineTo(7*z,3*z);g.closePath();g.fill();
+    }
+  } else if(s.kind==='web'){
     g.rotate(s.spin*0.35);
     const img=TEX.web;
     if(img){ g.globalAlpha=0.9; g.drawImage(img,-18*z,-16*z,36*z,32*z); g.globalAlpha=1; }
