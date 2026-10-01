@@ -6697,7 +6697,7 @@ function applyPlaySave(play){
   L.flags=Object.assign({}, L.flags||{}, play.flags||{});
   if(play.secrets&&L.secrets){
     play.secrets.forEach(sv=>{
-      const sec=L.secrets.find(s=>s.kind===sv.kind && (s.i===sv.i || s.kind==='warrens'&&sv.kind==='warrens'));
+      const sec=L.secrets.find(s=>savedSecretFor(L,play,s)===sv);
       if(!sec||!sv.open||sec.open) return;
       openSecret(sec);
     });
@@ -6734,10 +6734,32 @@ function applyPlaySave(play){
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
+  restoreSecretEntrances(play);
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
   try{ rebuildVision(); }catch(e){}
+}
+function savedSecretFor(L,play,sec){
+  const saved=(play.secrets||[]).filter(s=>s.kind===sec.kind);
+  const exact=saved.find(s=>s.i===sec.i && s.j===sec.j);
+  if(exact) return exact;
+  // A unique named room can keep its discovery when its entrance moves.
+  return saved.length===1 && L.secrets.filter(s=>s.kind===sec.kind).length===1?saved[0]:null;
+}
+function restoreSecretEntrances(play){
+  const L=G.lvl;if(!L||!L.grid||!L.secrets) return;
+  // Saved terrain is applied after room generation. Reconcile only the
+  // authored seams, keeping all other excavated terrain and room contents.
+  for(const sec of L.secrets){
+    const sv=savedSecretFor(L,play,sec);
+    if(sv) sec.hinted=!!sv.hinted;
+    if(!sec.open){sealSecretCells(L.grid,sec);continue;}
+    rect(L.grid,sec.i,sec.j,sec.w||2,Math.max(1,sec.h||1),0);
+    if(sec.face==='n') rect(L.grid,sec.i,sec.j+1,sec.w||3,1,0);
+    if(sec.kind==='teeth' && sv && (sv.i!==sec.i||sv.j!==sec.j)) buildTeethCrownRoom(L,sec);
+  }
+  bumpTopology('restoreSecretEntrances');
 }
 /* Continue used to restore the thrall body and drop G.thrallId, so the
    party card and the follow order both vanished. Prefer the saved id,
@@ -6792,6 +6814,8 @@ function ensureCh1CenterPillar(){
   const L=G.lvl;
   if(!L || L.n!==1) return null;
   G.props=G.props||[];
+  if(!G.props.some(p=>p&&p.k==='lift'&&!p.gone&&Math.hypot(p.x-36.5,p.y-21.5)<0.55))
+    G.props.push({x:36.5,y:21.5,k:'lift'});
   const have=(G.props||[]).find(ch1CenterPillar);
   if(have) return have;
   const p={x:36.5,y:21.5,k:'pillar'};
@@ -6947,7 +6971,7 @@ function ch1QuillLookHit(w){
   }
   if(L.flags.touched){
     const pk=ch1PillarLookKey();
-    if(pk) consider(pk, 36.5, 21.5, 0.85);
+    consider(pk||'ch1_lift_ride', 36.5, 21.5, 0.85);
   }
   consider(ch1LeverShownThrown()?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look', 37.15, 22.05, 0.72);
   (G.props||[]).forEach(pr=>{
@@ -6955,6 +6979,33 @@ function ch1QuillLookHit(w){
     consider('cavein_behind_look', pr.x, pr.y, 0.9);
   });
   return best;
+}
+function ch1ScreenLookHit(t){
+  const L=G.lvl;if(!t||!L||L.n!==1) return null;
+  const z=ZOOM,hub=ch1HubAnchor(),s=w2s(hub.x,hub.y);
+  const inBox=(x,y,w,h)=>t.x>=x&&t.x<=x+w&&t.y>=y&&t.y<=y+h;
+  // Use the same rectangles as the renderer, without unprojecting the
+  // height of the ruby or handle onto an unrelated floor tile.
+  const lever=ch1LiftLeverSheet(ch1LeverShownThrown());
+  const lh=lever?86*z:76*z,lw=lever?lh*lever.width/Math.max(1,lever.height):66*z;
+  if(inBox(s.x+26*z-lw*.47,s.y+10*z-lh,lw,lh+8*z))
+    return Object.assign({key:ch1LeverShownThrown()?'ch1_lift_lever_thrown_look':'ch1_lift_lever_look'},ch1LeverAnchor());
+  if(L.flags.touched){
+    const pillar=(G.props||[]).find(ch1CenterPillar)||{k:'pillar',x:hub.x,y:hub.y};
+    const ruby=SPR.ch1_pillar_ruby,rh=(ruby?42:32)*z,rw=ruby?rh*ruby.width/Math.max(1,ruby.height):26*z;
+    const top=pillarRubyLocalY(z,pillar)-(ruby?rh*.78:27*z);
+    if(inBox(s.x-rw/2-5*z,s.y+top-5*z,rw+10*z,rh+10*z))
+      return {key:ch1PillarLookKey()||'ch1_lift_ride',x:hub.x,y:hub.y};
+  }
+  if(!L.flags.touched){
+    const door=L.rubyDoor||{x:36.5,y:7.28},half=rubyDoorHalf(),yp=rubyDoorPlaneY(door);
+    const a=w2s(door.x-half,yp),b=w2s(door.x+half,yp);
+    if(t.x>=a.x&&t.x<=b.x){
+      const base=a.y+(b.y-a.y)*(t.x-a.x)/Math.max(1,b.x-a.x);
+      if(t.y>=base-rubyDoorH()&&t.y<=base) return {key:'ruby_door_look',x:door.x,y:door.y};
+    }
+  }
+  return null;
 }
 function ch1QuillLookReach(key){
   if(key==='cavein_behind_look') return 2.2;
@@ -6971,10 +7022,28 @@ function ch1QuillLookStand(hit){
 }
 function openCh1QuillLook(key){
   if(!key||G.talk||!NPC_TALK[key]) return false;
+  const f=G.lvl&&G.lvl.n===1&&G.lvl.flags;
+  if(f){
+    if(key==='ruby_door_look'&&!f.touched) key='ruby_door';
+    else if(key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look'){
+      if(f.cleared) key=ch1LeverShownThrown()?'ch1_lift_pull_spent':'ch1_lift_pull';
+    } else if(key==='rubypillar_look'||key==='rubypillar_look_armed'||key==='ch1_lift_ride'){
+      if(f.elevReady) key='ch1_lift_ride';
+      else if(f.cleared&&f.touched) key=f.leverThrown?'rubypillar_touch':'rubypillar_touch_locked';
+      else key='rubypillar_look';
+    }
+  }
   startTalk(key);
   return true;
 }
 const NPC_TALK={
+  ch1_lift_ride:{
+    who:'THE ELEVATOR',line:'The lift is ready. The dark below waits.',
+    choices:[{t:'Ride the elevator down.',then:()=>{
+      const L=G.lvl;if(!L||L.n!==1||!L.flags.elevReady) return;
+      L.objs[3].d=1;endChapter();
+    }},{t:'Not yet.'}]
+  },
   noz_untie:{
     who:'NOZ',
     line:'"Air. They meant to eat me, dwarf. I can still run. Let me."',
@@ -7913,9 +7982,20 @@ function completeDigSquare(L){
   if(!dig||!L) return 0;
   const i=dig.i, j=dig.j;
   const turns=digTerrainTurns(digTerrainAt(L, i, j));
-  breakRock(L, i, j);
+  const crownWall=ch1CrownWallAt(L,i,j);
+  if(crownWall){
+    // Open the authored room, rather than leaving a hole in an unopened
+    // secret. This also persists the passage and initializes its contents.
+    openSecret(crownWall);
+    G.digging=0;
+    learn('mining',3);
+    say('Macar digs through the wall. A passage to the crown chamber opens.','#d8c49a');
+    hint('The crown chamber lies beyond the wall.',4);
+  } else {
+    breakRock(L, i, j);
+    say('A square foot of stone comes away.','#d8c49a');
+  }
   if(G.digBoost>0) G.digBoost--;
-  say('A square foot of stone comes away.','#d8c49a');
   G.dig=null;
   if(typeof advanceDungeonTurns==='function') advanceDungeonTurns(turns, 'noisy');
   return turns;
@@ -14379,7 +14459,10 @@ function update(dt){
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
-        if(p.dest.look && typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
+        if(p.dest.look){
+          if(p.dest.ch1) openCh1QuillLook(p.dest.look);
+          else if(typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
+        }
         if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
@@ -18249,17 +18332,28 @@ function rockAt(L,i,j){
   if(!L.wallHP[k]) L.wallHP[k]={hp:isVein(i,j)?48:120, max:isVein(i,j)?48:120};
   return L.wallHP[k];
 }
-function diggable(L,i,j){
+function ch1CrownWallAt(L,i,j){
+  if(!L||L.n!==1||i<1||j<1||i>=L.w-1||j>=L.h-1||!L.grid||!L.grid[j]||L.grid[j][i]!==1) return null;
+  return (L.secrets||[]).find(sec=>{
+    if(!sec||sec.open||sec.kind!=='teeth') return false;
+    const x=sec.i!=null?sec.i:(sec.x|0),y=sec.j!=null?sec.j:(sec.y|0);
+    return i>=x&&i<x+(sec.w||3)&&j>=y&&j<y+Math.max(1,sec.h||1);
+  })||null;
+}
+function diggable(L,i,j,shovel){
   if(L.n===1 && i<14) return false;
+  // Only intentional shovel excavation may open this authored entrance.
+  // Bombs and generic terrain damage retain the progression protections.
+  if(shovel && ch1CrownWallAt(L,i,j)) return true;
   if(typeof Interaction!=='undefined' && Interaction.isProtectedCell && Interaction.isProtectedCell(L,i,j))
     return false;
   return i>=1 && j>=1 && i<L.w-1 && j<L.h-1 && L.grid[j] && L.grid[j][i]===1;
 }
-function digTarget(e){
+function digTarget(e,shovel=true){
   const L=G.lvl; if(!L) return null;
   for(const reach of [0.85,1.15]){
     const i=(e.x+e.fdx*reach)|0, j=(e.y+e.fdy*reach)|0;
-    if(diggable(L,i,j)) return {i,j};
+    if(diggable(L,i,j,shovel)) return {i,j};
   }
   return null;
 }
@@ -18316,7 +18410,7 @@ function breakRock(L,i,j){
 /* returns true if the swing was spent on rock */
 function digSwing(e,dmg){
   const L=G.lvl; if(!L||!e.hero) return false;
-  const t=digTarget(e); if(!t) return false;
+  const t=digTarget(e,false); if(!t) return false;
   const r=rockAt(L,t.i,t.j);
   const power=dmg*(1+skillLvl('mining')*0.14);
   r.hp-=power;
@@ -21903,13 +21997,13 @@ function applyPortraitTap(ph){
 }
 function consumePlayUiTap(t){
   if(typeof TapGate==='undefined'||!TapGate.use()) return false;
-  if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
-    fire('use'); return true; }
   if(G.talk){
     const hit=(UI.talkHits||[]).find(z=>t.x>=z.x&&t.x<=z.x+z.w&&t.y>=z.y&&t.y<=z.y+z.h);
     if(hit) pickTalk(hit.i);
     return true;
   }
+  if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+    fire('use'); return true; }
   const ph=TapGate.firstHit(UI.portraitHits, t.x, t.y);
   if(ph){ applyPortraitTap(ph); return true; }
   const r=TapGate.resolvePlayTap(UI.overlayHits||[], t);
@@ -21921,6 +22015,11 @@ function resolveTaps(){
     if(G.sleepShow) continue;
     if(G.scene==='play'&&!G.paused){
       if(typeof consumePlayUiTap==='function' && consumePlayUiTap(t)) continue;
+      if(G.talk){
+        const hit=(UI.talkHits||[]).find(z=>t.x>=z.x&&t.x<=z.x+z.w&&t.y>=z.y&&t.y<=z.y+z.h);
+        if(hit) pickTalk(hit.i);
+        continue;
+      }
       if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
         fire('use'); continue; }
       const p=player(); if(!p) continue;
@@ -21931,6 +22030,12 @@ function resolveTaps(){
       if(G.aim){ const d=dist(p,w), R=8;
         G.aim = d>R ? {x:p.x+(w.x-p.x)/d*R, y:p.y+(w.y-p.y)/d*R} : {x:w.x,y:w.y};
         continue; }
+      const ch1Hit=ch1ScreenLookHit(t);
+      if(ch1Hit){
+        if(dist(p,ch1Hit)<=ch1QuillLookReach(ch1Hit.key)) {p.dest=null;openCh1QuillLook(ch1Hit.key);}
+        else {p.dest=Object.assign(ch1QuillLookStand(ch1Hit),{ch1:1});p.stuck=0;p.lastD=undefined;}
+        continue;
+      }
       const bound=G.ents.find(e=>e.name==='Noz'&&e.tied&&!e.dead);
       if(bound && dist(p,bound)<2.2 && dist(bound,w)<1.6){ fire('use'); continue; }
       const foe=G.ents.find(e=>e.team==='foe'&&!e.dead&&dist(e,w)<1.1);
@@ -21960,9 +22065,9 @@ function resolveTaps(){
         const reach=chapel?teethChapelLookReach(lookPick.key):ch1QuillLookReach(lookPick.key);
         if(dist(p,lookPick)<=reach){
           if(chapel) openTeethChapelLook(lookPick.key);
-          else openCh1QuillLook(lookPick.key);
+          else {p.dest=null;openCh1QuillLook(lookPick.key);}
         } else {
-          p.dest=chapel?teethChapelLookStand(lookPick):ch1QuillLookStand(lookPick);
+          p.dest=chapel?teethChapelLookStand(lookPick):Object.assign(ch1QuillLookStand(lookPick),{ch1:1});
           p.stuck=0; p.lastD=undefined;
         }
         continue;

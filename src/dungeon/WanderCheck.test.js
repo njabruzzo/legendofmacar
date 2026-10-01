@@ -172,7 +172,7 @@ ctx.G.digBoost=1;
 ctx.G.lvl={n:1, digTerrain:{}};
 ctx.lines=[];
 ctx.rolls=[4];
-vm.runInContext(extractFn('completeDigSquare')+'\nthis.completeDigSquare=completeDigSquare;', ctx);
+vm.runInContext(extractFn('ch1CrownWallAt')+'\n'+extractFn('completeDigSquare')+'\nthis.completeDigSquare=completeDigSquare;', ctx);
 const spent=ctx.completeDigSquare(ctx.G.lvl);
 assert(spent===1 && ctx.broke[0]===3 && ctx.broke[1]===8 && ctx.G.dig===null && ctx.G.digBoost===0,
   'completeDigSquare reads the square, breaks it, then clears the dig');

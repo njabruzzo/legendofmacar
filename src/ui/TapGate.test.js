@@ -139,7 +139,7 @@ assert(/pointerdown/.test(html) && /pointerup/.test(html) && /e\.pointerType/.te
     consumePlayUiTap:null
   };
   vm.createContext(ctx);
-  vm.runInContext(extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
+  vm.runInContext(extractFn('ch1ScreenLookHit')+extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
 
   const p=ctx.player();
   ctx.UI.overlayHits=[{x:10,y:10,w:40,h:40,fn(){ ctx.fired++; }}];
@@ -182,7 +182,7 @@ assert(/pointerdown/.test(html) && /pointerup/.test(html) && /e\.pointerType/.te
     ZOOM:1
   };
   vm.createContext(ctx);
-  vm.runInContext(extractFn('applyPortraitTap')+extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
+  vm.runInContext(extractFn('ch1ScreenLookHit')+extractFn('applyPortraitTap')+extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
   ctx.IN.taps.push({x:20,y:20});
   ctx.resolveTaps();
   assert(ctx.G.inspect==='orbo' && !ctx.p.dest,
@@ -213,7 +213,7 @@ assert(/pointerdown/.test(html) && /pointerup/.test(html) && /e\.pointerType/.te
     ZOOM:1
   };
   vm.createContext(ctx);
-  vm.runInContext(extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
+  vm.runInContext(extractFn('ch1ScreenLookHit')+extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
   ctx.IN.taps.push({x:300,y:300});
   ctx.resolveTaps();
   assert(ctx.picked==null && !ctx.p.dest, 'talk miss is swallowed; no world dest');
@@ -243,7 +243,7 @@ assert(/pointerdown/.test(html) && /pointerup/.test(html) && /e\.pointerType/.te
     ZOOM:1
   };
   vm.createContext(ctx);
-  vm.runInContext(extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
+  vm.runInContext(extractFn('ch1ScreenLookHit')+extractFn('consumePlayUiTap')+extractFn('resolveTaps'), ctx);
   ctx.IN.taps.push({x:10,y:10});
   ctx.resolveTaps();
   assert(ctx.fired===0 && ctx.p.dest, 'flag-off falls through to movement (rollback)');

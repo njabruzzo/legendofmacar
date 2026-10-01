@@ -319,7 +319,7 @@ assert(!ctx.G.lvl.flags.hourglassRaid && ctx.G.hourglassT===10,
     'makeGrondTooth','pryGrondTooth','hasElectrumToothInPack','hasBronzeToothInPack',
     'chapelFaceToothTaken','bindPriedChapelTooth','demonFaceShowsEmpty','vaultDemonFace',
     'demonFaceImg','buildTeethCrownRoom','openSecret','revertUnsecuredBronzeTooth',
-    'resetUnsecuredHourglass','applyPlaySave'
+    'resetUnsecuredHourglass','savedSecretFor','sealSecretCells','restoreSecretEntrances','applyPlaySave'
   ].forEach(n=>vm.runInContext(extractFn(n)+';', round));
   function toothCount(){
     const pk=round.G.packs.macar;
