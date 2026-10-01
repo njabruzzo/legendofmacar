@@ -634,6 +634,7 @@ const SPRITE_FILES={
   winduptoy_wound:'assets/props/prop_winduptoy_wound.png',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
+  rubydoor_steps_stone:'assets/props/prop_rubydoor_steps_stone_v1.png',
   dwarfface:'assets/props/prop_dwarfface.png',
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
@@ -968,6 +969,7 @@ const WORLD_ART_KEYS={
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
 Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); });
+for(const n of [1,3]) WORLD_ART_KEYS[n].push('rubydoor_steps_stone');
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -3291,19 +3293,49 @@ function rubyDoorSteps(p){
     top:rise*(3-i),bottom:rise*(2-i)
   }));
 }
-function drawRubyDoorSteps(g,p){
+let RUBY_DOOR_STEP_MATERIALS=null;
+function rubyDoorStepMaterials(){
+  const img=SPR.rubydoor_steps_stone;
+  if(!img||!img.width) return null;
+  if(RUBY_DOOR_STEP_MATERIALS&&RUBY_DOOR_STEP_MATERIALS.source===img) return RUBY_DOOR_STEP_MATERIALS;
+  const slice=(y,h)=>{
+    const c=document.createElement('canvas');c.width=img.width;c.height=Math.max(1,Math.round(img.height*h));
+    c.getContext('2d').drawImage(img,0,img.height*y,img.width,img.height*h,0,0,c.width,c.height);
+    return c;
+  };
+  // Three different portions of the broad tread stones avoid repeating
+  // the same cracks. The lower atlas panel carries the carved riser band.
+  RUBY_DOOR_STEP_MATERIALS={source:img,treads:[0,1,2].map(i=>slice(i*.535/3,.535/3)),riser:slice(.655,.21)};
+  return RUBY_DOOR_STEP_MATERIALS;
+}
+function drawRubyDoorTread(g,img,step){
+  const a=w2s(step.x0,step.y0),b=w2s(step.x1,step.y0),d=w2s(step.x0,step.y1);
   g.save();
-  for(const step of rubyDoorSteps(p)){
+  g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
+  const c=w2s(step.x1,step.y1);g.lineTo(c.x,c.y-step.top);g.lineTo(d.x,d.y-step.top);g.closePath();
+  if(img&&img.width){
+    g.clip();g.translate(a.x,a.y-step.top);
+    g.transform((b.x-a.x)/img.width,(b.y-a.y)/img.width,(d.x-a.x)/img.height,(d.y-a.y)/img.height,0,0);
+    g.drawImage(img,0,0);
+  } else {g.fillStyle='#554b3d';g.fill();}
+  g.restore();
+}
+function drawRubyDoorSteps(g,p){
+  const materials=rubyDoorStepMaterials();
+  g.save();
+  for(const [i,step] of rubyDoorSteps(p).entries()){
     // Exposed end stone and the shallow riser below the next tread.
-    drawIsoPlaneImg(g,null,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#574632',shade:0.6,stroke:0});
+    drawIsoPlaneImg(g,materials&&materials.riser,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#40372e',shade:0.7,stroke:0});
     g.save();g.translate(0,-step.bottom);
-    drawIsoPlaneImg(g,null,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#6d573e',shade:0.7});
+    drawIsoPlaneImg(g,materials&&materials.riser,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#493d30',shade:0.65,stroke:0});
     g.restore();
-    fillIsoCap(g,step.x0,step.y0,step.x1,step.y0,step.x1,step.y1,step.x0,step.y1,step.top);
+    drawRubyDoorTread(g,materials&&materials.treads[i],step);
     // Worn stone noses follow the same descending line as the doorway.
     const a=w2s(step.x0,step.y1),b=w2s(step.x1,step.y1);
+    g.beginPath();g.moveTo(a.x,a.y-step.top+1.2*ZOOM);g.lineTo(b.x,b.y-step.top+1.2*ZOOM);
+    g.strokeStyle='rgba(12,9,7,0.55)';g.lineWidth=1.4*ZOOM;g.stroke();
     g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
-    g.strokeStyle='rgba(238,217,181,0.42)';g.lineWidth=1.1*ZOOM;g.stroke();
+    g.strokeStyle='rgba(186,162,121,0.32)';g.lineWidth=0.75*ZOOM;g.stroke();
   }
   g.restore();
 }
