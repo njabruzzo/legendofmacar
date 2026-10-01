@@ -22,7 +22,7 @@
   check(screenOctant(hero)===dirs[i],weapon+' '+stage+' octant '+dirs[i]);
   const key=livingMacarAnimKey(hero),blit=livingMacarBlitKey(key);
   const stem=stage==='ranged'?'macar_xbow':weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
-  let expected=stem;
+  let expected=stem+'_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i]);
   if(stage==='ranged')expected='macar_xbow_atk';
   else if(stage==='windup'||stage==='hit')expected=stem==='macar'?(i===6?'macar_atk_n':i===2?'macar_atk_s':i===5||i===7?'macar_atk_ne':i===1||i===3?'macar_atk_se':stage==='hit'?'macar_atk_contact':'macar_atk'):stem+'_atk';
   else if(stage.startsWith('walk')){
@@ -32,20 +32,20 @@
   check(blit===key,weapon+' '+stage+' '+dirs[i]+' blit does not revert pose');
   check(!!MacarCrown.layout(SPRITE_FILES[blit],SPR[blit],{x:0,y:0,w:100,h:100},wantsSpriteFlip(hero)),'crown seat '+blit);
   const cv=document.createElement('canvas');cv.width=180;cv.height=240;cv.style='position:static;width:180px;height:240px;background:#424242';const cg=cv.getContext('2d');cg.translate(90,190);drawLivingMacar(cg,hero);cg.setTransform(1,0,0,1,0,0);cg.fillStyle='white';cg.font='10px sans-serif';cg.fillText(weapon+' '+stage+' '+dirs[i],5,220);cg.fillText(blit,5,233);gallery.append(cv);
-  result.weapons.push({weapon,stage,direction:dirs[i],key,blit,flip:wantsSpriteFlip(hero)});
+  result.weapons.push({weapon,stage,direction:dirs[i],key,blit,flip:wantsSpriteFlip(hero),figureH:MacarStrikeQA.figureH,blitH:MacarStrikeQA.blitH});
  }
  // Switching during/after bow pose must return to the current equipment.
  for(const weapon of ['axe','crossbow','maul','axe','maul']){
   G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:0,atkKind:'bow',bowPoseUntil:nowMs()-1,bowPoseT:.2});
-  check(livingMacarAnimKey(hero)===(weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar'),'expired Shoot equipment switch '+weapon);
+  check(livingMacarAnimKey(hero)===(weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar')+'_idle_ne','expired Shoot equipment switch '+weapon);
  }
  for(const weapon of ['axe','crossbow','maul','axe','maul'])for(const state of ['idle','walk','strike','bow']){
   G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:state==='walk'?1:0,atk:state==='strike'?.4:0,atkMax:1,atkKind:state==='bow'?'bow':'melee',bowPoseUntil:state==='bow'?nowMs()+1000:0,bowPoseT:0,macarWindupUntil:0});
   const stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   const key=livingMacarAnimKey(hero);
-  check(state==='bow'?key==='macar_xbow_atk':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&/_w[12]$/.test(key):key===stem,'equipment switch '+weapon+' '+state+' got '+key);
+  check(state==='bow'?key==='macar_xbow_atk':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&/_w[12]$/.test(key):key===stem+'_idle_ne','equipment switch '+weapon+' '+state+' got '+key);
   check(livingMacarBlitKey(key)===key,'switch survives blit '+weapon+' '+state);
  }
 
@@ -55,10 +55,42 @@
  check(equipPackItem({n:'Light Crossbow'},{silent:true})==='secondary','Pack equips crossbow');
  Object.assign(hero,{atk:0,atkKind:'melee',moving:0,bowPoseUntil:0});
  check(wieldsShadowCleaver()&&wieldsCrossbow(),'Pack preserves both weapons');
- check(livingMacarAnimKey(hero)==='macar_xbow','Pack crossbow idle overrides axe');
+ check(livingMacarAnimKey(hero)==='macar_xbow_idle_ne','Pack crossbow idle overrides axe');
  hero.moving=1;check(livingMacarAnimKey(hero).startsWith('macar_xbow_w'),'Pack crossbow walk overrides axe');
  unequipPackSlot('secondary',{silent:true});hero.moving=0;
- check(livingMacarAnimKey(hero)==='macar_axe','doffing crossbow restores axe');
+ check(livingMacarAnimKey(hero)==='macar_axe_idle_ne','doffing crossbow restores axe');
+ // Real Pack switching while both slots remain occupied.
+ check(equipPackItem({n:'Light Crossbow'},{silent:true})==='secondary','Pack re-equips crossbow');
+ const plainAxe={id:'iron_axe',n:'Iron Axe',k:'weapon'};
+ check(equipPackItem(plainAxe,{silent:true})==='primary','Pack equips a generic axe');
+ check(wieldsMacarAxe()&&wieldsCrossbow(),'generic axe and bow both remain equipped');
+ check(livingMacarIdleKey()==='macar_axe','last equipped axe is the held weapon');
+ check(livingMacarAnimKey(hero)==='macar_axe_idle_ne','generic axe uses directional standing art');
+ const savedKit=GameSave.snapshot(G),reloadedKit={};GameSave.applyCampaign(reloadedKit,savedKit);
+ check(MacarEquipment.heldKind(reloadedKit.equipped)==='axe','save reload preserves axe selection with retained bow');
+ check(equipPackItem(G.equipped.secondary,{silent:true})==='secondary','select the retained crossbow');
+ check(livingMacarIdleKey()==='macar_xbow','last equipped crossbow becomes held');
+ // Stop from each gait in every direction without retaining movement input.
+ for(const weapon of ['maul','axe','crossbow'])for(let i=0;i<8;i++)for(const gait of [.25,.75]){
+  G.equipped={primary:weapon==='axe'?{n:'Iron Axe',k:'weapon',macarHeld:1}:{n:'War Hammer',k:'weapon',macarHeld:weapon==='maul'?1:0},secondary:weapon==='crossbow'?{n:'Crossbow',macarHeld:1}:null};
+  const a=i*Math.PI/4,sx=Math.cos(a)/(TW/2),sy=Math.sin(a)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
+  Object.assign(hero,{moving:1,ix:dx,iy:dy,fdx:dx,fdy:dy,gait,atk:0,atkKind:'melee',bowPoseUntil:0});
+  const walk=livingMacarAnimKey(hero);
+  steerWalk(hero,0,0,hero.sp,gait===.25?1/60:.05);
+  const key=livingMacarAnimKey(hero),stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
+  check(screenOctant(hero)===dirs[i],weapon+' stopped heading '+dirs[i]);
+  check(key===stem+'_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i]),weapon+' stopped planted pose '+dirs[i]);
+  check(key!==walk&&SPR[key].__macarDirectionalIdle,weapon+' settles to a genuine standing frame '+dirs[i]);
+ }
+ const idleSheet=document.createElement('canvas');idleSheet.width=1440;idleSheet.height=720;
+ const ig=idleSheet.getContext('2d');ig.fillStyle='#424242';ig.fillRect(0,0,1440,720);
+ const idleCanvases=Array.from(document.querySelectorAll('#pose-gallery canvas')).filter((cv,i)=>Math.floor(i/8)%stages.length===0);
+ idleCanvases.forEach((cv,i)=>{
+  const x=i%8*180,y=Math.floor(i/8)*240;
+  ig.drawImage(cv,0,0,180,210,x,y,180,210);
+  ig.fillStyle='white';ig.font='13px sans-serif';
+  ig.fillText(['HAMMER','AXE','CROSSBOW'][Math.floor(i/8)]+' · '+['RIGHT','DOWN-RIGHT','DOWN','DOWN-LEFT','LEFT','UP-LEFT','UP','UP-RIGHT'][i%8],x+5,y+227);
+ });result.idleGallery=idleSheet.toDataURL('image/png');
  // Draw every crew member in all eight directions, both gait frames and idle/attack/back.
  const ghostSheet=document.createElement('canvas');ghostSheet.width=1440;ghostSheet.height=4*3*240;
  const gg=ghostSheet.getContext('2d');gg.fillStyle='#33312d';gg.fillRect(0,0,ghostSheet.width,ghostSheet.height);

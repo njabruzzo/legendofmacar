@@ -58,6 +58,7 @@
 <script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/MacarEquipment.js"></script>
+<script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -523,7 +524,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='129';
+const ASSET_VER='130';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -929,6 +930,7 @@ const MACAR_ONMODEL={
   macar_xbow_w2:'assets/creatures/dwarf_macar_xbow_w2.png',
   macar_xbow_atk:'assets/creatures/dwarf_macar_xbow_atk.png'
 };
+if(typeof MacarIdleAtlas!=='undefined') MacarIdleAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
@@ -965,6 +967,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -975,7 +978,7 @@ function loadSpriteKeyNow(k, cb){
   SPRITE_LOADING[k]=[cb];
   const img=new Image();
   const done=ok=>{
-    if(ok) SPR[k]=img;
+    if(ok) SPR[k]=(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
     const list=SPRITE_LOADING[k]||[];
     delete SPRITE_LOADING[k];
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
@@ -1008,6 +1011,11 @@ function requestMacarEquipmentArt(){
     keys.push('macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk');
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow())
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
+  if(typeof MacarIdleAtlas!=='undefined'){
+    keys.push(...MacarIdleAtlas.keys('macar'));
+    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'));
+    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'));
+  }
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
     keys.push('bone_crown');
   const sig=keys.join('|');
@@ -1706,6 +1714,7 @@ const SOLID_MACAR=(typeof WeakMap==='function')?new WeakMap():null;
 function blitLivingMacar(img){
   const idle=(typeof SPR!=='undefined' && SPR.macar && SPR.macar.width)?SPR.macar:null;
   if(!img||!img.width) return (idle&&idle!==img)?blitLivingMacar(idle):null;
+  if(img.__macarDirectionalIdle) return img;
   if(SOLID_MACAR&&SOLID_MACAR.has(img)) return SOLID_MACAR.get(img);
   if(img.__solidMacar) return img.__solidMacar;
   let out=null;
@@ -2249,6 +2258,7 @@ const LIVING_MACAR_KEYS={
   macar_atk_n:1, macar_atk_s:1, macar_atk_ne:1, macar_atk_se:1,
   dwarf_macar_crowned:1
 };
+if(typeof MacarIdleAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{ if(MacarIdleAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1; });
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
@@ -2341,7 +2351,7 @@ function matchingPartyAtkReady(key, idleKey){
    Contact is 893×540. Idle stays 1100×920. samePaintedFamily would plant
    idle and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
-  return key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+  return /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
     ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
     ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se';
@@ -2510,8 +2520,19 @@ function ghostAnimKey(e, k){
    pickReadyPartyKey so a second crown/family pass cannot plant idle after
    livingMacarAnimKey already chose the mid-swing sheet. */
 /* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
-function livingMacarStandKey(idle){
-  return idle||'macar';
+function livingMacarStandKey(idle,e){
+  idle=idle||'macar';
+  if(e && typeof screenOctant==='function'){
+    const oct=screenOctant(e),dir={w:'e',sw:'se',nw:'ne'}[oct]||oct;
+    const key=idle+'_idle_'+dir;
+    if(isLivingMacarKey(key) && sprReady(key)) return key;
+    // Keep the stopped heading while a directional standing sheet loads.
+    if(idle==='macar' && dir!=='s'){
+      const planted=dir==='n'?'macar_back_w1':'macar_'+dir+'_w1';
+      if(isLivingMacarKey(planted) && sprReady(planted)) return planted;
+    }
+  }
+  return idle;
 }
 function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
@@ -2654,7 +2675,7 @@ function livingMacarAnimKey(e){
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle,e);
   }
   if(wantsLivingMacarStrike(e)){
     const atk=(idle==='macar_axe')?'macar_axe_atk':(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
@@ -2669,15 +2690,14 @@ function livingMacarAnimKey(e){
         return 'macar_atk_contact';
     }
     if(matchingPartyAtkReady(atk, idle)) return atk;
-    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle);
+    return pickReadyPartyKey(atk, idle) || livingMacarStandKey(idle,e);
   }
   if(wantsMeleeRecover(e)){
     const rec=(idle==='macar_axe')?'macar_axe_atk_recover':(idle==='macar_xbow')?'macar_xbow_atk_recover':'macar_atk_recover';
     if(matchingPartyAtkReady(rec, idle)) return rec;
-    return livingMacarStandKey(idle);
+    return livingMacarStandKey(idle,e);
   }
-  /* Original compass walks only while moving, so a standing Macar
-     stays the front idle (no size pop onto a side sheet). South stays
+  /* Original compass walks remain unchanged. South stays
      the front w1/w2. Screen-left mirrors (wantsSpriteFlip). Cleaver and
      crossbow have no compass sheets, so they keep their front walks. */
   if(idle==='macar' && e.moving && !e.defending && typeof screenOctant==='function'){
@@ -2708,7 +2728,7 @@ function livingMacarAnimKey(e){
       if(walk && walk!==idle) return walk;
     }
   }
-  return livingMacarStandKey(idle);
+  return livingMacarStandKey(idle,e);
 }
 /* Crown-to-boots fraction of a sheet. The column is the densest lower
    body (legs and torso), not the overhead maul. Contact's helm sits left

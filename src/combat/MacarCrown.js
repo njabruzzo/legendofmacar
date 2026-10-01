@@ -27,7 +27,7 @@
     'dwarf_macar_xbow_atk.png':[400,422,85,0.12]
   };
   function layout(file, sheet, rect, flip, crop){
-    const seat=seats[String(file||'').split('?')[0].split('/').pop()];
+    const seat=(sheet&&sheet.__macarIdleSeat)||seats[String(file||'').split('?')[0].split('/').pop()];
     if(!seat || !sheet || !sheet.width || !sheet.height) return null;
     const c=crop||{x:0,y:0,w:sheet.width,h:sheet.height};
     const x=(seat[0]-c.x)/c.w;
