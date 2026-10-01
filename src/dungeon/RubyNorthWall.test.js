@@ -118,5 +118,21 @@ ctx.G.lvl.grid=ch1Grid;
 assert(ctx.actorDrawDepth({x:30.2,y:20.2,kind:'dwarf',dead:0,crushed:0})===((30.2+20.2)|0),
   'open-floor actors keep their own diagonal');
 
+vm.runInContext(extractFn('rubyDoorSteps'),ctx);
+for(const [tw,th] of [[66,34],[116,58],[140,70]]){
+ ctx.TW=tw;ctx.TH=th;
+ for(const door of [ch1,ch3]){
+  ctx.G.lvl.grid=door===ch1?ch1Grid:ch3Grid;
+  const steps=ctx.rubyDoorSteps(door),half=ctx.rubyDoorHalf(),plane=ctx.rubyDoorPlaneY(door);
+  assert(steps.length===3,'three stone steps at '+tw+' tile width');
+  steps.forEach((s,i)=>{
+   assert(s.x0===door.x-half&&s.x1===door.x+half,'tread '+i+' shares both door endpoints at '+tw);
+   assert(s.y0>=plane&&s.y1>s.y0,'tread '+i+' extends in front of the wall plane');
+   assert(s.top>s.bottom&&s.bottom>=0,'positive shallow riser '+i);
+   if(i)assert(s.top===steps[i-1].bottom&&s.y0===steps[i-1].y1,'contiguous descending step '+i);
+  });
+  assert(steps[2].bottom===0,'lowest riser meets the floor');
+ }
+}
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nruby north wall checks passed');

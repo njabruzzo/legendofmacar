@@ -3256,6 +3256,31 @@ function rubyDoorPlaneY(p){
   }
   return Math.floor(p.y)-0.42;
 }
+/* Three shallow stone steps share the arch's world-space endpoints.
+   Using the same half-width and wall plane keeps them aligned at every zoom. */
+function rubyDoorSteps(p){
+  const half=rubyDoorHalf(),plane=rubyDoorPlaneY(p),rise=TH*0.09,run=0.34;
+  return Array.from({length:3},(_,i)=>({
+    x0:p.x-half,x1:p.x+half,y0:plane+i*run,y1:plane+(i+1)*run,
+    top:rise*(3-i),bottom:rise*(2-i)
+  }));
+}
+function drawRubyDoorSteps(g,p){
+  g.save();
+  for(const step of rubyDoorSteps(p)){
+    // Exposed end stone and the shallow riser below the next tread.
+    drawIsoPlaneImg(g,null,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#574632',shade:0.6,stroke:0});
+    g.save();g.translate(0,-step.bottom);
+    drawIsoPlaneImg(g,null,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#6d573e',shade:0.7});
+    g.restore();
+    fillIsoCap(g,step.x0,step.y0,step.x1,step.y0,step.x1,step.y1,step.x0,step.y1,step.top);
+    // Worn stone noses follow the same descending line as the doorway.
+    const a=w2s(step.x0,step.y1),b=w2s(step.x1,step.y1);
+    g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
+    g.strokeStyle='rgba(238,217,181,0.42)';g.lineWidth=1.1*ZOOM;g.stroke();
+  }
+  g.restore();
+}
 /* Depth key of the east wall cell whose south face covers the door's right
    edge. The face sits on the walk-tile line (one inset south of the door
    plane), so it lands further left on screen than the sheet's right edge.
@@ -16576,6 +16601,7 @@ function drawProp(g,p,pal){
     /* stroke:0 — a quad outline boxed the arch. No god-ray: that wash
        hid the carved stone. A small emit sits on the painted ruby only. */
     drawIsoPlaneImg(g, img, p.x-half, yPlane, p.x+half, yPlane, H, {stroke:0});
+    drawRubyDoorSteps(g,p);
     emit(sx.x,sx.y-H*0.46,14*z,'#ff2a3c',0.38);
     return;
   }

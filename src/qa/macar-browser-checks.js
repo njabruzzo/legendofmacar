@@ -142,6 +142,24 @@
   result.dungeon.push({dt,violations,travel,minLead,minKin,initial,final:G.ents.map(e=>({name:e.name,x:e.x,y:e.y,moving:e.moving,blocked:e._partyBlocked,stun:e.stun})),state:{scene:G.scene,paused:G.paused,sleepShow:G.sleepShow}});
  }
  IN.keys={};
+ // Render the actual ruby-chamber wall with the new stairs, including wall sorting.
+ startChapter(1);
+ await Promise.all(WORLD_ART_KEYS[1].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'door scene art '+k);resolve();}))));
+ ensureTileBlit(G.lvl);
+ const door=G.props.find(p=>p.k==='rubydoor');
+ G.ents=[];G.loot=[];G.decals=[];G.parts=[];G.shots=[];G.thrown=[];
+ VW=900;VH=700;ZOOM=2.4;TW=140;TH=70;
+ G.cam={x:door.x,y:door.y+1};CAMSX=450-(door.x-rubyDoorPlaneY(door))*TW/2;CAMSY=520-(door.x+rubyDoorPlaneY(door))*TH/2;
+ for(const row of G.lvl.seen)row.fill(1);
+ ensureTileBlit(G.lvl);
+ const doorCanvas=document.createElement('canvas');doorCanvas.width=VW;doorCanvas.height=VH;
+ const dg=doorCanvas.getContext('2d');dg.fillStyle='#111';dg.fillRect(0,0,VW,VH);
+ result.doorScene={grid:G.lvl.grid.slice(5,10).map(row=>row.slice(33,40)),seen:G.lvl.seen.slice(5,10).map(row=>Array.from(row.slice(33,40))),floor:!!TILEBLIT.floor,wall:!!TILEBLIT.face,worldReady:worldArtReady(1),cam:G.cam};
+ drawWorld(dg,G.lvl);result.doorGallery=doorCanvas.toDataURL('image/png');
+ for(const step of rubyDoorSteps(door)){
+  check(step.x0===door.x-rubyDoorHalf()&&step.x1===door.x+rubyDoorHalf(),'stair width equals door width');
+  check(step.y0>=rubyDoorPlaneY(door)&&step.y1>step.y0,'stairs extend onto the floor in front');
+ }
  }catch(e){result.failures.push(e.stack);}
  report.textContent=JSON.stringify({checks:result.checks,failures:result.failures,weapons:result.weapons.length,followerScenarios:result.followers.length,ghostPoses:result.ghosts.length},null,2);
  const sheet=document.createElement('canvas');sheet.width=1440;sheet.height=Math.ceil(document.querySelectorAll('#pose-gallery canvas').length/8)*240;const sg=sheet.getContext('2d');sg.fillStyle='#424242';sg.fillRect(0,0,sheet.width,sheet.height);document.querySelectorAll('#pose-gallery canvas').forEach((cv,i)=>sg.drawImage(cv,i%8*180,Math.floor(i/8)*240));result.gallery=sheet.toDataURL('image/png');
