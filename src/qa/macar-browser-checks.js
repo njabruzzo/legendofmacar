@@ -1,11 +1,11 @@
 (async function(){
- const result={checks:0,failures:[],weapons:[],followers:[]};
+ const result={checks:0,failures:[],weapons:[],followers:[],ghosts:[]};
  const check=(v,m)=>{result.checks++;if(!v)result.failures.push(m);};
  const report=document.createElement('pre');report.id='qa-results';report.style='position:relative;background:#111;color:white;white-space:pre-wrap;padding:20px;z-index:9999';document.body.append(report);
  document.getElementById('c').style.display='none';document.body.style='overflow:auto;background:#171717;color:white;height:auto;';
  report.textContent='Loading shipped art for animation and follower verification…';
  try{
- const keys=Object.keys(SPRITE_FILES).filter(k=>/^macar(_|$)/.test(k)).concat(['bone_crown']);
+ const keys=Object.keys(SPRITE_FILES).filter(k=>/^macar(_|$)/.test(k)).concat(['bone_crown'],['pordoom','fendur','orbo','talpor'].flatMap(k=>[k+'_atk',k+'_atk_recover']),Object.keys(SPRITE_FILES).filter(k=>/^(pordoom|fendur|orbo|talpor)_ghost/.test(k)&&!/_w3$/.test(k)));
  await Promise.all(keys.map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'load '+k);resolve();}))));
  const gallery=document.createElement('div');gallery.id='pose-gallery';gallery.style='display:grid;grid-template-columns:repeat(8,180px);gap:5px';document.body.append(gallery);
  const hero=ent({hero:1,team:'party',kind:'dwarf',name:'MACAR',x:0,y:0,sp:4.3});G.ents=[hero];
@@ -15,7 +15,7 @@
  for(const weapon of ['maul','axe','crossbow'])for(const stage of stages)for(let i=0;i<8;i++){
   const a=i*Math.PI/4;const sx=Math.cos(a)/(TW/2),sy=Math.sin(a)/(TH/2);const m=Math.hypot(sx+sy,sy-sx);
   const dx=(sx+sy)/m,dy=(sy-sx)/m;
-  G.equipped={helmet:{id:'bone_crown',boneCrown:1},primary:weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver'}:{id:'macar_hammer',n:"Macar's War Hammer"},secondary:weapon==='crossbow'?{n:'Crossbow'}:null};
+  G.equipped={helmet:{id:'bone_crown',boneCrown:1},primary:weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{id:'macar_hammer',n:"Macar's War Hammer"},secondary:weapon==='crossbow'?{n:'Crossbow'}:null};
   Object.assign(hero,{moving:stage.startsWith('walk')?1:0,ix:dx,iy:dy,fdx:dx,fdy:dy,gait:stage==='walk2'?.75:.25,atk:0,atkKind:'melee',bowPoseT:0,bowPoseUntil:0,macarWindupUntil:0,aim:null,_attack:null});
   if(stage==='windup'||stage==='hit'||stage==='recover'){hero.atkMax=1;hero.atk=stage==='windup'?.82:stage==='hit'?.4:.1;}
   if(stage==='ranged'){hero.atkKind='bow';armBowPose(hero);}
@@ -36,18 +36,52 @@
  }
  // Switching during/after bow pose must return to the current equipment.
  for(const weapon of ['axe','crossbow','maul','axe','maul']){
-  G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
+  G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:0,atkKind:'bow',bowPoseUntil:nowMs()-1,bowPoseT:.2});
   check(livingMacarAnimKey(hero)===(weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar'),'expired Shoot equipment switch '+weapon);
  }
  for(const weapon of ['axe','crossbow','maul','axe','maul'])for(const state of ['idle','walk','strike','bow']){
-  G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
+  G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:state==='walk'?1:0,atk:state==='strike'?.4:0,atkMax:1,atkKind:state==='bow'?'bow':'melee',bowPoseUntil:state==='bow'?nowMs()+1000:0,bowPoseT:0,macarWindupUntil:0});
   const stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   const key=livingMacarAnimKey(hero);
   check(state==='bow'?key==='macar_xbow_atk':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&/_w[12]$/.test(key):key===stem,'equipment switch '+weapon+' '+state+' got '+key);
   check(livingMacarBlitKey(key)===key,'switch survives blit '+weapon+' '+state);
  }
+
+ // The real Pack path keeps the primary axe when a secondary crossbow is worn.
+ G.equipped={};G.packWho='macar';ensurePacks();
+ check(equipPackItem({id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'},{silent:true})==='primary','Pack equips axe');
+ check(equipPackItem({n:'Light Crossbow'},{silent:true})==='secondary','Pack equips crossbow');
+ Object.assign(hero,{atk:0,atkKind:'melee',moving:0,bowPoseUntil:0});
+ check(wieldsShadowCleaver()&&wieldsCrossbow(),'Pack preserves both weapons');
+ check(livingMacarAnimKey(hero)==='macar_xbow','Pack crossbow idle overrides axe');
+ hero.moving=1;check(livingMacarAnimKey(hero).startsWith('macar_xbow_w'),'Pack crossbow walk overrides axe');
+ unequipPackSlot('secondary',{silent:true});hero.moving=0;
+ check(livingMacarAnimKey(hero)==='macar_axe','doffing crossbow restores axe');
+ // Draw every crew member in all eight directions, both gait frames and idle/attack/back.
+ const ghostSheet=document.createElement('canvas');ghostSheet.width=1440;ghostSheet.height=4*3*240;
+ const gg=ghostSheet.getContext('2d');gg.fillStyle='#33312d';gg.fillRect(0,0,ghostSheet.width,ghostSheet.height);
+ const kins=['pordoom','fendur','orbo','talpor'];
+ for(let ki=0;ki<kins.length;ki++)for(let row=0;row<3;row++)for(let i=0;i<8;i++){
+  const a=i*Math.PI/4,sx=Math.cos(a)/(TW/2),sy=Math.sin(a)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
+  Object.assign(hero,{moving:row<2?1:0,ix:dx,iy:dy,fdx:dx,fdy:dy,atk:0});
+  const e=ent({kind:'dwarf',team:'party',ghost:1,col:{key:kins[ki]},x:0,y:0,scale:1});
+  Object.assign(e,{moving:row<2?1:0,ix:dx,iy:dy,fdx:dx,fdy:dy,gait:row===1?.75:.25,atk:row===2&&i===1?.5:row===2&&i===2?.1:0,atkMax:1,atkKind:'melee'});
+  if(row===2&&i===0)e.fdx=1,e.fdy=0; // front idle
+  const key=entAnimKey(e),src=entAnimImg(e),paint=solidDwarfSprite(e,src);
+  if(row<2){
+   const suffix=['e','se','s','se','e','ne','back','ne'][i],expected=kins[ki]+'_ghost_'+suffix+'_w'+(row+1);
+   check(key===expected,kins[ki]+' '+dirs[i]+' gait '+row+' expected '+expected+' got '+key);
+   check(wantsSpriteFlip(e)===(i>=3&&i<=5),kins[ki]+' '+dirs[i]+' correct mirror');
+  }
+  check(paint!==src&&paint===normalizedGhostSprite(src),'cached unified appearance '+key);
+  if(/_ghost_atk(?:_recover)?$/.test(key))check(ghostPaintSource(src)===SPR[key.replace('_ghost','')],'clean original strike pose '+key);
+  const cv=document.createElement('canvas');cv.width=180;cv.height=240;const cg=cv.getContext('2d');
+  cg.translate(90,195);drawEnt(cg,e);cg.setTransform(1,0,0,1,0,0);cg.fillStyle='white';cg.font='11px sans-serif';cg.fillText(kins[ki]+' '+(row<2?'walk '+(row+1)+' '+dirs[i]:i===1?'attack':i===2?'recover':'idle '+dirs[i]),5,220);
+  gg.drawImage(cv,i*180,(ki*3+row)*240);result.ghosts.push({kin:kins[ki],direction:dirs[i],key,flip:wantsSpriteFlip(e)});
+ }
+ result.ghostGallery=ghostSheet.toDataURL('image/png');
  const originalCanBe=canBe,originalWalk=walk;
  for(const dt of [1/60,.05])for(const geometry of ['open','north','west','corner'])for(const size of ['laptop','phone']){
   TW=size==='phone'?66:116;TH=size==='phone'?34:58;
@@ -109,7 +143,7 @@
  }
  IN.keys={};
  }catch(e){result.failures.push(e.stack);}
- report.textContent=JSON.stringify({checks:result.checks,failures:result.failures,weapons:result.weapons.length,followerScenarios:result.followers.length},null,2);
+ report.textContent=JSON.stringify({checks:result.checks,failures:result.failures,weapons:result.weapons.length,followerScenarios:result.followers.length,ghostPoses:result.ghosts.length},null,2);
  const sheet=document.createElement('canvas');sheet.width=1440;sheet.height=Math.ceil(document.querySelectorAll('#pose-gallery canvas').length/8)*240;const sg=sheet.getContext('2d');sg.fillStyle='#424242';sg.fillRect(0,0,sheet.width,sheet.height);document.querySelectorAll('#pose-gallery canvas').forEach((cv,i)=>sg.drawImage(cv,i%8*180,Math.floor(i/8)*240));result.gallery=sheet.toDataURL('image/png');
  await fetch('/qa-result',{method:'POST',body:JSON.stringify(result,null,2)});
 })();

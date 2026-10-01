@@ -56,6 +56,7 @@
 <script src="src/systems/SystemsReady.js"></script>
 <script src="src/combat/PartyFollow.js"></script>
 <script src="src/combat/MacarCrown.js"></script>
+<script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -521,7 +522,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='128';
+const ASSET_VER='129';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -814,10 +815,8 @@ SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaqu
   SPRITE_FILES[k+'_e_w1']='assets/creatures/dwarf_'+k+'_e_w1.png';
   SPRITE_FILES[k+'_e_w2']='assets/creatures/dwarf_'+k+'_e_w2.png';
 });
-/* Compass / w3 / back-walk ghost files stay registered so they preload, but
-   ghostAnimKey will not blit them unless livingColorStats + idle-kit match.
-   Priority-16 front w1/w2/atk/atk_recover are living-color. Remaining
-   compass / w3 / back_w packs are cyan/teal mono — Limner redo, not a bind. */
+/* Compass ghost walks preload with the crew. The renderer normalizes their
+   palette and opacity alongside the front, attack and back artwork. */
 ['pordoom','fendur','orbo','talpor'].forEach(k=>{
   SPRITE_FILES[k+'_ghost_e_w1']='assets/creatures/dwarf_'+k+'_ghost_e_w1.png';
   SPRITE_FILES[k+'_ghost_e_w2']='assets/creatures/dwarf_'+k+'_ghost_e_w2.png';
@@ -1783,11 +1782,7 @@ function nickSpectralGhostSheet(img){
 function solidDwarfSprite(e,img){
   if(!img||!img.width) return img;
   if(!e||e.kind!=='dwarf'||e.dead||e.crushed||e.team!=='party') return img;
-  if(e.ghost){
-    if(img===SPR.talpor_ghost) return colorizeTalporStanding(img);
-    if(nickSpectralGhostSheet(img)) return img;
-    return liftGhostSpirit(img);
-  }
+  if(e.ghost) return normalizedGhostSprite(img);
   return blitLivingMacar(img)||img;
 }
 /* CAP stays under 255 so a west flip cannot go solid. Living-color
@@ -2044,6 +2039,34 @@ function liftGhostSpirit(img){
   }catch(_){ out=img; }
   if(GHOST_SPIRIT) GHOST_SPIRIT.set(img,out);
   else img.__ghostSpirit=out;
+  return out;
+}
+/* Every kin and pose shares one spectral palette, opacity and silhouette.
+   Cache a render copy; the signed source artwork is never modified. */
+const NORMAL_GHOST=typeof WeakMap==='function'?new WeakMap():null;
+function ghostPaintSource(img){
+  // Ghost strike exports lose dark armor pixels. The same kin's original
+  // strike/recover artwork retains them; grade that exact pose to spectral.
+  for(const k of ['pordoom','fendur','orbo','talpor'])for(const pose of ['atk','atk_recover']){
+    if(img===SPR[k+'_ghost_'+pose] && sprReady(k+'_'+pose)) return SPR[k+'_'+pose];
+  }
+  return img;
+}
+function normalizedGhostSprite(img){
+  if(!img||!img.width) return img;
+  img=ghostPaintSource(img);
+  if(NORMAL_GHOST&&NORMAL_GHOST.has(img)) return NORMAL_GHOST.get(img);
+  let out=img;
+  try{
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    // Reuse the established cutout repair before applying spectral opacity.
+    const clean=blitLivingMacar(img)||img;x.drawImage(clean,0,0);
+    const id=x.getImageData(0,0,c.width,c.height);
+    GhostAppearance.normalize(id.data,c.width,c.height);
+    x.putImageData(id,0,0);out=c;
+  }catch(_){}
+  if(NORMAL_GHOST) NORMAL_GHOST.set(img,out);
   return out;
 }
 const FLIP_CACHE=typeof WeakMap==='function'?new WeakMap():null;
@@ -2419,6 +2442,9 @@ function partyGhostKeyReady(key, idleKey){
   const img=SPR[key];
   const idle=(idleKey && SPR[idleKey] && SPR[idleKey].width)?SPR[idleKey]:null;
   if(!partyFrameFitOk(img, idle)) return false;
+  /* Shipped compass walks retain each kin's identity. Their differing
+     palettes are unified by normalizedGhostSprite at draw time. */
+  if(/^(?:pordoom|fendur|orbo|talpor)_ghost_(?:back|e|s|ne|se)_w[12]$/.test(key)) return true;
   /* Brown back is narrower than idle, so the family match would plant
      the teal idle and never lift the back sheet. */
   if(talporInterimGhostKey(key)) return true;
@@ -2459,11 +2485,18 @@ function ghostAnimKey(e, k){
       const ghostStep=walkCycleGhostKey(e, k+'_back', back);
       return pickReadyGhostKey(ghostStep, back);
     }
-    return pickReadyGhostKey(back, idle);
+    const stand=walkCycleGhostKey({gait:0},k+'_back',back);
+    return pickReadyGhostKey(stand||back, idle);
   }
-  if(moving){
-    const ghostStep=walkCycleGhostKey(e, k, idle);
-    return pickReadyGhostKey(ghostStep, idle);
+  {
+    const oct=screenOctant(e);
+    const suffix=oct==='n'?'back':oct==='s'?'s':oct==='ne'||oct==='nw'?'ne':oct==='se'||oct==='sw'?'se':'e';
+    const directed=walkCycleGhostKey(moving?e:{gait:0},k+'_'+suffix,idle);
+    if(directed) return directed;
+    if(moving){
+      const ghostStep=walkCycleGhostKey(e, k, idle);
+      return pickReadyGhostKey(ghostStep, idle);
+    }
   }
   return pickReadyGhostKey(idle, idle);
 }
@@ -18625,9 +18658,9 @@ function drawScrollArrows(g, x, y, h, canUp, canDn, upFn, dnFn){
 function banner(g,x,y,w,h){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+w,y);
   g.lineTo(x+w-h*.55,y+h); g.lineTo(x,y+h); g.closePath(); }
 function face(g,cx,cy,rr,c,dead,ghost){
-  const ghostSheet=ghost&&c&&SPR[c.key+'_ghost'];
+  const ghostSheet=ghost&&c&&(SPR[c.key+'_ghost_s_w1']||SPR[c.key+'_ghost']);
   const img=ghostSheet
-    ? liftGhostSpirit(ghostSheet)
+    ? normalizedGhostSprite(ghostSheet)
     : ((c&&c.key==='macar'&&!ghost?solidMacarSprite(SPR[livingMacarIdleKey()]||SPR.macar):null)
       ||(c&&c.key!=='macar'?SPR[c.key]:null));
   g.save();

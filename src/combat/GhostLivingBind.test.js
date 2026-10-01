@@ -49,9 +49,8 @@ assert(/Do not cache a guess/.test(html) && /if\(ghostKeyLooksUnsigned\(key\)\) 
 assert(/\(\?:pordoom\|fendur\|orbo\|talpor\)_ghost\(\?:_w\[12\]\)\?\$/.test(extractFn('sheetLivingColors'))
   && /img\._live=true; return true;/.test(extractFn('sheetLivingColors')),
   'Nick spectral idle and front walk bind before the cyan warm-gate');
-assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
-  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite')),
-  'spectral idle and front walk blit as painted; atk/back still lift');
+assert(/if\(e\.ghost\) return normalizedGhostSprite\(img\)/.test(extractFn('solidDwarfSprite')),
+  'all ghost poses share one cached appearance treatment');
 assert(/img===SPR\.pordoom_ghost\|\|img===SPR\.fendur_ghost\|\|img===SPR\.orbo_ghost/.test(extractFn('nickSpectralGhostSheet'))
   && !/img===SPR\.talpor_ghost\|\|/.test(extractFn('nickSpectralGhostSheet'))
   && !/\|\|img===SPR\.talpor_ghost(?:\||\s|;)/.test(extractFn('nickSpectralGhostSheet'))
@@ -167,8 +166,8 @@ KIN.forEach(k=>{
   ready(k+'_ghost', true); ready(k+'_ghost_back', true);
   ready(k+'_ghost_w1', true); ready(k+'_ghost_w2', true);
   ready(k+'_ghost_atk', true); ready(k+'_ghost_atk_recover', true);
-  ready(k+'_ghost_e_w1', false); ready(k+'_ghost_e_w2', false);
-  ready(k+'_ghost_back_w1', false); ready(k+'_ghost_back_w2', false);
+  // Keep compass unavailable in the front-walk fallback checks below.
+
 });
 ready('macar', true); ready('macar_w1', true); ready('macar_w2', true); ready('macar_atk', true);
 
@@ -351,7 +350,22 @@ assert(run.partySheetMatchesIdle(SPR.talpor_ghost_w1, SPR.talpor_ghost, 'talpor_
 assert(run.partySheetMatchesIdle(SPR.pordoom_ghost_w2, SPR.pordoom_ghost, 'pordoom_ghost_w2')===false,
   'wide spectral w2 still fails the generic crop match — the walk bypass is what binds it');
 
+// Compass readiness bypasses the old warm-color gate, while preserving pose fit.
+vm.runInContext(extractFn('moveHeadingSX')+'\nconst SPRITE_PAINTED_LEFT={};\n'+extractFn('wantsSpriteFlip'),run);
+const directions=['e','se','s','sw','w','nw','n','ne'];
+const suffixes=['e','se','s','se','e','ne','back','ne'];
+for(const k of KIN){
+ for(const suffix of ['e','s','ne','se','back'])for(const frame of [1,2])ready(k+'_ghost_'+suffix+'_w'+frame,false);
+ for(let i=0;i<8;i++)for(const gait of [.12,.62]){
+  const a=i*Math.PI/4,sx=Math.cos(a)/(run.TW/2),sy=Math.sin(a)/(run.TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
+  const e=ghost(k,{moving:1,ix:dx,iy:dy,fdx:dx,fdy:dy,gait});
+  assert(run.entAnimKey(e)===k+'_ghost_'+suffixes[i]+'_w'+(gait<.5?1:2),k+' '+directions[i]+' gait '+gait+' uses directional art');
+  assert(run.wantsSpriteFlip(e)===(i>=3&&i<=5),k+' '+directions[i]+' mirror follows screen direction');
+  e.moving=0;e.ix=e.iy=0;
+  assert(run.entAnimKey(e)===k+'_ghost_'+suffixes[i]+'_w1',k+' '+directions[i]+' settles facing the same direction');
+ }
+}
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nghost living-color bind checks passed');
-console.log('Limner must still replace '+replaceList.length+' unsigned sheets:');
+console.log('Historical cyan-source inventory ('+replaceList.length+' sheets, compass frames now graded at render time):');
 replaceList.forEach(f=>console.log('  '+f));

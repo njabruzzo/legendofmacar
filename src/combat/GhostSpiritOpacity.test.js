@@ -52,10 +52,8 @@ assert(/function liftGhostAlpha\(/.test(html) && /function liftGhostSpirit\(/.te
   'pixel lift is a dedicated ghost pipe with a feature-edge pass');
 assert(/inkGhostFeatureEdges\(id\.data, src/.test(extractFn('liftGhostSpirit')),
   'liftGhostSpirit inks key-feature edges after the white lift');
-assert(/nickSpectralGhostSheet\(img\)\) return img/.test(extractFn('solidDwarfSprite'))
-  && /return liftGhostSpirit\(img\)/.test(extractFn('solidDwarfSprite'))
-  && /img===SPR\.talpor_ghost\) return colorizeTalporStanding\(img\)/.test(extractFn('solidDwarfSprite')),
-  'Nick spectral idle and front walk blit as painted; Talpor standing is colorized; atk/back still lift');
+assert(/if\(e\.ghost\) return normalizedGhostSprite\(img\)/.test(extractFn('solidDwarfSprite')),
+  'every ghost pose uses the same opacity, cyan palette and silhouette rim');
 assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
   && !/img===SPR\.talpor_ghost\|\|/.test(extractFn('nickSpectralGhostSheet'))
   && !/\|\|img===SPR\.talpor_ghost(?:\||\s|;)/.test(extractFn('nickSpectralGhostSheet'))
