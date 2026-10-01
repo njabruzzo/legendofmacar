@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Macar — axe and crossbow animation pilot</title>
+<style>
+body{margin:0;background:#191714;color:#f6eddc;font:16px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:24px}h1{font-size:28px;margin-bottom:8px}p{line-height:1.5;color:#d5cbb9}button,select{font:inherit;padding:9px 14px;border:1px solid #77654b;border-radius:7px;background:#332d24;color:#fff}nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}.grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}.card{background:#302b25;border:1px solid #574b3c;border-radius:10px;padding:10px;text-align:center}.card h3{font-size:15px;margin:5px}canvas{width:100%;height:auto;background:#302b25}output{font-variant-numeric:tabular-nums}#status{padding:10px;color:#d7c4a0}@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(150px,1fr))}}
+</style>
+<main><h1>Macar: axe walk & crossbow firing</h1><p>Animation pilot using Macar’s existing character references. Front and rear views are generated; the left views are mirrored. These draft sheets have visible edge artifacts and remain separate from the game’s approved sprites.</p>
+<nav><button id="pause">Pause</button><button id="step">Next frame</button><button id="replay">Fire again</button><label>Timing <select id="timing"><option value="0.016666666666666666">Normal · 60 FPS</option><option value="0.05">Long frames · 50 ms</option></select></label><output id="frame"></output></nav>
+<h2>Axe walk loop</h2><section id="axe" class="grid"></section>
+<h2>Crossbow: aim → fire → recover</h2><p>The bolt releases at frame 4, travels directly to the target, and keeps the same orientation throughout flight.</p><section id="xbow" class="grid"></section><p id="status">Loading artwork…</p>
+</main><script>
+const sources={axe:'../../assets/creatures/pilots/macar-axe-walk-pilot.png',xbow:'../../assets/creatures/pilots/macar-crossbow-fire-pilot.png',bolt:'../../assets/fx/fx_bolt.png'};
+const directions=[{name:'Down-right',rear:false,flip:false},{name:'Down-left',rear:false,flip:true},{name:'Up-right',rear:true,flip:false},{name:'Up-left',rear:true,flip:true}];
+// Boundaries follow the measured empty gaps in these generated sheets,
+// preserving every boot/weapon pixel rather than assuming an exact grid.
+const rowBounds={axe:[0,330,635,935,1254],xbow:[0,314,627,932,1254]};
+const cells={},images={};let time=0,shotTime=0,last=null,acc=0,paused=false,manual=null;
+function load(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('Unable to load '+src));im.src=src;});}
+function extract(im,kind){
+ const frames=[];for(let i=0;i<16;i++){
+  const row=Math.floor(i/4),col=i%4,x0=Math.round(col*im.width/4),x1=Math.round((col+1)*im.width/4),ys=rowBounds[kind];
+  const source=document.createElement('canvas');source.width=x1-x0;source.height=ys[row+1]-ys[row];const g=source.getContext('2d');g.drawImage(im,x0,ys[row],source.width,source.height,0,0,source.width,source.height);
+  const px=g.getImageData(0,0,source.width,source.height).data;let bottom=0;
+  for(let y=0;y<source.height;y++)for(let x=0;x<source.width;x++)if(px[(y*source.width+x)*4+3]>100)bottom=y+1;
+  frames.push({source,bottom});
+ }return frames;
+}
+function make(kind){return directions.map(d=>{const card=document.createElement('article');card.className='card';const h=document.createElement('h3');h.textContent=d.name;card.append(h);const cv=document.createElement('canvas');cv.width=360;cv.height=360;card.append(cv);document.getElementById(kind).append(card);return {cv,d};});}
+function paint(item,kind,frame){
+ const {cv,d}=item,g=cv.getContext('2d'),cell=cells[kind][(d.rear?8:0)+frame],scale=.88;
+ g.clearRect(0,0,cv.width,cv.height);g.save();g.translate(180,302);if(d.flip)g.scale(-1,1);
+ g.drawImage(cell.source,-cell.source.width*scale/2,-cell.bottom*scale,cell.source.width*scale,cell.source.height*scale);g.restore();
+ if(kind==='xbow'){
+  const start={x:d.flip?111:249,y:d.rear?132:157},target={x:d.flip?24:336,y:d.rear?65:224};
+  g.strokeStyle='#b79052';g.lineWidth=2;g.beginPath();g.arc(target.x,target.y,11,0,Math.PI*2);g.moveTo(target.x-17,target.y);g.lineTo(target.x+17,target.y);g.moveTo(target.x,target.y-17);g.lineTo(target.x,target.y+17);g.stroke();
+  const released=shotTime>=3*.1,flight=(shotTime-.3)/.35;
+  if(released&&flight>=0&&flight<=1&&manual===null){
+   const x=start.x+(target.x-start.x)*flight,y=start.y+(target.y-start.y)*flight;
+   const angle=Math.atan2(target.y-start.y,target.x-start.x)-Math.atan2(156,708);
+   g.save();g.translate(x,y);g.rotate(angle);g.drawImage(images.bolt,-23,-8,46,16);g.restore();
+  }
+ }
+ g.fillStyle='#d7c4a0';g.font='13px system-ui';g.fillText('Frame '+(frame+1)+' / 8',12,341);
+}
+function draw(){
+ const walk=manual===null?Math.floor(time*8)%8:manual;
+ const fire=manual===null?Math.min(7,Math.floor(shotTime/.1)):manual;
+ for(const c of views.axe)paint(c,'axe',walk);for(const c of views.xbow)paint(c,'xbow',fire);
+ document.getElementById('frame').textContent='Walk '+(walk+1)+' · crossbow '+(fire+1);
+}
+const views={axe:make('axe'),xbow:make('xbow')};
+document.getElementById('pause').onclick=()=>{paused=!paused;manual=null;document.getElementById('pause').textContent=paused?'Play':'Pause';};
+document.getElementById('step').onclick=()=>{paused=true;manual=((manual===null?Math.floor(time*8)%8:manual)+1)%8;document.getElementById('pause').textContent='Play';draw();};
+document.getElementById('replay').onclick=()=>{shotTime=0;manual=null;paused=false;document.getElementById('pause').textContent='Pause';};
+Promise.all(Object.entries(sources).map(async([k,s])=>{images[k]=await load(s);})).then(()=>{
+ cells.axe=extract(images.axe,'axe');cells.xbow=extract(images.xbow,'xbow');document.getElementById('status').textContent='Preview ready. Existing sprite files are preserved. This pilot was generated with built-in ImageGen; Scenario is not connected.';
+ function tick(now){if(last!==null&&!paused){acc+=Math.min(.1,(now-last)/1000);const dt=Number(document.getElementById('timing').value);while(acc>=dt){time+=dt;shotTime+=dt;if(shotTime>=2)shotTime=0;acc-=dt;}}last=now;draw();requestAnimationFrame(tick);}requestAnimationFrame(tick);
+}).catch(e=>document.getElementById('status').textContent=e.message);
+</script></html>
