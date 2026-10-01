@@ -174,6 +174,23 @@
   result.dungeon.push({dt,violations,travel,minLead,minKin,initial,final:G.ents.map(e=>({name:e.name,x:e.x,y:e.y,moving:e.moving,blocked:e._partyBlocked,stun:e.stun})),state:{scene:G.scene,paused:G.paused,sleepShow:G.sleepShow}});
  }
  IN.keys={};
+ // Render moving crossbow bolts using the actual sprite and renderer.
+ await new Promise(resolve=>loadSpriteKeyNow('fx_bolt',ok=>{check(ok,'load bolt art');resolve();}));
+ result.boltCases=0;
+ for(const dt of [1/60,.05])for(let oct=0;oct<8;oct++){
+  const a=oct*Math.PI/4,from={x:30,y:22,team:'party'},target={x:30+Math.cos(a)*9,y:22+Math.sin(a)*9};
+  const shot=shoot(from,target.x,target.y,0,'bolt','#d8c49a',14),origin=w2s(from.x,from.y),end=w2s(target.x,target.y);
+  const expected=Math.atan2(end.y-origin.y,end.x-origin.x),cv=document.createElement('canvas');cv.width=cv.height=150;
+  const gc=cv.getContext('2d'),rotate=gc.rotate.bind(gc);let applied=0;gc.rotate=angle=>{applied=angle;rotate(angle);};
+  for(let frame=0;frame<12;frame++){
+   const p=w2s(shot.x,shot.y);gc.save();gc.translate(75-p.x,75-p.y+28*ZOOM);drawShot(gc,shot);gc.restore();
+   check(Math.abs(Math.sin(applied+Math.atan2(156,708)-expected))<1e-8,'bolt tip follows target '+oct+' frame '+frame+' dt '+dt);
+   stepShot(shot,dt);check(shot.spin===0,'bolt stays unspun '+oct+' dt '+dt);
+   check(Math.abs((shot.x-from.x)*shot.vy-(shot.y-from.y)*shot.vx)<1e-8,'bolt follows straight line '+oct+' dt '+dt);
+  }
+  result.boltCases++;
+ }
+ G.shots=[];
  // Render the actual ruby-chamber wall with the new stairs, including wall sorting.
  startChapter(1);
  await Promise.all(WORLD_ART_KEYS[1].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'door scene art '+k);resolve();}))));
@@ -193,7 +210,7 @@
   check(step.y0>=rubyDoorPlaneY(door)&&step.y1>step.y0,'stairs extend onto the floor in front');
  }
  }catch(e){result.failures.push(e.stack);}
- report.textContent=JSON.stringify({checks:result.checks,failures:result.failures,weapons:result.weapons.length,followerScenarios:result.followers.length,ghostPoses:result.ghosts.length},null,2);
+ report.textContent=JSON.stringify({checks:result.checks,failures:result.failures,weapons:result.weapons.length,followerScenarios:result.followers.length,ghostPoses:result.ghosts.length,boltCases:result.boltCases},null,2);
  const sheet=document.createElement('canvas');sheet.width=1440;sheet.height=Math.ceil(document.querySelectorAll('#pose-gallery canvas').length/8)*240;const sg=sheet.getContext('2d');sg.fillStyle='#424242';sg.fillRect(0,0,sheet.width,sheet.height);document.querySelectorAll('#pose-gallery canvas').forEach((cv,i)=>sg.drawImage(cv,i%8*180,Math.floor(i/8)*240));result.gallery=sheet.toDataURL('image/png');
  await fetch('/qa-result',{method:'POST',body:JSON.stringify(result,null,2)});
 })();
