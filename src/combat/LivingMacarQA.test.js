@@ -209,7 +209,7 @@ assert(/wantsBowPose/.test(liveKey) && /bowPoseUntil/.test(html) && /expireBowPo
   'Shoot uses render-time bowPoseUntil then plants idle');
 assert(/const MACAR_STRIKE_HOLD=0\.12/.test(html) && /strikeHold:0/.test(html),
   'post-hit strikeHold is a 0.12s leftover; recover returns idle carry');
-assert(/macar_atk_recover/.test(liveKey) && /livingMacarStandKey\(idle\)/.test(liveKey),
+assert(/macar_atk_recover/.test(liveKey) && /livingMacarStandKey\(idle,e\)/.test(liveKey),
   'recover plants the standing idle unless a signed _atk_recover is ready');
 
 assert(/function livingMacarIdleKey\(/.test(html), 'idle key helper exists for doll / HUD / title');
@@ -514,8 +514,8 @@ assert(ctx.livingMacarAnimKey(macar({moving:1, ix:-0.707, iy:-0.707, fdx:-0.707,
   'north cycles the back walk');
 assert(ctx.livingMacarAnimKey(macar({moving:1, ix:0.707, iy:0.707, fdx:0.707, fdy:0.707, gait:0.12}))==='macar_w1',
   'south keeps the signed front walk');
-assert(ctx.livingMacarAnimKey(macar({moving:0, ix:0, iy:0, fdx:0.707, fdy:-0.707}))==='macar',
-  'standing idle stays the front original, not a side walk sheet');
+assert(ctx.livingMacarAnimKey(macar({moving:0, ix:0, iy:0, fdx:0.707, fdy:-0.707}))==='macar_e_w1',
+  'standing idle keeps the side facing while directional idle loads');
 const eastIdle=macar({fdx:0.707, fdy:-0.707});
 const westIdle=macar({fdx:-0.707, fdy:0.707});
 assert(ctx.wantsSpriteFlip(eastIdle)===false, 'idle facing east is unflipped');
@@ -768,7 +768,7 @@ steps.forEach(([name, e, want, wantProp])=>{
 });
 const west=macar({ix:-1, iy:0, fdx:-1, fdy:0});
 const westCrown=crownCount(west);
-assert(westCrown.key==='macar' && westCrown.prop===1 && westCrown.n===1
+assert(westCrown.key==='macar_ne_w1' && westCrown.prop===1 && westCrown.n===1
   && ctx.wantsSpriteFlip(west)===true,
   'stopped facing west mirrors the live idle and adds one prop crown');
 delete SPR.macar_atk; delete SPR.macar_atk_contact;
