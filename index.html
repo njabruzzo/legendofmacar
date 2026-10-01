@@ -6646,7 +6646,7 @@ function applyPlaySave(play){
   L.flags=Object.assign({}, L.flags||{}, play.flags||{});
   if(play.secrets&&L.secrets){
     play.secrets.forEach(sv=>{
-      const sec=L.secrets.find(s=>s.kind===sv.kind && (s.i===sv.i || s.kind==='warrens'&&sv.kind==='warrens'));
+      const sec=L.secrets.find(s=>savedSecretFor(L,play,s)===sv);
       if(!sec||!sv.open||sec.open) return;
       openSecret(sec);
     });
@@ -6683,10 +6683,32 @@ function applyPlaySave(play){
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
+  restoreSecretEntrances(play);
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
   try{ rebuildVision(); }catch(e){}
+}
+function savedSecretFor(L,play,sec){
+  const saved=(play.secrets||[]).filter(s=>s.kind===sec.kind);
+  const exact=saved.find(s=>s.i===sec.i && s.j===sec.j);
+  if(exact) return exact;
+  // A unique named room can keep its discovery when its entrance moves.
+  return saved.length===1 && L.secrets.filter(s=>s.kind===sec.kind).length===1?saved[0]:null;
+}
+function restoreSecretEntrances(play){
+  const L=G.lvl;if(!L||!L.grid||!L.secrets) return;
+  // Saved terrain is applied after room generation. Reconcile only the
+  // authored seams, keeping all other excavated terrain and room contents.
+  for(const sec of L.secrets){
+    const sv=savedSecretFor(L,play,sec);
+    if(sv) sec.hinted=!!sv.hinted;
+    if(!sec.open){sealSecretCells(L.grid,sec);continue;}
+    rect(L.grid,sec.i,sec.j,sec.w||2,Math.max(1,sec.h||1),0);
+    if(sec.face==='n') rect(L.grid,sec.i,sec.j+1,sec.w||3,1,0);
+    if(sec.kind==='teeth' && sv && (sv.i!==sec.i||sv.j!==sec.j)) buildTeethCrownRoom(L,sec);
+  }
+  bumpTopology('restoreSecretEntrances');
 }
 /* Continue used to restore the thrall body and drop G.thrallId, so the
    party card and the follow order both vanished. Prefer the saved id,
@@ -6741,6 +6763,8 @@ function ensureCh1CenterPillar(){
   const L=G.lvl;
   if(!L || L.n!==1) return null;
   G.props=G.props||[];
+  if(!G.props.some(p=>p&&p.k==='lift'&&!p.gone&&Math.hypot(p.x-36.5,p.y-21.5)<0.55))
+    G.props.push({x:36.5,y:21.5,k:'lift'});
   const have=(G.props||[]).find(ch1CenterPillar);
   if(have) return have;
   const p={x:36.5,y:21.5,k:'pillar'};
