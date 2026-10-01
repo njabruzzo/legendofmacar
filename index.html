@@ -57,6 +57,7 @@
 <script src="src/combat/PartyFollow.js"></script>
 <script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/GhostAppearance.js"></script>
+<script src="src/combat/MacarEquipment.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -1003,7 +1004,7 @@ function loadSpriteKeyNow(k, cb){
 let MACAR_EQUIP_ART_SIG='';
 function requestMacarEquipmentArt(){
   const keys=[];
-  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver())
+  if(typeof wieldsMacarAxe==='function'?wieldsMacarAxe():(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver()))
     keys.push('macar_axe','macar_axe_w1','macar_axe_w2','macar_axe_atk');
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow())
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
@@ -2253,9 +2254,14 @@ function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
   if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
   if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
-  if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
+  if(typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
+    const held=MacarEquipment.heldKind(G.equipped);
+    if(held==='xbow' && sprReady('macar_xbow')) return 'macar_xbow';
+    if(held==='axe' && sprReady('macar_axe')) return 'macar_axe';
+    if(held==='maul') return 'macar';
+  } else if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
-  if(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver() && sprReady('macar_axe'))
+  if((typeof wieldsMacarAxe==='function'?wieldsMacarAxe():(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver())) && sprReady('macar_axe'))
     return 'macar_axe';
   return 'macar';
 }
@@ -9401,6 +9407,14 @@ function isCrossbowItem(it){
   if(it.k==='ammo') return false;
   return /crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(it.n||'');
 }
+function wieldsMacarAxe(){
+  return MacarEquipment.hasAxe(G.equipped);
+}
+function selectMacarHeldWeapon(it){
+  MacarEquipment.select(G.equipped,it);
+  const p=player();
+  if(p && MacarEquipment.kind(it)){ p.bowPoseT=0; p.bowPoseUntil=0; p.atkKind='melee'; }
+}
 function wieldsCrossbow(){
   const eq=G.equipped||{};
   return isCrossbowItem(eq.secondary)||isCrossbowItem(eq.weapon)||isCrossbowItem(eq.primary);
@@ -9526,6 +9540,7 @@ function equipPackItem(it, opts){
       if(out.reason==='cursed') say('The curse binds. It will not be set aside.','#ff6a5a');
       return null;
     }
+    if(typeof selectMacarHeldWeapon==='function') selectMacarHeldWeapon(it);
     restowDisplacedKit(before, it);
     if(out.prev && out.prev!==it) stowPackItem(out.prev);
     if(out.orphan && out.orphan!==it && out.orphan!==out.prev) stowPackItem(out.orphan);
@@ -9546,6 +9561,7 @@ function equipPackItem(it, opts){
   if(isEquipWeapon(it)){
     const prev=G.equipped.primary||G.equipped.weapon;
     G.equipped.weapon=it; G.equipped.primary=it;
+    if(typeof selectMacarHeldWeapon==='function') selectMacarHeldWeapon(it);
     restowDisplacedKit(before, it);
     if(prev && prev!==it) stowPackItem(prev);
     applyEquipped();
@@ -17275,7 +17291,7 @@ function drawHeroMeleeArc(g,e,z){
     : clamp((t-0.08)/Math.max(0.01,0.64),0,1);
   const sw=Math.sin(u*Math.PI);
   if(sw<0.06) return;
-  const axe=typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver();
+  const axe=livingMacarIdleKey()==='macar_axe';
   const flip=typeof wantsSpriteFlip==='function' && wantsSpriteFlip(e);
   g.save();
   g.globalCompositeOperation='source-over';
@@ -17414,7 +17430,7 @@ function drawDwarf(g,e,z,sw){
     g.beginPath(); g.rect(12*z,-2.8*z,31*z,5.6*z); sc(g,'#6a5232',-2.8*z,2.8*z,1.5);
     g.beginPath(); g.moveTo(34*z,-15*z); g.quadraticCurveTo(47*z,-8*z,45*z,7*z);
     g.quadraticCurveTo(38*z,-2*z,32*z,-2*z); g.closePath(); sc(g,'#c6cfd9',-15*z,7*z,1.6);
-  } else if(e.hero && wieldsShadowCleaver()){
+  } else if(e.hero && wieldsMacarAxe()){
     // Painted axe sheet missing: keep the rune-axe, never the old hammer head.
     g.beginPath(); g.rect(12*z,-3.2*z,28*z,5.2*z); sc(g,'#4a3424',-3.2*z,2.0*z,1.5);
     g.fillStyle='#c8d0dc';
