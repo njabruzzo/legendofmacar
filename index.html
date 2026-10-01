@@ -54,6 +54,8 @@
      Do not add a bundler; an awaited SystemsReady.loadScript path exists if a
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
+<script src="src/combat/PartyFollow.js"></script>
+<script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -437,38 +439,40 @@ function nudgeParty(e, ux, uy, dist){
 }
 function separateParty(p){
   if(!p || p.dead) return;
-  const kin=[];
-  for(const e of G.ents){
-    if(!e || e.team!=='party' || e.hero || e.dead || e.crushed || e.sleeping || e.tied || e.hidden) continue;
-    kin.push(e);
-  }
-  for(let pass=0; pass<4; pass++){
-    for(const e of kin){
-      const fighting=e.aim && !e.aim.dead && e.aim.team==='foe' && dist(e, e.aim)<=(e.range||1)+0.55;
-      if(fighting) continue;
-      let dx=e.x-p.x, dy=e.y-p.y, d=Math.hypot(dx, dy);
-      if(d>=PARTY_SEP_LEAD) continue;
-      if(d<0.04){
-        dx=-(p.fdy||0); dy=(p.fdx||1);
-        const m=Math.hypot(dx, dy)||1;
-        dx/=m; dy/=m; d=0;
-      } else { dx/=d; dy/=d; }
-      nudgeParty(e, dx, dy, PARTY_SEP_LEAD-d);
-    }
-    for(let i=0;i<kin.length;i++){
-      for(let j=i+1;j<kin.length;j++){
-        const a=kin[i], b=kin[j];
-        let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx, dy);
-        if(d>=PARTY_SEP_KIN) continue;
-        if(d<0.04){ dx=1; dy=0; d=0; }
-        else { dx/=d; dy/=d; }
-        const push=(PARTY_SEP_KIN-d)*0.5;
-        nudgeParty(a, -dx, -dy, push);
-        nudgeParty(b, dx, dy, push);
+  const dt=p._followDt||0;
+  PartyFollow.separate(p, G.ents, dt, canBe);
+  if(dt>0){
+    for(const e of G.ents){
+      if(!PartyFollow.eligible(e)||e.hero||e.aim||e.defending||e.atk>0) continue;
+      const dx=e.x-e._followX, dy=e.y-e._followY;
+      const moved=Math.hypot(dx,dy)>0.002;
+      e.moving=moved?1:0;
+      e.ix=moved?dx/dt:0; e.iy=moved?dy/dt:0;
+      e.gait=(e._followGait||0)+(moved?dt*3.35:0);
+      if(moved){
+        /* Take the leader heading while following it. Avoid animation
+           octant jitter from small radial and tangent corrections. */
+        e.fdx=p.fdx; e.fdy=p.fdy;
+        if(p._frameStep>0.002) holdFollowWalk(e,p);
+      }else{
+        e._followWalkHold=0;
+        e.fdx=p.fdx; e.fdy=p.fdy;
       }
     }
   }
+  p._followDt=0;
 }
+function constrainPartyStep(e, ox, oy){
+  if(typeof PartyFollow==='undefined' || !PartyFollow.eligible(e)) return;
+  const p=e.hero?e:player();
+  if(!p || e.aim || e.atk>0 || e.defending || (e.hero && foeInTheFight())) return;
+  const bodies=G.ents.filter(o=>PartyFollow.eligible(o) && !o.aim && !o.defending && !(o.atk>0));
+  const target={x:e.x,y:e.y};
+  const allowed=PartyFollow.limit(e,{x:ox,y:oy},target,bodies);
+  e.x=allowed.x; e.y=allowed.y;
+  if(e.hero) e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
+}
+
 function steerWalk(e,dx,dy,sp,dt){
   if(!(dx||dy) || sp<=0){ e.ix=0; e.iy=0; e.moving=0; return 0; }
   const m=Math.hypot(dx,dy)||1;
@@ -493,6 +497,8 @@ function steerWalk(e,dx,dy,sp,dt){
       distMoved=Math.hypot(e.x-ox, e.y-oy);
     }
   }
+  if(typeof constrainPartyStep==='function') constrainPartyStep(e, ox, oy);
+  distMoved=Math.hypot(e.x-ox, e.y-oy);
   e.moving=1;
   gaitAdvance(e, dt);
   if(distMoved<0.002){ e.ix=0; e.iy=0; }
@@ -2826,7 +2832,19 @@ function drawLivingMacar(g,e){
   const dy=(b&&b.ok)?-H*b.botY:-H;
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
-    drawWornBoneCrown(g, W, H, dx, dy, flip, z);
+    drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
+    /* In the downward strike the maul passes in front of the forehead.
+       Restore its painted shaft over the worn crown, using source coordinates
+       so the same overlap survives mirroring and render scale changes. */
+    if(SPRITE_FILES[blitKey||key]==='assets/creatures/dwarf_macar_atk_s.png'){
+      const shaftX=118/418, shaftW=23/418;
+      g.save();
+      g.beginPath();
+      g.rect(dx+W*(flip?1-shaftX-shaftW:shaftX),dy+H*320/880,W*shaftW,H*60/880);
+      g.clip();
+      blitFacing(g,img,dx,dy,W,H,flip,true);
+      g.restore();
+    }
   }
   g.restore();
 }
@@ -14213,6 +14231,11 @@ function update(dt){
   const p=player();
   const fightNow=foeInTheFight();
   if(p){
+    p._followDt=dt; p._partyBlocked=false;
+    for(const e of G.ents){
+      e._followX=e.x; e._followY=e.y; e._followGait=e.gait||0;
+    }
+    p._frameStep=0;
     let dx=0,dy=0, analog=0;
     if(IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy, m=Math.hypot(ox,oy);
@@ -14280,7 +14303,10 @@ function update(dt){
     if(G.secretSearch) sp*=0.18;
     if(G.digging) sp*=0.14;
     if(analog && analog<1) sp*=analog;
+    const leadX=p._followX, leadY=p._followY;
     steerWalk(p, dx, dy, sp, dt);
+    constrainPartyStep(p, leadX, leadY);
+    p._frameStep=Math.hypot(p.x-leadX,p.y-leadY);
     if(p.moving) recordTrail(p);
     p.guardT=Math.max(0,(p.guardT||0)-dt);
     p.guard = !!p.defending || p.guardT>0;
@@ -15718,21 +15744,39 @@ function drawTeethTile(g,x,y){
   }
   g.restore();
 }
-function drawWornBoneCrown(g, W, H, dx, dy, flip, z){
+const WORN_CROWN_CACHE=new WeakMap();
+function wornBoneCrownSprite(){
   const img=crownSprite();
-  const cx=dx+W*0.5;
-  const cy=dy+H*0.27;
+  if(!img) return null;
+  if(WORN_CROWN_CACHE.has(img)) return WORN_CROWN_CACHE.get(img);
+  try{
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+    const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+    const pixels=ctx.getImageData(0,0,c.width,c.height);
+    MacarCrown.punchOpening(pixels.data,c.width,c.height);
+    ctx.putImageData(pixels,0,0);WORN_CROWN_CACHE.set(img,c);return c;
+  }catch(_){return img;}
+}
+function drawWornBoneCrown(g, W, H, dx, dy, flip, z, key, crop){
+  const img=wornBoneCrownSprite();
+  const sheet=SPR[key||livingMacarIdleKey()];
+  const seat=MacarCrown.layout(SPRITE_FILES[key||livingMacarIdleKey()], sheet,
+    {x:dx,y:dy,w:W,h:H}, flip, crop);
+  if(!seat) return;
   g.save();
-  if(flip){ g.translate(cx,cy); g.scale(-1,1); g.translate(-cx,-cy); }
+  g.translate(seat.x, seat.y);
+  g.rotate(seat.angle);
+  if(flip) g.scale(-1,1);
   if(img){
-    const h=Math.max(13, H*0.17), w=h*(img.width/Math.max(1,img.height));
-    g.drawImage(img, cx-w/2, cy-h*0.82, w, h);
+    const w=seat.w, h=w*img.height/Math.max(1,img.width);
+    /* The bottom rim, not the tips or canvas centre, meets the brow. */
+    g.drawImage(img, -w/2, -h*0.88, w, h);
   } else {
-    g.translate(cx, cy);
-    drawBoneCrownShape(g, z, 0.72);
+    drawBoneCrownShape(g, seat.w/28, 0.72);
   }
   g.restore();
 }
+
 /* Local Y of the altar slab lip (above the red pool), in the crown's foot space. */
 function teethCrownStillSeated(){
   const f=G.lvl&&G.lvl.flags;
@@ -21069,7 +21113,8 @@ function drawEquipDoll(g, x, y, w, h){
     if(typeof wearingBoneCrown==='function' && wearingBoneCrown()
        && typeof drawWornBoneCrown==='function'){
       if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bone_crown');
-      drawWornBoneCrown(g, dw, dh, dx, dy, false, s);
+      drawWornBoneCrown(g, dw, dh, dx, dy, false, s, livingMacarIdleKey(),
+        {x:sx,y:sy,w:sw,h:sh});
     }
     g.imageSmoothingEnabled=prevS;
     g.restore();

@@ -1,0 +1,23 @@
+# Crown, followers and weapon verification
+
+Base: main a02655302fb134429b6dd04dffde0fae35e642d2. PR #266 was read as reference; no commits or artwork were imported from it. ASSET_VER remains 128 because the sprite files are unchanged.
+
+Run `npm test` for all automated regressions. MacarCrown checks all 20 source-pixel brow seats, reflection, scale and inventory crop mapping. PartyFollow checks swept collisions, bounded strides, walls/corners, reversals, stacked starts, webbed followers, idle gait, and the repeated leader guard at 16.7, 50 and 100 ms. MacarWeaponMatrix checks 193 pose/switch cases without parked assertions.
+
+For browser verification, run `node src/qa/macar-browser-server.js /tmp/macar-qa`, then open `http://127.0.0.1:4175/qa` in a fresh browser profile. This serves an in-memory fixture; it does not change index.html or the live game's save. It freezes the normal render loop, loads shipped sprites, draws the production Macar renderer for 168 weapon/pose/facing combinations, checks equipment switches, exercises the production steering/separation functions in 16 controlled scenarios, and replays the complete Chapter I update with four roused ghosts at 16.7 and 50 ms. The page prints results and writes browser-results.json and weapon-crown-matrix.png to the output directory. Test setup is synthetic; this is a developer fixture, not a title-to-combat user-path proof. The server listens only on loopback. Stop it with Ctrl-C.
+
+Validated result: 111 test files pass, no failing files. The original suite retains its existing parked art-calibration assertions; the new regression tests do not park assertions. Browser fixture: 811 checks, zero failures. Controlled follower minimums: 2.15 from Macar, 2.05 between followers, at most one stride per frame, no resting movement or sheet changes. Full Chapter I replay: no spacing violations; travel 38.97 units at 16.7 ms and 95.25 units at 50 ms (same frame count, different elapsed duration).
+
+## Intentional behavior and art limits
+
+A party member can briefly block Macar while it makes room; a corridor that cannot fit the configured spacing may require rejoin/pathing or a different route. Separation does not push Macar through a pinned body. Existing overlaps ease out over bounded steps. The collision guard excludes combatants/defending members so it does not impose exploration spacing on melee. Rock-bound initial configurations are not guaranteed to reach full billboard spacing if no legal space exists.
+
+Standing poses use front art. Maul diagonal walks reuse the side pair, and the windup key resolves to the existing contact artwork. Axe and crossbow use front walk/attack sheets for all supported facings, with screen-left mirroring. Recover uses the current weapon's idle sheet. There are no distinct recover sheets. Existing axe/crossbow artwork still visibly contains maul elements and added weapon overlays; verification preserves that art. No missing artwork was generated or replaced.
+
+The repository's verify-legend-of-macar Chrome harness could not start on this host (CDP unavailable). Its formal user-path verdict is REJECT: doctor could not establish a run. Independent in-app-browser checks passed, and a manual local title → New descent → rouse ORBO → click-to-walk smoke check rendered successfully. These are not represented as a passing formal harness verdict or an exhaustive dungeon playthrough.
+
+Crown follow-up: lowered all calibrated seats by about 22% of their rim width, and removed the connected gray interior-fill patches from a cached worn-render copy. The original prop, rim, fangs and sprite files stay unchanged. New regressions check each opening between the front fangs, unchanged RGB paint, and the lower idle seat. All 111 test files and 811 browser fixture checks pass after this correction.
+
+Eye-clearance follow-up: raised the worn crown by about 15% of its rim width from the previous lowered placement. The idle seat is now y=285 source pixels; transparent openings remain unchanged. The production-render close-up shows both eyes unobstructed, and all 111 test files pass.
+
+Diameter follow-up: reduced the calibrated worn-crown widths by approximately 8%, leaving all seat positions and eye clearance unchanged. Crown regression checks pass and the updated close-up was inspected using the production renderer.

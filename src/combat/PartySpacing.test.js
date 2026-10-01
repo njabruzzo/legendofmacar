@@ -28,6 +28,7 @@ assert(/PARTY_SEP_LEAD=2\.15/.test(html) && /PARTY_SEP_KIN=2\.05/.test(html),
 assert(/separateParty\(p\)/.test(html), 'the party step enforces the gap after steering');
 
 const ctx={
+  PartyFollow:require("./PartyFollow"),
   G:{trail:[], ents:[]},
   canBe(){ return true; },
   dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }

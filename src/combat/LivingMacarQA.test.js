@@ -737,8 +737,8 @@ assert(!/dwarf_macar_crowned/.test(propFn) && /wearingBoneCrown/.test(propFn) &&
   'the prop crown draws for every worn-crown pose');
 assert(/loadSpriteKeyNow\('bone_crown'\)/.test(propFn),
   'the worn-crown render path requests the crown sprite immediately');
-assert(/const cy=dy\+H\*0\.27/.test(extractFn('drawWornBoneCrown')) && /H\*0\.17/.test(extractFn('drawWornBoneCrown')),
-  'the worn crown is placed down on Macar brow at readable size');
+assert(/MacarCrown\.layout/.test(extractFn('drawWornBoneCrown')) && /seat\.w/.test(extractFn('drawWornBoneCrown')),
+  'the worn crown uses the painted brow calibration rather than canvas centre');
 function crownCount(e){
   const key=ctx.livingMacarAnimKey(e);
   const blit=ctx.livingMacarBlitKey(key)||key;
