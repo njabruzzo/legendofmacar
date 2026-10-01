@@ -25,7 +25,11 @@
  const row=Array.from(book.grid[sec.j]);for(let x=sec.i;x<sec.i+sec.w;x++)row[x]=String.fromCharCode(48);book.grid[sec.j]=row.join('');
  applyPlaySave(book);
  check(!sec.open&&G.lvl.grid[sec.j].slice(sec.i,sec.i+sec.w).every(v=>v===1),'restore closed crown-room entrance even when older grid omits its wall');
- const reload=()=>{const saved=GameSave.captureWorld(G);fresh();applyPlaySave(saved);G.talk=null;PROMPT=null;return player();};
+ const reload=()=>{
+  const saved=GameSave.captureWorld(G),geometry={tw:TW,th:TH,zoom:ZOOM};
+  fresh();TW=geometry.tw;TH=geometry.th;ZOOM=geometry.zoom;
+  applyPlaySave(saved);G.talk=null;PROMPT=null;return player();
+ };
  const clickChoice=()=>{
   check(!!G.talk,'choice has a dialogue');if(!G.talk)return;
   drawTalk(ctx);const h=UI.talkHits[0];
