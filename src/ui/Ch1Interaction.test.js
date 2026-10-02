@@ -20,7 +20,8 @@ opens('ch1_lift_lever_look','ch1_lift_lever_look',{touched:1});
 opens('ch1_lift_lever_look','ch1_lift_pull',{touched:1,cleared:1});
 opens('rubypillar_look','rubypillar_touch_locked',{touched:1,cleared:1});
 opens('rubypillar_look_armed','rubypillar_touch',{touched:1,cleared:1,leverThrown:1});
-opens('ch1_lift_lever_thrown_look','ch1_lift_pull_spent',{touched:1,cleared:1,leverThrown:1});
+opens('ch1_lift_lever_thrown_look','ch1_lift_pull',{touched:1,cleared:1,leverThrown:1});
+opens('ch1_lift_lever_thrown_look','ch1_lift_ride',{touched:1,cleared:1,leverThrown:1,elevReady:1});
 opens('ch1_lift_ride','ch1_lift_ride',{touched:1,cleared:1,leverThrown:1,elevReady:1});
 opens('cavein_behind_look','cavein_behind_look',{});
 // Screen hits follow zoom, camera offset, isometric aspect, and both art paths.

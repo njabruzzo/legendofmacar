@@ -63,13 +63,16 @@
   lead=reload();lead.x=37.15;lead.y=22.05;cs=w2s(36.5,21.5);CAMSX+=VW*.65-cs.x;CAMSY+=VH*.7-cs.y;
   visibleTap('ruby',ptr);check(G.talk&&G.talk.key==='rubypillar_touch_locked',tag+' pillar first stays locked');G.talk=null;
   visibleTap('lever',ptr);check(G.talk&&G.talk.key==='ch1_lift_pull',tag+' visible lever offers throw');clickChoice();
-  check(G.lvl.flags.leverThrown===1&&!G.lvl.flags.elevReady,tag+' lever alone does not descend');
-  lead=reload();lead.x=36.5;lead.y=22.25;cs=w2s(36.5,21.5);CAMSX+=VW*.65-cs.x;CAMSY+=VH*.7-cs.y;
-  visibleTap('ruby',ptr);check(G.talk&&G.talk.key==='rubypillar_touch',tag+' restored lever arms visible ruby');clickChoice();
-  check(G.lvl.flags.elevReady===1&&G.lvl.flags.elevatorGone===1,tag+' ruby starts descent');
+  check(G.lvl.flags.leverThrown===1&&G.lvl.flags.elevReady===1&&G.lvl.flags.elevatorGone===1,tag+' lever activates elevator without a ruby touch');
+  check(ch1LiftLeverSheet(false)===ch1LiftLeverSheet(true),tag+' lever keeps its detailed art after activation');
+  check(GameSave.read(localStorage).play.flags.elevReady===1,tag+' lever activation autosaves');
   lead=reload();lead.x=36.5;lead.y=22.25;cs=w2s(36.5,21.5);CAMSX+=VW*.65-cs.x;CAMSY+=VH*.7-cs.y;
   visibleTap('ruby',ptr);check(G.talk&&G.talk.key==='ch1_lift_ride',tag+' ready lift survives reload');clickChoice();
   check(G.scene==='camp'&&G.cleared[1]&&G.unlocked>=2,tag+' ride completes Chapter I');
+  drawCamp(ctx);const deeper=menuHits[1];
+  check(!!deeper,tag+' camp offers Go deeper');
+  if(deeper){tap(deeper.x+deeper.w/2,deeper.y+deeper.h/2);}
+  check(G.ch===2&&G.lvl.n===2&&G.scene==='play'&&!!player(),tag+' Go deeper enters playable second level');
  }
  // A tap made out of reach walks to the lever and evaluates its current state on arrival.
  for(const dt of [1/60,.05]){

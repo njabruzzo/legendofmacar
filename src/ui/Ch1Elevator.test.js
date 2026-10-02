@@ -71,8 +71,8 @@ assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever
   'rest lever png is on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_lift_lever_thrown.png')),
   'thrown lever png is on disk');
-assert(/Disney SIGNED rest \/ thrown/.test(html),
-  'lever sheets are the Disney SIGNED bind, with a procedural fallback');
+assert(!/thrownSheet/.test(html.match(/function ch1LiftLeverSheet\(ready\)\{[\s\S]*?\n\}/)[0]),
+  'activation retains the detailed lever design');
 assert(/SPRITE_FILES\.ch1_pillar_ruby='assets\/props\/prop_ch1_pillar_ruby\.png'/.test(html),
   'pillar ruby is registered in SPRITE_FILES');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ch1_pillar_ruby.png')),
@@ -106,10 +106,10 @@ assert(/startTalk\('ch1_lift_pull_spent'\)/.test(ch1),
 assert(/!L\.flags\.cleared\) return null/.test(html.match(/function ch1ElevatorPrompt\(p\)\{[\s\S]*?\n\}/)[0]),
   'Pull the lever is gated on guardians cleared, not door touch');
 const throwFn=html.match(/function throwCh1LiftLever\(\)\{[\s\S]*?\n\}/)[0];
-assert(/L\.flags\.leverThrown=1/.test(throwFn) && !/elevReady\s*=/.test(throwFn),
-  'Throw it sets leverThrown and does not set elevReady');
-assert(/Touch the ruby pillar to wake the lift\./.test(throwFn),
-  'Throw it hints that the pillar is the next action');
+assert(/L\.flags\.leverThrown=1/.test(throwFn) && /return beginCh1ElevatorDescent\(\)/.test(throwFn),
+  'Throw it activates the elevator directly');
+assert(!/Touch the ruby pillar to wake the lift/.test(throwFn),
+  'no second ruby touch is required');
 const descentFn=html.match(/function beginCh1ElevatorDescent\(\)\{[\s\S]*?\n\}/)[0];
 assert(/if\(!L\.flags\.leverThrown\) return false/.test(descentFn) && /L\.flags\.elevReady=1/.test(descentFn)
   && /L\.flags\.elevatorGone=1/.test(descentFn),
@@ -166,7 +166,7 @@ assert(ctx.rubyGuardiansLeft()===true, 'a living statue still blocks cleared');
 ctx.G.ents[0].dead=1;
 assert(ctx.rubyGuardiansLeft()===false, 'optional rats do not keep the elevator locked');
 
-/* ---- Nick lock: lever, then pillar. Either one alone does not descend. ---- */
+/* ---- Pull activates; ruby-only and pre-guardian interactions stay locked. ---- */
 function extractFn(name){
   const start=html.indexOf('function '+name+'(');
   if(start<0) throw new Error('missing '+name);
@@ -178,7 +178,7 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 const DESCENT='The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.';
-const BITE='The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.';
+const BITE='The lever bites home. The ruby answers. The elevator is ready to carry you down.';
 const LOCKED='Cold. Dead weight. Something iron nearby still holds the dark shut.';
 const seq={
   G:{lvl:{n:1,flags:{cleared:1,touched:1},lights:[],objs:[{},{},{},{d:0}]}},
@@ -195,23 +195,35 @@ vm.createContext(seq);
 });
 const atPillar={x:36.5,y:21.5};
 const atLever={x:37.15,y:22.05};
-assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar_locked', 'standing on the pillar offers the locked touch before the lever');
+assert(seq.ch1ElevatorPrompt(atPillar).action==='lever', 'standing on the lift offers the lever without a second ruby step');
 assert(seq.touchCh1RubyPillar()===false && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.leverThrown,
-  'pillar-first does not descend');
+  'pillar-first does not activate');
 assert(seq.said.indexOf(LOCKED)>=0 && seq.said.indexOf(DESCENT)<0,
-  'pillar-first says the locked line and not elevator_descent');
+  'pillar-first says the locked line');
 assert(seq.ch1ElevatorPrompt(atLever).action==='lever', 'standing on the lever offers Pull');
-assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && !seq.G.lvl.flags.elevReady && !seq.G.lvl.flags.elevatorGone,
-  'lever-only sets leverThrown and does not descend');
-assert(seq.said.indexOf(BITE)>=0 && seq.said.indexOf(DESCENT)<0,
-  'lever-only says the bite-home line and not elevator_descent');
-assert(seq.ch1ElevatorPrompt(atLever).action==='pillar', 'after the throw the lever overlap advances to the armed pillar');
-assert(seq.throwCh1LiftLever()===false, 'the lever cannot be thrown twice');
-assert(seq.ch1ElevatorPrompt(atPillar).action==='pillar', 'after the throw the pillar is the armed touch');
-assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1 && seq.G.lvl.flags.elevatorGone===1,
-  'lever then pillar descends');
-assert(seq.said[seq.said.length-1]===DESCENT, 'successful descent says elevator_descent');
-assert(seq.touchCh1RubyPillar()===false, 'a second touch does not descend again');
+assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.leverThrown===1 && seq.G.lvl.flags.elevReady===1 && seq.G.lvl.flags.elevatorGone===1,
+  'lever-only activates the elevator');
+assert(seq.said.indexOf(BITE)>=0 && seq.said.indexOf(DESCENT)>=0,
+  'lever pull announces activation and descent');
+assert(seq.ch1ElevatorPrompt(atLever).action==='ride' && seq.ch1ElevatorPrompt(atPillar).action==='ride',
+  'both platform and lever positions offer the ride');
+assert(seq.throwCh1LiftLever()===false && seq.touchCh1RubyPillar()===false,
+  'repeated interactions cannot activate twice');
+assert(seq.G.lvl.lights.length===1,'repeat activation does not duplicate lift light');
+// Already-thrown saves from the old two-step sequence can activate by pulling.
+seq.G.lvl.flags={touched:1,cleared:1,leverThrown:1};seq.G.lvl.lights=[];
+assert(seq.ch1ElevatorPrompt(atLever).action==='lever' && seq.throwCh1LiftLever()===true,
+  'legacy thrown-only save still activates using the lever');
+seq.G.lvl.flags={touched:1,cleared:1,leverThrown:1};seq.G.lvl.lights=[];
+assert(seq.touchCh1RubyPillar()===true && seq.G.lvl.flags.elevReady===1,
+  'legacy ruby interaction remains compatible');
+const rest={width:218,height:298},thrown={width:233,height:258};
+seq.SPR={ch1_lift_lever:rest,ch1_lift_lever_thrown:thrown};
+vm.runInContext(extractFn('ch1LiftLeverSheet'),seq);
+assert(seq.ch1LiftLeverSheet(false)===rest&&seq.ch1LiftLeverSheet(true)===rest,
+  'ready state keeps the same complete high-detail lever');
+const worldKeys=html.match(/const WORLD_ART_KEYS=\{[\s\S]*?\n\};/)[0];
+assert(worldKeys.includes("'ch1_lift_lever'"),'lever art is decoded before Chapter I appears');
 seq.G.lvl.flags={touched:1,leverThrown:0,cleared:0};
 seq.G.lvl.lights=[];
 assert(seq.ch1ElevatorPrompt(atPillar)===null && seq.throwCh1LiftLever()===false,

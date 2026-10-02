@@ -967,7 +967,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -6845,7 +6845,7 @@ function rubyGuardiansLeft(){
 const QUILL_CH1_SAY={
   rubydoor_cleared:'The last guardian falls. Every ruby in the chamber cracks cold.',
   rubypillar_appears:'Stone rises in the middle of the chamber. A ruby waits on it, dark and waiting. An iron lever stands ready beside it.',
-  leverThrown:'The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.',
+  leverThrown:'The lever bites home. The ruby answers. The elevator is ready to carry you down.',
   rubypillar_touch_locked:'Cold. Dead weight. Something iron nearby still holds the dark shut.',
   elevator_descent:'The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.',
   cavein_wake:'Stone lets go. Cold light. A brother stands who should not.'
@@ -6866,9 +6866,8 @@ function wakeRubyDoor(){
     L.lights.push({x:36.5,y:21.5,c:'#ff2f3a',r:5.2,f:1.15});
   hint('Six guardians. Slay them, then pull the elevator lever.',6);
 }
-/* Nick 2026-09-22: throw the lift lever, then touch the ruby pillar.
-   The lever alone does not descend. The pillar does not descend until
-   the lever has been thrown this chapter. leverThrown lives on L.flags. */
+/* Pulling the lever activates the elevator after the guardians fall.
+   The ruby touch remains compatible with older lever-only saves. */
 function ch1HubAnchor(){ return {x:36.5,y:21.5}; }
 function ch1LeverAnchor(){ return {x:37.15,y:22.05}; }
 function ch1LeverShownThrown(){
@@ -6878,16 +6877,15 @@ function ch1LeverShownThrown(){
 function throwCh1LiftLever(){
   const L=G.lvl;
   if(!L||L.n!==1||!L.flags||!L.flags.cleared) return false;
-  if(L.flags.leverThrown||L.flags.elevReady) return false;
+  if(L.flags.elevReady) return false;
   L.flags.leverThrown=1;
   shake(10);
   say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
-  hint('Touch the ruby pillar to wake the lift.',5);
-  return true;
+  return beginCh1ElevatorDescent();
 }
 function beginCh1ElevatorDescent(){
   const L=G.lvl;
-  if(!L||L.n!==1||!L.flags||L.flags.elevReady) return false;
+  if(!L||L.n!==1||!L.flags||L.flags.elevReady||!L.flags.cleared) return false;
   if(!L.flags.leverThrown) return false;
   /* elevReady is the house ride flag. elevatorGone is Quill's name for the same moment. */
   L.flags.elevReady=1;
@@ -6897,6 +6895,7 @@ function beginCh1ElevatorDescent(){
   L.lights=L.lights||[];
   L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
   hint('Ride the elevator down.',5);
+  if(typeof writeGameSave==='function') writeGameSave(true);
   return true;
 }
 function touchCh1RubyPillar(){
@@ -6923,13 +6922,7 @@ function ch1ElevatorPrompt(p){
   if(L.flags.elevReady) return dHub<2.3?{action:'ride'}:null;
   const nearLever=dLev<2.15;
   const nearPillar=!!L.flags.touched && dHub<2.3;
-  const leverCloser=dLev+0.12<dHub;
-  if(L.flags.leverThrown){
-    if(nearPillar) return {action:'pillar'};
-    if(nearLever) return {action:'lever_spent'};
-    return null;
-  }
-  if(nearLever && nearPillar) return leverCloser?{action:'lever'}:{action:'pillar_locked'};
+  if(L.flags.leverThrown && nearPillar && !nearLever) return {action:'pillar'};
   if(nearLever) return {action:'lever'};
   if(nearPillar) return {action:'pillar_locked'};
   return null;
@@ -7042,7 +7035,7 @@ function openCh1QuillLook(key){
   if(f){
     if(key==='ruby_door_look'&&!f.touched) key='ruby_door';
     else if(key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look'){
-      if(f.cleared) key=ch1LeverShownThrown()?'ch1_lift_pull_spent':'ch1_lift_pull';
+      if(f.cleared) key=f.elevReady?'ch1_lift_ride':'ch1_lift_pull';
     } else if(key==='rubypillar_look'||key==='rubypillar_look_armed'||key==='ch1_lift_ride'){
       if(f.elevReady) key='ch1_lift_ride';
       else if(f.cleared&&f.touched) key=f.leverThrown?'rubypillar_touch':'rubypillar_touch_locked';
@@ -7152,7 +7145,7 @@ const NPC_TALK={
     ]
   },
   ch1_lift_lever_thrown_look:{
-    line:"The lever lies thrown. The throw is spent. The pillar's ruby is listening now.",
+    line:'The lever has activated the elevator. The lift is ready to carry you down.',
     choices:[
       {t:'Leave it.'}
     ]
@@ -16618,11 +16611,8 @@ function drawCh1PillarRuby(g,s,z,p){
   }
 }
 function ch1LiftLeverSheet(ready){
-  /* Disney SIGNED rest / thrown. Procedural iron remains if a sheet misses. */
-  if(ready){
-    const thrownSheet=SPR.ch1_lift_lever_thrown;
-    if(thrownSheet&&thrownSheet.width) return thrownSheet;
-  }
+  /* Keep the complete detailed plate in both states; do not swap designs.
+     Chapter I preloads this sheet before showing the world. */
   const img=SPR.ch1_lift_lever;
   return (img&&img.width)?img:null;
 }

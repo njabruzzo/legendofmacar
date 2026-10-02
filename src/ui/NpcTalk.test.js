@@ -156,13 +156,13 @@ assert(/who:'THE LEVER'/.test(talkPack('ch1_lift_pull')) && /Throw it\./.test(ta
   'ch1_lift_pull throws the lever and does not descend inline');
 assert(/A weathered iron lever by the pillar\. Dark knob\. Not candy\. Built to throw once and mean it\./.test(talkPack('ch1_lift_lever_look')),
   'upright lever examine');
-assert(/The lever lies thrown\. The throw is spent\. The pillar's ruby is listening now\./.test(talkPack('ch1_lift_lever_thrown_look')),
+assert(/The lever has activated the elevator\. The lift is ready to carry you down\./.test(talkPack('ch1_lift_lever_thrown_look')),
   'thrown lever examine');
 assert(/Spent\. The arm will not rise for you again\./.test(talkPack('ch1_lift_pull_spent'))
   && !/throwCh1LiftLever|elevReady/.test(talkPack('ch1_lift_pull_spent')),
   'a spent lever does not throw again');
-assert(/The lever bites home\. Far below, something wakes — but the cage does not move\. The ruby on the pillar burns a shade brighter\./.test(html),
-  'throwing the lever says the bite-home line and does not descend');
+assert(/The lever bites home\. The ruby answers\. The elevator is ready to carry you down\./.test(html),
+  'throwing the lever announces elevator activation');
 assert(/The tunnel behind you is dead stone\. Your brothers went under it\. The dark ahead does not care\./.test(talkPack('cavein_behind_look')),
   'cave-in behind examine');
 assert(/interact\('Pull the lever'/.test(html) && /L\.flags\.leverThrown=1/.test(html),
