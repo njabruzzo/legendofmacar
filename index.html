@@ -58,6 +58,7 @@
 <script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/MacarEquipment.js"></script>
+<script src="src/combat/MacarMotionAtlas.js"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
@@ -945,6 +946,7 @@ const MACAR_ONMODEL={
   macar_xbow_atk:'assets/creatures/dwarf_macar_xbow_atk.png'
 };
 if(typeof MacarIdleAtlas!=='undefined') MacarIdleAtlas.register(MACAR_ONMODEL);
+if(typeof MacarMotionAtlas!=='undefined') MacarMotionAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
@@ -992,7 +994,7 @@ function loadSpriteKeyNow(k, cb){
   SPRITE_LOADING[k]=[cb];
   const img=new Image();
   const done=ok=>{
-    if(ok) SPR[k]=(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
+    if(ok) SPR[k]=(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
     const list=SPRITE_LOADING[k]||[];
     delete SPRITE_LOADING[k];
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
@@ -1027,8 +1029,8 @@ function requestMacarEquipmentArt(){
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
   if(typeof MacarIdleAtlas!=='undefined'){
     keys.push(...MacarIdleAtlas.keys('macar'));
-    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'));
-    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'));
+    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'),...MacarMotionAtlas.keys('axe'));
+    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'),...MacarMotionAtlas.keys('xbow'));
   }
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
     keys.push('bone_crown');
@@ -2223,7 +2225,7 @@ function drawEntBillboard(g,e,img,z,flip){
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
   const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
-  const dy=(b&&b.ok)?-H*b.botY:-H;
+  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   const party=e.kind==='dwarf' && !e.dead;
   const punch=!e.ghost;
   if(e.hero && !e.dead){
@@ -2273,6 +2275,7 @@ const LIVING_MACAR_KEYS={
   dwarf_macar_crowned:1
 };
 if(typeof MacarIdleAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{ if(MacarIdleAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1; });
+if(typeof MacarMotionAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{if(MacarMotionAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1;});
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
@@ -2366,7 +2369,7 @@ function matchingPartyAtkReady(key, idleKey){
    idle and hide the walk. The axe's new square idle also differs from its tall
    walk canvases. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
-  return /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+  return (typeof MacarMotionAtlas!=='undefined' && !!MacarMotionAtlas.pose(key)) || /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
     ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
     ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se'
@@ -2538,6 +2541,7 @@ function ghostAnimKey(e, k){
 /* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
 function livingMacarStandKey(idle,e){
   idle=idle||'macar';
+  if(idle==='macar_xbow' && e && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),false);if(sprReady(k))return k;}
   if(e && typeof screenOctant==='function'){
     const oct=screenOctant(e),dir={w:'e',sw:'se',nw:'ne'}[oct]||oct;
     const key=idle+'_idle_'+dir;
@@ -2688,6 +2692,8 @@ function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
+  if(idle==='macar_xbow' && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),!!e.moving&&!e.defending&&!wantsBowPose(e)&&!wantsMeleeRecover(e)&&!wantsLivingMacarStrike(e));if(sprReady(k))return k;}
+  if(idle==='macar_axe' && e.moving && !e.defending && !wantsLivingMacarStrike(e) && !wantsMeleeRecover(e) && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('axe',e,screenOctant(e),true);if(sprReady(k))return k;}
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
@@ -2848,7 +2854,7 @@ function livingMacarPlantFit(e, key, img){
   const idleFit=heroFigureFit(e, idle);
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
-  if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
+  if(idleH<80 || liveH<80 || (Math.abs(liveH-idleH)<8 && !live.__macarIntegratedMotion)) return idleFit;
   const idleBody=livingSheetStature(idle);
   const liveBody=livingSheetStature(live);
   if(!(idleBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || !(liveBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))) return idleFit;
@@ -2901,10 +2907,10 @@ function drawLivingMacar(g,e){
   const footCx=(b&&b.ok&&b.footCx!=null)?b.footCx:0.5;
   const bootCx=(b&&b.ok&&b.bootCx!=null)?b.bootCx:footCx;
   const idleFoot=(ib&&ib.ok&&ib.footCx!=null)?ib.footCx:footCx;
-  const plant=livingMacarPlantX(footCx, bootCx, idleFoot);
+  const plant=img.__macarIntegratedMotion?0.5:livingMacarPlantX(footCx, bootCx, idleFoot);
   const cx=flip?1-plant:plant;
   const dx=-W*cx;
-  const dy=(b&&b.ok)?-H*b.botY:-H;
+  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);

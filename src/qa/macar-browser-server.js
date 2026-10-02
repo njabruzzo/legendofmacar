@@ -7,7 +7,7 @@ http.createServer((req,res)=>{
  if(url==='/qa-result' && req.method==='POST'){
   let data='';req.on('data',b=>data+=b);req.on('end',()=>{
    const result=JSON.parse(data);
-   const galleries={idleGallery:'macar-standing-directions.png',doorGallery:'ruby-door-stairs.png',ghostGallery:'ghost-appearance-matrix.png',gallery:'weapon-crown-matrix.png'};
+   const galleries={motionGallery:'gameplay-walk-review.png',idleGallery:'macar-standing-directions.png',doorGallery:'ruby-door-stairs.png',ghostGallery:'ghost-appearance-matrix.png',gallery:'weapon-crown-matrix.png'};
    for(const [key,name] of Object.entries(galleries))if(result[key]){
     fs.writeFileSync(path.join(output,name),Buffer.from(result[key].split(',')[1],'base64'));delete result[key];
    }
