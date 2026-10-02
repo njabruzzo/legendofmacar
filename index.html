@@ -324,15 +324,22 @@ function partyForm(i,p){
    see him. It walks; it never teleports. */
 const REJOIN_LEASH=5.5, REJOIN_SIGHT=2.8, REJOIN_DONE=3.0, REJOIN_STUCK=0.6;
 const REJOIN_REPATH=0.45, REJOIN_EXPAND=16000;
+function followRank(e){
+  const kin=(G.ents||[]).filter(o=>PartyFollow.eligible(o)&&!o.hero&&!o.thrallStay);
+  return Math.max(0,kin.indexOf(e));
+}
 function kinLost(e, p){
   const d=dist(e, p);
-  if(d>REJOIN_LEASH) return 'far';
+  if(d>Math.max(REJOIN_LEASH,2.6*(followRank(e)+1)+1)) return 'far';
   if(d>REJOIN_SIGHT && typeof hasLOS==='function' && !hasLOS(e.x, e.y, p.x, p.y)) return 'sight';
   if((e.followStuck||0)>REJOIN_STUCK && d>PARTY_SEP_LEAD+0.6) return 'stuck';
   return '';
 }
-function rejoinGoal(p){
-  /* Aim a step behind Macar so the goal is not his own body. */
+function rejoinGoal(p,e){
+  if(e){
+    const rank=followRank(e);
+    return trailSlot(rank)||followBearingSlot(e,p,rank);
+  }
   const bx=p.x-(p.fdx||0)*1.3, by=p.y-(p.fdy||0)*1.3;
   return (typeof walk==='function' && walk(bx, by))?{x:bx,y:by}:{x:p.x,y:p.y};
 }
@@ -346,34 +353,38 @@ function tickRejoin(e, p, dt){
   }
   const d=dist(e, p);
   const sees=typeof hasLOS!=='function' || hasLOS(e.x, e.y, p.x, p.y);
-  if(d<=REJOIN_DONE && sees){
+  const goal=rejoinGoal(p,e);
+  if((d<=REJOIN_DONE && sees) || dist(e,goal)<=.38){
     e._rejoin=null; e.followStuck=0;
     return false;
   }
   st.age+=dt;
-  const goal=rejoinGoal(p);
   const nav=typeof Navigation!=='undefined' && Navigation.planRoute;
-  const need=!st.path || !st.path.length || st.age>=REJOIN_REPATH || st.stuck>0.5
+  const need=!st.path || !st.path.length || st.stuck>0.5
+    || (st.age>=REJOIN_REPATH && !Navigation.segmentClear(e,st.path[0],e,partyRouteCanBe))
     || !st.goal || Math.hypot(st.goal.x-goal.x, st.goal.y-goal.y)>0.8;
+  if(!st.path && st.fail && st.age<REJOIN_REPATH){e.moving=0;e.ix=0;e.iy=0;return true;}
   if(need && nav){
-    const plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {canBe, maxExpand:REJOIN_EXPAND});
+    const plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {canBe:partyRouteCanBe, maxExpand:REJOIN_EXPAND});
     st.path=plan.ok?plan.path.slice():null;
     st.goal=goal; st.age=0; st.stuck=0; st.fail=plan.ok?0:(st.fail||0)+1;
+    if(!plan.ok){e.moving=0;e.ix=0;e.iy=0;return true;}
   }
   let tx=goal.x, ty=goal.y;
   if(st.path){
-    while(st.path.length && Math.hypot(st.path[0].x-e.x, st.path[0].y-e.y)<0.22) st.path.shift();
+    while(st.path.length && Math.hypot(st.path[0].x-e.x, st.path[0].y-e.y)<0.22 &&
+      (st.path.length===1 || Navigation.segmentClear(e,st.path[1],e,partyRouteCanBe))) st.path.shift();
     if(st.path.length){ tx=st.path[0].x; ty=st.path[0].y; }
   }
   /* Catch-up pace: a touch quicker than Macar so a lost kin closes. */
   const go=(e.sp||4)*1.15*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
   if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return true; }
-  const moved=steerWalk(e, tx-e.x, ty-e.y, go, dt);
+  const moved=routeSteerWalk(e, tx-e.x, ty-e.y, go, dt);
   if(!(moved>0.002)) st.stuck+=dt; else st.stuck=0;
   return true;
 }
 function followBearingSlot(e, p, rank){
-  const gap=PARTY_SEP_LEAD+0.35+0.95*(rank|0);
+  const gap=Math.max(PARTY_SEP_LEAD+0.35,2.6*((rank|0)+1));
   let dx=e.x-p.x, dy=e.y-p.y;
   const d=Math.hypot(dx, dy);
   if(d<0.05) return partyForm((rank|0)+1, p);
@@ -467,13 +478,16 @@ function separateParty(p){
 }
 function constrainPartyStep(e, ox, oy){
   if(typeof PartyFollow==='undefined' || !PartyFollow.eligible(e)) return;
+  // Followers yield to the controlled leader; their wide visual spacing
+  // must never make Macar's controls or a narrow doorway impassable.
+  if(e.hero) return;
   const p=e.hero?e:player();
   if(!p || e.aim || e.atk>0 || e.defending || (e.hero && foeInTheFight())) return;
   const bodies=G.ents.filter(o=>PartyFollow.eligible(o) && !o.aim && !o.defending && !(o.atk>0));
   const target={x:e.x,y:e.y};
   const allowed=PartyFollow.limit(e,{x:ox,y:oy},target,bodies);
   e.x=allowed.x; e.y=allowed.y;
-  if(e.hero) e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
+  e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
 }
 
 function steerWalk(e,dx,dy,sp,dt){
@@ -13450,11 +13464,15 @@ function wallFaceClear(x,y,e){
   const solid=(i,j)=>!!(L.grid[j]&&L.grid[j][i]===1);
   const south=solid(ix,iy+1), east=solid(ix+1,iy), west=solid(ix-1,iy);
   const se=solid(ix+1,iy+1), sw=solid(ix-1,iy+1);
-  if(south && y>iy+1-m) return false;
-  if(east && x>ix+1-m) return false;
-  if(se && y>iy+1-m && x>ix+1-m) return false;
-  if(sw && y>iy+1-m && x<ix+m) return false;
-  if(west && south && x<ix+m) return false;
+  // The visual wall inset must leave a traversable center in a one-cell
+  // corridor. The actor radius still enforces real rock collision below.
+  const mx=west&&east?Math.min(m,.5):m;
+  const my=south&&solid(ix,iy-1)?Math.min(m,.5):m;
+  if(south && y>iy+1-my) return false;
+  if(east && x>ix+1-mx) return false;
+  if(se && y>iy+1-my && x>ix+1-mx) return false;
+  if(sw && y>iy+1-my && x<ix+mx) return false;
+  if(west && south && x<ix+mx) return false;
   return true;
 }
 function canBe(x,y,r,e){
@@ -13462,6 +13480,16 @@ function canBe(x,y,r,e){
   return walk(x+r,y,e)&&walk(x-r,y,e)&&walk(x,y+r,e)&&walk(x,y-r,e)&&
          walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e)&&
          wallFaceClear(x,y,e);
+}
+function partyRouteCanBe(x,y,r,e){
+  if(!canBe(x,y,r,e)) return false;
+  if(!e||e.hero) return true;
+  for(const o of G.ents||[]){
+    if(o===e||!PartyFollow.eligible(o)||o.aim||o.defending||o.atk>0) continue;
+    const gap=o.hero?PARTY_SEP_LEAD:PARTY_SEP_KIN;
+    if(Math.hypot(x-o.x,y-o.y)<gap-1e-5) return false;
+  }
+  return true;
 }
 /* Nav lattice uses canStand → canBe. topologyRev is independent of seenRev
    (fog). Level identity is chapter + king-hall so a new map drops the cache. */
@@ -13477,8 +13505,8 @@ function bumpTopology(why){
 }
 function navHost(){
   return {
-    canBe:canBe,
-    steerWalk:steerWalk,
+    canBe:partyRouteCanBe,
+    steerWalk:routeSteerWalk,
     partyForm:partyForm,
     dist:dist,
     levelId:navLevelId(),
@@ -13610,6 +13638,14 @@ function move(e,dx,dy,dt){
   if(canBe(n.x,e.y,e.r,e)){ e.x=n.x; moved=1; }
   if(canBe(e.x,n.y,e.r,e)){ e.y=n.y; moved=1; }
   return moved;
+}
+function routeSteerWalk(e,dx,dy,sp,dt){
+  const mul=typeof wornMoveMul==='function'?wornMoveMul(e):1;
+  const remaining=Math.hypot(dx,dy);
+  // Boots already scale moveStep. Stop on each route point even at 50ms
+  // or with speed boots, rather than overshooting and turning back.
+  if(dt>0 && mul>0) sp=Math.min(sp,remaining/(dt*mul));
+  return steerWalk(e,dx,dy,sp,dt);
 }
 
 /* ==========================================================================
@@ -14407,10 +14443,10 @@ function update(dt){
   if(p){
     p._followDt=dt; p._partyBlocked=false;
     for(const e of G.ents){
-      e._followX=e.x; e._followY=e.y; e._followGait=e.gait||0;
+      e._followX=e.x; e._followY=e.y; e._followGait=e.gait||0;e._partyBlocked=false;
     }
     p._frameStep=0;
-    let dx=0,dy=0, analog=0;
+    let dx=0,dy=0, analog=0, routeDest=false, routeRadius=.26;
     if(IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy, m=Math.hypot(ox,oy);
       const dead=6*UIS;
@@ -14456,6 +14492,7 @@ function update(dt){
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
       const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?1.12:(p.dest.look?0.42:0.26);
+      routeRadius=arrive;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
@@ -14463,11 +14500,12 @@ function update(dt){
           if(p.dest.ch1) openCh1QuillLook(p.dest.look);
           else if(typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
         }
-        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look &&
+           canBe(p.dest.x,p.dest.y,p.r,p) && d<=p.sp*dt*wornMoveMul(p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
-        dx=p.dest.x-p.x; dy=p.dest.y-p.y; analog=1;
+        dx=p.dest.x-p.x; dy=p.dest.y-p.y; analog=1; routeDest=true;
         p.stuck=(p.stuck||0)+dt;
         if(p.lastD!==undefined && p.lastD-d>0.008) p.stuck=0;
         p.lastD=d; if(p.stuck>1.4){ p.dest=null; p.stuck=0; }
@@ -14481,7 +14519,16 @@ function update(dt){
     if(G.digging) sp*=0.14;
     if(analog && analog<1) sp*=analog;
     const leadX=p._followX, leadY=p._followY;
-    steerWalk(p, dx, dy, sp, dt);
+    let routed=false;
+    if(!routeDest && (dx||dy) && typeof Navigation!=='undefined') Navigation.clearRoute(p);
+    if(routeDest && p.dest && typeof Navigation!=='undefined' && Navigation.use()){
+      const host=navHost();host.arriveRadius=routeRadius;
+      host.steerWalk=(e,vx,vy,_go,stepDt)=>routeSteerWalk(e,vx,vy,sp,stepDt);
+      const nr=Navigation.tickRoute(p,p.dest,dt,host);
+      routed=!!(nr&&nr.handled);
+      if(routed && Math.hypot(p.x-leadX,p.y-leadY)>.002) p.stuck=0;
+    }
+    if(!routed) steerWalk(p, dx, dy, sp, dt);
     constrainPartyStep(p, leadX, leadY);
     p._frameStep=Math.hypot(p.x-leadX,p.y-leadY);
     if(p.moving) recordTrail(p);
@@ -14770,10 +14817,11 @@ function update(dt){
           ghostSapperBomb(e, dt);
           continue;
         }
-        /* One-follower Follow default (pordoom / first living kin). No order set.
-           Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
-        if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
-          const nr=Navigation.tickFollower(e, p, dt, navHost());
+        /* Every follower routes to its own crumb, retaining roster spacing.
+           Flag-off keeps trail/form. Path fail waits — no teleport. */
+        if(typeof Navigation!=='undefined' && Navigation.use()){
+          const host=navHost();host.goal=trailSlot(idx<0?0:idx)||followBearingSlot(e,p,idx<0?0:idx);
+          const nr=Navigation.tickFollower(e, p, dt, host);
           if(nr && nr.handled){
             holdFollowWalk(e, p);
             if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }

@@ -11,14 +11,15 @@ http.createServer((req,res)=>{
    for(const [key,name] of Object.entries(galleries))if(result[key]){
     fs.writeFileSync(path.join(output,name),Buffer.from(result[key].split(',')[1],'base64'));delete result[key];
    }
-   const name=result.suite==='Chapter I progression'?'ch1-browser-results.json':'browser-results.json';
+   const name=result.suite==='Chapter I progression'?'ch1-browser-results.json':result.suite==='Party movement regression'?'movement-browser-results.json':'browser-results.json';
    fs.writeFileSync(path.join(output,name),JSON.stringify(result,null,2));res.end('saved');
   });return;
  }
- let file=path.join(repo,url==='/qa'||url==='/qa-ch1'||url==='/'?'index.html':url);
- try{let content=fs.readFileSync(file);if(url==='/qa'||url==='/qa-ch1'){
+ const fixture={'/qa':'macar-browser-checks.js','/qa-ch1':'ch1-browser-checks.js','/qa-movement':'movement-browser-checks.js'}[url];
+ let file=path.join(repo,fixture||url==='/'?'index.html':url);
+ try{let content=fs.readFileSync(file);if(fixture){
   let s=content.toString().replace('function loop(now){','function loop(now){ return;');
-  const i=s.lastIndexOf('</script>');s=s.slice(0,i)+fs.readFileSync(path.join(__dirname,url==='/qa-ch1'?'ch1-browser-checks.js':'macar-browser-checks.js'),'utf8')+s.slice(i);content=s;
+  const i=s.lastIndexOf('</script>');s=s.slice(0,i)+fs.readFileSync(path.join(__dirname,fixture),'utf8')+s.slice(i);content=s;
  }res.setHeader('Content-Type',file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':file.endsWith('.png')?'image/png':'application/octet-stream');res.end(content);
  }catch(e){res.statusCode=404;res.end('missing');}
 }).listen(port,'127.0.0.1',()=>console.log('QA fixture server ready at http://127.0.0.1:'+port+'/qa; output '+output));

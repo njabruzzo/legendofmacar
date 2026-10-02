@@ -297,11 +297,11 @@ assert(/partyHoldMelee\(e\)/.test(html), 'Hold does not loose a ranged shot');
 assert(!/Focus armed/.test(html), 'a failed Focus does not arm an empty order');
 assert(/const fight=kinCanAutoFight\(e\)&&fightNow;/.test(html),
   'auto-fight gate remains when no order handles the kin');
-assert(/One-follower Follow default/.test(html), 'follow default remains when no order is set');
+assert(/Every follower routes/.test(html), 'follow default remains when no order is set');
 assert(/po\.verb==='hold'/.test(html) && /po\.verb==='regroup'/.test(html) && /po\.verb==='focus'/.test(html),
   'host branches Hold, Regroup, and Focus before auto-chase');
 const holdAt=html.indexOf("po.verb==='hold'");
-const followAt=html.indexOf('One-follower Follow default');
+const followAt=html.indexOf('Every follower routes');
 assert(holdAt>=0 && followAt>holdAt, 'follow default still runs after the order branches');
 const regAt=html.indexOf("po.verb==='regroup'");
 const fightAt=html.indexOf('else if(fight&&foe)');
