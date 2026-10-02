@@ -6,7 +6,8 @@
   const directions=['s','e','se','n','ne'];
   const cells={s:[0,0],e:[1,0],se:[2,0],n:[0,1],ne:[1,1]};
   const files={maul:'assets/creatures/dwarf_macar_idle_maul_v2.png',axe:'assets/creatures/dwarf_macar_idle_axe_v2.png',xbow:'assets/creatures/dwarf_macar_idle_xbow_v2.png'};
-  const standalone={macar_axe_idle_s:{file:'assets/creatures/dwarf_macar_idle_axe_s_v3.png',seat:[246,98,54,0]}};
+  const axeDown={file:'assets/creatures/dwarf_macar_idle_axe_s_v3.png',seat:[246,98,54,0]};
+  const standalone={macar_axe:axeDown,macar_axe_idle_s:axeDown};
   const seats={
     maul:{s:[251,89,61,0],e:[281,87,57,.03],se:[239,98,62,.06],n:[252,69,62,0],ne:[288,82,57,.03]},
     axe:{s:[252,89,61,0],e:[281,87,57,.03],se:[239,98,62,.06],n:[252,83,62,0],ne:[288,96,57,.03]},
@@ -14,6 +15,7 @@
   };
   function keys(stem){return directions.map(d=>stem+'_idle_'+d);}
   function pose(key){
+    if(key==='macar_axe') return {weapon:'axe',direction:'s',cell:cells.s};
     const m=/^macar(?:_(axe|xbow))?_idle_(s|e|se|n|ne)$/.exec(key||'');
     return m?{weapon:m[1]||'maul',direction:m[2],cell:cells[m[2]]}:null;
   }

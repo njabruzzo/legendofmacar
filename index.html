@@ -2349,12 +2349,14 @@ function matchingPartyAtkReady(key, idleKey){
 }
 /* Restored walks are 470×512. Windup is main's 470×540 maul sheet.
    Contact is 893×540. Idle stays 1100×920. samePaintedFamily would plant
-   idle and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
+   idle and hide the walk. The axe's new square idle also differs from its tall
+   walk canvases. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
   return /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
     ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
-    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se';
+    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se'
+    ||key==='macar_axe_w1'||key==='macar_axe_w2';
 }
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;

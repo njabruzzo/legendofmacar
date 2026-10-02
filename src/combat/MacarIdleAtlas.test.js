@@ -1,7 +1,8 @@
 'use strict';
 const assert=require('assert'),path=require('path'),fs=require('fs');
 const Atlas=require('./MacarIdleAtlas'),Crown=require('./MacarCrown'),{readRgba}=require('../qa/pngRgba');
-const bindings={};Atlas.register(bindings);assert.equal(Object.keys(bindings).length,15);
+const bindings={};Atlas.register(bindings);assert.equal(Object.keys(bindings).length,16);
+assert.equal(bindings.macar_axe,bindings.macar_axe_idle_s,'world fallback and inventory use the corrected axe idle');
 for(const [weapon,file] of Object.entries(Atlas.files)){
  const {w,h,data}=readRgba(path.join(__dirname,'../..',file));
  assert.equal(w,1536);assert.equal(h,1024);

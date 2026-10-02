@@ -5,6 +5,11 @@ const axe={id:'iron_axe',n:'Iron Axe',k:'weapon'},bow={id:'light_crossbow',n:'Li
 assert.equal(Equipment.kind(axe),'axe');
 assert.equal(Equipment.kind({id:'shadow_cleaver',n:'Shadow Cleaver'}),'axe');
 assert.equal(Equipment.kind({n:'Battleaxe',k:'weapon'}),'axe');
+for(const item of [{id:'iron_axe',k:'weapon'},{id:'war_axe_plus_1',k:'weapon'},{n:'Dwarven Waraxe',k:'weapon'}]){
+ assert.equal(Equipment.kind(item),'axe','axe names and saved identifiers select axe art');
+ const kit={primary:item,secondary:bow};Equipment.select(kit,item);
+ assert.equal(Equipment.heldKind(kit),'axe','selected axe overrides retained bow');
+}
 assert.equal(Equipment.kind({n:'Pickaxe',k:'weapon'}),null);
 assert.equal(Equipment.kind({n:'Crossbow bolts',k:'ammo'}),null);
 assert.equal(Equipment.kind({n:'Bow Shield'}),null);
