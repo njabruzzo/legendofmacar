@@ -78,6 +78,24 @@
    check(Math.abs(p.x-x-p.sp*base*dt)<1e-5,'full stride after quest pickup '+item+' '+dt);
   }
  }
+ // Exercise actual keyboard update, not just the route planner.
+ for(const dt of [1/60,.05])for(const axis of ['x','y'])for(const offset of [.40,.60])for(const sign of [-1,1]){
+  p=fresh();G.equipped={};G.lvl.n=2; // Synthetic map has no Chapter I cave-in.
+  for(let y=1;y<35;y++)for(let x=1;x<41;x++)G.lvl.grid[y][x]=(axis==='x'?y===8:x===8)?0:1;
+  p.x=axis==='x'?16:8+offset;p.y=axis==='y'?16:8+offset;
+  const before={x:p.x,y:p.y};
+  IN.keys=axis==='x'?(sign>0?{s:1,d:1}:{w:1,a:1}):(sign>0?{s:1,a:1}:{w:1,d:1});
+  for(let f=0;f<Math.ceil(.3/dt);f++)tick(dt);IN.keys={};
+  check(Math.hypot(p.x-before.x,p.y-before.y)>.8,'keyboard moves off-center '+axis+' '+offset+' '+sign+' '+dt);
+  check(canBe(p.x,p.y,p.r,p),'keyboard retains radius clearance');
+ }
+ for(const dt of [1/60,.05])for(const sx of [-1,1])for(const sy of [-1,1]){
+  p=fresh();G.equipped={};G.lvl.n=2;for(const row of G.lvl.grid)row.fill(1);
+  const bend={x:18,y:16};for(let i=0;i<=6;i++){G.lvl.grid[bend.y][bend.x-sx*i]=0;G.lvl.grid[bend.y+sy*i][bend.x]=0;}
+  p.x=bend.x-sx*5+.5;p.y=bend.y+.5;const goal={x:bend.x+.5,y:bend.y+sy*5+.5};p.dest={...goal};
+  for(let f=0;f<Math.ceil(8/dt)&&p.dest;f++)tick(dt);
+  check(!p.dest&&Math.hypot(p.x-goal.x,p.y-goal.y)<.3,'click route through elbow '+sx+' '+sy+' '+dt);
+ }
  }catch(e){result.failures.push(e.stack);}
  timings.sort((a,b)=>a-b);result.frameTimingMs={max:timings[timings.length-1],p95:timings[Math.floor(timings.length*.95)]};
  report.textContent=JSON.stringify(result,null,2);
