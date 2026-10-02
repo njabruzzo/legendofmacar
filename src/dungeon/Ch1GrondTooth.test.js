@@ -167,11 +167,13 @@ ctx.G.curseStrain=0;
 assert(ctx.electrumEnc()===20, 'enc is ep + strain*10');
 assert(ctx.electrumMoveMul()===1, 'enc < 50 is full speed');
 ctx.G.coin.ep=80;
-assert(ctx.electrumMoveMul()===0.75, 'enc 50–149 is ×0.75');
+assert(ctx.electrumMoveMul()===1, '80 electrum does not slow Macar');
 ctx.G.coin.ep=160;
-assert(ctx.electrumMoveMul()===0.5, 'enc 150–299 is ×0.5');
+assert(ctx.electrumMoveMul()===1, '160 electrum does not slow Macar');
 ctx.G.coin.ep=310;
-assert(ctx.electrumMoveMul()===0.25, 'enc 300+ is ×0.25');
+assert(ctx.electrumMoveMul()===1, '310 electrum does not slow Macar');
+ctx.G.curseStrain=100;
+assert(ctx.electrumMoveMul()===1, 'saved curse strain does not slow Macar');
 
 ctx.G.coin.ep=40;
 ctx.G.curseStrain=0;

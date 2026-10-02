@@ -12391,6 +12391,7 @@ function riseSkeletalDwarves(where){
 }
 function takeBoneCrown(crown){
   if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
+  G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
   crown.gone=1; crown.taken=1;
   const L=G.lvl; if(L&&L.flags){ L.flags.crownTaken=1; L.flags.crownTouched=1; }
   const it=makeBoneCrownItem();
@@ -12557,7 +12558,7 @@ function makeGrondTooth(kind){
   return {
     id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
     noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-    d:'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum and grows heavy.'
+    d:'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
   };
 }
 function nearestDemonFace(p, r){
@@ -12821,6 +12822,7 @@ function pryGrondTooth(face, kind){
   if(!face||face.gone) return {ok:0, reason:'gone'};
   if(kind==='bronze'){
     if(L&&L.flags&&(L.flags.bronzeSecured||L.flags.bronzeTooth)) return {ok:0, reason:'taken'};
+    G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
     const it=makeGrondTooth('bronze');
     if(typeof stowPackItem==='function') stowPackItem(it);
     if(L&&L.flags) L.flags.bronzeTooth=1;
@@ -12832,6 +12834,7 @@ function pryGrondTooth(face, kind){
     return {ok:1, item:it};
   }
   if(L&&L.flags&&(L.flags.electrumTooth||L.flags.copperTooth)) return {ok:0, reason:'taken'};
+  G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
   const it=makeGrondTooth('electrum');
   if(typeof stowPackItem==='function') stowPackItem(it);
   if(L&&L.flags) L.flags.electrumTooth=1;
@@ -13006,7 +13009,7 @@ function buildHourglassRoom(L, sec){
    piles. 15cp+2sp+205ep → 205.7 → 206 EP. Sub-half dust rounds away.
    enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0 (does
    not fall then). Strain −1 / 30s (floor 0) if ep===0 or the tooth is gone.
-   MV (Macar sp only): <50 ×1, 50–149 ×0.75, 150–299 ×0.5, 300+ ×0.25.
+   Carrying the tooth, coins, or accumulated strain never reduces movement.
    Pack: Drop electrum 10 / 100 / All as {coins:{ep:n}}. While cursed the
    coin bar shows EP only. Bronze does not curse. Mordain smash / Remove
    Curse later (stub). */
@@ -13043,12 +13046,7 @@ function electrumEnc(){
   return ep + (G.curseStrain||0)*10;
 }
 function electrumMoveMul(){
-  if(!hasElectrumToothInPack()) return 1;
-  const enc=electrumEnc();
-  if(enc<50) return 1;
-  if(enc<150) return 0.75;
-  if(enc<300) return 0.5;
-  return 0.25;
+  return 1;
 }
 function tickElectrumCurse(dt){
   const cursed=hasElectrumToothInPack();
@@ -13082,7 +13080,7 @@ function dropElectrum(n){
      a fresh hoard (no deepsilver, no treasure XP a second time). */
   if(typeof spawnLoot==='function') spawnLoot(x, y, {kind:'coins', coins:{ep:n}, glow:'#6ec8b0', label:n+' electrum',
     packDrop:{kind:'coin', coin:'ep', n, name:n+' electrum'}, dropHold:1});
-  say('Macar drops '+n+' electrum. The pack lightens.','#6ec8b0');
+  say('Macar drops '+n+' electrum.','#6ec8b0');
   return n;
 }
 function askDropElectrum(){
@@ -13092,7 +13090,7 @@ function askDropElectrum(){
   startTalkObj({
     key:'drop_ep',
     who:'MACAR',
-    line:'Drop how much electrum? The curse keeps the rest heavy.',
+    line:'Drop how much electrum?',
     choices:[
       {t:'10', then:()=>dropElectrum(n10)},
       {t:'100', then:()=>dropElectrum(n100)},
