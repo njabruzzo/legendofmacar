@@ -22,15 +22,15 @@
  // foot backwards; swing bends the knee and returns it forwards.
  function step(time){
   const cycle=((time*1.5)%1+1)%1;
-  if(cycle<.6)return{travel:12-24*cycle/.6,lift:0,roll:0};
+  if(cycle<.6)return{travel:24-48*cycle/.6,lift:0,roll:0};
   const swing=(cycle-.6)/.4,smooth=swing*swing*(3-2*swing);
-  return{travel:-12+24*smooth,lift:8*Math.sin(Math.PI*swing)**2,roll:-.09*Math.sin(Math.PI*swing)**2};
+  return{travel:-24+48*smooth,lift:12*Math.sin(Math.PI*swing)**2,roll:-.09*Math.sin(Math.PI*swing)**2};
  }
  function pose(view,time){
-  const cfg=configs[view],phase=time*Math.PI*3,bob=1.1*Math.cos(2*phase),shift=.8*Math.cos(phase);
-  return{body:[shift+2,bob+4],lean:.025,legs:cfg.legs.map((leg,i)=>{
+  const cfg=configs[view],phase=time*Math.PI*3,bob=1.5*Math.cos(2*phase),shift=1.2*Math.cos(phase);
+  return{body:[shift,bob+13],lean:0,legs:cfg.legs.map((leg,i)=>{
    const motion=step(time+i/3),travel=motion.travel,lift=motion.lift;
-   const hip=[leg.hip[0]+shift,leg.hip[1]+4+bob];
+   const hip=[leg.hip[0]+shift,leg.hip[1]+13+bob];
    const foot=[leg.ankle[0]+travel,leg.ankle[1]+travel*(view==='front'?.5:-.5)-lift];
    return{...solve(hip,foot,length(leg.hip,leg.knee),length(leg.knee,leg.ankle)),bootAngle:motion.roll};
   })};

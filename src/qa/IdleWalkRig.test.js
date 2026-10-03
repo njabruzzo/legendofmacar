@@ -8,7 +8,7 @@ for(const view of ['front','rear']){
    const source=Rig.configs[view].legs[leg],live=pose.legs[leg];
    assert(Math.abs(Rig.length(live.hip,live.knee)-Rig.length(source.hip,source.knee))<1e-8,'constant thigh length');
    assert(Math.abs(Rig.length(live.knee,live.ankle)-Rig.length(source.knee,source.ankle))<1e-8,'constant calf length');
-   if(previous)assert(Rig.length(previous.legs[leg].ankle,live.ankle)<.6,'continuous foot trajectory');
+   if(previous)assert(Rig.length(previous.legs[leg].ankle,live.ankle)<1,'continuous foot trajectory');
   }
   previous=pose;
  }
@@ -26,3 +26,19 @@ console.log('Fixed thigh/calf lengths, opposite steps, continuous trajectories a
 for(const t of [0,.1,.2,.3])assert.equal(Rig.step(t).lift,0,'stance keeps foot on ground');
 assert(Rig.step(.52).lift>6,'swing lifts returning foot');
 assert.deepEqual(Rig.step(0),Rig.step(2/3),'cycle closes without a jump');
+
+// Check a whole cycle at both normal and long frame intervals.
+for(const dt of [1/60,.05]){
+ let last=Rig.pose('front',0);
+ for(let t=dt;t<2;t+=dt){
+  const current=Rig.pose('front',t);
+  for(let i=0;i<2;i++)assert(Rig.length(last.legs[i].ankle,current.legs[i].ankle)<15,'no long-frame foot teleport');
+  last=current;
+ }
+}
+for(let i=0;i<2;i++){
+ const cfg=Rig.configs.front.legs[i];
+ const a=Rig.pose('front',0).legs[i].ankle[0]-cfg.ankle[0];
+ const b=Rig.pose('front',1/3).legs[i].ankle[0]-cfg.ankle[0];
+ assert(a*b<0,'each foot changes leading/trailing position');
+}

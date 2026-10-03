@@ -23,3 +23,9 @@ The local preview was refreshed and checked beside the official idle. Relevant r
 Two built-in imagegen attempts on October 3 failed visual acceptance. The initial two-pose sheet repeats the image-right leading boot; the targeted correction still repeats that leading leg and changes boot proportions. Both also retain a backdrop despite requesting transparent output. Neither asset was copied into gameplay or referenced by the preview. Prompt constraints: original idle identity and high fidelity, two opposite contact poses facing down-right, unchanged chunky boot sizes and short legs, axe on shoulder, transparent background.
 
 Generated outputs: exec-1176b103-31a4-4668-bf0b-17ea5fa1b8a1.png and exec-87a7b6d1-0bf8-4217-9858-ee7e5026fb39.png in the session generated_images directory. A convincing authored cycle remains unresolved; tests of rig geometry do not establish visual acceptance.
+
+## Down-right eight-pose review
+
+Added an eight-pose contact/transfer/passing/return sheet above playback, with Next pose stepping by one eighth cycle. Increased source-space foot travel from +/-12 to +/-24 pixels and swing lift from 8 to 12; removed constant torso rotation and lowered the hips to give the fixed-length legs reach without stretching boots. Original source sprite remains unchanged. This is a manually configured rigid-part animation, not new authored bitmap frames.
+
+Inspected the pose sheet in the browser. Knee/hip segmentation is still visible; this preview is not visually accepted or integrated into gameplay. Rig checks cover both 16.7ms and 50ms updates, opposing foot contacts, fixed lengths, rigid boot scale, continuous motion and cycle closure.
