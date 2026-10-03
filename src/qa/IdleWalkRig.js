@@ -18,13 +18,21 @@
   const a=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-a*a));
   return{hip,knee:[hip[0]+dx/d*a+dy/d*h,hip[1]+dy/d*a-dx/d*h],ankle:[hip[0]+dx,hip[1]+dy]};
  }
+ // Reference: AUTeddy Walking_8dir_merged.gif. Stance carries the planted
+ // foot backwards; swing bends the knee and returns it forwards.
+ function step(time){
+  const cycle=((time*1.5)%1+1)%1;
+  if(cycle<.6)return{travel:12-24*cycle/.6,lift:0,roll:0};
+  const swing=(cycle-.6)/.4,smooth=swing*swing*(3-2*swing);
+  return{travel:-12+24*smooth,lift:8*Math.sin(Math.PI*swing)**2,roll:-.09*Math.sin(Math.PI*swing)**2};
+ }
  function pose(view,time){
   const cfg=configs[view],phase=time*Math.PI*3,bob=1.1*Math.cos(2*phase),shift=.8*Math.cos(phase);
   return{body:[shift+2,bob+4],lean:.025,legs:cfg.legs.map((leg,i)=>{
-   const p=phase+i*Math.PI,travel=12*Math.cos(p),lift=5*Math.max(0,Math.sin(p));
+   const motion=step(time+i/3),travel=motion.travel,lift=motion.lift;
    const hip=[leg.hip[0]+shift,leg.hip[1]+4+bob];
-   const foot=[leg.ankle[0]+travel,leg.ankle[1]+travel*.22-lift];
-   return{...solve(hip,foot,length(leg.hip,leg.knee),length(leg.knee,leg.ankle)),bootAngle:-.055*Math.max(0,Math.sin(p))};
+   const foot=[leg.ankle[0]+travel,leg.ankle[1]+travel*(view==='front'?.5:-.5)-lift];
+   return{...solve(hip,foot,length(leg.hip,leg.knee),length(leg.knee,leg.ankle)),bootAngle:motion.roll};
   })};
  }
  function part(g,image,poly,pivot,target,angle){
@@ -41,5 +49,5 @@
   });
   part(g,image,cfg.body,[260,350],[260+p.body[0],350+p.body[1]],p.lean);g.restore();
  }
- const api={configs,pose,draw,length};root.IdleWalkRig=api;if(typeof module==='object')module.exports=api;
+ const api={configs,step,pose,draw,length};root.IdleWalkRig=api;if(typeof module==='object')module.exports=api;
 })(globalThis);

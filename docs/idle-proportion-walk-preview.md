@@ -9,3 +9,11 @@ Relevant regression checks pass: fixed thigh/calf lengths, continuous foot traje
 This is a proportion/fidelity preview, not approved gameplay art. The rigid pieces do not create newly exposed surfaces; joint masks/overlaps and pose polish still need visual review. Crossbow and live game animation remain unchanged. Nothing was merged or deployed.
 
 Imagegen front/rear idle-reference and fidelity-transfer attempts were rejected because frames repeated the leading leg or still drifted from idle proportions. No generated image from those attempts is referenced by this revision. The final approach uses runtime Canvas joint transforms of the existing idle asset.
+
+## Reference-based stance study
+
+Motion reference: https://auteddy.github.io/project_images/isometric_mixamo_dummy_2D_v1_512x512/Walking_8dir_merged.gif (creator: https://auteddy.itch.io/8-directional-character-mixamo-dummy). Inspected the animated eight-direction preview. No reference art was copied.
+
+Replaced the sinusoidal foot motion with a 60% grounded stance and 40% lifted return, alternating legs half a cycle apart. Front diagonals now project foot travel downward at a 2:1 isometric slope, rear diagonals upward. Joint lengths and rigid boot proportions remain fixed. These timings and distances are our adaptation, not measured reference data.
+
+The local preview was refreshed and checked beside the official idle. Relevant rig tests pass, including stance contact, swing lift, cycle closure and proportion preservation. This remains a rigid idle-art study: it cannot supply newly exposed knee/boot surfaces or a fully authored walk. It is not a finished gameplay walk and has not been deployed.

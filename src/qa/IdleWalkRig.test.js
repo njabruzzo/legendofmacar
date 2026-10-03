@@ -8,7 +8,7 @@ for(const view of ['front','rear']){
    const source=Rig.configs[view].legs[leg],live=pose.legs[leg];
    assert(Math.abs(Rig.length(live.hip,live.knee)-Rig.length(source.hip,source.knee))<1e-8,'constant thigh length');
    assert(Math.abs(Rig.length(live.knee,live.ankle)-Rig.length(source.knee,source.ankle))<1e-8,'constant calf length');
-   if(previous)assert(Rig.length(previous.legs[leg].ankle,live.ankle)<.5,'continuous foot trajectory');
+   if(previous)assert(Rig.length(previous.legs[leg].ankle,live.ankle)<.6,'continuous foot trajectory');
   }
   previous=pose;
  }
@@ -22,3 +22,7 @@ for(const view of ['front','rear']){
  assert(draws.every(v=>v.length===3),'source art is rendered at original proportions');
 }
 console.log('Fixed thigh/calf lengths, opposite steps, continuous trajectories and rigid boot rendering passed');
+
+for(const t of [0,.1,.2,.3])assert.equal(Rig.step(t).lift,0,'stance keeps foot on ground');
+assert(Rig.step(.52).lift>6,'swing lifts returning foot');
+assert.deepEqual(Rig.step(0),Rig.step(2/3),'cycle closes without a jump');
