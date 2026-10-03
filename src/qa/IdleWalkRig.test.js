@@ -32,7 +32,7 @@ for(const dt of [1/60,.05]){
  let last=Rig.pose('front',0);
  for(let t=dt;t<2;t+=dt){
   const current=Rig.pose('front',t);
-  for(let i=0;i<2;i++)assert(Rig.length(last.legs[i].ankle,current.legs[i].ankle)<15,'no long-frame foot teleport');
+  for(let i=0;i<2;i++)assert(Rig.length(last.legs[i].ankle,current.legs[i].ankle)<420*dt,'foot displacement stays within continuous stride speed bound');
   last=current;
  }
 }
