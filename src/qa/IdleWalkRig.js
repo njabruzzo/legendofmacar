@@ -39,12 +39,20 @@
   g.save();g.translate(target[0],target[1]);g.rotate(angle);g.translate(-pivot[0],-pivot[1]);
   g.beginPath();poly.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();g.clip();g.drawImage(image,0,0);g.restore();
  }
+ // Rounded overlap caps keep exposed joint edges covered with the original
+ // fur/armor pixels. They use the same rigid scale as every other part.
+ function cap(g,image,pivot,target,rotation,rx,ry){
+  const polygon=Array.from({length:24},(_,i)=>{const a=i*Math.PI/12;return[pivot[0]+rx*Math.cos(a),pivot[1]+ry*Math.sin(a)];});
+  part(g,image,polygon,pivot,target,rotation);
+ }
  function angle(a,b){return Math.atan2(b[1]-a[1],b[0]-a[0]);}
  function draw(g,image,view,flip,time,scale=.6){
   const cfg=configs[view],p=pose(view,time);g.save();g.translate(180,306);g.scale(flip?-scale:scale,scale);g.translate(-cfg.center,-cfg.ground);
   cfg.legs.forEach((leg,i)=>{const live=p.legs[i];
    part(g,image,leg.thigh,leg.hip,live.hip,angle(live.hip,live.knee)-angle(leg.hip,leg.knee));
    part(g,image,leg.calf,leg.knee,live.knee,angle(live.knee,live.ankle)-angle(leg.knee,leg.ankle));
+   cap(g,image,leg.knee,live.knee,angle(live.knee,live.ankle)-angle(leg.knee,leg.ankle),40,13);
+   cap(g,image,leg.hip,live.hip,angle(live.hip,live.knee)-angle(leg.hip,leg.knee),35,14);
    part(g,image,leg.boot,leg.ankle,live.ankle,live.bootAngle);
   });
   part(g,image,cfg.body,[260,350],[260+p.body[0],350+p.body[1]],p.lean);g.restore();
