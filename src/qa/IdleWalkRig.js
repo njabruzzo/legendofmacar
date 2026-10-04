@@ -26,7 +26,7 @@
  // foot backwards; swing bends the knee and returns it forwards.
  function step(time){
   const cycle=((time*1.5)%1+1)%1;
-  if(cycle<.6)return{travel:24-48*cycle/.6,lift:0,roll:0};
+  if(cycle<.6){const stance=cycle/.6,ease=stance*stance*(3-2*stance);return{travel:24-48*ease,lift:0,roll:0};}
   const swing=(cycle-.6)/.4,smooth=swing*swing*(3-2*swing);
   return{travel:-24+48*smooth,lift:12*Math.sin(Math.PI*swing)**2,roll:-.09*Math.sin(Math.PI*swing)**2};
  }
@@ -55,9 +55,12 @@
   cfg.legs.forEach((leg,i)=>{const live=p.legs[i];
    part(g,image,leg.thigh,leg.hip,live.hip,angle(live.hip,live.knee)-angle(leg.hip,leg.knee));
    part(g,image,leg.calf,leg.knee,live.knee,angle(live.knee,live.ankle)-angle(leg.knee,leg.ankle));
-   cap(g,image,leg.knee,live.knee,angle(live.knee,live.ankle)-angle(leg.knee,leg.ankle),40,13);
+   const thighAngle=angle(live.hip,live.knee)-angle(leg.hip,leg.knee);
+   const calfAngle=angle(live.knee,live.ankle)-angle(leg.knee,leg.ankle);
+   cap(g,image,leg.knee,live.knee,(thighAngle+calfAngle)/2,view==='diagonal'?32:40,16);
    cap(g,image,leg.hip,live.hip,angle(live.hip,live.knee)-angle(leg.hip,leg.knee),35,14);
    part(g,image,leg.boot,leg.ankle,live.ankle,live.bootAngle);
+   cap(g,image,leg.ankle,live.ankle,live.bootAngle,view==='diagonal'?30:38,12);
   });
   part(g,image,cfg.body,[260,350],[260+p.body[0],350+p.body[1]],p.lean);g.restore();
  }

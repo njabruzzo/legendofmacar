@@ -42,3 +42,11 @@ for(let i=0;i<2;i++){
  const b=Rig.pose('front',1/3).legs[i].ankle[0]-cfg.ankle[0];
  assert(a*b<0,'each foot changes leading/trailing position');
 }
+
+// Toe-off and contact meet with zero velocity, avoiding an abrupt leg jerk.
+for(const boundary of [0,.4,2/3]){
+ const epsilon=1e-5;
+ const before=Rig.step(boundary-epsilon),at=Rig.step(boundary),after=Rig.step(boundary+epsilon);
+ assert(Math.abs((at.travel-before.travel)/epsilon-(after.travel-at.travel)/epsilon)<.2,'smooth contact velocity');
+ assert(Math.abs((at.lift-before.lift)/epsilon-(after.lift-at.lift)/epsilon)<.2,'smooth lift velocity');
+}

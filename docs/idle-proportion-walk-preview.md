@@ -37,3 +37,9 @@ Added rigid rounded overlap regions at knee and hip using the original sprite pi
 Added assets/creatures/pilots/macar-axe-diagonal-contact-v8.png as a versioned preview asset using built-in imagegen. Prompt: preserve Macar's original idle identity, detailed armor/fur/axe and squat proportions; one elevated-isometric southeast contact pose with head, chest, pelvis, knees and both boot toes directed down-right; transparent background. Original idle remains unchanged.
 
 Front walk previews now use this diagonal sprite, uniformly fitted to a 512px-high canvas, with manually placed joints/masks. Down-left mirrors the same source and transforms, so the x direction reverses together for head/body/feet. Rear and crossbow previews remain unchanged. Browser comparison confirms the new boot projection and mirrored facing; segmented joints and gait polish remain unresolved. This is not integrated into gameplay or deployed. Both relevant regression files pass including the additional diagonal configuration.
+
+## Smooth contact and overlap pass
+
+Grounded foot travel now eases into/out of stance instead of changing velocity abruptly at lift-off and landing. Knee overlap rotates halfway between thigh and calf; a rigid ankle overlap covers the boot/calf cut edge. Diagonal knee/ankle caps are narrower to avoid carrying neighboring pixels into the joint. No image pixels or boot scale were changed.
+
+Both regression files pass. Added numerical velocity-continuity checks at contact, toe-off and cycle wrap; existing proportion and 50ms displacement checks pass. Inspected the refreshed browser pose sheet and moving comparison. This improves transitions but does not remove the cutout quality of the rig; full gait visual acceptance is outstanding. Screenshot: diagonal-smooth-transitions.png. Gameplay remains unchanged.
