@@ -11,6 +11,10 @@
    {hip:[315,350],knee:[315,380],ankle:[315,456],thigh:[[268,340],[371,340],[371,385],[267,385]],calf:[[267,375],[372,375],[372,450],[266,450]],boot:[[263,445],[387,445],[387,507],[262,507]]}
   ],body:[[0,0],[512,0],[512,352],[379,352],[379,366],[340,366],[315,393],[280,408],[240,398],[198,368],[151,368],[151,376],[0,376]]}
  };
+ configs.diagonal={center:235,ground:488,legs:[
+  {hip:[158,320],knee:[158,351],ankle:[173,392],thigh:[[124,306],[211,306],[211,360],[120,360]],calf:[[123,346],[212,346],[217,396],[116,396]],boot:[[111,388],[218,388],[218,434],[105,434]]},
+  {hip:[271,328],knee:[290,388],ankle:[320,449],thigh:[[229,308],[321,308],[326,393],[237,393]],calf:[[245,383],[329,383],[359,455],[269,460]],boot:[[266,439],[373,439],[384,490],[258,490]]}
+ ],body:[[0,0],[512,0],[512,315],[322,315],[320,333],[230,333],[213,320],[125,320],[125,350],[0,350]]};
  const length=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1]);
  function solve(hip,foot,l1,l2){
   let dx=foot[0]-hip[0],dy=foot[1]-hip[1],d=Math.hypot(dx,dy);const limited=Math.min(l1+l2-.1,Math.max(Math.abs(l1-l2)+.1,d));
@@ -31,7 +35,7 @@
   return{body:[shift,bob+13],lean:0,legs:cfg.legs.map((leg,i)=>{
    const motion=step(time+i/3),travel=motion.travel,lift=motion.lift;
    const hip=[leg.hip[0]+shift,leg.hip[1]+13+bob];
-   const foot=[leg.ankle[0]+travel,leg.ankle[1]+travel*(view==='front'?.5:-.5)-lift];
+   const foot=[leg.ankle[0]+travel,leg.ankle[1]+travel*(view==='rear'?-.5:.5)-lift];
    return{...solve(hip,foot,length(leg.hip,leg.knee),length(leg.knee,leg.ankle)),bootAngle:motion.roll};
   })};
  }

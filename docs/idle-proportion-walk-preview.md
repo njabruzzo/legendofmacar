@@ -31,3 +31,9 @@ Added an eight-pose contact/transfer/passing/return sheet above playback, with N
 Inspected the pose sheet in the browser. Knee/hip segmentation is still visible; this preview is not visually accepted or integrated into gameplay. Rig checks cover both 16.7ms and 50ms updates, opposing foot contacts, fixed lengths, rigid boot scale, continuous motion and cycle closure.
 
 Added rigid rounded overlap regions at knee and hip using the original sprite pixels. They fill exposed cut edges without limb rescaling or source image edits. Browser pose sheet checked and screenshot saved as down-right-joint-overlaps.png. Both relevant regression files pass. Hard segmentation and the limits of two-dimensional idle-art rotation remain; this does not establish a fully natural authored gait. Preview only.
+
+## Front diagonal facing revision
+
+Added assets/creatures/pilots/macar-axe-diagonal-contact-v8.png as a versioned preview asset using built-in imagegen. Prompt: preserve Macar's original idle identity, detailed armor/fur/axe and squat proportions; one elevated-isometric southeast contact pose with head, chest, pelvis, knees and both boot toes directed down-right; transparent background. Original idle remains unchanged.
+
+Front walk previews now use this diagonal sprite, uniformly fitted to a 512px-high canvas, with manually placed joints/masks. Down-left mirrors the same source and transforms, so the x direction reverses together for head/body/feet. Rear and crossbow previews remain unchanged. Browser comparison confirms the new boot projection and mirrored facing; segmented joints and gait polish remain unresolved. This is not integrated into gameplay or deployed. Both relevant regression files pass including the additional diagonal configuration.

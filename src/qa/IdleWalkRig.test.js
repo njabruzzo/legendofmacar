@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('assert'),Rig=require('./IdleWalkRig');
-for(const view of ['front','rear']){
+for(const view of ['front','rear','diagonal']){
  let previous=null;
  for(let i=0;i<=600;i++){
   const time=i/600,pose=Rig.pose(view,time);
