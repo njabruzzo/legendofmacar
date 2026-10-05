@@ -2284,7 +2284,7 @@ function livingMacarIdleKey(){
   if(typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
     const held=MacarEquipment.heldKind(G.equipped);
     if(held==='xbow' && sprReady('macar_xbow')) return 'macar_xbow';
-    if(held==='axe' && sprReady('macar_axe')) return 'macar_axe';
+    if(held==='axe') return 'macar_axe';
     if(held==='maul') return 'macar';
   } else if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
@@ -2556,13 +2556,20 @@ function livingMacarStandKey(idle,e){
 }
 function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
+  if((idle==='macar_axe' || idle==='macar_xbow') && key!==idle && !(key && key.startsWith(idle+'_'))) key=null;
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
      Skip the idle-family match or every turn plants the front sheet. */
   if(isLivingMacarKey(key) && sprReady(key) && restoredMacarMotionKey(key)
      && partyFrameFitOk(SPR[key], null)) return key;
-  return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
-    || (sprReady('macar')?'macar':null);
+  const chosen=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle);
+  if(idle==='macar_axe' || idle==='macar_xbow'){
+    // Never substitute another weapon while the equipped family decodes.
+    const family=k=>k===idle || (k && k.startsWith(idle+'_'));
+    if(family(chosen) && sprReady(chosen)) return chosen;
+    return macarFirstReady([idle,...Object.keys(SPR).filter(family)]);
+  }
+  return chosen || (sprReady('macar')?'macar':null);
 }
 function livingMacarImg(key){
   const k=livingMacarBlitKey(key);
