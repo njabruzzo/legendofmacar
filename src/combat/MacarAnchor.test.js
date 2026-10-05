@@ -20,7 +20,7 @@ assert(fs.existsSync(path.join(creatures, MacarAnchor.ANCHOR)), 'the anchor '+Ma
 MacarAnchor.REMOVED.forEach(f=>assert(!fs.existsSync(path.join(creatures,f)), f+' stays off disk (off-model)'));
 const onDisk=fs.readdirSync(creatures).filter(f=>/^dwarf_macar/.test(f));
 const allowed=[MacarAnchor.ANCHOR].concat(MacarAnchor.ONMODEL,
-  ['dwarf_macar_idle_maul_v2.png','dwarf_macar_idle_axe_v2.png','dwarf_macar_idle_xbow_v2.png']);
+  ['dwarf_macar_idle_maul_v2.png','dwarf_macar_idle_axe_v2.png','dwarf_macar_idle_xbow_v2.png','dwarf_macar_idle_axe_s_v3.png']);
 assert(onDisk.every(f=>allowed.includes(f)),
   'every Macar sheet on disk is the anchor or an approved on-model frame (found: '+onDisk.join(', ')+')');
 MacarAnchor.ONMODEL.forEach(f=>assert(fs.existsSync(path.join(creatures,f)), f+' (approved on-model frame) is on disk'));

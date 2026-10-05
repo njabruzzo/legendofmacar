@@ -122,7 +122,10 @@ assert(ctx.attackHudIco()==='crossbow' && ctx.slotAnimImg({key:'attack', ico:'at
   'equipping Light Crossbow from PACK switches Attack HUD to xbow');
 ctx._xbow=false;
 ctx._player={atkKind:'bow'};
+ctx.wantsBowPose=()=>true;
 assert(ctx.livingMacarIdleKey()==='macar_xbow', 'Shoot pose selects macar_xbow even without a worn bow helper');
+ctx.wantsBowPose=()=>false;
+assert(ctx.livingMacarIdleKey()==='macar','an expired Shoot flag cannot retain the crossbow carry');
 ctx._player=null;
 
 /* Live ensurePacks / ensureMacarStartingGear — the New Game path. */

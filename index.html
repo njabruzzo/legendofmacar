@@ -57,8 +57,8 @@
 <script src="src/combat/PartyFollow.js"></script>
 <script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/GhostAppearance.js"></script>
-<script src="src/combat/MacarEquipment.js"></script>
-<script src="src/combat/MacarIdleAtlas.js"></script>
+<script src="src/combat/MacarEquipment.js?v=131"></script>
+<script src="src/combat/MacarIdleAtlas.js?v=131"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -634,6 +634,7 @@ const SPRITE_FILES={
   winduptoy_wound:'assets/props/prop_winduptoy_wound.png',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
+  rubydoor_steps_stone:'assets/props/prop_rubydoor_steps_stone_v1.png',
   dwarfface:'assets/props/prop_dwarfface.png',
   demon_dwarfface:'assets/props/prop_demon_dwarfface.png',
   demonface:'assets/props/prop_demon_dwarfface.png',
@@ -968,6 +969,7 @@ const WORLD_ART_KEYS={
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
 Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); });
+for(const n of [1,3]) WORLD_ART_KEYS[n].push('rubydoor_steps_stone');
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -1012,9 +1014,17 @@ function requestMacarEquipmentArt(){
   if(typeof wieldsCrossbow==='function' && wieldsCrossbow())
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
   if(typeof MacarIdleAtlas!=='undefined'){
-    keys.push(...MacarIdleAtlas.keys('macar'));
-    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'));
-    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'));
+    const standing=MacarIdleAtlas.keys('macar');
+    if(keys.includes('macar_axe')) standing.unshift(...MacarIdleAtlas.keys('macar_axe'));
+    if(keys.includes('macar_xbow')) standing.push(...MacarIdleAtlas.keys('macar_xbow'));
+    // Request the currently held standing view before the supporting sheets.
+    const p=typeof player==='function'?player():null;
+    if(p && typeof screenOctant==='function' && typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
+      const held=MacarEquipment.heldKind(G.equipped),stem=held==='maul'?'macar':'macar_'+held;
+      const oct=screenOctant(p),key=stem+'_idle_'+({w:'e',sw:'se',nw:'ne'}[oct]||oct);
+      const at=standing.indexOf(key);if(at>=0)standing.unshift(standing.splice(at,1)[0]);
+    }
+    keys.unshift(...standing);
   }
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
     keys.push('bone_crown');
@@ -2263,12 +2273,12 @@ function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
   if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
-  if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
+  if(p && typeof wantsBowPose==='function' && wantsBowPose(p)) return 'macar_xbow';
   if(typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
     const held=MacarEquipment.heldKind(G.equipped);
-    if(held==='xbow' && sprReady('macar_xbow')) return 'macar_xbow';
-    if(held==='axe' && sprReady('macar_axe')) return 'macar_axe';
-    if(held==='maul') return 'macar';
+    // Keep equipment identity independent of asynchronous image readiness.
+    // A ready directional axe idle must not wait for the old carry PNG.
+    return held==='maul'?'macar':'macar_'+held;
   } else if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
   if((typeof wieldsMacarAxe==='function'?wieldsMacarAxe():(typeof wieldsShadowCleaver==='function' && wieldsShadowCleaver())) && sprReady('macar_axe'))
@@ -3291,19 +3301,49 @@ function rubyDoorSteps(p){
     top:rise*(3-i),bottom:rise*(2-i)
   }));
 }
-function drawRubyDoorSteps(g,p){
+let RUBY_DOOR_STEP_MATERIALS=null;
+function rubyDoorStepMaterials(){
+  const img=SPR.rubydoor_steps_stone;
+  if(!img||!img.width) return null;
+  if(RUBY_DOOR_STEP_MATERIALS&&RUBY_DOOR_STEP_MATERIALS.source===img) return RUBY_DOOR_STEP_MATERIALS;
+  const slice=(y,h)=>{
+    const c=document.createElement('canvas');c.width=img.width;c.height=Math.max(1,Math.round(img.height*h));
+    c.getContext('2d').drawImage(img,0,img.height*y,img.width,img.height*h,0,0,c.width,c.height);
+    return c;
+  };
+  // Three different portions of the broad tread stones avoid repeating
+  // the same cracks. The lower atlas panel carries the carved riser band.
+  RUBY_DOOR_STEP_MATERIALS={source:img,treads:[0,1,2].map(i=>slice(i*.535/3,.535/3)),riser:slice(.655,.21)};
+  return RUBY_DOOR_STEP_MATERIALS;
+}
+function drawRubyDoorTread(g,img,step){
+  const a=w2s(step.x0,step.y0),b=w2s(step.x1,step.y0),d=w2s(step.x0,step.y1);
   g.save();
-  for(const step of rubyDoorSteps(p)){
+  g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
+  const c=w2s(step.x1,step.y1);g.lineTo(c.x,c.y-step.top);g.lineTo(d.x,d.y-step.top);g.closePath();
+  if(img&&img.width){
+    g.clip();g.translate(a.x,a.y-step.top);
+    g.transform((b.x-a.x)/img.width,(b.y-a.y)/img.width,(d.x-a.x)/img.height,(d.y-a.y)/img.height,0,0);
+    g.drawImage(img,0,0);
+  } else {g.fillStyle='#554b3d';g.fill();}
+  g.restore();
+}
+function drawRubyDoorSteps(g,p){
+  const materials=rubyDoorStepMaterials();
+  g.save();
+  for(const [i,step] of rubyDoorSteps(p).entries()){
     // Exposed end stone and the shallow riser below the next tread.
-    drawIsoPlaneImg(g,null,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#574632',shade:0.6,stroke:0});
+    drawIsoPlaneImg(g,materials&&materials.riser,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#40372e',shade:0.7,stroke:0});
     g.save();g.translate(0,-step.bottom);
-    drawIsoPlaneImg(g,null,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#6d573e',shade:0.7});
+    drawIsoPlaneImg(g,materials&&materials.riser,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#493d30',shade:0.65,stroke:0});
     g.restore();
-    fillIsoCap(g,step.x0,step.y0,step.x1,step.y0,step.x1,step.y1,step.x0,step.y1,step.top);
+    drawRubyDoorTread(g,materials&&materials.treads[i],step);
     // Worn stone noses follow the same descending line as the doorway.
     const a=w2s(step.x0,step.y1),b=w2s(step.x1,step.y1);
+    g.beginPath();g.moveTo(a.x,a.y-step.top+1.2*ZOOM);g.lineTo(b.x,b.y-step.top+1.2*ZOOM);
+    g.strokeStyle='rgba(12,9,7,0.55)';g.lineWidth=1.4*ZOOM;g.stroke();
     g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
-    g.strokeStyle='rgba(238,217,181,0.42)';g.lineWidth=1.1*ZOOM;g.stroke();
+    g.strokeStyle='rgba(186,162,121,0.32)';g.lineWidth=0.75*ZOOM;g.stroke();
   }
   g.restore();
 }
@@ -11865,6 +11905,15 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
   G.shots.push(s);
   return s;
 }
+function stepShot(s,dt){
+  s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
+  s.spin=s.kind==='bolt'?0:(s.spin||0)+dt*14;
+}
+function shotScreenAngle(s){
+  // Project velocity with the same isometric axes as w2s, independently
+  // of camera position and elapsed time.
+  return Math.atan2((s.vx+s.vy)*TH,(s.vx-s.vy)*TW);
+}
 function strengthCheck(e){
   const ab=(typeof meleeStrAbil==='function'?meleeStrAbil(e):entityAbil(e))||{};
   const str=ab.str||10, exc=ab.exc||0;
@@ -14856,7 +14905,7 @@ function update(dt){
   }
 
   for(const s of G.shots){
-    s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
+    stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
       if(dist(s,o)<o.r+.45){
@@ -17742,7 +17791,21 @@ function drawKing(g,e,z,sw){
 function drawShot(g,s){
   const p=w2s(s.x,s.y), z=ZOOM;
   g.save(); g.translate(p.x,p.y-28*z);
-  if(s.kind==='web'){
+  if(s.kind==='bolt'){
+    const angle=shotScreenAngle(s),img=SPR.fx_bolt;
+    if(img&&img.width){
+      // Existing bolt art points right and slightly down: nock (28,90),
+      // tip (736,246). Cancel that painted tilt before aiming the sprite.
+      const hh=28*z,ww=hh*(img.width/img.height);
+      g.rotate(angle-Math.atan2(156,708));
+      g.drawImage(img,-ww/2,-hh/2,ww,hh);
+    } else {
+      g.rotate(angle);
+      g.strokeStyle=s.col||'#d8c49a';g.lineWidth=2*z;
+      g.beginPath();g.moveTo(-12*z,0);g.lineTo(10*z,0);g.stroke();
+      g.fillStyle='#d4dbe4';g.beginPath();g.moveTo(14*z,0);g.lineTo(7*z,-3*z);g.lineTo(7*z,3*z);g.closePath();g.fill();
+    }
+  } else if(s.kind==='web'){
     g.rotate(s.spin*0.35);
     const img=TEX.web;
     if(img){ g.globalAlpha=0.9; g.drawImage(img,-18*z,-16*z,36*z,32*z); g.globalAlpha=1; }

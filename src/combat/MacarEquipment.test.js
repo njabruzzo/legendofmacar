@@ -5,11 +5,15 @@ const axe={id:'iron_axe',n:'Iron Axe',k:'weapon'},bow={id:'light_crossbow',n:'Li
 assert.equal(Equipment.kind(axe),'axe');
 assert.equal(Equipment.kind({id:'shadow_cleaver',n:'Shadow Cleaver'}),'axe');
 assert.equal(Equipment.kind({n:'Battleaxe',k:'weapon'}),'axe');
+assert.equal(Equipment.kind({id:'iron_axe',k:'weapon'}),'axe','ID-only axes use axe art');
+assert.equal(Equipment.kind({id:'macar-axe',k:'weapon'}),'axe');
+assert.equal(Equipment.kind({id:'pick_axe',k:'weapon'}),null);
 assert.equal(Equipment.kind({n:'Pickaxe',k:'weapon'}),null);
 assert.equal(Equipment.kind({n:'Crossbow bolts',k:'ammo'}),null);
 assert.equal(Equipment.kind({n:'Bow Shield'}),null);
 const eq={primary:axe,weapon:axe,secondary:bow};
-assert.equal(Equipment.heldKind(eq),'xbow','old saves retain equipped crossbow display');
+assert.equal(Equipment.heldKind(eq),'axe','old saves show the primary axe ahead of a retained crossbow');
+assert.equal(Equipment.heldKind({secondary:bow}),'xbow','secondary-only bow still has a carry pose');
 Equipment.select(eq,axe);assert.equal(Equipment.heldKind(eq),'axe','selecting axe overrides retained bow');
 Equipment.select(eq,bow);assert.equal(Equipment.heldKind(eq),'xbow','selecting bow overrides retained axe');
 Equipment.select(eq,axe);Equipment.select(eq,{n:'Shield'});assert.equal(Equipment.heldKind(eq),'axe','armor does not switch the held weapon');

@@ -5,8 +5,8 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   function kind(item){
     if(!item || item.k==='ammo') return null;
-    const name=(item.n||'')+' '+(item.id||'');
-    if(/shield|buckler|pickaxe|pick_axe/i.test(name)) return null;
+    const name=((item.n||'')+' '+(item.id||'')).replace(/[_-]+/g,' ');
+    if(/shield|buckler|pick\s*axe/i.test(name)) return null;
     if(/crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(name)) return 'xbow';
     if(/shadow[_ ]cleaver|\bcleaver\b|\baxe\b|battle[_ ]?axe|hand[_ ]?axe/i.test(name)) return 'axe';
     if(item.k==='weapon'||/hammer|maul/i.test(name)) return 'maul';
@@ -17,9 +17,9 @@
     eq=eq||{};
     const kit=items(eq),selected=kit.find(it=>it.macarHeld&&kind(it));
     if(selected) return kind(selected);
-    // Old saves have no selection marker; preserve their equipped bow display.
-    if(kit.some(it=>kind(it)==='xbow')) return 'xbow';
-    return kind(eq.primary||eq.weapon)||'maul';
+    // Legacy saves have no held marker. The primary weapon is in hand;
+    // a retained secondary bow is available for Shoot, not the carry pose.
+    return kind(eq.primary)||kind(eq.weapon)||kind(eq.secondary)||'maul';
   }
   function select(eq,item){
     if(!kind(item)) return;
