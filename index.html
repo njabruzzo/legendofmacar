@@ -2284,7 +2284,7 @@ function livingMacarIdleKey(){
   if(typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
     const held=MacarEquipment.heldKind(G.equipped);
     if(held==='xbow' && sprReady('macar_xbow')) return 'macar_xbow';
-    if(held==='axe' && sprReady('macar_axe')) return 'macar_axe';
+    if(held==='axe') return 'macar_axe';
     if(held==='maul') return 'macar';
   } else if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
     return 'macar_xbow';
@@ -2556,13 +2556,20 @@ function livingMacarStandKey(idle,e){
 }
 function livingMacarBlitKey(key){
   const idle=livingMacarIdleKey();
+  if((idle==='macar_axe' || idle==='macar_xbow') && key!==idle && !(key && key.startsWith(idle+'_'))) key=null;
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
   /* Compass crops are a different canvas than the 1100×920 front pair.
      Skip the idle-family match or every turn plants the front sheet. */
   if(isLivingMacarKey(key) && sprReady(key) && restoredMacarMotionKey(key)
      && partyFrameFitOk(SPR[key], null)) return key;
-  return pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle)
-    || (sprReady('macar')?'macar':null);
+  const chosen=pickReadyPartyKey(isLivingMacarKey(key)?key:null, idle);
+  if(idle==='macar_axe' || idle==='macar_xbow'){
+    // Never substitute another weapon while the equipped family decodes.
+    const family=k=>k===idle || (k && k.startsWith(idle+'_'));
+    if(family(chosen) && sprReady(chosen)) return chosen;
+    return macarFirstReady([idle,...Object.keys(SPR).filter(family)]);
+  }
+  return chosen || (sprReady('macar')?'macar':null);
 }
 function livingMacarImg(key){
   const k=livingMacarBlitKey(key);
@@ -3313,19 +3320,34 @@ function rubyDoorSteps(p){
     top:rise*(3-i),bottom:rise*(2-i)
   }));
 }
+function drawRubyStepStone(g,step){
+  const stone=SPR.floor_hall||SPR.floor_mine;
+  if(!stone||!stone.width){fillIsoCap(g,step.x0,step.y0,step.x1,step.y0,step.x1,step.y1,step.x0,step.y1,step.top);return;}
+  const count=Math.max(3,Math.ceil((step.x1-step.x0)*2));
+  for(let i=0;i<count;i++){
+    const left=step.x0+(step.x1-step.x0)*i/count,right=step.x0+(step.x1-step.x0)*(i+1)/count;
+    const a=w2s(left,step.y0),b=w2s(right,step.y0),d=w2s(left,step.y1);
+    g.save();g.transform(b.x-a.x,b.y-a.y,d.x-a.x,d.y-a.y,a.x,a.y-step.top);
+    // Central square is opaque even when the floor sheet has diamond alpha.
+    g.drawImage(stone,stone.width*.375,stone.height*.375,stone.width*.25,stone.height*.25,0,0,1,1);
+    g.fillStyle='rgba(10,9,8,0.20)';g.fillRect(0,0,1,1);
+    g.strokeStyle='rgba(15,13,11,.7)';g.lineWidth=.015;g.strokeRect(.008,.015,.984,.97);
+    g.restore();
+  }
+}
 function drawRubyDoorSteps(g,p){
   g.save();
   for(const step of rubyDoorSteps(p)){
     // Exposed end stone and the shallow riser below the next tread.
-    drawIsoPlaneImg(g,null,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#574632',shade:0.6,stroke:0});
+    drawIsoPlaneImg(g,null,step.x0,step.y0,step.x0,step.y1,step.top,{fill:'#38332c',shade:0.6,stroke:0});
     g.save();g.translate(0,-step.bottom);
-    drawIsoPlaneImg(g,null,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#6d573e',shade:0.7});
+    drawIsoPlaneImg(g,null,step.x0,step.y1,step.x1,step.y1,step.top-step.bottom,{fill:'#4b4438',shade:0.7});
     g.restore();
-    fillIsoCap(g,step.x0,step.y0,step.x1,step.y0,step.x1,step.y1,step.x0,step.y1,step.top);
+    drawRubyStepStone(g,step);
     // Worn stone noses follow the same descending line as the doorway.
     const a=w2s(step.x0,step.y1),b=w2s(step.x1,step.y1);
     g.beginPath();g.moveTo(a.x,a.y-step.top);g.lineTo(b.x,b.y-step.top);
-    g.strokeStyle='rgba(238,217,181,0.42)';g.lineWidth=1.1*ZOOM;g.stroke();
+    g.strokeStyle='rgba(191,184,165,0.35)';g.lineWidth=1.1*ZOOM;g.stroke();
   }
   g.restore();
 }
@@ -13464,7 +13486,7 @@ const WALL_FACE_CLEAR=0.72;
 function needsWallFaceClear(e){
   return !!(e && (e.hero || e.team==='party') && !e.dead && !e.crushed && !e.hidden);
 }
-function wallFaceClear(x,y,e){
+function wallFaceClearAt(x,y,e){
   if(!needsWallFaceClear(e)) return true;
   const L=G.lvl; if(!L||!L.grid) return true;
   const ix=Math.floor(x), iy=Math.floor(y);
@@ -13485,6 +13507,14 @@ function wallFaceClear(x,y,e){
   if(sw && y>iy+1-my && x<ix+mx) return false;
   if(west && south && x<ix+mx) return false;
   return true;
+}
+function wallFaceClear(x,y,e){
+  if(wallFaceClearAt(x,y,e)) return true;
+  if(!e || wallFaceClearAt(e.x,e.y,e)) return false;
+  // An actor already inside the decorative inset may retreat toward its
+  // current tile center. Physical radius checks in canBe still apply.
+  const cx=Math.floor(e.x)+.5,cy=Math.floor(e.y)+.5;
+  return Math.hypot(x-cx,y-cy)<Math.hypot(e.x-cx,e.y-cy)-1e-8;
 }
 function canBe(x,y,r,e){
   if(!walk(x,y,e)) return false;

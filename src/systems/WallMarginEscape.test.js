@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const html=fs.readFileSync(require('path').join(__dirname,'../../index.html'),'utf8');
+const names=['needsWallFaceClear','wallFaceClearAt','wallFaceClear','canBe'];
+const grid=Array.from({length:8},()=>Array(8).fill(0));grid[4][3]=1;
+const ctx={G:{lvl:{grid}},Math,walk:(x,y)=>grid[Math.floor(y)]?.[Math.floor(x)]===0};vm.createContext(ctx);
+vm.runInContext('const WALL_FACE_CLEAR=.72;'+names.map(n=>html.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0]).join('\n'),ctx);
+const actor={hero:true,r:.36,x:3.5,y:3.6};
+assert(!ctx.wallFaceClearAt(actor.x,actor.y,actor),'reproduce invalid decorative margin');
+assert(ctx.wallFaceClear(3.5,3.55,actor),'retreat toward open floor allowed');
+assert(!ctx.wallFaceClear(3.5,3.65,actor),'deeper into wall margin rejected');
+assert(ctx.canBe(3.5,3.55,actor.r,actor),'escape also passes physical radius checks');
+assert(!ctx.canBe(3.5,3.8,actor.r,actor),'physical wall radius remains blocked');
+actor.y=3.2;assert(!ctx.wallFaceClear(3.5,3.6,actor),'valid actor cannot enter margin');
+console.log('Decorative margin escape regression passed');

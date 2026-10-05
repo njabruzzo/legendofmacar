@@ -115,6 +115,23 @@
  check(G.lvl.secrets.find(s=>s.kind==='teeth').open,'legacy entrance position retains discovered room');
  check(G.props.filter(ch1CenterPillar).length===1&&G.props.filter(pr=>pr.k==='lift'&&pr.x===36.5).length===1,'older save restores missing elevator and pillar once');
  applyPlaySave(older);check(G.props.filter(ch1CenterPillar).length===1,'repeated reload does not stack pillars');
+ // Actual Chapter I room geometry: retreat from physically valid points
+ // already inside the decorative margin, as may occur in older saves.
+ fresh();G.talk=null;const leader=player();G.ents=G.ents.filter(e=>e.hero);
+ for(const region of [{name:'ruby approach',x0:33,x1:40,y0:8,y1:16},{name:'bone room',x0:105,x1:113,y0:8,y1:14}]){
+  let cases=0;
+  for(let y=region.y0;y<=region.y1;y++)for(let x=region.x0;x<=region.x1;x++)for(const [ox,oy] of [[.5,.55],[.5,.6],[.55,.5],[.6,.5],[.4,.5],[.5,.4]]){
+   leader.x=x+ox;leader.y=y+oy;
+   const physical=walk(leader.x,leader.y,leader)&&walk(leader.x+leader.r,leader.y,leader)&&walk(leader.x-leader.r,leader.y,leader)&&walk(leader.x,leader.y+leader.r,leader)&&walk(leader.x,leader.y-leader.r,leader);
+   if(!physical||wallFaceClearAt(leader.x,leader.y,leader))continue;
+   for(const dt of [1/60,.05]){
+    leader.x=x+ox;leader.y=y+oy;const old={x:leader.x,y:leader.y};
+    move(leader,(x+.5-leader.x)*4,(y+.5-leader.y)*4,dt);
+    check(dist(old,leader)>0,region.name+' exits wall margin at '+x+','+y+' dt='+dt);cases++;
+   }
+  }
+  result.observations.push({tag:region.name+' margin escape',cases});
+ }
  }catch(e){result.failures.push(e.stack);}
  report.textContent=JSON.stringify(result,null,2);
  await fetch('/qa-result',{method:'POST',body:JSON.stringify(result,null,2)});

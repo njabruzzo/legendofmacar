@@ -17,7 +17,7 @@ const ctx={SPR,TW:116,TH:58,Math,SPRITE_PAINTED_LEFT:{},sprReady:k=>!!SPR[k],per
  player:()=>ctx.hero,wieldsShadowCleaver:()=>ctx.weapon==='axe',wieldsCrossbow:()=>ctx.weapon==='crossbow'};
 ctx.entAnimKey=e=>ctx.livingMacarAnimKey(e);
 vm.createContext(ctx);
-const names=['steerWalk','isLivingMacarKey','livingMacarIdleKey','partyFrameFitOk','samePaintedFamily','partyCrownMatches','sheetCrownId','partySheetMatchesIdle','matchingPartyAtkReady','restoredMacarMotionKey','partyAnimKeyReady','pickReadyPartyKey','livingMacarBlitKey','walkCycleKey','attackProgress','wantsMeleePose','wantsMeleeRecover','nowMs','wantsBowPose','expireBowPose','wantsMacarWindup','wantsLivingMacarStrike','livingMacarStandKey','macarStrikeDirKey','livingMacarAnimKey','faceVec','screenOctant','moveHeadingSX','wantsSpriteFlip'];
+const names=['steerWalk','isLivingMacarKey','livingMacarIdleKey','partyFrameFitOk','samePaintedFamily','partyCrownMatches','sheetCrownId','partySheetMatchesIdle','matchingPartyAtkReady','restoredMacarMotionKey','partyAnimKeyReady','pickReadyPartyKey','livingMacarBlitKey','macarFirstReady','walkCycleKey','attackProgress','wantsMeleePose','wantsMeleeRecover','nowMs','wantsBowPose','expireBowPose','wantsMacarWindup','wantsLivingMacarStrike','livingMacarStandKey','macarStrikeDirKey','livingMacarAnimKey','faceVec','screenOctant','moveHeadingSX','wantsSpriteFlip'];
 vm.runInContext(html.match(/const LIVING_MACAR_KEYS=\{[\s\S]*?\n\};/)[0]+'\nconst MACAR_MAUL_CONTACT_T=.45;\n'+names.map(fn).join('\n'),ctx);
 vm.runInContext("Object.keys(SPR).filter(k=>/_idle_/.test(k)).forEach(k=>LIVING_MACAR_KEYS[k]=1);",ctx);
 let cases=0,asserts=0;const check=(v,m)=>{asserts++;assert(v,m);};
@@ -72,3 +72,21 @@ check(ctx.livingMacarIdleKey()==='macar_xbow','completed load replaces primary a
 ctx.wieldsCrossbow=()=>false;
 check(ctx.livingMacarIdleKey()==='macar_axe','doffing crossbow restores the retained axe');
 console.log('COUNTS cases='+cases+' asserts='+asserts);
+
+// Explicitly held axe keeps its family even when idle and walk decode late.
+ctx.MacarEquipment=require('./MacarEquipment');
+ctx.G={equipped:{primary:{n:'Iron Axe',k:'weapon',macarHeld:true}}};
+ctx.wieldsCrossbow=()=>false;ctx.hero.atkKind='melee';ctx.hero.atk=0;ctx.hero.bowPoseUntil=0;ctx.hero.moving=1;
+const axeKeys=Object.keys(SPR).filter(k=>k==='macar_axe'||k.startsWith('macar_axe_'));
+const savedAxe=Object.fromEntries(axeKeys.map(k=>[k,SPR[k]]));
+axeKeys.forEach(k=>delete SPR[k]);
+check(ctx.livingMacarIdleKey()==='macar_axe','cold equipped axe does not select maul');
+check(ctx.livingMacarBlitKey(ctx.livingMacarAnimKey(ctx.hero))===null,'no maul drawn while all axe art is unavailable');
+SPR.macar_axe=savedAxe.macar_axe;
+for(let i=0;i<8;i++){
+ const a=i*Math.PI/4,sx=Math.cos(a)/(ctx.TW/2),sy=Math.sin(a)/(ctx.TH/2),m=Math.hypot(sx+sy,sy-sx);
+ ctx.hero.fdx=ctx.hero.ix=(sx+sy)/m;ctx.hero.fdy=ctx.hero.iy=(sy-sx)/m;
+ for(const gait of [.1,.35,.6,.85]){ctx.hero.gait=gait;check(ctx.livingMacarBlitKey(ctx.livingMacarAnimKey(ctx.hero))==='macar_axe','cold walk keeps axe carry in '+dirs[i]);}
+}
+Object.assign(SPR,savedAxe);
+check(ctx.livingMacarBlitKey('macar_e_w1').startsWith('macar_axe'),'stale maul blit replaced by axe family');

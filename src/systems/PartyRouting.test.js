@@ -13,7 +13,7 @@ function setup(){
  const ctx={Math,PartyFollow:Follow,G:{lvl:{grid,w:30,h:24},ents:[p]},WALL_FACE_CLEAR:.72,TAU:Math.PI*2,
   startCaveInBlocks:()=>false,foeInTheFight:()=>false,player:()=>p,wornMoveMul:()=>1};
  vm.createContext(ctx);
- vm.runInContext(['walk','needsWallFaceClear','wallFaceClear','canBe','moveStep','move','bestSlide','turnToward','gaitAdvance','constrainPartyStep','steerWalk','routeSteerWalk'].map(fn).join('\n'),ctx);
+ vm.runInContext(['walk','needsWallFaceClear','wallFaceClearAt','wallFaceClear','canBe','moveStep','move','bestSlide','turnToward','gaitAdvance','constrainPartyStep','steerWalk','routeSteerWalk'].map(fn).join('\n'),ctx);
  Nav.invalidate();return {ctx,p,grid};
 }
 for(const dt of [1/60,.05])for(const mul of [1,2]){
