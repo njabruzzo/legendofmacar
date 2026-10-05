@@ -1,5 +1,5 @@
 /**
- * MAC-07 Batch D — party navigation library + one-follower Follow pilot.
+ * MAC-07 Batch D — party navigation library, extended to leader and followers.
  *
  * Routes on a quarter-cell lattice through actor-specific canStand
  * (canBe(x,y,actor.r,actor)). Conventional tile-center A* is unsuitable:
@@ -18,9 +18,9 @@
  * Flag: Navigation.FLAG default ON.
  * Rollback: Navigation.FLAG=false or load with ?nav=0 (legacy trail/form).
  *
- * Follow is the implicit default for ONE living kin (pordoom / first
- * living roster kin, ghosts included) when PartyOrders has no order.
- * Ghosts ignore PartyOrders and stay on this pilot. Hold / Regroup /
+ * Follow routes every uncommanded kin, ghosts included, toward its own
+ * breadcrumb goal. The host also uses tickRoute for Macar's click destinations.
+ * Ghosts ignore PartyOrders and stay on automatic Follow. Hold / Regroup /
  * Focus command living kin only; a null order does not intercept Follow.
  *
  * Noz / fleeTo / story-controlled entities stay on the host flee path.
@@ -97,7 +97,8 @@
   }
 
   /**
-   * rot.js A* compute with a counted expansion cap (fail closed).
+   * rot.js neighbors / heuristic with a counted expansion cap (fail closed).
+   * A stable heap avoids linear insertion and shifting for every open node.
    * Expansion is a node visit, not elapsed wall time.
    */
   function boundedCompute(astar, fromX, fromY, maxExpand, callback) {
@@ -108,13 +109,45 @@
     astar._done = {};
     astar._fromX = fromX;
     astar._fromY = fromY;
-    astar._add(astar._toX, astar._toY, null);
-    while (astar._todo.length) {
+    var heap = [], best = Object.create(null), serial = 0;
+    function before(a,b){
+      var af=a.g+a.h,bf=b.g+b.h;
+      return af<bf || (af===bf && (a.h<b.h || (a.h===b.h && a.serial<b.serial)));
+    }
+    function add(x,y,prev){
+      var key=x+','+y,g=prev?prev.g+1:0;
+      if(key in best && best[key]<=g) return;
+      best[key]=g;
+      var node={x:x,y:y,g:g,h:astar._distance(x,y),prev:prev,serial:serial++};
+      var at=heap.length;heap.push(node);
+      while(at>0){
+        var parent=(at-1)>>1;
+        if(!before(node,heap[parent])) break;
+        heap[at]=heap[parent];at=parent;
+      }
+      heap[at]=node;
+    }
+    function pop(){
+      var first=heap[0],last=heap.pop();
+      if(heap.length){
+        var at=0;
+        while(at*2+1<heap.length){
+          var child=at*2+1;
+          if(child+1<heap.length && before(heap[child+1],heap[child])) child++;
+          if(!before(heap[child],last)) break;
+          heap[at]=heap[child];at=child;
+        }
+        heap[at]=last;
+      }
+      return first;
+    }
+    add(astar._toX, astar._toY, null);
+    while (heap.length) {
       if (expansions >= maxExpand) {
         capped = true;
         break;
       }
-      item = astar._todo.shift();
+      item = pop();
       id = item.x + ',' + item.y;
       if (id in astar._done) continue;
       astar._done[id] = item;
@@ -125,7 +158,7 @@
         neighbor = neighbors[i];
         id = neighbor[0] + ',' + neighbor[1];
         if (id in astar._done) continue;
-        astar._add(neighbor[0], neighbor[1], item);
+        add(neighbor[0], neighbor[1], item);
       }
     }
     astar._expandCount = expansions;
@@ -160,9 +193,14 @@
       return { ok: true, path: [{ x: start.x, y: start.y }], expansions: 0, reason: 'already' };
     }
 
+    // Terrain and party positions are fixed during one synchronous plan.
+    // Avoid repeating costly body/rock checks for the same lattice cell.
+    var standable=Object.create(null);
     function passable(i, j) {
+      var key=i+','+j;
+      if(key in standable) return standable[key];
       var w = latticeToWorld(i, j);
-      return canStand(w.x, w.y, actor, canBeFn);
+      return standable[key]=canStand(w.x, w.y, actor, canBeFn);
     }
 
     var astar = new ROT.Path.AStar(goal.i, goal.j, passable, { topology: TOPOLOGY });
@@ -235,6 +273,7 @@
   }
 
   function followGoal(e, leader, host) {
+    if(host.goal) return host.goal;
     var form = null;
     if (typeof host.partyForm === 'function') {
       try { form = host.partyForm(1, leader); } catch (err) { form = null; }
@@ -249,18 +288,32 @@
   function tickFollower(e, leader, dt, host) {
     host = host || {};
     if (!use() || !e || !leader) return { handled: false };
+    return tickRoute(e, followGoal(e, leader, host), dt, host);
+  }
+
+  function segmentClear(from, to, actor, canBeFn) {
+    var n=Math.max(1,Math.ceil(Math.hypot(to.x-from.x,to.y-from.y)/(STEP/2)));
+    for(var i=1;i<=n;i++){
+      var t=i/n;
+      if(!canStand(from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t,actor,canBeFn)) return false;
+    }
+    return true;
+  }
+
+  function tickRoute(e, goal, dt, host) {
+    host = host || {};
+    if (!use() || !e || !goal) return { handled: false };
     if (isStoryLocked(e)) return { handled: false };
     if (typeof host.canBe !== 'function' || typeof host.steerWalk !== 'function') {
       return { handled: false };
     }
 
-    var goal = followGoal(e, leader, host);
     var distFn = typeof host.dist === 'function'
       ? host.dist
       : function (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); };
     var dLead = distFn(e, goal);
     var key = actorKey(e);
-    if (dLead <= FOLLOW_R) {
+    if (dLead <= (host.arriveRadius==null?FOLLOW_R:host.arriveRadius)) {
       e.ix = 0;
       e.iy = 0;
       e.moving = 0;
@@ -275,13 +328,22 @@
       || st.levelId !== levelId
       || st.topologyRev !== topologyRev
       || (st.goal && Math.hypot(st.goal.x - goal.x, st.goal.y - goal.y) > REPATH_GOAL)
-      || (st.age || 0) >= REPATH_DT
-      || st.stuck;
+      || ((st.age || 0) >= REPATH_DT && st.path && st.path.length &&
+          !segmentClear(e,st.path[0],e,host.canBe))
+      || st.stuck > 0.55;
 
     st.age = (st.age || 0) + (dt || 0);
 
+    if(st.failed && st.age<REPATH_DT && st.levelId===levelId && st.topologyRev===topologyRev &&
+      st.goal && Math.hypot(st.goal.x-goal.x,st.goal.y-goal.y)<=REPATH_GOAL){
+      e.ix=0;e.iy=0;e.moving=0;
+      return {handled:true,waiting:true,reason:'retry-wait'};
+    }
+
     if (need) {
-      var plan = planRoute({ x: e.x, y: e.y }, goal, e, {
+      var plan = segmentClear(e,goal,e,host.canBe)
+        ? {ok:true,path:[{x:goal.x,y:goal.y}],expansions:0}
+        : planRoute({ x: e.x, y: e.y }, goal, e, {
         canBe: host.canBe,
         maxExpand: host.maxExpand != null ? host.maxExpand : MAX_EXPAND
       });
@@ -291,6 +353,7 @@
       st.age = 0;
       st.stuck = 0;
       if (!plan.ok) {
+        st.failed=true;
         st.path = [];
         e.ix = 0;
         e.iy = 0;
@@ -302,10 +365,14 @@
           expansions: plan.expansions
         };
       }
+      st.failed=false;
       st.path = plan.path.slice();
     }
 
-    while (st.path && st.path.length && distFn(e, st.path[0]) < WAYPOINT_R) {
+    // A near waypoint may be a corner: skip it only when the next segment
+    // is clear for this actor. This prevents diagonal shortcuts into rock.
+    while (st.path && st.path.length && distFn(e, st.path[0]) < WAYPOINT_R &&
+      (st.path.length===1 || segmentClear(e,st.path[1],e,host.canBe))) {
       st.path.shift();
     }
     if (!st.path || !st.path.length) {
@@ -347,6 +414,9 @@
     latticeToWorld: latticeToWorld,
     snapStand: snapStand,
     planRoute: planRoute,
+    tickRoute: tickRoute,
+    clearRoute: function(e){clearCache(actorKey(e));},
+    segmentClear: segmentClear,
     isStoryLocked: isStoryLocked,
     pickPilot: pickPilot,
     isPilot: isPilot,

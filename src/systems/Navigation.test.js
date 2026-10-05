@@ -84,8 +84,8 @@ assert(tapI>=0 && tapI<rotI && rotI<navI && navI<inlineI,
   'load order: TapGate → rot-path → Navigation → inline play loop');
 assert(/src="src\/systems\/PartyOrders\.js"/.test(html),
   'PartyOrders ships beside Navigation; a null order leaves Follow alone');
-assert(/One-follower Follow default/.test(html) && /ghostSapperBomb\(e, dt\)/.test(html),
-  'host wires the pordoom pilot and still runs ghostSapperBomb');
+assert(/Every follower routes/.test(html) && /ghostSapperBomb\(e, dt\)/.test(html),
+  'host routes every follower and still runs ghostSapperBomb');
 assert(/function bumpTopology\(/.test(html) && /function navLevelId\(/.test(html),
   'host exposes topologyRev helpers independent of seenRev');
 assert(/bumpTopology\('openSecret/.test(html) && /bumpTopology\('breakRock'\)/.test(html),
@@ -306,6 +306,21 @@ function assertFourTopology(plan, msg){
   assert(Nav.isStoryLocked(noz) && Nav.isStoryLocked(fleer), 'story-locked helper covers Noz / fleeTo');
 }
 
+/* Heap-backed bounded search retains the reference planner's shortest route. */
+{
+  for(let gap=3;gap<=9;gap+=2){
+    const passable=(x,y)=>x>=0&&x<=24&&y>=0&&y<=12&&!(x===12&&y!==gap);
+    const actor={r:0.36};
+    const reference=[];
+    new ROT.Path.AStar(21,6,passable,{topology:4}).compute(3,6,(x,y)=>reference.push({x,y}));
+    const optimized=Nav.planRoute({x:.75,y:1.5},{x:5.25,y:1.5},actor,
+      {canBe:(x,y)=>passable(Math.round(x/Nav.STEP),Math.round(y/Nav.STEP))});
+    assert(optimized.ok&&optimized.path.length===reference.length,
+      'heap route matches reference shortest length through gap '+gap);
+    assertFourTopology(optimized,'heap route preserves four-neighbor steps '+gap);
+  }
+}
+
 /* flag off: tickFollower does not handle (legacy trail/form) */
 {
   Nav.FLAG=false;
@@ -317,7 +332,7 @@ function assertFourTopology(plan, msg){
 /* host still preserves fleeTo before the party brain */
 {
   const idxFlee=html.indexOf('if(e.fleeTo){');
-  const idxPilot=html.indexOf('Navigation.isPilot');
+  const idxPilot=html.indexOf('Navigation.tickFollower');
   assert(idxFlee>=0 && idxPilot>idxFlee, 'fleeTo is handled before the nav pilot');
 }
 

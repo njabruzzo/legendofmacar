@@ -5,10 +5,10 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   function kind(item){
     if(!item || item.k==='ammo') return null;
-    const name=(item.n||'')+' '+(item.id||'');
+    const name=((item.n||'')+' '+(item.id||'')).replace(/[_-]/g,' ');
     if(/shield|buckler|pickaxe|pick_axe/i.test(name)) return null;
     if(/crossbow|long\s*bow|short\s*bow|\bbow\b/i.test(name)) return 'xbow';
-    if(/shadow[_ ]cleaver|\bcleaver\b|\baxe\b|battle[_ ]?axe|hand[_ ]?axe/i.test(name)) return 'axe';
+    if(/shadow[_ ]cleaver|\bcleaver\b|\baxe\b|(?:battle|hand|war|great)\s*axe/i.test(name)) return 'axe';
     if(item.k==='weapon'||/hammer|maul/i.test(name)) return 'maul';
     return null;
   }

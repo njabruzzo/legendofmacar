@@ -58,6 +58,7 @@
 <script src="src/combat/MacarCrown.js"></script>
 <script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/MacarEquipment.js"></script>
+<script src="src/combat/MacarMotionAtlas.js"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
@@ -324,15 +325,22 @@ function partyForm(i,p){
    see him. It walks; it never teleports. */
 const REJOIN_LEASH=5.5, REJOIN_SIGHT=2.8, REJOIN_DONE=3.0, REJOIN_STUCK=0.6;
 const REJOIN_REPATH=0.45, REJOIN_EXPAND=16000;
+function followRank(e){
+  const kin=(G.ents||[]).filter(o=>PartyFollow.eligible(o)&&!o.hero&&!o.thrallStay);
+  return Math.max(0,kin.indexOf(e));
+}
 function kinLost(e, p){
   const d=dist(e, p);
-  if(d>REJOIN_LEASH) return 'far';
+  if(d>Math.max(REJOIN_LEASH,2.6*(followRank(e)+1)+1)) return 'far';
   if(d>REJOIN_SIGHT && typeof hasLOS==='function' && !hasLOS(e.x, e.y, p.x, p.y)) return 'sight';
   if((e.followStuck||0)>REJOIN_STUCK && d>PARTY_SEP_LEAD+0.6) return 'stuck';
   return '';
 }
-function rejoinGoal(p){
-  /* Aim a step behind Macar so the goal is not his own body. */
+function rejoinGoal(p,e){
+  if(e){
+    const rank=followRank(e);
+    return trailSlot(rank)||followBearingSlot(e,p,rank);
+  }
   const bx=p.x-(p.fdx||0)*1.3, by=p.y-(p.fdy||0)*1.3;
   return (typeof walk==='function' && walk(bx, by))?{x:bx,y:by}:{x:p.x,y:p.y};
 }
@@ -346,34 +354,38 @@ function tickRejoin(e, p, dt){
   }
   const d=dist(e, p);
   const sees=typeof hasLOS!=='function' || hasLOS(e.x, e.y, p.x, p.y);
-  if(d<=REJOIN_DONE && sees){
+  const goal=rejoinGoal(p,e);
+  if((d<=REJOIN_DONE && sees) || dist(e,goal)<=.38){
     e._rejoin=null; e.followStuck=0;
     return false;
   }
   st.age+=dt;
-  const goal=rejoinGoal(p);
   const nav=typeof Navigation!=='undefined' && Navigation.planRoute;
-  const need=!st.path || !st.path.length || st.age>=REJOIN_REPATH || st.stuck>0.5
+  const need=!st.path || !st.path.length || st.stuck>0.5
+    || (st.age>=REJOIN_REPATH && !Navigation.segmentClear(e,st.path[0],e,partyRouteCanBe))
     || !st.goal || Math.hypot(st.goal.x-goal.x, st.goal.y-goal.y)>0.8;
+  if(!st.path && st.fail && st.age<REJOIN_REPATH){e.moving=0;e.ix=0;e.iy=0;return true;}
   if(need && nav){
-    const plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {canBe, maxExpand:REJOIN_EXPAND});
+    const plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {canBe:partyRouteCanBe, maxExpand:REJOIN_EXPAND});
     st.path=plan.ok?plan.path.slice():null;
     st.goal=goal; st.age=0; st.stuck=0; st.fail=plan.ok?0:(st.fail||0)+1;
+    if(!plan.ok){e.moving=0;e.ix=0;e.iy=0;return true;}
   }
   let tx=goal.x, ty=goal.y;
   if(st.path){
-    while(st.path.length && Math.hypot(st.path[0].x-e.x, st.path[0].y-e.y)<0.22) st.path.shift();
+    while(st.path.length && Math.hypot(st.path[0].x-e.x, st.path[0].y-e.y)<0.22 &&
+      (st.path.length===1 || Navigation.segmentClear(e,st.path[1],e,partyRouteCanBe))) st.path.shift();
     if(st.path.length){ tx=st.path[0].x; ty=st.path[0].y; }
   }
   /* Catch-up pace: a touch quicker than Macar so a lost kin closes. */
   const go=(e.sp||4)*1.15*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
   if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return true; }
-  const moved=steerWalk(e, tx-e.x, ty-e.y, go, dt);
+  const moved=routeSteerWalk(e, tx-e.x, ty-e.y, go, dt);
   if(!(moved>0.002)) st.stuck+=dt; else st.stuck=0;
   return true;
 }
 function followBearingSlot(e, p, rank){
-  const gap=PARTY_SEP_LEAD+0.35+0.95*(rank|0);
+  const gap=Math.max(PARTY_SEP_LEAD+0.35,2.6*((rank|0)+1));
   let dx=e.x-p.x, dy=e.y-p.y;
   const d=Math.hypot(dx, dy);
   if(d<0.05) return partyForm((rank|0)+1, p);
@@ -467,13 +479,16 @@ function separateParty(p){
 }
 function constrainPartyStep(e, ox, oy){
   if(typeof PartyFollow==='undefined' || !PartyFollow.eligible(e)) return;
+  // Followers yield to the controlled leader; their wide visual spacing
+  // must never make Macar's controls or a narrow doorway impassable.
+  if(e.hero) return;
   const p=e.hero?e:player();
   if(!p || e.aim || e.atk>0 || e.defending || (e.hero && foeInTheFight())) return;
   const bodies=G.ents.filter(o=>PartyFollow.eligible(o) && !o.aim && !o.defending && !(o.atk>0));
   const target={x:e.x,y:e.y};
   const allowed=PartyFollow.limit(e,{x:ox,y:oy},target,bodies);
   e.x=allowed.x; e.y=allowed.y;
-  if(e.hero) e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
+  e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
 }
 
 function steerWalk(e,dx,dy,sp,dt){
@@ -931,6 +946,7 @@ const MACAR_ONMODEL={
   macar_xbow_atk:'assets/creatures/dwarf_macar_xbow_atk.png'
 };
 if(typeof MacarIdleAtlas!=='undefined') MacarIdleAtlas.register(MACAR_ONMODEL);
+if(typeof MacarMotionAtlas!=='undefined') MacarMotionAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
@@ -953,7 +969,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -978,7 +994,7 @@ function loadSpriteKeyNow(k, cb){
   SPRITE_LOADING[k]=[cb];
   const img=new Image();
   const done=ok=>{
-    if(ok) SPR[k]=(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
+    if(ok) SPR[k]=(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
     const list=SPRITE_LOADING[k]||[];
     delete SPRITE_LOADING[k];
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
@@ -1013,8 +1029,8 @@ function requestMacarEquipmentArt(){
     keys.push('macar_xbow','macar_xbow_w1','macar_xbow_w2','macar_xbow_atk');
   if(typeof MacarIdleAtlas!=='undefined'){
     keys.push(...MacarIdleAtlas.keys('macar'));
-    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'));
-    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'));
+    if(keys.includes('macar_axe')) keys.push(...MacarIdleAtlas.keys('macar_axe'),...MacarMotionAtlas.keys('axe'));
+    if(keys.includes('macar_xbow')) keys.push(...MacarIdleAtlas.keys('macar_xbow'),...MacarMotionAtlas.keys('xbow'));
   }
   if(typeof wearingBoneCrown==='function' && wearingBoneCrown())
     keys.push('bone_crown');
@@ -2209,7 +2225,7 @@ function drawEntBillboard(g,e,img,z,flip){
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
   const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
-  const dy=(b&&b.ok)?-H*b.botY:-H;
+  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   const party=e.kind==='dwarf' && !e.dead;
   const punch=!e.ghost;
   if(e.hero && !e.dead){
@@ -2259,6 +2275,7 @@ const LIVING_MACAR_KEYS={
   dwarf_macar_crowned:1
 };
 if(typeof MacarIdleAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{ if(MacarIdleAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1; });
+if(typeof MacarMotionAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{if(MacarMotionAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1;});
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
@@ -2349,12 +2366,14 @@ function matchingPartyAtkReady(key, idleKey){
 }
 /* Restored walks are 470×512. Windup is main's 470×540 maul sheet.
    Contact is 893×540. Idle stays 1100×920. samePaintedFamily would plant
-   idle and hide the walk. These keys are the same dwarf; fit still rejects slivers. */
+   idle and hide the walk. The axe's new square idle also differs from its tall
+   walk canvases. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
-  return /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+  return (typeof MacarMotionAtlas!=='undefined' && !!MacarMotionAtlas.pose(key)) || /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
     ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
-    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se';
+    ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se'
+    ||key==='macar_axe_w1'||key==='macar_axe_w2';
 }
 function partyAnimKeyReady(key, idleKey){
   if(!key || (typeof sprReady==='function'?!sprReady(key):!(SPR[key]&&SPR[key].width))) return false;
@@ -2522,6 +2541,7 @@ function ghostAnimKey(e, k){
 /* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
 function livingMacarStandKey(idle,e){
   idle=idle||'macar';
+  if(idle==='macar_xbow' && e && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),false);if(sprReady(k))return k;}
   if(e && typeof screenOctant==='function'){
     const oct=screenOctant(e),dir={w:'e',sw:'se',nw:'ne'}[oct]||oct;
     const key=idle+'_idle_'+dir;
@@ -2672,6 +2692,8 @@ function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
+  if(idle==='macar_xbow' && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),!!e.moving&&!e.defending&&!wantsBowPose(e)&&!wantsMeleeRecover(e)&&!wantsLivingMacarStrike(e));if(sprReady(k))return k;}
+  if(idle==='macar_axe' && e.moving && !e.defending && !wantsLivingMacarStrike(e) && !wantsMeleeRecover(e) && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('axe',e,screenOctant(e),true);if(sprReady(k))return k;}
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){
     const atk=(idle==='macar_xbow')?'macar_xbow_atk':'macar_atk';
     if(matchingPartyAtkReady(atk, idle)) return atk;
@@ -2832,7 +2854,7 @@ function livingMacarPlantFit(e, key, img){
   const idleFit=heroFigureFit(e, idle);
   const live=(key && SPR[key] && SPR[key].height)?SPR[key]:(img&&img.height?img:idle);
   const idleH=idle.height||0, liveH=live.height||0;
-  if(idleH<80 || liveH<80 || Math.abs(liveH-idleH)<8) return idleFit;
+  if(idleH<80 || liveH<80 || (Math.abs(liveH-idleH)<8 && !live.__macarIntegratedMotion)) return idleFit;
   const idleBody=livingSheetStature(idle);
   const liveBody=livingSheetStature(live);
   if(!(idleBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45)) || !(liveBody>((typeof MACAR_STATURE_FLOOR==='number')?MACAR_STATURE_FLOOR:0.45))) return idleFit;
@@ -2885,10 +2907,10 @@ function drawLivingMacar(g,e){
   const footCx=(b&&b.ok&&b.footCx!=null)?b.footCx:0.5;
   const bootCx=(b&&b.ok&&b.bootCx!=null)?b.bootCx:footCx;
   const idleFoot=(ib&&ib.ok&&ib.footCx!=null)?ib.footCx:footCx;
-  const plant=livingMacarPlantX(footCx, bootCx, idleFoot);
+  const plant=img.__macarIntegratedMotion?0.5:livingMacarPlantX(footCx, bootCx, idleFoot);
   const cx=flip?1-plant:plant;
   const dx=-W*cx;
-  const dy=(b&&b.ok)?-H*b.botY:-H;
+  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);
@@ -6829,7 +6851,7 @@ function rubyGuardiansLeft(){
 const QUILL_CH1_SAY={
   rubydoor_cleared:'The last guardian falls. Every ruby in the chamber cracks cold.',
   rubypillar_appears:'Stone rises in the middle of the chamber. A ruby waits on it, dark and waiting. An iron lever stands ready beside it.',
-  leverThrown:'The lever bites home. Far below, something wakes — but the cage does not move. The ruby on the pillar burns a shade brighter.',
+  leverThrown:'The lever bites home. The ruby answers. The elevator is ready to carry you down.',
   rubypillar_touch_locked:'Cold. Dead weight. Something iron nearby still holds the dark shut.',
   elevator_descent:'The ruby flares. Far below, iron groans. The elevator begins its descent into the dark.',
   cavein_wake:'Stone lets go. Cold light. A brother stands who should not.'
@@ -6850,9 +6872,8 @@ function wakeRubyDoor(){
     L.lights.push({x:36.5,y:21.5,c:'#ff2f3a',r:5.2,f:1.15});
   hint('Six guardians. Slay them, then pull the elevator lever.',6);
 }
-/* Nick 2026-09-22: throw the lift lever, then touch the ruby pillar.
-   The lever alone does not descend. The pillar does not descend until
-   the lever has been thrown this chapter. leverThrown lives on L.flags. */
+/* Pulling the lever activates the elevator after the guardians fall.
+   The ruby touch remains compatible with older lever-only saves. */
 function ch1HubAnchor(){ return {x:36.5,y:21.5}; }
 function ch1LeverAnchor(){ return {x:37.15,y:22.05}; }
 function ch1LeverShownThrown(){
@@ -6862,16 +6883,15 @@ function ch1LeverShownThrown(){
 function throwCh1LiftLever(){
   const L=G.lvl;
   if(!L||L.n!==1||!L.flags||!L.flags.cleared) return false;
-  if(L.flags.leverThrown||L.flags.elevReady) return false;
+  if(L.flags.elevReady) return false;
   L.flags.leverThrown=1;
   shake(10);
   say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
-  hint('Touch the ruby pillar to wake the lift.',5);
-  return true;
+  return beginCh1ElevatorDescent();
 }
 function beginCh1ElevatorDescent(){
   const L=G.lvl;
-  if(!L||L.n!==1||!L.flags||L.flags.elevReady) return false;
+  if(!L||L.n!==1||!L.flags||L.flags.elevReady||!L.flags.cleared) return false;
   if(!L.flags.leverThrown) return false;
   /* elevReady is the house ride flag. elevatorGone is Quill's name for the same moment. */
   L.flags.elevReady=1;
@@ -6881,6 +6901,7 @@ function beginCh1ElevatorDescent(){
   L.lights=L.lights||[];
   L.lights.push({x:36.5,y:21.5,c:'#ffd27a',r:7.5,f:1.5});
   hint('Ride the elevator down.',5);
+  if(typeof writeGameSave==='function') writeGameSave(true);
   return true;
 }
 function touchCh1RubyPillar(){
@@ -6907,13 +6928,7 @@ function ch1ElevatorPrompt(p){
   if(L.flags.elevReady) return dHub<2.3?{action:'ride'}:null;
   const nearLever=dLev<2.15;
   const nearPillar=!!L.flags.touched && dHub<2.3;
-  const leverCloser=dLev+0.12<dHub;
-  if(L.flags.leverThrown){
-    if(nearPillar) return {action:'pillar'};
-    if(nearLever) return {action:'lever_spent'};
-    return null;
-  }
-  if(nearLever && nearPillar) return leverCloser?{action:'lever'}:{action:'pillar_locked'};
+  if(L.flags.leverThrown && nearPillar && !nearLever) return {action:'pillar'};
   if(nearLever) return {action:'lever'};
   if(nearPillar) return {action:'pillar_locked'};
   return null;
@@ -7026,7 +7041,7 @@ function openCh1QuillLook(key){
   if(f){
     if(key==='ruby_door_look'&&!f.touched) key='ruby_door';
     else if(key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look'){
-      if(f.cleared) key=ch1LeverShownThrown()?'ch1_lift_pull_spent':'ch1_lift_pull';
+      if(f.cleared) key=f.elevReady?'ch1_lift_ride':'ch1_lift_pull';
     } else if(key==='rubypillar_look'||key==='rubypillar_look_armed'||key==='ch1_lift_ride'){
       if(f.elevReady) key='ch1_lift_ride';
       else if(f.cleared&&f.touched) key=f.leverThrown?'rubypillar_touch':'rubypillar_touch_locked';
@@ -7136,7 +7151,7 @@ const NPC_TALK={
     ]
   },
   ch1_lift_lever_thrown_look:{
-    line:"The lever lies thrown. The throw is spent. The pillar's ruby is listening now.",
+    line:'The lever has activated the elevator. The lift is ready to carry you down.',
     choices:[
       {t:'Leave it.'}
     ]
@@ -11865,6 +11880,15 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
   G.shots.push(s);
   return s;
 }
+function stepShot(s,dt){
+  s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
+  s.spin=s.kind==='bolt'?0:(s.spin||0)+dt*14;
+}
+function shotScreenAngle(s){
+  // Project velocity with the same isometric axes as w2s, independently
+  // of camera position and elapsed time.
+  return Math.atan2((s.vx+s.vy)*TH,(s.vx-s.vy)*TW);
+}
 function strengthCheck(e){
   const ab=(typeof meleeStrAbil==='function'?meleeStrAbil(e):entityAbil(e))||{};
   const str=ab.str||10, exc=ab.exc||0;
@@ -12389,6 +12413,7 @@ function riseSkeletalDwarves(where){
 }
 function takeBoneCrown(crown){
   if(!crown||crown.gone||crown.taken) return {ok:0, reason:'gone'};
+  G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
   crown.gone=1; crown.taken=1;
   const L=G.lvl; if(L&&L.flags){ L.flags.crownTaken=1; L.flags.crownTouched=1; }
   const it=makeBoneCrownItem();
@@ -12555,7 +12580,7 @@ function makeGrondTooth(kind){
   return {
     id:'grond_tooth_electrum', n:"Grond's Electrum Tooth", k:'misc', cat:'Quest',
     noSell:1, quest:1, noAuto:1, grondTooth:'electrum', spr:'icon_pack',
-    d:'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum and grows heavy.'
+    d:'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
   };
 }
 function nearestDemonFace(p, r){
@@ -12819,6 +12844,7 @@ function pryGrondTooth(face, kind){
   if(!face||face.gone) return {ok:0, reason:'gone'};
   if(kind==='bronze'){
     if(L&&L.flags&&(L.flags.bronzeSecured||L.flags.bronzeTooth)) return {ok:0, reason:'taken'};
+    G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
     const it=makeGrondTooth('bronze');
     if(typeof stowPackItem==='function') stowPackItem(it);
     if(L&&L.flags) L.flags.bronzeTooth=1;
@@ -12830,6 +12856,7 @@ function pryGrondTooth(face, kind){
     return {ok:1, item:it};
   }
   if(L&&L.flags&&(L.flags.electrumTooth||L.flags.copperTooth)) return {ok:0, reason:'taken'};
+  G.searching=0;G.secretSearch=0;G.digging=0;G.dig=null;
   const it=makeGrondTooth('electrum');
   if(typeof stowPackItem==='function') stowPackItem(it);
   if(L&&L.flags) L.flags.electrumTooth=1;
@@ -13004,7 +13031,7 @@ function buildHourglassRoom(L, sec){
    piles. 15cp+2sp+205ep → 205.7 → 206 EP. Sub-half dust rounds away.
    enc = ep + curseStrain*10. Strain +1 / 15s while cursed+ep>0 (does
    not fall then). Strain −1 / 30s (floor 0) if ep===0 or the tooth is gone.
-   MV (Macar sp only): <50 ×1, 50–149 ×0.75, 150–299 ×0.5, 300+ ×0.25.
+   Carrying the tooth, coins, or accumulated strain never reduces movement.
    Pack: Drop electrum 10 / 100 / All as {coins:{ep:n}}. While cursed the
    coin bar shows EP only. Bronze does not curse. Mordain smash / Remove
    Curse later (stub). */
@@ -13041,12 +13068,7 @@ function electrumEnc(){
   return ep + (G.curseStrain||0)*10;
 }
 function electrumMoveMul(){
-  if(!hasElectrumToothInPack()) return 1;
-  const enc=electrumEnc();
-  if(enc<50) return 1;
-  if(enc<150) return 0.75;
-  if(enc<300) return 0.5;
-  return 0.25;
+  return 1;
 }
 function tickElectrumCurse(dt){
   const cursed=hasElectrumToothInPack();
@@ -13080,7 +13102,7 @@ function dropElectrum(n){
      a fresh hoard (no deepsilver, no treasure XP a second time). */
   if(typeof spawnLoot==='function') spawnLoot(x, y, {kind:'coins', coins:{ep:n}, glow:'#6ec8b0', label:n+' electrum',
     packDrop:{kind:'coin', coin:'ep', n, name:n+' electrum'}, dropHold:1});
-  say('Macar drops '+n+' electrum. The pack lightens.','#6ec8b0');
+  say('Macar drops '+n+' electrum.','#6ec8b0');
   return n;
 }
 function askDropElectrum(){
@@ -13090,7 +13112,7 @@ function askDropElectrum(){
   startTalkObj({
     key:'drop_ep',
     who:'MACAR',
-    line:'Drop how much electrum? The curse keeps the rest heavy.',
+    line:'Drop how much electrum?',
     choices:[
       {t:'10', then:()=>dropElectrum(n10)},
       {t:'100', then:()=>dropElectrum(n100)},
@@ -13445,16 +13467,23 @@ function needsWallFaceClear(e){
 function wallFaceClear(x,y,e){
   if(!needsWallFaceClear(e)) return true;
   const L=G.lvl; if(!L||!L.grid) return true;
-  const m=WALL_FACE_CLEAR;
   const ix=Math.floor(x), iy=Math.floor(y);
   const solid=(i,j)=>!!(L.grid[j]&&L.grid[j][i]===1);
   const south=solid(ix,iy+1), east=solid(ix+1,iy), west=solid(ix-1,iy);
   const se=solid(ix+1,iy+1), sw=solid(ix-1,iy+1);
-  if(south && y>iy+1-m) return false;
-  if(east && x>ix+1-m) return false;
-  if(se && y>iy+1-m && x>ix+1-m) return false;
-  if(sw && y>iy+1-m && x<ix+m) return false;
-  if(west && south && x<ix+m) return false;
+  // Two masonry neighbors indicate a corridor, bend or dead end. A visual
+  // inset larger than the body radius disconnects those walkable tiles;
+  // even a .5 inset leaves only an exact center line and prevents turns.
+  // Keep the decorative margin in open areas, but use physical clearance
+  // in tight geometry. canBe still checks all eight body-radius samples.
+  const tight=Number(south)+Number(east)+Number(west)+Number(solid(ix,iy-1))>=2;
+  const m=tight?Math.min(WALL_FACE_CLEAR,e.r||.36):WALL_FACE_CLEAR;
+  const mx=m, my=m;
+  if(south && y>iy+1-my) return false;
+  if(east && x>ix+1-mx) return false;
+  if(se && y>iy+1-my && x>ix+1-mx) return false;
+  if(sw && y>iy+1-my && x<ix+mx) return false;
+  if(west && south && x<ix+mx) return false;
   return true;
 }
 function canBe(x,y,r,e){
@@ -13462,6 +13491,16 @@ function canBe(x,y,r,e){
   return walk(x+r,y,e)&&walk(x-r,y,e)&&walk(x,y+r,e)&&walk(x,y-r,e)&&
          walk(x+r*.7,y+r*.7,e)&&walk(x-r*.7,y-r*.7,e)&&walk(x+r*.7,y-r*.7,e)&&walk(x-r*.7,y+r*.7,e)&&
          wallFaceClear(x,y,e);
+}
+function partyRouteCanBe(x,y,r,e){
+  if(!canBe(x,y,r,e)) return false;
+  if(!e||e.hero) return true;
+  for(const o of G.ents||[]){
+    if(o===e||!PartyFollow.eligible(o)||o.aim||o.defending||o.atk>0) continue;
+    const gap=o.hero?PARTY_SEP_LEAD:PARTY_SEP_KIN;
+    if(Math.hypot(x-o.x,y-o.y)<gap-1e-5) return false;
+  }
+  return true;
 }
 /* Nav lattice uses canStand → canBe. topologyRev is independent of seenRev
    (fog). Level identity is chapter + king-hall so a new map drops the cache. */
@@ -13477,8 +13516,8 @@ function bumpTopology(why){
 }
 function navHost(){
   return {
-    canBe:canBe,
-    steerWalk:steerWalk,
+    canBe:partyRouteCanBe,
+    steerWalk:routeSteerWalk,
     partyForm:partyForm,
     dist:dist,
     levelId:navLevelId(),
@@ -13610,6 +13649,14 @@ function move(e,dx,dy,dt){
   if(canBe(n.x,e.y,e.r,e)){ e.x=n.x; moved=1; }
   if(canBe(e.x,n.y,e.r,e)){ e.y=n.y; moved=1; }
   return moved;
+}
+function routeSteerWalk(e,dx,dy,sp,dt){
+  const mul=typeof wornMoveMul==='function'?wornMoveMul(e):1;
+  const remaining=Math.hypot(dx,dy);
+  // Boots already scale moveStep. Stop on each route point even at 50ms
+  // or with speed boots, rather than overshooting and turning back.
+  if(dt>0 && mul>0) sp=Math.min(sp,remaining/(dt*mul));
+  return steerWalk(e,dx,dy,sp,dt);
 }
 
 /* ==========================================================================
@@ -14407,10 +14454,10 @@ function update(dt){
   if(p){
     p._followDt=dt; p._partyBlocked=false;
     for(const e of G.ents){
-      e._followX=e.x; e._followY=e.y; e._followGait=e.gait||0;
+      e._followX=e.x; e._followY=e.y; e._followGait=e.gait||0;e._partyBlocked=false;
     }
     p._frameStep=0;
-    let dx=0,dy=0, analog=0;
+    let dx=0,dy=0, analog=0, routeDest=false, routeRadius=.26;
     if(IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy, m=Math.hypot(ox,oy);
       const dead=6*UIS;
@@ -14456,6 +14503,7 @@ function update(dt){
     if(!dx&&!dy&&p.dest){
       const d=dist(p,p.dest);
       const arrive=p.dest.foe?(p.range+.2):(p.dest.loot||p.dest.corpse)?1.12:(p.dest.look?0.42:0.26);
+      routeRadius=arrive;
       if(d<=arrive){
         if(p.dest.loot){ const pile=(G.loot||[]).find(z=>z.id===p.dest.loot&&!z.gone); if(pile) takeLoot(pile); }
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
@@ -14463,11 +14511,12 @@ function update(dt){
           if(p.dest.ch1) openCh1QuillLook(p.dest.look);
           else if(typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
         }
-        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look && canBe(p.dest.x,p.dest.y,p.r,p)){ p.x=p.dest.x; p.y=p.dest.y; }
+        if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look &&
+           canBe(p.dest.x,p.dest.y,p.r,p) && d<=p.sp*dt*wornMoveMul(p)){ p.x=p.dest.x; p.y=p.dest.y; }
         p.dest=null; p.stuck=0;
       }
       else {
-        dx=p.dest.x-p.x; dy=p.dest.y-p.y; analog=1;
+        dx=p.dest.x-p.x; dy=p.dest.y-p.y; analog=1; routeDest=true;
         p.stuck=(p.stuck||0)+dt;
         if(p.lastD!==undefined && p.lastD-d>0.008) p.stuck=0;
         p.lastD=d; if(p.stuck>1.4){ p.dest=null; p.stuck=0; }
@@ -14481,7 +14530,16 @@ function update(dt){
     if(G.digging) sp*=0.14;
     if(analog && analog<1) sp*=analog;
     const leadX=p._followX, leadY=p._followY;
-    steerWalk(p, dx, dy, sp, dt);
+    let routed=false;
+    if(!routeDest && (dx||dy) && typeof Navigation!=='undefined') Navigation.clearRoute(p);
+    if(routeDest && p.dest && typeof Navigation!=='undefined' && Navigation.use()){
+      const host=navHost();host.arriveRadius=routeRadius;
+      host.steerWalk=(e,vx,vy,_go,stepDt)=>routeSteerWalk(e,vx,vy,sp,stepDt);
+      const nr=Navigation.tickRoute(p,p.dest,dt,host);
+      routed=!!(nr&&nr.handled);
+      if(routed && Math.hypot(p.x-leadX,p.y-leadY)>.002) p.stuck=0;
+    }
+    if(!routed) steerWalk(p, dx, dy, sp, dt);
     constrainPartyStep(p, leadX, leadY);
     p._frameStep=Math.hypot(p.x-leadX,p.y-leadY);
     if(p.moving) recordTrail(p);
@@ -14770,10 +14828,11 @@ function update(dt){
           ghostSapperBomb(e, dt);
           continue;
         }
-        /* One-follower Follow default (pordoom / first living kin). No order set.
-           Flag-off or non-pilot keeps trail/form. Path fail waits — no teleport. */
-        if(typeof Navigation!=='undefined' && Navigation.use() && Navigation.isPilot(e, G.ents||[])){
-          const nr=Navigation.tickFollower(e, p, dt, navHost());
+        /* Every follower routes to its own crumb, retaining roster spacing.
+           Flag-off keeps trail/form. Path fail waits — no teleport. */
+        if(typeof Navigation!=='undefined' && Navigation.use()){
+          const host=navHost();host.goal=trailSlot(idx<0?0:idx)||followBearingSlot(e,p,idx<0?0:idx);
+          const nr=Navigation.tickFollower(e, p, dt, host);
           if(nr && nr.handled){
             holdFollowWalk(e, p);
             if(p && !e.moving){ e.fdx=p.fdx; e.fdy=p.fdy; }
@@ -14856,7 +14915,7 @@ function update(dt){
   }
 
   for(const s of G.shots){
-    s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; s.spin+=dt*14;
+    stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
       if(dist(s,o)<o.r+.45){
@@ -16561,11 +16620,8 @@ function drawCh1PillarRuby(g,s,z,p){
   }
 }
 function ch1LiftLeverSheet(ready){
-  /* Disney SIGNED rest / thrown. Procedural iron remains if a sheet misses. */
-  if(ready){
-    const thrownSheet=SPR.ch1_lift_lever_thrown;
-    if(thrownSheet&&thrownSheet.width) return thrownSheet;
-  }
+  /* Keep the complete detailed plate in both states; do not swap designs.
+     Chapter I preloads this sheet before showing the world. */
   const img=SPR.ch1_lift_lever;
   return (img&&img.width)?img:null;
 }
@@ -17742,7 +17798,21 @@ function drawKing(g,e,z,sw){
 function drawShot(g,s){
   const p=w2s(s.x,s.y), z=ZOOM;
   g.save(); g.translate(p.x,p.y-28*z);
-  if(s.kind==='web'){
+  if(s.kind==='bolt'){
+    const angle=shotScreenAngle(s),img=SPR.fx_bolt;
+    if(img&&img.width){
+      // Existing bolt art points right and slightly down: nock (28,90),
+      // tip (736,246). Cancel that painted tilt before aiming the sprite.
+      const hh=28*z,ww=hh*(img.width/img.height);
+      g.rotate(angle-Math.atan2(156,708));
+      g.drawImage(img,-ww/2,-hh/2,ww,hh);
+    } else {
+      g.rotate(angle);
+      g.strokeStyle=s.col||'#d8c49a';g.lineWidth=2*z;
+      g.beginPath();g.moveTo(-12*z,0);g.lineTo(10*z,0);g.stroke();
+      g.fillStyle='#d4dbe4';g.beginPath();g.moveTo(14*z,0);g.lineTo(7*z,-3*z);g.lineTo(7*z,3*z);g.closePath();g.fill();
+    }
+  } else if(s.kind==='web'){
     g.rotate(s.spin*0.35);
     const img=TEX.web;
     if(img){ g.globalAlpha=0.9; g.drawImage(img,-18*z,-16*z,36*z,32*z); g.globalAlpha=1; }

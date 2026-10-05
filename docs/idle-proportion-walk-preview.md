@@ -1,0 +1,45 @@
+# Walk with idle proportions
+
+The axe study now renders original pixels from dwarf_macar_idle_axe_v2.png rather than separately redrawn walking bodies. Front/rear body, thigh, calf and boot regions are rotated/translated at joints. All parts share one 0.6 display scale; no limb or boot is stretched or independently resized. Two-link joint solving preserves thigh and calf lengths and uses opposing, continuous foot trajectories. The torso has a small forward lean and weight-shift bob.
+
+Each facing is shown beside its official idle reference at the same scale. The existing user preview tab was refreshed and front/rear views checked. Playback remains continuous, including at 50ms frame intervals. Source PNGs remain unchanged.
+
+Relevant regression checks pass: fixed thigh/calf lengths, continuous foot trajectories, opposite steps, rigid boot rendering, and one shared scale. Existing posture-source isolation/alpha checks also pass. The full gameplay suite was not rerun for this preview-only change.
+
+This is a proportion/fidelity preview, not approved gameplay art. The rigid pieces do not create newly exposed surfaces; joint masks/overlaps and pose polish still need visual review. Crossbow and live game animation remain unchanged. Nothing was merged or deployed.
+
+Imagegen front/rear idle-reference and fidelity-transfer attempts were rejected because frames repeated the leading leg or still drifted from idle proportions. No generated image from those attempts is referenced by this revision. The final approach uses runtime Canvas joint transforms of the existing idle asset.
+
+## Reference-based stance study
+
+Motion reference: https://auteddy.github.io/project_images/isometric_mixamo_dummy_2D_v1_512x512/Walking_8dir_merged.gif (creator: https://auteddy.itch.io/8-directional-character-mixamo-dummy). Inspected the animated eight-direction preview. No reference art was copied.
+
+Replaced the sinusoidal foot motion with a 60% grounded stance and 40% lifted return, alternating legs half a cycle apart. Front diagonals now project foot travel downward at a 2:1 isometric slope, rear diagonals upward. Joint lengths and rigid boot proportions remain fixed. These timings and distances are our adaptation, not measured reference data.
+
+The local preview was refreshed and checked beside the official idle. Relevant rig tests pass, including stance contact, swing lift, cycle closure and proportion preservation. This remains a rigid idle-art study: it cannot supply newly exposed knee/boot surfaces or a fully authored walk. It is not a finished gameplay walk and has not been deployed.
+
+## Contact-pose generation audit
+
+Two built-in imagegen attempts on October 3 failed visual acceptance. The initial two-pose sheet repeats the image-right leading boot; the targeted correction still repeats that leading leg and changes boot proportions. Both also retain a backdrop despite requesting transparent output. Neither asset was copied into gameplay or referenced by the preview. Prompt constraints: original idle identity and high fidelity, two opposite contact poses facing down-right, unchanged chunky boot sizes and short legs, axe on shoulder, transparent background.
+
+Generated outputs: exec-1176b103-31a4-4668-bf0b-17ea5fa1b8a1.png and exec-87a7b6d1-0bf8-4217-9858-ee7e5026fb39.png in the session generated_images directory. A convincing authored cycle remains unresolved; tests of rig geometry do not establish visual acceptance.
+
+## Down-right eight-pose review
+
+Added an eight-pose contact/transfer/passing/return sheet above playback, with Next pose stepping by one eighth cycle. Increased source-space foot travel from +/-12 to +/-24 pixels and swing lift from 8 to 12; removed constant torso rotation and lowered the hips to give the fixed-length legs reach without stretching boots. Original source sprite remains unchanged. This is a manually configured rigid-part animation, not new authored bitmap frames.
+
+Inspected the pose sheet in the browser. Knee/hip segmentation is still visible; this preview is not visually accepted or integrated into gameplay. Rig checks cover both 16.7ms and 50ms updates, opposing foot contacts, fixed lengths, rigid boot scale, continuous motion and cycle closure.
+
+Added rigid rounded overlap regions at knee and hip using the original sprite pixels. They fill exposed cut edges without limb rescaling or source image edits. Browser pose sheet checked and screenshot saved as down-right-joint-overlaps.png. Both relevant regression files pass. Hard segmentation and the limits of two-dimensional idle-art rotation remain; this does not establish a fully natural authored gait. Preview only.
+
+## Front diagonal facing revision
+
+Added assets/creatures/pilots/macar-axe-diagonal-contact-v8.png as a versioned preview asset using built-in imagegen. Prompt: preserve Macar's original idle identity, detailed armor/fur/axe and squat proportions; one elevated-isometric southeast contact pose with head, chest, pelvis, knees and both boot toes directed down-right; transparent background. Original idle remains unchanged.
+
+Front walk previews now use this diagonal sprite, uniformly fitted to a 512px-high canvas, with manually placed joints/masks. Down-left mirrors the same source and transforms, so the x direction reverses together for head/body/feet. Rear and crossbow previews remain unchanged. Browser comparison confirms the new boot projection and mirrored facing; segmented joints and gait polish remain unresolved. This is not integrated into gameplay or deployed. Both relevant regression files pass including the additional diagonal configuration.
+
+## Smooth contact and overlap pass
+
+Grounded foot travel now eases into/out of stance instead of changing velocity abruptly at lift-off and landing. Knee overlap rotates halfway between thigh and calf; a rigid ankle overlap covers the boot/calf cut edge. Diagonal knee/ankle caps are narrower to avoid carrying neighboring pixels into the joint. No image pixels or boot scale were changed.
+
+Both regression files pass. Added numerical velocity-continuity checks at contact, toe-off and cycle wrap; existing proportion and 50ms displacement checks pass. Inspected the refreshed browser pose sheet and moving comparison. This improves transitions but does not remove the cutout quality of the rig; full gait visual acceptance is outstanding. Screenshot: diagonal-smooth-transitions.png. Gameplay remains unchanged.

@@ -70,15 +70,14 @@ for(const axis of ['x','y'])for(const dt of [1/60,.05]){
  }
  check(tangent>.1,'pinned '+axis+' follower escapes along wall');
 }
-// The arrival-snap guard runs after steer. It must not clear the blocked
-// signal from steer, or the pinned follower never gets a clearance step.
+// Party spacing cannot lock the controlled leader behind a follower.
 {
  cases++;const p=entity(0,0,true),e=entity(2.15,0),ctx={PartyFollow:Follow,G:{ents:[p,e]},foeInTheFight:()=>false,Math};
  vm.createContext(ctx);vm.runInContext(fn('constrainPartyStep'),ctx);
  p.x=.1;ctx.constrainPartyStep(p,0,0);
- check(p._partyBlocked===true,'steering records a blocked leader');
+ check(p.x===.1&&!p._partyBlocked,'controlled leader retains its terrain-valid stride');
  ctx.constrainPartyStep(p,0,0);
- check(p._partyBlocked===true,'arrival guard preserves blocked leader signal');
+ check(p.x===.1&&!p._partyBlocked,'arrival guard does not reintroduce follower blocking');
 }
 // Recover pre-existing stacks without deepening any pair or swapping sides.
 for(const dt of [1/60,.05]){
