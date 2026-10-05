@@ -802,6 +802,7 @@ SPRITE_FILES.secret_wall_w='assets/tiles/secret_wall_w.png';
    we do not invent a missing _atk fetch. */
 SPRITE_FILES.ch1_lift_lever='assets/props/prop_ch1_lift_lever.png';
 SPRITE_FILES.ch1_lift_lever_thrown='assets/props/prop_ch1_lift_lever_thrown.png';
+SPRITE_FILES.rubydoor_stairs='assets/props/prop_rubydoor_stairs_v2.png';
 SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 /* Disney SIGNED teeth-chapel v11. After walk/atk derivation so the altar
    sheet does not spawn a missing _atk and the tiles do not spawn _w1.
@@ -969,7 +970,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -3336,6 +3337,18 @@ function drawRubyStepStone(g,step){
   }
 }
 function drawRubyDoorSteps(g,p){
+  const art=SPR.rubydoor_stairs;
+  if(art&&art.width){
+    const half=rubyDoorHalf(),plane=rubyDoorPlaneY(p),rise=TH*.27;
+    const a=w2s(p.x-half,plane),b=w2s(p.x+half,plane),d=w2s(p.x-half,plane+1.02);
+    // Match the painted rear edge and tread depth to the door's world plane.
+    const ux=1470,uy=413,vx=-190,vy=215,det=ux*vy-uy*vx;
+    const bx=b.x-a.x,by=b.y-a.y,dx=d.x-a.x,dy=d.y-a.y+rise;
+    const m0=(bx*vy-dx*uy)/det,m2=(dx*ux-bx*vx)/det;
+    const m1=(by*vy-dy*uy)/det,m3=(dy*ux-by*vx)/det;
+    g.save();g.transform(m0,m1,m2,m3,a.x-m0*270-m2*12,a.y-rise-m1*270-m3*12);
+    g.drawImage(art,0,0,1983,793);g.restore();return;
+  }
   g.save();
   for(const step of rubyDoorSteps(p)){
     // Exposed end stone and the shallow riser below the next tread.
@@ -6904,8 +6917,11 @@ function ch1LeverShownThrown(){
 }
 function throwCh1LiftLever(){
   const L=G.lvl;
-  if(!L||L.n!==1||!L.flags||!L.flags.cleared) return false;
-  if(L.flags.elevReady) return false;
+  if(!L||L.n!==1||!L.flags) return false;
+  // Dialogue pauses world ticks: the last guardian may have died before
+  // the tick which records the cleared flag. Check the encounter itself.
+  if(L.flags.touched && !L.flags.cleared && !rubyGuardiansLeft()){L.flags.cleared=1;L.objs[2].d=1;}
+  if(!L.flags.cleared || L.flags.elevReady) return false;
   L.flags.leverThrown=1;
   shake(10);
   say(QUILL_CH1_SAY.leverThrown,'#d8cbb0');
@@ -7523,6 +7539,11 @@ function startTalkObj(pack){
   G.paused=false;
 }
 function startTalk(key){
+  if((key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look') && G.lvl && G.lvl.n===1){
+    const f=G.lvl.flags;
+    if(f.elevReady) key='ch1_lift_ride';
+    else if(f.cleared || (f.touched && !rubyGuardiansLeft())) key='ch1_lift_pull';
+  }
   const pack=NPC_TALK[key]; if(!pack) return;
   if(isToyTalkKey(key)) G.toyTalkEnded=null;
   startTalkObj(Object.assign({key}, pack));

@@ -186,6 +186,7 @@ const seq={
   say(t){ seq.said.push(t); },
   hint(t){ seq.hints.push(t); },
   shake(){},
+  rubyGuardiansLeft(){ return !seq.G.lvl.flags.cleared; },
   QUILL_CH1_SAY:{elevator_descent:DESCENT, leverThrown:BITE, rubypillar_touch_locked:LOCKED},
   dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
 };
@@ -231,3 +232,11 @@ assert(seq.ch1ElevatorPrompt(atPillar)===null && seq.throwCh1LiftLever()===false
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nChapter I elevator checks passed');
+// A dialogue can open before the next world tick records the last kill.
+seq.G.lvl.flags={touched:1,cleared:0};seq.rubyGuardiansLeft=()=>false;
+assert(seq.throwCh1LiftLever()===true && seq.G.lvl.flags.cleared===1 && seq.G.lvl.flags.elevReady===1,
+  'final guardian kill activates through dialogue before another world tick');
+seq.G.lvl.flags={touched:1,cleared:0};seq.rubyGuardiansLeft=()=>true;
+assert(seq.throwCh1LiftLever()===false && !seq.G.lvl.flags.elevReady,
+  'living guardian still blocks dialogue activation');
+assert(worldKeys.includes("'ch1_pillar_ruby'"),'detailed ruby art is required before Chapter I appears');

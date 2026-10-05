@@ -74,6 +74,16 @@
   if(deeper){tap(deeper.x+deeper.w/2,deeper.y+deeper.h/2);}
   check(G.ch===2&&G.lvl.n===2&&G.scene==='play'&&!!player(),tag+' Go deeper enters playable second level');
  }
+ // Description prompts and a final kill before the next world tick must be actionable.
+ fresh();G.lvl.flags.touched=1;G.lvl.flags.cleared=0;
+ startTalk('ch1_lift_lever_look');
+ check(G.talk&&G.talk.key==='ch1_lift_pull','lever description upgrades after last guardian without another tick');
+ clickChoice();
+ check(G.lvl.flags.elevReady===1&&G.lvl.flags.cleared===1,'dialogue throw records encounter clear and activates lift');
+ startTalk('ch1_lift_lever_thrown_look');
+ check(G.talk&&G.talk.key==='ch1_lift_ride','activated lever dialogue offers descent');
+ clickChoice();check(G.scene==='camp'&&G.unlocked>=2,'lever dialogue descent unlocks second chapter');
+ check(WORLD_ART_KEYS[1].includes('ch1_pillar_ruby'),'detailed pillar ruby is a required Chapter I preload');
  // A tap made out of reach walks to the lever and evaluates its current state on arrival.
  for(const dt of [1/60,.05]){
   fresh();let lead=player();lead.x=39.5;lead.y=24.5;G.lvl.flags.touched=1;G.lvl.flags.cleared=1;
