@@ -34,7 +34,7 @@
 <canvas id="c"></canvas>
 <script src="SkillSystem.js"></script>
 <script src="src/audio/Bgm.js?v=68"></script>
-<script src="src/audio/CombatSfx.js?v=68"></script>
+<script src="src/audio/CombatSfx.js?v=131"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
 <script src="src/packs/EquipmentSlots.js"></script>
@@ -55,10 +55,10 @@
      future file cannot use a blocking tag. -->
 <script src="src/systems/SystemsReady.js"></script>
 <script src="src/combat/PartyFollow.js"></script>
-<script src="src/combat/MacarCrown.js"></script>
+<script src="src/combat/MacarCrown.js?v=131"></script>
 <script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/MacarEquipment.js"></script>
-<script src="src/combat/MacarMotionAtlas.js"></script>
+<script src="src/combat/MacarMotionAtlas.js?v=131"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
@@ -561,6 +561,7 @@ const MUSIC={
   bossHorn:'assets/sfx/horn_boss.mp3'
 };
 const SFX_FILES={
+  explosion:'assets/sfx/toy_explosion.wav',
   hitHeavy1:'assets/sfx/hit_heavy_1.mp3',
   hitHeavy2:'assets/sfx/hit_heavy_2.mp3',
   hitLight1:'assets/sfx/hit_light_1.mp3',
@@ -647,6 +648,9 @@ const SPRITE_FILES={
   lantern:'assets/props/prop_lantern.png', pillar:'assets/props/prop_pillar.png', cart:'assets/props/prop_cart.png',
   winduptoy:'assets/props/prop_winduptoy.png',
   winduptoy_wound:'assets/props/prop_winduptoy_wound.png',
+  loot_gear:'assets/loot/loot_gear.svg',
+  loot_spring:'assets/loot/loot_spring.svg',
+  loot_emerald:'assets/loot/loot_emerald.svg',
   brazier:'assets/props/prop_brazier.png', shroom:'assets/props/prop_shroom.png',   rubydoor:'assets/props/prop_rubydoor.png',
   rubydoor_face:'assets/props/prop_rubydoor_face.png',
   dwarfface:'assets/props/prop_dwarfface.png',
@@ -886,7 +890,7 @@ SPRITE_FILES.macar_atk_contact='assets/creatures/dwarf_macar_atk_contact.png';
 SPRITE_FILES.macar_axe='assets/creatures/dwarf_macar_axe.png';
 SPRITE_FILES.macar_axe_w1='assets/creatures/dwarf_macar_axe_w1.png';
 SPRITE_FILES.macar_axe_w2='assets/creatures/dwarf_macar_axe_w2.png';
-SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk.png';
+SPRITE_FILES.macar_axe_atk='assets/creatures/dwarf_macar_axe_atk_v2.png';
 SPRITE_FILES.macar_xbow='assets/creatures/dwarf_macar_xbow.png';
 SPRITE_FILES.macar_xbow_w1='assets/creatures/dwarf_macar_xbow_w1.png';
 SPRITE_FILES.macar_xbow_w2='assets/creatures/dwarf_macar_xbow_w2.png';
@@ -940,7 +944,7 @@ const MACAR_ONMODEL={
   macar_axe:'assets/creatures/dwarf_macar_axe.png',
   macar_axe_w1:'assets/creatures/dwarf_macar_axe_w1.png',
   macar_axe_w2:'assets/creatures/dwarf_macar_axe_w2.png',
-  macar_axe_atk:'assets/creatures/dwarf_macar_axe_atk.png',
+  macar_axe_atk:'assets/creatures/dwarf_macar_axe_atk_v2.png',
   macar_xbow:'assets/creatures/dwarf_macar_xbow.png',
   macar_xbow_w1:'assets/creatures/dwarf_macar_xbow_w1.png',
   macar_xbow_w2:'assets/creatures/dwarf_macar_xbow_w2.png',
@@ -970,7 +974,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -3098,6 +3102,17 @@ function isTeethNorthWall(L,x,y){
 function isTeethNwChapelWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x<105;
 }
+/* A continuous bone-masonry entrance, including both rubble jambs. Its
+   three-cell opening stays centered on the authored secret. */
+function isCrownEntranceWall(L,x,y){
+  return !!(L&&L.n===1&&y===15&&x>=102&&x<112);
+}
+function applyCrownEntranceFrame(L){
+  if(!L||L.n!==1||!L.grid||!L.grid[15]) return;
+  const sec=(L.secrets||[]).find(s=>s.kind==='teeth');
+  if(!sec||sec.i!==105||sec.j!==15) return;
+  for(let x=102;x<112;x++) L.grid[15][x]=sec.open&&x>=105&&x<108?0:1;
+}
 function teethNorthWallH(L){ return wallFaceH(L)*WALL_TEETH_NORTH_SCALE; }
 /* Northeast stretch of the chapel north wall, the masonry behind the
    demon face (mural stays west of x=105). Taller than the rest of that
@@ -5147,6 +5162,7 @@ function makeChapter(n){
        the hall sees a faded north face — never the far-east dead-end, never south. */
     addSecretDoor(L,{x:106.5,y:15.05,i:105,j:15,w:3,h:1,kind:'teeth',face:'n',
       hint:'The north wall of the east corridor is too even — a colder, greyer face. SEARCH it.'});
+    if(typeof applyCrownEntranceFrame==='function') applyCrownEntranceFrame(L);
     L.objs=[{t:'Wake the fallen under the boulders',d:0},{t:'Touch the ruby door on the north wall',d:0},
             {t:'Slay the ruby guardians',d:0},{t:'Ride the elevator into the depths',d:0}];
     L.rubyDoor={x:36.5,y:7.28};
@@ -6864,6 +6880,7 @@ function restoreSecretEntrances(play){
     if(sec.face==='n') rect(L.grid,sec.i,sec.j+1,sec.w||3,1,0);
     if(sec.kind==='teeth' && sv && (sv.i!==sec.i||sv.j!==sec.j)) buildTeethCrownRoom(L,sec);
   }
+  if(typeof applyCrownEntranceFrame==='function') applyCrownEntranceFrame(L);
   bumpTopology('restoreSecretEntrances');
 }
 /* Continue used to restore the thrall body and drop G.thrallId, so the
@@ -8506,8 +8523,18 @@ function isToyTalkKey(key){
 function explodeWindupToy(toy){
   if(!toy||toy.gone)return false;toy.gone=1;G.lvl.flags.toyDestroyed=1;
   G.toyTalkEnded=null;if(G.talk&&isToyTalkKey(G.talk.key))closeTalk();
+  if(typeof sfx!=='undefined'&&sfx.explosion) sfx.explosion();
   burst(toy.x,toy.y,'#65d69e',24,3);shake(10);
-  spawnLoot(toy.x,toy.y,{kind:'pile',res:{spring:1,gear:1,emerald:1},label:'Clockwork salvage'});
+  const drops=[['gear','Cog / gear','#d2ad60'],['spring','Spring','#b8ced9'],['emerald','Emerald','#65d69e']];
+  drops.forEach(([kind,label,glow],i)=>{
+    // Search nearby clear floor instead of throwing a part into masonry.
+    let x=toy.x,y=toy.y;
+    for(let step=0;step<16;step++){
+      const a=i*TAU/3+step*TAU/16,tx=toy.x+.9+Math.cos(a)*.65,ty=toy.y+.9+Math.sin(a)*.65;
+      if(typeof canBe!=='function'||canBe(tx,ty,.18,toy)){x=tx;y=ty;break;}
+    }
+    spawnLoot(x,y,{kind,res:{[kind]:1},label,glow,dropHold:1});
+  });
   say('The toy bursts apart: a spring, a gear, and an emerald. Crafting salvage.','#9bdeb7');
   return true;
 }
@@ -12067,7 +12094,7 @@ function drawSecretFadedFace(g, L, x, y, H, faceL, faceR){
   const face=sec.face||'n';
   if(!secretFaceOk(face)) return;
   /* Faded masonry face — same tile, desaturated/lightened. Never south. */
-  const img=secretFaceImg(face, faceL, faceR);
+  const img=(typeof isCrownEntranceWall==='function'&&isCrownEntranceWall(L,x,y)&&teethChapelWallImg())||secretFaceImg(face, faceL, faceR);
   const sid=x*31+y*17+29;
   if(face==='e') drawMasonryFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid);
   else if(face==='w') drawMasonryFace(g, img, x, y, x, y+1.14, H, 1, 0, sid);
@@ -12605,6 +12632,7 @@ function buildTeethCrownRoom(L, sec){
   if(typeof corridor==='function') corridor(g, (sx+0.2)|0, (sy-0.2)|0, 107, 8, 3, 0);
   if(typeof carvePath==='function') carvePath(g, [[sx+0.2,sy-0.4],[107,8],[107,5]], 2.15, 0);
   rect(g, x0, y0, rw, rh, 0);
+  if(typeof applyCrownEntranceFrame==='function') applyCrownEntranceFrame(L);
   L.teethBounds={x0:x0,y0:y0,x1:x0+rw,y1:y0+rh};
   L.flags=L.flags||{};
   L.flags.teethRoom=1;
@@ -15276,11 +15304,12 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
+      const entrance=isCrownEntranceWall(L,x,y)?teethChapelWallImg():null;
       const chapel=isTeethNwChapelWall(L,x,y)?teethChapelWallImg():null;
-      if(oS) drawMasonryFace(g, sf==='n'?secN:(chapel||faceL), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, sf==='e'?secE:faceR, x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
-      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, sf==='w'?secW:faceR, x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      if(oS) drawMasonryFace(g, entrance||(sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, entrance||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oN) drawMasonryFace(g, entrance||faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
+      if(oW) drawMasonryFace(g, entrance||(sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
@@ -17312,7 +17341,8 @@ function drawLoot(g,pile){
   g.save(); g.translate(s.x,s.y);
   softShadow(g,0,2*z,14*z,7*z,.5);
   let img=null, h=46*z;
-  if(pile.kind==='axe'){ img=SPR.shadowcleaver||SPR.icon_sword; h=54*z; }
+  if(['gear','spring','emerald'].includes(pile.kind)){img=SPR['loot_'+pile.kind];h=26*z;}
+  else if(pile.kind==='axe'){ img=SPR.shadowcleaver||SPR.icon_sword; h=54*z; }
   else if(pile.kind==='key'){ img=SPR.dwarfkey||SPR.loot_jewelry; h=42*z; }
   else if(pile.kind==='ruby'){ img=SPR.loot_ruby_shard||SPR.loot_ruby; h=28*z; }
   else if(pile.kind==='ore'){ img=SPR.loot_ore; h=38*z; }
@@ -18251,7 +18281,8 @@ function spawnLoot(x,y, pile){
     res:pile.res||null,
     glow:pile.glow||(pile.kind==='ruby'?'#ff2a3c':'#ffd27a')
   };
-  if(pile.packDrop){ loot.packDrop=pile.packDrop; loot.dropHold=pile.dropHold?1:0; }
+  if(pile.packDrop) loot.packDrop=pile.packDrop;
+  if(pile.dropHold) loot.dropHold=1;
   loot.label=lootLabel(Object.assign({label:pile.label}, loot));
   G.loot.push(loot);
   burst(x,y,loot.glow,10,2.2);

@@ -146,7 +146,7 @@ assert(/loot_shadowcleaver\.png/.test(html), 'axe sprite registered');
 calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe.png')), 'Shadow Cleaver carry sheet exists');
 calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_axe_atk.png')), 'Shadow Cleaver atk sheet exists');
 assert(/dwarf_macar_axe\.png/.test(html), 'Macar axe sprite is registered');
-assert(/dwarf_macar_axe_atk\.png/.test(html), 'Macar axe atk sprite is registered');
+assert(/dwarf_macar_axe_atk_v2\.png/.test(html), 'repaired Macar axe atk sprite is registered');
 assert(/wieldsShadowCleaver/.test(html), 'cleaver still has a wield helper');
 calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow.png')), 'crossbow carry sheet exists');
 calib(fs.existsSync(path.join(__dirname,'../../assets/creatures/dwarf_macar_xbow_atk.png')), 'crossbow atk sheet exists');

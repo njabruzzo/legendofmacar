@@ -141,6 +141,18 @@
     return this._startEl(el, 0.72);
   };
 
+  // Destruction is a once-only world event. A recent melee hit or a full
+  // hit-voice budget must not suppress its boom.
+  CombatSfx.prototype.explosion = function () {
+    var src = this.files && this.files.explosion;
+    if (!src || !this._Audio) return false;
+    var el = this._makeEl(false);
+    if (!el) return false;
+    el.src = this.assetUrl(src);
+    this.plays.push('explosion');
+    return this._startEl(el, 0.72);
+  };
+
   CombatSfx.prototype.stopBed = function () {
     this._bedOn = false;
     if (!this._bed) return;

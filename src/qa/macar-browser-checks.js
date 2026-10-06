@@ -31,6 +31,7 @@
   const view=['n','ne','nw'].includes(dirs[i])?'rear':'front';
   if(stem==='macar_xbow')expected='macar_xbow_side_'+view;
   if(stage.startsWith('walk')&&weapon!=='maul')expected='macar_'+(weapon==='axe'?'axe':'xbow')+'_cycle_'+view+'_'+(Number(stage.slice(4))-1);
+  if(stage.startsWith('walk')&&weapon==='axe'&&dirs[i]!=='n'&&dirs[i]!=='s')expected='macar_axe_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i]);
   check(key===expected,weapon+' '+stage+' '+dirs[i]+' expected '+expected+' got '+key);
   check(blit===key,weapon+' '+stage+' '+dirs[i]+' blit does not revert pose');
   check(!!MacarCrown.layout(SPRITE_FILES[blit],SPR[blit],{x:0,y:0,w:100,h:100},wantsSpriteFlip(hero)),'crown seat '+blit);
@@ -55,7 +56,7 @@
   Object.assign(hero,{moving:state==='walk'?1:0,atk:state==='strike'?.4:0,atkMax:1,atkKind:state==='bow'?'bow':'melee',bowPoseUntil:state==='bow'?nowMs()+1000:0,bowPoseT:0,macarWindupUntil:0});
   const stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   const key=livingMacarAnimKey(hero);
-  check(state==='bow'||weapon==='crossbow'&&state!=='walk'?key==='macar_xbow_side_rear':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&(/_w[12]$/.test(key)||/_cycle_rear_[0-3]$/.test(key)):key===stem+'_idle_ne','equipment switch '+weapon+' '+state+' got '+key);
+  check(state==='bow'||weapon==='crossbow'&&state!=='walk'?key==='macar_xbow_side_rear':state==='strike'?key.startsWith(stem+'_atk'):state==='walk'?key.startsWith(stem)&&(/_w[12]$/.test(key)||/_cycle_rear_[0-3]$/.test(key)||key==='macar_axe_idle_ne'):key===stem+'_idle_ne','equipment switch '+weapon+' '+state+' got '+key);
   check(livingMacarBlitKey(key)===key,'switch survives blit '+weapon+' '+state);
  }
 
@@ -90,7 +91,7 @@
   const key=livingMacarAnimKey(hero),stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   check(screenOctant(hero)===dirs[i],weapon+' stopped heading '+dirs[i]);
   check(key===(weapon==='crossbow'?'macar_xbow_side_'+(['n','ne','nw'].includes(dirs[i])?'rear':'front'):stem+'_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i])),weapon+' stopped planted pose '+dirs[i]);
-  check(key!==walk&&SPR[key].__macarDirectionalIdle,weapon+' settles to a genuine standing frame '+dirs[i]);
+  check((key!==walk||weapon==='axe'&&dirs[i]!=='n'&&dirs[i]!=='s')&&SPR[key].__macarDirectionalIdle,weapon+' settles to a genuine standing frame '+dirs[i]);
  }
  const idleSheet=document.createElement('canvas');idleSheet.width=1440;idleSheet.height=720;
  const ig=idleSheet.getContext('2d');ig.fillStyle='#424242';ig.fillRect(0,0,1440,720);

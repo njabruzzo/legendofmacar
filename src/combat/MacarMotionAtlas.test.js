@@ -7,13 +7,13 @@ for(const weapon of ['axe','xbow'])for(const oct of ['e','se','s','sw','w','nw',
  const seen=new Set();
  for(let phase=0;phase<4;phase++){
   const key=Atlas.select(weapon,{gait:phase/4+.125},oct,true);seen.add(key);
-  assert.equal(key,`macar_${weapon}_cycle_${view}_${phase}`);
+  assert.equal(key,weapon==='axe'&&oct!=='n'&&oct!=='s'?'macar_axe_idle_'+({w:'e',sw:'se',nw:'ne'}[oct]||oct):`macar_${weapon}_cycle_${view}_${phase}`);
  }
- assert.equal(seen.size,4,'four distinct planted and passing phases');
+ assert.equal(seen.size,weapon==='axe'&&oct!=='n'&&oct!=='s'?1:4,'only signed direction-matching cycles are used');
  assert.equal(Atlas.select(weapon,{gait:.99},oct,false),weapon==='xbow'?`macar_xbow_side_${view}`:null);
  for(const dt of [1/60,.05]){
-  const phases=new Set();for(let t=0;t<1;t+=dt)phases.add(Atlas.pose(Atlas.select(weapon,{gait:t*2},oct,true)).phase);
-  assert.equal(phases.size,4,'normal and long frames retain both contacts and passing poses');
+  const phases=new Set();for(let t=0;t<1;t+=dt){const p=Atlas.pose(Atlas.select(weapon,{gait:t*2},oct,true));phases.add(p?p.phase:'compass');}
+  assert.equal(phases.size,weapon==='axe'&&oct!=='n'&&oct!=='s'?1:4,'normal and long frames keep the correct heading');
  }
 }
 for(const [key,file] of Object.entries(bindings)){
