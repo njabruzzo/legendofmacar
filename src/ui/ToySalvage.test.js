@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const html=fs.readFileSync(require('path').join(__dirname,'../../index.html'),'utf8');
+const fn=n=>html.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0];
+const drops=[];const ctx={G:{lvl:{flags:{}},talk:null},burst(){},shake(){},say(){},spawnLoot:(x,y,p)=>drops.push({x,y,...p})};vm.createContext(ctx);vm.runInContext(fn('explodeWindupToy'),ctx);
+const toy={x:4,y:5};assert(ctx.explodeWindupToy(toy));assert(!ctx.explodeWindupToy(toy));assert.equal(drops.length,1);assert.equal(toy.gone,1);assert(ctx.G.lvl.flags.toyDestroyed);
+assert.deepEqual(JSON.parse(JSON.stringify(drops[0].res)),{spring:1,gear:1,emerald:1});
+require('../crafting/CraftingEngine');const engine=globalThis.CraftingEngine;
+const book=JSON.parse(fs.readFileSync(require('path').join(__dirname,'../crafting/recipes.json'),'utf8'));engine.setRecipes(book.recipes);
+const r=engine.get('emerald_clockwork_bolts');assert(r);assert.deepEqual(r.ingredients,{spring:1,gear:1,emerald:1});assert.equal(r.output.field,'ammo');
+console.log('Toy yields one salvage pile with all three craftable ingredients');

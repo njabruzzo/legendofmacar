@@ -140,7 +140,7 @@ assert(/windupToyBlitFace\(heading, p\.scampFace/.test(extractFn('drawWindupToyP
 assert(/windupToySheetKey\(p\)/.test(extractFn('drawWindupToyProp')),
   'the walker chooses the mirror from the sheet it draws');
 
-assert(ctx.windupToySheetKey({k:'winduptoy'})==='prop_winduptoy', 'unwound toy draws prop_winduptoy');
+assert(ctx.windupToySheetKey({k:'winduptoy'})==='prop_winduptoy_wound', 'unwound toy keeps detailed prop_winduptoy_wound');
 ctx.G.lvl.flags.toyWound=1;
 assert(ctx.windupToySheetKey({k:'winduptoy'})==='prop_winduptoy_wound', 'wound toy draws prop_winduptoy_wound');
 ctx.G.lvl.flags.toyWound=0;

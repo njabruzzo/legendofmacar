@@ -300,12 +300,12 @@
       if (self.ctx && self.ctx.state === 'suspended') {
         self.queued = want;
         self.unlocked = false;
-        return;
       }
       if (want) self.play(want, { fromLaunch: true });
     };
 
     var p = this._resumeCtx();
+    go(); // Try media playback even if context resume waits for a gesture.
     if (p && p.then) {
       p.then(go, function () {
         self.queued = self.queued || id;

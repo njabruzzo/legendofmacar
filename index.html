@@ -970,7 +970,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -984,7 +984,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -4087,6 +4087,8 @@ function propSpriteKey(p){
   if(k==='rubble') return p.spr||'rubble';
   if(k==='cavein') return 'cavein';
   if(k==='rubywall') return SPR.rubywall?'rubywall':(SPR.rubydoor_face?'rubydoor_face':'rubydoor');
+  if(k==='floorlever') return 'ch1_lift_lever';
+  if(k==='floorRubyDoor') return 'rubydoor';
   if(k==='rubydoor') return 'rubydoor';
   if(k==='dwarfface') return 'dwarfface';
   if(k==='demonface') return SPR.demon_dwarfface?'demon_dwarfface':(SPR.demonface?'demonface':null);
@@ -4133,6 +4135,8 @@ function propSpriteH(p,z){
   if(k==='chain') return 96*z;
   if(k==='timber') return 100*z;
   if(k==='lantern') return 102*z;
+  if(k==='floorlever') return 86*z;
+  if(k==='floorRubyDoor') return 150*z;
   if(k==='lift') return 72*z;
   if(k==='rubypillar') return 78*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z*(p.s||1);
@@ -6461,8 +6465,51 @@ const CH_INTRO={
 };
 const CHAPTERS=[1,2,3,4,5];
 
+function ensureFloorTravelProps(){
+  const L=G.lvl;if(!L||!L.spawn)return;
+  const spot=(dx,dy)=>{const h=player();for(let r=0;r<12;r++)for(let i=0;i<8;i++){const a=i*Math.PI/4,x=L.spawn.x+dx+Math.cos(a)*r*.5,y=L.spawn.y+dy+Math.sin(a)*r*.5;if(canBe(x,y,h.r||.36,h))return{x,y};}return{x:L.spawn.x,y:L.spawn.y};};
+  if(!(G.props||[]).some(p=>p.k==='floorlever'))G.props.push(Object.assign(spot(2,4),{k:'floorlever'}));
+  if(L.n>1&&!G.props.some(p=>p.k==='floorRubyDoor'))G.props.push(Object.assign(spot(-2,4),{k:'floorRubyDoor'}));
+}
+function floorTravelReady(){return G.lvl.n===1?!!G.lvl.flags.elevReady:!!G.lvl.flags.floorRubyActivated;}
+function travelFloor(n){
+  const L=G.lvl;if(!L||n<1||n>5||Math.abs(n-L.n)!==1)return false;
+  if(n>L.n&&!floorTravelReady()){hint('Activate this floor’s ruby door before descending.',4);return false;}
+  const party=GameSave.captureWorld(G).party;
+  G.floorWorlds=G.floorWorlds||{};G.floorWorlds[L.n]=capturePlaySave();
+  const saved=G.floorWorlds[n];G._keepProgress=1;
+  G._loadSnap=saved?{play:saved,scene:'play'}:null;startChapter(n);
+  const spawn=G.lvl.spawn;
+  for(const e of G.ents){if(e.team!=='party'||!e.col)continue;const old=party.find(q=>q.key===e.col.key);if(old){e.hp=old.hp;e.maxhp=old.maxhp;e.dead=old.dead;e.ghost=old.ghost;}e.x=spawn.x;e.y=spawn.y;e.dest=null;e.moving=0;}
+  G.cam.x=spawn.x;G.cam.y=spawn.y;G.scene='play';ensureFloorTravelProps();rebuildVision();writeGameSave(true);return true;
+}
+function openFloorLever(){
+  const n=G.lvl.n,choices=[];
+  if(n>1)choices.push({t:'Go up to floor '+(n-1)+'.',then:()=>travelFloor(n-1)});
+  if(n<5)choices.push(floorTravelReady()?{t:'Go down to floor '+(n+1)+'.',then:()=>travelFloor(n+1)}:{t:'The ruby door must be activated first.'});
+  choices.push({t:'Leave it.'});startTalkObj({key:'floor_travel',who:'FLOOR LEVER',line:'Choose a floor. The ruby seals the way down.',choices});
+}
+function openFloorRuby(){
+  const L=G.lvl,door=G.props.find(q=>q.k==='floorRubyDoor');if(!L||!door)return;
+  startTalkObj({key:'floor_ruby',who:'RUBY DOOR',line:L.flags.floorRubyActivated?'The ruby has opened the way down.':'The ruby seals the descent from this floor.',choices:L.flags.floorRubyActivated?[{t:'Leave it.'}]:[{t:'Activate the ruby.',then:()=>{L.flags.floorRubyActivated=1;burst(door.x,door.y,'#ff334a',18,2);writeGameSave(true);}},{t:'Leave it.'}]});
+}
+function floorTravelScreenHit(t){
+  for(const prop of (G.props||[])){if(prop.gone||!['floorlever','floorRubyDoor'].includes(prop.k))continue;
+    const image=SPR[propSpriteKey(prop)],s=w2s(prop.x,prop.y),h=propSpriteH(prop,ZOOM),w=image&&image.width?h*image.width/image.height:h;
+    if(t.x>=s.x-w/2&&t.x<=s.x+w/2&&t.y>=s.y-h&&t.y<=s.y+6*ZOOM)return prop;
+  }return null;
+}
+function tickFloorTravel(){
+  if(G.talk)return;const p=player(),L=G.lvl;if(!p||!L)return;
+  const lever=G.props.find(q=>q.k==='floorlever');
+  const door=G.props.find(q=>q.k==='floorRubyDoor');
+  if(door&&dist(p,door)<1.8&&!L.flags.floorRubyActivated){interact('Activate the ruby door',openFloorRuby);}
+  else if(lever&&dist(p,lever)<1.8)interact('Use the floor lever',openFloorLever);
+}
 function startChapter(n){
+  if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
   const keep=!!G._keepProgress;
+  if(n===1&&!keep)G.floorWorlds={};
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
   G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
@@ -6554,6 +6601,7 @@ function startChapter(n){
   if(typeof Interaction!=='undefined' && Interaction.installChapterI)
     Interaction.installChapterI(G.lvl, G, interactHost());
   if(typeof layoutUI==='function') layoutUI();
+  ensureFloorTravelProps();
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
   if(typeof tryEnterPlay==='function') tryEnterPlay();
 }
@@ -6770,7 +6818,7 @@ function applyPlaySave(play){
     G.loot=[];
     (play.loot||[]).forEach(z=>spawnLoot(z.x,z.y,{
       kind:z.kind, coins:z.coins||{}, gems:z.gems||0, jew:z.jew||0,
-      potions:z.potions||[], items:z.items||[], label:z.label, glow:z.glow,
+      potions:z.potions||[], items:z.items||[], res:z.res||null, label:z.label, glow:z.glow,
       packDrop:z.packDrop||null, dropHold:z.dropHold?1:0
     }));
     (play.party||[]).forEach(sv=>{
@@ -8455,6 +8503,14 @@ function isToyTalkKey(key){
   return key==='toy_find'||key==='toy_wind'||key==='toy_grond'||key==='toy_teeth'
     ||key==='toy_ruby'||key==='toy_froren'||key==='toy_mordain'||key==='toy_anvil';
 }
+function explodeWindupToy(toy){
+  if(!toy||toy.gone)return false;toy.gone=1;G.lvl.flags.toyDestroyed=1;
+  G.toyTalkEnded=null;if(G.talk&&isToyTalkKey(G.talk.key))closeTalk();
+  burst(toy.x,toy.y,'#65d69e',24,3);shake(10);
+  spawnLoot(toy.x,toy.y,{kind:'pile',res:{spring:1,gear:1,emerald:1},label:'Clockwork salvage'});
+  say('The toy bursts apart: a spring, a gear, and an emerald. Crafting salvage.','#9bdeb7');
+  return true;
+}
 function windupToyProp(){
   return (G.props||[]).find(pr=>pr&&pr.k==='winduptoy'&&!pr.gone)||null;
 }
@@ -8567,7 +8623,7 @@ function toyScreenFace(dx, dy, prev){
    left or right screen face — on straight north and south. */
 const TOY_PAINTED_FACE={prop_winduptoy:-1,prop_winduptoy_wound:1};
 function windupToySheetKey(p){
-  if(p&&p.k==='winduptoy'&&G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound&&SPR.winduptoy_wound)
+  if(p&&p.k==='winduptoy'&&SPR.winduptoy_wound)
     return 'prop_winduptoy_wound';
   return 'prop_winduptoy';
 }
@@ -8597,7 +8653,7 @@ function drawWindupToyProp(g,p,z){
   g.rotate(lean+key);
   g.translate(run?Math.sin(phase)*H*0.04:0, bob);
   g.scale(1/stretch, stretch);
-  const img=propAnimImg(p);
+  const img=SPR.winduptoy_wound;
   if(img&&img.width) drawBillboard(g,img,H);
   else {
     g.beginPath(); g.ellipse(0,-3*z*ts,9*z*ts,4.2*z*ts,0,0,TAU);
@@ -11909,6 +11965,7 @@ function meleeSwing(e,arc,reach,dmg,col){
         wear(e.gear,0.35,0);
         const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; }
     } }
+  if(e.hero && typeof windupToyProp==='function'){const toy=windupToyProp();if(toy && dist(e,toy)<=rad+.35 && hasLOS(e.x,e.y,toy.x,toy.y)){const a=ang(toy.x-e.x,toy.y-e.y);if(Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI)<=wedge/2){explodeWindupToy(toy);hit=1;}}}
   const L=G.lvl;
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
@@ -11926,6 +11983,7 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
 function stepShot(s,dt){
   s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
   s.spin=s.kind==='bolt'?0:(s.spin||0)+dt*14;
+  if(s.from&&s.from.hero&&typeof windupToyProp==='function'){const toy=windupToyProp();if(toy&&Math.hypot(s.x-toy.x,s.y-toy.y)<.5){explodeWindupToy(toy);s.life=0;}}
 }
 function shotScreenAngle(s){
   // Project velocity with the same isometric axes as w2s, independently
@@ -14293,6 +14351,7 @@ function fire(key){
     /* Attack swings at a foe. It never chooses the bone crown. */
     const foe=nearestFoe(p, p.range+2.8)||(p.aim&&!p.aim.dead?p.aim:null);
     if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
+    else {const toy=windupToyProp();if(toy&&dist(p,toy)<p.range+1)faceToward(p,toy.x,toy.y);}
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
@@ -15006,6 +15065,7 @@ function update(dt){
   if(typeof tickHourglassRaid==='function') tickHourglassRaid(dt);
   if(typeof tickElectrumCurse==='function') tickElectrumCurse(dt);
   if(L.tick) L.tick(dt);
+  tickFloorTravel();
   endFightIfClear();
   if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12));
 }
@@ -16818,6 +16878,10 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   if(!p||p.gone||p.taken) return;
   const s=w2s(p.x,p.y), z=ZOOM;
+  if(p.k==='floorRubyDoor'){
+    const img=solidRubyDoorSheet()||propAnimImg(p),half=1.08,H=propSpriteH(p,z);
+    drawIsoPlaneImg(g,img,p.x-half,p.y,p.x+half,p.y,H,{stroke:0});return;
+  }
   if(p.k==='rubydoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p);
     const H=rubyDoorH();
@@ -17909,6 +17973,9 @@ function drawPart(g,q){
    ECONOMY  -  ore, skills, gear, consumables. Persists across chapters.
    ========================================================================== */
 const RESMETA={
+  spring:{n:'Clockwork Spring',c:'#d6d6cf',s:'S'},
+  gear:{n:'Clockwork Gear',c:'#cfa65c',s:'G'},
+  emerald:{n:'Emerald',c:'#52d59b',s:'E'},
   ironstone :{n:'Ironstone',  c:'#c2ad91', s:'I'},
   deepsilver:{n:'Deepsilver', c:'#d6e6f0', s:'D'},
   starmetal :{n:'Starmetal',  c:'#a6dcff', s:'S'},
@@ -18988,7 +19055,7 @@ function drawHUD(g){
   if(!bigMap) drawMinimap(g,s);
   drawObjectives(g,s);
   drawGuideArrow(g,s);
-  drawOre(g,s);
+  // Material and currency totals remain in inventory, away from the field HUD.
   if(typeof drawHourglassHud==='function') drawHourglassHud(g,s);
   /* The large map paints over the field HUD, under the thumb buttons. */
   if(bigMap) drawMinimap(g,s);
@@ -20872,6 +20939,7 @@ function drawBetween(g){
 
 function drawCamp(g){
   menuHits=[]; const s=UIS;
+  if(!worldArtReady(G.ch)){g.fillStyle='#0b0806';g.fillRect(0,0,VW,VH);g.fillStyle='#e0ccab';g.font='18px '+FONT_UI;g.fillText('Preparing camp…',24,48);return;}
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
   const titleY=VH*(PORT?0.055:0.048);
   const titleSize=(PORT?22:28)*s;
@@ -21442,7 +21510,7 @@ function drawEquipDoll(g, x, y, w, h){
     const filled=!!it;
     plate(g, c.x, c.y, c.w, c.h, 5, filled?0.92:0.42);
     g.strokeStyle=on?'rgba(255,220,140,0.95)':(filled?'rgba(255,208,124,0.55)':'rgba(120,100,80,0.45)');
-    g.lineWidth=on?2:1.2;
+    g.lineWidth=filled?3.5*s:(on?2:1.2);
     roundPath(g, c.x, c.y, c.w, c.h, 5); g.stroke();
     const thumb=slotThumbFor(it, c.k);
     if(filled && thumb) drawThumb(g, thumb, c.x+3, c.y+3, Math.min(c.w, c.h)-6);
@@ -21802,6 +21870,7 @@ function drawPack(g){
     const y=listTop+i*rowH, x=listX, h=rowH-4*s, w=listW;
     const sel=G.packSel && ((r.it&&r.it===G.packSel)||(r.gm&&r.gm===G.packSel)||r===G.packSel);
     plate(g,x,y,w,h,6,sel?0.95:0.84);
+    if(r.worn){g.strokeStyle='#ffe3a0';g.lineWidth=4*UIS;roundPath(g,x+2*UIS,y+2*UIS,w-4*UIS,h-4*UIS,6);g.stroke();}
     if(sel){ g.strokeStyle='rgba(255,208,124,0.85)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke(); }
     const dropW=Math.min(70*s, w*0.16), dropH=Math.min(28*s, h-16*s);
     const dropX=x+w-dropW-6*s, dropY=y+(h-dropH)/2;
@@ -22151,6 +22220,8 @@ function resolveTaps(){
       if(G.aim){ const d=dist(p,w), R=8;
         G.aim = d>R ? {x:p.x+(w.x-p.x)/d*R, y:p.y+(w.y-p.y)/d*R} : {x:w.x,y:w.y};
         continue; }
+      const floorHit=floorTravelScreenHit(t);
+      if(floorHit){if(dist(p,floorHit)<2){p.dest=null;if(floorHit.k==='floorlever')openFloorLever();else openFloorRuby();}else{p.dest={x:floorHit.x,y:floorHit.y};p.stuck=0;}continue;}
       const ch1Hit=ch1ScreenLookHit(t);
       if(ch1Hit){
         if(dist(p,ch1Hit)<=ch1QuillLookReach(ch1Hit.key)) {p.dest=null;openCh1QuillLook(ch1Hit.key);}

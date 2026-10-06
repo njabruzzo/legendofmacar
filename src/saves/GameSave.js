@@ -337,7 +337,7 @@
       loot: (play.loot || []).map(function (z) {
         return {
           x: z.x, y: z.y, kind: z.kind, coins: z.coins, gems: z.gems, jew: z.jew,
-          potions: z.potions, items: z.items, label: z.label, glow: z.glow,
+          potions: z.potions, items: z.items, res: z.res?clone(z.res):null, label: z.label, glow: z.glow,
           packDrop: z.packDrop || null, dropHold: z.dropHold ? 1 : 0
         };
       }),
@@ -424,6 +424,7 @@
       ch: snap.ch || 1,
       unlocked: snap.unlocked || 1,
       cleared: clone(snap.cleared || {}),
+      floorWorlds: Object.fromEntries(Object.entries(snap.floorWorlds||{}).filter(([n])=>+n>=1&&+n<=5).map(([n,w])=>[n,normalizePlay(w)])),
       coin: clone(snap.coin || {}),
       res: clone(snap.res || {}),
       packs: clone(snap.packs || {}),
@@ -466,6 +467,7 @@
       ch: G.ch || 1,
       unlocked: G.unlocked || 1,
       cleared: clone(G.cleared || {}),
+      floorWorlds: clone(G.floorWorlds||{}),
       coin: clone(G.coin || {}),
       res: clone(G.res || {}),
       packs: clone(G.packs || {}),
@@ -503,6 +505,7 @@
     G.ch = snap.ch || 1;
     G.unlocked = snap.unlocked || 1;
     G.cleared = clone(snap.cleared || {});
+    G.floorWorlds=clone(snap.floorWorlds||{});
     G.coin = clone(snap.coin || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
     G.res = clone(snap.res || {});
     G.packs = clone(snap.packs || {});

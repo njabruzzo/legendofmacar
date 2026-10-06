@@ -6,7 +6,7 @@
  const tap=(x,y)=>{IN.taps.push({x,y});resolveTaps();};
  const fresh=()=>{startChapter(1);G.scene='play';G.paused=false;G.talk=null;G.sleepShow=false;PROMPT=null;promptBtn=null;throwBtn=null;UI.overlayHits=[];UI.portraitHits=[];UI.talkHits=[];IN.keys={};IN.taps=[];TW=116;TH=58;ZOOM=1;CAMSX=0;CAMSY=0;G.ents=G.ents.filter(e=>e.hero);};
  try{
- await Promise.all(['ch1_pillar_ruby','ch1_lift_lever','ch1_lift_lever_thrown','rubydoor','pillar'].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'load '+k);resolve();}))));
+ await Promise.all([...new Set([...WORLD_ART_KEYS[1],'ch1_pillar_ruby','ch1_lift_lever','ch1_lift_lever_thrown','rubydoor','pillar'])].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'load '+k);resolve();}))));
  fresh();let p=player();p.x=37.15;p.y=22.05;G.lvl.flags.touched=1;G.lvl.flags.cleared=1;
  let s=w2s(36.5,21.5),img=ch1LiftLeverSheet(false),h=86*ZOOM,w=h*img.width/img.height;
  tap(s.x+26*ZOOM+(0.5-0.47)*w,s.y+10*ZOOM-h*.5);
@@ -142,7 +142,54 @@
   }
   result.observations.push({tag:region.name+' margin escape',cases});
  }
+ // Toy combat salvage and persistent floor travel.
+ fresh();let toy=windupToyProp(),lead=player();lead.x=toy.x-.5;lead.y=toy.y;lead.fdx=1;lead.fdy=0;
+ const beforeLoot=G.loot.length;meleeSwing(lead,2.5,1.4,20,'#fff');
+ check(toy.gone&&G.loot.length===beforeLoot+1,'melee hit explodes toy into one salvage pile');
+ meleeSwing(lead,2.5,1.4,20,'#fff');check(G.loot.length===beforeLoot+1,'toy cannot duplicate salvage');
+ const salvage=G.loot[G.loot.length-1];check(salvage.res.spring===1&&salvage.res.gear===1&&salvage.res.emerald===1,'all three crafting components drop');
+ const toySave=GameSave.snapshot(G);GameSave.applyCampaign(G,toySave);applyPlaySave(toySave.play);
+ check(!windupToyProp()&&G.loot.some(q=>q.res&&q.res.emerald===1),'destroyed toy and salvage survive reload');
+ const recovered=G.loot.find(q=>q.res&&q.res.emerald===1);takeLoot(recovered,true);
+ check(G.res.spring>=1&&G.res.gear>=1&&G.res.emerald>=1,'salvage can be collected for crafting');
+ const ammoBefore=packOf('macar').ammo||0;
+ const crafted=CraftingEngine.craftItem('emerald_clockwork_bolts',makeCraftingBridge());
+ check(crafted.ok&&(packOf('macar').ammo||0)===ammoBefore+12,'spring gear emerald craft twelve bolts');
+ fresh();toy=windupToyProp();lead=player();lead.x=toy.x-.2;lead.y=toy.y;
+ const bolt=shoot(lead,toy.x,toy.y,12,'bolt','#fff',9);stepShot(bolt,1/60);
+ check(toy.gone&&bolt.life===0,'hero crossbow bolt explodes toy and stops');
+ check(!travelFloor(2)&&G.ch===1,'floor one down stays locked until ruby encounter complete');
+ G.lvl.flags.elevReady=1;G.lvl.flags.travelMarker='preserved';
+ check(travelFloor(2)&&G.ch===2,'floor one lever descends after activation');
+ check(G.props.some(q=>q.k==='floorRubyDoor')&&G.props.some(q=>q.k==='floorlever'),'floor two has ruby door and lever');
+ check(!travelFloor(3),'later floor down is ruby locked');
+ openFloorRuby();pickTalk(0);check(G.lvl.flags.floorRubyActivated===1,'ruby dialogue unlocks descent');
+ const rememberedFoe=G.ents.find(e=>e.team==='foe'&&!e.dead);if(rememberedFoe){rememberedFoe.hp=3;rememberedFoe.x+=.1;}
+ const foeId=rememberedFoe&&rememberedFoe.id;
+ G.lvl.flags.floorRubyActivated=1;G.lvl.flags.travelMarker='floor two';
+ check(travelFloor(1)&&G.lvl.flags.travelMarker==='preserved','upstairs restores first floor state');
+ check(travelFloor(2)&&G.lvl.flags.travelMarker==='floor two'&&floorTravelReady(),'return restores second floor ruby activation');
+ if(foeId)check(G.ents.some(e=>e.id===foeId&&e.hp===3),'enemy damage persists across up/down travel');
+ const floorLever=G.props.find(q=>q.k==='floorlever');lead=player();lead.x=floorLever.x;lead.y=floorLever.y;G.talk=null;PROMPT=null;promptBtn=null;
+ const ls=w2s(floorLever.x,floorLever.y);tap(ls.x,ls.y-35*ZOOM);
+ check(G.talk&&G.talk.key==='floor_travel'&&G.talk.choices.some(q=>q.t.includes('Go up'))&&G.talk.choices.some(q=>q.t.includes('Go down')),'painted lever click opens both available travel choices');G.talk=null;
+ const floorSave=GameSave.snapshot(G),campaign={};GameSave.write(localStorage,floorSave);GameSave.applyCampaign(campaign,GameSave.read(localStorage));
+ check(campaign.floorWorlds[1].flags.travelMarker==='preserved'&&campaign.floorWorlds[1].props.length>0,'visited floor geometry and props survive saved campaign');
+ for(let n=3;n<=5;n++){G.lvl.flags.floorRubyActivated=1;check(travelFloor(n)&&G.ch===n,'travel down to floor '+n);check(G.props.some(q=>q.k==='floorRubyDoor')&&G.props.some(q=>q.k==='floorlever'),'travel props floor '+n);check(G.props.filter(q=>['floorRubyDoor','floorlever'].includes(q.k)).every(q=>canBe(q.x,q.y,player().r||.36,player())),'travel controls on reachable floor tiles '+n);}
+ check(!travelFloor(6),'no nonexistent sixth floor');
+ check(GameSave.read(localStorage).ch===5&&!!GameSave.read(localStorage).floorWorlds[4],'all visited floors save through floor five');
+ fresh();G.lvl.flags.elevReady=1;G.lvl.flags.campMarker='kept';endChapter();startChapter(2);
+ check(travelFloor(1)&&G.lvl.flags.campMarker==='kept','original camp Go deeper route also preserves the previous floor');
  }catch(e){result.failures.push(e.stack);}
+ // Render the later-floor controls for visual review after all state checks.
+ await Promise.all(WORLD_ART_KEYS[2].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,()=>resolve()))));
+ startChapter(2);G.scene='play';G.lvl.flags.floorRubyActivated=0;G.equipped={primary:{n:"Macar's War Hammer",k:'weapon'}};
+ const visual=document.createElement('canvas');visual.width=900;visual.height=700;
+ const oldW=VW,oldH=VH;VW=900;VH=700;TW=116;TH=58;ZOOM=1;
+ CAMSX=0;CAMSY=0;const center=w2s(player().x,player().y);CAMSX=450-center.x;CAMSY=350-center.y;
+ result.observations.push({tag:'floor controls',spawn:G.lvl.spawn,props:G.props.filter(p=>['floorlever','floorRubyDoor'].includes(p.k)).map(p=>({k:p.k,x:p.x,y:p.y,ready:sprReady(propSpriteKey(p))}))});
+ drawWorld(visual.getContext('2d'),G.lvl);VW=oldW;VH=oldH;
+ document.body.insertBefore(visual,report);
  report.textContent=JSON.stringify(result,null,2);
  await fetch('/qa-result',{method:'POST',body:JSON.stringify(result,null,2)});
 })();
