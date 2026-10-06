@@ -4,7 +4,14 @@
  function pose(key){const m=/^macar_(axe|xbow)_cycle_(front|rear)_([0-3])$/.exec(key||'');if(m)return{weapon:m[1],view:m[2],phase:+m[3],walk:true};const b=/^macar_xbow_side_(front|rear)$/.exec(key||'');return b?{weapon:'xbow',view:b[1],phase:0,walk:false}:null;}
  function keys(weapon){const out=[];for(const v of ['front','rear'])for(let n=0;n<4;n++)out.push('macar_'+weapon+'_cycle_'+v+'_'+n);if(weapon==='xbow')out.push('macar_xbow_side_front','macar_xbow_side_rear');return out;}
  function register(bindings){for(const weapon of ['axe','xbow'])for(const key of keys(weapon)){const p=pose(key);bindings[key]=p.walk?files[weapon][p.view]:shot;}}
- function select(weapon,e,oct,moving){const rear=['n','ne','nw'].includes(oct),view=rear?'rear':'front';if(moving)return 'macar_'+weapon+'_cycle_'+view+'_'+Math.min(3,Math.floor((((e.gait||0)%1)+1)%1*4));return weapon==='xbow'?'macar_xbow_side_'+view:null;}
+ function select(weapon,e,oct,moving){
+  // The signed axe cycles face strictly south/north. Mirroring a south
+  // cycle cannot turn it east or diagonally; use the signed compass carry
+  // in those headings, with the world's gait bob, until matching cycles ship.
+  if(weapon==='axe' && moving && oct!=='s' && oct!=='n')
+   return 'macar_axe_idle_'+({w:'e',sw:'se',nw:'ne'}[oct]||oct);
+  const rear=['n','ne','nw'].includes(oct),view=rear?'rear':'front';if(moving)return 'macar_'+weapon+'_cycle_'+view+'_'+Math.min(3,Math.floor((((e.gait||0)%1)+1)%1*4));return weapon==='xbow'?'macar_xbow_side_'+view:null;
+ }
  function slice(image,key,doc){const p=pose(key);if(!p)return image;const c=doc.createElement('canvas');c.width=c.height=512;
   if(p.weapon==='xbow'){
    const cellW=image.width/2,cellH=image.height/4;

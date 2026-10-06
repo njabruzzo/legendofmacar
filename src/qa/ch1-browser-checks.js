@@ -5,6 +5,12 @@
  document.getElementById('c').style.display='none';document.body.style='overflow:auto';
  const tap=(x,y)=>{IN.taps.push({x,y});resolveTaps();};
  const fresh=()=>{startChapter(1);G.scene='play';G.paused=false;G.talk=null;G.sleepShow=false;PROMPT=null;promptBtn=null;throwBtn=null;UI.overlayHits=[];UI.portraitHits=[];UI.talkHits=[];IN.keys={};IN.taps=[];TW=116;TH=58;ZOOM=1;CAMSX=0;CAMSY=0;G.ents=G.ents.filter(e=>e.hero);};
+ const scene=(x,y)=>{
+  const old={w:VW,h:VH};VW=900;VH=650;TW=116;TH=58;ZOOM=1.5;G.cam={x,y};syncCamProj();
+  for(const row of G.lvl.seen)row.fill(1);
+  const cv=document.createElement('canvas');cv.width=VW;cv.height=VH;const cg=cv.getContext('2d');cg.fillStyle='#171411';cg.fillRect(0,0,VW,VH);
+  drawWorld(cg,G.lvl);drawLivingMacar(cg,player());VW=old.w;VH=old.h;return cv;
+ };
  try{
  await Promise.all([...new Set([...WORLD_ART_KEYS[1],'ch1_pillar_ruby','ch1_lift_lever','ch1_lift_lever_thrown','rubydoor','pillar'])].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'load '+k);resolve();}))));
  fresh();let p=player();p.x=37.15;p.y=22.05;G.lvl.flags.touched=1;G.lvl.flags.cleared=1;
@@ -113,6 +119,7 @@
   check(lead.y<13.5,tag+' Macar walks through dug wall into chamber');
  }
  fresh();openSecret(G.lvl.secrets.find(s=>s.kind==='teeth'));const opened=GameSave.captureWorld(G);
+ check(G.lvl.grid[15].slice(102,105).every(v=>v===1)&&G.lvl.grid[15].slice(108,112).every(v=>v===1),'opening the crown room preserves both bone-masonry jambs');
  const crown=opened.props.find(pr=>pr.k==='bonecrown');if(crown)crown.taken=1;
  opened.grid[25]=opened.grid[25].slice(0,110)+'4'+opened.grid[25].slice(111);
  fresh();applyPlaySave(opened);const restored=G.lvl.secrets.find(s=>s.kind==='teeth');
@@ -145,12 +152,18 @@
  // Toy combat salvage and persistent floor travel.
  fresh();let toy=windupToyProp(),lead=player();lead.x=toy.x-.5;lead.y=toy.y;lead.fdx=1;lead.fdy=0;
  const beforeLoot=G.loot.length;meleeSwing(lead,2.5,1.4,20,'#fff');
- check(toy.gone&&G.loot.length===beforeLoot+1,'melee hit explodes toy into one salvage pile');
- meleeSwing(lead,2.5,1.4,20,'#fff');check(G.loot.length===beforeLoot+1,'toy cannot duplicate salvage');
- const salvage=G.loot[G.loot.length-1];check(salvage.res.spring===1&&salvage.res.gear===1&&salvage.res.emerald===1,'all three crafting components drop');
+ check(toy.gone&&G.loot.length===beforeLoot+3,'melee hit explodes toy into three floor drops');
+ const boomCount=sfx.plays.filter(k=>k==='explosion').length;
+ check(boomCount>0,'toy destruction starts the boom');
+ meleeSwing(lead,2.5,1.4,20,'#fff');check(G.loot.length===beforeLoot+3&&sfx.plays.filter(k=>k==='explosion').length===boomCount,'toy cannot duplicate salvage or boom');
+ const salvage=G.loot.slice(-3);check(['spring','gear','emerald'].every(k=>salvage.some(q=>q.kind===k&&q.res[k]===1&&sprReady('loot_'+k))),'all three crafting components have distinct loaded floor art');
+ check(salvage.every(q=>q.dropHold),'fresh salvage remains visible before pickup');
+ result.toyGallery=scene(toy.x,toy.y).toDataURL('image/png');
  const toySave=GameSave.snapshot(G);GameSave.applyCampaign(G,toySave);applyPlaySave(toySave.play);
  check(!windupToyProp()&&G.loot.some(q=>q.res&&q.res.emerald===1),'destroyed toy and salvage survive reload');
- const recovered=G.loot.find(q=>q.res&&q.res.emerald===1);takeLoot(recovered,true);
+ const recovered=G.loot.filter(q=>['gear','spring','emerald'].includes(q.kind));
+ check(recovered.length===3&&recovered.every(q=>q.dropHold),'three visible salvage drops and pickup hold survive reload');
+ recovered.forEach(q=>takeLoot(q,true));
  check(G.res.spring>=1&&G.res.gear>=1&&G.res.emerald>=1,'salvage can be collected for crafting');
  const ammoBefore=packOf('macar').ammo||0;
  const crafted=CraftingEngine.craftItem('emerald_clockwork_bolts',makeCraftingBridge());
@@ -158,6 +171,21 @@
  fresh();toy=windupToyProp();lead=player();lead.x=toy.x-.2;lead.y=toy.y;
  const bolt=shoot(lead,toy.x,toy.y,12,'bolt','#fff',9);stepShot(bolt,1/60);
  check(toy.gone&&bolt.life===0,'hero crossbow bolt explodes toy and stops');
+ for(const dt of [1/60,.05]){
+  fresh();toy=windupToyProp();lead=player();lead.x=toy.x-.6;lead.y=toy.y;lead.atk=0;lead.ct=0;lead.atkMax=1;G.hitstop=0;
+  const axe={n:'Iron Axe',k:'weapon',macarHeld:1};G.equipped={primary:axe,weapon:axe};
+  await Promise.all(['macar_axe','macar_axe_atk',...MacarIdleAtlas.keys('macar_axe')].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,()=>resolve()))));
+  const booms=sfx.plays.filter(k=>k==='explosion').length;fire('attack');
+  check(livingMacarBlitKey(livingMacarAnimKey(lead))==='macar_axe_atk','Attack button renders axe swing '+dt);
+  for(let i=0;i<120&&!toy.gone;i++){G.t+=dt;update(dt);if(G.talk)G.talk=null;}
+  result.observations.push({tag:'axe toy attack',dt,gone:toy.gone,loot:G.loot.map(q=>({kind:q.kind,gone:q.gone,hold:q.dropHold})),booms:sfx.plays.filter(k=>k==='explosion').length-booms,atk:lead.atk,swung:lead.swung,ranged:lead.ranged,defending:lead.defending,distance:dist(lead,toy),attack:lead._attack});
+  check(toy.gone&&G.loot.filter(q=>['gear','spring','emerald'].includes(q.kind)).length===3&&sfx.plays.filter(k=>k==='explosion').length===booms+1,'actual axe Attack/update path destroys toy once '+dt);
+ }
+ fresh();lead=player();lead.x=106.5;lead.y=17;lead.fdx=0;lead.fdy=-1;
+ const closed=scene(106.5,16.5);openSecret(G.lvl.secrets.find(s=>s.kind==='teeth'));const open=scene(106.5,16.5);
+ const entrance=document.createElement('canvas');entrance.width=1800;entrance.height=650;entrance.getContext('2d').drawImage(closed,0,0);entrance.getContext('2d').drawImage(open,900,0);result.entranceGallery=entrance.toDataURL('image/png');
+ // Restore the fresh toy-destruction world for the floor round trip below.
+ fresh();toy=windupToyProp();explodeWindupToy(toy);
  check(!travelFloor(2)&&G.ch===1,'floor one down stays locked until ruby encounter complete');
  G.lvl.flags.elevReady=1;G.lvl.flags.travelMarker='preserved';
  check(travelFloor(2)&&G.ch===2,'floor one lever descends after activation');

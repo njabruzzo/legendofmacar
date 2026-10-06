@@ -90,3 +90,28 @@ for(let i=0;i<8;i++){
 }
 Object.assign(SPR,savedAxe);
 check(ctx.livingMacarBlitKey('macar_e_w1').startsWith('macar_axe'),'stale maul blit replaced by axe family');
+
+// Exercise the modules actually loaded by index.html, not only legacy pairs.
+ctx.MacarMotionAtlas=require('./MacarMotionAtlas');
+const liveBindings={};ctx.MacarMotionAtlas.register(liveBindings);
+for(const key of Object.keys(liveBindings))SPR[key]={width:512,height:512};
+vm.runInContext('Object.keys(SPR).forEach(k=>LIVING_MACAR_KEYS[k]=1);',ctx);
+ctx.G.equipped={primary:{n:'Iron Axe',k:'weapon',macarHeld:1},secondary:{n:'Crossbow',k:'weapon'}};
+for(let i=0;i<8;i++){
+ const a=i*Math.PI/4,sx=Math.cos(a)/(ctx.TW/2),sy=Math.sin(a)/(ctx.TH/2),m=Math.hypot(sx+sy,sy-sx);
+ Object.assign(ctx.hero,{fdx:(sx+sy)/m,fdy:(sy-sx)/m,ix:(sx+sy)/m,iy:(sy-sx)/m,moving:1,atk:0,atkKind:'melee',bowPoseUntil:0});
+ for(const gait of [.125,.375,.625,.875]){
+  ctx.hero.gait=gait;
+  const expected=i===2||i===6?'macar_axe_cycle_'+(i===6?'rear':'front')+'_'+Math.floor(gait*4):'macar_axe_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i]);
+  check(ctx.livingMacarAnimKey(ctx.hero)===expected,'live axe walk faces '+dirs[i]+' at '+gait);
+  check(ctx.livingMacarBlitKey(expected)===expected,'live directional pose survives final blit');
+  check(ctx.wantsSpriteFlip(ctx.hero)===(i>=3&&i<=5),'live axe mirrors west headings');
+ }
+ for(const atk of [.82,.4,.2]){
+  Object.assign(ctx.hero,{moving:0,atk,atkMax:1});
+  check(ctx.livingMacarAnimKey(ctx.hero)==='macar_axe_atk','selected axe attacks despite equipped crossbow in '+dirs[i]);
+  check(ctx.livingMacarBlitKey('macar_axe_atk')==='macar_axe_atk','axe attack reaches renderer');
+ }
+ check(!ctx.livingMacarBlitKey('macar_xbow_atk').startsWith('macar_xbow'),'stale bow art cannot override held axe');
+}
+check(bindings.macar_axe_atk==='assets/creatures/dwarf_macar_axe_atk_v2.png','axe attack uses repaired single-weapon artwork');

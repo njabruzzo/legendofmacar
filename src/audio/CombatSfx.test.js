@@ -75,6 +75,14 @@ t += 20;
 assert(sfx.hit({ hero: 1 }) === false, 'identical hits inside the gap are dropped');
 t += 200;
 assert(sfx.hit({ ranged: 1, role: 'bolt' }) === true, 'a later lighter hit still plays');
+const explosionAudio=[];
+function BoomAudio(){FakeAudio.call(this);explosionAudio.push(this);}
+const boom=CombatSfx.create({files:{explosion:'assets/sfx/toy_explosion.wav'},Audio:BoomAudio,now:()=>t,assetUrl:s=>'versioned/'+s});
+boom._voices=2;boom._lastAny=t;
+assert(boom.explosion()===true,'destruction boom is not lost to hit voice/rate limits');
+assert(explosionAudio.length===1&&!explosionAudio[0].loop&&explosionAudio[0].src==='versioned/assets/sfx/toy_explosion.wav'&&!explosionAudio[0].paused,'one-shot explosion starts on dedicated asset');
+const wav=fs.readFileSync(path.join(__dirname,'../../assets/sfx/toy_explosion.wav'));
+assert(wav.toString('ascii',0,4)==='RIFF'&&wav.toString('ascii',8,12)==='WAVE'&&wav.length>22050,'audible PCM boom is shipped');
 assert(sfx.startBed() === true && sfx.bedPlaying(), 'clash bed starts');
 sfx.stopBed();
 assert(!sfx.bedPlaying(), 'clash bed stops');

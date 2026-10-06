@@ -20,7 +20,7 @@ assert(fs.existsSync(path.join(creatures, MacarAnchor.ANCHOR)), 'the anchor '+Ma
 MacarAnchor.REMOVED.forEach(f=>assert(!fs.existsSync(path.join(creatures,f)), f+' stays off disk (off-model)'));
 const onDisk=fs.readdirSync(creatures).filter(f=>/^dwarf_macar/.test(f));
 const allowed=[MacarAnchor.ANCHOR].concat(MacarAnchor.ONMODEL,
-  ['dwarf_macar_idle_maul_v2.png','dwarf_macar_idle_axe_v2.png','dwarf_macar_idle_xbow_v2.png','dwarf_macar_idle_axe_s_v3.png']);
+  ['dwarf_macar_idle_maul_v2.png','dwarf_macar_idle_axe_v2.png','dwarf_macar_idle_xbow_v2.png','dwarf_macar_idle_axe_s_v3.png','dwarf_macar_axe_atk_v2.png']);
 assert(onDisk.every(f=>allowed.includes(f)),
   'every Macar sheet on disk is the anchor or an approved on-model frame (found: '+onDisk.join(', ')+')');
 MacarAnchor.ONMODEL.forEach(f=>assert(fs.existsSync(path.join(creatures,f)), f+' (approved on-model frame) is on disk'));
@@ -33,7 +33,7 @@ const after=html.slice(lock);
 assert(/if\(\/\^macar\(_\|\$\)\/\.test\(k\)\) SPRITE_FILES\[k\]=MACAR_ANCHOR_SRC;/.test(after.slice(0,400)),
   'every macar* sprite key is pointed at the anchor');
 const laterMacar=(after.slice(400).match(/assets\/creatures\/dwarf_macar[a-z0-9_]*\.png/g)||[])
-  .map(p=>p.split('/').pop()).filter(f=>!MacarAnchor.ONMODEL.includes(f));
+  .map(p=>p.split('/').pop()).filter(f=>!MacarAnchor.ONMODEL.includes(f)&&f!=='dwarf_macar_axe_atk_v2.png');
 assert(!laterMacar.length, 'nothing after the lock registers an off-model Macar sheet ('+laterMacar.join('; ')+')');
 assert(!/SPRITE_FILES\.dwarf_macar_crowned=/.test(html), 'no crowned sheet: the bone crown is drawn as the worn prop');
 const cats=['macar','macar_w1','macar_w2','macar_atk','macar_atk_contact'];

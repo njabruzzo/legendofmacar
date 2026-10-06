@@ -21,6 +21,7 @@
     'dwarf_macar_axe_w1.png':[242,282,86,0],
     'dwarf_macar_axe_w2.png':[249,286,86,0],
     'dwarf_macar_axe_atk.png':[400,422,85,0.12],
+    'dwarf_macar_axe_atk_v2.png':[574,557,85,0.12],
     'dwarf_macar_xbow.png':[232,279,86,0],
     'dwarf_macar_xbow_w1.png':[242,282,86,0],
     'dwarf_macar_xbow_w2.png':[249,286,86,0],

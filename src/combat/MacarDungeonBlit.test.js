@@ -84,7 +84,7 @@ assert(registry.macar && registry.macar_w1 && registry.macar_w2 && registry.maca
   && registry.macar_axe && registry.macar_axe_w1 && registry.macar_axe_w2 && registry.macar_axe_atk
   && registry.macar_xbow && registry.macar_xbow_w1 && registry.macar_xbow_w2 && registry.macar_xbow_atk, 'live Macar + contact + axe + xbow keys stay registered');
 assert(registry.macar_axe==='assets/creatures/dwarf_macar_axe.png'
-  && registry.macar_axe_atk==='assets/creatures/dwarf_macar_axe_atk.png'
+  && registry.macar_axe_atk==='assets/creatures/dwarf_macar_axe_atk_v2.png'
   && registry.macar_xbow==='assets/creatures/dwarf_macar_xbow.png'
   && registry.macar_xbow_atk==='assets/creatures/dwarf_macar_xbow_atk.png',
   'equipped weapon keys use their own sheets after the anchor fallback');

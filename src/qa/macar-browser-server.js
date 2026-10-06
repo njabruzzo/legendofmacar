@@ -7,7 +7,7 @@ http.createServer((req,res)=>{
  if(url==='/qa-result' && req.method==='POST'){
   let data='';req.on('data',b=>data+=b);req.on('end',()=>{
    const result=JSON.parse(data);
-   const galleries={motionGallery:'gameplay-walk-review.png',idleGallery:'macar-standing-directions.png',doorGallery:'ruby-door-stairs.png',ghostGallery:'ghost-appearance-matrix.png',gallery:'weapon-crown-matrix.png'};
+   const galleries={entranceGallery:'crown-entrance.png',toyGallery:'toy-salvage.png',motionGallery:'gameplay-walk-review.png',idleGallery:'macar-standing-directions.png',doorGallery:'ruby-door-stairs.png',ghostGallery:'ghost-appearance-matrix.png',gallery:'weapon-crown-matrix.png'};
    for(const [key,name] of Object.entries(galleries))if(result[key]){
     fs.writeFileSync(path.join(output,name),Buffer.from(result[key].split(',')[1],'base64'));delete result[key];
    }
@@ -20,6 +20,6 @@ http.createServer((req,res)=>{
  try{let content=fs.readFileSync(file);if(fixture){
   let s=content.toString().replace('function loop(now){','function loop(now){ return;');
   const i=s.lastIndexOf('</script>');s=s.slice(0,i)+fs.readFileSync(path.join(__dirname,fixture),'utf8')+s.slice(i);content=s;
- }res.setHeader('Content-Type',file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':file.endsWith('.png')?'image/png':'application/octet-stream');res.end(content);
+ }res.setHeader('Content-Type',file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.wav')?'audio/wav':'application/octet-stream');res.end(content);
  }catch(e){res.statusCode=404;res.end('missing');}
 }).listen(port,'127.0.0.1',()=>console.log('QA fixture server ready at http://127.0.0.1:'+port+'/qa; output '+output));

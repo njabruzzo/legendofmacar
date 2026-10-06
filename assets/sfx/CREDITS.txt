@@ -33,3 +33,8 @@ Victory horns
   Files: horn_pack.mp3 (short blast), horn_boss.mp3 (longer blast)
   Excerpts of the CC0 war-horn bed. Distinct from the Terminus music stings.
   Attribution appreciated, not required.
+
+Toy destruction
+  File: toy_explosion.wav
+  Original procedural PCM sound: seeded filtered noise and a decaying low
+  frequency sweep, authored for Legend of Macar. No third-party recording.
