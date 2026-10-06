@@ -19,8 +19,9 @@
  let p=fresh();G.equipped={};
  equipPackItem({n:'Crossbow',k:'weapon'},{silent:true});equipPackItem({id:'iron_axe',n:'Iron Axe',k:'weapon'},{silent:true});
  armBowPose(p);equipPackItem(G.equipped.primary,{silent:true});p.fdx=p.fdy=Math.SQRT1_2;
- check(livingMacarIdleKey()==='macar_axe'&&livingMacarAnimKey(p)==='macar_axe_idle_s','equipping axe after bow uses down-facing axe sprite');
- check(SPRITE_FILES.macar_axe_idle_s.endsWith('dwarf_macar_idle_axe_s_v3.png'),'corrected down-facing axe artwork is used');
+ const axePose=MacarSharedAtlas.pose(livingMacarAnimKey(p));
+ check(livingMacarIdleKey()==='macar_axe'&&axePose.weapon==='axe'&&axePose.dir==='s'&&axePose.stage==='idle','equipping axe after bow uses down-facing axe sprite');
+ check(SPRITE_FILES.macar_axe_idle_s===MacarSharedAtlas.bodyFile&&SPR.macar_axe_idle_s.__macarSharedBody==='s:idle','down-facing axe uses the shared Macar body');
  check(SPRITE_FILES.macar_axe===SPRITE_FILES.macar_axe_idle_s&&SPR.macar_axe.__macarDirectionalIdle,'inventory and cold-heading fallback use the same corrected axe');
  const saved=GameSave.snapshot(G),restored={};GameSave.applyCampaign(restored,saved);
  check(MacarEquipment.heldKind(restored.equipped)==='axe','axe stays selected after save reload');

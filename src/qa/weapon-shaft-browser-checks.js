@@ -4,7 +4,7 @@
  const report=document.createElement('pre');report.id='qa-results';report.textContent='Loading measured maul and battle-axe poses…';document.body.append(report);
  document.getElementById('c').style.display='none';document.body.style='overflow:auto;background:#171717;color:white;height:auto;';
  try{
- const keys=Object.keys(SPRITE_FILES).filter(k=>!!MacarWeaponShaft.pose(k));
+ const keys=Object.keys(SPRITE_FILES).filter(k=>!!MacarWeaponShaft.pose(k)||!!MacarSharedAtlas.pose(k));
  await Promise.all([...keys,'bone_crown'].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'decode '+k);resolve();}))));
  const hero=ent({hero:1,team:'party',kind:'dwarf',name:'MACAR',x:0,y:0,sp:4.3});G.ents=[hero];
  TW=116;TH=58;ZOOM=1.5;CAMSX=0;CAMSY=0;

@@ -60,7 +60,8 @@
 <script src="src/combat/MacarEquipment.js"></script>
 <script src="src/combat/MacarMotionAtlas.js?v=132"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
-<script src="src/combat/MacarWeaponShaft.js?v=132"></script>
+<script src="src/combat/MacarWeaponShaft.js?v=133"></script>
+<script src="src/combat/MacarSharedAtlas.js?v=133"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -518,8 +519,8 @@ function steerWalk(e,dx,dy,sp,dt){
   }
   if(typeof constrainPartyStep==='function') constrainPartyStep(e, ox, oy);
   distMoved=Math.hypot(e.x-ox, e.y-oy);
-  e.moving=1;
-  gaitAdvance(e, dt);
+  e.moving=distMoved>=0.002?1:0;
+  if(e.moving)gaitAdvance(e, dt);
   if(distMoved<0.002){ e.ix=0; e.iy=0; }
   return distMoved;
 }
@@ -954,6 +955,7 @@ const MACAR_ONMODEL={
 if(typeof MacarIdleAtlas!=='undefined') MacarIdleAtlas.register(MACAR_ONMODEL);
 if(typeof MacarMotionAtlas!=='undefined') MacarMotionAtlas.register(MACAR_ONMODEL);
 if(typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.register(MACAR_ONMODEL);
+if(typeof MacarSharedAtlas!=='undefined') MacarSharedAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
@@ -990,7 +992,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -1000,9 +1002,10 @@ function loadSpriteKeyNow(k, cb){
   if(SPRITE_LOADING[k]){ SPRITE_LOADING[k].push(cb); return true; }
   SPRITE_LOADING[k]=[cb];
   const img=new Image();
-  const done=ok=>{
-    if(ok) SPR[k]=(typeof MacarWeaponShaft!=='undefined'&&MacarWeaponShaft.standalone(k))?img:(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
-    if(ok&&typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.prepare(SPR[k],k);
+  const done=async ok=>{
+    if(ok&&typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(k)){try{SPR[k]=await MacarSharedAtlas.slice(img,k,document);}catch(_){ok=false;}}
+    else if(ok) SPR[k]=(typeof MacarWeaponShaft!=='undefined'&&MacarWeaponShaft.standalone(k))?img:(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
+    if(ok&&!SPR[k].__macarSharedBody&&typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.prepare(SPR[k],k);
     const list=SPRITE_LOADING[k]||[];
     delete SPRITE_LOADING[k];
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
@@ -2287,6 +2290,7 @@ const LIVING_MACAR_KEYS={
 };
 if(typeof MacarIdleAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{ if(MacarIdleAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1; });
 if(typeof MacarMotionAtlas!=='undefined') Object.keys(MACAR_ONMODEL).forEach(k=>{if(MacarMotionAtlas.pose(k)) LIVING_MACAR_KEYS[k]=1;});
+if(typeof MacarSharedAtlas!=='undefined') MacarSharedAtlas.keys().forEach(k=>LIVING_MACAR_KEYS[k]=1);
 function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
@@ -2380,7 +2384,7 @@ function matchingPartyAtkReady(key, idleKey){
    idle and hide the walk. The axe's new square idle also differs from its tall
    walk canvases. These keys are the same dwarf; fit still rejects slivers. */
 function restoredMacarMotionKey(key){
-  return (typeof MacarMotionAtlas!=='undefined' && !!MacarMotionAtlas.pose(key)) || /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
+  return (typeof MacarSharedAtlas!=='undefined'&&!!MacarSharedAtlas.pose(key)) || (typeof MacarMotionAtlas!=='undefined' && !!MacarMotionAtlas.pose(key)) || /^macar(?:_(?:axe|xbow))?_idle_(?:s|e|se|n|ne)$/.test(key||'') || key==='macar_w1'||key==='macar_w2'||key==='macar_atk'||key==='macar_atk_contact'
     ||key==='macar_e_w1'||key==='macar_e_w2'||key==='macar_se_w1'||key==='macar_se_w2'
     ||key==='macar_ne_w1'||key==='macar_ne_w2'||key==='macar_back_w1'||key==='macar_back_w2'
     ||key==='macar_atk_n'||key==='macar_atk_s'||key==='macar_atk_ne'||key==='macar_atk_se'
@@ -2551,6 +2555,7 @@ function ghostAnimKey(e, k){
    livingMacarAnimKey already chose the mid-swing sheet. */
 /* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
 function livingMacarStandKey(idle,e){
+  if(e&&typeof MacarSharedAtlas!=='undefined'&&idle!=='macar_xbow'){const shared=MacarSharedAtlas.select(idle==='macar_axe'?'axe':'maul',e,screenOctant(e),'idle');loadSpriteKeyNow(shared);if(sprReady(shared))return shared;}
   idle=idle||'macar';
   if(idle==='macar_xbow' && e && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),false);if(sprReady(k))return k;}
   if(e && typeof screenOctant==='function'){
@@ -2566,6 +2571,7 @@ function livingMacarStandKey(idle,e){
   return idle;
 }
 function livingMacarBlitKey(key){
+  if(typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(key)&&sprReady(key)&&MacarSharedAtlas.pose(key).weapon===(livingMacarIdleKey()==='macar_axe'?'axe':'maul'))return key;
   const idle=livingMacarIdleKey();
   if((idle==='macar_axe' || idle==='macar_xbow') && key!==idle && !(key && key.startsWith(idle+'_'))) key=null;
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
@@ -2710,6 +2716,10 @@ function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
+  if(typeof MacarSharedAtlas!=='undefined'&&idle!=='macar_xbow'){
+    const stage=wantsLivingMacarStrike(e)?'attack':e.moving&&!e.defending&&!wantsMeleeRecover(e)?'walk':'idle';
+    const shared=MacarSharedAtlas.select(idle==='macar_axe'?'axe':'maul',e,screenOctant(e),stage);loadSpriteKeyNow(shared);if(sprReady(shared))return shared;
+  }
   if(idle==='macar_xbow' && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),!!e.moving&&!e.defending&&!wantsBowPose(e)&&!wantsMeleeRecover(e)&&!wantsLivingMacarStrike(e));if(sprReady(k))return k;}
   if(idle==='macar_axe' && e.moving && !e.defending && !wantsLivingMacarStrike(e) && !wantsMeleeRecover(e) && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('axe',e,screenOctant(e),true);if(sprReady(k))return k;}
   if(typeof wantsBowPose==='function' && wantsBowPose(e)){

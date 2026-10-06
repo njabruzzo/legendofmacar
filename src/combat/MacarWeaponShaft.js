@@ -67,6 +67,7 @@
   return record('axe',512,512,[x(p[0]),y(p[1]),x(p[2]),y(p[3])],[256,512],[152,512],[256,152,78*scale,0]);
  }
  function pose(key){
+  if(typeof root.MacarSharedAtlas!=='undefined'){const shared=root.MacarSharedAtlas.geometry(key);if(shared)return shared;}
   if(key==='macar_atk')return singles.macar_atk_contact;
   if(key==='macar_axe_idle_s')return singles.macar_axe;
   if(key==='macar_axe_w1'||key==='macar_axe_w2')return cycle('front',key.endsWith('w1')?0:2);
