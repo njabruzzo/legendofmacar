@@ -148,7 +148,7 @@ assert(/SPRITE_FILES\.teeth_floor_atlas='assets\/tiles\/teeth_floor_atlas_8x8\.p
   'teeth floor atlas is the live chapel bind');
 assert(/const n=8, cw=atlas\.width\/n/.test(extractFn('drawTeethTile')),
   'each chapel tile blits one cell of the 8×8 atlas');
-assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth\.png'/.test(html),
+assert(/SPRITE_FILES\.altar_teeth='assets\/props\/prop_altar_teeth_open_left_v12\.png'/.test(html),
   'chapel platform sheet is registered');
 assert(/SPRITE_FILES\.wall_teeth_chapel='assets\/tiles\/tile_wall_teeth_chapel\.png'/.test(html)
   && /SPRITE_FILES\.wall_teeth_chapel_opaque='assets\/tiles\/tile_wall_teeth_chapel_opaque\.png'/.test(html),

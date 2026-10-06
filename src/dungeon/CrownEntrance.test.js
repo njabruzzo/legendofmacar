@@ -22,5 +22,5 @@ c.secretSeamAt=()=>sec;c.secretFaceOk=()=>true;c.teethChapelWallImg=()=>art;c.se
 vm.runInContext(fn('drawSecretFadedFace'),c);c.drawSecretFadedFace({},L,106,15,30,null,null);assert.equal(calls[0],art,'bone gate keeps chapel art in the late secret pass');
 const render=fn('drawWorld');
 assert(render.includes('entrance||(sf===\'n\'?secN:'),'bone gate overrides old secret art');
-assert(render.includes('entrance||(sf===\'e\'?secE:faceR)')&&render.includes('entrance||faceL'),'jamb side and rear faces use matching bone art');
+assert(render.includes('entrance||altarWest||(sf===\'e\'?secE:faceR)')&&render.includes('entrance||faceL'),'jamb side and rear faces use matching bone art');
 console.log('Closed/open/reloaded crown entrance, solid jambs and shared bone-masonry renderer passed');

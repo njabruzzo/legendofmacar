@@ -819,7 +819,8 @@ SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
    fallback field. The live chapel floor is the 8×8 atlas. */
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
 SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
-SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth.png';
+// The altar's baked west wall is removed; native masonry supplies it.
+SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth_open_left_v12.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
 SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
@@ -3158,6 +3159,9 @@ const DEMON_FACE_CONTENT_SCALE=1.94;
 function isTeethFaceWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x>=105 && x<=109;
 }
+function isTeethAltarWestWall(L,x,y){
+  return !!(L&&L.n===1&&x===100&&y>=2&&y<14);
+}
 function teethFaceWallH(L){ return wallFaceH(L)*WALL_TEETH_FACE_SCALE; }
 function wallHeightOverride(L,x,y){
   if(!L||!L.wallH) return 0;
@@ -3170,11 +3174,13 @@ function applyTeethFaceWallHeight(L){
   if(!L) return;
   L.wallH=L.wallH||{};
   for(let x=105;x<=109;x++) L.wallH[x+',1']=WALL_TEETH_FACE_SCALE;
+  for(let y=2;y<14;y++) L.wallH['100,'+y]=WALL_TEETH_FACE_SCALE;
 }
 function cellWallH(L,x,y){
   const over=wallHeightOverride(L,x,y);
   if(over) return over;
   if(isTeethFaceWall(L,x,y)) return teethFaceWallH(L);
+  if(isTeethAltarWestWall(L,x,y)) return teethFaceWallH(L);
   if(isRubyNorthWall(L,x,y)) return rubyNorthWallH(L);
   if(isTeethNorthWall(L,x,y)) return teethNorthWallH(L);
   return hallWallH(L);
@@ -15369,8 +15375,10 @@ function drawWorld(g,L){
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
       const entrance=isCrownEntranceWall(L,x,y)?teethChapelWallImg():null;
       const chapel=isTeethNwChapelWall(L,x,y)?teethChapelWallImg():null;
+      // The altar's left side uses the exact north-wall texture behind the demon face.
+      const altarWest=isTeethAltarWestWall(L,x,y)?faceL:null;
       if(oS) drawMasonryFace(g, entrance||(sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, entrance||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oE) drawMasonryFace(g, entrance||altarWest||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
       if(oN) drawMasonryFace(g, entrance||faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
       if(oW) drawMasonryFace(g, entrance||(sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
