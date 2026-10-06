@@ -50,8 +50,8 @@ assert(/const idleFit=heroFigureFit\(e, idle\)/.test(extractFn('livingMacarPlant
   && /idleFit\*\(idleBody\/liveBody\)/.test(extractFn('livingMacarPlantFit'))
   && !/frameH\/idleH/.test(extractFn('livingMacarPlantFit')),
   'plantFit locks crown-to-boots, not frameH/idleH canvas height');
-assert(/\*MACAR_FOOT_WIDEN/.test(extractFn('drawLivingMacar')),
-  'living Macar blit applies the width scale');
+assert(/const widen=shaft\?1:MACAR_FOOT_WIDEN/.test(extractFn('drawLivingMacar'))&&/\*widen/.test(extractFn('drawLivingMacar')),
+  'calibrated weapons use uniform scale; other art retains its width scale');
 assert(/blitFacing\(g,img,dx,dy,W,H,flip,true\)/.test(extractFn('drawLivingMacar')),
   'dungeon Macar blit is crisp');
 

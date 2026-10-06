@@ -58,8 +58,9 @@
 <script src="src/combat/MacarCrown.js?v=131"></script>
 <script src="src/combat/GhostAppearance.js"></script>
 <script src="src/combat/MacarEquipment.js"></script>
-<script src="src/combat/MacarMotionAtlas.js?v=131"></script>
+<script src="src/combat/MacarMotionAtlas.js?v=132"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
+<script src="src/combat/MacarWeaponShaft.js?v=132"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -952,6 +953,7 @@ const MACAR_ONMODEL={
 };
 if(typeof MacarIdleAtlas!=='undefined') MacarIdleAtlas.register(MACAR_ONMODEL);
 if(typeof MacarMotionAtlas!=='undefined') MacarMotionAtlas.register(MACAR_ONMODEL);
+if(typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
@@ -999,7 +1001,8 @@ function loadSpriteKeyNow(k, cb){
   SPRITE_LOADING[k]=[cb];
   const img=new Image();
   const done=ok=>{
-    if(ok) SPR[k]=(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
+    if(ok) SPR[k]=(typeof MacarWeaponShaft!=='undefined'&&MacarWeaponShaft.standalone(k))?img:(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
+    if(ok&&typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.prepare(SPR[k],k);
     const list=SPRITE_LOADING[k]||[];
     delete SPRITE_LOADING[k];
     for(let i=0;i<list.length;i++){ try{ list[i](ok); }catch(_){} }
@@ -2224,13 +2227,16 @@ function drawEntBillboard(g,e,img,z,flip){
     img=livingMacarImg(liveKey);
     if(!img||!img.width) return false;
   }
-  const H=entSpriteH(e,z)*(liveKey?livingMacarPlantFit(e,liveKey,img):frameFit(e,img));
-  const widen=(e.hero&&!e.dead&&!e.ghost)?MACAR_FOOT_WIDEN:1;
+  const blitKey=liveKey&&typeof livingMacarBlitKey==='function'?livingMacarBlitKey(liveKey):liveKey;
+  const H=entSpriteH(e,z)*(blitKey?livingMacarPlantFit(e,blitKey,img):frameFit(e,img));
+  const shaft=(blitKey&&typeof MacarWeaponShaft!=='undefined')?MacarWeaponShaft.pose(blitKey):null;
+  const widen=shaft?1:(e.hero&&!e.dead&&!e.ghost)?MACAR_FOOT_WIDEN:1;
   const W=img.width*(H/Math.max(1,img.height))*widen;
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
-  const dx=-W*((b&&b.ok)?(flip?1-b.cx:b.cx):0.5);
-  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
+  const cx=shaft?shaft.foot[0]:(b&&b.ok)?b.cx:0.5;
+  const dx=-W*(flip?1-cx:cx);
+  const dy=shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   const party=e.kind==='dwarf' && !e.dead;
   const punch=!e.ghost;
   if(e.hero && !e.dead){
@@ -2860,6 +2866,9 @@ function livingSheetStature(img){
    Width still follows sheet aspect, so the maul may overhang. */
 function livingMacarPlantFit(e, key, img){
   if(!e||!e.hero||e.dead||e.ghost) return frameFit(e,img);
+  if(typeof MacarWeaponShaft!=='undefined'){
+    const fit=MacarWeaponShaft.fit(key,img);if(fit>0)return fit;
+  }
   const idleKey=(typeof livingMacarIdleKey==='function')?livingMacarIdleKey():'macar';
   const idle=SPR[idleKey]||SPR.macar;
   if(!idle) return frameFit(e, img);
@@ -2902,7 +2911,10 @@ function drawLivingMacar(g,e){
      windup's shorter body grows dest H until the helm matches. W/H is
      still sheet aspect × foot widen: the maul overhangs, and the 893-wide
      contact sheet is not squashed into the idle width. */
-  const W=img.width*(H/Math.max(1,img.height))*MACAR_FOOT_WIDEN;
+  const shaft=(typeof MacarWeaponShaft!=='undefined')?MacarWeaponShaft.pose(blitKey||key):null;
+  // A width-only boost lengthens diagonal hafts but not vertical ones.
+  const widen=shaft?1:MACAR_FOOT_WIDEN;
+  const W=img.width*(H/Math.max(1,img.height))*widen;
   MacarStrikeQA.plantFit=plantFit;
   MacarStrikeQA.blitH=H;
   const statureSheet=(blitKey&&SPR[blitKey]&&SPR[blitKey].height)?SPR[blitKey]:img;
@@ -2919,10 +2931,15 @@ function drawLivingMacar(g,e){
   const footCx=(b&&b.ok&&b.footCx!=null)?b.footCx:0.5;
   const bootCx=(b&&b.ok&&b.bootCx!=null)?b.bootCx:footCx;
   const idleFoot=(ib&&ib.ok&&ib.footCx!=null)?ib.footCx:footCx;
-  const plant=img.__macarIntegratedMotion?0.5:livingMacarPlantX(footCx, bootCx, idleFoot);
+  const plant=shaft?shaft.foot[0]:img.__macarIntegratedMotion?0.5:livingMacarPlantX(footCx, bootCx, idleFoot);
   const cx=flip?1-plant:plant;
   const dx=-W*cx;
-  const dy=img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
+  const dy=shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
+  if(shaft){
+    const point=p=>[dx+W*(flip?1-p[0]:p[0]),dy+H*p[1]];
+    MacarStrikeQA.shaftEnds=shaft.shaft.map(point);
+    MacarStrikeQA.shaftLength=Math.hypot(MacarStrikeQA.shaftEnds[1][0]-MacarStrikeQA.shaftEnds[0][0],MacarStrikeQA.shaftEnds[1][1]-MacarStrikeQA.shaftEnds[0][1]);
+  }else {MacarStrikeQA.shaftEnds=null;MacarStrikeQA.shaftLength=0;}
   blitFacing(g,img,dx,dy,W,H,flip,true);
   if(livingMacarDrawsPropCrown(blitKey||key)){
     drawWornBoneCrown(g, W, H, dx, dy, flip, z, blitKey||key);

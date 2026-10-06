@@ -1,7 +1,7 @@
 (function(root){
  const files={axe:{front:'assets/creatures/pilots/macar-axe-walk-front-v9.png',rear:'assets/creatures/pilots/macar-axe-walk-rear-v9.png'},xbow:{front:'assets/creatures/pilots/macar-crossbow-walk-v9.png',rear:'assets/creatures/pilots/macar-crossbow-walk-v9.png'}};
  const shot='assets/creatures/pilots/macar-crossbow-walk-v9.png';
- function pose(key){const m=/^macar_(axe|xbow)_cycle_(front|rear)_([0-3])$/.exec(key||'');if(m)return{weapon:m[1],view:m[2],phase:+m[3],walk:true};const b=/^macar_xbow_side_(front|rear)$/.exec(key||'');return b?{weapon:'xbow',view:b[1],phase:0,walk:false}:null;}
+ function pose(key){if(key==='macar_axe_w1'||key==='macar_axe_w2')return{weapon:'axe',view:'front',phase:key.endsWith('w1')?0:2,walk:true};const m=/^macar_(axe|xbow)_cycle_(front|rear)_([0-3])$/.exec(key||'');if(m)return{weapon:m[1],view:m[2],phase:+m[3],walk:true};const b=/^macar_xbow_side_(front|rear)$/.exec(key||'');return b?{weapon:'xbow',view:b[1],phase:0,walk:false}:null;}
  function keys(weapon){const out=[];for(const v of ['front','rear'])for(let n=0;n<4;n++)out.push('macar_'+weapon+'_cycle_'+v+'_'+n);if(weapon==='xbow')out.push('macar_xbow_side_front','macar_xbow_side_rear');return out;}
  function register(bindings){for(const weapon of ['axe','xbow'])for(const key of keys(weapon)){const p=pose(key);bindings[key]=p.walk?files[weapon][p.view]:shot;}}
  function select(weapon,e,oct,moving){

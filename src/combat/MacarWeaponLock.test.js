@@ -46,11 +46,12 @@ assert(/function livingMacarPlantX\(/.test(html)
   'living blit picks the foot sample closer to the idle plant');
 assert(/livingMacarPlantFit\(e, blitKey\|\|key, img\)/.test(extractFn('drawLivingMacar')),
   'after-grain blit uses the plant lock, not the bake-canvas frameFit');
-assert(/liveKey\?livingMacarPlantFit\(e,liveKey,img\):frameFit\(e,img\)/.test(html),
-  'billboard safety net uses the same plant lock');
-assert(/\*MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
+assert(/blitKey\?livingMacarPlantFit\(e,blitKey,img\):frameFit\(e,img\)/.test(html),
+  'billboard safety net locks the actual decoded fallback pose');
+assert(/const widen=shaft\?1:MACAR_FOOT_WIDEN;/.test(extractFn('drawLivingMacar'))
+  && /\*widen;/.test(extractFn('drawLivingMacar'))
   && !/strike\?1\.16:1/.test(extractFn('drawLivingMacar')),
-  'strike width is sheet aspect + foot widen, not a 1.16 body fatten');
+  'calibrated weapons keep their painted aspect rather than widening diagonal shafts');
 
 function sheetBounds(file){
   const {w,h,data}=readRgba(path.join(creatures,MacarAnchor.resolve(file)));
