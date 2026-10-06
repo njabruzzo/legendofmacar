@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const html=fs.readFileSync(require('path').join(__dirname,'../../index.html'),'utf8');
+const source=html.slice(html.indexOf('function floorRubyWallSpot('),html.indexOf('function floorTravelReady('));
+const c={G:{props:[]},isWalkTile:v=>v===0,player:()=>({r:.36}),canBe:()=>true};vm.createContext(c);vm.runInContext(source,c);
+const grid=Array.from({length:14},()=>Array(20).fill(1));
+for(let y=3;y<11;y++)for(let x=3;x<11;x++)grid[y][x]=0;
+// A nearer disconnected chamber must never capture the arrival area's door.
+for(let y=3;y<8;y++)for(let x=12;x<18;x++)grid[y][x]=0;
+c.G.lvl={n:2,spawn:{x:8.5,y:6.5},grid,flags:{floorRubyActivated:1}};
+let door=c.floorRubyWallSpot(c.G.lvl);assert(door&&door.x<11);assert.equal(door.wallY,2.58);
+c.G.props=[{k:'crate',x:door.x,y:door.y}];let other=c.floorRubyWallSpot(c.G.lvl);assert.equal(other,null);
+c.G.props=[{k:'floorRubyDoor',x:8,y:7}];c.ensureFloorTravelProps();door=c.G.props.find(p=>p.k==='floorRubyDoor');assert(Number.isFinite(door.wallY));assert.equal(c.G.lvl.flags.floorRubyActivated,1);assert.equal(c.G.props.filter(p=>p.k==='floorRubyDoor').length,1);
+c.ensureFloorTravelProps();assert.equal(c.G.props.filter(p=>p.k==='floorRubyDoor').length,1);
+assert.equal(c.floorRubyPlaneY(door),door.wallY);
+assert(html.includes("s=w2s(prop.x,prop.k==='floorRubyDoor'?floorRubyPlaneY(prop):prop.y)"));
+console.log('Floor ruby wall: reachable backing, obstruction avoidance, old-save migration, and matching hit plane passed');

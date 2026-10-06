@@ -204,7 +204,23 @@
  const floorSave=GameSave.snapshot(G),campaign={};GameSave.write(localStorage,floorSave);GameSave.applyCampaign(campaign,GameSave.read(localStorage));
  check(campaign.floorWorlds[1].flags.travelMarker==='preserved'&&campaign.floorWorlds[1].props.length>0,'visited floor geometry and props survive saved campaign');
  for(let n=3;n<=5;n++){G.lvl.flags.floorRubyActivated=1;check(travelFloor(n)&&G.ch===n,'travel down to floor '+n);check(G.props.some(q=>q.k==='floorRubyDoor')&&G.props.some(q=>q.k==='floorlever'),'travel props floor '+n);check(G.props.filter(q=>['floorRubyDoor','floorlever'].includes(q.k)).every(q=>canBe(q.x,q.y,player().r||.36,player())),'travel controls on reachable floor tiles '+n);}
- check(!travelFloor(6),'no nonexistent sixth floor');
+ const rubyWalls=document.createElement('canvas');rubyWalls.width=1800;rubyWalls.height=1300;
+  for(let n=2;n<=5;n++){
+   startChapter(n);G.scene='play';const door=G.props.find(p=>p.k==='floorRubyDoor');
+   check(!!door&&Number.isFinite(door.wallY),'wall-anchored ruby door floor '+n);
+   if(!door)continue;
+   const x=Math.floor(door.x),y=Math.round(door.wallY+.42);
+   check([-1,0,1].every(dx=>G.lvl.grid[y-1][x+dx]===1),'three-cell stone backing floor '+n);
+   check([-1,0,1].every(dx=>[0,1,2].every(dy=>isWalkTile(G.lvl.grid[y+dy][x+dx]))),'clear ruby approach floor '+n);
+   check(canBe(door.x,door.y,player().r||.36,player()),'ruby interaction point accessible floor '+n);
+   await Promise.all(WORLD_ART_KEYS[n].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,()=>resolve()))));
+   const tile=scene(door.x,door.y);rubyWalls.getContext('2d').drawImage(tile,((n-2)%2)*900,Math.floor((n-2)/2)*650);
+   const point=w2s(door.x,floorRubyPlaneY(door));check(floorTravelScreenHit({x:point.x,y:point.y-75*ZOOM})===door,'wall art click target floor '+n);
+   G.lvl.flags.floorRubyActivated=1;door.x=G.lvl.spawn.x;door.y=G.lvl.spawn.y;delete door.wallY;ensureFloorTravelProps();
+   check(Number.isFinite(door.wallY)&&floorTravelReady(),'old floating door migrates without relocking floor '+n);
+  }
+  result.rubyWallGallery=rubyWalls.toDataURL('image/png');
+  check(!travelFloor(6),'no nonexistent sixth floor');
  check(GameSave.read(localStorage).ch===5&&!!GameSave.read(localStorage).floorWorlds[4],'all visited floors save through floor five');
  fresh();G.lvl.flags.elevReady=1;G.lvl.flags.campMarker='kept';endChapter();startChapter(2);
  check(travelFloor(1)&&G.lvl.flags.campMarker==='kept','original camp Go deeper route also preserves the previous floor');

@@ -3251,6 +3251,7 @@ function actorDrawDepth(o){
   /* The signed sheet is wider than one north-wall cell. Sorting on the
      door's own x+y lets the next east face (drawn later on that diagonal)
      paint a hard vertical cut through the right outer arch. */
+  if(o.k==='floorRubyDoor') return (Math.floor(o.x+1.08-floorRubyPlaneY(o)+Math.floor(floorRubyPlaneY(o))+1-1e-4)+Math.floor(floorRubyPlaneY(o)))|0;
   if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
   /* Chapel portrait. Its own x+y is before the next east cell, so that
      cell's south face paints over the right horn. */
@@ -6498,11 +6499,46 @@ const CH_INTRO={
 };
 const CHAPTERS=[1,2,3,4,5];
 
+// Anchor deeper-floor arches to reachable north-facing masonry spans.
+function floorRubyWallSpot(L){
+  const g=L.grid,seen=new Set(),queue=[[Math.floor(L.spawn.x),Math.floor(L.spawn.y)]];
+  for(let i=0;i<queue.length;i++){
+    const [x,y]=queue[i],key=x+','+y;
+    if(seen.has(key)||!g[y]||!isWalkTile(g[y][x]))continue;
+    seen.add(key);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy,k=nx+','+ny;
+      if(!seen.has(k)&&g[ny]&&isWalkTile(g[ny][nx]))queue.push([nx,ny]);
+    }
+  }
+  let best=null,score=Infinity;
+  for(const key of seen){
+    const [x,y]=key.split(',').map(Number);
+    if(x<3||y<2||!g[y+2])continue;
+    let clear=[-3,-2,-1,0,1,2,3].every(dx=>g[y-1][x+dx]===1);
+    for(let dx=-2;dx<=2;dx++){
+      if(g[y-1][x+dx]!==1)clear=false;
+      for(let dy=0;dy<=2;dy++)if(!isWalkTile(g[y+dy][x+dx]))clear=false;
+    }
+    if(!clear)continue;
+    const point={x:x+.5,y:y+1.5,wallY:y-.42};
+    const hero=player();if(hero&&!canBe(point.x,point.y,hero.r||.36,hero))continue;
+    if((G.props||[]).some(p=>!p.gone&&!p.taken&&p.k!=='floorRubyDoor'&&(Math.hypot(p.x-point.x,p.y-point.y)<3.2||Math.hypot(p.x-point.x,p.y-point.wallY)<3.2)))continue;
+    const d=Math.hypot(point.x-L.spawn.x,point.y-L.spawn.y);
+    if(d<score){best=point;score=d;}
+  }
+  return best;
+}
+function floorRubyPlaneY(p){return Number.isFinite(p.wallY)?p.wallY:p.y;}
 function ensureFloorTravelProps(){
   const L=G.lvl;if(!L||!L.spawn)return;
   const spot=(dx,dy)=>{const h=player();for(let r=0;r<12;r++)for(let i=0;i<8;i++){const a=i*Math.PI/4,x=L.spawn.x+dx+Math.cos(a)*r*.5,y=L.spawn.y+dy+Math.sin(a)*r*.5;if(canBe(x,y,h.r||.36,h))return{x,y};}return{x:L.spawn.x,y:L.spawn.y};};
   if(!(G.props||[]).some(p=>p.k==='floorlever'))G.props.push(Object.assign(spot(2,4),{k:'floorlever'}));
-  if(L.n>1&&!G.props.some(p=>p.k==='floorRubyDoor'))G.props.push(Object.assign(spot(-2,4),{k:'floorRubyDoor'}));
+  if(L.n>1){
+    const wall=floorRubyWallSpot(L),door=G.props.find(p=>p.k==='floorRubyDoor');
+    // Move old floating doors without losing saved activation.
+    if(wall){if(door)Object.assign(door,wall);else G.props.push(Object.assign(wall,{k:'floorRubyDoor'}));}
+  }
 }
 function floorTravelReady(){return G.lvl.n===1?!!G.lvl.flags.elevReady:!!G.lvl.flags.floorRubyActivated;}
 function travelFloor(n){
@@ -6528,7 +6564,7 @@ function openFloorRuby(){
 }
 function floorTravelScreenHit(t){
   for(const prop of (G.props||[])){if(prop.gone||!['floorlever','floorRubyDoor'].includes(prop.k))continue;
-    const image=SPR[propSpriteKey(prop)],s=w2s(prop.x,prop.y),h=propSpriteH(prop,ZOOM),w=image&&image.width?h*image.width/image.height:h;
+    const image=SPR[propSpriteKey(prop)],s=w2s(prop.x,prop.k==='floorRubyDoor'?floorRubyPlaneY(prop):prop.y),h=propSpriteH(prop,ZOOM),w=image&&image.width?h*image.width/image.height:h;
     if(t.x>=s.x-w/2&&t.x<=s.x+w/2&&t.y>=s.y-h&&t.y<=s.y+6*ZOOM)return prop;
   }return null;
 }
@@ -16926,7 +16962,8 @@ function drawProp(g,p,pal){
   const s=w2s(p.x,p.y), z=ZOOM;
   if(p.k==='floorRubyDoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p),half=1.08,H=propSpriteH(p,z);
-    drawIsoPlaneImg(g,img,p.x-half,p.y,p.x+half,p.y,H,{stroke:0});return;
+    const plane=floorRubyPlaneY(p);
+    drawIsoPlaneImg(g,img,p.x-half,plane,p.x+half,plane,H,{stroke:0});return;
   }
   if(p.k==='rubydoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p);
