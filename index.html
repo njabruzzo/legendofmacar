@@ -984,7 +984,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -18988,7 +18988,7 @@ function drawHUD(g){
   if(!bigMap) drawMinimap(g,s);
   drawObjectives(g,s);
   drawGuideArrow(g,s);
-  drawOre(g,s);
+  // Material and currency totals remain in inventory, away from the field HUD.
   if(typeof drawHourglassHud==='function') drawHourglassHud(g,s);
   /* The large map paints over the field HUD, under the thumb buttons. */
   if(bigMap) drawMinimap(g,s);
@@ -20872,6 +20872,7 @@ function drawBetween(g){
 
 function drawCamp(g){
   menuHits=[]; const s=UIS;
+  if(!worldArtReady(G.ch)){g.fillStyle='#0b0806';g.fillRect(0,0,VW,VH);g.fillStyle='#e0ccab';g.font='18px '+FONT_UI;g.fillText('Preparing camp…',24,48);return;}
   g.fillStyle='#0b0806'; g.fillRect(0,0,VW,VH); embers(g); darken(g,.42);
   const titleY=VH*(PORT?0.055:0.048);
   const titleSize=(PORT?22:28)*s;
@@ -21442,7 +21443,7 @@ function drawEquipDoll(g, x, y, w, h){
     const filled=!!it;
     plate(g, c.x, c.y, c.w, c.h, 5, filled?0.92:0.42);
     g.strokeStyle=on?'rgba(255,220,140,0.95)':(filled?'rgba(255,208,124,0.55)':'rgba(120,100,80,0.45)');
-    g.lineWidth=on?2:1.2;
+    g.lineWidth=filled?3.5*s:(on?2:1.2);
     roundPath(g, c.x, c.y, c.w, c.h, 5); g.stroke();
     const thumb=slotThumbFor(it, c.k);
     if(filled && thumb) drawThumb(g, thumb, c.x+3, c.y+3, Math.min(c.w, c.h)-6);
@@ -21802,6 +21803,7 @@ function drawPack(g){
     const y=listTop+i*rowH, x=listX, h=rowH-4*s, w=listW;
     const sel=G.packSel && ((r.it&&r.it===G.packSel)||(r.gm&&r.gm===G.packSel)||r===G.packSel);
     plate(g,x,y,w,h,6,sel?0.95:0.84);
+    if(r.worn){g.strokeStyle='#ffe3a0';g.lineWidth=4*UIS;roundPath(g,x+2*UIS,y+2*UIS,w-4*UIS,h-4*UIS,6);g.stroke();}
     if(sel){ g.strokeStyle='rgba(255,208,124,0.85)'; g.lineWidth=1.8; roundPath(g,x,y,w,h,6); g.stroke(); }
     const dropW=Math.min(70*s, w*0.16), dropH=Math.min(28*s, h-16*s);
     const dropX=x+w-dropW-6*s, dropY=y+(h-dropH)/2;
