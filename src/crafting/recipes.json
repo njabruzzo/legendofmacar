@@ -66,7 +66,7 @@
         "count": 2,
         "packKey": "macar"
       },
-      "info": "Powder, casing, fuse — two 10d10 throwables into MACAR's pack."
+      "info": "Powder, casing, fuse \u2014 two 10d10 throwables into MACAR's pack."
     },
     {
       "id": "resin_fuse_bombs",
@@ -295,6 +295,25 @@
         "packKey": "pordoom"
       },
       "info": "The sapper's brew-bomb. 3d10 in a wet cough of fire."
+    },
+    {
+      "id": "emerald_clockwork_bolts",
+      "name": "Emerald Clockwork Bolts",
+      "group": "BENCH",
+      "station": "field",
+      "skill": "weapon",
+      "skillLevel": 1,
+      "skillXp": 8,
+      "ingredients": {
+        "spring": 1,
+        "gear": 1,
+        "emerald": 1
+      },
+      "output": {
+        "kind": "pack",
+        "field": "ammo",
+        "count": 12
+      }
     }
   ]
 }

@@ -48,8 +48,8 @@ assert(/if\(isToyTalkKey\(key\)\) G\.toyTalkEnded=null/.test(extractFn('startTal
   'branching startTalk does not kick');
 
 const draw=extractFn('drawWindupToyProp');
-assert(/propAnimImg\(p\)/.test(draw) && /drawBillboard\(/.test(draw),
-  'scamper draws the painted idle or wound sheet');
+assert(/SPR\.winduptoy_wound/.test(draw) && /drawBillboard\(/.test(draw),
+  'idle and scamper both draw the detailed brass walker');
 assert(/p\.scampT>0/.test(draw), 'gait runs only while scampering');
 assert(/scampDx/.test(draw) && /scampFace/.test(draw), 'facing follows the scamper');
 assert(/Math\.sin\(phase\)/.test(draw) && /Math\.sin\(t\*26\)/.test(draw),

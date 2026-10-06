@@ -8455,6 +8455,14 @@ function isToyTalkKey(key){
   return key==='toy_find'||key==='toy_wind'||key==='toy_grond'||key==='toy_teeth'
     ||key==='toy_ruby'||key==='toy_froren'||key==='toy_mordain'||key==='toy_anvil';
 }
+function explodeWindupToy(toy){
+  if(!toy||toy.gone)return false;toy.gone=1;G.lvl.flags.toyDestroyed=1;
+  G.toyTalkEnded=null;if(G.talk&&isToyTalkKey(G.talk.key))closeTalk();
+  burst(toy.x,toy.y,'#65d69e',24,3);shake(10);
+  spawnLoot(toy.x,toy.y,{kind:'pile',res:{spring:1,gear:1,emerald:1},label:'Clockwork salvage'});
+  say('The toy bursts apart: a spring, a gear, and an emerald. Crafting salvage.','#9bdeb7');
+  return true;
+}
 function windupToyProp(){
   return (G.props||[]).find(pr=>pr&&pr.k==='winduptoy'&&!pr.gone)||null;
 }
@@ -8567,7 +8575,7 @@ function toyScreenFace(dx, dy, prev){
    left or right screen face — on straight north and south. */
 const TOY_PAINTED_FACE={prop_winduptoy:-1,prop_winduptoy_wound:1};
 function windupToySheetKey(p){
-  if(p&&p.k==='winduptoy'&&G.lvl&&G.lvl.flags&&G.lvl.flags.toyWound&&SPR.winduptoy_wound)
+  if(p&&p.k==='winduptoy'&&SPR.winduptoy_wound)
     return 'prop_winduptoy_wound';
   return 'prop_winduptoy';
 }
@@ -8597,7 +8605,7 @@ function drawWindupToyProp(g,p,z){
   g.rotate(lean+key);
   g.translate(run?Math.sin(phase)*H*0.04:0, bob);
   g.scale(1/stretch, stretch);
-  const img=propAnimImg(p);
+  const img=SPR.winduptoy_wound;
   if(img&&img.width) drawBillboard(g,img,H);
   else {
     g.beginPath(); g.ellipse(0,-3*z*ts,9*z*ts,4.2*z*ts,0,0,TAU);
@@ -11909,6 +11917,7 @@ function meleeSwing(e,arc,reach,dmg,col){
         wear(e.gear,0.35,0);
         const k=.5/(d+.4); o.kx+=Math.cos(a)*k*2.4; o.ky+=Math.sin(a)*k*2.4; hit=1; }
     } }
+  if(e.hero && typeof windupToyProp==='function'){const toy=windupToyProp();if(toy && dist(e,toy)<=rad+.35 && hasLOS(e.x,e.y,toy.x,toy.y)){const a=ang(toy.x-e.x,toy.y-e.y);if(Math.abs(((a-fa+Math.PI*3)%TAU)-Math.PI)<=wedge/2){explodeWindupToy(toy);hit=1;}}}
   const L=G.lvl;
   const rock=dmg||18;
   if(e.hero&&L&&L.plug&&!L.flags.broke&&dist(e,L.plug)<reach+.95){
@@ -11926,6 +11935,7 @@ function shoot(from,tx,ty,dmg,kind,col,spd){
 function stepShot(s,dt){
   s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
   s.spin=s.kind==='bolt'?0:(s.spin||0)+dt*14;
+  if(s.from&&s.from.hero&&typeof windupToyProp==='function'){const toy=windupToyProp();if(toy&&Math.hypot(s.x-toy.x,s.y-toy.y)<.5){explodeWindupToy(toy);s.life=0;}}
 }
 function shotScreenAngle(s){
   // Project velocity with the same isometric axes as w2s, independently
@@ -14293,6 +14303,7 @@ function fire(key){
     /* Attack swings at a foe. It never chooses the bone crown. */
     const foe=nearestFoe(p, p.range+2.8)||(p.aim&&!p.aim.dead?p.aim:null);
     if(foe){ faceToward(p, foe.x, foe.y); p.aim=foe; }
+    else {const toy=windupToyProp();if(toy&&dist(p,toy)<p.range+1)faceToward(p,toy.x,toy.y);}
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
@@ -17909,6 +17920,9 @@ function drawPart(g,q){
    ECONOMY  -  ore, skills, gear, consumables. Persists across chapters.
    ========================================================================== */
 const RESMETA={
+  spring:{n:'Clockwork Spring',c:'#d6d6cf',s:'S'},
+  gear:{n:'Clockwork Gear',c:'#cfa65c',s:'G'},
+  emerald:{n:'Emerald',c:'#52d59b',s:'E'},
   ironstone :{n:'Ironstone',  c:'#c2ad91', s:'I'},
   deepsilver:{n:'Deepsilver', c:'#d6e6f0', s:'D'},
   starmetal :{n:'Starmetal',  c:'#a6dcff', s:'S'},
