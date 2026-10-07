@@ -5234,8 +5234,16 @@ function tickChapterDescent(){
   if(dist(p,L.stair)<2.5)interact('Climb down to '+(L.n===2?'the ruins':L.n===3?'the dead city':'the temple'),useChapterDescent);
 }
 function bronzeDoorPlaneY(p){return p.y;}
+function isNozDoorVoid(L,x,y){
+  return !!(L&&L.n===2&&x>=60&&x<66&&y>=7&&y<10);
+}
+function sealNozDoorBeyond(L){
+  if(!L||L.n!==2)return;
+  for(let y=7;y<10;y++)for(let x=60;x<66;x++)L.grid[y][x]=2;
+}
 function positionNozDoor(L){
   if(!L||L.n!==2)return;
+  sealNozDoorBeyond(L);
   L.door={x:62.5,y:11};L.bell={x:64.3,y:12.2};
   for(let x=60;x<=65;x++){L.grid[10][x]=1;for(let y=11;y<=13;y++)L.grid[y][x]=0;}
   for(const p of G.props||[])if(p.k==='bronzedoor'||p.k==='bell')Object.assign(p,p.k==='bell'?L.bell:L.door);
@@ -5493,6 +5501,7 @@ function makeChapter(n){
     caveDisk(g,62,16,6.4,5.2,0);
     for(let y=15;y<=17;y++)g[y][67]=4;
     for(let x=60;x<=65;x++){g[10][x]=1;for(let y=11;y<=13;y++)g[y][x]=0;}
+    sealNozDoorBeyond(L);
     L.collapse={x0:20,y0:47,x1:27,y1:53};
     L.secrets=[{x:40.0,y:41.05,i:39,j:40,w:3,h:1,open:0,kind:'warrens',face:'n'}];
     // Keep the north secret as solid stone until SEARCH opens it.
@@ -15390,7 +15399,7 @@ function drawWorld(g,L){
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const isoX=G.cam.x-G.cam.y, isoY=G.cam.x+G.cam.y;
   const limX=(VW*0.5+TW*2)/(TW*0.5), limY=(VH*0.5+TH*5)/(TH*0.5);
-  const near=o=>{ const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
+  const near=o=>{ if(isNozDoorVoid(L,o.x,o.y))return false; const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
   const seenAt=o=>tileExplored(o.x,o.y);
   const visAt=o=>tileVisible(o.x,o.y);
   const showEnt=e=>{
@@ -15429,6 +15438,9 @@ function drawWorld(g,L){
 
   function drawFloorCell(x,y,t){
     const s=w2s(x,y);
+    if(isNozDoorVoid(L,x,y)){
+      g.fillStyle='#000';g.beginPath();g.moveTo(s.x,s.y-TH/2);g.lineTo(s.x+TW/2,s.y);g.lineTo(s.x,s.y+TH/2);g.lineTo(s.x-TW/2,s.y);g.closePath();g.fill();return;
+    }
     const m=pack.floor;
     const key=palFloorKey(pal);
     const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
@@ -15484,6 +15496,7 @@ function drawWorld(g,L){
   // Flare background layer: floors always sit under the party and foes.
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
     const t=L.grid[y][x];
+    if(isNozDoorVoid(L,x,y)){drawFloorCell(x,y,t);continue;}
     if(!L.seen[y][x]||t===2)continue;
     if(t===1){
       // Extend the floor under the chapel boundary faces to close the half-tile seam.
