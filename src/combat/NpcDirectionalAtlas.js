@@ -70,7 +70,9 @@
      if(label===part.id&&sy>part.y1-(part.y1-part.y0)*.08){footSum+=x;footN++;}
     }
     tg.putImageData(out,0,0);const scale=scales[r],c=doc.createElement('canvas');c.width=c.height=512;
-    c.getContext('2d').drawImage(tile,256-(footN?footSum/footN:w/2)*scale,440-(h-3)*scale,w*scale,h*scale);
+    // Match Macar's slimmer proportions while retaining stature and foot anchor.
+    const widthScale=dwarfActors.includes(p.actor)?.76:1;
+    c.getContext('2d').drawImage(tile,256-(footN?footSum/footN:w/2)*scale*widthScale,440-(h-3)*scale,w*scale*widthScale,h*scale);
     c.__npcDirectional=true;c.__npcPose={actor:p.actor,view:views[r],stage:stages[col]};c.__npcFoot=[.5,440/512];c.__npcFit=2;
     return c;
    }));cache.set(p.actor,frames);
