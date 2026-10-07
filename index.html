@@ -63,7 +63,7 @@
 <script src="src/combat/MacarWeaponShaft.js?v=134"></script>
 <script src="src/combat/DwarfWalkLegs.js?v=1"></script>
 <script src="src/combat/MacarSharedAtlas.js?v=140"></script>
-<script src="src/combat/NpcDirectionalAtlas.js?v=5"></script>
+<script src="src/combat/NpcDirectionalAtlas.js?v=6"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -3152,6 +3152,12 @@ function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
     if(oN)drawIsoPlaneImg(g,img,x,back,x+1,back,H,opt);
     if(oW||x===105)drawIsoPlaneImg(g,img,x,back,x,front,H,opt);
     drawCrownBoneCap(g,img,x,y,H);
+    // Broken stone overlaps the bone ends rather than meeting a clean box edge.
+    if(x===105||x===107){
+      const edge=w2s(x===105?x+.12:x+.88,front+.05);
+      g.save();g.translate(edge.x,edge.y);
+      drawBillboard(g,x===105?SPR.rubble:SPR.rubble2,H*.58,false);g.restore();
+    }
     if(DIGT&&DIGT.i===x&&DIGT.j===y)drawDigMark(g,s.x,s.y,H);
     if(G.dig&&G.dig.i===x&&G.dig.j===y)drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
   }else{
@@ -6651,7 +6657,13 @@ function floorRubyPlaneY(p){return Number.isFinite(p.wallY)?p.wallY:p.y;}
 function ensureFloorTravelProps(){
   const L=G.lvl;if(!L||!L.spawn)return;
   const spot=(dx,dy)=>{const h=player();for(let r=0;r<12;r++)for(let i=0;i<8;i++){const a=i*Math.PI/4,x=L.spawn.x+dx+Math.cos(a)*r*.5,y=L.spawn.y+dy+Math.sin(a)*r*.5;if(canBe(x,y,h.r||.36,h))return{x,y};}return{x:L.spawn.x,y:L.spawn.y};};
-  if(!(G.props||[]).some(p=>p.k==='floorlever'))G.props.push(Object.assign(spot(2,4),{k:'floorlever'}));
+  // Chapter I already has its authored elevator lever, deeper in the level.
+  if(L.n===1)G.props=(G.props||[]).filter(p=>p.k!=='floorlever');
+  else{
+    const lever=(G.props||[]).find(p=>p.k==='floorlever'),place=spot(10,8);
+    if(!lever)G.props.push(Object.assign(place,{k:'floorlever'}));
+    else if(Math.hypot(lever.x-L.spawn.x,lever.y-L.spawn.y)<8)Object.assign(lever,place);
+  }
   if(L.n>1){
     const wall=floorRubyWallSpot(L),door=G.props.find(p=>p.k==='floorRubyDoor');
     // Move old floating doors without losing saved activation.

@@ -10,6 +10,14 @@ assert.equal(atlas.anatomy(synthetic,20).height,25,'dwarves keep consistent stat
 for(const actor of atlas.actors){
  const png=readRgba(path.join(__dirname,'../../'+atlas.files[actor]));
  const parsed=atlas.components(png.data,png.w,png.h);
+ const doc={createElement(){const canvas={width:0,height:0,calls:[]};canvas.getContext=()=>({drawImage(...args){canvas.calls.push(args);},getImageData:()=>({data:png.data}),createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}});return canvas;}};
+ for(const [r,view] of atlas.views.entries())for(const stage of atlas.stages){
+  const pose=atlas.pose(actor+'_direction_'+view+'_'+stage),part=parsed.rows[r][pose.col];
+  const rendered=atlas.slice({width:png.w,height:png.h},actor+'_direction_'+view+'_'+stage,doc),draw=rendered.calls[0];
+  const sourceRatio=(part.x1-part.x0+5)/(part.y1-part.y0+5);
+  assert(Math.abs(draw[3]/draw[4]-sourceRatio*(atlas.dwarfActors.includes(actor)?.76:1))<1e-8,'every dwarf pose has the same narrower proportion, gnomes retain theirs');
+  assert(Math.abs(draw[2]+draw[4]-3*(draw[4]/(part.y1-part.y0+5))-440)<1e-8,'vertical foot anchor is unchanged');
+ }
  if(atlas.dwarfActors.includes(actor))assert(atlas.files[actor].endsWith('-v2.png'),'all four dwarves bind the Macar-family design revision');
  for(const row of parsed.rows){
   const hashes=[];

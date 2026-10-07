@@ -13,5 +13,8 @@ c.G.props=[{k:'crate',x:door.x,y:door.y}];let other=c.floorRubyWallSpot(c.G.lvl)
 c.G.props=[{k:'floorRubyDoor',x:8,y:7}];c.ensureFloorTravelProps();door=c.G.props.find(p=>p.k==='floorRubyDoor');assert(Number.isFinite(door.wallY));assert.equal(c.G.lvl.flags.floorRubyActivated,1);assert.equal(c.G.props.filter(p=>p.k==='floorRubyDoor').length,1);
 c.ensureFloorTravelProps();assert.equal(c.G.props.filter(p=>p.k==='floorRubyDoor').length,1);
 assert.equal(c.floorRubyPlaneY(door),door.wallY);
+assert(Math.hypot(c.G.props.find(p=>p.k==='floorlever').x-c.G.lvl.spawn.x,c.G.props.find(p=>p.k==='floorlever').y-c.G.lvl.spawn.y)>=8,'travel lever is away from arrival');
+c.G.props.push({k:'floorlever',x:c.G.lvl.spawn.x,y:c.G.lvl.spawn.y});
+c.G.lvl.n=1;c.ensureFloorTravelProps();assert(!c.G.props.some(p=>p.k==='floorlever'),'Chapter I removes old entrance lever and retains authored elevator controls');
 assert(html.includes("s=w2s(prop.x,prop.k==='floorRubyDoor'?floorRubyPlaneY(prop):prop.y)"));
 console.log('Floor ruby wall: reachable backing, obstruction avoidance, old-save migration, and matching hit plane passed');
