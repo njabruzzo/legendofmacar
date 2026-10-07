@@ -60,8 +60,8 @@
 <script src="src/combat/MacarEquipment.js"></script>
 <script src="src/combat/MacarMotionAtlas.js?v=132"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
-<script src="src/combat/MacarWeaponShaft.js?v=133"></script>
-<script src="src/combat/MacarSharedAtlas.js?v=133"></script>
+<script src="src/combat/MacarWeaponShaft.js?v=134"></script>
+<script src="src/combat/MacarSharedAtlas.js?v=134"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -2296,10 +2296,10 @@ function isLivingMacarKey(k){ return !!(k && LIVING_MACAR_KEYS[k]); }
 function livingMacarIdleKey(){
   const p=(typeof player==='function')?player():null;
   if(typeof requestMacarEquipmentArt==='function') requestMacarEquipmentArt();
-  if(p && p.atkKind==='bow' && sprReady('macar_xbow')) return 'macar_xbow';
+  if(p && p.atkKind==='bow') return 'macar_xbow';
   if(typeof MacarEquipment!=='undefined' && typeof G!=='undefined'){
     const held=MacarEquipment.heldKind(G.equipped);
-    if(held==='xbow' && sprReady('macar_xbow')) return 'macar_xbow';
+    if(held==='xbow') return 'macar_xbow';
     if(held==='axe') return 'macar_axe';
     if(held==='maul') return 'macar';
   } else if(typeof wieldsCrossbow==='function' && wieldsCrossbow() && sprReady('macar_xbow'))
@@ -2556,7 +2556,7 @@ function ghostAnimKey(e, k){
    livingMacarAnimKey already chose the mid-swing sheet. */
 /* Worn bone crown is always a prop overlay. There is no crowned Macar sheet. */
 function livingMacarStandKey(idle,e){
-  if(e&&typeof MacarSharedAtlas!=='undefined'&&idle!=='macar_xbow'){const shared=MacarSharedAtlas.select(idle==='macar_axe'?'axe':'maul',e,screenOctant(e),'idle');loadSpriteKeyNow(shared);if(sprReady(shared))return shared;}
+  if(e&&typeof MacarSharedAtlas!=='undefined'){const shared=MacarSharedAtlas.select(({macar_axe:'axe',macar_xbow:'xbow'}[idle]||'maul'),e,screenOctant(e),'idle');loadSpriteKeyNow(shared);if(sprReady(shared))return shared;}
   idle=idle||'macar';
   if(idle==='macar_xbow' && e && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),false);if(sprReady(k))return k;}
   if(e && typeof screenOctant==='function'){
@@ -2572,7 +2572,7 @@ function livingMacarStandKey(idle,e){
   return idle;
 }
 function livingMacarBlitKey(key){
-  if(typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(key)&&sprReady(key)&&MacarSharedAtlas.pose(key).weapon===(livingMacarIdleKey()==='macar_axe'?'axe':'maul'))return key;
+  if(typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(key)&&sprReady(key)&&MacarSharedAtlas.pose(key).weapon===({macar_axe:'axe',macar_xbow:'xbow'}[livingMacarIdleKey()]||'maul'))return key;
   const idle=livingMacarIdleKey();
   if((idle==='macar_axe' || idle==='macar_xbow') && key!==idle && !(key && key.startsWith(idle+'_'))) key=null;
   if(isLivingMacarKey(key) && matchingPartyAtkReady(key, idle)) return key;
@@ -2717,9 +2717,9 @@ function livingMacarAnimKey(e){
   if(!e||!e.hero||e.dead||e.ghost) return null;
   if(typeof expireBowPose==='function') expireBowPose(e);
   const idle=livingMacarIdleKey();
-  if(typeof MacarSharedAtlas!=='undefined'&&idle!=='macar_xbow'){
-    const stage=wantsLivingMacarStrike(e)?'attack':e.moving&&!e.defending&&!wantsMeleeRecover(e)?'walk':'idle';
-    const shared=MacarSharedAtlas.select(idle==='macar_axe'?'axe':'maul',e,screenOctant(e),stage);loadSpriteKeyNow(shared);if(sprReady(shared))return shared;
+  if(typeof MacarSharedAtlas!=='undefined'){
+    const stage=wantsBowPose(e)?'ranged':wantsMeleeRecover(e)?'recover':wantsLivingMacarStrike(e)?MacarSharedAtlas.attackStage(attackProgress(e)):e.moving&&!e.defending?'walk':'idle';
+    const shared=MacarSharedAtlas.select(({macar_axe:'axe',macar_xbow:'xbow'}[idle]||'maul'),e,screenOctant(e),stage);loadSpriteKeyNow(shared);if(sprReady(shared))return shared;
   }
   if(idle==='macar_xbow' && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('xbow',e,screenOctant(e),!!e.moving&&!e.defending&&!wantsBowPose(e)&&!wantsMeleeRecover(e)&&!wantsLivingMacarStrike(e));if(sprReady(k))return k;}
   if(idle==='macar_axe' && e.moving && !e.defending && !wantsLivingMacarStrike(e) && !wantsMeleeRecover(e) && typeof MacarMotionAtlas!=='undefined'){const k=MacarMotionAtlas.select('axe',e,screenOctant(e),true);if(sprReady(k))return k;}
@@ -3267,6 +3267,7 @@ function actorDrawDepth(o){
   /* The signed sheet is wider than one north-wall cell. Sorting on the
      door's own x+y lets the next east face (drawn later on that diagonal)
      paint a hard vertical cut through the right outer arch. */
+  if(o.k==='bronzedoor')return (Math.floor(bronzeDoorPlaneX(o))+Math.ceil(o.y+1.08))|0;
   if(o.k==='floorRubyDoor') return (Math.floor(o.x+1.08-floorRubyPlaneY(o)+Math.floor(floorRubyPlaneY(o))+1-1e-4)+Math.floor(floorRubyPlaneY(o)))|0;
   if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
   /* Chapel portrait. Its own x+y is before the next east cell, so that
@@ -4179,14 +4180,14 @@ function propSpriteH(p,z){
   if(k==='ruin_house') return 128*z*(p.s||1);
   if(k==='secret_door') return 92*z*(p.s||1);
   if(k==='gate'||k==='bronzedoor') return 132*z;
-  if(k==='stairs') return 124*z*(p.s||1);
+  if(k==='stairs') return 138*z*(p.s||1);
   if(k==='bell') return 58*z;
   if(k==='chain') return 96*z;
   if(k==='timber') return 100*z;
   if(k==='lantern') return 102*z;
   if(k==='floorlever') return 86*z;
   if(k==='floorRubyDoor') return 150*z;
-  if(k==='lift') return 72*z;
+  if(k==='lift') return (G.lvl&&G.lvl.n===1?72:118)*z*(p.s||1);
   if(k==='rubypillar') return 78*z;
   if(k==='cart'||k==='crate'||k==='barrel'||k==='sack') return 54*z*(p.s||1);
   if(k==='bones') return 42*z;
@@ -5166,6 +5167,35 @@ function scatterBurialRubble(){
   });
   return out;
 }
+function openDescentLanding(L,x,y,w=16,h=14){
+  if(!L||!L.grid)return;
+  const x0=Math.max(2,Math.round(x-w/2)),y0=Math.max(2,Math.round(y-h/2));
+  rect(L.grid,x0,y0,Math.min(w,L.w-x0-2),Math.min(h,L.h-y0-2),3);
+}
+function ensureChapterDescents(){
+  const L=G.lvl;if(!L||![2,3,4].includes(L.n))return;
+  const spots={2:{x:40.1,y:51.6},3:{x:48.1,y:61.4},4:{x:50.1,y:61.2}};
+  L.stair=spots[L.n];openDescentLanding(L,L.stair.x,L.stair.y);
+  let stair=G.props.find(p=>p.k==='stairs'&&p.chapterDescent);
+  if(!stair&&L.n===2)stair=G.props.find(p=>p.k==='stairs'&&!p.label);
+  if(stair)Object.assign(stair,L.stair,{chapterDescent:1,s:1.4});else G.props.push({...L.stair,k:'stairs',chapterDescent:1,s:1.4});
+  if(L.n===2){L.lift={x:40,y:8.35};openDescentLanding(L,40,9,14,12);const lift=G.props.find(p=>p.k==='lift');if(lift)Object.assign(lift,L.lift,{s:1.18});}
+}
+function useChapterDescent(){
+  const L=G.lvl;if(!L||!L.stair)return false;
+  if((L.n===3||L.n===4)&&!L.flags.done){hint('Defeat this floor’s guardian before descending.',4);return false;}
+  if(!floorTravelReady()){hint('Activate this floor’s ruby door before descending.',4);return false;}
+  if(L.objs&&L.objs[4])L.objs[4].d=1;endChapter();return true;
+}
+function tickChapterDescent(){
+  const L=G.lvl,p=player();if(!L||!p||!L.stair||G.talk)return;
+  if(dist(p,L.stair)<2.5)interact('Climb down to '+(L.n===2?'the ruins':L.n===3?'the dead city':'the temple'),useChapterDescent);
+}
+function bronzeDoorPlaneX(p){
+  const L=G.lvl,iy=Math.round(p.y),ix=Math.round(p.x);
+  if(L&&L.grid&&L.grid[iy])for(let x=ix;x<=ix+5&&x<L.w-1;x++)if([1,4].includes(L.grid[iy][x])&&isWalkTile(L.grid[iy][x-1]))return x-.38;
+  return Math.ceil(p.x)-.38;
+}
 function makeChapter(n){
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
@@ -5414,7 +5444,10 @@ function makeChapter(n){
     L.door={x:66.48,y:16.05};
     L.bell={x:66.48,y:17.42};
     L.camp={x:40,y:32};
-    L.stair={x:40.1,y:54.15};
+    L.stair={x:40.1,y:51.6};
+    openDescentLanding(L,40.1,51.6);
+    caveDisk(g,62,16,6.4,5.2,0);
+    for(let y=15;y<=17;y++)g[y][67]=4;
     L.collapse={x0:20,y0:47,x1:27,y1:53};
     L.secrets=[{x:40.0,y:41.05,i:39,j:40,w:3,h:1,open:0,kind:'warrens',face:'n'}];
     // Keep the north secret as solid stone until SEARCH opens it.
@@ -5569,7 +5602,7 @@ function makeChapter(n){
         });
       }
       if(dist(p,L.stair)<2.3){
-        interact('Climb down to the ruins',()=>{ L.objs[4].d=1; endChapter(); });
+        interact('Climb down to the ruins',useChapterDescent);
       }
       const sk=(G.ents||[]).find(e=>e&&e.webTalk&&!e.webTalkDone);
       if(sk && dist(p,sk)<2.05){
@@ -5607,6 +5640,7 @@ function makeChapter(n){
     corridor(g,70,80,86,100,5,0); rect(g,78,96,20,14,0);
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
+    L.stair={x:48.1,y:61.4};
     L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
       {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6},
@@ -5707,7 +5741,7 @@ function makeChapter(n){
       /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The warden falls. The road to the city is open.','#ffd27a');
-        setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
+        hint('The south stair waits. Walk there to descend.',4);}
     };
   }
 
@@ -5732,6 +5766,7 @@ function makeChapter(n){
     corridor(g,62,48,80,72,5,0); rect(g,72,66,18,14,0);
     L.spawn={x:8,y:28};
     L.secrets=[];
+    L.stair={x:50.1,y:61.2};
     addSecretDoor(L,{x:50.4,y:7.15,i:49,j:7,w:3,h:1,kind:'treasure',face:'n',vaultFace:'s',
       hint:'The outpost\'s north wall is a false course. SEARCH the grey brick.'});
     L.objs=[{t:'Clear the drowned streets',d:0},{t:'Break the illithid outpost',d:0},{t:'Destroy the Elder Brain',d:0}];
@@ -5815,7 +5850,7 @@ function makeChapter(n){
         say('A cloaker and a troll hold the mid-south quay.','#5a3a8a');}
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
         say('The pool goes still. The temple road is the last way down.','#ffd27a');
-        setTimeout(()=>{ if(G.scene==='play') endChapter(); },1400);}
+        hint('The south stair waits. Walk there to descend.',4);}
     };
   }
 
@@ -5914,7 +5949,8 @@ function makeChapter(n){
           shake(16);}
       }
       if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
-        L.flags.done=1; L.objs[1].d=1; setTimeout(()=>{ if(G.scene==='play') G.scene='win'; },1500);}
+        L.flags.done=1; L.objs[1].d=1; G.cleared[5]=1;writeGameSave(true);
+        setTimeout(()=>{ if(G.lvl===L&&G.scene==='play') G.scene='win'; },1500);}
     };
   }
   sealOuter(L.grid);
@@ -5960,7 +5996,7 @@ function dressDungeon(L){
     keep.push({x:face.x,y:face.y+1.15,r:3.4});
   }
   if(L.door) keep.push({x:L.door.x,y:L.door.y,r:2.0});
-  if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:2.0});
+  if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:3.8});
   if(L.camp) keep.push({x:L.camp.x,y:L.camp.y,r:1.8});
   if(L.bell) keep.push({x:L.bell.x,y:L.bell.y,r:1.6});
   G.props.forEach(p=>keep.push({x:p.x,y:p.y,r:1.25}));
@@ -6036,7 +6072,7 @@ function placePlantClusters(L){
   if(L.spawn) keep.push({x:L.spawn.x,y:L.spawn.y,r:2.2});
   if(L.rubyDoor) keep.push({x:L.rubyDoor.x,y:L.rubyDoor.y,r:2.5});
   if(L.door) keep.push({x:L.door.x,y:L.door.y,r:1.8});
-  if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:1.8});
+  if(L.stair) keep.push({x:L.stair.x,y:L.stair.y,r:3.8});
   if(L.camp) keep.push({x:L.camp.x,y:L.camp.y,r:1.6});
   if(L.bell) keep.push({x:L.bell.x,y:L.bell.y,r:1.5});
   let clusters=0, tries=0;
@@ -6585,6 +6621,7 @@ function floorTravelScreenHit(t){
   }return null;
 }
 function tickFloorTravel(){
+  tickChapterDescent();
   if(G.talk)return;const p=player(),L=G.lvl;if(!p||!L)return;
   const lever=G.props.find(q=>q.k==='floorlever');
   const door=G.props.find(q=>q.k==='floorRubyDoor');
@@ -6686,7 +6723,9 @@ function startChapter(n){
   if(typeof Interaction!=='undefined' && Interaction.installChapterI)
     Interaction.installChapterI(G.lvl, G, interactHost());
   if(typeof layoutUI==='function') layoutUI();
+  ensureChapterDescents();
   ensureFloorTravelProps();
+  if(n===5&&G.lvl.flags.done){G.cleared[5]=1;G.scene='win';}
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
   if(typeof tryEnterPlay==='function') tryEnterPlay();
 }
@@ -13325,7 +13364,7 @@ function dressRuinBuildings(L){
   const seed=L.dressSeed||11;
   const footprints=[
     [6,8,12,10],[22,6,14,10],[56,6,18,12],
-    [64,20,18,16],[6,38,12,12],[64,42,18,16],[20,54,24,12],
+    [64,20,18,16],[6,38,12,12],[64,42,18,16],[8,54,20,12],
     [84,8,16,12],[92,28,18,14],[80,54,22,14],[8,70,16,14],[42,74,22,14],[72,76,18,12],[100,40,14,16],
     [118,4,16,12],[120,40,16,16],[110,74,22,14],[4,96,16,14],[38,98,22,12],[78,96,20,14]
   ];
@@ -13482,6 +13521,7 @@ function buildGoblinWarrens(L, sec){
   ];
   if(!L.flags.warrenSpawned){
     rooms.forEach((r,i)=>{
+      if(i===rooms.length-1)return;
       const spec=packs[i%packs.length];
       spawnLairGroup(r.x, r.y, {leader:spec.leader, pack:spec.pack, spread:1.35+rnd()*0.4, aggro:3.6});
     });
@@ -13489,7 +13529,8 @@ function buildGoblinWarrens(L, sec){
   }
   const last=rooms[rooms.length-1]||mouth;
   L.warrenStair={x:last.x, y:last.y};
-  caveDisk(g, last.x, last.y, 3.2, 2.6, 3);
+  caveDisk(g, last.x, last.y, 6.6, 5.4, 3);
+  openDescentLanding(L,last.x,last.y,12,11);
   G.props.push({x:last.x,y:last.y,k:'stairs',s:1.32,label:'Goblin King'});
   L.lights.push({x:last.x,y:last.y,c:'#ffd27a',r:6.2,f:1.2});
   L.climbs=L.climbs||[];
@@ -14514,8 +14555,7 @@ function fire(key){
     const L=G.lvl;
     if(L&&L.stair&&dist(p,L.stair)<2.5){
       if(L.objs&&L.objs[4]) L.objs[4].d=1;
-      say('Macar climbs down. Old ruin-stone waits below.','#c9b895');
-      endChapter(); return;
+      useChapterDescent();return;
     }
     const cl=(L&&L.climbs||[]).find(c=>dist(p,c)<1.9);
     if(cl){ cl.fn(); return; }
@@ -16978,6 +17018,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   if(!p||p.gone||p.taken) return;
   const s=w2s(p.x,p.y), z=ZOOM;
+  if(p.k==='bronzedoor'){const img=propAnimImg(p),plane=bronzeDoorPlaneX(p);drawIsoPlaneImg(g,img,plane,p.y-1.08,plane,p.y+1.08,wallFaceH(G.lvl)*1.22,{stroke:0});return;}
   if(p.k==='floorRubyDoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p),half=1.08,H=propSpriteH(p,z);
     const plane=floorRubyPlaneY(p);

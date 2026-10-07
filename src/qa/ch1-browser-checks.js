@@ -177,7 +177,7 @@
   await Promise.all(['macar_axe','macar_axe_atk',...MacarIdleAtlas.keys('macar_axe')].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,()=>resolve()))));
   const booms=sfx.plays.filter(k=>k==='explosion').length;fire('attack');
   const attackPose=MacarSharedAtlas.pose(livingMacarBlitKey(livingMacarAnimKey(lead)));
-  check(attackPose&&attackPose.weapon==='axe'&&attackPose.stage==='attack','Attack button renders axe swing '+dt);
+  check(attackPose&&attackPose.weapon==='axe'&&['windup','attack'].includes(attackPose.stage),'Attack button renders axe swing '+dt);
   for(let i=0;i<120&&!toy.gone;i++){G.t+=dt;update(dt);if(G.talk)G.talk=null;}
   result.observations.push({tag:'axe toy attack',dt,gone:toy.gone,loot:G.loot.map(q=>({kind:q.kind,gone:q.gone,hold:q.dropHold})),booms:sfx.plays.filter(k=>k==='explosion').length-booms,atk:lead.atk,swung:lead.swung,ranged:lead.ranged,defending:lead.defending,distance:dist(lead,toy),attack:lead._attack});
   check(toy.gone&&G.loot.filter(q=>['gear','spring','emerald'].includes(q.kind)).length===3&&sfx.plays.filter(k=>k==='explosion').length===booms+1,'actual axe Attack/update path destroys toy once '+dt);

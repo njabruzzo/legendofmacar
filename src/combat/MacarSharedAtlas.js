@@ -1,28 +1,31 @@
 (function(root){
  'use strict';
+ const combatFile='assets/creatures/shared/macar-combat-v2.png',crossbowFile='assets/creatures/shared/macar-crossbow-v1.png';
  const bodyFile='assets/creatures/shared/macar-body-v1.png',weaponFile='assets/creatures/shared/macar-weapons-v1.png';
- const directions=['s','se','e','ne','n'],stages=['idle','walk0','walk1','walk2','walk3','attack'];
- const targets={maul:.53,axe:.65},bodyHeight=400,size=768,feet=590;
- const cache=new Map(),geometryCache=new Map();let equipment=null,equipmentPromise=null;
- function keys(){const out=[];for(const weapon of ['maul','axe'])for(const dir of directions)for(const stage of stages)out.push((weapon==='axe'?'macar_axe':'macar')+'_shared_'+dir+'_'+stage);return out;}
+ const directions=['s','se','e','ne','n'],stages=['idle','walk0','walk1','walk2','walk3','windup','attack','recover','ranged'];
+ const targets={maul:.53,axe:.65,xbow:.70},bodyHeight=400,size=896,feet=650;
+ const cache=new Map(),geometryCache=new Map();let equipment=null,equipmentPromise=null,crossbow=null,crossbowPromise=null;
+ function keys(){const out=[];for(const weapon of ['maul','axe','xbow'])for(const dir of directions)for(const stage of stages)out.push((weapon==='maul'?'macar':'macar_'+weapon)+'_shared_'+dir+'_'+stage);return out;}
  function pose(key){
-  const m=/^macar(?:_(axe))?_shared_(s|se|e|ne|n)_(idle|walk[0-3]|attack)$/.exec(key||'');
+  const m=/^macar(?:_(axe|xbow))?_shared_(s|se|e|ne|n)_(idle|walk[0-3]|windup|attack|recover|ranged)$/.exec(key||'');
   if(m)return{weapon:m[1]||'maul',dir:m[2],stage:m[3],row:directions.indexOf(m[2]),col:stages.indexOf(m[3])};
   // Legacy and late-decode fallback keys use exactly the same body source.
-  if(!/^macar(?:_|$)/.test(key||'')||/xbow|crowned/.test(key))return null;
-  const weapon=key.includes('_axe')?'axe':'maul';
+  if(!/^macar(?:_|$)/.test(key||'')||/crowned/.test(key))return null;
+  const weapon=key.includes('_axe')?'axe':key.includes('_xbow')?'xbow':'maul';
   let dir=(key.match(/(?:idle_|atk_)(s|se|e|ne|n)$/)||[])[1]||(/back/.test(key)?'n':/(?:_e_|_se_|_ne_)/.test(key)?key.split('_')[1]:'s');
   const cycle=/cycle_(front|rear)_([0-3])$/.exec(key);
   if(cycle)dir=cycle[1]==='rear'?'n':'s';
-  const stage=/atk/.test(key)?'attack':cycle?'walk'+cycle[2]:/_w[12]$/.test(key)?'walk'+(key.endsWith('w1')?0:2):'idle';
+  if(weapon==='xbow'&&/side_rear/.test(key))dir='n';
+  const stage=/atk_recover/.test(key)?'recover':/atk/.test(key)?(weapon==='xbow'?'ranged':'attack'):cycle?'walk'+cycle[2]:/_w[12]$/.test(key)?'walk'+(key.endsWith('w1')?0:2):'idle';
   return{weapon,dir,stage,row:directions.indexOf(dir),col:stages.indexOf(stage)};
  }
- function register(bindings){for(const key of Object.keys(bindings))if(pose(key))bindings[key]=bodyFile;for(const key of keys())bindings[key]=bodyFile;}
- function select(weapon,e,oct,stage){const dir={w:'e',sw:'se',nw:'ne'}[oct]||oct||'s';const phase=Math.min(3,Math.floor((((e.gait||0)%1)+1)%1*4));return(weapon==='axe'?'macar_axe':'macar')+'_shared_'+dir+'_'+(stage==='walk'?'walk'+phase:stage);}
+ function source(p){return ['windup','attack','recover','ranged'].includes(p.stage)?combatFile:bodyFile;}
+ function register(bindings){for(const key of Object.keys(bindings))if(pose(key))bindings[key]=source(pose(key));for(const key of keys())bindings[key]=source(pose(key));}
+ function select(weapon,e,oct,stage){const dir={w:'e',sw:'se',nw:'ne'}[oct]||oct||'s';const phase=Math.min(3,Math.floor((((e.gait||0)%1)+1)%1*4));return(weapon==='maul'?'macar':'macar_'+weapon)+'_shared_'+dir+'_'+(stage==='walk'?'walk'+phase:stage);}
  function loadEquipment(){if(equipment)return Promise.resolve(equipment);if(!equipmentPromise)equipmentPromise=new Promise((resolve,reject)=>{const img=new root.Image();img.onload=()=>{equipment=img;resolve(img);};img.onerror=()=>{equipmentPromise=null;reject(new Error('Macar equipment atlas failed to load'));};img.src=(typeof root.assetUrl==='function'?root.assetUrl(weaponFile):weaponFile);});return equipmentPromise;}
- function cellBounds(image,row,col,doc){
-  const w=image.width/6,h=image.height/5,c=doc.createElement('canvas');c.width=w;c.height=h;
-  const g=c.getContext('2d');g.drawImage(image,col*w,row*h,w,h,0,0,w,h);
+ function cellBounds(image,row,col,doc,cols=6){
+  const sw=image.width/cols,sh=image.height/5,w=Math.ceil(sw),h=Math.ceil(sh),c=doc.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');g.drawImage(image,col*sw,row*sh,sw,sh,0,0,w,h);
   const pixels=g.getImageData(0,0,w,h),d=pixels.data,visited=new Uint8Array(w*h),components=[];
   // Isolated atlas-edge flecks are not limbs. Keep every painted body component.
   for(let n=0;n<w*h;n++){
@@ -43,18 +46,24 @@
   return{w,h,c,top,bot,left,right};
  }
 
+ function attackStage(progress){return progress<.45?'windup':progress<.84?'attack':'recover';}
+ function loadCrossbow(){if(crossbow)return Promise.resolve(crossbow);if(!crossbowPromise)crossbowPromise=new Promise((resolve,reject)=>{const img=new root.Image();img.onload=()=>{crossbow=img;resolve(img);};img.onerror=()=>{crossbowPromise=null;reject(new Error('Crossbow equipment failed to load'));};img.src=typeof root.assetUrl==='function'?root.assetUrl(crossbowFile):crossbowFile;});return crossbowPromise;}
  function layout(p){
   const carry=[[88,58],[91,62],[119,62],[165,63],[177,64]][p.row],hit=[[102,162],[148,128],[178,143],[189,127],[174,116]][p.row];
   const grip=p.stage==='attack'?hit:carry;
   const angle=p.stage==='attack'?[.45,.3,.2,-.6,-1.3][p.row]:p.row>=3?Math.PI+.32:-.32;
+  if(p.stage==='windup')return{grip:[[132,46],[145,47],[172,45],[157,47],[147,40]][p.row],angle:[-1.05,-1.0,-.95,-2.0,-2.1][p.row]};
+  if(p.stage==='attack')return{grip:[[166,252],[236,254],[271,258],[288,224],[246,204]][p.row],angle:[.45,.3,.2,-.6,-1.3][p.row]};
+  if(p.stage==='recover'||p.stage==='ranged')return{grip:[[181,182],[230,177],[258,180],[267,165],[227,158]][p.row],angle:p.weapon==='xbow'?[.45,.3,.1,-.55,-1.3][p.row]:[.15,.1,0,-.25,-.5][p.row]};
   return{grip,angle};
  }
  async function slice(image,key,doc){
-  const p=pose(key);if(!p)return image;const weapons=await loadEquipment();
+  const p=pose(key);if(!p)return image;const weapons=p.weapon==='xbow'?await loadCrossbow():await loadEquipment();
   const bodyKey=p.dir+':'+p.stage;
   let body=cache.get(bodyKey);
   if(!body){
-   const bounds=cellBounds(image,p.row,p.col,doc),idle=cellBounds(image,p.row,0,doc),sc=bodyHeight/(idle.bot-idle.top);
+   const combat=['windup','attack','recover','ranged'].includes(p.stage),col=combat?({windup:0,attack:1,recover:2,ranged:2}[p.stage]):p.col,cols=combat?3:6;
+   const bounds=cellBounds(image,p.row,col,doc,cols),idle=cellBounds(image,p.row,0,doc,cols),sc=bodyHeight/(idle.bot-idle.top);
    const x=size/2-(idle.left+idle.right)/2*sc,y=feet-bounds.bot*sc;
    const c=doc.createElement('canvas');c.width=c.height=size;c.getContext('2d').drawImage(bounds.c,x,y,bounds.w*sc,bounds.h*sc);
    body={canvas:c,bounds,sc,x,y,top:y+bounds.top*sc};cache.set(bodyKey,body);
@@ -63,13 +72,14 @@
   const length=bodyHeight*targets[p.weapon],ux=Math.cos(l.angle),uy=Math.sin(l.angle),a=[grip[0]-length*.16*ux,grip[1]-length*.16*uy],b=[a[0]+length*ux,a[1]+length*uy];
   // Artwork pommel/socket landmarks in the 1254px equipment sheet.
   const endpoints=p.weapon==='axe'?[80,1050,914]:[80,941,348],scale=length/(endpoints[1]-endpoints[0]);
-  const drawWeapon=()=>{g.save();g.translate(a[0],a[1]);g.rotate(l.angle);const sy=p.weapon==='axe'?627:0;g.drawImage(weapons,0,sy,1254,627,-endpoints[0]*scale,-(endpoints[2]-sy)*scale,1254*scale,627*scale);g.restore();};
+  const drawWeapon=()=>{g.save();if(p.weapon==='xbow'){g.translate(grip[0],grip[1]);g.rotate(l.angle);const sc=length/1100;g.drawImage(weapons,-540*sc,-650*sc,weapons.width*sc,weapons.height*sc);g.restore();return;}g.translate(a[0],a[1]);g.rotate(l.angle);const sy=p.weapon==='axe'?627:0;g.drawImage(weapons,0,sy,1254,627,-endpoints[0]*scale,-(endpoints[2]-sy)*scale,1254*scale,627*scale);g.restore();};
   drawWeapon();g.drawImage(body.canvas,0,0);
-  if(p.stage==='attack'){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
-  const browX=body.x+([132,143,156,151,123][p.row])*body.sc,browY=body.top+27*body.sc;
+  if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
+  const brows={windup:[[189,66],[209,66],[225,62],[208,65],[185,63]],attack:[[174,146],[236,159],[273,166],[264,143],[215,154]],recover:[[178,66],[232,88],[259,72],[257,73],[216,70]],ranged:[[178,66],[232,88],[259,72],[257,73],[216,70]]};
+  const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+[132,143,156,151,123][p.row]*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+27*body.sc;
   const geom={weapon:p.weapon,size:[size,size],shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,52*body.sc/size,0]};
   geometryCache.set(key,geom);c.__macarSharedBody=bodyKey;c.__macarBodyCanvas=body.canvas;c.__macarDirectionalIdle=1;c.__macarIntegratedMotion=1;c.__macarIdleSeat=[browX,browY,52*body.sc,0];c._stature=(feet-body.top)/size;c.__macarSharedGeometry=geom;return c;
  }
  function geometry(key){return geometryCache.get(key)||null;}
- const api={bodyFile,weaponFile,directions,stages,targets,keys,pose,register,select,slice,geometry};root.MacarSharedAtlas=api;if(typeof module==='object')module.exports=api;
+ const api={bodyFile,weaponFile,combatFile,crossbowFile,attackStage,source,directions,stages,targets,keys,pose,register,select,slice,geometry};root.MacarSharedAtlas=api;if(typeof module==='object')module.exports=api;
 })(globalThis);
