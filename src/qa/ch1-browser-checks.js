@@ -235,6 +235,6 @@
  result.observations.push({tag:'floor controls',spawn:G.lvl.spawn,props:G.props.filter(p=>['floorlever','floorRubyDoor'].includes(p.k)).map(p=>({k:p.k,x:p.x,y:p.y,ready:sprReady(propSpriteKey(p))}))});
  drawWorld(visual.getContext('2d'),G.lvl);VW=oldW;VH=oldH;
  document.body.insertBefore(visual,report);
- report.textContent=JSON.stringify(result,null,2);
+ report.textContent=JSON.stringify({...result,entranceGallery:undefined,toyGallery:undefined,doorGallery:undefined,rubyWallGallery:undefined},null,2);
  await fetch('/qa-result',{method:'POST',body:JSON.stringify(result,null,2)});
 })();

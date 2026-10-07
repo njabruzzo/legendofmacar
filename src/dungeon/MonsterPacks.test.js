@@ -23,7 +23,7 @@ assert(/spec\.leader/.test(html) && /spec\.pack/.test(html), 'lair groups keep a
 
 const ch3=html.slice(html.indexOf('if(n===3){'), html.indexOf('if(n===4){'));
 assert(/spawnLairGroup\(26,28,\{leader:'duergarX'/.test(ch3), 'barracks is a duergar shift');
-assert(/spawnLairGroup\(46,16,\{leader:'drowMage'/.test(ch3), 'Hall of Names is a drow house');
+assert(/spawnLairGroup\(46,16,\{leader:'orc'/.test(ch3), 'Hall of Names uses lighter orc guards');
 assert(/spawnLairGroup\(43,44,\{pack:\[\['undead',3\]\]/.test(ch3), 'warden vault keeps the dead together');
 assert(!/\['duergar',22,23\],\['hookedhorror',28,24\]/.test(ch3), 'old mixed barracks wave is gone');
 assert(!/spawnLairGroup\(22,23,\{pack:\[\['pech',2\]/.test(ch3),
@@ -61,7 +61,7 @@ assert(/const k=kinds\[ri\(0,kinds\.length-1\)\]\|\|'rat'/.test(wander), 'wander
 assert(/const n=Math\.min\(ri\(2,4\)/.test(wander), 'wanderers arrive as a small pack');
 assert(/function dungeonEntryLevel\(\)\{ return 5; \}/.test(html), 'dungeon entry is level 5');
 assert(/if\(ch<=1\) return \[1,7\]/.test(html), 'Ch I/cave HD band 1-7');
-assert(/return \[5,9\]/.test(html), 'ruins HD band 5-9');
+assert(/return \[1,5\]/.test(html), 'ruins HD band 1-5');
 assert(/return \[6,12\]/.test(html), 'dead city HD band 6-12');
 assert(/return \[7,16\]/.test(html), 'temple HD band 7-16');
 assert(/if\(ch===2 && gob && hd>7\) return false/.test(html), 'goblin level goblins <=7 HD');

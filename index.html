@@ -61,7 +61,7 @@
 <script src="src/combat/MacarMotionAtlas.js?v=132"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/MacarWeaponShaft.js?v=134"></script>
-<script src="src/combat/MacarSharedAtlas.js?v=135"></script>
+<script src="src/combat/MacarSharedAtlas.js?v=137"></script>
 <script src="src/combat/NpcDirectionalAtlas.js?v=3"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
@@ -823,6 +823,7 @@ SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 // The altar's baked west wall is removed; native masonry supplies it.
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth_open_left_v12.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
+SPRITE_FILES.crown_bone_wall='assets/tiles/crown_bone_wall_v1.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
 SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
@@ -981,7 +982,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -1207,41 +1208,13 @@ function drawBillboard(g,img,h,crisp){
   return true;
 }
 function drawStairWell(g,z,p){
-  const pulse=.55+Math.sin((G.elapsed||0)*3.6+(p&&p.x||0))*.22;
+  // Stair-only fallback while the approved stair sprite decodes.
   const H=propSpriteH(p,z);
-  const rw=H*0.50, rh=H*0.25;
   g.save();
-  g.fillStyle='rgba(4,2,1,0.96)';
-  g.beginPath(); g.ellipse(0, H*0.06, rw, rh, 0, 0, TAU); g.fill();
-  g.fillStyle='rgba(0,0,0,0.92)';
-  g.beginPath(); g.ellipse(H*0.04, H*0.12, rw*0.62, rh*0.62, 0, 0, TAU); g.fill();
-  g.strokeStyle='rgba(210,158,62,'+(0.88+pulse*0.12)+')';
-  g.lineWidth=Math.max(3, H*0.045);
-  g.beginPath(); g.ellipse(0, H*0.06, rw+H*0.02, rh+H*0.012, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(255,226,160,0.62)';
-  g.lineWidth=Math.max(1.4, H*0.018);
-  g.beginPath(); g.ellipse(0, H*0.06, rw-H*0.03, rh-H*0.02, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(70,58,42,0.92)';
-  g.lineWidth=Math.max(1.4, H*0.016);
-  for(let i=0;i<5;i++){
-    const t=(i+1)/6;
-    g.beginPath();
-    g.ellipse(H*0.03*t, H*0.06+H*0.05*t, rw*(1-t*0.45), rh*(1-t*0.45), 0, 0, TAU);
-    g.stroke();
+  for(let i=0;i<6;i++){
+    g.fillStyle=i%2?'#625746':'#776b57';
+    g.fillRect(-H*.28,-H*.48+i*H*.07,H*.56,H*.065);
   }
-  const post=Math.max(3, H*0.028);
-  g.strokeStyle='#9a7a42';
-  g.lineWidth=Math.max(2.2, H*0.022); g.lineCap='round';
-  g.beginPath(); g.moveTo(-rw*0.72, H*0.02); g.lineTo(-rw*0.62, -H*0.22); g.lineTo(rw*0.08, -H*0.28); g.stroke();
-  g.beginPath(); g.moveTo(rw*0.72, H*0.04); g.lineTo(rw*0.82, -H*0.18); g.lineTo(rw*1.12, -H*0.22); g.stroke();
-  g.fillStyle='#d4b056';
-  g.fillRect(-rw*0.72-post*0.4, -H*0.22, post, H*0.22);
-  g.fillRect(rw*0.82-post*0.4, -H*0.18, post, H*0.20);
-  const fl=1+Math.sin((G.elapsed||0)*8)*0.16;
-  g.fillStyle='#ff9a44';
-  g.beginPath(); g.arc(H*0.08, H*0.10, H*0.032*fl, 0, TAU); g.fill();
-  g.fillStyle='rgba(255,210,100,0.6)';
-  g.beginPath(); g.arc(H*0.08, H*0.08, H*0.018*fl, 0, TAU); g.fill();
   g.restore();
 }
 /* ---------------------------- sprite fitting ----------------------------
@@ -3135,12 +3108,35 @@ function isTeethNorthWall(L,x,y){
 /* Chapel mural only on the northwest stretch. The demon face is centered
    near x=107 and keeps plain masonry so the carving stays readable. */
 function isTeethNwChapelWall(L,x,y){
-  return isTeethNorthWall(L,x,y) && x<105;
+  return false; // The entire altar backdrop uses the demon-face wall masonry.
 }
-/* A continuous bone-masonry entrance, including both rubble jambs. Its
+/* A bone wall between collapsed rubble jambs. Its
    three-cell opening stays centered on the authored secret. */
 function isCrownEntranceWall(L,x,y){
   return !!(L&&L.n===1&&y===15&&x>=102&&x<112);
+}
+function crownEntranceKind(L,x,y){
+  return isCrownEntranceWall(L,x,y)?(x>=105&&x<108?'bones':'rubble'):null;
+}
+function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
+  const kind=crownEntranceKind(L,x,y);
+  if(!kind)return false;
+  const H=hallWallH(L),s=w2s(x,y);
+  if(kind==='bones'){
+    const img=SPR.crown_bone_wall;
+    const opt={fill:'#82705a',shade:.22,stroke:0};
+    if(oS)drawIsoPlaneImg(g,img,x,y+1,x+1,y+1,H,opt);
+    if(oE)drawIsoPlaneImg(g,img,x+1,y,x+1,y+1,H,opt);
+    if(oN)drawIsoPlaneImg(g,img,x,y,x+1,y,H,opt);
+    if(oW)drawIsoPlaneImg(g,img,x,y,x,y+1,H,opt);
+    if(DIGT&&DIGT.i===x&&DIGT.j===y)drawDigMark(g,s.x,s.y,H);
+    if(G.dig&&G.dig.i===x&&G.dig.j===y)drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
+  }else{
+    const img=(x%2?SPR.rubble2:SPR.rubble)||SPR.rubble;
+    const p=w2s(x+.5,y+.9);
+    g.save();g.translate(p.x,p.y);drawBillboard(g,img,60*ZOOM,false);g.restore();
+  }
+  return true;
 }
 function applyCrownEntranceFrame(L){
   if(!L||L.n!==1||!L.grid||!L.grid[15]) return;
@@ -3274,7 +3270,7 @@ function actorDrawDepth(o){
   /* The signed sheet is wider than one north-wall cell. Sorting on the
      door's own x+y lets the next east face (drawn later on that diagonal)
      paint a hard vertical cut through the right outer arch. */
-  if(o.k==='bronzedoor')return (Math.floor(bronzeDoorPlaneX(o))+Math.ceil(o.y+1.08))|0;
+  if(o.k==='bronzedoor')return (Math.ceil(o.x+1.5)+Math.floor(bronzeDoorPlaneY(o)))|0;
   if(o.k==='floorRubyDoor') return (Math.floor(o.x+1.08-floorRubyPlaneY(o)+Math.floor(floorRubyPlaneY(o))+1-1e-4)+Math.floor(floorRubyPlaneY(o)))|0;
   if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
   /* Chapel portrait. Its own x+y is before the next east cell, so that
@@ -5209,10 +5205,28 @@ function tickChapterDescent(){
   const L=G.lvl,p=player();if(!L||!p||!L.stair||G.talk)return;
   if(dist(p,L.stair)<2.5)interact('Climb down to '+(L.n===2?'the ruins':L.n===3?'the dead city':'the temple'),useChapterDescent);
 }
-function bronzeDoorPlaneX(p){
-  const L=G.lvl,iy=Math.round(p.y),ix=Math.round(p.x);
-  if(L&&L.grid&&L.grid[iy])for(let x=ix;x<=ix+5&&x<L.w-1;x++)if([1,4].includes(L.grid[iy][x])&&isWalkTile(L.grid[iy][x-1]))return x-.38;
-  return Math.ceil(p.x)-.38;
+function bronzeDoorPlaneY(p){return p.y;}
+function isNozDoorVoid(L,x,y){
+  return !!(L&&L.n===2&&x>=60&&x<66&&y>=7&&y<10);
+}
+function sealNozDoorBeyond(L){
+  if(!L||L.n!==2)return;
+  for(let y=7;y<10;y++)for(let x=60;x<66;x++)L.grid[y][x]=2;
+}
+function easeLevelThreeEncounters(L){
+  if(!L||L.n!==3)return;
+  const replacements={beholder:'orc',warden:'construct',drowMage:'orc',drowElite:'orc',hookedhorror:'orc',drider:'spider',gelcube:'rat',puddingBrown:'rat',otyugh:'orc',umberhulk:'orc',roper:'spider',wraith:'undead',minotaur:'orc',troll:'bugbear',ochrejelly:'rat',cloaker:'spider',basilisk:'warg',cockatrice:'beetle'};
+  G.ents=G.ents.map(e=>{
+    if(e.team!=='foe'||e.dead||!replacements[e.kind])return e;
+    return Object.assign(FOE[replacements[e.kind]](),{x:e.x,y:e.y});
+  });
+}
+function positionNozDoor(L){
+  if(!L||L.n!==2)return;
+  sealNozDoorBeyond(L);
+  L.door={x:62.5,y:11};L.bell={x:64.3,y:12.2};
+  for(let x=60;x<=65;x++){L.grid[10][x]=1;for(let y=11;y<=13;y++)L.grid[y][x]=0;}
+  for(const p of G.props||[])if(p.k==='bronzedoor'||p.k==='bell')Object.assign(p,p.k==='bell'?L.bell:L.door);
 }
 function makeChapter(n){
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
@@ -5459,13 +5473,15 @@ function makeChapter(n){
     if(g[17]) g[17][66]=0;
     if(g[15]) g[15][66]=0;
     L.spawn={x:40.15,y:8.55};
-    L.door={x:66.48,y:16.05};
-    L.bell={x:66.48,y:17.42};
+    L.door={x:62.5,y:11};
+    L.bell={x:64.3,y:12.2};
     L.camp={x:40,y:32};
     L.stair={x:40.1,y:51.6};
     openDescentLanding(L,40.1,51.6);
     caveDisk(g,62,16,6.4,5.2,0);
     for(let y=15;y<=17;y++)g[y][67]=4;
+    for(let x=60;x<=65;x++){g[10][x]=1;for(let y=11;y<=13;y++)g[y][x]=0;}
+    sealNozDoorBeyond(L);
     L.collapse={x0:20,y0:47,x1:27,y1:53};
     L.secrets=[{x:40.0,y:41.05,i:39,j:40,w:3,h:1,open:0,kind:'warrens',face:'n'}];
     // Keep the north secret as solid stone until SEARCH opens it.
@@ -5495,7 +5511,7 @@ function makeChapter(n){
       {x:118,y:10,c:'#ff8a3a',r:4.4,f:0.65},{x:120,y:62,c:'#d4a04a',r:4.8,f:0.7},
       {x:48,y:106,c:'#ffb45c',r:4.6,f:0.65},{x:90,y:6,c:'#9a8163',r:3.8,f:0.55}];
     G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
-      {x:66.48,y:16.05,k:'bronzedoor'},{x:66.48,y:17.42,k:'bell'},
+      {...L.door,k:'bronzedoor'},{...L.bell,k:'bell'},
       {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
       {x:38.6,y:31.4,k:'bones'},{x:42.2,y:33.1,k:'sack'},{x:37.8,y:33.6,k:'crate'},
       {x:40.1,y:54.15,k:'stairs',s:1.22},{x:38.4,y:52.8,k:'lantern'},{x:41.6,y:52.9,k:'lantern'},
@@ -5581,14 +5597,14 @@ function makeChapter(n){
               {x:50.2,y:16.1},
               {x:58.4,y:16.08},
               {x:L.door.x-0.2,y:L.door.y},
-              {x:L.door.x+1.7,y:L.door.y}
+              {x:L.door.x,y:L.door.y+.5}
             ];
             noz.fleeTo=noz.fleePath.shift();
             noz.onArrive=()=>{
               L.flags.home=1;
               burst(L.door.x,L.door.y,'#d4a04a',22,3);
               say('The gems drink him in. Only a gnome may take that road.','#d4a04a');
-              noz.hidden=1; noz.x=L.door.x+1.8; noz.y=L.door.y; noz.sp=0; noz.fleeTo=null; noz.fleePath=null;
+              noz.hidden=1; noz.x=L.door.x; noz.y=L.door.y; noz.sp=0; noz.fleeTo=null; noz.fleePath=null;
             };
           };
           G.talkAfter=sendHome;
@@ -5659,7 +5675,7 @@ function makeChapter(n){
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.stair={x:48.1,y:61.4};
-    L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
+    L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruin Guard',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
       {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6},
       {x:90,y:14,c:'#c9a070',r:6,f:0.85},{x:96,y:34,c:'#ffb45c',r:6.2,f:0.9},
@@ -5700,16 +5716,16 @@ function makeChapter(n){
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
         spawnLairGroup(26,28,{leader:'duergarX',pack:[['duergar',4]],spread:1.7,aggro:4.0});}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
-        say('An eye opens in the Hall of Names.','#ff7ad9');
-        const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
-        spawnLairGroup(46,16,{leader:'drowMage',pack:[['drow',3],['drowElite',1]],spread:2.0,aggro:4.2});
-        spawnLairGroup(50,22,{pack:[['hookedhorror',2],['drider',1]],spread:1.4,aggro:3.4});}
+        say('Orcs hold the Hall of Names.','#ff7ad9');
+        const eye=FOE.orc(); eye.x=46; eye.y=19; G.ents.push(eye);
+        spawnLairGroup(46,16,{leader:'orc',pack:[['drow',3],['orc',1]],spread:2.0,aggro:4.2});
+        spawnLairGroup(50,22,{pack:[['orc',2],['spider',1]],spread:1.4,aggro:3.4});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
+        const b=FOE.construct(); b.x=48;b.y=39; G.ents.push(b);
         spawnLairGroup(43,44,{pack:[['undead',3]],spread:1.5,aggro:3.8});
-        spawnLairGroup(52,43,{pack:[['gelcube',1],['puddingBrown',1],['otyugh',1]],spread:1.6,aggro:3.2});
-        spawnLairGroup(54,46,{pack:[['umberhulk',1],['roper',1]],spread:1.4,aggro:3.5});
-        say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
+        spawnLairGroup(52,43,{pack:[['rat',1],['rat',1],['orc',1]],spread:1.6,aggro:3.2});
+        spawnLairGroup(54,46,{pack:[['orc',1],['spider',1]],spread:1.4,aggro:3.5});
+        say('RUIN GUARD - the last watch of the foreman.','#ff5a48'); shake(20);
         hint('Keep moving. Defend when he winds up.',5);}
       if(!L.flags.ruinPech&&p.y<16&&p.x>18&&p.x<36){L.flags.ruinPech=1;
         spawnLairGroup(26,8,{pack:[['pech',2],['construct',1]],spread:1.3,aggro:3.2});
@@ -5727,10 +5743,10 @@ function makeChapter(n){
         spawnLairGroup(30,58,{pack:[['troglodyte',3],['crawler',1]],spread:1.5,aggro:3.5});
         say('Troglodytes hold the south street of broken halls.','#6aff8a');}
       if(!L.flags.ruinNE&&p.x>80&&p.y<22){L.flags.ruinNE=1;
-        spawnLairGroup(90,14,{leader:'drowElite',pack:[['drow',2]],spread:1.5,aggro:3.6});
-        say('A side manor still has a drow watch.','#c07bff');}
+        spawnLairGroup(90,14,{leader:'orc',pack:[['drow',2]],spread:1.5,aggro:3.6});
+        say('Orc guards hold the side manor.','#c07bff');}
       if(!L.flags.ruinSE&&p.x>76&&p.y>50){L.flags.ruinSE=1;
-        spawnLairGroup(88,58,{pack:[['undead',2],['wraith',1]],spread:1.5,aggro:3.4});
+        spawnLairGroup(88,58,{pack:[['undead',2],['undead',1]],spread:1.5,aggro:3.4});
         say('The southeast street is a grave of broken halls.','#7cff9c');}
       if(!L.flags.ruinFarS&&p.y>70){L.flags.ruinFarS=1;
         spawnLairGroup(50,80,{leader:'troglodyteChief',pack:[['troglodyte',3]],spread:1.6,aggro:3.6});
@@ -5739,26 +5755,26 @@ function makeChapter(n){
         spawnLairGroup(106,48,{pack:[['myconid',2],['violetfungus',1]],spread:1.4,aggro:3.2});
         say('Spores take the eastern storehouse.','#a35bff');}
       if(!L.flags.ruinDeepE&&p.x>116){L.flags.ruinDeepE=1;
-        spawnLairGroup(128,48,{pack:[['umberhulk',1],['otyugh',1]],spread:1.5,aggro:3.6});
-        say('An umber hulk broke the deep-east store and kept the pit.','#c08040');}
+        spawnLairGroup(128,48,{pack:[['orc',1],['orc',1]],spread:1.5,aggro:3.6});
+        say('Orcs occupy the deep-east storehouse.','#c08040');}
       if(!L.flags.ruinDeepS&&p.y>92){L.flags.ruinDeepS=1;
-        spawnLairGroup(50,104,{pack:[['hookedhorror',2],['minotaur',1]],spread:1.5,aggro:3.6});
-        say('Hooked horrors and a minotaur hold the deep-south court.','#c07bff');}
+        spawnLairGroup(50,104,{pack:[['orc',2],['orc',1]],spread:1.5,aggro:3.6});
+        say('Orcs hold the deep-south court.','#c07bff');}
       if(!L.flags.ruinDeepNE&&p.x>112&&p.y<20){L.flags.ruinDeepNE=1;
-        spawnLairGroup(126,10,{leader:'drowElite',pack:[['drider',1]],spread:1.5,aggro:3.6});
-        say('A drow patrol kept the far northeast manor.','#c07bff');}
+        spawnLairGroup(126,10,{leader:'orc',pack:[['spider',1]],spread:1.5,aggro:3.6});
+        say('Orcs and spiders occupy the far northeast manor.','#c07bff');}
       if(!L.flags.ruinDeepSE&&p.x>104&&p.y>70){L.flags.ruinDeepSE=1;
-        spawnLairGroup(120,80,{pack:[['troll',1],['ochrejelly',1]],spread:1.5,aggro:3.5});
-        say('A cave troll and its jelly share the southeast wreck.','#6aff8a');}
+        spawnLairGroup(120,80,{pack:[['bugbear',1],['rat',1]],spread:1.5,aggro:3.5});
+        say('A bugbear and rats share the southeast wreck.','#6aff8a');}
       if(!L.flags.ruinDeepSW&&p.x<22&&p.y>90){L.flags.ruinDeepSW=1;
-        spawnLairGroup(12,102,{pack:[['cloaker',1],['wraith',1]],spread:1.4,aggro:3.4});
-        say('A cloaker hangs in the southwest ruin with the dead.','#5a3a8a');}
+        spawnLairGroup(12,102,{pack:[['spider',1],['orc',1]],spread:1.4,aggro:3.4});
+        say('Spiders and orcs lurk in the southwest ruin.','#5a3a8a');}
       if(!L.flags.ruinDeepSS&&p.x>70&&p.y>92){L.flags.ruinDeepSS=1;
-        spawnLairGroup(88,102,{pack:[['basilisk',1],['cockatrice',1]],spread:1.4,aggro:3.4});
-        say('Petrifiers nest in the south-south court. Gaze and spur.','#8a9a6a');}
+        spawnLairGroup(88,102,{pack:[['warg',1],['beetle',1]],spread:1.4,aggro:3.4});
+        say('Wargs and beetles nest in the south-south court.','#8a9a6a');}
       /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
-        say('The warden falls. The road to the city is open.','#ffd27a');
+        say('The ruin guard falls. The road to the city is open.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
   }
@@ -5921,6 +5937,15 @@ function makeChapter(n){
     L.guide=()=>!L.flags.start?{x:29,y:20}:null;
     L.tick=()=>{
       const p=player(); if(!p) return;
+      // The heavy ruin encounters now guard later temple side areas.
+      const lateRuins=[
+        {flag:'lateRuinEast',x:72,y:22,pack:[['beholder',1],['drowMage',1],['drowElite',2],['drider',2],['hookedhorror',4]]},
+        {flag:'lateRuinSouth',x:29,y:62,pack:[['warden',1],['umberhulk',2],['roper',1],['otyugh',2],['gelcube',1],['puddingBrown',1]]},
+        {flag:'lateRuinFarSouth',x:29,y:86,pack:[['minotaur',1],['troll',1],['ochrejelly',1],['cloaker',1],['wraith',2],['basilisk',1],['cockatrice',1]]}
+      ];
+      for(const den of lateRuins)if(!L.flags[den.flag]&&Math.hypot(p.x-den.x,p.y-den.y)<7){
+        L.flags[den.flag]=1;spawnLairGroup(den.x,den.y,{pack:den.pack,spread:3,aggro:3.4});
+      }
       if(!L.flags.start&&p.y<34){L.flags.start=1;L.objs[0].d=1;
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
         say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
@@ -6982,6 +7007,8 @@ function applyPlaySave(play){
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   restoreSecretEntrances(play);
+  positionNozDoor(G.lvl);
+  easeLevelThreeEncounters(G.lvl);
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
@@ -8169,7 +8196,7 @@ function encounterHdBand(){
   const ch=(G&&G.ch)||1;
   if(ch<=1) return [1,7];
   if(ch===2) return [1,7];
-  if(ch===3) return [5,9];
+  if(ch===3) return [1,5];
   /* HOUSE: later Book I halls escalate inside printed 1e dungeon-level
      bands (DMG App C). RAW table I–X by dungeon level; house maps
      Ch IV ≈ levels VII–IX and Ch V ≈ VIII–X+. Do not flatten to 5–9. */
@@ -12215,12 +12242,13 @@ function secretFaceImg(face, faceL, faceR){
   return fadeL||faceL;
 }
 function drawSecretFadedFace(g, L, x, y, H, faceL, faceR){
+  if(isCrownEntranceWall(L,x,y))return;
   const sec=secretSeamAt(L,x,y);
   if(!sec) return;
   const face=sec.face||'n';
   if(!secretFaceOk(face)) return;
   /* Faded masonry face — same tile, desaturated/lightened. Never south. */
-  const img=(typeof isCrownEntranceWall==='function'&&isCrownEntranceWall(L,x,y)&&teethChapelWallImg())||secretFaceImg(face, faceL, faceR);
+  const img=secretFaceImg(face, faceL, faceR);
   const sid=x*31+y*17+29;
   if(face==='e') drawMasonryFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid);
   else if(face==='w') drawMasonryFace(g, img, x, y, x, y+1.14, H, 1, 0, sid);
@@ -15361,7 +15389,7 @@ function drawWorld(g,L){
   const B={}, push=(k,f)=>{(B[k]||(B[k]=[])).push(f);};
   const isoX=G.cam.x-G.cam.y, isoY=G.cam.x+G.cam.y;
   const limX=(VW*0.5+TW*2)/(TW*0.5), limY=(VH*0.5+TH*5)/(TH*0.5);
-  const near=o=>{ const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
+  const near=o=>{ if(isNozDoorVoid(L,o.x,o.y))return false; const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY; return dx>-limX&&dx<limX&&dy>-limY&&dy<limY; };
   const seenAt=o=>tileExplored(o.x,o.y);
   const visAt=o=>tileVisible(o.x,o.y);
   const showEnt=e=>{
@@ -15400,6 +15428,9 @@ function drawWorld(g,L){
 
   function drawFloorCell(x,y,t){
     const s=w2s(x,y);
+    if(isNozDoorVoid(L,x,y)){
+      g.fillStyle='#000';g.beginPath();g.moveTo(s.x,s.y-TH/2);g.lineTo(s.x+TW/2,s.y);g.lineTo(s.x,s.y+TH/2);g.lineTo(s.x-TW/2,s.y);g.closePath();g.fill();return;
+    }
     const m=pack.floor;
     const key=palFloorKey(pal);
     const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
@@ -15417,6 +15448,7 @@ function drawWorld(g,L){
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
     const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
     if(!oS&&!oE&&!oN&&!oW) return;
+    if(drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW))return;
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
@@ -15431,14 +15463,13 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
-      const entrance=isCrownEntranceWall(L,x,y)?teethChapelWallImg():null;
       const chapel=isTeethNwChapelWall(L,x,y)?teethChapelWallImg():null;
       // The altar's left side uses the exact north-wall texture behind the demon face.
       const altarWest=isTeethAltarWestWall(L,x,y)?faceL:null;
-      if(oS) drawMasonryFace(g, entrance||(sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, entrance||altarWest||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
-      if(oN) drawMasonryFace(g, entrance||faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, entrance||(sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      if(oS) drawMasonryFace(g, (sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, altarWest||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
+      if(oW) drawMasonryFace(g, (sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;
@@ -15455,7 +15486,13 @@ function drawWorld(g,L){
   // Flare background layer: floors always sit under the party and foes.
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
     const t=L.grid[y][x];
-    if(t===1||t===2||!L.seen[y][x]) continue;
+    if(isNozDoorVoid(L,x,y)){drawFloorCell(x,y,t);continue;}
+    if(!L.seen[y][x]||t===2)continue;
+    if(t===1){
+      // Extend the floor under the chapel boundary faces to close the half-tile seam.
+      if(isTeethNorthWall(L,x,y)||isTeethAltarWestWall(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}
+      continue;
+    }
     drawFloorCell(x,y,t);
   }
 
@@ -17036,7 +17073,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   if(!p||p.gone||p.taken) return;
   const s=w2s(p.x,p.y), z=ZOOM;
-  if(p.k==='bronzedoor'){const img=propAnimImg(p),plane=bronzeDoorPlaneX(p);drawIsoPlaneImg(g,img,plane,p.y-1.08,plane,p.y+1.08,wallFaceH(G.lvl)*1.22,{stroke:0});return;}
+  if(p.k==='bronzedoor'){const img=propAnimImg(p),plane=bronzeDoorPlaneY(p);drawIsoPlaneImg(g,img,p.x-1.5,plane,p.x+1.5,plane,wallFaceH(G.lvl)*1.22,{stroke:0});return;}
   if(p.k==='floorRubyDoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p),half=1.08,H=propSpriteH(p,z);
     const plane=floorRubyPlaneY(p);
@@ -17129,8 +17166,7 @@ function drawProp(g,p,pal){
   }
   const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
-    if(p.k==='stairs') drawStairWell(g,z,p);
-    else softShadow(g,2*z,1*z,18*z,8*z,.45);
+    softShadow(g,2*z,1*z,18*z,8*z,.45);
     const metric=tilesetPropMetric(p.k);
     if(metric) drawObjectProp(g,img,propSpriteH(p,z),metric);
     else drawBillboard(g,img,propSpriteH(p,z));
