@@ -47,6 +47,10 @@
 
     if(dir==='e'&&['maul','axe'].includes(weapon)&&(stage==='idle'||stage.startsWith('walk'))){
      const geometry=MacarSharedAtlas.geometry(key),socket=geometry.shaft[1];
+     const composed=img.getContext('2d').getImageData(gx-8,gy-8,17,17).data;
+     const bodyOnly=img.__macarBodyCanvas.getContext('2d').getImageData(gx-8,gy-8,17,17).data;
+     let shaftOverPalm=0;for(let n=0;n<composed.length;n+=4)if(composed[n+3]>80&&(composed[n]!==bodyOnly[n]||composed[n+1]!==bodyOnly[n+1]||composed[n+2]!==bodyOnly[n+2]))shaftOverPalm++;
+     check(shaftOverPalm>3,'shaft visibly crosses painted palm '+key);
      for(const flip of [false,true]){const project=x=>flip?1-x:x,behind=flip?project(socket[0])>project(geometry.grip[0]):project(socket[0])<project(geometry.grip[0]);
       check(behind,'side carry head stays behind gripping shoulder '+key+(flip?' west':' east'));
       check(socket[1]<geometry.grip[1],'side carry head rests above shoulder '+key);
