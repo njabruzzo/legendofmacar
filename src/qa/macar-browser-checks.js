@@ -21,18 +21,8 @@
   if(stage==='ranged'){hero.atkKind='bow';armBowPose(hero);}
   check(screenOctant(hero)===dirs[i],weapon+' '+stage+' octant '+dirs[i]);
   const key=livingMacarAnimKey(hero),blit=livingMacarBlitKey(key);
-  const stem=stage==='ranged'?'macar_xbow':weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
-  let expected=MacarSharedAtlas.select(weapon,hero,dirs[i],'idle');
-  if(stage==='ranged')expected='macar_xbow_atk';
-  else if(stage==='windup'||stage==='hit')expected=stem==='macar'?(i===6?'macar_atk_n':i===2?'macar_atk_s':i===5||i===7?'macar_atk_ne':i===1||i===3?'macar_atk_se':stage==='hit'?'macar_atk_contact':'macar_atk'):stem+'_atk';
-  else if(stage.startsWith('walk')){
-   const suffix=['walk3','walk4'].includes(stage)?'_w2':'_w1';expected=stem==='macar'?(i===6?'macar_back':i===0||i===4?'macar_e':i===1||i===3?'macar_se':i===5||i===7?'macar_ne':stem)+suffix:stem+suffix;
-  }
   const view=['n','ne','nw'].includes(dirs[i])?'rear':'front';
-  if(stem==='macar_xbow')expected='macar_xbow_side_'+view;
-  if(stage.startsWith('walk')&&weapon!=='maul')expected='macar_'+(weapon==='axe'?'axe':'xbow')+'_cycle_'+view+'_'+(Number(stage.slice(4))-1);
-  if(stage.startsWith('walk')&&weapon==='axe'&&dirs[i]!=='n'&&dirs[i]!=='s')expected='macar_axe_idle_'+({w:'e',sw:'se',nw:'ne'}[dirs[i]]||dirs[i]);
-  if(weapon!=='crossbow'&&stage!=='ranged')expected=MacarSharedAtlas.select(weapon,hero,dirs[i],stage.startsWith('walk')?'walk':['windup','hit'].includes(stage)?'attack':'idle');
+  const expected=MacarSharedAtlas.select(stage==='ranged'?'xbow':weapon==='crossbow'?'xbow':weapon,hero,dirs[i],stage.startsWith('walk')?'walk':stage==='windup'?'windup':stage==='hit'?'attack':stage==='recover'?'recover':stage==='ranged'?'ranged':'idle');
   check(key===expected,weapon+' '+stage+' '+dirs[i]+' expected '+expected+' got '+key);
   check(blit===key,weapon+' '+stage+' '+dirs[i]+' blit does not revert pose');
   check(!!MacarCrown.layout(SPRITE_FILES[blit],SPR[blit],{x:0,y:0,w:100,h:100},wantsSpriteFlip(hero)),'crown seat '+blit);
@@ -50,14 +40,14 @@
  for(const weapon of ['axe','crossbow','maul','axe','maul']){
   G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:0,atkKind:'bow',bowPoseUntil:nowMs()-1,bowPoseT:.2});
-  check(livingMacarAnimKey(hero)===(weapon==='crossbow'?'macar_xbow_side_rear':MacarSharedAtlas.select(weapon,hero,'ne','idle')),'expired Shoot equipment switch '+weapon);
+  check(livingMacarAnimKey(hero)===MacarSharedAtlas.select(weapon==='crossbow'?'xbow':weapon,hero,'ne','idle'),'expired Shoot equipment switch '+weapon);
  }
  for(const weapon of ['axe','crossbow','maul','axe','maul'])for(const state of ['idle','walk','strike','bow']){
   G.equipped.primary=weapon==='axe'?{id:'shadow_cleaver',n:'Shadow Cleaver',k:'weapon'}:{n:'War Hammer'};G.equipped.secondary=weapon==='crossbow'?{n:'Crossbow'}:null;
   Object.assign(hero,{moving:state==='walk'?1:0,atk:state==='strike'?.4:0,atkMax:1,atkKind:state==='bow'?'bow':'melee',bowPoseUntil:state==='bow'?nowMs()+1000:0,bowPoseT:0,macarWindupUntil:0});
   const stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   const key=livingMacarAnimKey(hero);
-  const expectedSwitch=state==='bow'||weapon==='crossbow'&&state!=='walk'?'macar_xbow_side_rear':weapon==='crossbow'?MacarMotionAtlas.select('xbow',hero,'ne',true):MacarSharedAtlas.select(weapon,hero,'ne',state==='strike'?'attack':state==='walk'?'walk':'idle');
+  const expectedSwitch=MacarSharedAtlas.select(state==='bow'?'xbow':weapon==='crossbow'?'xbow':weapon,hero,'ne',state==='bow'?'ranged':state==='strike'?'attack':state==='walk'?'walk':'idle');
   check(key===expectedSwitch,'equipment switch '+weapon+' '+state+' got '+key);
   check(livingMacarBlitKey(key)===key,'switch survives blit '+weapon+' '+state);
  }
@@ -68,8 +58,8 @@
  check(equipPackItem({n:'Light Crossbow'},{silent:true})==='secondary','Pack equips crossbow');
  Object.assign(hero,{atk:0,atkKind:'melee',moving:0,bowPoseUntil:0});
  check(wieldsShadowCleaver()&&wieldsCrossbow(),'Pack preserves both weapons');
- check(livingMacarAnimKey(hero)==='macar_xbow_side_rear','Pack crossbow idle overrides axe');
- hero.moving=1;check(livingMacarAnimKey(hero).startsWith('macar_xbow_cycle_'),'Pack crossbow walk overrides axe');
+ check(livingMacarAnimKey(hero)===MacarSharedAtlas.select('xbow',hero,'ne','idle'),'Pack crossbow idle overrides axe');
+ hero.moving=1;check(livingMacarAnimKey(hero)===MacarSharedAtlas.select('xbow',hero,'ne','walk'),'Pack crossbow walk overrides axe');
  unequipPackSlot('secondary',{silent:true});hero.moving=0;
  check(livingMacarAnimKey(hero)===MacarSharedAtlas.select('axe',hero,'ne','idle'),'doffing crossbow restores axe');
  // Real Pack switching while both slots remain occupied.
@@ -92,7 +82,7 @@
   steerWalk(hero,0,0,hero.sp,gait===.25?1/60:.05);
   const key=livingMacarAnimKey(hero),stem=weapon==='axe'?'macar_axe':weapon==='crossbow'?'macar_xbow':'macar';
   check(screenOctant(hero)===dirs[i],weapon+' stopped heading '+dirs[i]);
-  check(key===(weapon==='crossbow'?'macar_xbow_side_'+(['n','ne','nw'].includes(dirs[i])?'rear':'front'):MacarSharedAtlas.select(weapon,hero,dirs[i],'idle')),weapon+' stopped planted pose '+dirs[i]);
+  check(key===MacarSharedAtlas.select(weapon==='crossbow'?'xbow':weapon,hero,dirs[i],'idle'),weapon+' stopped planted pose '+dirs[i]);
   check((key!==walk||weapon==='axe'&&dirs[i]!=='n'&&dirs[i]!=='s')&&SPR[key].__macarDirectionalIdle,weapon+' settles to a genuine standing frame '+dirs[i]);
  }
  const idleSheet=document.createElement('canvas');idleSheet.width=1440;idleSheet.height=720;

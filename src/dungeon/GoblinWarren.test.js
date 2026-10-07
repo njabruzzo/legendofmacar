@@ -36,7 +36,7 @@ assert(/caveDisk\(g,40,70/.test(html) && /caveDisk\(g,82,28/.test(html),
   'chapter II adds south and east caverns beyond the four-way');
 assert(/caveDisk\(g,122,30/.test(html) && /caveDisk\(g,40,98/.test(html),
   'chapter II grows farther east and south dens');
-assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'south stair stays on the old descent tile');
+assert(/L\.stair=\{x:40\.1,y:51\.6\}/.test(html), 'south stair is inset on its expanded landing');
 assert(/L\.w=132; L\.h=90/.test(html) && /L\.w=132; L\.h=106/.test(html) && /L\.w=108; L\.h=98/.test(html),
   'chapters I, IV, and V are also larger halls');
 

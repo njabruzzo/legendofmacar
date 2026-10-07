@@ -23,7 +23,7 @@ assert(/k==='gate'\|\|k==='bronzedoor'\|\|k==='altar'\|\|k==='throne'/.test(metr
   'arch metric still covers gate / bronze door / altar / throne');
 assert(!/k==='stairs'/.test(metric), 'stairs are not squashed to the short arch metric');
 
-assert(/if\(k==='stairs'\) return 124\*z\*\(p\.s\|\|1\)/.test(html),
+assert(/if\(k==='stairs'\) return 138\*z\*\(p\.s\|\|1\)/.test(html),
   'stair billboard is taller than the old 96*z arch-height');
 
 assert(/function drawStairWell\(g,z,p\)\{/.test(html) && /const H=propSpriteH\(p,z\)/.test(html) && /rw=H\*0\.50/.test(html),
@@ -37,7 +37,7 @@ assert(/g\.fillStyle='#ff9a44'/.test(html.match(/function drawStairWell[\s\S]*?g
 assert(/emit\(s\.x,s\.y-8\*z,52\*z,'#1a0c08'/.test(html), 'well mouth emits a dark core');
 assert(/emit\(s\.x\+8\*z,s\.y\+6\*z,18\*z,'#ff9a44'/.test(html), 'well torch glow is on the floor opening');
 
-assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html), 'chapter II stair stay put — no #81 landing rewrite');
+assert(/L\.stair=\{x:40\.1,y:51\.6\}/.test(html), 'chapter II stair uses the reviewed landing');
 assert(!/16×16 hall/.test(html) && !/13×16 pad/.test(html), 'this change does not take #81 pad text');
 
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_stairs.png')),

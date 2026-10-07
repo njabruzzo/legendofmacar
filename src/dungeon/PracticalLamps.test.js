@@ -77,8 +77,8 @@ assert(/L\.lights\.push\(\{x:mouth\.x,y:mouth\.y,c:'#ffb45c'/.test(html),
 assert(/L\.lights\.push\(\{x:L\.kingEntry\.x,y:L\.kingEntry\.y,c:'#ffb45c'/.test(html),
   'king entry is a torch');
 
-assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(html),
-  'Chapter II stair stay put — no #81 landing rewrite');
+assert(/L\.stair=\{x:40\.1,y:51\.6\}/.test(html),
+  'Chapter II stair uses the reviewed landing');
 assert(/function applyLighting\(g,L\)\{/.test(html) && /createRadialGradient/.test(html),
   'lightmap engine is unchanged — only the sources');
 assert(!/G\.parts\.push\(\{x:p\.x\+Math\.cos\(a\)\*r,y:p\.y\+Math\.sin\(a\)\*r/.test(html),

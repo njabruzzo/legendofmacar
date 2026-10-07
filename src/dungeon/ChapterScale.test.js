@@ -88,7 +88,7 @@ const ch2=chapterBlock(2);
 assert(/L\.spawn=\{x:40\.15,y:8\.55\}/.test(ch2), 'Ch II drop stays');
 assert(/L\.door=\{x:66\.48,y:16\.05\}/.test(ch2) && /k:'bronzedoor'/.test(ch2),
   'bronze door stays');
-assert(/L\.stair=\{x:40\.1,y:54\.15\}/.test(ch2), 'south stair stays');
+assert(/L\.stair=\{x:40\.1,y:51\.6\}/.test(ch2), 'south stair is inset on its expanded landing');
 assert(/L\.camp=\{x:40,y:32\}/.test(ch2), 'four-way camp stays');
 assert(/kind:'warrens',face:'n'/.test(ch2), 'warren secret stays north');
 

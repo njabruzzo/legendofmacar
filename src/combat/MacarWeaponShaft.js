@@ -3,7 +3,7 @@
  // Visible shaft endpoints: centre of the pommel and the head's socket.
  // Coordinates are normalized to the decoded pose, NOT its opaque bounds.
  // Hands may occlude the middle; they never shorten the actual shaft.
- const target={maul:.53,axe:.65};
+ const target={maul:.53,axe:.65,xbow:.70};
  const folder='assets/creatures/shafts/';
  const replacements={
   'dwarf_macar_w1.png':'maul_walk_s_1.png',
