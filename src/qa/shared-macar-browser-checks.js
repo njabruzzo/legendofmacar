@@ -4,7 +4,7 @@
  try{
  await Promise.all([...MacarSharedAtlas.keys(),'macar','macar_axe','bone_crown'].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'decode '+k);resolve();}))));
  const hero=ent({hero:1,team:'party',kind:'dwarf',name:'MACAR',x:0,y:0,sp:4.3});G.ents=[hero];TW=116;TH=58;ZOOM=1.5;CAMSX=0;CAMSY=0;
- const gallery=document.createElement('canvas');gallery.width=2400;gallery.height=2250;const gg=gallery.getContext('2d');gg.fillStyle='#343434';gg.fillRect(0,0,gallery.width,gallery.height);
+ const gallery=document.createElement('canvas');gallery.width=2400;gallery.height=2250;gallery.style='position:static;width:1200px;height:1125px';const gg=gallery.getContext('2d');gg.fillStyle='#343434';gg.fillRect(0,0,gallery.width,gallery.height);
  const hash=(canvas,y=0)=>{const d=canvas.getContext('2d').getImageData(0,y,canvas.width,canvas.height-y).data;let h=2166136261;for(const v of d)h=Math.imul(h^v,16777619);return h>>>0;};
  for(const [r,dir] of MacarSharedAtlas.directions.entries()){
   const legHashes=[];
@@ -21,6 +21,15 @@
     blitFacing(gg,img,dx,dy,W,H,false,true);drawWornBoneCrown(gg,W,H,dx,dy,false,ZOOM,key);
     const edge=img.getContext('2d').getImageData(0,0,img.width,img.height).data;let border=0;for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++)if((x<2||x>img.width-3||y<2||y>img.height-3)&&edge[(y*img.width+x)*4+3]>80)border++;check(border===0,'no clipped weapon/body edges '+key);
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
+    const grip=MacarSharedAtlas.geometry(key).grip, gx=Math.round(grip[0]*img.width),gy=Math.round(grip[1]*img.height);
+    const hands=img.__macarBodyCanvas.getContext('2d').getImageData(gx-16,gy-16,33,33).data;let handPixels=0;for(let n=3;n<hands.length;n+=4)if(hands[n]>80)handPixels++;check(handPixels>100,'weapon grip overlaps painted hand/arm '+key);
+    if(dir==='e'&&['maul','axe'].includes(weapon)&&(stage==='idle'||stage.startsWith('walk'))){
+     const geometry=MacarSharedAtlas.geometry(key),socket=geometry.shaft[1];
+     for(const flip of [false,true]){const project=x=>flip?1-x:x,behind=flip?project(socket[0])>project(geometry.grip[0]):project(socket[0])<project(geometry.grip[0]);
+      check(behind,'side carry head stays behind gripping shoulder '+key+(flip?' west':' east'));
+      check(socket[1]<geometry.grip[1],'side carry head rests above shoulder '+key);
+     }
+    }
    }
   }
   check(new Set(legHashes).size===4,'four distinct alternating leg frames '+dir);
@@ -42,6 +51,18 @@
   const cv=document.createElement('canvas');cv.width=cv.height=300;drawLivingMacar(cv.getContext('2d'),hero);check(MacarStrikeQA.blitKey===key,'actual rendered pose '+key);
   check(Math.abs(MacarStrikeQA.shaftLength-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[stage==='ranged'?'xbow':weapon])<.01,'actual rendered shaft '+key);
   result.states.push({weapon,dir:dirs[i],stage,key});
+ }
+ // Real movement can retain a selected foe behind Macar. Check that case
+ // through the renderer, for both carried melee weapons and every heading.
+ for(const weapon of ['maul','axe'])for(let i=0;i<8;i++){
+  const angle=i*Math.PI/4,sx=Math.cos(angle)/(TW/2),sy=Math.sin(angle)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
+  G.equipped={primary:{n:weapon==='axe'?'Iron Axe':'War Hammer',k:'weapon',macarHeld:1}};
+  Object.assign(hero,{ix:dx,iy:dy,fdx:dx,fdy:dy,moving:1,gait:.375,atk:0,atkKind:'melee',bowPoseUntil:0,_attack:null,aim:{x:hero.x-dx*10,y:hero.y-dy*10,team:'foe',dead:0}});
+  const wanted=MacarSharedAtlas.select(weapon,hero,dirs[i],'walk');
+  check(livingMacarAnimKey(hero)===wanted,'selected-foe walking direction '+weapon+' '+dirs[i]);
+  const cv=document.createElement('canvas');cv.width=cv.height=300;drawLivingMacar(cv.getContext('2d'),hero);
+  check(MacarStrikeQA.blitKey===wanted,'selected-foe rendered walk '+weapon+' '+dirs[i]);
+  check(wantsSpriteFlip(hero)===(i>=3&&i<=5),'selected-foe mirrored walk '+weapon+' '+dirs[i]);
  }
  // Exercise the movement function, including an immovable wall.
  startChapter(1);G.scene='play';const p=player();p.x=36.5;p.y=22.5;const oldGait=p.gait||0;check(steerWalk(p,1,0,4.3,1/60)>0,'movement advances on open floor');check(p.moving&&(p.gait||0)>oldGait,'movement advances gait');

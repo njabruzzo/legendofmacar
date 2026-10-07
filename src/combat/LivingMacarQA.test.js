@@ -521,7 +521,7 @@ const westIdle=macar({fdx:-0.707, fdy:0.707});
 assert(ctx.wantsSpriteFlip(eastIdle)===false, 'idle facing east is unflipped');
 assert(ctx.wantsSpriteFlip(westIdle)===true, 'idle facing west flips living Macar');
 
-/* Combat facing: a foe as aim wins over leftover walk heading. */
+/* Walking follows travel despite a selected foe; swings retain aim. */
 const foeLeft={team:'foe', dead:0, x:9, y:11};
 const foeRight={team:'foe', dead:0, x:11, y:9};
 const closing=macar({
@@ -529,10 +529,10 @@ const closing=macar({
   aim:foeLeft, atk:0
 });
 const vClose=ctx.faceVec(closing);
-assert(vClose.dx<0 && vClose.dy>0,
-  'closing on a screen-left foe faces the foe, not leftover walk-right');
-assert(ctx.wantsSpriteFlip(closing)===true,
-  'closing on a screen-left foe flips the painted-right sheet');
+assert(vClose.dx>0 && vClose.dy<0,
+  'walking right with a selected screen-left foe faces actual travel');
+assert(ctx.wantsSpriteFlip(closing)===false,
+  'walking right with a selected foe keeps the painted-right sheet');
 const swinging=macar({
   moving:0, ix:0, iy:0, fdx:-0.707, fdy:0.707,
   aim:foeRight, atk:0.5, atkMax:1

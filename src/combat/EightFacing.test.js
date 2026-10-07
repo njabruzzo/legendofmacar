@@ -73,6 +73,15 @@ function actor(kind, dir){
 });
 
 const macarLeft={hero:1, moving:1, ix:-0.7, iy:0.7, fdx:-0.7, fdy:0.7, team:'party'};
+for(const dir of DIRS){
+  const e=actor('hero',dir);
+  e.aim={x:-dir.ix*10,y:-dir.iy*10,team:'foe',dead:0};e.x=e.y=0;
+  assert(ctx.screenOctant(e)===dir.oct,'walking Macar ignores opposite selected foe: '+dir.name);
+  assert(ctx.wantsSpriteFlip(e)===dir.flip,'targeted walk preserves mirroring: '+dir.name);
+  e.atk=1;e._attack={fdx:-dir.ix,fdy:-dir.iy};
+  const v=ctx.faceVec(e);
+  assert(v.dx===-dir.ix&&v.dy===-dir.iy,'committed swing keeps attack facing: '+dir.name);
+}
 ctx.lead=macarLeft;
 const ghostRight={team:'party', ghost:1, hero:0, moving:1, ix:0.7, iy:-0.7, fdx:0.7, fdy:-0.7, animKey:'talpor_ghost_w1', dead:0, crushed:0, atk:0};
 assert(ctx.screenOctant(ghostRight)==='e' && ctx.wantsSpriteFlip(ghostRight)===false,
