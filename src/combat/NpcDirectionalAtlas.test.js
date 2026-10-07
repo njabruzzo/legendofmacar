@@ -2,9 +2,15 @@
 const assert=require('assert'),path=require('path'),crypto=require('crypto');
 const atlas=require('./NpcDirectionalAtlas'),{readRgba}=require('../qa/pngRgba');
 const bindings={};atlas.register(bindings);
+const synthetic={x0:2,x1:16,y0:2,y1:35,pixels:[]};
+for(let y=10;y<=35;y++)for(let x=7;x<=13;x++)synthetic.pixels.push(y*20+x);
+for(let y=2;y<25;y++)synthetic.pixels.push(y*20+2);
+assert.equal(atlas.anatomy(synthetic,20).bodyTop,10,'raised staff does not enter head-to-foot body measurement');
+assert.equal(atlas.anatomy(synthetic,20).height,25,'dwarves keep consistent stature independently of tall equipment');
 for(const actor of atlas.actors){
- const png=readRgba(path.join(__dirname,'../../assets/creatures/directional/'+actor+'-v1.png'));
+ const png=readRgba(path.join(__dirname,'../../'+atlas.files[actor]));
  const parsed=atlas.components(png.data,png.w,png.h);
+ if(atlas.dwarfActors.includes(actor))assert(atlas.files[actor].endsWith('-v2.png'),'all four dwarves bind the Macar-family design revision');
  for(const row of parsed.rows){
   const hashes=[];
   for(const part of row){
