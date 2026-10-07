@@ -6,11 +6,11 @@ const c={wallFaceH:()=>100,isTeethFaceWall:()=>false,isRubyNorthWall:()=>false,i
 const L={n:1};for(let y=2;y<14;y++){assert(c.isTeethAltarWestWall(L,100,y));assert.equal(c.cellWallH(L,100,y),225);}assert(!c.isTeethAltarWestWall({n:2},100,4));assert(!c.isTeethAltarWestWall(L,100,14));assert(!c.isTeethAltarWestWall(L,99,4));
 c.applyTeethFaceWallHeight(L);assert.equal(L.wallH['100,4'],L.wallH['107,1']);assert.equal(c.cellWallH(L,100,4),225);
 assert(html.includes('const altarWest=isTeethAltarWestWall(L,x,y)?faceL:null;'));assert(html.includes("altarWest||(sf==='e'?secE:faceR)"));
-const file=(html.match(/SPRITE_FILES\.altar_teeth='([^']+)'/)||[])[1];assert(file.endsWith('open_left_v12.png'));
+const file=(html.match(/SPRITE_FILES\.altar_teeth='([^']+)'/)||[])[1];assert(file.endsWith('no_walls_v13.png'));
 const image=readRgba(path.join(root,file));const alpha=(x,y)=>image.data[(Math.floor(y*image.h)*image.w+Math.floor(x*image.w))*4+3];
-assert.equal(alpha(.15,.22),0,'old baked left wall is transparent');assert.equal(alpha(.30,.16),0,'left coping is removed');assert(alpha(.80,.25)>240,'right wall retained');assert(alpha(.43,.4)>240,'altar retained');assert(alpha(.4,.8)>240,'platform retained');
+assert.equal(alpha(.15,.22),0,'old baked left wall is transparent');assert.equal(alpha(.30,.16),0,'left coping is removed');assert.equal(alpha(.80,.25),0,'remaining baked wall removed');assert(alpha(.43,.4)>240,'altar retained');assert(alpha(.4,.8)>240,'platform retained');
 assert(Math.abs(image.w/image.h-1075/718)<.005,'altar projection/aspect preserved');
 console.log('Altar west wall: transparent baked wall removal, matching texture/height, chapel-only scope, altar/platform preservation passed');
 
 vm.runInContext(fn('isTeethNwChapelWall'),c);assert.equal(c.isTeethNwChapelWall(L,103,1),false,'altar backdrop has no alternate chapel masonry');
-assert(html.includes('if(isTeethNorthWall(L,x,y)||isTeethAltarWestWall(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}'),'floor extends beneath both altar boundary walls');
+assert(html.includes('if(nearTeethChapel(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}'),'floor extends beneath every chapel boundary wall');
