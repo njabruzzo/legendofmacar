@@ -3298,7 +3298,7 @@ function actorDrawDepth(o){
   /* The signed sheet is wider than one north-wall cell. Sorting on the
      door's own x+y lets the next east face (drawn later on that diagonal)
      paint a hard vertical cut through the right outer arch. */
-  if(o.k==='bronzedoor')return (Math.floor(bronzeDoorPlaneX(o))+Math.ceil(o.y+1.08))|0;
+  if(o.k==='bronzedoor')return (Math.ceil(o.x+1.5)+Math.floor(bronzeDoorPlaneY(o)))|0;
   if(o.k==='floorRubyDoor') return (Math.floor(o.x+1.08-floorRubyPlaneY(o)+Math.floor(floorRubyPlaneY(o))+1-1e-4)+Math.floor(floorRubyPlaneY(o)))|0;
   if(o.k==='rubydoor') return rubyDoorDrawDepth(o);
   /* Chapel portrait. Its own x+y is before the next east cell, so that
@@ -5233,10 +5233,12 @@ function tickChapterDescent(){
   const L=G.lvl,p=player();if(!L||!p||!L.stair||G.talk)return;
   if(dist(p,L.stair)<2.5)interact('Climb down to '+(L.n===2?'the ruins':L.n===3?'the dead city':'the temple'),useChapterDescent);
 }
-function bronzeDoorPlaneX(p){
-  const L=G.lvl,iy=Math.round(p.y),ix=Math.round(p.x);
-  if(L&&L.grid&&L.grid[iy])for(let x=ix;x<=ix+5&&x<L.w-1;x++)if([1,4].includes(L.grid[iy][x])&&isWalkTile(L.grid[iy][x-1]))return x-.38;
-  return Math.ceil(p.x)-.38;
+function bronzeDoorPlaneY(p){return p.y;}
+function positionNozDoor(L){
+  if(!L||L.n!==2)return;
+  L.door={x:62.5,y:11};L.bell={x:64.3,y:12.2};
+  for(let x=60;x<=65;x++){L.grid[10][x]=1;for(let y=11;y<=13;y++)L.grid[y][x]=0;}
+  for(const p of G.props||[])if(p.k==='bronzedoor'||p.k==='bell')Object.assign(p,p.k==='bell'?L.bell:L.door);
 }
 function makeChapter(n){
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
@@ -5483,13 +5485,14 @@ function makeChapter(n){
     if(g[17]) g[17][66]=0;
     if(g[15]) g[15][66]=0;
     L.spawn={x:40.15,y:8.55};
-    L.door={x:66.48,y:16.05};
-    L.bell={x:66.48,y:17.42};
+    L.door={x:62.5,y:11};
+    L.bell={x:64.3,y:12.2};
     L.camp={x:40,y:32};
     L.stair={x:40.1,y:51.6};
     openDescentLanding(L,40.1,51.6);
     caveDisk(g,62,16,6.4,5.2,0);
     for(let y=15;y<=17;y++)g[y][67]=4;
+    for(let x=60;x<=65;x++){g[10][x]=1;for(let y=11;y<=13;y++)g[y][x]=0;}
     L.collapse={x0:20,y0:47,x1:27,y1:53};
     L.secrets=[{x:40.0,y:41.05,i:39,j:40,w:3,h:1,open:0,kind:'warrens',face:'n'}];
     // Keep the north secret as solid stone until SEARCH opens it.
@@ -5519,7 +5522,7 @@ function makeChapter(n){
       {x:118,y:10,c:'#ff8a3a',r:4.4,f:0.65},{x:120,y:62,c:'#d4a04a',r:4.8,f:0.7},
       {x:48,y:106,c:'#ffb45c',r:4.6,f:0.65},{x:90,y:6,c:'#9a8163',r:3.8,f:0.55}];
     G.props=[{x:40,y:7.55,k:'lift'},{x:38.4,y:9.2,k:'lantern'},{x:41.8,y:9.6,k:'shroom'},
-      {x:66.48,y:16.05,k:'bronzedoor'},{x:66.48,y:17.42,k:'bell'},
+      {...L.door,k:'bronzedoor'},{...L.bell,k:'bell'},
       {x:62.2,y:15.2,k:'shroom'},{x:58.4,y:17.1,k:'lantern'},
       {x:38.6,y:31.4,k:'bones'},{x:42.2,y:33.1,k:'sack'},{x:37.8,y:33.6,k:'crate'},
       {x:40.1,y:54.15,k:'stairs',s:1.22},{x:38.4,y:52.8,k:'lantern'},{x:41.6,y:52.9,k:'lantern'},
@@ -5605,14 +5608,14 @@ function makeChapter(n){
               {x:50.2,y:16.1},
               {x:58.4,y:16.08},
               {x:L.door.x-0.2,y:L.door.y},
-              {x:L.door.x+1.7,y:L.door.y}
+              {x:L.door.x,y:L.door.y+.5}
             ];
             noz.fleeTo=noz.fleePath.shift();
             noz.onArrive=()=>{
               L.flags.home=1;
               burst(L.door.x,L.door.y,'#d4a04a',22,3);
               say('The gems drink him in. Only a gnome may take that road.','#d4a04a');
-              noz.hidden=1; noz.x=L.door.x+1.8; noz.y=L.door.y; noz.sp=0; noz.fleeTo=null; noz.fleePath=null;
+              noz.hidden=1; noz.x=L.door.x; noz.y=L.door.y; noz.sp=0; noz.fleeTo=null; noz.fleePath=null;
             };
           };
           G.talkAfter=sendHome;
@@ -7006,6 +7009,7 @@ function applyPlaySave(play){
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   restoreSecretEntrances(play);
+  positionNozDoor(G.lvl);
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
@@ -17066,7 +17070,7 @@ function drawCarvedArch(g,z,W,H,stone){
 function drawProp(g,p,pal){
   if(!p||p.gone||p.taken) return;
   const s=w2s(p.x,p.y), z=ZOOM;
-  if(p.k==='bronzedoor'){const img=propAnimImg(p),plane=bronzeDoorPlaneX(p);drawIsoPlaneImg(g,img,plane,p.y-1.08,plane,p.y+1.08,wallFaceH(G.lvl)*1.22,{stroke:0});return;}
+  if(p.k==='bronzedoor'){const img=propAnimImg(p),plane=bronzeDoorPlaneY(p);drawIsoPlaneImg(g,img,p.x-1.5,plane,p.x+1.5,plane,wallFaceH(G.lvl)*1.22,{stroke:0});return;}
   if(p.k==='floorRubyDoor'){
     const img=solidRubyDoorSheet()||propAnimImg(p),half=1.08,H=propSpriteH(p,z);
     const plane=floorRubyPlaneY(p);

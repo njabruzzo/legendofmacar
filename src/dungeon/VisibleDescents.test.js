@@ -7,5 +7,5 @@ for(const n of [2,3,4]){
  assert.equal(c.useChapterDescent(),false,'ruby seal blocks exit');c.floorTravelReady=()=>true;if(n>2)assert.equal(c.useChapterDescent(),false,'guardian blocks exit');L.flags.done=1;assert.equal(c.useChapterDescent(),true);assert.equal(c.G.scene,'camp');c.floorTravelReady=()=>false;
  const old=p;c.ensureChapterDescents();assert.equal(c.G.props.filter(p=>p.chapterDescent).length,1,'load repairs without duplicating stairs');assert.equal(c.G.props.find(p=>p.chapterDescent),old);
 }
-assert(html.includes('tickChapterDescent();'));assert(html.includes('useChapterDescent();return;'));assert(html.includes('bronzeDoorPlaneX(p)'));assert(!/setTimeout\(\(\)=>\{ if\(G.scene==='play'\) endChapter\(\); \},1400\)/.test(html));
+assert(html.includes('tickChapterDescent();'));assert(html.includes('useChapterDescent();return;'));assert(html.includes('bronzeDoorPlaneY(p)'));assert(!/setTimeout\(\(\)=>\{ if\(G.scene==='play'\) endChapter\(\); \},1400\)/.test(html));
 console.log('Descent pads, old-save repair, ruby/guardian gating, explicit stairs, and bronze wall-plane rendering passed');
