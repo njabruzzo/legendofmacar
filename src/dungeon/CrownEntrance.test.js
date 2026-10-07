@@ -21,7 +21,7 @@ vm.runInContext(['crownEntranceKind','drawCrownEntranceCell','drawSecretFadedFac
 for(let x=102;x<112;x++)assert.equal(c.crownEntranceKind(L,x,15),x>=105&&x<108?'bones':'rubble');
 assert.equal(c.crownEntranceKind({...L,n:2},105,15),null);
 const bones={id:'bones'},rubble={id:'rubble'},rubble2={id:'rubble2'},faces=[],piles=[];
-Object.assign(c,{SPR:{crown_bone_wall:bones,rubble,rubble2},ZOOM:1,DIGT:null,hallWallH:()=>80,w2s:()=>({x:0,y:0}),drawIsoPlaneImg:(g,img)=>faces.push(img),drawBillboard:(g,img)=>piles.push(img)});
+Object.assign(c,{SPR:{crown_bone_wall:bones,rubble,rubble2},ZOOM:1,DIGT:null,hallWallH:()=>80,w2s:()=>({x:0,y:0}),drawIsoPlaneImg:(g,img,x,y,x1,y1,h)=>{assert.equal(h,120,'bone wall is 50% taller');faces.push(img);},drawBillboard:(g,img,h)=>{assert.equal(h,90,'rubble is 50% taller');piles.push(img);}});
 const g={save(){},restore(){},translate(){}};
 for(let x=102;x<112;x++)assert(c.drawCrownEntranceCell(g,L,x,15,true,false,true,false));
 assert.equal(faces.length,6);assert(faces.every(img=>img===bones),'all central front/rear faces use bone texture');
