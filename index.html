@@ -62,7 +62,7 @@
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/MacarWeaponShaft.js?v=134"></script>
 <script src="src/combat/MacarSharedAtlas.js?v=139"></script>
-<script src="src/combat/NpcDirectionalAtlas.js?v=3"></script>
+<script src="src/combat/NpcDirectionalAtlas.js?v=4"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -286,7 +286,8 @@ function turnToward(e,dx,dy,dt,rate){
   ca+=Math.sign(d)*max; e.fdx=Math.cos(ca); e.fdy=Math.sin(ca);
   return Math.abs(d)-max;
 }
-function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*3.35; }
+const WALK_CYCLES_PER_SECOND=1.675; // Two alternating steps per full stride.
+function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND; }
 function holdFollowWalk(e, lead){
   if(!e||!lead||!lead.moving) return;
   const t=(typeof G!=='undefined'&&G&&G.t)||0;
@@ -466,7 +467,7 @@ function separateParty(p){
       const moved=Math.hypot(dx,dy)>0.002;
       e.moving=moved?1:0;
       e.ix=moved?dx/dt:0; e.iy=moved?dy/dt:0;
-      e.gait=(e._followGait||0)+(moved?dt*3.35:0);
+      e.gait=(e._followGait||0)+(moved?dt*WALK_CYCLES_PER_SECOND:0);
       if(moved){
         /* Take the leader heading while following it. Avoid animation
            octant jitter from small radial and tangent corrections. */

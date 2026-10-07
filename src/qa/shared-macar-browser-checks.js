@@ -65,7 +65,7 @@
  const demo=document.createElement('canvas');demo.width=960;demo.height=280;demo.style='position:static;width:960px;height:280px';document.body.append(demo);
  const heading=document.createElement('select');for(const d of ['s','se','e','ne','n','nw','w','sw']){const option=document.createElement('option');option.value=d;option.textContent=d.toUpperCase();heading.append(option);}document.body.append(heading);
  const animate=t=>{const dir=heading.value,flip=['nw','w','sw'].includes(dir),g=demo.getContext('2d');g.fillStyle='#343434';g.fillRect(0,0,960,280);
-  for(const [i,weapon] of ['maul','axe','xbow'].entries()){const key=MacarSharedAtlas.select(weapon,{gait:t/1000*3.35},dir,'walk'),img=SPR[key],p=MacarWeaponShaft.pose(key),H=entSpriteH(hero,ZOOM)*MacarWeaponShaft.fit(key,img);blitFacing(g,img,160+i*320-H*.5,235-H*p.foot[1],H,H,flip,true);g.fillStyle='white';g.font='16px sans-serif';g.fillText(weapon==='axe'?'Battle axe':weapon==='xbow'?'Crossbow':'Maul',115+i*320,265);}requestAnimationFrame(animate);};requestAnimationFrame(animate);document.body.append(gallery);
+  for(const [i,weapon] of ['maul','axe','xbow'].entries()){const key=MacarSharedAtlas.select(weapon,{gait:t/1000*WALK_CYCLES_PER_SECOND},dir,'walk'),img=SPR[key],p=MacarWeaponShaft.pose(key),H=entSpriteH(hero,ZOOM)*MacarWeaponShaft.fit(key,img);blitFacing(g,img,160+i*320-H*.5,235-H*p.foot[1],H,H,flip,true);g.fillStyle='white';g.font='16px sans-serif';g.fillText(weapon==='axe'?'Battle axe':weapon==='xbow'?'Crossbow':'Maul',115+i*320,265);}requestAnimationFrame(animate);};requestAnimationFrame(animate);document.body.append(gallery);
  const dirs=['e','se','s','sw','w','nw','n','ne'];
  for(const weapon of ['maul','axe','xbow'])for(let i=0;i<8;i++)for(const stage of ['idle','walk0','walk1','walk2','walk3','windup','attack','recover','ranged']){
   const angle=i*Math.PI/4,sx=Math.cos(angle)/(TW/2),sy=Math.sin(angle)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
@@ -93,6 +93,14 @@
  // Exercise the movement function, including an immovable wall.
  startChapter(1);G.scene='play';const p=player();p.x=36.5;p.y=22.5;const oldGait=p.gait||0;check(steerWalk(p,1,0,4.3,1/60)>0,'movement advances on open floor');check(p.moving&&(p.gait||0)>oldGait,'movement advances gait');
  const oldCanBe=canBe;canBe=()=>false;const gait=p.gait;steerWalk(p,1,0,4.3,.05);check(!p.moving&&p.gait===gait,'blocked movement plants idle without advancing gait');canBe=oldCanBe;
+ const stride={gait:0},macarPhases=new Set(),npcPhases=new Set();
+ for(let frame=0;frame<40;frame++){
+  gaitAdvance(stride,1/60);
+  macarPhases.add(MacarSharedAtlas.pose(MacarSharedAtlas.select('maul',stride,'e','walk')).stage);
+  npcPhases.add(NpcDirectionalAtlas.pose(NpcDirectionalAtlas.select('pordoom',{moving:1,gait:stride.gait},'e')).stage);
+ }
+ check(macarPhases.size===4&&npcPhases.size===4,'game gait advances all four Macar and dwarf walking phases');
+ check(Math.abs(stride.gait-40/60*WALK_CYCLES_PER_SECOND)<.001,'consistent full stride pace');
  }catch(e){result.failures.push(e.stack);}
  report.textContent=JSON.stringify({suite:result.suite,checks:result.checks,failures:result.failures,states:result.states.length},null,2);await fetch('/qa-result',{method:'POST',body:JSON.stringify(result)});
 })();

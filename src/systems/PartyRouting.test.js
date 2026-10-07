@@ -10,7 +10,7 @@ const check=(v,m)=>{checks++;assert(v,m);};
 function setup(){
  const grid=Array.from({length:24},(_,y)=>Array.from({length:30},(_,x)=>x===0||y===0||x===29||y===23?1:0));
  const p={hero:1,team:'party',kind:'dwarf',col:{key:'macar'},x:6,y:6,r:.36,sp:4.3,fdx:1,fdy:0,gait:0};
- const ctx={Math,PartyFollow:Follow,G:{lvl:{grid,w:30,h:24},ents:[p]},WALL_FACE_CLEAR:.72,TAU:Math.PI*2,
+ const ctx={Math,WALK_CYCLES_PER_SECOND:1.675,PartyFollow:Follow,G:{lvl:{grid,w:30,h:24},ents:[p]},WALL_FACE_CLEAR:.72,TAU:Math.PI*2,
   startCaveInBlocks:()=>false,foeInTheFight:()=>false,player:()=>p,wornMoveMul:()=>1};
  vm.createContext(ctx);
  vm.runInContext(['walk','needsWallFaceClear','wallFaceClearAt','wallFaceClear','canBe','moveStep','move','bestSlide','turnToward','gaitAdvance','constrainPartyStep','steerWalk','routeSteerWalk'].map(fn).join('\n'),ctx);

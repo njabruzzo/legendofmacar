@@ -3,7 +3,8 @@
  const actors=['pordoom','fendur','orbo','talpor','gnome_good','gnome_tinker'];
  const dwarfActors=actors.slice(0,4);
  const files=Object.fromEntries(actors.map(actor=>[actor,'assets/creatures/directional/'+actor+'-v'+(dwarfActors.includes(actor)?2:1)+'.png']));
- const views=['s','se','e','ne','n'],stages=['idle','walk0','walk1','windup','attack','recover'];
+ const views=['s','se','e','ne','n'],stages=['idle','walk0','walk1','windup','attack','recover','walk2','walk3'];
+ const sourceColumns={idle:0,walk0:1,walk1:2,windup:3,attack:4,recover:5,walk2:0,walk3:0};
  const mirror={sw:'se',w:'e',nw:'ne'};
  const cache=new Map(),images=new Map();
  function loadImage(actor,url){
@@ -28,8 +29,8 @@
   return{rows,labels,parts};
  }
  function pose(key){
-  const m=/^(pordoom|fendur|orbo|talpor|gnome_good|gnome_tinker)(_ghost)?_direction_(s|se|e|ne|n)_(idle|walk[01]|windup|attack|recover)$/.exec(key||'');
-  return m?{actor:m[1],ghost:!!m[2],view:m[3],stage:m[4],row:views.indexOf(m[3]),col:stages.indexOf(m[4])}:null;
+  const m=/^(pordoom|fendur|orbo|talpor|gnome_good|gnome_tinker)(_ghost)?_direction_(s|se|e|ne|n)_(idle|walk[0-3]|windup|attack|recover)$/.exec(key||'');
+  return m?{actor:m[1],ghost:!!m[2],view:m[3],stage:m[4],row:views.indexOf(m[3]),col:sourceColumns[m[4]]}:null;
  }
  function anatomy(part,w){
   const footPixels=part.pixels.filter(at=>Math.floor(at/w)>part.y1-(part.y1-part.y0)*.08);
@@ -47,7 +48,9 @@
   const ghost=stem.endsWith('_ghost'),actor=ghost?stem.slice(0,-6):stem;
   if(!actors.includes(actor)||e.dead||e.crushed||e.sleeping||e.tied)return null;
   const t=e.atk>0?1-e.atk/Math.max(.01,e.atkMax):0;
-  const stage=e.atk>0?(t<.45?'windup':t<.72?'attack':'recover'):e.moving&&!e.defending?'walk'+Math.floor((((e.gait||0)%1+1)%1)*2):'idle';
+  // Step, plant, opposite step, plant: retain the approved painted poses.
+  const phase=Math.floor((((e.gait||0)%1+1)%1)*4);
+  const stage=e.atk>0?(t<.45?'windup':t<.72?'attack':'recover'):e.moving&&!e.defending?'walk'+[0,2,1,3][phase]:'idle';
   return actor+(ghost?'_ghost':'')+'_direction_'+(mirror[oct]||oct||'s')+'_'+stage;
  }
  function slice(image,key,doc){

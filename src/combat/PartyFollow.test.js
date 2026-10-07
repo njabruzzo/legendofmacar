@@ -104,13 +104,13 @@ for(const dt of [1/60,.05]){
 // Production integration: stillness clears held walk, gait advances once,
 // and leader/follower movement both traverse the swept guard.
 {
- cases++;const p=entity(10,10,true),e=entity(13,10);const ctx={PartyFollow:Follow,G:{ents:[p,e]},canBe:()=>true,holdFollowWalk:()=>{},Math};
+ cases++;const p=entity(10,10,true),e=entity(13,10);const ctx={WALK_CYCLES_PER_SECOND:1.675,PartyFollow:Follow,G:{ents:[p,e]},canBe:()=>true,holdFollowWalk:()=>{},Math};
  vm.createContext(ctx);vm.runInContext(fn('separateParty'),ctx);
  p._followDt=.05;p._frameStep=0;e._followX=e.x;e._followY=e.y;e._followGait=2;e.gait=3;e.moving=1;e._followWalkHold=99;
  ctx.separateParty(p);
  check(e.moving===0 && e._followWalkHold===0 && e.gait===2,'wall/idle settles sheet and gait immediately');
  p._followDt=.05;p._frameStep=.1;p.moving=1;e._followX=e.x-.1;e._followY=e.y;e._followGait=2;
- ctx.separateParty(p);check(Math.abs(e.gait-(2+.05*3.35))<1e-9,'gait advances once per moved frame');
+ ctx.separateParty(p);check(Math.abs(e.gait-(2+.05*1.675))<1e-9,'gait advances once per moved frame');
  check(fn('steerWalk').includes('constrainPartyStep(e, ox, oy)'), 'plain/nav/rejoin steering calls swept guard');
  check(html.includes('constrainPartyStep(p, leadX, leadY)'), 'arrival snap also calls leader guard');
 }
