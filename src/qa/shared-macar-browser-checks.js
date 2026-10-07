@@ -19,6 +19,12 @@
     G.equipped={primary:{n:weapon==='axe'?'Iron Axe':weapon==='xbow'?'Crossbow':'War Hammer',k:'weapon',macarHeld:1},helmet:{id:'bone_crown',boneCrown:1}};
     const H=entSpriteH(hero,ZOOM)*livingMacarPlantFit(hero,key,img),W=H,dx=r*480+80+j*160-W*.5,dy=i*250+211-H*p.foot[1];
     blitFacing(gg,img,dx,dy,W,H,false,true);drawWornBoneCrown(gg,W,H,dx,dy,false,ZOOM,key);
+    const crownSeat=MacarCrown.layout(SPRITE_FILES[key],img,{x:0,y:0,w:img.width,h:img.height},false);
+    const mirroredSeat=MacarCrown.layout(SPRITE_FILES[key],img,{x:0,y:0,w:img.width,h:img.height},true);
+    const bodyPixels=img.__macarBodyCanvas.getContext('2d').getImageData(0,0,img.width,img.height).data;
+    const seatAt=(Math.round(crownSeat.y)*img.width+Math.round(crownSeat.x))*4;
+    check(bodyPixels[seatAt+3]>80,'crown seat on painted head '+key);
+    check(Math.abs(crownSeat.x+mirroredSeat.x-img.width)<.01&&crownSeat.y===mirroredSeat.y,'crown mirrors with head '+key);
     const edge=img.getContext('2d').getImageData(0,0,img.width,img.height).data;let border=0;for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++)if((x<2||x>img.width-3||y<2||y>img.height-3)&&edge[(y*img.width+x)*4+3]>80)border++;check(border===0,'no clipped weapon/body edges '+key);
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
     const grip=MacarSharedAtlas.geometry(key).grip, gx=Math.round(grip[0]*img.width),gy=Math.round(grip[1]*img.height);

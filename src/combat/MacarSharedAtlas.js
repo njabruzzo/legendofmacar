@@ -88,8 +88,9 @@
    g.save();g.beginPath();g.ellipse(grip[0],grip[1]-3*body.sc,9*body.sc,7*body.sc,0,0,Math.PI*2);g.clip();g.drawImage(body.canvas,0,0);g.restore();
   }
   if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
-  const brows={windup:[[189,66],[209,66],[225,62],[208,65],[185,63]],attack:[[174,146],[236,159],[273,166],[264,143],[215,154]],recover:[[178,66],[232,88],[259,72],[257,73],[216,70]],ranged:[[178,66],[232,88],[259,72],[257,73],[216,70]]};
-  const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+[132,143,156,151,123][p.row]*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+27*body.sc;
+  // Brow/hair-cap seats calibrated to the current v2 combat cells, not v1.
+  const brows={windup:[[188,54],[224,53],[233,42],[228,44],[197,33]],attack:[[180,112],[232,104],[264,103],[257,100],[188,84]],recover:[[161,54],[190,49],[223,40],[217,39],[165,25]],ranged:[[161,54],[190,49],[223,40],[217,39],[165,25]]};
+  const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+(p.dir==='e'&&p.stage==='walk3'?142:[132,143,156,151,123][p.row])*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+27*body.sc;
   const geom={weapon:p.weapon,size:[size,size],grip:grip.map(v=>v/size),shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,52*body.sc/size,0]};
   geometryCache.set(key,geom);c.__macarSharedBody=bodyKey;c.__macarBodyCanvas=body.canvas;c.__macarDirectionalIdle=1;c.__macarIntegratedMotion=1;c.__macarIdleSeat=[browX,browY,52*body.sc,0];c._stature=(feet-body.top)/size;c.__macarSharedGeometry=geom;return c;
  }
