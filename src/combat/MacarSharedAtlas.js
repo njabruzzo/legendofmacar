@@ -58,7 +58,7 @@
   ];
   const carry=carries[p.row][p.stage.startsWith('walk')?1+Number(p.stage.slice(4)):0],hit=[[102,162],[148,128],[178,143],[189,127],[174,116]][p.row];
   const grip=p.stage==='attack'?hit:carry;
-  const angle=p.stage==='attack'?[.45,.3,.2,-.6,-1.3][p.row]:[-.60,-1.20,Math.PI+.55,Math.PI+.4,Math.PI+.32][p.row];
+  const angle=p.stage==='attack'?[.45,.3,.2,-.6,-1.3][p.row]:[-.28,-1.20,Math.PI+.55,Math.PI+.4,Math.PI+.32][p.row];
   if(p.stage==='windup')return{grip:[[132,46],[145,47],[172,45],[157,47],[147,40]][p.row],angle:[-1.05,-1.0,-.95,-2.0,-2.1][p.row]};
   if(p.stage==='attack')return{grip:[[166,252],[236,254],[271,258],[288,224],[246,204]][p.row],angle:[.45,.3,.2,-.6,-1.3][p.row]};
   if(p.stage==='recover'||p.stage==='ranged')return{grip:[[181,182],[230,177],[230,164],[267,165],[227,158]][p.row],angle:p.weapon==='xbow'?[.45,.3,.1,-.55,-1.3][p.row]:[.15,.1,0,-.25,-.5][p.row]};
@@ -82,9 +82,10 @@
   const drawWeapon=()=>{g.save();if(p.weapon==='xbow'){g.translate(grip[0],grip[1]);g.rotate(l.angle);const sc=length/1100;g.drawImage(weapons,-540*sc,-650*sc,weapons.width*sc,weapons.height*sc);g.restore();return;}g.translate(a[0],a[1]);g.rotate(l.angle);const sy=p.weapon==='axe'?627:0;g.drawImage(weapons,0,sy,1254,627,-endpoints[0]*scale,-(endpoints[2]-sy)*scale,1254*scale,627*scale);g.restore();};
   drawWeapon();g.drawImage(body.canvas,0,0);
   if(p.weapon!=='xbow'&&!['windup','attack','recover','ranged'].includes(p.stage)){
-   // Reveal the grip and pommel in front of the arm, while the carried
-   // head remains behind the shoulder. Restore only the curled fingers.
-   g.save();g.beginPath();g.arc(grip[0],grip[1],30*body.sc,0,Math.PI*2);g.clip();drawWeapon();g.restore();
+   // The carried head stays behind the body; the continuous shaft crosses
+   // the palm in front of the shoulder, with painted fingers restored on top.
+   const nx=-uy*10*body.sc,ny=ux*10*body.sc,front=[grip[0]+length*.12*ux,grip[1]+length*.12*uy];
+   g.save();g.beginPath();g.moveTo(a[0]+nx,a[1]+ny);g.lineTo(front[0]+nx,front[1]+ny);g.lineTo(front[0]-nx,front[1]-ny);g.lineTo(a[0]-nx,a[1]-ny);g.closePath();g.clip();drawWeapon();g.restore();
    g.save();g.beginPath();g.ellipse(grip[0],grip[1]-3*body.sc,9*body.sc,7*body.sc,0,0,Math.PI*2);g.clip();g.drawImage(body.canvas,0,0);g.restore();
   }
   if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
