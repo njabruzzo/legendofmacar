@@ -73,6 +73,8 @@
    const bounds=cellBounds(image,p.row,col,doc,cols),idle=cellBounds(image,p.row,0,doc,cols),sc=bodyHeight/(idle.bot-idle.top);
    const x=size/2-(idle.left+idle.right)/2*sc,y=feet-bounds.bot*sc;
    const c=doc.createElement('canvas');c.width=c.height=size;c.getContext('2d').drawImage(bounds.c,x,y,bounds.w*sc,bounds.h*sc);
+   const legStage=p.stage.startsWith('walk')?['walk0','walk2','walk1','walk3'][Number(p.stage.slice(4))]:p.stage;
+   if(root.DwarfWalkLegs)root.DwarfWalkLegs.apply(c,legStage,p.dir,feet-bodyHeight*.25,feet,bodyHeight);
    body={canvas:c,bounds,sc,x,y,top:y+bounds.top*sc};cache.set(bodyKey,body);
   }
   const c=doc.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d'),l=layout(p),grip=[body.x+l.grip[0]*body.sc,body.y+l.grip[1]*body.sc];

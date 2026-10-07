@@ -25,6 +25,7 @@
    if(stage.startsWith('walk'))e.aim={team:'foe',x:-dx*10,y:-dy*10,dead:0};
    const stem=actor+(ghost?'_ghost':''),wanted=NpcDirectionalAtlas.select(stem,e,dir),key=entAnimKey(e);
    check(key===wanted,'game selected '+stem+' '+dir+' '+stage);check(wantsSpriteFlip(e)===(i>=3&&i<=5),'game mirror '+key);
+   if(stage.startsWith('walk')){const legs=SPR[key].__walkLegOffsets;check(!!legs&&legs.left[0]*legs.right[0]<0,'rendered dwarf legs move oppositely '+key);}
    const cv=document.createElement('canvas');cv.width=cv.height=512;const cg=cv.getContext('2d');cg.translate(256,400);
    const raw=entAnimImg(e),img=solidDwarfSprite(e,raw);check(drawEntBillboard(cg,e,img,ZOOM,wantsSpriteFlip(e)),'game billboard '+key);
    const pixels=cg.getImageData(0,0,512,512).data;check(pixels.some((v,j)=>j%4===3&&v>40),'visible rendered '+key);

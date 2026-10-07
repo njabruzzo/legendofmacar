@@ -13,7 +13,11 @@
    check(a.__macarBodyCanvas===bow.__macarBodyCanvas,'exact crossbow body '+dir+' '+stage);
    check(a.__macarBodyCanvas===b.__macarBodyCanvas,'exact shared body '+dir+' '+stage);
    check(a.__macarSharedBody===b.__macarSharedBody,'same pose identity '+dir+' '+stage);
-   if(stage.startsWith('walk'))legHashes.push(hash(a.__macarBodyCanvas,450));
+   if(stage.startsWith('walk')){
+    legHashes.push(hash(a.__macarBodyCanvas,450));
+    const legs=a.__macarBodyCanvas.__walkLegOffsets;
+    check(!!legs&&legs.left[0]*legs.right[0]<0,'left and right legs move oppositely '+dir+' '+stage);
+   }
    for(const [j,weapon] of ['maul','axe','xbow'].entries()){
     const key=(weapon==='maul'?'macar':'macar_'+weapon)+'_shared_'+dir+'_'+stage,img=SPR[key],p=MacarWeaponShaft.pose(key);
     G.equipped={primary:{n:weapon==='axe'?'Iron Axe':weapon==='xbow'?'Crossbow':'War Hammer',k:'weapon',macarHeld:1},helmet:{id:'bone_crown',boneCrown:1}};
