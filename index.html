@@ -3121,8 +3121,19 @@ function crownEntranceKind(L,x,y){
   return isCrownEntranceWall(L,x,y)?(x>=105&&x<108?'bones':'rubble'):null;
 }
 function crownEntranceHeight(){ return 90*ZOOM; }
+function crownBoneDepth(){ return 1.8; }
+function crownBoneTexture(){
+  const img=SPR.crown_bone_wall;
+  if(!img||!img.width)return img;
+  if(crownBoneTexture.source===img)return crownBoneTexture.cached;
+  const c=document.createElement('canvas');c.width=c.height=512;
+  // Large skulls and long bones stay recognizable on a narrow wall face.
+  c.getContext('2d').drawImage(img,img.width*.18,img.height*.12,img.width*.5,img.height*.5,0,0,512,512);
+  crownBoneTexture.source=img;crownBoneTexture.cached=c;return c;
+}
 function drawCrownBoneCap(g,img,x,y,H){
-  const a=w2s(x,y),b=w2s(x+1,y),c=w2s(x,y+1);
+  const inset=(crownBoneDepth()-1)/2;
+  const a=w2s(x,y-inset),b=w2s(x+1,y-inset),c=w2s(x,y+1+inset);
   g.save();
   g.transform(b.x-a.x,b.y-a.y,c.x-a.x,c.y-a.y,a.x,a.y-H);
   if(img&&img.width)g.drawImage(img,0,0,1,1);
@@ -3134,12 +3145,12 @@ function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
   if(!kind)return false;
   const H=crownEntranceHeight(),s=w2s(x,y);
   if(kind==='bones'){
-    const img=SPR.crown_bone_wall;
+    const img=crownBoneTexture(),inset=(crownBoneDepth()-1)/2,back=y-inset,front=y+1+inset;
     const opt={fill:'#82705a',shade:.22,stroke:0};
-    if(oS)drawIsoPlaneImg(g,img,x,y+1,x+1,y+1,H,opt);
-    if(oE||x===107)drawIsoPlaneImg(g,img,x+1,y,x+1,y+1,H,opt);
-    if(oN)drawIsoPlaneImg(g,img,x,y,x+1,y,H,opt);
-    if(oW||x===105)drawIsoPlaneImg(g,img,x,y,x,y+1,H,opt);
+    if(oS)drawIsoPlaneImg(g,img,x,front,x+1,front,H,opt);
+    if(oE||x===107)drawIsoPlaneImg(g,img,x+1,back,x+1,front,H,opt);
+    if(oN)drawIsoPlaneImg(g,img,x,back,x+1,back,H,opt);
+    if(oW||x===105)drawIsoPlaneImg(g,img,x,back,x,front,H,opt);
     drawCrownBoneCap(g,img,x,y,H);
     if(DIGT&&DIGT.i===x&&DIGT.j===y)drawDigMark(g,s.x,s.y,H);
     if(G.dig&&G.dig.i===x&&G.dig.j===y)drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
