@@ -96,10 +96,11 @@
   if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
   // Brow/hair-cap seats calibrated to the current v2 combat cells, not v1.
   const brows={windup:[[188,54],[224,53],[233,42],[228,44],[197,33]],attack:[[180,112],[232,104],[264,103],[257,100],[188,84]],recover:[[161,54],[190,49],[223,40],[217,39],[165,25]],ranged:[[161,54],[190,49],[223,40],[217,39],[165,25]]};
-  const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+(p.dir==='e'&&p.stage==='walk3'?142:p.dir==='e'&&p.stage==='walk2'?145:p.dir==='se'&&p.stage==='walk3'?130:[132,143,156,151,123][p.row])*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+17*body.sc;
+  const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+(p.dir==='e'&&p.stage==='walk3'?142:p.dir==='e'&&p.stage==='walk2'?145:p.dir==='se'&&p.stage==='walk3'?130:[p.stage==='walk2'||p.stage==='walk3'?132:135,143,156,151,123][p.row])*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+17*body.sc;
+  const browAngle=!brow&&p.dir==='s'?-.05:0;
   const crownWidth=([42,40,36,38,42][p.row])*body.sc;
-  const geom={weapon:p.weapon,size:[size,size],grip:grip.map(v=>v/size),shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,crownWidth/size,0]};
-  geometryCache.set(key,geom);c.__macarSharedBody=bodyKey;c.__macarBodyCanvas=body.canvas;c.__macarDirectionalIdle=1;c.__macarIntegratedMotion=1;c.__macarIdleSeat=[browX,browY,crownWidth,0];c._stature=(feet-body.top)/size;c.__macarSharedGeometry=geom;return c;
+  const geom={weapon:p.weapon,size:[size,size],grip:grip.map(v=>v/size),shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,crownWidth/size,browAngle]};
+  geometryCache.set(key,geom);c.__macarSharedBody=bodyKey;c.__macarBodyCanvas=body.canvas;c.__macarDirectionalIdle=1;c.__macarIntegratedMotion=1;c.__macarIdleSeat=[browX,browY,crownWidth,browAngle];c._stature=(feet-body.top)/size;c.__macarSharedGeometry=geom;return c;
  }
  function geometry(key){return geometryCache.get(key)||null;}
  const api={bodyFile,weaponFile,combatFile,crossbowFile,attackStage,source,directions,stages,targets,keys,pose,register,select,slice,geometry};root.MacarSharedAtlas=api;if(typeof module==='object')module.exports=api;
