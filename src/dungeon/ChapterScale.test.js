@@ -96,7 +96,7 @@ const ch3=chapterBlock(3);
 assert(/L\.spawn=\{x:8,y:28\}/.test(ch3), 'Ch III spawn stays');
 assert(/k:'names'/.test(ch3) && /spawnLairGroup\(46,16/.test(ch3),
   'Hall of Names stays');
-assert(/FOE\.warden\(\)/.test(ch3) && /b\.x=48;b\.y=39/.test(ch3),
+assert(/FOE\.construct\(\)/.test(ch3) && /b\.x=48;b\.y=39/.test(ch3),
   'Ruby Warden stays the Ch III boss, not a Book I side pack');
 
 const ch4=chapterBlock(4);

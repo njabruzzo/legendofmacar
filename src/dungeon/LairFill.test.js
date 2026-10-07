@@ -68,7 +68,7 @@ assert(/if\(!spec\.noDen\) placeLairDen\(cx, cy, spec\)/.test(html),
 assert(/function dungeonEntryLevel\(\)\{ return 5; \}/.test(html),
   'dungeon entry is still 5 HD');
 assert(/if\(ch<=1\) return \[1,7\]/.test(html), 'Ch I HD band 1–7');
-assert(/if\(ch===3\) return \[5,9\]/.test(html), 'ruins HD band 5–9');
+assert(/if\(ch===3\) return \[1,5\]/.test(html), 'ruins HD band 1–5');
 assert(/if\(ch===4\) return \[6,12\]/.test(html), 'Ch IV HOUSE band 6–12 (1e lvl VII–IX)');
 assert(/return \[7,16\]/.test(html), 'Ch V HOUSE band 7–16 (1e lvl VIII–X+)');
 
@@ -86,12 +86,12 @@ const NEW1=[
   {x:104,y:48,lo:1,hi:7}
 ];
 const NEW3=[
-  {x:128,y:48,lo:5,hi:9},
-  {x:50,y:104,lo:5,hi:9},
-  {x:126,y:10,lo:5,hi:9},
-  {x:120,y:80,lo:5,hi:9},
-  {x:12,y:102,lo:5,hi:9},
-  {x:88,y:102,lo:5,hi:9}
+  {x:128,y:48,lo:1,hi:5},
+  {x:50,y:104,lo:1,hi:5},
+  {x:126,y:10,lo:1,hi:5},
+  {x:120,y:80,lo:1,hi:5},
+  {x:12,y:102,lo:1,hi:5},
+  {x:88,y:102,lo:1,hi:5}
 ];
 const NEW4=[
   {x:122,y:48,lo:6,hi:12},

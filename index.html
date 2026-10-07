@@ -5213,6 +5213,14 @@ function sealNozDoorBeyond(L){
   if(!L||L.n!==2)return;
   for(let y=7;y<10;y++)for(let x=60;x<66;x++)L.grid[y][x]=2;
 }
+function easeLevelThreeEncounters(L){
+  if(!L||L.n!==3)return;
+  const replacements={beholder:'orc',warden:'construct',drowMage:'orc',drowElite:'orc',hookedhorror:'orc',drider:'spider',gelcube:'rat',puddingBrown:'rat',otyugh:'orc',umberhulk:'orc',roper:'spider',wraith:'undead',minotaur:'orc',troll:'bugbear',ochrejelly:'rat',cloaker:'spider',basilisk:'warg',cockatrice:'beetle'};
+  G.ents=G.ents.map(e=>{
+    if(e.team!=='foe'||e.dead||!replacements[e.kind])return e;
+    return Object.assign(FOE[replacements[e.kind]](),{x:e.x,y:e.y});
+  });
+}
 function positionNozDoor(L){
   if(!L||L.n!==2)return;
   sealNozDoorBeyond(L);
@@ -5667,7 +5675,7 @@ function makeChapter(n){
     L.spawn={x:8,y:28};
     L.dressSeed=(G._forceSeeds&&G._forceSeeds.dressSeed)||((Math.random()*1e9)|0)+3;
     L.stair={x:48.1,y:61.4};
-    L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruby Warden',d:0}];
+    L.objs=[{t:'Cross the dead barracks',d:0},{t:'Read the Hall of Names',d:0},{t:'Destroy the Ruin Guard',d:0}];
     L.lights=[{x:8,y:28,c:'#ffb45c',r:5,f:1},{x:26,y:28,c:'#ff5a48',r:8,f:1.2},
       {x:46,y:20,c:'#ffb45c',r:8,f:1.1},{x:48,y:42,c:'#ff2030',r:12,f:1.6},
       {x:90,y:14,c:'#c9a070',r:6,f:0.85},{x:96,y:34,c:'#ffb45c',r:6.2,f:0.9},
@@ -5708,16 +5716,16 @@ function makeChapter(n){
       if(!L.flags.w1&&p.x>17){L.flags.w1=1; say('Grey kin. Duergar. They kept the shift after the lights went out.','#9de8a8');
         spawnLairGroup(26,28,{leader:'duergarX',pack:[['duergar',4]],spread:1.7,aggro:4.0});}
       if(L.flags.w1&&!L.flags.w2&&p.x>37&&p.y<28){L.flags.w2=1;L.objs[0].d=1;
-        say('An eye opens in the Hall of Names.','#ff7ad9');
-        const eye=FOE.beholder(); eye.x=46; eye.y=19; G.ents.push(eye);
-        spawnLairGroup(46,16,{leader:'drowMage',pack:[['drow',3],['drowElite',1]],spread:2.0,aggro:4.2});
-        spawnLairGroup(50,22,{pack:[['hookedhorror',2],['drider',1]],spread:1.4,aggro:3.4});}
+        say('Orcs hold the Hall of Names.','#ff7ad9');
+        const eye=FOE.orc(); eye.x=46; eye.y=19; G.ents.push(eye);
+        spawnLairGroup(46,16,{leader:'orc',pack:[['drow',3],['orc',1]],spread:2.0,aggro:4.2});
+        spawnLairGroup(50,22,{pack:[['orc',2],['spider',1]],spread:1.4,aggro:3.4});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.warden(); b.x=48;b.y=39; G.ents.push(b);
+        const b=FOE.construct(); b.x=48;b.y=39; G.ents.push(b);
         spawnLairGroup(43,44,{pack:[['undead',3]],spread:1.5,aggro:3.8});
-        spawnLairGroup(52,43,{pack:[['gelcube',1],['puddingBrown',1],['otyugh',1]],spread:1.6,aggro:3.2});
-        spawnLairGroup(54,46,{pack:[['umberhulk',1],['roper',1]],spread:1.4,aggro:3.5});
-        say('RUBY WARDEN - the foreman that never clocked out.','#ff5a48'); shake(20);
+        spawnLairGroup(52,43,{pack:[['rat',1],['rat',1],['orc',1]],spread:1.6,aggro:3.2});
+        spawnLairGroup(54,46,{pack:[['orc',1],['spider',1]],spread:1.4,aggro:3.5});
+        say('RUIN GUARD - the last watch of the foreman.','#ff5a48'); shake(20);
         hint('Keep moving. Defend when he winds up.',5);}
       if(!L.flags.ruinPech&&p.y<16&&p.x>18&&p.x<36){L.flags.ruinPech=1;
         spawnLairGroup(26,8,{pack:[['pech',2],['construct',1]],spread:1.3,aggro:3.2});
@@ -5735,10 +5743,10 @@ function makeChapter(n){
         spawnLairGroup(30,58,{pack:[['troglodyte',3],['crawler',1]],spread:1.5,aggro:3.5});
         say('Troglodytes hold the south street of broken halls.','#6aff8a');}
       if(!L.flags.ruinNE&&p.x>80&&p.y<22){L.flags.ruinNE=1;
-        spawnLairGroup(90,14,{leader:'drowElite',pack:[['drow',2]],spread:1.5,aggro:3.6});
-        say('A side manor still has a drow watch.','#c07bff');}
+        spawnLairGroup(90,14,{leader:'orc',pack:[['drow',2]],spread:1.5,aggro:3.6});
+        say('Orc guards hold the side manor.','#c07bff');}
       if(!L.flags.ruinSE&&p.x>76&&p.y>50){L.flags.ruinSE=1;
-        spawnLairGroup(88,58,{pack:[['undead',2],['wraith',1]],spread:1.5,aggro:3.4});
+        spawnLairGroup(88,58,{pack:[['undead',2],['undead',1]],spread:1.5,aggro:3.4});
         say('The southeast street is a grave of broken halls.','#7cff9c');}
       if(!L.flags.ruinFarS&&p.y>70){L.flags.ruinFarS=1;
         spawnLairGroup(50,80,{leader:'troglodyteChief',pack:[['troglodyte',3]],spread:1.6,aggro:3.6});
@@ -5747,26 +5755,26 @@ function makeChapter(n){
         spawnLairGroup(106,48,{pack:[['myconid',2],['violetfungus',1]],spread:1.4,aggro:3.2});
         say('Spores take the eastern storehouse.','#a35bff');}
       if(!L.flags.ruinDeepE&&p.x>116){L.flags.ruinDeepE=1;
-        spawnLairGroup(128,48,{pack:[['umberhulk',1],['otyugh',1]],spread:1.5,aggro:3.6});
-        say('An umber hulk broke the deep-east store and kept the pit.','#c08040');}
+        spawnLairGroup(128,48,{pack:[['orc',1],['orc',1]],spread:1.5,aggro:3.6});
+        say('Orcs occupy the deep-east storehouse.','#c08040');}
       if(!L.flags.ruinDeepS&&p.y>92){L.flags.ruinDeepS=1;
-        spawnLairGroup(50,104,{pack:[['hookedhorror',2],['minotaur',1]],spread:1.5,aggro:3.6});
-        say('Hooked horrors and a minotaur hold the deep-south court.','#c07bff');}
+        spawnLairGroup(50,104,{pack:[['orc',2],['orc',1]],spread:1.5,aggro:3.6});
+        say('Orcs hold the deep-south court.','#c07bff');}
       if(!L.flags.ruinDeepNE&&p.x>112&&p.y<20){L.flags.ruinDeepNE=1;
-        spawnLairGroup(126,10,{leader:'drowElite',pack:[['drider',1]],spread:1.5,aggro:3.6});
-        say('A drow patrol kept the far northeast manor.','#c07bff');}
+        spawnLairGroup(126,10,{leader:'orc',pack:[['spider',1]],spread:1.5,aggro:3.6});
+        say('Orcs and spiders occupy the far northeast manor.','#c07bff');}
       if(!L.flags.ruinDeepSE&&p.x>104&&p.y>70){L.flags.ruinDeepSE=1;
-        spawnLairGroup(120,80,{pack:[['troll',1],['ochrejelly',1]],spread:1.5,aggro:3.5});
-        say('A cave troll and its jelly share the southeast wreck.','#6aff8a');}
+        spawnLairGroup(120,80,{pack:[['bugbear',1],['rat',1]],spread:1.5,aggro:3.5});
+        say('A bugbear and rats share the southeast wreck.','#6aff8a');}
       if(!L.flags.ruinDeepSW&&p.x<22&&p.y>90){L.flags.ruinDeepSW=1;
-        spawnLairGroup(12,102,{pack:[['cloaker',1],['wraith',1]],spread:1.4,aggro:3.4});
-        say('A cloaker hangs in the southwest ruin with the dead.','#5a3a8a');}
+        spawnLairGroup(12,102,{pack:[['spider',1],['orc',1]],spread:1.4,aggro:3.4});
+        say('Spiders and orcs lurk in the southwest ruin.','#5a3a8a');}
       if(!L.flags.ruinDeepSS&&p.x>70&&p.y>92){L.flags.ruinDeepSS=1;
-        spawnLairGroup(88,102,{pack:[['basilisk',1],['cockatrice',1]],spread:1.4,aggro:3.4});
-        say('Petrifiers nest in the south-south court. Gaze and spur.','#8a9a6a');}
+        spawnLairGroup(88,102,{pack:[['warg',1],['beetle',1]],spread:1.4,aggro:3.4});
+        say('Wargs and beetles nest in the south-south court.','#8a9a6a');}
       /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
       if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
-        say('The warden falls. The road to the city is open.','#ffd27a');
+        say('The ruin guard falls. The road to the city is open.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
   }
@@ -5929,6 +5937,15 @@ function makeChapter(n){
     L.guide=()=>!L.flags.start?{x:29,y:20}:null;
     L.tick=()=>{
       const p=player(); if(!p) return;
+      // The heavy ruin encounters now guard later temple side areas.
+      const lateRuins=[
+        {flag:'lateRuinEast',x:72,y:22,pack:[['beholder',1],['drowMage',1],['drowElite',2],['drider',2],['hookedhorror',4]]},
+        {flag:'lateRuinSouth',x:29,y:62,pack:[['warden',1],['umberhulk',2],['roper',1],['otyugh',2],['gelcube',1],['puddingBrown',1]]},
+        {flag:'lateRuinFarSouth',x:29,y:86,pack:[['minotaur',1],['troll',1],['ochrejelly',1],['cloaker',1],['wraith',2],['basilisk',1],['cockatrice',1]]}
+      ];
+      for(const den of lateRuins)if(!L.flags[den.flag]&&Math.hypot(p.x-den.x,p.y-den.y)<7){
+        L.flags[den.flag]=1;spawnLairGroup(den.x,den.y,{pack:den.pack,spread:3,aggro:3.4});
+      }
       if(!L.flags.start&&p.y<34){L.flags.start=1;L.objs[0].d=1;
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
         say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
@@ -6991,6 +7008,7 @@ function applyPlaySave(play){
   if(typeof ensureCh1CenterPillar==='function') ensureCh1CenterPillar();
   restoreSecretEntrances(play);
   positionNozDoor(G.lvl);
+  easeLevelThreeEncounters(G.lvl);
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
@@ -8178,7 +8196,7 @@ function encounterHdBand(){
   const ch=(G&&G.ch)||1;
   if(ch<=1) return [1,7];
   if(ch===2) return [1,7];
-  if(ch===3) return [5,9];
+  if(ch===3) return [1,5];
   /* HOUSE: later Book I halls escalate inside printed 1e dungeon-level
      bands (DMG App C). RAW table I–X by dungeon level; house maps
      Ch IV ≈ levels VII–IX and Ch V ≈ VIII–X+. Do not flatten to 5–9. */

@@ -25,7 +25,7 @@
   }else if(n===3||n===4){
    check(!useChapterDescent(),'guardian prevents premature exit floor '+n);
    visit(n===3?26:28,28);clearEncounter();visit(n===3?46:50,n===3?20:16);clearEncounter();visit(n===3?48:52,40);
-   check(L.flags.boss,'story guardian spawns floor '+n);check(G.ents.some(e=>!e.dead&&(n===3?e.kind==='warden':e.kind==='elderbrain')),'correct guardian floor '+n);clearEncounter();
+   check(L.flags.boss,'story guardian spawns floor '+n);check(G.ents.some(e=>!e.dead&&(n===3?e.kind==='construct':e.kind==='elderbrain')),'correct guardian floor '+n);clearEncounter();
    check(L.flags.done&&L.objs.every(o=>o.d),'story objectives complete floor '+n);check(G.scene==='play','guardian victory waits for stair floor '+n);
    const side=n===3?[[90,14],[96,34],[88,58],[30,76],[50,80],[12,74],[106,48],[128,48],[50,104],[126,10],[120,80],[12,102],[88,102]]:[[90,14],[50,74],[10,56],[98,48],[28,62],[122,48],[50,96],[122,14],[10,84],[28,92],[80,72]];for(const [x,y] of side){visit(x,y);clearEncounter();check(!G.ents.some(e=>e.team==='foe'&&!e.dead),'side encounter resolved floor '+n+' '+x+','+y);}
   }else{
