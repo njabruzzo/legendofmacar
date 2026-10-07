@@ -7,15 +7,19 @@
   const gallery=document.createElement('canvas');gallery.width=1500;gallery.height=NpcDirectionalAtlas.actors.length*930;gallery.style='position:static;width:1000px;height:3720px';const gg=gallery.getContext('2d');gg.fillStyle='#343434';gg.fillRect(0,0,gallery.width,gallery.height);
   const hash=c=>{let h=2166136261;for(const n of c.getContext('2d').getImageData(0,0,c.width,c.height).data)h=Math.imul(h^n,16777619);return h>>>0;};
   for(const [r,actor] of NpcDirectionalAtlas.actors.entries())for(const [col,view] of NpcDirectionalAtlas.views.entries()){
-   for(const [stage,props] of Object.entries({idle:{},walk0:{moving:1,gait:.25},walk1:{moving:1,gait:.75},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
+   for(const [stage,props] of Object.entries({idle:{},walk0:{moving:1,gait:.125},walk1:{moving:1,gait:.625},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
     const key=NpcDirectionalAtlas.select(actor,props,view),img=SPR[key];if(!img)continue;
     const rgba=img.getContext('2d').getImageData(0,0,512,512).data;let border=0;for(let y=0;y<512;y++)for(let x=0;x<512;x++)if((x<2||x>509||y<2||y>509)&&rgba[(y*512+x)*4+3]>80)border++;check(border===0,'unclipped pose '+key);
     const row=NpcDirectionalAtlas.stages.indexOf(stage),H=180;
     blitFacing(gg,img,col*300+50,r*930+row*150+145-H*440/512,H,H,false,true);
    }
    check(hash(SPR[actor+'_direction_'+view+'_walk0'])!==hash(SPR[actor+'_direction_'+view+'_walk1']),'painted alternating walk '+actor+' '+view);
+   const left=SPR[actor+'_direction_'+view+'_walk0'].getContext('2d').getImageData(0,370,512,72).data;
+   const right=SPR[actor+'_direction_'+view+'_walk1'].getContext('2d').getImageData(0,370,512,72).data;
+   let legChanges=0;for(let n=0;n<left.length;n+=4)if(left[n+3]>80||right[n+3]>80){if(left[n]!==right[n]||left[n+1]!==right[n+1]||left[n+2]!==right[n+2]||left[n+3]!==right[n+3])legChanges++;}
+   check(legChanges>100,'painted legs and boots alternate '+actor+' '+view);
   }
-  for(const actor of NpcDirectionalAtlas.actors)for(const ghost of actor.startsWith('gnome_')?[false]:[false,true])for(const [i,dir] of ['e','se','s','sw','w','nw','n','ne'].entries())for(const [stage,props] of Object.entries({idle:{},walk0:{moving:1,gait:.25},walk1:{moving:1,gait:.75},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
+  for(const actor of NpcDirectionalAtlas.actors)for(const ghost of actor.startsWith('gnome_')?[false]:[false,true])for(const [i,dir] of ['e','se','s','sw','w','nw','n','ne'].entries())for(const [stage,props] of Object.entries({idle:{},walk0:{moving:1,gait:.125},walk2:{moving:1,gait:.375},walk1:{moving:1,gait:.625},walk3:{moving:1,gait:.875},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
    const angle=i*Math.PI/4,sx=Math.cos(angle)/(TW/2),sy=Math.sin(angle)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
    const e=ent({kind:actor.startsWith('gnome_')?'gnome':'dwarf',col:{key:actor},sprite:actor,team:'party',x:0,y:0,ghost:ghost?1:0,scale:1,fdx:dx,fdy:dy,ix:dx,iy:dy,atkKind:(actor==='fendur'||actor==='gnome_tinker')?'bow':'melee',...props});G.ents=[e];
    if(stage.startsWith('walk'))e.aim={team:'foe',x:-dx*10,y:-dy*10,dead:0};
@@ -37,7 +41,7 @@
   const demo=document.createElement('canvas');demo.width=1200;demo.height=300;demo.style='position:static;width:1200px;height:300px';document.body.append(demo);
   const animate=t=>{const g=demo.getContext('2d');g.fillStyle='#343434';g.fillRect(0,0,1200,300);for(const [i,actor] of NpcDirectionalAtlas.actors.entries()){
    const dir=direction.value,index=['e','se','s','sw','w','nw','n','ne'].indexOf(dir),angle=index*Math.PI/4,sx=Math.cos(angle)/(TW/2),sy=Math.sin(angle)/(TH/2);
-   const e=ent({kind:actor.startsWith('gnome_')?'gnome':'dwarf',col:{key:actor},sprite:actor,team:'party',x:0,y:0,scale:1,ix:sx+sy,iy:sy-sx,fdx:sx+sy,fdy:sy-sx,moving:action.value==='walk'?1:0,gait:t/1000*3.3,atk:action.value==='attack'?1-((t/1200)%1):({windup:.9,strike:.4,recovery:.1}[action.value]||0),atkMax:1,atkKind:(actor==='fendur'||actor==='gnome_tinker')?'bow':'melee'});G.ents=[e];g.save();g.translate(90+i*200,260);drawEntBillboard(g,e,solidDwarfSprite(e,entAnimImg(e)),1.8,wantsSpriteFlip(e));g.restore();g.fillStyle='white';g.font='14px sans-serif';g.fillText(actor==='gnome_good'?'Noz / Pip':actor==='gnome_tinker'?'Bramble':actor,60+i*200,287);
+   const e=ent({kind:actor.startsWith('gnome_')?'gnome':'dwarf',col:{key:actor},sprite:actor,team:'party',x:0,y:0,scale:1,ix:sx+sy,iy:sy-sx,fdx:sx+sy,fdy:sy-sx,moving:action.value==='walk'?1:0,gait:t/1000*WALK_CYCLES_PER_SECOND,atk:action.value==='attack'?1-((t/1200)%1):({windup:.9,strike:.4,recovery:.1}[action.value]||0),atkMax:1,atkKind:(actor==='fendur'||actor==='gnome_tinker')?'bow':'melee'});G.ents=[e];g.save();g.translate(90+i*200,260);drawEntBillboard(g,e,solidDwarfSprite(e,entAnimImg(e)),1.8,wantsSpriteFlip(e));g.restore();g.fillStyle='white';g.font='14px sans-serif';g.fillText(actor==='gnome_good'?'Noz / Pip':actor==='gnome_tinker'?'Bramble':actor,60+i*200,287);
   }requestAnimationFrame(animate);};requestAnimationFrame(animate);
   gg.fillStyle='white';gg.font='16px sans-serif';NpcDirectionalAtlas.actors.forEach((a,i)=>gg.fillText(a+' · idle / walk-left / walk-right / windup / hit / recover',12,i*930+18));document.body.append(gallery);result.npcGallery=gallery.toDataURL('image/png');
  }catch(e){result.failures.push(e.stack);}

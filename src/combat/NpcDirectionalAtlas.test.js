@@ -22,7 +22,7 @@ for(const actor of atlas.actors){
  }
  for(const ghost of actor.startsWith('gnome_')?[false]:[false,true])for(const dir of ['s','se','e','ne','n','nw','w','sw']){
   const stem=actor+(ghost?'_ghost':'');
-  for(const [state,props] of Object.entries({idle:{},walk0:{moving:1,gait:.25},walk1:{moving:1,gait:.75},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
+  for(const [state,props] of Object.entries({idle:{},walk0:{moving:1,gait:.125},walk2:{moving:1,gait:.375},walk1:{moving:1,gait:.625},walk3:{moving:1,gait:.875},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
    const key=atlas.select(stem,props,dir),pose=atlas.pose(key);
    assert.equal(pose.stage,state);assert.equal(pose.view,({sw:'se',w:'e',nw:'ne'}[dir]||dir));assert.equal(pose.ghost,ghost);assert(bindings[key]);
   }
