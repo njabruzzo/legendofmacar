@@ -11,7 +11,7 @@
  const edited=SPR.altar_teeth,west=isTeethAltarWestWall;SPR.altar_teeth=before;TEETH_ALTAR_SOLID=null;isTeethAltarWestWall=()=>false;for(let y=2;y<14;y++)delete G.lvl.wallH['100,'+y];const old=render();
  isTeethAltarWestWall=west;applyTeethFaceWallHeight(G.lvl);SPR.altar_teeth=edited;TEETH_ALTAR_SOLID=null;const current=render();
  const sheet=document.createElement('canvas');sheet.width=2000;sheet.height=800;sheet.getContext('2d').drawImage(old,0,0);sheet.getContext('2d').drawImage(current,1000,0);result.altarWallGallery=sheet.toDataURL('image/png');result.altarWallPreview=current.toDataURL('image/png');document.body.append(current);
- check(isTeethAltarWestWall(G.lvl,100,4),'native left wall selected');check(SPRITE_FILES.altar_teeth.endsWith('open_left_v12.png'),'edited altar image rendered');check(G.lvl.grid[4][100]===1,'wall collision preserved');check(isWalkTile(G.lvl.grid[7][104]),'altar approach floor remains clear');
+ check(isTeethAltarWestWall(G.lvl,100,4),'native left wall selected');check(SPRITE_FILES.altar_teeth.endsWith('no_walls_v13.png'),'altar has no baked walls');check(G.lvl.grid[4][100]===1,'wall collision preserved');check(isWalkTile(G.lvl.grid[7][104]),'altar approach floor remains clear');
  const saved=capturePlaySave();G._loadSnap={play:saved,scene:'play'};G._keepProgress=1;startChapter(1);check(cellWallH(G.lvl,100,4)===cellWallH(G.lvl,107,1),'saved chapel retains matching wall height');
  }catch(e){result.failures.push(e.stack);}
  report.textContent=JSON.stringify({suite:result.suite,checks:result.checks,failures:result.failures},null,2);await fetch('/qa-result',{method:'POST',body:JSON.stringify(result)});

@@ -823,7 +823,7 @@ SPRITE_FILES.ch1_pillar_ruby='assets/props/prop_ch1_pillar_ruby.png';
 SPRITE_FILES.teeth_floor='assets/tiles/teeth_floor.png';
 SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 // The altar's baked west wall is removed; native masonry supplies it.
-SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth_open_left_v12.png';
+SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth_no_walls_v13.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
 SPRITE_FILES.crown_bone_wall='assets/tiles/crown_bone_wall_v1.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
@@ -15492,7 +15492,7 @@ function drawWorld(g,L){
     if(!L.seen[y][x]||t===2)continue;
     if(t===1){
       // Extend the floor under the chapel boundary faces to close the half-tile seam.
-      if(isTeethNorthWall(L,x,y)||isTeethAltarWestWall(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}
+      if(nearTeethChapel(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}
       continue;
     }
     drawFloorCell(x,y,t);
