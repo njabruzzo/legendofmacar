@@ -62,7 +62,7 @@
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/MacarWeaponShaft.js?v=134"></script>
 <script src="src/combat/MacarSharedAtlas.js?v=135"></script>
-<script src="src/combat/NpcDirectionalAtlas.js?v=1"></script>
+<script src="src/combat/NpcDirectionalAtlas.js?v=2"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -995,7 +995,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); if(typeof NpcDirectionalAtlas!=='undefined') for(const actor of NpcDirectionalAtlas.actors) WORLD_ART_KEYS[n].push(...NpcDirectionalAtlas.keys(actor),...(actor==='gnome_good'?[]:NpcDirectionalAtlas.keys(actor,true))); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); if(typeof NpcDirectionalAtlas!=='undefined') for(const actor of NpcDirectionalAtlas.actors) WORLD_ART_KEYS[n].push(...NpcDirectionalAtlas.keys(actor),...(actor.startsWith('gnome_')?[]:NpcDirectionalAtlas.keys(actor,true))); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){

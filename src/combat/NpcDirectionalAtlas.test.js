@@ -14,7 +14,7 @@ for(const actor of atlas.actors){
   }
   assert.equal(new Set(hashes).size,6,actor+' requires six distinct painted poses');
  }
- for(const ghost of actor==='gnome_good'?[false]:[false,true])for(const dir of ['s','se','e','ne','n','nw','w','sw']){
+ for(const ghost of actor.startsWith('gnome_')?[false]:[false,true])for(const dir of ['s','se','e','ne','n','nw','w','sw']){
   const stem=actor+(ghost?'_ghost':'');
   for(const [state,props] of Object.entries({idle:{},walk0:{moving:1,gait:.25},walk1:{moving:1,gait:.75},windup:{atk:.9,atkMax:1},attack:{atk:.4,atkMax:1},recover:{atk:.1,atkMax:1}})){
    const key=atlas.select(stem,props,dir),pose=atlas.pose(key);
@@ -24,4 +24,14 @@ for(const actor of atlas.actors){
  }
 }
 assert.equal(atlas.select('goblin',{},'s'),null,'uncovered actors retain existing art');
-console.log('NPC directional sources, full equipment bounds, distinct poses, eight facings, mirrored views, ghost variants and special-state guards passed');
+(async()=>{
+ const previous=global.Image,requests=[];
+ global.Image=class{set src(url){requests.push(url);queueMicrotask(()=>requests.length===1?this.onerror():this.onload());}};
+ try{
+  const first=atlas.loadImage('retry-test','atlas.png?v=2');
+  assert.strictEqual(first,atlas.loadImage('retry-test','atlas.png?v=2'),'concurrent pose requests share one source decode');
+  await first;
+  assert.deepEqual(requests,['atlas.png?v=2','atlas.png?v=2&retry=1'],'a transient source failure retries before blocking world loading');
+ }finally{global.Image=previous;}
+ console.log('NPC directional sources, full equipment bounds, distinct poses, eight facings, mirrored views, ghost variants, special-state guards and shared loading retry passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});

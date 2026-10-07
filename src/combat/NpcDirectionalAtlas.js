@@ -1,11 +1,11 @@
 (function(root){
  'use strict';
- const actors=['pordoom','fendur','orbo','talpor','gnome_good'];
+ const actors=['pordoom','fendur','orbo','talpor','gnome_good','gnome_tinker'];
  const views=['s','se','e','ne','n'],stages=['idle','walk0','walk1','windup','attack','recover'];
  const mirror={sw:'se',w:'e',nw:'ne'};
  const cache=new Map(),images=new Map();
  function loadImage(actor,url){
-  if(!images.has(actor))images.set(actor,new Promise((resolve,reject)=>{const image=new root.Image();image.onload=()=>resolve(image);image.onerror=()=>{images.delete(actor);reject(new Error("NPC directional atlas failed: "+actor));};image.src=url;}));
+  if(!images.has(actor))images.set(actor,new Promise((resolve,reject)=>{const image=new root.Image();image.onload=()=>resolve(image);image.onerror=()=>{if(!image.__retried){image.__retried=1;image.src=url+(url.includes('?')?'&':'?')+'retry=1';return;}images.delete(actor);reject(new Error("NPC directional atlas failed: "+actor));};image.src=url;}));
   return images.get(actor);
  }
  function components(data,w,h){
@@ -26,11 +26,11 @@
   return{rows,labels,parts};
  }
  function pose(key){
-  const m=/^(pordoom|fendur|orbo|talpor|gnome_good)(_ghost)?_direction_(s|se|e|ne|n)_(idle|walk[01]|windup|attack|recover)$/.exec(key||'');
+  const m=/^(pordoom|fendur|orbo|talpor|gnome_good|gnome_tinker)(_ghost)?_direction_(s|se|e|ne|n)_(idle|walk[01]|windup|attack|recover)$/.exec(key||'');
   return m?{actor:m[1],ghost:!!m[2],view:m[3],stage:m[4],row:views.indexOf(m[3]),col:stages.indexOf(m[4])}:null;
  }
  function keys(actor,ghost=false){return views.flatMap(v=>stages.map(s=>actor+(ghost?'_ghost':'')+'_direction_'+v+'_'+s));}
- function register(bindings){for(const actor of actors)for(const ghost of actor==='gnome_good'?[false]:[false,true])for(const key of keys(actor,ghost))bindings[key]='assets/creatures/directional/'+actor+'-v1.png';}
+ function register(bindings){for(const actor of actors)for(const ghost of actor.startsWith('gnome_')?[false]:[false,true])for(const key of keys(actor,ghost))bindings[key]='assets/creatures/directional/'+actor+'-v1.png';}
  function select(stem,e,oct){
   const ghost=stem.endsWith('_ghost'),actor=ghost?stem.slice(0,-6):stem;
   if(!actors.includes(actor)||e.dead||e.crushed||e.sleeping||e.tied)return null;
