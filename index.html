@@ -3136,7 +3136,7 @@ function isTeethNorthWall(L,x,y){
 /* Chapel mural only on the northwest stretch. The demon face is centered
    near x=107 and keeps plain masonry so the carving stays readable. */
 function isTeethNwChapelWall(L,x,y){
-  return isTeethNorthWall(L,x,y) && x<105;
+  return false; // The entire altar backdrop uses the demon-face wall masonry.
 }
 /* A bone wall between collapsed rubble jambs. Its
    three-cell opening stays centered on the authored secret. */
@@ -15480,7 +15480,12 @@ function drawWorld(g,L){
   // Flare background layer: floors always sit under the party and foes.
   for(let y=miny;y<=maxy;y++) for(let x=minx;x<=maxx;x++){
     const t=L.grid[y][x];
-    if(t===1||t===2||!L.seen[y][x]) continue;
+    if(!L.seen[y][x]||t===2)continue;
+    if(t===1){
+      // Extend the floor under the chapel boundary faces to close the half-tile seam.
+      if(isTeethNorthWall(L,x,y)||isTeethAltarWestWall(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}
+      continue;
+    }
     drawFloorCell(x,y,t);
   }
 

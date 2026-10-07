@@ -195,9 +195,9 @@ assert(/function solidTeethAltarImg\(/.test(html)
   && /solidifyPunchedCutout\(img, 8\)/.test(html)
   && /solidTeethAltarImg\(\)\|\|teethAltarSheetImg\(\)/.test(extractFn('drawProp')),
   'teeth altar blits a solidified opaque sheet, not the punched stipple');
-assert(/function isTeethNwChapelWall\(/.test(html) && /x<105/.test(extractFn('isTeethNwChapelWall'))
+assert(/function isTeethNwChapelWall\(/.test(html) && /return false/.test(extractFn('isTeethNwChapelWall'))
   && /isTeethNwChapelWall\(L,x,y\)\?teethChapelWallImg\(\):null/.test(html),
-  'chapel mural stays on the northwest wall, off the demon face');
+  'altar backdrop uses only the demon-face masonry');
 assert(/function isTeethNorthWall\(L,x,y\)/.test(html) && /y===1 && x>=101 && x<113/.test(html),
   'only the teeth-chapel north row is the tall face wall');
 assert(/function cellWallH\(L,x,y\)/.test(html)

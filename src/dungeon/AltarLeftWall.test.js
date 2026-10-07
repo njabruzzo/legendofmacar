@@ -11,3 +11,6 @@ const image=readRgba(path.join(root,file));const alpha=(x,y)=>image.data[(Math.f
 assert.equal(alpha(.15,.22),0,'old baked left wall is transparent');assert.equal(alpha(.30,.16),0,'left coping is removed');assert(alpha(.80,.25)>240,'right wall retained');assert(alpha(.43,.4)>240,'altar retained');assert(alpha(.4,.8)>240,'platform retained');
 assert(Math.abs(image.w/image.h-1075/718)<.005,'altar projection/aspect preserved');
 console.log('Altar west wall: transparent baked wall removal, matching texture/height, chapel-only scope, altar/platform preservation passed');
+
+vm.runInContext(fn('isTeethNwChapelWall'),c);assert.equal(c.isTeethNwChapelWall(L,103,1),false,'altar backdrop has no alternate chapel masonry');
+assert(html.includes('if(isTeethNorthWall(L,x,y)||isTeethAltarWestWall(L,x,y)){drawFloorCell(x,y,0);drawTeethTile(g,x,y);}'),'floor extends beneath both altar boundary walls');
