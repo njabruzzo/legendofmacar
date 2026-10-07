@@ -3123,7 +3123,7 @@ function crownEntranceKind(L,x,y){
 function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
   const kind=crownEntranceKind(L,x,y);
   if(!kind)return false;
-  const H=hallWallH(L),s=w2s(x,y);
+  const H=hallWallH(L)*1.5,s=w2s(x,y);
   if(kind==='bones'){
     const img=SPR.crown_bone_wall;
     const opt={fill:'#82705a',shade:.22,stroke:0};
@@ -3136,7 +3136,7 @@ function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
   }else{
     const img=(x%2?SPR.rubble2:SPR.rubble)||SPR.rubble;
     const p=w2s(x+.5,y+.9);
-    g.save();g.translate(p.x,p.y);drawBillboard(g,img,60*ZOOM,false);g.restore();
+    g.save();g.translate(p.x,p.y);drawBillboard(g,img,90*ZOOM,false);g.restore();
   }
   return true;
 }
