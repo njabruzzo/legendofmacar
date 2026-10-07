@@ -75,7 +75,11 @@
     return c;
    }));cache.set(p.actor,frames);
   }
-  const c=cache.get(p.actor)[p.row][p.col];
+  const base=cache.get(p.actor)[p.row][p.col];
+  if(!root.DwarfWalkLegs||!p.stage.startsWith('walk'))return base;
+  const c=doc.createElement('canvas');c.width=c.height=512;c.getContext('2d').drawImage(base,0,0);
+  c.__npcDirectional=true;c.__npcPose={actor:p.actor,view:p.view,stage:p.stage};c.__npcFoot=base.__npcFoot;c.__npcFit=base.__npcFit;
+  root.DwarfWalkLegs.apply(c,p.stage,p.view,376,440,256);
   return c;
  }
  const api={actors,dwarfActors,files,views,stages,loadImage,components,anatomy,pose,keys,register,select,slice};root.NpcDirectionalAtlas=api;if(typeof module==='object')module.exports=api;
