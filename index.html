@@ -20590,6 +20590,8 @@ function drawArtRect(g, img, x, y, w, h, r){
 }
 
 function enterTitleMenu(){
+  unlockMusic();
+  if(!musicIsPlaying()) bgm.play('title', {force:true});
   G.scene='title_menu';
 }
 /* Second-screen copy. Same title as the splash (its painted logo), then the
@@ -20832,7 +20834,7 @@ function drawTitle(g){
   g.globalAlpha=1;
   const bw=Math.min(320*s, VW*.78);
   drawTitleMusicLine(g, btnFloor-12*s);
-  menuBtn(g,'Continue', VW/2, VH-safeB-btnH/2, bw, btnH, ()=>enterTitleMenu());
+  menuBtn(g,'Start', VW/2, VH-safeB-btnH/2, bw, btnH, ()=>enterTitleMenu());
   g.textAlign='left';
 }
 

@@ -56,8 +56,8 @@ assert(/label:'B O O K   O N E'/.test(titleFn) && !/label:splashOk/.test(titleFn
 assert(!/He went down a miner\. Something else came back up\./.test(html),
   'old miner-came-back quote is gone');
 assert(!/woulld/.test(html), 'title flavor uses would, not woulld');
-assert(/menuBtn\(g,'Continue'/.test(titleFn) && /enterTitleMenu\(\)/.test(titleFn),
-  'splash Continue opens the second title menu');
+assert(/menuBtn\(g,'Start'/.test(titleFn) && /enterTitleMenu\(\)/.test(titleFn),
+  'splash Start opens the second title menu');
 assert(!/Enter the Deep/.test(titleFn) && !/menuBtn\(g,'Chapters'/.test(titleFn) && !/menuBtn\(g,'Credits'/.test(titleFn),
   'splash is chrome-light: no Enter / Chapters / Credits');
 assert(!/Click the ground to walk/.test(titleFn),

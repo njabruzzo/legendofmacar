@@ -121,8 +121,8 @@ assert(/if\(p\.k==='dwarfface'\)\{/.test(html) && /k:'dwarfface'/.test(html),
 }
 
 const splash=html.match(/function drawTitle\(g\)\{[\s\S]*?\nfunction drawTitleMenu/)[0];
-assert(/menuBtn\(g,'Continue'/.test(splash) && /enterTitleMenu\(\)/.test(splash),
-  'splash Continue advances to the menu');
+assert(/menuBtn\(g,'Start'/.test(splash) && /enterTitleMenu\(\)/.test(splash),
+  'splash Start advances to the menu');
 assert(!/Enter the Deep/.test(splash) && !/menuBtn\(g,'Chapters'/.test(splash),
   'splash does not host the play / chapters / credits stack');
 assert(/drawSplashCover\(g, splash/.test(splash) && /drawLetterbox/.test(splash),
