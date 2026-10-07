@@ -29,6 +29,17 @@
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
     const grip=MacarSharedAtlas.geometry(key).grip, gx=Math.round(grip[0]*img.width),gy=Math.round(grip[1]*img.height);
     const hands=img.__macarBodyCanvas.getContext('2d').getImageData(gx-16,gy-16,33,33).data;let handPixels=0;for(let n=3;n<hands.length;n+=4)if(hands[n]>80)handPixels++;check(handPixels>100,'weapon grip overlaps painted hand/arm '+key);
+    if(weapon!=='xbow'&&dir==='s'&&(stage==='idle'||stage.startsWith('walk'))){
+      const shaft=MacarSharedAtlas.geometry(key).shaft,dx=shaft[1][0]-shaft[0][0],dy=shaft[1][1]-shaft[0][1];
+      check(dx>0&&dy<0&&Math.abs(dy/dx)<.4,'downward carry leans behind head across shoulder '+key);
+    }
+    if(weapon!=='xbow'&&!['windup','attack','recover','ranged'].includes(stage)){
+      const shaft=p.shaft,tail=[(shaft[0][0]*.94+shaft[1][0]*.06)*img.width,(shaft[0][1]*.94+shaft[1][1]*.06)*img.height];
+      const tx=Math.round(tail[0]),ty=Math.round(tail[1]),painted=img.getContext('2d').getImageData(tx-4,ty-4,9,9).data,under=img.__macarBodyCanvas.getContext('2d').getImageData(tx-4,ty-4,9,9).data;
+      let shaftPixels=0;for(let k=0;k<painted.length;k+=4)if(painted[k+3]>80&&(painted[k]!==under[k]||painted[k+1]!==under[k+1]||painted[k+2]!==under[k+2]))shaftPixels++;
+      check(shaftPixels>3,'visible shaft continues through hand to pommel '+key);
+    }
+
     if(dir==='e'&&['maul','axe'].includes(weapon)&&(stage==='idle'||stage.startsWith('walk'))){
      const geometry=MacarSharedAtlas.geometry(key),socket=geometry.shaft[1];
      for(const flip of [false,true]){const project=x=>flip?1-x:x,behind=flip?project(socket[0])>project(geometry.grip[0]):project(socket[0])<project(geometry.grip[0]);
