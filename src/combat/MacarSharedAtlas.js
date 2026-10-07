@@ -51,8 +51,8 @@
  function layout(p){
   const carries=[
    [[88,58],[91,57],[92,60],[89,59],[90,60]],
-   [[91,62],[93,62],[98,63],[96,62],[99,63]],
-   [[119,62],[123,61],[124,61],[124,61],[127,63]],
+   [[97,50],[96,46],[104,49],[98,53],[90,52]],
+   [[132,44],[123,43],[138,44],[127,43],[119,44]],
    [[165,63],[169,65],[170,63],[167,62],[169,62]],
    [[177,64],[179,64],[177,65],[176,63],[180,65]]
   ];
@@ -86,7 +86,10 @@
    // the palm in front of the shoulder, with painted fingers restored on top.
    const nx=-uy*10*body.sc,ny=ux*10*body.sc,front=[grip[0]+length*.12*ux,grip[1]+length*.12*uy];
    g.save();g.beginPath();g.moveTo(a[0]+nx,a[1]+ny);g.lineTo(front[0]+nx,front[1]+ny);g.lineTo(front[0]-nx,front[1]-ny);g.lineTo(a[0]-nx,a[1]-ny);g.closePath();g.clip();drawWeapon();g.restore();
-   g.save();g.beginPath();g.ellipse(grip[0],grip[1]-3*body.sc,9*body.sc,7*body.sc,0,0,Math.PI*2);g.clip();g.drawImage(body.canvas,0,0);g.restore();
+   // Keep the painted fist visible around the shaft, but do not repaint the
+   // whole hand over it: that made the weapon appear to stop at the shoulder.
+   // The narrow front pass above is the shaft crossing the palm; the original
+   // body canvas remains underneath so the fingers and sleeve stay painted.
   }
   if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
   // Brow/hair-cap seats calibrated to the current v2 combat cells, not v1.
