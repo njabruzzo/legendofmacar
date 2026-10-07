@@ -823,6 +823,7 @@ SPRITE_FILES.teeth_floor_atlas='assets/tiles/teeth_floor_atlas_8x8.png';
 // The altar's baked west wall is removed; native masonry supplies it.
 SPRITE_FILES.altar_teeth='assets/props/prop_altar_teeth_open_left_v12.png';
 SPRITE_FILES.bone_crown_scene='assets/props/prop_bone_crown_scene.png';
+SPRITE_FILES.crown_bone_wall='assets/tiles/crown_bone_wall_v1.png';
 SPRITE_FILES.wall_teeth_chapel='assets/tiles/tile_wall_teeth_chapel.png';
 SPRITE_FILES.wall_teeth_chapel_opaque='assets/tiles/tile_wall_teeth_chapel_opaque.png';
 
@@ -981,7 +982,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
-     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
+     'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -3137,10 +3138,33 @@ function isTeethNorthWall(L,x,y){
 function isTeethNwChapelWall(L,x,y){
   return isTeethNorthWall(L,x,y) && x<105;
 }
-/* A continuous bone-masonry entrance, including both rubble jambs. Its
+/* A bone wall between collapsed rubble jambs. Its
    three-cell opening stays centered on the authored secret. */
 function isCrownEntranceWall(L,x,y){
   return !!(L&&L.n===1&&y===15&&x>=102&&x<112);
+}
+function crownEntranceKind(L,x,y){
+  return isCrownEntranceWall(L,x,y)?(x>=105&&x<108?'bones':'rubble'):null;
+}
+function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
+  const kind=crownEntranceKind(L,x,y);
+  if(!kind)return false;
+  const H=hallWallH(L),s=w2s(x,y);
+  if(kind==='bones'){
+    const img=SPR.crown_bone_wall;
+    const opt={fill:'#82705a',shade:.22,stroke:0};
+    if(oS)drawIsoPlaneImg(g,img,x,y+1,x+1,y+1,H,opt);
+    if(oE)drawIsoPlaneImg(g,img,x+1,y,x+1,y+1,H,opt);
+    if(oN)drawIsoPlaneImg(g,img,x,y,x+1,y,H,opt);
+    if(oW)drawIsoPlaneImg(g,img,x,y,x,y+1,H,opt);
+    if(DIGT&&DIGT.i===x&&DIGT.j===y)drawDigMark(g,s.x,s.y,H);
+    if(G.dig&&G.dig.i===x&&G.dig.j===y)drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
+  }else{
+    const img=(x%2?SPR.rubble2:SPR.rubble)||SPR.rubble;
+    const p=w2s(x+.5,y+.9);
+    g.save();g.translate(p.x,p.y);drawBillboard(g,img,60*ZOOM,false);g.restore();
+  }
+  return true;
 }
 function applyCrownEntranceFrame(L){
   if(!L||L.n!==1||!L.grid||!L.grid[15]) return;
@@ -12215,12 +12239,13 @@ function secretFaceImg(face, faceL, faceR){
   return fadeL||faceL;
 }
 function drawSecretFadedFace(g, L, x, y, H, faceL, faceR){
+  if(isCrownEntranceWall(L,x,y))return;
   const sec=secretSeamAt(L,x,y);
   if(!sec) return;
   const face=sec.face||'n';
   if(!secretFaceOk(face)) return;
   /* Faded masonry face — same tile, desaturated/lightened. Never south. */
-  const img=(typeof isCrownEntranceWall==='function'&&isCrownEntranceWall(L,x,y)&&teethChapelWallImg())||secretFaceImg(face, faceL, faceR);
+  const img=secretFaceImg(face, faceL, faceR);
   const sid=x*31+y*17+29;
   if(face==='e') drawMasonryFace(g, img, x+1, y, x+1, y+1.14, H, -1, 0, sid);
   else if(face==='w') drawMasonryFace(g, img, x, y, x, y+1.14, H, 1, 0, sid);
@@ -15417,6 +15442,7 @@ function drawWorld(g,L){
     const oN=L.grid[y-1]&&isWalkTile(L.grid[y-1][x]);
     const oW=L.grid[y]&&isWalkTile(L.grid[y][x-1]);
     if(!oS&&!oE&&!oN&&!oW) return;
+    if(drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW))return;
     const s=w2s(x,y);
     const rk=L.wallHP[x+','+y];
     const wallImg=(rk&&rk.hp<rk.max&&wallAtk)?wallAtk:wallBlit;
@@ -15431,14 +15457,13 @@ function drawWorld(g,L){
       const sf=sec&&secretFaceOk(sec.face||'n')?(sec.face||'n'):'';
       const sid=x*31+y*17;
       const secN=secretWallSprite('n')||fadeL, secE=secretWallSprite('e')||fadeR, secW=secretWallSprite('w')||fadeR;
-      const entrance=isCrownEntranceWall(L,x,y)?teethChapelWallImg():null;
       const chapel=isTeethNwChapelWall(L,x,y)?teethChapelWallImg():null;
       // The altar's left side uses the exact north-wall texture behind the demon face.
       const altarWest=isTeethAltarWestWall(L,x,y)?faceL:null;
-      if(oS) drawMasonryFace(g, entrance||(sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
-      if(oE) drawMasonryFace(g, entrance||altarWest||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
-      if(oN) drawMasonryFace(g, entrance||faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
-      if(oW) drawMasonryFace(g, entrance||(sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
+      if(oS) drawMasonryFace(g, (sf==='n'?secN:(chapel||faceL)), x, y+1, x+1.14, y+1, faceH, 0, -1, sid);
+      if(oE) drawMasonryFace(g, altarWest||(sf==='e'?secE:faceR), x+1, y, x+1, y+1.14, faceH, -1, 0, sid+3);
+      if(oN) drawMasonryFace(g, faceL, x, y, x+1.14, y, faceH, 0, 1, sid+7);
+      if(oW) drawMasonryFace(g, (sf==='w'?secW:faceR), x, y, x, y+1.14, faceH, 1, 0, sid+11);
       drawMasonryCoping(g, x, y, faceH, oN, oE, oS, oW);
     } else if(wallImg){
       const m=oE&&!oS?pack.wallR:pack.wall;

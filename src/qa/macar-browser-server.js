@@ -15,7 +15,7 @@ http.createServer((req,res)=>{
    fs.writeFileSync(path.join(output,name),JSON.stringify(result,null,2));res.end('saved');
   });return;
  }
- const fixture={'/qa-dwarf-style':'dwarf-style-browser-checks.js','/qa-npc':'npc-directional-browser-checks.js','/qa-book-i':'book-i-playthrough.js','/qa-altar-wall':'altar-wall-browser-checks.js','/qa-shared-macar':'shared-macar-browser-checks.js','/qa-shafts':'weapon-shaft-browser-checks.js','/qa':'macar-browser-checks.js','/qa-ch1':'ch1-browser-checks.js','/qa-movement':'movement-browser-checks.js'}[url];
+ const fixture={'/qa-crown-entrance':'crown-entrance-browser-checks.js','/qa-dwarf-style':'dwarf-style-browser-checks.js','/qa-npc':'npc-directional-browser-checks.js','/qa-book-i':'book-i-playthrough.js','/qa-altar-wall':'altar-wall-browser-checks.js','/qa-shared-macar':'shared-macar-browser-checks.js','/qa-shafts':'weapon-shaft-browser-checks.js','/qa':'macar-browser-checks.js','/qa-ch1':'ch1-browser-checks.js','/qa-movement':'movement-browser-checks.js'}[url];
  let file=path.join(repo,fixture||url==='/'?'index.html':url);
  try{let content=fs.readFileSync(file);if(fixture){
   let s=content.toString().replace('function loop(now){','function loop(now){ return;');
