@@ -9,3 +9,5 @@ for(const n of [2,3,4]){
 }
 assert(html.includes('tickChapterDescent();'));assert(html.includes('useChapterDescent();return;'));assert(html.includes('bronzeDoorPlaneY(p)'));assert(!/setTimeout\(\(\)=>\{ if\(G.scene==='play'\) endChapter\(\); \},1400\)/.test(html));
 console.log('Descent pads, old-save repair, ruby/guardian gating, explicit stairs, and bronze wall-plane rendering passed');
+
+const stairFallback=html.match(/function drawStairWell\([\s\S]*?\n\}/)[0];assert(!/ellipse|arc\(/.test(stairFallback),'stair fallback has no circular pit');assert(!html.includes("if(p.k==='stairs') drawStairWell(g,z,p);"),'loaded stairs have no circular overlay');

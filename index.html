@@ -1208,41 +1208,13 @@ function drawBillboard(g,img,h,crisp){
   return true;
 }
 function drawStairWell(g,z,p){
-  const pulse=.55+Math.sin((G.elapsed||0)*3.6+(p&&p.x||0))*.22;
+  // Stair-only fallback while the approved stair sprite decodes.
   const H=propSpriteH(p,z);
-  const rw=H*0.50, rh=H*0.25;
   g.save();
-  g.fillStyle='rgba(4,2,1,0.96)';
-  g.beginPath(); g.ellipse(0, H*0.06, rw, rh, 0, 0, TAU); g.fill();
-  g.fillStyle='rgba(0,0,0,0.92)';
-  g.beginPath(); g.ellipse(H*0.04, H*0.12, rw*0.62, rh*0.62, 0, 0, TAU); g.fill();
-  g.strokeStyle='rgba(210,158,62,'+(0.88+pulse*0.12)+')';
-  g.lineWidth=Math.max(3, H*0.045);
-  g.beginPath(); g.ellipse(0, H*0.06, rw+H*0.02, rh+H*0.012, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(255,226,160,0.62)';
-  g.lineWidth=Math.max(1.4, H*0.018);
-  g.beginPath(); g.ellipse(0, H*0.06, rw-H*0.03, rh-H*0.02, 0, 0, TAU); g.stroke();
-  g.strokeStyle='rgba(70,58,42,0.92)';
-  g.lineWidth=Math.max(1.4, H*0.016);
-  for(let i=0;i<5;i++){
-    const t=(i+1)/6;
-    g.beginPath();
-    g.ellipse(H*0.03*t, H*0.06+H*0.05*t, rw*(1-t*0.45), rh*(1-t*0.45), 0, 0, TAU);
-    g.stroke();
+  for(let i=0;i<6;i++){
+    g.fillStyle=i%2?'#625746':'#776b57';
+    g.fillRect(-H*.28,-H*.48+i*H*.07,H*.56,H*.065);
   }
-  const post=Math.max(3, H*0.028);
-  g.strokeStyle='#9a7a42';
-  g.lineWidth=Math.max(2.2, H*0.022); g.lineCap='round';
-  g.beginPath(); g.moveTo(-rw*0.72, H*0.02); g.lineTo(-rw*0.62, -H*0.22); g.lineTo(rw*0.08, -H*0.28); g.stroke();
-  g.beginPath(); g.moveTo(rw*0.72, H*0.04); g.lineTo(rw*0.82, -H*0.18); g.lineTo(rw*1.12, -H*0.22); g.stroke();
-  g.fillStyle='#d4b056';
-  g.fillRect(-rw*0.72-post*0.4, -H*0.22, post, H*0.22);
-  g.fillRect(rw*0.82-post*0.4, -H*0.18, post, H*0.20);
-  const fl=1+Math.sin((G.elapsed||0)*8)*0.16;
-  g.fillStyle='#ff9a44';
-  g.beginPath(); g.arc(H*0.08, H*0.10, H*0.032*fl, 0, TAU); g.fill();
-  g.fillStyle='rgba(255,210,100,0.6)';
-  g.beginPath(); g.arc(H*0.08, H*0.08, H*0.018*fl, 0, TAU); g.fill();
   g.restore();
 }
 /* ---------------------------- sprite fitting ----------------------------
@@ -17176,8 +17148,7 @@ function drawProp(g,p,pal){
   }
   const img=(p.k==='stone')?null:propAnimImg(p);
   if(img){
-    if(p.k==='stairs') drawStairWell(g,z,p);
-    else softShadow(g,2*z,1*z,18*z,8*z,.45);
+    softShadow(g,2*z,1*z,18*z,8*z,.45);
     const metric=tilesetPropMetric(p.k);
     if(metric) drawObjectProp(g,img,propSpriteH(p,z),metric);
     else drawBillboard(g,img,propSpriteH(p,z));
