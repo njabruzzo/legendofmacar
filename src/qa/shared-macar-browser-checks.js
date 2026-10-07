@@ -23,6 +23,13 @@
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
     const grip=MacarSharedAtlas.geometry(key).grip, gx=Math.round(grip[0]*img.width),gy=Math.round(grip[1]*img.height);
     const hands=img.__macarBodyCanvas.getContext('2d').getImageData(gx-16,gy-16,33,33).data;let handPixels=0;for(let n=3;n<hands.length;n+=4)if(hands[n]>80)handPixels++;check(handPixels>100,'weapon grip overlaps painted hand/arm '+key);
+    if(dir==='e'&&['maul','axe'].includes(weapon)&&(stage==='idle'||stage.startsWith('walk'))){
+     const geometry=MacarSharedAtlas.geometry(key),socket=geometry.shaft[1];
+     for(const flip of [false,true]){const project=x=>flip?1-x:x,behind=flip?project(socket[0])>project(geometry.grip[0]):project(socket[0])<project(geometry.grip[0]);
+      check(behind,'side carry head stays behind gripping shoulder '+key+(flip?' west':' east'));
+      check(socket[1]<geometry.grip[1],'side carry head rests above shoulder '+key);
+     }
+    }
    }
   }
   check(new Set(legHashes).size===4,'four distinct alternating leg frames '+dir);
