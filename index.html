@@ -3838,6 +3838,11 @@ function faceVec(e){
   if(e._attack && e.atk>0){
     return {dx:e._attack.fdx||0, dy:e._attack.fdy||0};
   }
+  // A selected foe persists while walking away. Outside a swing, Macar
+  // faces his travel rather than moonwalking toward that stale target.
+  if(e.hero && e.moving && !(e.atk>0) && ((e.ix||0)||(e.iy||0))){
+    return {dx:e.ix||0,dy:e.iy||0};
+  }
   /* If a foe is the current aim, facing follows the foe — swinging or
      closing — not leftover walk heading. */
   if(e.aim && !e.aim.dead && e.aim.x!=null && (e.aim.team==='foe' || e.atk>0)){

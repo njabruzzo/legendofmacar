@@ -4,7 +4,7 @@
  try{
  await Promise.all([...MacarSharedAtlas.keys(),'macar','macar_axe','bone_crown'].map(k=>new Promise(resolve=>loadSpriteKeyNow(k,ok=>{check(ok,'decode '+k);resolve();}))));
  const hero=ent({hero:1,team:'party',kind:'dwarf',name:'MACAR',x:0,y:0,sp:4.3});G.ents=[hero];TW=116;TH=58;ZOOM=1.5;CAMSX=0;CAMSY=0;
- const gallery=document.createElement('canvas');gallery.width=2400;gallery.height=2250;const gg=gallery.getContext('2d');gg.fillStyle='#343434';gg.fillRect(0,0,gallery.width,gallery.height);
+ const gallery=document.createElement('canvas');gallery.width=2400;gallery.height=2250;gallery.style='position:static;width:1200px;height:1125px';const gg=gallery.getContext('2d');gg.fillStyle='#343434';gg.fillRect(0,0,gallery.width,gallery.height);
  const hash=(canvas,y=0)=>{const d=canvas.getContext('2d').getImageData(0,y,canvas.width,canvas.height-y).data;let h=2166136261;for(const v of d)h=Math.imul(h^v,16777619);return h>>>0;};
  for(const [r,dir] of MacarSharedAtlas.directions.entries()){
   const legHashes=[];
@@ -42,6 +42,18 @@
   const cv=document.createElement('canvas');cv.width=cv.height=300;drawLivingMacar(cv.getContext('2d'),hero);check(MacarStrikeQA.blitKey===key,'actual rendered pose '+key);
   check(Math.abs(MacarStrikeQA.shaftLength-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[stage==='ranged'?'xbow':weapon])<.01,'actual rendered shaft '+key);
   result.states.push({weapon,dir:dirs[i],stage,key});
+ }
+ // Real movement can retain a selected foe behind Macar. Check that case
+ // through the renderer, for both carried melee weapons and every heading.
+ for(const weapon of ['maul','axe'])for(let i=0;i<8;i++){
+  const angle=i*Math.PI/4,sx=Math.cos(angle)/(TW/2),sy=Math.sin(angle)/(TH/2),m=Math.hypot(sx+sy,sy-sx),dx=(sx+sy)/m,dy=(sy-sx)/m;
+  G.equipped={primary:{n:weapon==='axe'?'Iron Axe':'War Hammer',k:'weapon',macarHeld:1}};
+  Object.assign(hero,{ix:dx,iy:dy,fdx:dx,fdy:dy,moving:1,gait:.375,atk:0,atkKind:'melee',bowPoseUntil:0,_attack:null,aim:{x:hero.x-dx*10,y:hero.y-dy*10,team:'foe',dead:0}});
+  const wanted=MacarSharedAtlas.select(weapon,hero,dirs[i],'walk');
+  check(livingMacarAnimKey(hero)===wanted,'selected-foe walking direction '+weapon+' '+dirs[i]);
+  const cv=document.createElement('canvas');cv.width=cv.height=300;drawLivingMacar(cv.getContext('2d'),hero);
+  check(MacarStrikeQA.blitKey===wanted,'selected-foe rendered walk '+weapon+' '+dirs[i]);
+  check(wantsSpriteFlip(hero)===(i>=3&&i<=5),'selected-foe mirrored walk '+weapon+' '+dirs[i]);
  }
  // Exercise the movement function, including an immovable wall.
  startChapter(1);G.scene='play';const p=player();p.x=36.5;p.y=22.5;const oldGait=p.gait||0;check(steerWalk(p,1,0,4.3,1/60)>0,'movement advances on open floor');check(p.moving&&(p.gait||0)>oldGait,'movement advances gait');
