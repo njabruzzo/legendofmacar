@@ -61,7 +61,8 @@
 <script src="src/combat/MacarMotionAtlas.js?v=132"></script>
 <script src="src/combat/MacarIdleAtlas.js"></script>
 <script src="src/combat/MacarWeaponShaft.js?v=134"></script>
-<script src="src/combat/MacarSharedAtlas.js?v=134"></script>
+<script src="src/combat/MacarSharedAtlas.js?v=135"></script>
+<script src="src/combat/NpcDirectionalAtlas.js?v=1"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -958,6 +959,7 @@ if(typeof MacarMotionAtlas!=='undefined') MacarMotionAtlas.register(MACAR_ONMODE
 if(typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.register(MACAR_ONMODEL);
 if(typeof MacarSharedAtlas!=='undefined') MacarSharedAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
+if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_FILES);
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
   if(!MACAR_ONMODEL['macar_'+d+'_w2']) SPRITE_FILES['macar_'+d+'_w2']=MACAR_ONMODEL.macar_e_w2;
@@ -993,7 +995,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); if(typeof NpcDirectionalAtlas!=='undefined') for(const actor of NpcDirectionalAtlas.actors) WORLD_ART_KEYS[n].push(...NpcDirectionalAtlas.keys(actor),...(actor==='gnome_good'?[]:NpcDirectionalAtlas.keys(actor,true))); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -1002,9 +1004,10 @@ function loadSpriteKeyNow(k, cb){
   if(sprReady(k)){ cb(true); return true; }
   if(SPRITE_LOADING[k]){ SPRITE_LOADING[k].push(cb); return true; }
   SPRITE_LOADING[k]=[cb];
-  const img=new Image();
+  let img;
   const done=async ok=>{
-    if(ok&&typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(k)){try{SPR[k]=await MacarSharedAtlas.slice(img,k,document);}catch(_){ok=false;}}
+    if(ok&&typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(k)){try{SPR[k]=NpcDirectionalAtlas.slice(img,k,document);}catch(_){ok=false;}}
+    else if(ok&&typeof MacarSharedAtlas!=='undefined'&&MacarSharedAtlas.pose(k)){try{SPR[k]=await MacarSharedAtlas.slice(img,k,document);}catch(_){ok=false;}}
     else if(ok) SPR[k]=(typeof MacarWeaponShaft!=='undefined'&&MacarWeaponShaft.standalone(k))?img:(typeof MacarMotionAtlas!=='undefined' && MacarMotionAtlas.pose(k))?MacarMotionAtlas.slice(img,k,document):(typeof MacarIdleAtlas!=='undefined')?MacarIdleAtlas.slice(img,k,document):img;
     if(ok&&!SPR[k].__macarSharedBody&&typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.prepare(SPR[k],k);
     const list=SPRITE_LOADING[k]||[];
@@ -1020,6 +1023,9 @@ function loadSpriteKeyNow(k, cb){
     if(ok && img.decode) img.decode().then(()=>done(true), ()=>done(true));
     else done(ok);
   };
+  const npcPose=typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(k);
+  if(npcPose){NpcDirectionalAtlas.loadImage(npcPose.actor,assetUrl(SPRITE_FILES[k])).then(source=>{img=source;done(true);},()=>done(false));return true;}
+  img=new Image();
   img.onload=()=>fin(true);
   img.onerror=()=>{
     if(!img.__retried){
@@ -2232,15 +2238,16 @@ function drawEntBillboard(g,e,img,z,flip){
     if(!img||!img.width) return false;
   }
   const blitKey=liveKey&&typeof livingMacarBlitKey==='function'?livingMacarBlitKey(liveKey):liveKey;
-  const H=entSpriteH(e,z)*(blitKey?livingMacarPlantFit(e,blitKey,img):frameFit(e,img));
+  const npc=typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(entAnimKey(e));
+  const H=entSpriteH(e,z)*(npc?2:blitKey?livingMacarPlantFit(e,blitKey,img):frameFit(e,img));
   const shaft=(blitKey&&typeof MacarWeaponShaft!=='undefined')?MacarWeaponShaft.pose(blitKey):null;
   const widen=shaft?1:(e.hero&&!e.dead&&!e.ghost)?MACAR_FOOT_WIDEN:1;
   const W=img.width*(H/Math.max(1,img.height))*widen;
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
-  const cx=shaft?shaft.foot[0]:(b&&b.ok)?b.cx:0.5;
+  const cx=npc ? .5 : shaft?shaft.foot[0]:(b&&b.ok)?b.cx:0.5;
   const dx=-W*(flip?1-cx:cx);
-  const dy=shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
+  const dy=npc?-H*440/512:shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
   const party=e.kind==='dwarf' && !e.dead;
   const punch=!e.ghost;
   if(e.hero && !e.dead){
@@ -3838,9 +3845,9 @@ function faceVec(e){
   if(e._attack && e.atk>0){
     return {dx:e._attack.fdx||0, dy:e._attack.fdy||0};
   }
-  // A selected foe persists while walking away. Outside a swing, Macar
-  // faces his travel rather than moonwalking toward that stale target.
-  if(e.hero && e.moving && !(e.atk>0) && ((e.ix||0)||(e.iy||0))){
+  // A selected foe can persist while walking away. Outside a swing,
+  // actors face their actual travel rather than a stale target.
+  if(e.moving && !(e.atk>0) && ((e.ix||0)||(e.iy||0))){
     return {dx:e.ix||0,dy:e.iy||0};
   }
   /* If a foe is the current aim, facing follows the foe — swinging or
@@ -3949,7 +3956,8 @@ function dwarfAngleKey(e,k){
   // The _nw_ sheets are painted walking upper-right; using them for west
   // without a flip is the moonwalk after #105.
   if(oct==='w'||oct==='sw'||oct==='nw'){
-    return gait(k+'_e_w1', k+'_e_w2', k+'_e');
+    const view=oct==='sw'?'se':oct==='nw'?'ne':'e';
+    return gait(k+'_'+view+'_w1', k+'_'+view+'_w2', k+'_'+view);
   }
   if(oct==='ne') return gait(k+'_ne_w1', k+'_ne_w2', k+'_ne');
   if(oct==='se') return gait(k+'_se_w1', k+'_se_w2', k);
@@ -3962,6 +3970,7 @@ const SPRITE_PAINTED_LEFT={rat:1,beetle:1,goblin:1};
 function wantsSpriteFlip(e){
   if(!e||e.crushed||e.dead) return false;
   const key=entAnimKey(e)||'';
+  if(typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(key))return ['sw','w','nw'].includes(screenOctant(e));
   if(key.indexOf('_back')>=0) return false;
   if(key.indexOf('_s_')>=0 || /_s$/.test(key)) return false;
   // Painted sheets travel SCREEN-RIGHT (east / se / ne / front). Flip ONLY
@@ -4071,6 +4080,10 @@ function entAnimKey(e){
   if(e.hero && !e.dead && !e.ghost) return livingMacarAnimKey(e);
   const k=entSpriteKey(e);
   if(!k) return null;
+  if(typeof NpcDirectionalAtlas!=='undefined'){
+    const directed=NpcDirectionalAtlas.select(k,e,screenOctant(e));
+    if(directed){loadSpriteKeyNow(directed);if(sprReady(directed))return directed;}
+  }
   if(singlePoseLocked(e)){
     if(k==='dwarf_skeleton_idle' && (wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk'] && SPR[k+'_atk'].width)
       return k+'_atk';

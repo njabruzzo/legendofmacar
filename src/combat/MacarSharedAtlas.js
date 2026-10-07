@@ -49,12 +49,19 @@
  function attackStage(progress){return progress<.45?'windup':progress<.84?'attack':'recover';}
  function loadCrossbow(){if(crossbow)return Promise.resolve(crossbow);if(!crossbowPromise)crossbowPromise=new Promise((resolve,reject)=>{const img=new root.Image();img.onload=()=>{crossbow=img;resolve(img);};img.onerror=()=>{crossbowPromise=null;reject(new Error('Crossbow equipment failed to load'));};img.src=typeof root.assetUrl==='function'?root.assetUrl(crossbowFile):crossbowFile;});return crossbowPromise;}
  function layout(p){
-  const carry=[[88,58],[91,62],[119,62],[165,63],[177,64]][p.row],hit=[[102,162],[148,128],[178,143],[189,127],[174,116]][p.row];
+  const carries=[
+   [[88,58],[91,57],[92,60],[89,59],[90,60]],
+   [[91,62],[93,62],[98,63],[96,62],[99,63]],
+   [[119,62],[123,61],[124,61],[124,61],[127,63]],
+   [[165,63],[169,65],[170,63],[167,62],[169,62]],
+   [[177,64],[179,64],[177,65],[176,63],[180,65]]
+  ];
+  const carry=carries[p.row][p.stage.startsWith('walk')?1+Number(p.stage.slice(4)):0],hit=[[102,162],[148,128],[178,143],[189,127],[174,116]][p.row];
   const grip=p.stage==='attack'?hit:carry;
-  const angle=p.stage==='attack'?[.45,.3,.2,-.6,-1.3][p.row]:p.row>=3?Math.PI+.32:-.32;
+  const angle=p.stage==='attack'?[.45,.3,.2,-.6,-1.3][p.row]:[-.60,-1.20,Math.PI+.55,Math.PI+.4,Math.PI+.32][p.row];
   if(p.stage==='windup')return{grip:[[132,46],[145,47],[172,45],[157,47],[147,40]][p.row],angle:[-1.05,-1.0,-.95,-2.0,-2.1][p.row]};
   if(p.stage==='attack')return{grip:[[166,252],[236,254],[271,258],[288,224],[246,204]][p.row],angle:[.45,.3,.2,-.6,-1.3][p.row]};
-  if(p.stage==='recover'||p.stage==='ranged')return{grip:[[181,182],[230,177],[258,180],[267,165],[227,158]][p.row],angle:p.weapon==='xbow'?[.45,.3,.1,-.55,-1.3][p.row]:[.15,.1,0,-.25,-.5][p.row]};
+  if(p.stage==='recover'||p.stage==='ranged')return{grip:[[181,182],[230,177],[230,164],[267,165],[227,158]][p.row],angle:p.weapon==='xbow'?[.45,.3,.1,-.55,-1.3][p.row]:[.15,.1,0,-.25,-.5][p.row]};
   return{grip,angle};
  }
  async function slice(image,key,doc){
@@ -74,10 +81,16 @@
   const endpoints=p.weapon==='axe'?[80,1050,914]:[80,941,348],scale=length/(endpoints[1]-endpoints[0]);
   const drawWeapon=()=>{g.save();if(p.weapon==='xbow'){g.translate(grip[0],grip[1]);g.rotate(l.angle);const sc=length/1100;g.drawImage(weapons,-540*sc,-650*sc,weapons.width*sc,weapons.height*sc);g.restore();return;}g.translate(a[0],a[1]);g.rotate(l.angle);const sy=p.weapon==='axe'?627:0;g.drawImage(weapons,0,sy,1254,627,-endpoints[0]*scale,-(endpoints[2]-sy)*scale,1254*scale,627*scale);g.restore();};
   drawWeapon();g.drawImage(body.canvas,0,0);
+  if(p.weapon!=='xbow'&&!['windup','attack','recover','ranged'].includes(p.stage)){
+   // Reveal the grip and pommel in front of the arm, while the carried
+   // head remains behind the shoulder. Restore only the curled fingers.
+   g.save();g.beginPath();g.arc(grip[0],grip[1],30*body.sc,0,Math.PI*2);g.clip();drawWeapon();g.restore();
+   g.save();g.beginPath();g.ellipse(grip[0],grip[1]-3*body.sc,9*body.sc,7*body.sc,0,0,Math.PI*2);g.clip();g.drawImage(body.canvas,0,0);g.restore();
+  }
   if(['windup','attack','recover','ranged'].includes(p.stage)){drawWeapon();g.save();g.beginPath();g.rect(grip[0]-20,grip[1]-22,40,44);g.clip();g.drawImage(body.canvas,0,0);g.restore();}
   const brows={windup:[[189,66],[209,66],[225,62],[208,65],[185,63]],attack:[[174,146],[236,159],[273,166],[264,143],[215,154]],recover:[[178,66],[232,88],[259,72],[257,73],[216,70]],ranged:[[178,66],[232,88],[259,72],[257,73],[216,70]]};
   const brow=brows[p.stage];const browX=brow?body.x+brow[p.row][0]*body.sc:body.x+[132,143,156,151,123][p.row]*body.sc,browY=brow?body.y+brow[p.row][1]*body.sc:body.top+27*body.sc;
-  const geom={weapon:p.weapon,size:[size,size],shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,52*body.sc/size,0]};
+  const geom={weapon:p.weapon,size:[size,size],grip:grip.map(v=>v/size),shaft:[a.map(v=>v/size),b.map(v=>v/size)],foot:[.5,feet/size],body:[body.top/size,feet/size],brow:[browX/size,browY/size,52*body.sc/size,0]};
   geometryCache.set(key,geom);c.__macarSharedBody=bodyKey;c.__macarBodyCanvas=body.canvas;c.__macarDirectionalIdle=1;c.__macarIntegratedMotion=1;c.__macarIdleSeat=[browX,browY,52*body.sc,0];c._stature=(feet-body.top)/size;c.__macarSharedGeometry=geom;return c;
  }
  function geometry(key){return geometryCache.get(key)||null;}

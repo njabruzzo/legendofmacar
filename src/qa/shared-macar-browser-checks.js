@@ -21,6 +21,8 @@
     blitFacing(gg,img,dx,dy,W,H,false,true);drawWornBoneCrown(gg,W,H,dx,dy,false,ZOOM,key);
     const edge=img.getContext('2d').getImageData(0,0,img.width,img.height).data;let border=0;for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++)if((x<2||x>img.width-3||y<2||y>img.height-3)&&edge[(y*img.width+x)*4+3]>80)border++;check(border===0,'no clipped weapon/body edges '+key);
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
+    const grip=MacarSharedAtlas.geometry(key).grip, gx=Math.round(grip[0]*img.width),gy=Math.round(grip[1]*img.height);
+    const hands=img.__macarBodyCanvas.getContext('2d').getImageData(gx-16,gy-16,33,33).data;let handPixels=0;for(let n=3;n<hands.length;n+=4)if(hands[n]>80)handPixels++;check(handPixels>100,'weapon grip overlaps painted hand/arm '+key);
    }
   }
   check(new Set(legHashes).size===4,'four distinct alternating leg frames '+dir);
