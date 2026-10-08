@@ -105,14 +105,50 @@ setup(3, {
   ruby: 0,
   flags: { boss: 1 },
   ents: [
-    foe(48, 39, { kind: 'construct', name: 'Ruby Construct' }),
+    foe(26, 8, { kind: 'construct', name: 'Ruby Construct' }),
     foe(6, 6, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1 }),
     foe(30, 58, { name: 'Orc' })
   ]
 });
-assert.strictEqual(c.useChapterDescent(), true, 'an old save still names a far dead guard, not the nearer construct');
-assert.strictEqual(c.G.ents.find(e => e.x === 48).chapterBoss, undefined);
+assert.strictEqual(c.useChapterDescent(), true, 'an old save still names a far dead guard when no living match is near the spawn');
+assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined);
 assert.strictEqual(c.G.ents.find(e => e.x === 6).chapterBoss, 1);
+
+setup(3, {
+  ruby: 0,
+  flags: { boss: 1 },
+  objs: [
+    { t: 'Cross the dead barracks', d: 0 },
+    { t: 'Read the Hall of Names', d: 0 },
+    { t: 'Destroy the Ruin Guard', d: 0 }
+  ],
+  ents: [
+    foe(47.4, 36.4, { kind: 'construct', name: 'Ruby Construct', hp: 32 }),
+    foe(26, 8, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1 }),
+    foe(30, 58, { name: 'Orc' })
+  ]
+});
+assert.strictEqual(c.noteChapterBossDown(c.G.lvl), false, 'a living guard near the spawn is not already down');
+assert.strictEqual(c.G.lvl.flags.done, 0);
+assert.strictEqual(c.G.lvl.objs[2].d, 0, 'Destroy the Ruin Guard stays open');
+assert.strictEqual(c.useChapterDescent(), false, 'a dead workshop construct does not open the stair');
+assert.strictEqual(hints[0], GUARD);
+assert.strictEqual(c.G.scene, 'play');
+assert.strictEqual(c.G.ents.find(e => e.hp === 32).chapterBoss, 1, 'the living guard is the boss');
+assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined);
+
+setup(3, {
+  ruby: 0,
+  done: 1,
+  flags: { boss: 1 },
+  ents: [
+    foe(26, 8, { kind: 'construct', name: 'Ruby Construct' }),
+    foe(12, 70, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1 })
+  ]
+});
+assert.strictEqual(c.chapterDescentRefusal(), '', 'a saved boss-down flag opens the stair');
+assert.strictEqual(c.useChapterDescent(), true, 'an old save with the boss already down still descends');
+assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined, 'the living workshop is not adopted after the boss is down');
 
 function pruneCrowd(ents){
   if(ents.length>80) return ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12&&!e.chapterBoss));

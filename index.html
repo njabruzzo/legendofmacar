@@ -5288,8 +5288,11 @@ function bindChapterBoss(L){
     matches.forEach(e=>{ e.chapterBoss=1; });
     return matches;
   }
+  /* A dead pack-mate wins only when nothing living still stands within a
+     few tiles of the boss. flags.done already returned above. */
   const dead=matches.filter(e=>e.dead);
-  const pool=dead.length?dead:matches;
+  const near=matches.filter(e=>!e.dead&&Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y)<=4);
+  const pool=(!near.length&&dead.length)?dead:(near.length?near:matches);
   let best=pool[0], bd=1e9;
   for(const e of pool){
     const d=Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y);
