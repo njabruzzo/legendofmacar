@@ -8952,22 +8952,43 @@ function beginUiLayer(g){
   g.globalCompositeOperation='source-over';
   g.globalAlpha=1;
 }
+/* World prompts, the combat log, field hints, and the kin sheet are the
+   play field. Pack, camp, craft, trade, pause, the rest card, and menus
+   paint their own controls. A leftover prompt must not cover them, and a
+   tap must not land on a control the player cannot see. */
+function playFieldPlates(){
+  return G.scene==='play' && !G.paused && !G.sleepShow;
+}
 function drawPlayPlates(g){
   if(G.scene==='camp'){
+    promptBtn=null;
     if(!G.hint && !G.talk) return;
     beginUiLayer(g);
     if(G.hint) drawHint(g,UIS);
     drawTalk(g);
     return;
   }
-  if(G.scene!=='play' && G.scene!=='pack') return;
-  if(!(G.talk || G.hint || G.inspect || PROMPT || G.scene==='play')) return;
+  const field=playFieldPlates();
+  /* Stone-mouth "Drop it in?" opens while the pack is still up. */
+  const packTalk=G.scene==='pack' && !!G.talk;
+  if(!field && !packTalk){
+    promptBtn=null;
+    return;
+  }
   beginUiLayer(g);
   const s=UIS;
-  if(G.scene==='play') drawLog(g,s);
-  drawPromptBtn(g,s);
-  drawHint(g,s);
-  drawInspect(g,s);
+  if(field){
+    if(G.scene==='play') drawLog(g,s);
+    /* Dialogue and the kin sheet own the screen. The prompt stays armed
+       for when they close, but it must not paint or take the tap. */
+    if(G.talk || G.inspect) promptBtn=null;
+    else drawPromptBtn(g,s);
+    drawHint(g,s);
+    drawInspect(g,s);
+    drawTalk(g);
+    return;
+  }
+  promptBtn=null;
   drawTalk(g);
 }
 function drawTalk(g){
@@ -14456,7 +14477,7 @@ function onDown(id,x,y,ptr){
     if(hit) pickTalk(hit.i);
     return;
   }
-  if(promptBtn&&x>=promptBtn.x&&x<=promptBtn.x+promptBtn.w&&y>=promptBtn.y&&y<=promptBtn.y+promptBtn.h){
+  if(promptBtn&&x>=promptBtn.x&&x<=promptBtn.x+promptBtn.w&&y>=promptBtn.y&&y<=promptBtn.y+promptBtn.h&&!G.inspect){
     fire('use'); return;
   }
   const b=btnAt(x,y);
@@ -14563,7 +14584,10 @@ window.addEventListener('keydown',e=>{
   if(e.key==='7') fire('spec2');
   if(e.key==='8') fire('spec3');
   if(e.key==='9') fire('spec4');
-  if(e.key==='9' && e.shiftKey) debugKillOnScreen();
+  /* Physical Shift+Digit9. On AZERTY that chord is just the digit 9, so
+     it stays dark unless this is a dev host or the page was opened with
+     ?debug=1. */
+  if(devDebugEnabled() && e.shiftKey && (e.code==='Digit9' || e.key==='9')) debugKillOnScreen();
   if(e.key==='Escape'){
     if(G.talk){ dismissTalkWalkOff(); return; }
     if(G.inspect){ G.inspect=null; return; }
@@ -14579,7 +14603,17 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 
 /* ---------------------------- abilities ---------------------------- */
+function devDebugEnabled(){
+  try{
+    const host=String((location&&location.hostname)||'');
+    if(host==='localhost'||host==='127.0.0.1'||host==='::1') return true;
+    const q=String((location&&location.search)||'')+String((location&&location.hash)||'');
+    if(/[?&#]debug=1\b/.test(q)) return true;
+  }catch(err){}
+  return false;
+}
 function debugKillOnScreen(){
+  if(!devDebugEnabled()) return;
   if(G.scene!=='play'||G.paused||G.sleepShow) return;
   let n=0;
   for(const e of G.ents){
@@ -22490,7 +22524,7 @@ function consumePlayUiTap(t){
     if(hit) pickTalk(hit.i);
     return true;
   }
-  if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+  if(G.scene==='play'&&!G.paused&&!G.sleepShow&&!G.inspect&&promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
     fire('use'); return true; }
   const ph=TapGate.firstHit(UI.portraitHits, t.x, t.y);
   if(ph){ applyPortraitTap(ph); return true; }
@@ -22508,7 +22542,7 @@ function resolveTaps(){
         if(hit) pickTalk(hit.i);
         continue;
       }
-      if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+      if(G.scene==='play'&&!G.paused&&!G.sleepShow&&!G.inspect&&promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
         fire('use'); continue; }
       const p=player(); if(!p) continue;
       if(throwBtn&&t.x>throwBtn.x&&t.x<throwBtn.x+throwBtn.w&&t.y>throwBtn.y&&t.y<throwBtn.y+throwBtn.h){
