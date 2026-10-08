@@ -21,7 +21,7 @@
     var i, e;
     for (i = 0; i < ents.length; i++) {
       e = ents[i];
-      if (e && e.hero && !e.dead) return e;
+      if (e && e.hero && !e.dead && e.hp > 0) return e;
     }
     return null;
   }
@@ -68,6 +68,24 @@
    * nowSec/lastSec are the game clock (G.t). nowMs/lastMs collapse
    * visibilitychange + pagehide into one write.
    */
+  /**
+   * True when next would throw away chapter progress already on disk.
+   * Lower unlocked, or a cleared chapter that next no longer records.
+   * Manual Save and Burn it do not consult this.
+   */
+  function regresses(prev, next) {
+    if (!prev || !next) return false;
+    if ((next.unlocked | 0) < (prev.unlocked | 0)) return true;
+    var cleared = prev.cleared || {};
+    var nextCleared = next.cleared || {};
+    var k;
+    for (k in cleared) {
+      if (!Object.prototype.hasOwnProperty.call(cleared, k)) continue;
+      if (cleared[k] && !nextCleared[k]) return true;
+    }
+    return false;
+  }
+
   function due(reason, nowSec, lastSec, nowMs, lastMs) {
     if (reason === 'fresh') return true;
     nowSec = +nowSec || 0;
@@ -87,6 +105,7 @@
     livingHero: livingHero,
     bookScene: bookScene,
     loadable: loadable,
+    regresses: regresses,
     due: due
   };
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

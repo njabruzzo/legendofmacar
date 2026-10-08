@@ -4663,7 +4663,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
-  hudMore:0, miniBig:0, animateDeadSpent:0 };
+  hudMore:0, miniBig:0, animateDeadSpent:0, _ownsBook:0 };
 
 function say(t,c,k){
   const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
@@ -7026,17 +7026,20 @@ function bookSceneNow(){
   if(typeof Autosave!=='undefined' && Autosave.bookScene) return Autosave.bookScene(G);
   return (G.scene==='camp')?'camp':'play';
 }
-function writeGameSave(quiet){
+function writeGameSave(quiet, snap){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
-  const extra={scene:bookSceneNow()};
-  if(G.lvl) extra.play=capturePlaySave();
-  const snap=GameSave.snapshot(G, extra);
+  if(!snap){
+    const extra={scene:bookSceneNow()};
+    if(G.lvl) extra.play=capturePlaySave();
+    snap=GameSave.snapshot(G, extra);
+  }
   let ok=false;
   try{ ok=!!GameSave.write(localStorage, snap); }
   catch(err){ ok=false; }
   if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
   noteQuietSave();
   if(!quiet){
+    G._ownsBook=1;
     say('The book is marked. Progress is kept.','#ffe08a');
     hint('Saved. '+GameSave.label(snap), 3.8);
     G.campSaveFlash=(G.t||0)+2.4;
@@ -7045,23 +7048,49 @@ function writeGameSave(quiet){
 }
 /* Quiet book. Fresh descent writes before the click handler returns, so
    Burn it cannot leave an empty slot. Tick and hide only write a scene
-   Continue already knows how to open. */
+   Continue already knows how to open, and only when this session owns
+   the slot. A chapter picked from the title does not. */
 function autosaveNow(reason){
-  if(typeof Autosave==='undefined' || typeof writeGameSave!=='function') return false;
+  if(typeof Autosave==='undefined' || typeof GameSave==='undefined' || typeof writeGameSave!=='function') return false;
+  if(reason!=='fresh' && !G._ownsBook) return false;
   const nowMs=Date.now();
   if(!Autosave.due(reason, G.t||0, lastQuietSaveT, nowMs, lastQuietSaveMs)) return false;
   if(!Autosave.loadable(G)) return false;
-  const ok=!!writeGameSave(true);
+  const extra={scene:bookSceneNow()};
+  if(G.lvl) extra.play=capturePlaySave();
+  const snap=GameSave.snapshot(G, extra);
+  if(reason!=='fresh'){
+    let prev=null;
+    try{ prev=GameSave.read(localStorage); }catch(err){ prev=null; }
+    if(prev && Autosave.regresses(prev, snap)){ noteQuietSave(); return false; }
+  }
+  const ok=!!writeGameSave(true, snap);
   if(!ok){ lastQuietSaveT=G.t||0; lastQuietSaveMs=nowMs; }
   return ok;
 }
-function tickAutosave(){
+let autosaveIdlePending=0;
+function runAutosaveTick(){
+  autosaveIdlePending=0;
   if(typeof document!=='undefined' && document.visibilityState==='hidden') return;
   autosaveNow('tick');
 }
+function scheduleAutosaveTick(){
+  if(autosaveIdlePending) return;
+  autosaveIdlePending=1;
+  if(typeof requestIdleCallback==='function') requestIdleCallback(runAutosaveTick, {timeout:1500});
+  else setTimeout(runAutosaveTick, 32);
+}
+function tickAutosave(){
+  if(typeof document!=='undefined' && document.visibilityState==='hidden') return;
+  if(!G._ownsBook) return;
+  if(typeof Autosave==='undefined' || !Autosave.due('tick', G.t||0, lastQuietSaveT, Date.now(), lastQuietSaveMs)) return;
+  scheduleAutosaveTick();
+}
 function beginFreshDescent(){
   G.wipeAsk=0;
+  if(typeof GameSave!=='undefined' && GameSave.applyBlankCampaign) GameSave.applyBlankCampaign(G);
   startChapter(1);
+  G._ownsBook=1;
   autosaveNow('fresh');
 }
 function bindAutosaveLifecycle(){
@@ -7180,6 +7209,7 @@ function loadSavedGame(){
   if(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ensureShape) G.equipped=EquipmentSlots.ensureShape(G.equipped||{});
   if(typeof applyEquipped==='function') applyEquipped();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+  G._ownsBook=1;
   if(snap.scene==='camp'){
     G.scene='camp'; G.paused=false; G.lvl=null;
     say('The camp fire is as you left it.','#c9b895');

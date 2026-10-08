@@ -53,6 +53,9 @@ assert(A.loadable({ scene: 'credits', lvl: level, ents: [hero] }) === false, 'cr
 assert(A.loadable({ scene: 'play', talk: { key: 'noz' }, lvl: level, ents: [hero] }) === false, 'mid-dialog is not saved');
 assert(A.loadable({ scene: 'play', mercyTalk: 1, lvl: level, ents: [hero] }) === false, 'mercy talk is not saved');
 assert(A.loadable({ scene: 'play', lvl: level, ents: [{ hero: 1, dead: 1 }] }) === false, 'a fallen hero is not written as play');
+assert(A.livingHero({ ents: [{ hero: 1, dead: 0, hp: 0 }] }) == null, 'a hero at 0 HP is not living');
+assert(A.loadable({ scene: 'play', lvl: level, ents: [{ hero: 1, dead: 0, hp: 0 }] }) === false, '0 HP play is not written');
+assert(A.livingHero({ ents: [{ hero: 1, dead: 0, hp: 1 }] }) != null, '1 HP is enough to count as living');
 assert(A.loadable({ scene: 'play', ents: [hero] }) === false, 'play without a level is not saved');
 assert(A.loadable(null) === false, 'missing state is not saved');
 
@@ -78,7 +81,10 @@ assert(/function beginFreshDescent\(/.test(html), 'new runs go through beginFres
   assert(/startChapter\(1\)/.test(fresh) && /autosaveNow\('fresh'\)/.test(fresh), 'fresh descent saves after the chapter exists');
   const startAt = fresh.indexOf('startChapter(1)');
   const saveAt = fresh.indexOf("autosaveNow('fresh')");
+  const blankAt = fresh.indexOf('applyBlankCampaign');
+  assert(blankAt >= 0 && startAt > blankAt, 'the campaign is blanked before Chapter I');
   assert(startAt >= 0 && saveAt > startAt, 'the save runs after startChapter returns');
+  assert(/_ownsBook=1/.test(fresh), 'a fresh descent owns the book');
   assert(!/GameSave\.clear/.test(fresh), 'beginFreshDescent does not wipe the slot');
 }
 {
@@ -89,6 +95,30 @@ assert(/function beginFreshDescent\(/.test(html), 'new runs go through beginFres
 }
 assert(/menuBtn\(g,'New descent', VW\/2, y, bw, btnH, \(\)=>beginFreshDescent\(\)/.test(html), 'blank New descent saves the new run');
 assert(/function autosaveNow\(/.test(html) && /autosaveNow\('tick'\)/.test(html), 'play ticks a quiet save');
+{
+  const auto = (html.match(/function autosaveNow\(reason\)\{[\s\S]*?\nfunction /) || [])[0] || '';
+  assert(/reason!=='fresh' && !G\._ownsBook/.test(auto), 'tick and hide write nothing until this run owns the book');
+  assert(/Autosave\.regresses\(prev, snap\)/.test(auto), 'autosave refuses a book that would drop chapter progress');
+  assert(/if\(reason!=='fresh'\)/.test(auto) && /writeGameSave\(true, snap\)/.test(auto), 'Burn it is not blocked by the regression backstop');
+}
+{
+  const manual = (html.match(/function writeGameSave\(quiet, snap\)\{[\s\S]*?\nfunction autosaveNow/) || [])[0] || '';
+  assert(/if\(!quiet\)\{\s*\n\s*G\._ownsBook=1/.test(manual), 'manual Save claims the book');
+  assert(!/regresses/.test(manual), 'manual Save is not the regression backstop');
+}
+assert(/G\._ownsBook=1/.test((html.match(/function loadSavedGame\(\)\{[\s\S]*?\n\}/) || [])[0] || ''), 'Continue owns the book');
+assert(/fn:\(\)=>startChapter\(n\)/.test(html), 'a title chapter starts play without a save write');
+assert(/requestIdleCallback\(runAutosaveTick, \{timeout:1500\}\)/.test(html) && /setTimeout\(runAutosaveTick, 32\)/.test(html), 'the 90s tick runs on an idle frame, with a timeout fallback');
+assert(/if\(!G\._ownsBook\) return/.test((html.match(/function tickAutosave\(\)\{[\s\S]*?\n\}/) || [])[0] || ''), 'the tick does not schedule unless the run owns the book');
+{
+  const ch4 = { unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 } };
+  assert(A.regresses(ch4, { unlocked: 1, cleared: {} }) === true, 'chapter I over a chapter IV book is a regression');
+  assert(A.regresses(ch4, { unlocked: 4, cleared: { 1: 1, 3: 1 } }) === true, 'dropping a cleared chapter is a regression');
+  assert(A.regresses(ch4, { unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 } }) === false, 'the same book is not a regression');
+  assert(A.regresses(ch4, { unlocked: 5, cleared: { 1: 1, 2: 1, 3: 1, 4: 1 } }) === false, 'opening a later chapter is not a regression');
+  assert(A.regresses({ unlocked: 1, cleared: { 1: 0 } }, { unlocked: 1, cleared: {} }) === false, 'a falsy cleared mark is not progress');
+  assert(A.regresses(null, { unlocked: 1, cleared: {} }) === false, 'an empty slot cannot regress');
+}
 assert(/visibilitychange/.test(html) && /pagehide/.test(html) && /autosaveNow\('hide'\)/.test(html), 'hide and unload flush a quiet save');
 assert(/function openChapters\(/.test(html) && /autosaveNow\('hide'\)/.test((html.match(/function openChapters\(\)\{[\s\S]*?\n\}/) || [])[0] || ''), 'leaving for the chapter list flushes first');
 assert(/function openCredits\(/.test(html) && /autosaveNow\('hide'\)/.test((html.match(/function openCredits\([\s\S]*?\n\}/) || [])[0] || ''), 'leaving for credits flushes first');
