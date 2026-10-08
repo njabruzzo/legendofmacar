@@ -14405,9 +14405,9 @@ function layoutUI(){
   placeAnimateButton();
 }
 /* Crown on or off must not move the plates above. Animate is measured
-   after they exist: a 44px step above Defend on touch (climbing only
-   when a lifted field row already owns that step), or an end slot past
-   the last desktop plate. Same-row when the right reserve can hold it. */
+   after they exist: a 44px plate above the touch context band (the
+   Look / Take plate sits on Defend's column), or an end slot past the
+   last desktop plate. Same-row when the right reserve can hold it. */
 function placeAnimateButton(){
   if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return;
   const skill=HUDSKILLS.find(b=>b.key==='animate');
@@ -14447,13 +14447,28 @@ function placeAnimateButton(){
   if(hudMobile()){
     const defend=UIBTN.find(b=>b.key==='wall');
     if(!defend) return;
-    const TAP=HUD_TAP, gap=PORT?6:5, step=TAP+gap;
+    const TAP=HUD_TAP, gap=8, step=TAP+gap;
+    /* The context plate (Look / Take) is drawn just above the combat
+       cluster, right-aligned, and it is not a UIBTN. A long label can
+       span nearly the width, so that whole band is reserved. */
+    const s=UIS||1;
+    const promptH=Math.max(PORT?44:40, (PORT?48:44)*s);
+    const lift=PORT?Math.max(56,56*s):Math.max(16,16*s);
+    const clusterTop=UI.cluster?UI.cluster.top:(defend.y-TAP/2);
+    const promptY=Math.max(72*s, clusterTop-promptH-lift);
+    const promptBand={x:0, y:promptY, w:VW, h:promptH};
+    const blocked=(c)=>{
+      if(plateBlocked(c)) return true;
+      const B=btnBox(c);
+      return zoneGap(B, promptBand)<8;
+    };
+    const y0=promptY-gap-TAP/2;
     for(let col=0; col<4; col++){
       const x=defend.x-col*step;
       for(let row=0; row<8; row++){
-        const y=defend.y-step*(row+1);
+        const y=y0-row*step;
         const c={x:x, y:y, r:TAP/2};
-        if(plateBlocked(c)) continue;
+        if(blocked(c)) continue;
         UIBTN.push({x:x, y:y, r:TAP/2, key:'animate', ico:skill.ico, label:skill.label,
           slot:1, nolabel:1, disabled:disabled});
         return;

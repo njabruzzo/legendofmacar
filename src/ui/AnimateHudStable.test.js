@@ -97,6 +97,21 @@ CASES.forEach(([name, spec])=>{
     if(g<worst){ worst=g; pair=act[i].key+'/'+act[j].key; }
   }
   assert(worst>=2.9, name+' no overlaps after the crown ('+pair+' '+worst.toFixed(1)+'px)');
+  if(spec.touch && anim){
+    /* Mirrors drawPromptBtn: the Look / Take plate is not a UIBTN. */
+    const s=Math.max(0.66, Math.min(1.30, Math.min(spec.vw, spec.vh)/(spec.vh>spec.vw?430:700)));
+    const port=spec.vh>spec.vw;
+    const promptH=Math.max(port?44:40, (port?48:44)*s);
+    const lift=port?Math.max(56,56*s):Math.max(16,16*s);
+    const clusterTop=after.UI.cluster.top;
+    const promptY=Math.max(72*s, clusterTop-promptH-lift);
+    const prompt={x:0, y:promptY, w:spec.vw, h:promptH};
+    const B=H.box(anim);
+    const dx=Math.max(prompt.x-(B.x+B.w), B.x-(prompt.x+prompt.w), 0);
+    const dy=Math.max(prompt.y-(B.y+B.h), B.y-(prompt.y+prompt.h), 0);
+    const pg=(dx===0&&dy===0)?-1:Math.hypot(dx,dy);
+    assert(pg>=8, name+' Animate clears the Look/Take plate ('+pg.toFixed(1)+'px)');
+  }
   const missed=[];
   after.btns.forEach(b=>{
     interiorPoints(b).forEach(p=>{
