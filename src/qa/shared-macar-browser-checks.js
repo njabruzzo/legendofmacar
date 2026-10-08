@@ -1,4 +1,5 @@
 (async function(){
+ if(new URLSearchParams(location.search).has('floorItems')){await import('/src/qa/floor-items-browser-checks.js');return;}
  if(new URLSearchParams(location.search).has('magicInventory')){await import('/src/qa/magic-inventory-browser-checks.js');return;}
  const result={suite:'Shared Macar movement',checks:0,failures:[],states:[]},check=(v,m)=>{result.checks++;if(!v)result.failures.push(m);};
  const report=document.createElement('pre');document.body.append(report);report.textContent='Loading shared Macar walking…';document.getElementById('c').style.display='none';document.body.style='overflow:auto;background:#222;color:white;height:auto';

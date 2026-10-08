@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert'),P=require('./FloorItemPlacement');
+const L={grid:Array.from({length:12},()=>Array(18).fill(1)),spawn:{x:3.5,y:3.5}};
+for(let y=2;y<10;y++)for(let x=2;x<8;x++)L.grid[y][x]=0;
+for(let y=2;y<10;y++)for(let x=10;x<16;x++)L.grid[y][x]=0;
+assert(!P.clear(L,2.2,3.5,.9),'wall margin rejects overlapping art');
+assert(!P.clear(L,1.5,3.5,.38),'wall rejects item center');
+assert(!P.clear(L,-2,3,.38),'outside map rejected');
+const p=P.spot(L,8.5,3.5,.9);assert(p.x<8&&P.clear(L,p.x,p.y,.9),'embedded item goes to entrance floor, not sealed room');
+const secret=P.spot(L,10.2,3.5,.9);assert(secret.x>10,'valid secret-room items stay in their own component');
+assert.deepEqual(P.spot(L,4.25,4.25,.7),{x:4.25,y:4.25},'good drop position preserved');
+const blocked=(x,y)=>x===4&&y===4;assert(!P.clear(L,4.5,4.5,.38,blocked),'door void excluded');
+const narrow={spawn:{x:2.5,y:2.5},grid:Array.from({length:6},()=>Array(6).fill(1))};
+for(let y=1;y<5;y++)narrow.grid[y][2]=0;
+assert.equal(P.spot(narrow,2.2,2.5,.9),null,'no decorative herbs in narrow wall channel');
+assert(P.spot(narrow,2.2,2.5,.38),'loot retains accessible narrow-corridor pickup');
+console.log('Floor item wall clearance, connected placement, void and narrow passage checks passed');
