@@ -37,7 +37,9 @@
 <script src="src/audio/CombatSfx.js?v=131"></script>
 <script src="src/crafting/CraftingEngine.js"></script>
 <script src="src/packs/BorrowKit.js"></script>
-<script src="src/packs/EquipmentSlots.js"></script>
+<script src="src/packs/EquipmentSlots.js?v=2"></script>
+<script src="src/packs/InventoryCategories.js?v=1"></script>
+<script src="src/packs/MagicItemAvailability.js?v=1"></script>
 <script src="src/props/DwarfMouth.js"></script>
 <script src="src/props/CraftStation.js"></script>
 <script src="src/packs/GhostKit.js"></script>
@@ -6257,6 +6259,7 @@ function advanceDungeonTurns(turns, mode){
     :(rules.everyTurns||rules.checkEveryTurns||3);
   const bank=rest?'restTurns':noisy?'noisyTurns':'dungeonTurns';
   G[bank]=(G[bank]||0)+turns;
+  if(typeof applyWornTurnEffects==='function')applyWornTurnEffects(turns);
   const logs=[];
   let guard=0;
   while(G[bank]+1e-9>=every && guard<24){
@@ -8462,7 +8465,7 @@ function packDropClone(o){
 /* Row titles read "Rations  ×7"; one dropped is just "Rations". */
 function packDropTitle(r){ return String((r&&r.t)||'').replace(/\s*\u00d7\s*\d+\s*$/,'').trim(); }
 function packDropRecord(r, taken){
-  const d={kind:r.kind, n:1};
+  const d={kind:r.kind, n:1,list:r.list};
   if(r.kind==='supply'||r.kind==='burp'){ d.field=(taken&&taken.field)||r.field||'burps'; d.name=packDropTitle(r)||r.tag||d.field; }
   else if(r.kind==='kit'){ d.field='bombKit'; d.name='Bomb-making kit'; }
   else if(r.kind==='herb'){ d.herb=r.n; d.name=r.n; }
@@ -8485,7 +8488,7 @@ function restorePackDrop(d){
       else if(d.obj){ pk.healPots=pk.healPots||[]; pk.healPots.push(d.obj); }
       break;
     case 'potion':
-      pk.potions=pk.potions||[]; if(d.obj) pk.potions.push(d.obj); break;
+      {const list=d.list==='healPots'?'healPots':'potions';pk[list]=pk[list]||[];if(d.obj)pk[list].push(d.obj);}break;
     case 'gem':
       pk.gems=pk.gems||[]; if(d.obj) pk.gems.push(d.obj); break;
     case 'note':
@@ -8541,7 +8544,7 @@ function removePackRow(r){
     }
     return it;
   }
-  if(r.kind==='potion') return (bag.potions||[]).splice(r.i,1)[0]||null;
+  if(r.kind==='potion') return (bag[r.list==='healPots'?'healPots':'potions']||[]).splice(r.i,1)[0]||null;
   if(r.kind==='herb'&&bag.herbs&&bag.herbs[r.n]){
     bag.herbs[r.n]--; if(bag.herbs[r.n]<=0) delete bag.herbs[r.n];
     return {n:r.n,k:'herb'};
@@ -11157,6 +11160,7 @@ const DMG_MISC_E=[
   {a:99,b:100,n:'Stone of Controlling Earth Elementals',k:'misc',d:'Call an earth elemental from rough ground. 1/day.'}
 ];
 
+InventoryCategories.register([DMG_SCROLL,DMG_RING,DMG_WAND,DMG_ARMOR,DMG_SWORD,DMG_WEAP,DMG_MISC_A,DMG_MISC_B,DMG_MISC_C,DMG_MISC_D,DMG_MISC_E]);
 function rollDmgScroll(){ const r=pickRange(DMG_SCROLL); return magItem({cat:'Scroll',n:r.n,d:r.d,k:r.k,cursed:r.cursed}); }
 function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed,charges:r.charges}); }
 function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
@@ -11203,7 +11207,8 @@ function rollMagicItem(kind){
   const cat=magicCategory(kind);
   if(cat==='potion'){
     /* RAW 1e DMG Table III.A — not the UA d10,000 list. */
-    const p=rollPotion();
+    const rolled=rollPotion(),pool=DMG_POTIONS.filter(MagicItemAvailability.potionAvailable);
+    const p=MagicItemAvailability.potionAvailable(rolled)?rolled:pool[ri(0,pool.length-1)];
     return {kind:'potion', potion:p, n:p.n, d:p.d, cat:'Potion'};
   }
   let it;
@@ -11214,6 +11219,12 @@ function rollMagicItem(kind){
   else if(cat==='armor') it=rollDmgArmor();
   else if(cat==='sword') it=rollDmgSword();
   else it=rollDmgWeapon();
+  if(!MagicItemAvailability.available(it)){
+    const tables={scroll:DMG_SCROLL,ring:DMG_RING,wand:DMG_WAND,misc:[...DMG_MISC_A,...DMG_MISC_B,...DMG_MISC_C,...DMG_MISC_D,...DMG_MISC_E],armor:DMG_ARMOR,sword:DMG_SWORD,weapon:DMG_WEAP};
+    const row=MagicItemAvailability.select(tables[cat]||DMG_WEAP,(d100()-1)/100);
+    if(!row)return null;
+    it=magItem({...row,cat:it.cat});
+  }
   return {kind:'magic', item:it, n:it.n, d:it.d, cat:it.cat};
 }
 function extraMagicForKind(kind){
@@ -11254,6 +11265,19 @@ function applyEquipped(){
     }
     if(typeof applyHoverFlags==='function') applyHoverFlags(macE);
   }
+}
+function applyWornTurnEffects(turns){
+  const e=player(),it=e&&wornNecklaceItem(e);
+  if(e&&!e.dead&&it&&/ring of regeneration/i.test(it.n||''))e.hp=Math.min(e.maxhp,e.hp+turns);
+}
+function hasActivatedMagicPower(it){
+  return !!it&&(it.k==='wand'||it.cat==='Rod/Staff/Wand'||it.k==='sense'||/ring of invisibility/i.test(it.n||''));
+}
+function activatePackMagicPower(){
+  const it=packSelItem();if(!it||!hasActivatedMagicPower(it))return false;
+  if(G.packFrom!=='play'){say('Use this power during a descent.','#c9b895');return false;}
+  if(EquipmentSlots.isEquippable(it)&&!wornSlotOf(it)){say('Equip '+it.n+' before using its power.','#c9b895');return false;}
+  useMagicItem(it,packUser(),true);syncPackTotals();G.scene='play';return true;
 }
 function cancelOneMagicItem(e){
   const t=typeof nearestFoe==='function'?nearestFoe(e,2):null;
@@ -11469,7 +11493,7 @@ function useScrollByName(it, e){
   else say('The script flares and finds no foe.','#c9b895');
   return 'cast';
 }
-function useMagicItem(it, e){
+function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
   say(it.n+': '+it.d, '#ffd27a');
@@ -11483,20 +11507,22 @@ function useMagicItem(it, e){
     if(e){ e.stun=Math.max(e.stun||0,2.2); damage(e, ADD_SCALE*4, '#ff6a5a'); }
     return;
   }
-  if(isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon'){
+  if(!activate && (isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon')){
     wieldWeapon(it); return;
   }
-  if(!(it.k==='wand'||it.cat==='Rod/Staff/Wand') && (isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield' || (typeof EquipmentSlots!=='undefined' && EquipmentSlots.isEquippable(it)))){
+  if(!activate && !(it.k==='wand'||it.cat==='Rod/Staff/Wand') && (isEquipArmor(it) || it.k==='armor'||it.cat==='Armor/Shield' || (typeof EquipmentSlots!=='undefined' && EquipmentSlots.isEquippable(it)))){
     const slot=equipPackItem(it, {silent:true});
     say((slot==='primary'||slot==='secondary'?'Wielded: ':'Donned: ')+it.n+'.','#cfe3ff'); return;
   }
-  if(it.k==='ring'||it.k==='dex'||it.cat==='Ring'){
+  if(!activate && (it.k==='ring'||it.k==='dex'||it.cat==='Ring')){
     equipPackItem(it, {silent:true});
     G.equipped.ring=it;
     applyEquipped();
-    if(it.k==='regen'&&e) e.potionRegen=Math.max(e.potionRegen||0, 999);
-    if(it.k==='invis'&&e){ e.invis=30; e.aggro=2; }
     say('Worn: '+it.n+'.','#e0d2ff'); return;
+  }
+  if(activate && /ring of invisibility/i.test(it.n||'')){
+    if(e){e.invis=e.invis>0?0:1e9;e.aggro=2;}
+    return;
   }
   if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
     G.equipped.wand=it;
@@ -11572,7 +11598,7 @@ function useMagicItem(it, e){
     return;
   }
   if(it.k==='sense'){ if(e) e.trueSee=40; return; }
-  if(e){ e.buff=Math.max(e.buff||0, 10); applyHeal(e, 6); }
+  say('This item’s special effect is not implemented yet. It stays in your pack.','#c9b895');
 }
 
 
@@ -11686,6 +11712,7 @@ function convertHoard(coins, gems, jew, magN, magKind, where, quiet){
   for(let i=0;i<rolls;i++){
     const kind=i<magN?(magKind||'any'):extras[i-magN];
     const got=rollMagicItem(kind);
+    if(!got)continue;
     if(got.kind==='potion'){ givePotion(got.potion,1); notes.push('Potion: '+got.n); magGp+=got.potion.gp||got.potion.xp||0; }
     else { giveMagic(got.item,1); notes.push(got.cat+': '+got.n); magGp+=got.item.gp||got.item.xp||0; }
   }
@@ -18554,6 +18581,7 @@ function hoardToPile(hoard){
   for(let i=0;i<rolls;i++){
     const kind=i<magN?(hoard.magKind||'any'):extras[i-magN];
     const got=rollMagicItem(kind);
+    if(!got)continue;
     if(got.kind==='potion') potions.push(got.potion);
     else items.push(got.item);
   }
@@ -21389,13 +21417,13 @@ function collectPackRows(pk, who){
   const ghost=isGhostPack(who);
   const npc=who&&who!=='macar'&&!ghost;
   const lend=ghost?'Tap to use, or take into MACAR\'s pack. ':(npc?'Tap to share with MACAR. Returns after camp. ':'');
-  const flaskN=(pk.ales||0)+((pk.healPots||[]).length);
+  const flaskN=pk.ales||0;
   if(flaskN){
-    const names=(pk.healPots||[]).map(p=>p.n).slice(0,3);
     rows.push({kind:'ale', t:'Draughts of beer  \u00d7'+flaskN,
-      info:lend+(names.length?('Flask: '+names.join(', ')+((pk.healPots||[]).length>3?'\u2026':'')):'Each draught heals d10. Tap Heal, or tap here to drink.'),
+      info:lend+'Each draught heals d10. Tap here to drink.',
       tag:'Beer'});
   }
+  (pk.healPots||[]).forEach((p,i)=>rows.push({kind:'potion',list:'healPots',p,i,t:p.n,info:lend+(p.d||''),tag:'Potion'}));
   if(pk.bombs){
     rows.push({kind:'supply', field:'bombs', t:'Bombs  \u00d7'+pk.bombs,
       info:lend+'10d10 throwables.', tag:'Bomb'});
@@ -21428,8 +21456,9 @@ function collectPackRows(pk, who){
     const canEq=isPackEquipable({kind:'magic',it});
     const slot=typeof EquipmentSlots!=='undefined'&&EquipmentSlots.itemSlot?EquipmentSlots.itemSlot(it):'';
     const from=it._borrowOwner?('Borrowed from '+kinName(it._borrowOwner)+'. Returns at camp. '):'';
+    const unfinished=InventoryCategories.isMagic(it)&&!MagicItemAvailability.available(it);
     rows.push({kind:'magic',it,i,t:it.n, worn, slot,
-      info:from+lend+(canEq?(worn?'Equipped. Tap a slot to stow it. ':'Tap to don or wield. ')+(it.d||''):(it.d||'')),
+      info:from+lend+(unfinished?'Special effect unfinished; retained from your save. ':'')+(canEq?(worn?'Equipped. Tap a slot to stow it. ':'Tap to don or wield. ')+(it.d||''):(it.d||'')),
       tag:it.cat||(slot?slot:'Magic')});
   });
   (pk.potions||[]).forEach((p,i)=>{
@@ -21509,17 +21538,12 @@ function sharePackRow(r){
     if(!shareCountWithMacar(from, 'bombKit', 1)) return;
     label='bomb-making kit';
   } else if(r.kind==='ale'){
-    const pk=packOf(from);
-    if(pk.healPots&&pk.healPots.length){
-      const p=shareItemWithMacar(from, 'healPots', 0);
-      if(!p) return;
-      label=p.n||'healing draught';
-    } else if(!shareCountWithMacar(from, 'ales', 1)) return;
+    if(!shareCountWithMacar(from, 'ales', 1)) return;
     else label='draught of beer';
   } else if(r.kind==='magic'){
     if(!shareItemWithMacar(from, 'magic', r.i, r.it)) return;
   } else if(r.kind==='potion'){
-    if(!shareItemWithMacar(from, 'potions', r.i, r.p)) return;
+    if(!shareItemWithMacar(from, r.list==='healPots'?'healPots':'potions', r.i, r.p)) return;
   } else if(r.kind==='gem'){
     if(!shareItemWithMacar(from, 'gems', r.i, r.gm)) return;
   } else if(r.kind==='herb'){
@@ -21594,10 +21618,10 @@ function usePackRow(r){
       useMagicItem(it, who);
     }
   } else if(r.kind==='ale'){
-    if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('ale'); G.packPrefer=null; }
+    if(inField&&(bag.ales||0)>0){bag.ales--;applyHeal(who,ri(1,10));G.scene='play';}
     else say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
   } else if(r.kind==='potion'){
-    const pot=bag.potions.splice(r.i,1)[0];
+    const pot=(bag[r.list==='healPots'?'healPots':'potions']||[]).splice(r.i,1)[0];
     if(!pot) return;
     if(inField) drinkPotion(pot, who);
     else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
@@ -22037,9 +22061,14 @@ function drawPack(g){
 
   const split=!PORT && VW>=640;
   const cmpOn=typeof useEquipCompare==='function' && useEquipCompare() && G.packSel && isPackEquipable({kind:'magic',it:G.packSel});
+  const powerOn=G.packSel&&hasActivatedMagicPower(packSelItem());
+  const powerH=powerOn?28*s:0;
   const cmpH=cmpOn?(PORT?128*s:118*s):0;
   if(cmpOn) drawPackCompare(g, 10*s, kitY+kitH+6*s, VW-20*s, cmpH);
-  const dollTop=kitY+kitH+6*s+(cmpH?cmpH+6*s:0);
+  if(powerOn){const x=10*s,y=kitY+kitH+6*s+(cmpH?cmpH+6*s:0),w=VW-20*s;
+    plate(g,x,y,w,powerH,4,.8);g.fillStyle='#ffd27a';g.font='800 '+10*s+'px '+FONT_UI;g.fillText('Use magic power',x+12*s,y+18*s);
+    menuHits.push({x,y,w,h:powerH,fn:activatePackMagicPower});}
+  const dollTop=kitY+kitH+6*s+(cmpH?cmpH+6*s:0)+powerH;
   const dollBot=VH-52*s;
   const dollAvail=Math.max(120*s, dollBot-dollTop);
   const packDollH=PORT
@@ -22058,33 +22087,28 @@ function drawPack(g){
   }
   const dollHUsed=split?(dollBot-dollTop):packDollH;
 
-  const CATS=[{k:'all',n:'All'},{k:'gear',n:'Gear'},{k:'magic',n:'Magic'},{k:'potion',n:'Brews'},{k:'gem',n:'Gems'},{k:'herb',n:'Herbs'}];
+  const CATS=[{k:'all',n:'All'},{k:'gear',n:'Gear'},{k:'magic',n:'Magic'},{k:'potion',n:'Brews'},{k:'gem',n:'Gems'},{k:'herb',n:'Herbs'},{k:'supplies',n:'Supplies'},{k:'materials',n:'Materials'},{k:'quest',n:'Quest'},{k:'note',n:'Notes'}];
   const catY=split?dollTop:(dollTop+dollHUsed+6*s);
-  const catH=PORT?22*s:26*s, catW=listWidth/CATS.length;
+  const catCols=PORT?5:CATS.length,catH=PORT?22*s:26*s,catW=listWidth/catCols;
   CATS.forEach((c,i)=>{
-    const x=listX+i*catW+2*s, w=catW-4*s, on=G.packTab===c.k;
-    drawChip(g,x,catY,w,catH,c.n,on,'#ffe9c0');
-    menuHits.push({x,y:catY,w,h:catH,fn:()=>{ G.packTab=c.k; G.packScroll=0; G.packSlotFilter=null; }});
+    const x=listX+(i%catCols)*catW+2*s,y=catY+Math.floor(i/catCols)*catH,w=catW-4*s,on=G.packTab===c.k;
+    drawChip(g,x,y,w,catH,c.n,on,'#ffe9c0');
+    menuHits.push({x,y,w,h:catH,fn:()=>{ G.packTab=c.k; G.packScroll=0; G.packSlotFilter=null; }});
   });
 
   let rows=collectPackRows(pk, G.packWho);
   if(G.packTab==='gear' || G.packSlotFilter){
     rows=rows.filter(r=>{
-      /* Quest fangs stay on the default Gear list. A slot filter still means armor. */
-      const quest=r.it && (r.it.quest || r.it.grondTooth || r.it.cat==='Quest');
-      if(quest && !G.packSlotFilter) return true;
-      if(r.kind==='res' && !G.packSlotFilter) return true;
       if(!isPackEquipable(r)) return false;
       if(G.packSlotFilter && r.slot && r.slot!==G.packSlotFilter) return false;
       return true;
     });
   } else if(G.packTab!=='all'){
     rows=rows.filter(r=>{
-      if(G.packTab==='potion') return r.kind==='potion'||r.kind==='ale';
-      return r.kind===G.packTab;
+      return InventoryCategories.matches(r,G.packTab);
     });
   }
-  const listTop=catY+catH+8*s, listBot=VH-52*s, listH=listBot-listTop;
+  const listTop=catY+catH*Math.ceil(CATS.length/catCols)+8*s, listBot=VH-52*s, listH=listBot-listTop;
   const rowH=Math.min(PORT?76*s:82*s, Math.max(66*s, listH/Math.max(1,Math.min(rows.length||1, PORT?4:5))));
   const vis=Math.max(1, Math.floor(listH/rowH));
   const maxScroll=Math.max(0, rows.length-vis);

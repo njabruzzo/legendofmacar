@@ -66,10 +66,10 @@ assert(Eq.itemSlot({n:'Cloak of Elvenkind', k:'misc'}) === 'necklace',
   'Cloak of Elvenkind → necklace (same family as Displacement)');
 assert(Eq.isEquippable({n:'Cloak of Elvenkind', k:'misc'}),
   'Cloak of Elvenkind is wearable');
-assert(Eq.itemSlot({n:'Cloak of Manta Ray', k:'misc'}) == null,
-  'Cloak of Manta Ray is not a jewelry slot');
-assert(Eq.itemSlot({n:'Cloak of Poisonousness', k:'cursed', cursed:1}) == null,
-  'Cloak of Poisonousness is not a jewelry slot');
+assert(Eq.itemSlot({n:'Cloak of Manta Ray', k:'misc'}) === 'chest',
+  'Cloak of Manta Ray can be worn');
+assert(Eq.itemSlot({n:'Cloak of Poisonousness', k:'cursed', cursed:1}) === 'chest',
+  'Cloak of Poisonousness can be worn and binds its slot');
 assert(Eq.itemSlot({n:'Ring of Dexterity +1', k:'dex', cat:'Ring', dexPlus:1}) === 'necklace',
   'dex ring → jewelry slot');
 assert(Eq.itemSlot({n:'Ring of Fire Resistance', k:'resist'}) === 'necklace',
@@ -88,9 +88,9 @@ assert(Eq.itemSlot({n:'Robe of the Archmagi', k:'misc', plus:5}) === 'chest',
   'Robe of the Archmagi → chest');
 assert(Eq.isEquippable({n:'Robe of the Archmagi', k:'misc', plus:5}),
   'Robe of the Archmagi is wearable');
-assert(Eq.itemSlot({n:'Robe of Eyes', k:'misc'}) == null, 'Robe of Eyes is not a chest slot this slice');
-assert(Eq.itemSlot({n:'Robe of Blending', k:'misc'}) == null, 'Robe of Blending is not a chest slot this slice');
-assert(Eq.itemSlot({n:'Robe of Useful Items', k:'misc'}) == null, 'Robe of Useful Items is not a chest slot this slice');
+assert(Eq.itemSlot({n:'Robe of Eyes', k:'misc'}) === 'chest', 'Robe of Eyes is wearable');
+assert(Eq.itemSlot({n:'Robe of Blending', k:'misc'}) === 'chest', 'Robe of Blending is wearable');
+assert(Eq.itemSlot({n:'Robe of Useful Items', k:'misc'}) === 'chest', 'Robe of Useful Items is wearable');
 assert(Eq.itemSlot({n:'Staff of Power', k:'wand', plus:2}) === 'primary', 'Staff of Power → primary (wieldable +2)');
 assert(Eq.itemSlot({n:'Hammer +3, Dwarven Thrower', k:'weapon', plus:3}) === 'primary', 'dwarven thrower → primary');
 assert(Eq.itemSlot({n:'Ring of Free Action', k:'buff'}) === 'necklace', 'Free Action → necklace');

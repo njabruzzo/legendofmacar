@@ -158,7 +158,7 @@ assert(/extra room|fraction|capacity/i.test(ctx.lastSay), 'Bag of Holding says t
 ctx.healed=0; ctx.donned=null; who.buff=0;
 const jug={n:'Alchemy Jug', k:'misc'};
 ctx.useMagicItem(jug, who);
-assert(ctx.donned==null && ctx.healed===6 && who.buff>=10, 'other unequippable misc still buff+heal 6');
+assert(ctx.donned==null && ctx.healed===0 && who.buff===0, 'unfinished misc does not grant unrelated healing or a generic buff');
 
 ctx.healed=0; ctx.dmg=0; ctx.donned=null; ctx.donSlot=null; who.buff=0;
 const ogre={n:'Gauntlets of Ogre Power', k:'misc', d:'Strength 18/00.'};
