@@ -14494,6 +14494,29 @@ function placeAnimateButton(){
         return;
       }
     }
+    /* Every column above the Look plate was blocked. Keep scanning the
+       safe field so a crowned player still gets a plate. */
+    const insetM=UI.inset||{t:0,r:0,b:0,l:0};
+    const minX=(insetM.l||0)+TAP/2, maxX=VW-(insetM.r||0)-TAP/2;
+    const minY=(insetM.t||0)+TAP/2, maxY=VH-(insetM.b||0)-TAP/2;
+    const stride=Math.max(8, TAP/2);
+    function pushTap(x,y){
+      UIBTN.push({x:x, y:y, r:TAP/2, key:'animate', ico:skill.ico, label:skill.label,
+        slot:1, nolabel:1, disabled:disabled});
+    }
+    for(let y=minY; y<=maxY+0.5; y+=stride){
+      for(let x=maxX; x>=minX-0.5; x-=stride){
+        if(blocked({x:x, y:y, r:TAP/2})) continue;
+        pushTap(x,y); return;
+      }
+    }
+    for(let y=minY; y<=maxY+0.5; y+=stride){
+      for(let x=minX; x<=maxX+0.5; x+=stride){
+        if(plateBlocked({x:x, y:y, r:TAP/2})) continue;
+        pushTap(x,y); return;
+      }
+    }
+    pushTap(Math.max(minX, Math.min(maxX, defend.x)), Math.max(minY, Math.min(maxY, y0)));
     return;
   }
   const plates=UIBTN.filter(b=>!b.chip && b.key!=='pause');
@@ -14528,6 +14551,54 @@ function placeAnimateButton(){
       slot:1, disabled:disabled});
     return;
   }
+  /* Narrow landscape: the end slot fails rightLimit, and above-Craft is
+     off-screen because Craft itself overflows. Clamp that spot, then
+     sit above Attack or Defend. A scan is the last resort so Animate
+     always lands on screen and clear of the other plates. */
+  const inset=UI.inset||{t:0,r:0,b:0,l:0};
+  const minX=(inset.l||0)+slot/2;
+  const maxX=VW-(inset.r||0)-slot/2;
+  const minY=(inset.t||0)+slot/2;
+  const maxY=VH-(inset.b||0)-slot/2;
+  function placeDesk(x,y){
+    UIBTN.push({x:x, y:y, r:slot/2, key:'animate', ico:skill.ico, label:skill.label,
+      slot:1, disabled:disabled});
+  }
+  function fits(x,y){
+    if(x<minX-0.5 || x>maxX+0.5 || y<minY-0.5 || y>maxY+0.5) return false;
+    return !plateBlocked({x:x, y:y, r:slot/2});
+  }
+  const clampedX=Math.max(minX, Math.min(maxX, VW-padR-slot/2));
+  const tryY=Math.max(minY, Math.min(maxY, aboveY));
+  if(fits(clampedX, tryY)){ placeDesk(clampedX, tryY); return; }
+  const named=['attack','wall'];
+  for(let n=0; n<named.length; n++){
+    const a=UIBTN.find(b=>b.key===named[n] && !b.chip);
+    if(!a) continue;
+    const topA=a.y-(a.h||slot)/2;
+    const yAbove=topA-7*s-labelPx-6-slot/2;
+    const x=Math.max(minX, Math.min(maxX, a.x));
+    if(fits(x, yAbove)){ placeDesk(x, yAbove); return; }
+    let yy=yAbove;
+    for(let step=0; step<6; step++){
+      yy-=slot+8;
+      if(fits(x, yy)){ placeDesk(x, yy); return; }
+    }
+  }
+  const stride=Math.max(8, slot*0.5);
+  for(let y=Math.min(maxY, aboveY); y>=minY-0.5; y-=stride){
+    for(let x=maxX; x>=minX-0.5; x-=stride){
+      if(!fits(x,y)) continue;
+      placeDesk(x,y); return;
+    }
+  }
+  for(let y=minY; y<=maxY+0.5; y+=stride){
+    for(let x=minX; x<=maxX+0.5; x+=stride){
+      if(!fits(x,y)) continue;
+      placeDesk(x,y); return;
+    }
+  }
+  placeDesk(clampedX, tryY);
 }
 /* Touch top-right corner: [pause] [minimap], and under the minimap a row
    of two tabs, LOG and QUEST. Everything the corner draws or hit-tests
@@ -14552,12 +14623,19 @@ function touchTabs(){
 /* Hit slop: the tabs draw 30px tall but take a 42px finger. */
 function padRect(r, p){ return r?{x:r.x-p, y:r.y-p, w:r.w+p*2, h:r.h+p*2}:null; }
 
+/* LOG, QUEST, and the large map draw over the field. Animate parks
+   above the bar and can sit under them. Hide that one plate until the
+   overlay closes; every other HUD rect stays where layout put it. */
+function animateSuppressed(){
+  return !!(G && (G.showLog || G.showObjs || G.miniBig));
+}
 /* Nearest button wins. Circles keep their 25% forgiveness ring; rect slabs
    and chips get a few px so neighbouring chips never steal each other's taps. */
 function btnAt(x,y){
   let best=null, bestD=Infinity;
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
+    if(b.key==='animate' && animateSuppressed()) continue;
     let d, tol;
     if(b.w){
       const bx=btnBox(b);
@@ -20378,6 +20456,7 @@ function drawButtons(g,s){
   });
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
+    if(b.key==='animate' && animateSuppressed()) continue;
     if(b.key==='pause'){ carveFrame(g,b.x-b.r,b.y-b.r,b.r*2,b.r*2,b.r*.4,.7);
       g.fillStyle='rgba(232,212,172,0.85)';
       g.fillRect(b.x-5*s,b.y-6*s,3.6*s,12*s); g.fillRect(b.x+1.6*s,b.y-6*s,3.6*s,12*s); continue; }

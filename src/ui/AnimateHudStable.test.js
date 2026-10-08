@@ -33,7 +33,20 @@ function layout(spec, crown){
   H.ctx.wearingBoneCrown=function(){ return !!crown; };
   H.ctx.G.animateDeadSpent=0;
   H.ctx.G.equipped=crown?{helmet:{n:'Bone Crown', boneCrown:1}}:{};
+  H.ctx.G.showLog=0;
+  H.ctx.G.showObjs=0;
+  H.ctx.G.miniBig=0;
   return H.layout(spec);
+}
+function onScreen(b, spec){
+  const B=boxOf(b);
+  const i=spec.inset||{t:0,r:0,b:0,l:0};
+  return B.x>=(i.l||0)-0.5 && B.y>=(i.t||0)-0.5
+    && B.x+B.w<=spec.vw-(i.r||0)+0.5
+    && B.y+B.h<=spec.vh-(i.b||0)+0.5;
+}
+function rectsOverlap(B, r){
+  return B.x<r.x+r.w && r.x<B.x+B.w && B.y<r.y+r.h && r.y<B.y+B.h;
 }
 /* A tap inside the plate, not only the center. Circles use 70% of the
    radius so the forgiveness ring of a neighbour cannot steal it. Rects
@@ -61,7 +74,10 @@ const CASES=[
   ['phone 375×667', {vw:375, vh:667, inset:{t:20,r:0,b:0,l:0}, touch:true, cards:5}],
   ['laptop 1366×768', {vw:1366, vh:768, touch:false, cards:5}],
   ['short 1288×449', {vw:1288, vh:449, touch:false, cards:5}],
-  ['mouse 844×390', {vw:844, vh:390, touch:false, cards:5}]
+  ['mouse 844×390', {vw:844, vh:390, touch:false, cards:5}],
+  ['desktop 616×385', {vw:616, vh:385, touch:false, cards:5}],
+  ['desktop 640×480', {vw:640, vh:480, touch:false, cards:5}],
+  ['desktop 600×375', {vw:600, vh:375, touch:false, cards:5}]
 ];
 
 const SHOW={
@@ -138,6 +154,91 @@ CASES.forEach(([name, spec])=>{
     });
   }
 });
+
+/* Desktop widths that used to drop Animate entirely, then every width
+   from 320 to 1920. The plate must exist, sit inside the window, and
+   stay clear of the other buttons. */
+[616, 640, 600].forEach(w=>{
+  const spec={vw:w, vh:w===640?480:(w===616?385:375), touch:false, cards:5};
+  const L=layout(spec, true);
+  const anim=L.find('animate');
+  assert(!!anim && onScreen(anim, spec), 'desktop '+spec.vw+'×'+spec.vh+' places Animate on screen');
+});
+
+const sweepMiss=[];
+for(let w=320; w<=1920; w++){
+  [375, 415, 480, 500].forEach(h=>{
+    const spec={vw:w, vh:h, touch:false, cards:5};
+    const L=layout(spec, true);
+    const anim=L.find('animate');
+    if(!anim){ sweepMiss.push(w+'×'+h+' missing'); return; }
+    if(!onScreen(anim, spec)) sweepMiss.push(w+'×'+h+' offscreen');
+    const others=L.btns.filter(b=>b.key!=='animate' && b.key!=='pause');
+    for(let i=0;i<others.length;i++){
+      if(H.gap(anim, others[i])<0){
+        sweepMiss.push(w+'×'+h+' overlaps '+others[i].key);
+        break;
+      }
+    }
+  });
+}
+assert(!sweepMiss.length, 'Animate is placed, on screen, and clear from 320 to 1920 wide'
+  +(sweepMiss.length?' ('+sweepMiss.slice(0,6).join('; ')+')':''));
+
+/* An open LOG or QUEST covers Animate at these sizes. Hide the plate
+   and ignore its hit; the other buttons keep the rects they just got. */
+function panelCases(){
+  return [
+    ['667×375', {vw:667, vh:375, touch:true, cards:5}, 160],
+    ['844×390 notch', {vw:844, vh:390, inset:{t:0,r:47,b:21,l:47}, touch:true, cards:5}, 160],
+    ['375×667', {vw:375, vh:667, inset:{t:20,r:0,b:0,l:0}, touch:true, cards:5}, 240],
+    ['320×568', {vw:320, vh:568, inset:{t:20,r:0,b:0,l:0}, touch:true, cards:5}, 150]
+  ];
+}
+panelCases().forEach(([name, spec, listH])=>{
+  const L=layout(spec, true);
+  const anim=L.find('animate');
+  const P=L.panel(listH);
+  assert(!!anim && rectsOverlap(boxOf(anim), P), name+' open panel covers Animate');
+  const before=L.btns.map(b=>({key:b.key, box:boxOf(b)}));
+  ['showLog','showObjs'].forEach(flag=>{
+    H.ctx.G.showLog=0; H.ctx.G.showObjs=0; H.ctx.G.miniBig=0;
+    H.ctx.G[flag]=1;
+    const hit=L.btnAt(anim.x, anim.y);
+    assert(!hit || hit.key!=='animate', name+' '+flag+' ignores the Animate tap');
+    const attack=L.btns.find(b=>b.key==='attack');
+    assert(L.btnAt(attack.x, attack.y)===attack, name+' '+flag+' still hits Attack');
+  });
+  H.ctx.G.showLog=0; H.ctx.G.showObjs=0;
+  assert(L.btnAt(anim.x, anim.y)===anim, name+' Animate hit returns when the panel closes');
+  const moved=before.filter(b=>{
+    const now=L.btns.find(x=>x.key===b.key);
+    return !now || !sameBox(b.box, boxOf(now));
+  });
+  assert(!moved.length, name+' panel open does not move HUD plates');
+});
+
+/* The large map covers Animate's portrait home. Skip the hit while it is open. */
+[['phone map 390×844', {vw:390, vh:844, touch:true, cards:5}],
+ ['phone map 375×667', {vw:375, vh:667, inset:{t:20,r:0,b:0,l:0}, touch:true, cards:5}]
+].forEach(([name, spec])=>{
+  const L=layout(spec, true);
+  const anim=L.find('animate');
+  const map=L.bigMap;
+  assert(!!anim && rectsOverlap(boxOf(anim), {x:map.x, y:map.y, w:map.sz, h:map.sz}),
+    name+' big map covers Animate');
+  H.ctx.G.miniBig=1;
+  const hit=L.btnAt(anim.x, anim.y);
+  assert(!hit || hit.key!=='animate', name+' big map ignores the Animate tap');
+  const attack=L.btns.find(b=>b.key==='attack');
+  assert(L.btnAt(attack.x, attack.y)===attack, name+' big map still hits Attack');
+  H.ctx.G.miniBig=0;
+  assert(L.btnAt(anim.x, anim.y)===anim, name+' Animate hit returns when the map closes');
+});
+
+const skipN=(H.html.match(/b\.key==='animate' && animateSuppressed\(\)/g)||[]).length;
+assert(/function animateSuppressed\(/.test(H.html) && skipN>=2,
+  'draw and hit both skip Animate while a panel or the big map is open');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nAnimate HUD stays put when the crown is worn');

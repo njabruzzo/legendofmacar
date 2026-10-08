@@ -30,7 +30,7 @@ const hudBlock=html.match(/const HUDSKILLS=\[[\s\S]*?\];/)[0].replace(/^const /,
 
 const FNS=['btnBox','btnGap','circleRectGap','hudMobile','partyPortraitFrame',
   'layoutSpecialtyCluster','miniRect','touchTabs','padRect','miniBigBox','touchPanelRect',
-  'placeAnimateButton','layoutUI','btnAt'];
+  'placeAnimateButton','layoutUI','animateSuppressed','btnAt'];
 
 const ctx={UIBTN:[], UI:{}, IS_TOUCH:true, PORT:false, VW:0, VH:0, UIS:1,
   G:{ents:[], hudMore:0, miniBig:0}, Math};
