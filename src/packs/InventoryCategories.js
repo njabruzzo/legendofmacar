@@ -5,7 +5,7 @@
  function isMagic(it){
   if(!it)return false;
   if(it.magic===false)return false;
-  return it.magic===true||!!it.boneCrown||!!it.cursed||!!it.dexPlus||!!it.plus||names.has(it.n)||['Ring','Scroll','Rod/Staff/Wand','Potion'].includes(it.cat);
+  return it.magic===true||!!it.boneCrown||it.grondTooth==='electrum'||!!it.cursed||!!it.dexPlus||!!it.plus||names.has(it.n)||['Ring','Scroll','Rod/Staff/Wand','Potion'].includes(it.cat);
  }
  function matches(row,tab){
   if(tab==='all')return true;

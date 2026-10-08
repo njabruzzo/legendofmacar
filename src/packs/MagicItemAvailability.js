@@ -12,7 +12,7 @@
  const potionKeys=new Set(['heal','extraheal','heal10','heal20','heal40','healall','poison','longevity','fireres']);
  function available(it){
   if(!it)return false;
-  if(names.has(it.n)||it.boneCrown||it.id==='shadow_cleaver')return true;
+  if(names.has(it.n)||it.boneCrown||it.grondTooth==='electrum'||it.id==='shadow_cleaver')return true;
   if(it.cursed)return false;
   if(/^(Chain Mail|Leather Armor|Plate Mail|Ring Mail|Scale Mail|Splint Mail|Studded Leather|Shield) \+[1-5]$/.test(it.n||''))return true;
   if(/^Shield, large, \+1, \+4 vs missiles$/.test(it.n||''))return true;

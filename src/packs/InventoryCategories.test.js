@@ -5,6 +5,8 @@ for(const item of Eq.startingItems())assert(!cat.matches({kind:'magic',it:item},
 for(const it of [{n:'Axe +1',plus:1},{n:'Cursed Armor',cursed:true},{n:'Bag of Holding'},{n:'Net of Snaring'},{n:'Bone Crown',boneCrown:1},{n:'Ring of Invisibility',cat:'Ring'}])assert(cat.matches({kind:'magic',it},'magic'));
 assert(!cat.matches({kind:'magic',it:{n:'Iron ore',cat:'Material'}},'magic'));
 assert(!cat.matches({kind:'ale'},'magic'));
+assert(cat.isMagic({grondTooth:'electrum',cat:'Quest'}),'coin-transmuting fang is magical');
+assert(!cat.isMagic({grondTooth:'bronze',cat:'Quest'}),'ordinary bronze quest fang is not magical');
 assert(cat.matches({kind:'potion'},'potion'));
 assert(cat.matches({kind:'res'},'materials'));
 assert(cat.matches({kind:'kit'},'supplies'));
