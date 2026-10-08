@@ -5243,6 +5243,10 @@ function tickChapterDescent(){
   if(dist(p,L.stair)<2.5)interact('Climb down to '+(L.n===2?'the ruins':L.n===3?'the dead city':'the temple'),useChapterDescent);
 }
 function bronzeDoorPlaneY(p){return p.y;}
+function nozDoorDialogueReady(L){
+  if(!L||L.n!==2||!L.flags.freed||!L.flags.home)return false;
+  return !(G.ents||[]).some(e=>e.name==='Noz'&&(e.tied||e.dead||e.team==='party'));
+}
 function isNozDoorVoid(L,x,y){
   return !!(L&&L.n===2&&x>=60&&x<66&&y>=7&&y<10);
 }
@@ -5619,7 +5623,7 @@ function makeChapter(n){
       if(L.flags.placed&&!L.flags.fought&&!G.ents.some(e=>e.nozCamp&&e.team==='foe'&&!e.dead)){
         L.flags.fought=1; L.objs[1].d=1;
         say('The band is broken. Noz still lies bound.','#ffe08a');
-        hint('Untie Noz, or go ring the bell at the bronze door.',5);
+        hint('Untie Noz at the goblin camp.',5);
       }
       const noz=G.ents.find(e=>e.name==='Noz'&&!e.dead);
       if(noz && noz.tied && L.flags.fought && !G.paused && dist(p,noz)<2.2){
@@ -5654,8 +5658,9 @@ function makeChapter(n){
         placeSpiderWebCorpses();
         L.flags.spiderLoot=1;
       }
-      if(dist(p,L.bell)<1.85 || dist(p,L.door)<2.15){
+      if(nozDoorDialogueReady(L)&&(dist(p,L.bell)<1.85 || dist(p,L.door)<2.15)){
         interact('Speak with Noz',()=>{
+          if(!nozDoorDialogueReady(L))return;
           if(!L.flags.traded){ L.flags.traded=1; L.objs[3].d=1; }
           startTalk(L.flags.bellSaid?'noz_trade_again':'noz_bell');
           L.flags.bellSaid=1;
@@ -7823,6 +7828,7 @@ function startTalkObj(pack){
 }
 function startTalk(key){
   if(isMonsterTalkKey(key)) return;
+  if((key==='noz_bell'||key==='noz_trade_again')&&!nozDoorDialogueReady(G.lvl))return;
   if((key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look') && G.lvl && G.lvl.n===1){
     const f=G.lvl.flags;
     if(f.elevReady) key='ch1_lift_ride';
