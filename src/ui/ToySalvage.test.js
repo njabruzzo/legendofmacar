@@ -9,7 +9,7 @@ const ctx={TAU:Math.PI*2,EID:1,PACK_DROP_HOLD_R:1.6,ZOOM:1,G:{lvl:{flags:{}},tal
  gain:(k,n)=>gained[k]=(gained[k]||0)+n,convertHoard(){},packGainNote(){},
  SPR:Object.fromEntries(['gear','spring','emerald'].map(k=>['loot_'+k,{width:96,kind:k}])),
  w2s:(x,y)=>({x,y}),softShadow(){},emit(){},drawBillboard:(g,img)=>{painted.push(img.kind);return true;}};
-vm.createContext(ctx);vm.runInContext(['explodeWindupToy','spawnLoot','nearestLoot','takeLoot','drawLoot'].map(fn).join('\n'),ctx);
+vm.createContext(ctx);vm.runInContext(['floorItemSpot','explodeWindupToy','spawnLoot','nearestLoot','takeLoot','drawLoot'].map(fn).join('\n'),ctx);
 const spawn=ctx.spawnLoot;ctx.spawnLoot=(...args)=>{events.push('drop');return spawn(...args);};
 const toy={x:4,y:5};assert(ctx.explodeWindupToy(toy));assert(!ctx.explodeWindupToy(toy));
 const drops=ctx.G.loot;assert.equal(drops.length,3);assert.equal(toy.gone,1);assert(ctx.G.lvl.flags.toyDestroyed);

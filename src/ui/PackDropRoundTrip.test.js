@@ -67,7 +67,7 @@ const holdDecl=html.match(/const PACK_DROP_HOLD_R=[\d.]+;/);
 assert(!!holdDecl, 'drop hold radius is a named constant');
 vm.runInContext(holdDecl?holdDecl[0]:'const PACK_DROP_HOLD_R=1.6;', ctx);
 vm.runInContext('var PACK_DROP_HOLD_R_OUT=PACK_DROP_HOLD_R;', ctx);
-['ensureLoot','lootLabel','spawnLoot','nearestLoot','takeLoot','packRowToPile','dropPackRow','removePackRow',
+['floorItemSpot','ensureLoot','lootLabel','spawnLoot','nearestLoot','takeLoot','packRowToPile','dropPackRow','removePackRow',
  'packDropClone','packDropTitle','packDropRecord','packDropName','restorePackDrop','nearestHeldDrop','dropElectrum']
   .forEach(n=>vm.runInContext(extractFn(n), ctx));
 

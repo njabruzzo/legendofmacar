@@ -77,6 +77,7 @@
 <script src="src/systems/Discovery.js"></script>
 <script src="src/systems/PartyOrders.js"></script>
 <script src="src/loot/LoreClues.js"></script>
+<script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script>
 "use strict";
@@ -6117,6 +6118,26 @@ function dressDungeon(L){
 function isPlantKind(k){
   return k==='shroom'||k==='glowcap'||k==='cavefern'||k==='sporepuff'||k==='nightbloom'||k==='lichen'||k==='moss';
 }
+function floorItemSpot(L,x,y,margin){
+  if(typeof FloorItemPlacement==='undefined'||!L||!L.grid)return {x,y};
+  return FloorItemPlacement.spot(L,x,y,margin,(i,j)=>isNozDoorVoid(L,i,j));
+}
+function tidyFloorItems(){
+  const L=G.lvl;if(!L||!L.grid)return;
+  G.props=(G.props||[]).filter(pr=>{
+    if(!pr||pr.gone||pr.wall||pr.backwall||pr.pin||pr.cover)return true;
+    const loose=isPlantKind(pr.k)||['crate','barrel','urn','bones','web','roots','timber','crystal','slime','hidepile'].includes(pr.k);
+    if(!loose)return true;
+    const spot=floorItemSpot(L,pr.x,pr.y,.9);
+    if(!spot)return false;
+    Object.assign(pr,spot);return true;
+  });
+  for(const loot of G.loot||[]){
+    if(loot.gone)continue;
+    const spot=floorItemSpot(L,loot.x,loot.y,.7)||floorItemSpot(L,loot.x,loot.y,.38);
+    if(spot)Object.assign(loot,spot);
+  }
+}
 function plantKindsFor(n){
   if(n===1) return ['lichen','glowcap','shroom','nightbloom'];
   if(n===2) return ['shroom','glowcap','cavefern','sporepuff','nightbloom','lichen','moss'];
@@ -6137,7 +6158,7 @@ function placePlantClusters(L){
     for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){
       if(L.grid[y+j]&&L.grid[y+j][x+i]===1) wall=1;
     }
-    if(wall) floors.push({x:x+0.5,y:y+0.5});
+    if(!wall) floors.push({x:x+0.5,y:y+0.5});
   }
   if(!floors.length) return;
   const nCl=L.n===2?5:L.n===3?5:L.n===1?3:3;
@@ -6168,6 +6189,7 @@ function placePlantClusters(L){
       const x=c.x+Math.cos(ang)*rad, y=c.y+Math.sin(ang)*rad*0.82;
       const ti=x|0, tj=y|0;
       if(!L.grid[tj]||(L.grid[tj][ti]!==0 && L.grid[tj][ti]!==3)) continue;
+      if(!FloorItemPlacement.clear(L,x,y,.9,(i,j)=>isNozDoorVoid(L,i,j)))continue;
       if(L.n===1 && nearCrush(x,y,1.1)) continue;
       const k=kinds[(h3(x*8,y*8,seed+i)*kinds.length)|0];
       G.props.push({x,y,k,s:0.72+h3(x,y,seed)*0.48, seed:((x*13+y*7+seed+i)|0), dress:1, plant:1});
@@ -6806,6 +6828,7 @@ function startChapter(n){
   if(typeof layoutUI==='function') layoutUI();
   ensureChapterDescents();
   ensureFloorTravelProps();
+  tidyFloorItems();
   if(n===5&&G.lvl.flags.done){G.cleared[5]=1;G.scene='win';}
   say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
   if(typeof tryEnterPlay==='function') tryEnterPlay();
@@ -7050,6 +7073,7 @@ function applyPlaySave(play){
   const p=player();
   if(p&&play.x!=null){ p.x=play.x; p.y=play.y; G.cam.x=p.x; G.cam.y=p.y; }
   if(typeof rebindSavedThrall==='function') rebindSavedThrall();
+  tidyFloorItems();
   try{ rebuildVision(); }catch(e){}
 }
 function savedSecretFor(L,play,sec){
@@ -18505,6 +18529,8 @@ function lootLabel(pile){
 }
 function spawnLoot(x,y, pile){
   ensureLoot();
+  const spot=floorItemSpot(G.lvl,x,y,.7)||floorItemSpot(G.lvl,x,y,.38);
+  if(spot){x=spot.x;y=spot.y;}
   pile=pile||{};
   const loot={
     id:EID++, x, y, r:0.38, gone:0,
