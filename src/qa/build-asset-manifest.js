@@ -1,14 +1,19 @@
 'use strict';
 /**
- * Write src/assets/asset-manifest.js from the files under assets/.
- * Run: node src/qa/build-asset-manifest.js
- * The test src/qa/AssetManifest.test.js fails if the committed list drifts.
+ * Write src/assets/asset-manifest.js from the files under assets/,
+ * and stamp a content hash onto that script's ?v= in index.html.
+ * after adding or removing files in assets/, run node src/qa/build-asset-manifest.js
+ * The test src/qa/AssetManifest.test.js fails if the committed list drifts
+ * or the page's ?v= does not match the hash of the manifest.
  */
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '../..');
 const out = path.join(root, 'src/assets/asset-manifest.js');
+const indexPath = path.join(root, 'index.html');
+const REBUILD = 'after adding or removing files in assets/, run node src/qa/build-asset-manifest.js';
 
 function walk(dir, acc) {
   for (const ent of fs.readdirSync(dir, {withFileTypes: true})) {
@@ -32,14 +37,29 @@ function build() {
     '};',
     ''
   ].join('\n');
-  return {files, body};
+  return {files, body, hash: manifestHash(body)};
+}
+
+function manifestHash(body) {
+  return crypto.createHash('sha256').update(body).digest('hex').slice(0, 12);
+}
+
+function stampIndex(html, hash) {
+  const re = /src\/assets\/asset-manifest\.js\?v=[^"']+/;
+  if (!re.test(html)) {
+    throw new Error('index.html has no asset-manifest script tag. ' + REBUILD);
+  }
+  return html.replace(re, 'src/assets/asset-manifest.js?v=' + hash);
 }
 
 if (require.main === module) {
-  const {files, body} = build();
+  const {files, body, hash} = build();
   fs.mkdirSync(path.dirname(out), {recursive: true});
   fs.writeFileSync(out, body);
-  console.log('wrote ' + files.length + ' paths to ' + path.relative(root, out));
+  const html = fs.readFileSync(indexPath, 'utf8');
+  const stamped = stampIndex(html, hash);
+  if (stamped !== html) fs.writeFileSync(indexPath, stamped);
+  console.log('wrote ' + files.length + ' paths to ' + path.relative(root, out) + ', cache key v=' + hash);
 }
 
-module.exports = {walk, build, root, out};
+module.exports = {walk, build, manifestHash, stampIndex, root, out, indexPath, REBUILD};

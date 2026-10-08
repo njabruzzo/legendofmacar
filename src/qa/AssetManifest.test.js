@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const {walk, root} = require('./build-asset-manifest');
+const {walk, root, manifestHash, REBUILD} = require('./build-asset-manifest');
 
 let failed = 0;
 function assert(cond, msg) {
@@ -23,8 +23,10 @@ const manifestSrc = fs.readFileSync(manifestPath, 'utf8');
 
 const onDisk = walk(path.join(root, 'assets'), []).sort();
 const listed = vm.runInNewContext(manifestSrc + '\nObject.keys(ASSET_FILES).sort();');
-assert(onDisk.length === listed.length && onDisk.every((f, i) => f === listed[i]),
-  'asset manifest lists exactly the files under assets/ (' + onDisk.length + ' on disk, ' + listed.length + ' listed)');
+const listOk = onDisk.length === listed.length && onDisk.every((f, i) => f === listed[i]);
+assert(listOk, listOk
+  ? 'asset manifest lists exactly the files under assets/ (' + onDisk.length + ')'
+  : 'asset manifest does not match assets/ (' + onDisk.length + ' on disk, ' + listed.length + ' listed). ' + REBUILD);
 const extra = listed.filter(f => !onDisk.includes(f));
 const missingFromList = onDisk.filter(f => !listed.includes(f));
 if (extra.length) console.error('  manifest extras: ' + extra.slice(0, 8).join(', '));
@@ -33,6 +35,14 @@ if (missingFromList.length) console.error('  missing from manifest: ' + missingF
 assert(/<link rel="icon" href="favicon\.ico"/.test(html), 'favicon link points at favicon.ico');
 assert(fs.existsSync(path.join(root, 'favicon.ico')), 'favicon.ico is in the repo root');
 assert(/src\/assets\/asset-manifest\.js/.test(html), 'index.html loads the asset manifest');
+{
+  const page = html.match(/src\/assets\/asset-manifest\.js\?v=([^"']+)/);
+  const hash = manifestHash(manifestSrc);
+  const keyOk = !!(page && page[1] === hash);
+  assert(keyOk, keyOk
+    ? 'manifest cache key ?v=' + hash + ' matches the manifest'
+    : 'manifest cache key ?v=' + (page ? page[1] : '(missing)') + ' does not match the manifest hash ' + hash + '. ' + REBUILD);
+}
 assert(/k\.replace\(\/_w1\$\/,'_w3'\)/.test(html), 'the _w3 sibling pass is still in place');
 assert(/const MACAR_PLAN=/.test(html), 'MACAR_PLAN is untouched by this gate');
 
