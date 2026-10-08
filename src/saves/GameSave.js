@@ -34,7 +34,7 @@
   var ENT_COPY = [
     'kind','sprite','name','team','hp','maxhp','x','y','r','scale','sp','dmg','range','cd',
     'ranged','dead','corpse','looted','crushed','ghost','prone','hidden','boss','glow','aggro',
-    'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally',
+    'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally','chapterBoss',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay'
   ];
@@ -50,7 +50,7 @@
   var ENT_BOOL = {
     ranged:1, dead:1, corpse:1, looted:1, crushed:1, ghost:1, prone:1, hidden:1,
     boss:1, rubyDrop:1, nozCamp:1, shaman:1, webTalk:1, webTalkDone:1, webCorpse:1,
-    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1
+    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1, chapterBoss:1
   };
 
   function clone(v) {

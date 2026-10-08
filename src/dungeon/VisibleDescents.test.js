@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('assert'),fs=require('fs'),path=require('path'),vm=require('vm');const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
 const fn=n=>html.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0];
-const c={G:{lvl:null,props:[],ents:[]},rect:(g,x,y,w,h,t)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g[j][i]=t;},hint(){},floorTravelReady:()=>false,endChapter(){c.G.scene='camp';},player(){return null;}};vm.createContext(c);vm.runInContext(['livingFloorFoes','foeBearingWord','chapterDescentRefusal','openDescentLanding','ensureChapterDescents','useChapterDescent'].map(fn).join('\n'),c);
+const c={G:{lvl:null,props:[],ents:[]},rect:(g,x,y,w,h,t)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g[j][i]=t;},hint(){},floorTravelReady:()=>false,endChapter(){c.G.scene='camp';},player(){return null;}};vm.createContext(c);vm.runInContext(['chapterBossOf','foeMatchesChapterBoss','bindChapterBoss','chapterBossSlain','noteChapterBossDown','chapterDescentRefusal','openDescentLanding','ensureChapterDescents','useChapterDescent'].map(fn).join('\n'),c);
 for(const n of [2,3,4]){
  c.G.lvl={n,w:150,h:120,grid:Array.from({length:120},()=>Array(150).fill(1)),flags:{},objs:[]};c.G.props=[];c.ensureChapterDescents();const L=c.G.lvl,p=c.G.props.find(p=>p.chapterDescent);assert(p&&p.k==='stairs');for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++)assert.equal(L.grid[Math.floor(p.y)+y][Math.floor(p.x)+x],3,'clear descent landing');
  assert.equal(c.useChapterDescent(),false,'ruby seal blocks exit');c.floorTravelReady=()=>true;if(n>2)assert.equal(c.useChapterDescent(),false,'guardian blocks exit');L.flags.done=1;assert.equal(c.useChapterDescent(),true);assert.equal(c.G.scene,'camp');c.floorTravelReady=()=>false;

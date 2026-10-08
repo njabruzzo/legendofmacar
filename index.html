@@ -5232,72 +5232,85 @@ function ensureChapterDescents(){
   if(stair)Object.assign(stair,L.stair,{chapterDescent:1,s:1.4});else G.props.push({...L.stair,k:'stairs',chapterDescent:1,s:1.4});
   if(L.n===2){L.lift={x:40,y:8.35};openDescentLanding(L,40,9,14,12);const lift=G.props.find(p=>p.k==='lift');if(lift)Object.assign(lift,L.lift,{s:1.18});}
 }
-/* Descent gates. The moment the stair opens is unchanged.
-   I — Ride the elevator only after the six ruby guardians are dead
-       (rubyGuardiansLeft, not every foe) and the lever is thrown
-       (flags.elevReady). Other packs do not block the ride, and there
-       is no refusal while they live: the ride plate is simply absent.
-   II ruins stair — floorTravelReady (this floor's ruby is lit). Foes do not gate it.
-   II Goblin King warren stair — no gate. The plate always enters the king hall.
-   III dead-city stair and IV temple stair — flags.done and floorTravelReady.
-       done flips only after flags.boss and foesLeft() is clear: every living
-       foe on the map, not the named guardian alone.
-   V — no stair. The Undying King (kind king) dying sets done and wins.
-       Other temple foes do not gate that.
-   Floor lever — one floor down only when floorTravelReady. */
-function livingFloorFoes(){
-  return (G.ents||[]).filter(e=>e&&e.team==='foe'&&!e.dead&&!e.npc);
+/* One boss per chapter, so a later campaign table can lift this whole
+   gate. Chapters with no single boss are absent and keep their old rule:
+   I — six ruby statues, then the lever. The elevator stays as it is.
+   II ruins stair — the floor ruby. No one foe is the floor's boss.
+   Goblin King warren — he is that hall's boss, but the stair into the
+   hall has no gate, so his death opens nothing.
+   The floor lever still wants the ruby. It is not this stair. */
+function chapterBossOf(n){
+  const table={
+    3:{kind:'construct', name:'Ruby Construct', x:48, y:39, flag:'boss',
+      held:'The Ruin Guard still stands.'},
+    4:{kind:'elderbrain', name:'ELDER BRAIN', x:52, y:42, flag:'boss',
+      held:'The Elder Brain still lives.'},
+    5:{kind:'king', name:'THE UNDYING KING', x:29, y:16, flag:'start', unique:1,
+      held:'The Undying King still reigns.'}
+  };
+  return table[n]||null;
 }
-function foeBearingWord(from, foe){
-  if(!from||!foe) return '';
-  const dx=(foe.x||0)-from.x, dy=(foe.y||0)-from.y;
-  const ad=Math.hypot(dx,dy);
-  if(ad<1.2) return 'beside you';
-  /* y grows south. atan2(dy, dx) is 0 on east and +π/2 on south. */
-  const names=['east','southeast','south','southwest','west','northwest','north','northeast'];
-  let i=Math.round(Math.atan2(dy, dx)/(Math.PI/4));
-  if(i<0) i+=8;
-  if(i>=8) i-=8;
-  return names[i];
+function foeMatchesChapterBoss(e, spec){
+  if(!e||e.npc||!spec) return false;
+  if(!(e.team==='foe'||e.dead)) return false;
+  if(e.chapterBoss) return true;
+  if(spec.kind && e.kind!==spec.kind) return false;
+  if(spec.name && e.name && e.name!==spec.name) return false;
+  return true;
+}
+function bindChapterBoss(L){
+  const spec=chapterBossOf(L&&L.n);
+  if(!spec||!L) return [];
+  const ents=G.ents||[];
+  const marked=ents.filter(e=>e&&e.chapterBoss&&foeMatchesChapterBoss(e, spec));
+  if(marked.length) return marked;
+  if(!(L.flags&&L.flags[spec.flag])) return [];
+  const matches=ents.filter(e=>foeMatchesChapterBoss(e, spec));
+  if(!matches.length) return [];
+  if(spec.unique||matches.length===1){
+    matches.forEach(e=>{ e.chapterBoss=1; });
+    return matches;
+  }
+  let best=matches[0], bd=1e9;
+  for(const e of matches){
+    const d=Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y);
+    if(d<bd){ bd=d; best=e; }
+  }
+  best.chapterBoss=1;
+  return [best];
+}
+function chapterBossSlain(L){
+  const spec=chapterBossOf(L&&L.n);
+  if(!spec||!L) return false;
+  const bound=bindChapterBoss(L);
+  if(bound.some(e=>!e.dead)) return false;
+  if(bound.some(e=>e.dead)) return true;
+  if(L.flags&&L.flags.done) return true;
+  if(L.flags&&L.flags[spec.flag]) return true;
+  return false;
+}
+function noteChapterBossDown(L){
+  if(!L||!L.flags||L.flags.done) return false;
+  if(!chapterBossSlain(L)) return false;
+  L.flags.done=1;
+  return true;
 }
 function chapterDescentRefusal(){
   const L=G.lvl; if(!L) return '';
-  const needClear=(L.n===3||L.n===4)&&!L.flags.done;
-  const needRuby=typeof floorTravelReady==='function'&&!floorTravelReady();
-  if(!needClear && needRuby) return 'Activate this floor\u2019s ruby door before descending.';
-  if(!needClear) return '';
-  const foes=livingFloorFoes();
-  if(!foes.length){
-    return needRuby
-      ? 'The guardian has not fallen. The ruby is still dark.'
-      : 'This floor\u2019s guardian has not fallen.';
-  }
-  const p=(typeof player==='function')?player():null;
-  let near=foes[0];
-  if(p){
-    let bd=1e9;
-    for(const e of foes){
-      const d=Math.hypot((e.x||0)-p.x,(e.y||0)-p.y);
-      if(d<bd){ bd=d; near=e; }
-    }
-  }
-  const where=p?foeBearingWord(p, near):'';
-  const n=foes.length;
-  const who=n===1?'One foe':n+' foes';
-  let place='';
-  if(where==='beside you') place=', beside you';
-  else if(where) place=', to the '+where;
-  if(!needRuby) return who+' still '+(n===1?'holds':'hold')+' this floor'+place+'.';
-  let line=who+' '+(n===1?'remains':'remain')+place+'. The ruby is still dark.';
-  if(line.length>54 && where && where!=='beside you')
-    line=who+' '+(n===1?'remains':'remain')+', '+where+'. The ruby is still dark.';
-  return line;
+  const spec=chapterBossOf(L.n);
+  if(spec) return chapterBossSlain(L)?'':(spec.held||'The guardian still stands.');
+  if(typeof floorTravelReady==='function'&&!floorTravelReady())
+    return 'Activate this floor\u2019s ruby door before descending.';
+  return '';
 }
 function useChapterDescent(){
   const L=G.lvl;if(!L||!L.stair)return false;
-  const needClear=(L.n===3||L.n===4)&&!L.flags.done;
-  const needRuby=!floorTravelReady();
-  if(needClear||needRuby){hint(chapterDescentRefusal(),4);return false;}
+  const spec=chapterBossOf(L.n);
+  if(spec){
+    if(!chapterBossSlain(L)){ hint(chapterDescentRefusal(),4); return false; }
+  } else if(!floorTravelReady()){
+    hint(chapterDescentRefusal(),4); return false;
+  }
   if(L.objs&&L.objs[4])L.objs[4].d=1;endChapter();return true;
 }
 function tickChapterDescent(){
@@ -5823,7 +5836,7 @@ function makeChapter(n){
         spawnLairGroup(46,16,{leader:'orc',pack:[['drow',3],['orc',1]],spread:2.0,aggro:4.2});
         spawnLairGroup(50,22,{pack:[['orc',2],['spider',1]],spread:1.4,aggro:3.4});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.construct(); b.x=48;b.y=39; G.ents.push(b);
+        const b=FOE.construct(); b.x=48;b.y=39; b.chapterBoss=1; G.ents.push(b);
         spawnLairGroup(43,44,{pack:[['undead',3]],spread:1.5,aggro:3.8});
         spawnLairGroup(52,43,{pack:[['rat',1],['rat',1],['orc',1]],spread:1.6,aggro:3.2});
         spawnLairGroup(54,46,{pack:[['orc',1],['spider',1]],spread:1.4,aggro:3.5});
@@ -5875,7 +5888,7 @@ function makeChapter(n){
         spawnLairGroup(88,102,{pack:[['warg',1],['beetle',1]],spread:1.4,aggro:3.4});
         say('Wargs and beetles nest in the south-south court.','#8a9a6a');}
       /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
-      if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
+      if(noteChapterBossDown(L)){L.objs[2].d=1;
         say('The ruin guard falls. The road to the city is open.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
@@ -5944,7 +5957,7 @@ function makeChapter(n){
         spawnLairGroup(50,14,{leader:'neothelid',pack:[['mindflayer',2],['gauth',1]],spread:1.9,aggro:4.4});
         spawnLairGroup(47,18,{leader:'drowMatron',pack:[['urophion',1],['drow',2]],spread:1.5,aggro:3.8});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.elderbrain(); b.x=52; b.y=42; G.ents.push(b);
+        const b=FOE.elderbrain(); b.x=52; b.y=42; b.chapterBoss=1; G.ents.push(b);
         const t=FOE.deathtyrant(); t.x=46; t.y=40; G.ents.push(t);
         spawnLairGroup(54,44,{pack:[['blackpudding',1],['mustardjelly',1],['puddingWhite',1]],spread:1.6,aggro:3.2});
         spawnLairGroup(48,46,{pack:[['deepspawn',1],['lurker',1],['trapper',1]],spread:1.7,aggro:3.6});
@@ -5984,7 +5997,7 @@ function makeChapter(n){
       if(!L.flags.cityMidSE&&p.x>68&&p.y>62&&p.x<96){L.flags.cityMidSE=1;
         spawnLairGroup(80,72,{pack:[['cloaker',1],['troll',1]],spread:1.5,aggro:3.4});
         say('A cloaker and a troll hold the mid-south quay.','#5a3a8a');}
-      if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
+      if(noteChapterBossDown(L)){L.objs[2].d=1;
         say('The pool goes still. The temple road is the last way down.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
@@ -6051,7 +6064,7 @@ function makeChapter(n){
       if(!L.flags.start&&p.y<34){L.flags.start=1;L.objs[0].d=1;
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
         say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
-        const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
+        const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; k.chapterBoss=1; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
         spawnLairGroup(22,20,{pack:[['golemBrass',1],['golemSilver',1]],spread:2.2,aggro:4.0});
         spawnLairGroup(29,24,{pack:[['drow',2]],spread:1.2,aggro:3.6});
         spawnLairGroup(32,18,{pack:[['dao',1],['earthelem',1]],spread:1.5,aggro:3.4});}
@@ -6093,8 +6106,8 @@ function makeChapter(n){
           spawnLairGroup(38,30,{leader:'stonegiant',pack:[['fomorian',1]],spread:1.6,aggro:3.6});
           shake(16);}
       }
-      if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
-        L.flags.done=1; L.objs[1].d=1; G.cleared[5]=1;writeGameSave(true);
+      if(noteChapterBossDown(L)){
+        L.objs[1].d=1; G.cleared[5]=1;writeGameSave(true);
         setTimeout(()=>{ if(G.lvl===L&&G.scene==='play') G.scene='win'; },1500);}
     };
   }
