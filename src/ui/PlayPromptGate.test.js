@@ -51,6 +51,22 @@ assert(!/drawPromptBtn|drawHint|drawInspect|drawLog/.test(tail),
 assert(/drawTalk\(g\)/.test(tail), 'stone-mouth talk still paints over the pack');
 assert(/if\(!field && !packTalk\)\{\s*promptBtn=null;/.test(plates),
   'pack, pause, craft, trade, and menus drop the prompt hit rect');
+const sleepHint=plates.indexOf("if(G.scene==='play'&&G.sleepShow&&G.hint)");
+const platesReturn=plates.indexOf('if(!field && !packTalk)');
+assert(sleepHint>0 && sleepHint<platesReturn, 'the rest-card hint is drawn before the play-plate return');
+assert(/drawHint\(g,UIS\)/.test(plates.slice(sleepHint, platesReturn+1)),
+  'the rest card paints the camp hint');
+assert(!/drawPromptBtn|drawLog|drawInspect/.test(plates.slice(sleepHint, platesReturn)),
+  'the rest card does not bring the prompt, log, or kin sheet with the hint');
+assert(/Macar camps\. Hit points restored\./.test(html) && /Macar camps\. Already whole\./.test(html) &&
+  /The book is marked\./.test(html),
+  'camp rest still writes the book-marked hint');
+
+const hud=fn('drawHUD');
+assert(/if\(playFieldPlates\(\)\) drawObjectives\(g,s\)/.test(hud),
+  'QUEST draws only on the live field, the same rule as the combat log');
+assert(/UI\.objHit=null; UI\.objPanel=null/.test(hud),
+  'pause and the rest card drop the QUEST hit rect');
 
 const open=fn('openPackMenu');
 assert(!/PROMPT\s*=/.test(open), 'opening the pack does not throw away the world prompt');
@@ -67,6 +83,35 @@ assert(runGate({scene:'play', paused:false, sleepShow:null})===true, 'live play 
 });
 assert(runGate({scene:'play', paused:true, sleepShow:null})===false, 'pause does not take play plates');
 assert(runGate({scene:'play', paused:false, sleepShow:{t:0}})===false, 'the rest card does not take play plates');
+
+function runPlates(G){
+  const calls=[];
+  const ctx={
+    G:G, UIS:1, promptBtn:{x:1,y:2,w:3,h:4},
+    beginUiLayer(){ calls.push('layer'); },
+    drawHint(){ calls.push('hint'); },
+    drawTalk(){ calls.push('talk'); },
+    drawLog(){ calls.push('log'); },
+    drawPromptBtn(){ calls.push('prompt'); },
+    drawInspect(){ calls.push('inspect'); },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(gate+'\n'+plates+'\ndrawPlayPlates(null);', ctx);
+  return {calls:calls, promptBtn:ctx.promptBtn};
+}
+const restHint=runPlates({
+  scene:'play', paused:false, sleepShow:{t:1,dur:5},
+  hint:{text:'Macar camps. Hit points restored. The book is marked.', life:4},
+});
+assert(restHint.calls.indexOf('hint')>=0 && restHint.calls.indexOf('layer')===0,
+  'the rest-card hint is visible on the card');
+assert(restHint.calls.indexOf('prompt')<0 && restHint.calls.indexOf('log')<0 &&
+  restHint.calls.indexOf('inspect')<0 && restHint.calls.indexOf('talk')<0,
+  'the rest card shows only the camp hint');
+assert(restHint.promptBtn===null, 'the rest-card hint does not leave a prompt hit rect');
+const restQuiet=runPlates({scene:'play', paused:false, sleepShow:{t:1,dur:5}, hint:null});
+assert(restQuiet.calls.length===0 && restQuiet.promptBtn===null,
+  'a rest card with no hint stays blank');
 
 const onDown=html.match(/function onDown\([\s\S]*?\nfunction onMove/)[0];
 assert(/promptBtn&&x>=promptBtn\.x[\s\S]*?!G\.inspect/.test(onDown),
@@ -110,6 +155,7 @@ assert(runDev({hostname:'example.com', search:'', hash:'#debug=1'})===true,
 assert(runDev({hostname:'localhost', search:'', hash:''})===true, 'localhost keeps the hotkey');
 assert(runDev({hostname:'127.0.0.1', search:'', hash:''})===true, '127.0.0.1 keeps the hotkey');
 assert(runDev({hostname:'::1', search:'', hash:''})===true, '::1 keeps the hotkey');
+assert(runDev({hostname:'[::1]', search:'', hash:''})===true, 'the browser [::1] host keeps the hotkey');
 assert(runDev({hostname:'', search:'', hash:''})===false, 'a blank host does not count as dev');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
