@@ -120,13 +120,13 @@ const gnome={hero:0, team:'party', kind:'gnome', dead:0, crushed:0, hidden:0,
 const mac={hero:1, team:'party', kind:'dwarf', dead:0, crushed:0, hidden:0,
   r:0.38, col:{key:'macar'}, name:'MACAR', x:10, y:6, fdx:1, fdy:0, moving:1};
 
-/* tile-center vs quarter-cell: south wall rejects 4.50, allows 4.25 */
+/* Both tile centers and quarter cells stay usable beside south masonry. */
 {
   const grid=makeGrid(10, 8, 0);
   for(let i=0;i<10;i++) grid[5][i]=1;
   const ctx=collisionCtx(grid);
-  assert(ctx.canBe(3.5, 4.50, 0.38, dwarf)===false,
-    'WALL_FACE_CLEAR rejects the tile center north of a south wall');
+  assert(ctx.canBe(3.5, 4.50, 0.38, dwarf)===true,
+    'tile center north of a south wall remains usable');
   assert(ctx.canBe(3.5, 4.25, 0.38, dwarf)===true,
     'quarter-cell 4.25 is standable on that same tile');
   const plan=Nav.planRoute({x:1.25,y:4.25},{x:7.25,y:4.25}, dwarf, {canBe:ctx.canBe});
@@ -135,8 +135,8 @@ const mac={hero:1, team:'party', kind:'dwarf', dead:0, crushed:0, hidden:0,
     'every path cell canStand via canBe');
   assert(plan.path.every(p=>Math.abs(p.x/Nav.STEP-Math.round(p.x/Nav.STEP))<1e-9),
     'path cells sit on the 0.25 lattice');
-  assert(!plan.path.some(p=>p.y===4.5 && (p.x|0)===3),
-    'south-wall tile center is not a waypoint');
+  assert(plan.path.every(p=>p.y+dwarf.r<5),
+    'south-wall waypoints keep the body outside masonry');
 }
 
 /* topology 4: consecutive cells are 4-adjacent */
@@ -167,7 +167,7 @@ function assertFourTopology(plan, msg){
     'U path does not occupy the east wall column');
   assertFourTopology(plan, 'U path is topology-4 (no diagonal corner cut)');
   const minY=Math.min.apply(null, plan.path.map(p=>p.y));
-  assert(minY<=3.25+1e-9, 'U path exits through the north opening');
+  assert(minY<=4-dwarf.r, 'U path exits through the north opening with body clearance');
 }
 
 /* gnome-only (tile 4): dwarf goes around; gnome may cross. Chapter I uses type 4. */
