@@ -7109,14 +7109,20 @@ function capturePlaySave(){
     })
   };
 }
-function writeGameSave(quiet){
+function writeGameSave(quiet, snap){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
-  const extra={scene:(G.scene==='camp')?'camp':'play'};
-  if(G.lvl) extra.play=capturePlaySave();
-  const snap=GameSave.snapshot(G, extra);
+  /* A prepared snap (a fresh descent) replaces the book. The lever, floor
+     travel, camp rest, chapter end, and the king's death pass no snap, so
+     those quiet writes keep the stored unlock and clears. */
+  const passed=!!snap;
+  if(!snap){
+    const extra={scene:(G.scene==='camp')?'camp':'play'};
+    if(G.lvl) extra.play=capturePlaySave();
+    snap=GameSave.snapshot(G, extra);
+  }
   let ok=false;
   try{
-    if(quiet && typeof GameSave.writeNoRegress==='function') ok=!!GameSave.writeNoRegress(localStorage, snap);
+    if(quiet && !passed && typeof GameSave.writeNoRegress==='function') ok=!!GameSave.writeNoRegress(localStorage, snap);
     else ok=!!GameSave.write(localStorage, snap);
   }
   catch(err){ ok=false; }

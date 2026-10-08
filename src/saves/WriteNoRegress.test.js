@@ -86,9 +86,10 @@ assert.strictEqual(replaced.unlocked, 1, 'manual Save may lower unlocked');
 assert.ok(!replaced.cleared[3], 'manual Save may drop a cleared mark');
 
 const writer = grab('writeGameSave');
-assert.ok(/quiet && typeof GameSave\.writeNoRegress==='function'/.test(writer), 'a quiet save uses writeNoRegress');
+assert.ok(/const passed=!!snap;/.test(writer), 'a prepared snap is told apart from a checkpoint');
+assert.ok(/quiet && !passed && typeof GameSave\.writeNoRegress==='function'/.test(writer), 'a checkpoint uses writeNoRegress');
 assert.ok(/GameSave\.writeNoRegress\(localStorage, snap\)/.test(writer));
-assert.ok(/else ok=!!GameSave\.write\(localStorage, snap\)/.test(writer), 'manual Save still calls write');
+assert.ok(/else ok=!!GameSave\.write\(localStorage, snap\)/.test(writer), 'manual Save and a prepared snap still call write');
 const confirm = writer.match(/if\(!quiet\)\{\n    say\([\s\S]*?\n  \}/);
 assert.ok(confirm && !/writeNoRegress/.test(confirm[0]), 'the spoken Save does not guard the book');
 
