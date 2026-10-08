@@ -6835,6 +6835,12 @@ function tickFloorTravel(){
   else if(lever&&dist(p,lever)<1.8)interact('Use the floor lever',openFloorLever);
 }
 function startChapter(n){
+  /* A title card calls this while the scene is still the chapter list.
+     Adopt the book's unlock first. The card itself does not write a save. */
+  if(G.scene==='chapters' && !G.ch){
+    const book=savedBookProgress();
+    if(book && book.unlocked>(G.unlocked||1)) G.unlocked=book.unlocked;
+  }
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
   const keep=!!G._keepProgress;
   if(n===1&&!keep)G.floorWorlds={};
@@ -21245,7 +21251,7 @@ function drawChapterSelect(g){
     plate(g, x, y, cw, ch, 10, locked?0.52:0.86);
     g.strokeStyle=locked?'rgba(120,100,80,0.35)':((book.cleared&&book.cleared[n])?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
     g.lineWidth=1.8; roundPath(g,x,y,cw,ch,10); g.stroke();
-    if(!locked) menuHits.push({x,y,w:cw,h:ch,name:'Chapter '+nums[n-1],fn:()=>beginChapterFromList(n)});
+    if(!locked) menuHits.push({x,y,w:cw,h:ch,name:'Chapter '+nums[n-1],fn:()=>startChapter(n)});
     const innerW=cw-36*s;
     const pad=12*s;
     let tSize=(PORT?13:16)*s, sSize=(PORT?9:11)*s, labSize=10*s;

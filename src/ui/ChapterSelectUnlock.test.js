@@ -99,7 +99,10 @@ assert.deepStrictEqual(started, [2]);
 
 const select = html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\nfunction enterPlayFromIntro/)[0];
 assert.ok(/chapterSelectProgress\(\)/.test(select), 'the chapter list asks the book');
-assert.ok(/beginChapterFromList\(n\)/.test(select), 'cards start through the list helper');
+assert.ok(/fn:\(\)=>startChapter\(n\)/.test(select), 'a chapter card starts play without writing the book');
+const startHead = html.slice(html.indexOf('function startChapter(n){'), html.indexOf('function startChapter(n){') + 420);
+assert.ok(/G\.scene==='chapters' && !G\.ch/.test(startHead) && /savedBookProgress\(\)/.test(startHead),
+  'a title card still adopts the book unlock before play');
 assert.ok(!/n>G\.unlocked/.test(select), 'the list no longer locks on the blank session unlock');
 assert.ok(!/loadSavedGame\(/.test(select), 'opening the list does not load the run');
 const peekFns = ['bookSnapUsable', 'savedBookProgress', 'chapterSelectProgress', 'beginChapterFromList']
@@ -130,8 +133,8 @@ if(openChaptersFn){
   const body = openChaptersFn[0];
   assert.ok(/G\.scene='chapters'/.test(body), 'openChapters switches to the chapter list');
   assert.ok(/autosaveNow\(/.test(body), 'openChapters flushes the book');
-  const calls = body.match(/[A-Za-z_][A-Za-z0-9_]*\(/g).filter(function(c){
-    return c!=='openChapters(' && c!=='autosaveNow(';
+  const calls = (body.match(/[A-Za-z_][A-Za-z0-9_]*\(/g) || []).filter(function(c){
+    return c!=='openChapters(' && c!=='autosaveNow(' && c!=='if(';
   });
   assert.deepStrictEqual(calls, [], 'openChapters only flushes, then shows the list');
   assert.ok(!/startChapter\(/.test(body) && !/beginChapterFromList\(/.test(body) && !/G\.ch\s*=/.test(body),
