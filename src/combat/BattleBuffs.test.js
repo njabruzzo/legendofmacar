@@ -50,6 +50,7 @@ assert(carton.length === 1 && carton[0].id === 'golden_egg_2', 'the blocked egg 
 B.beginFight(eggs);
 assert(B.acDelta(eggs) === -4, 'an active egg is AC -4');
 assert(B.active(eggs, 'egg').length === 1, 'only one egg is active');
+assert(B.use(eggs, carton, carton[0], 3).reason === 'egg-blocked', 'a second egg is blocked while one is active');
 B.endFightIfClear(eggs);
 assert(B.acDelta(eggs) === 0, 'the egg bonus ends with the fight');
 assert(B.use(eggs, carton, carton[0], 4).ok, 'a later egg can be used after the first ends');
@@ -70,10 +71,15 @@ assert(floor.battleBuffs.length === 0 && floor.floor === 2 && floor.fightOn === 
 const cap = B.create(0);
 const pocket3 = [dust()];
 B.use(cap, pocket3, pocket3[0], 0);
-B.expire(cap, 300);
-assert(cap.battleBuffs.length === 1, 'the cap still holds at exactly 300 seconds');
-B.expire(cap, 300.01);
-assert(cap.battleBuffs.length === 0, 'the cap drops the buff after 300 seconds');
+assert(cap.battleBuffs[0].state === 'armed' && cap.battleBuffs[0].t0 == null, 'an armed buff has no timer');
+B.expire(cap, 10000);
+assert(cap.battleBuffs.length === 1 && cap.battleBuffs[0].state === 'armed', 'an armed buff waits through a long stretch with no fight');
+B.beginFight(cap, { name: 'rat' }, 10000);
+assert(cap.battleBuffs[0].state === 'active' && cap.battleBuffs[0].t0 === 10000, 'the 300 second cap starts at beginFight');
+B.expire(cap, 10300);
+assert(cap.battleBuffs.length === 1, 'the cap still holds at exactly 300 seconds of fighting');
+B.expire(cap, 10300.01);
+assert(cap.battleBuffs.length === 0, 'the cap drops the buff after 300 seconds of fighting');
 
 const antiState = B.create(0);
 const vials = [anti()];

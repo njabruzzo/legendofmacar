@@ -16,7 +16,9 @@
       D6: 'B', D7: 'B', D8: 'B', D9: 'A', D10: 'A',
       D11: 'A', D12: 'B', D13: 'A', D14: 'B', D15: 'A',
       D16: 'A', D17: 'A', D18: 'A'
-    }
+    },
+    /* Sage locked every unnumbered recommendation as written. */
+    recommendationsLocked: true
   };
 
   var FIGHTER_XP = {
@@ -96,8 +98,8 @@
       theme: 'Cave-in, buried kin, ruby door, Bone Crown chapel',
       builtFrom: { chapter: 1, anchor: 'makeChapter n===1' },
       reuse: { kept: ['all'], cutOrMoved: [], cutAsChapter: false },
-      /* Separate from the six Thin Ones who are the ruby guardian. Sage has not named which Thin One, if any, is the floor boss. */
-      boss: { status: 'tbd', pending: 'Sage', candidate: 'one of the Thin Ones', separateFromGuardian: true },
+      /* The six Thin Ones together are the floor boss. No one of them wears a boss flag. The boss-kill hook fires when the last one dies. */
+      boss: { key: 'thinOne', name: 'Ruby Guardian I', group: true, count: 6, sameAsGuardian: true, bossFlagOnIndividual: false, firesWhen: 'lastDies', xpEach: 52 },
       residents: [
         mon('rat', 'Cave Rat', '1/2', 7, 8, { tt: 'C' }),
         mon('centipede', 'Giant Centipede', '1/4', 9, 32, { poisonSave: 4, xpNote: 'verify' }),
@@ -123,7 +125,7 @@
       lever: lever(),
       elevator: elevator('assets/ui/intro_ch1.jpg', 'Chapter I intro card'),
       quest: tooth(1),
-      pacing: { cumulativeXp: 13000, macar: 'F4', avgHp1e: 30, avgHpGame: 120, toHitAc0: 18, attacksPerRound: 1, bossPlusGuardianXp: 312, hitOnlyBy: 0, ghostLevel: 'G3', ghostXp: 4500, keyItems: ['Shadow Cleaver +2', 'Ring of Dexterity +1', 'Bone Crown'] },
+      pacing: { cumulativeXp: 13000, macar: 'F4', avgHp1e: 30, avgHpGame: 120, toHitAc0: 18, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G3', ghostXp: 4500, keyItems: ['Shadow Cleaver +2', 'Ring of Dexterity +1', 'Bone Crown'] },
       setPieces: ['kin-boulders', 'bone-crown', 'chapel-tooth', 'dwarf-mouth']
     },
     {
@@ -162,7 +164,7 @@
       elevator: elevator('assets/ui/intro_ch2.jpg', 'Chapter II intro card'),
       quest: tooth(2),
       optionalQuest: { id: 'grond_tooth_bronze', name: 'Bronze Tooth', kind: 'bronze-tooth', cursed: false, countsForRitual: false, countsForTeethCarried: false, level: 2, where: 'hourglass secret', usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 19000, macar: 'F5', avgHp1e: 37.5, avgHpGame: 150, toHitAc0: 16, attacksPerRound: 1, bossPlusGuardianXp: 676, hitOnlyBy: 0, ghostLevel: 'G3', ghostXp: 7500, keyItems: ['Star-Peen Hammer +1', 'Potion of Healing recipe'] },
+      pacing: { cumulativeXp: 19000, macar: 'F5', avgHp1e: 37.5, avgHpGame: 150, toHitAc0: 16, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G3', ghostXp: 7500, keyItems: ['Star-Peen Hammer +1', 'Potion of Healing recipe'] },
       setPieces: ['noz', 'bronze-hourglass']
     },
     {
@@ -196,7 +198,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_spider_giant.png', 'Giant spider art stands in for the Queen'),
       quest: tooth(3),
-      pacing: { cumulativeXp: 32000, macar: 'F5', avgHp1e: 37.5, avgHpGame: 150, toHitAc0: 16, attacksPerRound: 1, bossPlusGuardianXp: 2681, hitOnlyBy: 0, ghostLevel: 'G4', ghostXp: 14000, keyItems: ['Pixie Dust', 'Antitoxin', "Alchemist's Fire"] },
+      pacing: { cumulativeXp: 32000, macar: 'F5', avgHp1e: 37.5, avgHpGame: 150, toHitAc0: 16, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G4', ghostXp: 14000, keyItems: ['Pixie Dust', 'Antitoxin', "Alchemist's Fire"] },
       setPieces: ['trapped-pixie']
     },
     {
@@ -236,7 +238,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_orc.png', 'Orc art stands in for the orc hold'),
       quest: tooth(4),
-      pacing: { cumulativeXp: 51000, macar: 'F6', avgHp1e: 45, avgHpGame: 180, toHitAc0: 16, attacksPerRound: 1, bossPlusGuardianXp: 2990, hitOnlyBy: 0, ghostLevel: 'G5', ghostXp: 23500, keyItems: ['Golden eggs x3', 'Shield +1 recipe'] },
+      pacing: { cumulativeXp: 51000, macar: 'F6', avgHp1e: 45, avgHpGame: 180, toHitAc0: 16, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G5', ghostXp: 23500, keyItems: ['Golden eggs x3', 'Shield +1 recipe'] },
       setPieces: ['ogre-cave']
     },
     {
@@ -269,7 +271,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_drow.png', 'Drow art stands in for the drow deep'),
       quest: tooth(5),
-      pacing: { cumulativeXp: 78000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, bossPlusGuardianXp: 5270, hitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 37000, keyItems: ['Drow +2 sword', 'Rune Hammer +2 recipe', 'Adamantine Armor recipe'] },
+      pacing: { cumulativeXp: 78000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 37000, keyItems: ['Drow +2 sword', 'Rune Hammer +2 recipe', 'Adamantine Armor recipe'] },
       setPieces: ['drow-plus-two-sword']
     },
     {
@@ -288,8 +290,8 @@
         mon('fireElemental12', 'Fire elemental', 12, 2, 2864, { hitOnlyBy: 2, artStandIn: 'magmaelem' })
       ],
       minions: [
-        { key: 'salamander', option: 'A', source: 'MM1 salamander, Plane of Fire' },
-        { key: 'hellHound', option: 'A', source: 'MM1 hell hound' }
+        { key: 'salamander', option: 'A', locked: true, source: 'MM1 salamander, Plane of Fire' },
+        { key: 'hellHound', option: 'A', locked: true, source: 'MM1 hell hound' }
       ],
       wander: [
         { slot: 1, key: 'beetle', count: '1d4' },
@@ -303,7 +305,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_magmaelem.png', 'Magma elemental art stands in for fire elementals'),
       quest: tooth(6),
-      pacing: { cumulativeXp: 123000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, bossPlusGuardianXp: 9572, hitOnlyBy: 2, guardianHitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 59500, keyItems: ['Potion of Fire Resistance recipe'] },
+      pacing: { cumulativeXp: 123000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, guardianHitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 59500, keyItems: ['Potion of Fire Resistance recipe'] },
       setPieces: ['water-pool']
     },
     {
@@ -321,8 +323,8 @@
         mon('umberhulk', 'Umber hulk', '8+8', 2, 1828)
       ],
       minions: [
-        { key: 'xorn', option: 'A', source: 'MM1 xorn, Plane of Earth' },
-        { key: 'umberhulk', option: 'A', source: 'MM1 umber hulk' }
+        { key: 'xorn', option: 'A', locked: true, source: 'MM1 xorn, Plane of Earth' },
+        { key: 'umberhulk', option: 'A', locked: true, source: 'MM1 umber hulk' }
       ],
       wander: [
         { slot: 1, key: 'xorn', count: '1' },
@@ -336,7 +338,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_earthelem.png', 'Earth elemental art'),
       quest: tooth(7),
-      pacing: { cumulativeXp: 185000, macar: 'F8', avgHp1e: 60, avgHpGame: 240, toHitAc0: 14, attacksPerRound: 1.5, bossPlusGuardianXp: 11582, hitOnlyBy: 2, ghostLevel: 'G7', ghostXp: 90500, keyItems: ['Bolts +1', 'Greater Healing'] },
+      pacing: { cumulativeXp: 185000, macar: 'F8', avgHp1e: 60, avgHpGame: 240, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G7', ghostXp: 90500, keyItems: ['Bolts +1', 'Greater Healing'] },
       setPieces: ['heartstone-vein']
     },
     {
@@ -372,7 +374,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_beholder.png', 'Beholder art; death-tyrant sheet is the lair reuse'),
       quest: { kind: 'weapon', id: 'holy_hammer', name: 'Holy Hammer', plus: 3, basis: 'Hammer +3, Dwarven Thrower', decision: 'D18-A', behindBoss: true, usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 270000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, bossPlusGuardianXp: 18500, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 133000, keyItems: ['Holy Hammer +3'] },
+      pacing: { cumulativeXp: 270000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 133000, keyItems: ['Holy Hammer +3'] },
       setPieces: ['beholder-hoard']
     },
     {
@@ -406,8 +408,8 @@
         'Deep dragon art stands in for the red dragon',
         'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.'
       ),
-      quest: { kind: 'quest', id: 'holy_anvil', name: 'Holy Anvil of Truth', alias: 'Holy Anvil', behindBoss: true, forgeTier: 'top', usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 410000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, bossPlusGuardianXp: 21260, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
+      quest: { kind: 'quest', id: 'holy_anvil', name: 'Holy Anvil of Truth', displayName: 'Holy Anvil of Truth', behindBoss: true, forgeTier: 'top', usableByMacar: 'Y' },
+      pacing: { cumulativeXp: 410000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
       setPieces: ['dragon-hoard']
     },
     {
@@ -434,10 +436,10 @@
         mon('duergarPriest', 'Duergar priest', 5, 3, 400)
       ],
       minions: [
-        { key: 'wight', role: 'guard', recommendation: 'C', source: 'MM1 wight servants' },
-        { key: 'wraith', role: 'guard', recommendation: 'C', source: 'MM1 wraith servants' },
-        { key: 'duergar', role: 'population', recommendation: 'B', source: 'MM2 duergar' },
-        { key: 'skeleton', role: 'animated', recommendation: 'A', source: 'Animate Dead' }
+        { key: 'wight', role: 'guard', choice: 'C', locked: true, source: 'MM1 wight servants' },
+        { key: 'wraith', role: 'guard', choice: 'C', locked: true, source: 'MM1 wraith servants' },
+        { key: 'duergar', role: 'population', choice: 'B', locked: true, source: 'MM2 duergar' },
+        { key: 'skeleton', role: 'animated', choice: 'A', locked: true, source: 'Animate Dead' }
       ],
       wander: [
         { slot: 1, key: 'skeleton', count: '2d4' },
@@ -457,7 +459,7 @@
         item: false,
         behindBoss: true,
         usableByMacar: 'Y',
-        xpOnce: 5000,
+        xpOnce: 10000,
         steps: [
           'Seven braziers burn. While any burns, the King regenerates and cannot be slain.',
           'Macar sets the Holy Anvil on the throne dais.',
@@ -467,13 +469,27 @@
           'Killing the mortal King wins.'
         ]
       },
-      pacing: { cumulativeXp: 500000, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, bossPlusGuardianXp: 26100, ritualXp: 5000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'], xpVersusF10Threshold: 500000 },
+      pacing: { cumulativeXp: 500000, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
       setPieces: ['ritual-braziers', 'throne-dais']
     }
   ];
 
+  /**
+   * Boss-plus-guardian XP is the stat-block total, not the 1.12 forecast.
+   * L1 counts the six Thin Ones once: they are both the guardian and the boss.
+   */
+  function statBossGuardianXp(lvl) {
+    var g = lvl.rubyGuardian;
+    var xp = g.formula.xp * g.count;
+    if (lvl.boss && lvl.boss.sameAsGuardian) return xp;
+    if (lvl.boss && typeof lvl.boss.xp === 'number') xp += lvl.boss.xp;
+    return xp;
+  }
+
   LEVELS.forEach(function (lvl, i) {
     lvl.rubyGuardian = GUARDIANS[i];
+    lvl.pacing.bossPlusGuardianXp = statBossGuardianXp(lvl);
+    lvl.pacing.bossPlusGuardianSource = 'stat-block';
     lvl.wired = false;
   });
 
@@ -502,6 +518,21 @@
     return gxp(formula.base, formula.perHp, formula.hp, formula.terms).xp;
   }
 
+  /**
+   * Running clear through L10, then the ritual. Nothing raises the sum to the F10 line.
+   */
+  function pathXp() {
+    var total = 0;
+    var prev = 0;
+    for (var i = 0; i < LEVELS.length; i++) {
+      var at = LEVELS[i].pacing.cumulativeXp;
+      total += at - prev;
+      prev = at;
+    }
+    total += LEVELS[9].quest.xpOnce;
+    return total;
+  }
+
   var api = {
     LOCKED: LOCKED,
     FIGHTER_XP: FIGHTER_XP,
@@ -510,6 +541,8 @@
     CUT_CHAPTERS: CUT_CHAPTERS,
     level: level,
     formulaXp: formulaXp,
+    statBossGuardianXp: statBossGuardianXp,
+    pathXp: pathXp,
     wired: false
   };
 

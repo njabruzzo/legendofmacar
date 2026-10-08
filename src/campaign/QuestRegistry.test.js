@@ -45,6 +45,16 @@ Q.FORGE_RECIPES.forEach(function (recipe) {
 const teeth = Q.QUEST_ITEMS.filter(function (it) { return it.id.indexOf('grond_tooth_electrum') === 0; });
 assert(teeth.length === 7, 'seven electrum teeth in the registry');
 assert(Q.QUEST_ITEMS.some(function (it) { return it.id === 'grond_tooth_bronze'; }), 'bronze tooth is registered and is not a ritual tooth id');
+const anvil = Q.QUEST_ITEMS.filter(function (it) { return it.id === 'holy_anvil'; })[0];
+assert(anvil && anvil.displayName === 'Holy Anvil of Truth', 'Holy Anvil of Truth is the L9 display name');
+const shield = Q.FORGE_RECIPES.filter(function (r) { return r.id === 'shield_plus_1'; })[0];
+assert(shield.slot === 'secondary' && shield.sharesSlotWith === 'light crossbow', 'Shield +1 shares the secondary slot with the light crossbow');
+['hide_cloak', 'bone_scale', 'silk_jack'].forEach(function (id) {
+  assert(Q.LIVE_PLAN[id].conditional === 'base-ac' && /base AC beats current armor/.test(Q.LIVE_PLAN[id].rule), id + ' stays only when its base AC wins');
+});
+assert(Q.SOURCES.hide.where === 'L4 worg pelt' && Q.LIVE_PLAN.hide_cloak.hideFrom === 'L4 worg pelt', 'campaign hide comes from the L4 worg pelt');
+assert(Q.LIVE_PLAN.borgas_burp.wielder === 'pordoom' && Q.LIVE_PLAN.borgas_burp.rule18 === false, "Borga's Burp is Pordoom's kin item");
+assert(/tapped row still applies later/.test(Q.LIVE_PLAN.borgas_burp.note), 'throwing the tapped row is a later fix');
 
 const late = [{
   id: 'late_hammer',

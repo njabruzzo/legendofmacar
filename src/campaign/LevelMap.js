@@ -140,9 +140,15 @@
     }
     if (!elev || elev.auto !== true) errors.push(id + ' elevator must be automatic');
     if (!elev || elev.standIn !== true) errors.push(id + ' transition card must be marked as a stand-in');
-    /* L1's boss is TBD pending Sage and has no key yet. That is valid. */
-    if (level.boss != null && level.boss.status !== 'tbd' && !level.boss.key) {
-      errors.push(id + ' boss needs a key');
+    if (level.boss && level.boss.status === 'tbd') errors.push(id + ' boss is not TBD');
+    if (level.boss != null && !level.boss.key) errors.push(id + ' boss needs a key');
+    if (level.boss && level.boss.bossFlagOnIndividual) errors.push(id + ' no single creature wears a boss flag');
+    if (id === 'L1') {
+      var b = level.boss;
+      if (!b || b.key !== 'thinOne' || b.count !== 6 || b.sameAsGuardian !== true || b.firesWhen !== 'lastDies' || b.bossFlagOnIndividual !== false) {
+        errors.push('L1 boss is the six Thin Ones together and fires when the last dies');
+      }
+      if (!g || g.key !== 'thinOne' || g.count !== 6) errors.push('L1 guardian is the same six Thin Ones');
     }
     if (!level.exit || level.exit.ref !== 'campaign') errors.push(id + ' campaign exit.ref must be campaign');
     return errors;

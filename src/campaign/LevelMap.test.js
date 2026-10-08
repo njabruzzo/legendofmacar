@@ -57,8 +57,10 @@ campaign.book.levels.forEach(function (row, i) {
   assert(row.elevator.transitionCard === design.elevator.transitionCard, row.id + ' transition card');
   assert(fs.existsSync(path.join(root, row.elevator.transitionCard)), row.id + ' stand-in art exists');
   if (row.id === 'L1') {
-    assert(row.boss.status === 'tbd' && row.boss.pending === 'Sage' && !row.boss.key, 'L1 map boss is TBD pending Sage and has no key yet');
-    assert(design.boss.status === 'tbd' && design.boss.separateFromGuardian === true, 'L1 table boss stays separate from the guardian');
+    assert(row.boss.key === 'thinOne' && row.boss.count === 6 && row.boss.sameAsGuardian === true, 'L1 map boss is the six Thin Ones');
+    assert(row.boss.firesWhen === 'lastDies' && row.boss.bossFlagOnIndividual === false, 'L1 fires when the last Thin One dies and flags none of them');
+    assert(design.boss.sameAsGuardian === true && design.boss.count === 6 && design.boss.bossFlagOnIndividual === false, 'L1 table boss is the same group');
+    assert(Map.load(campaign.book).ok, 'the L1 group boss passes the campaign validator');
   } else if (row.id === 'L9') {
     assert(row.elevator.note === design.elevator.note, 'L9 map keeps the deep-dragon stand-in note');
     assert(row.boss && row.boss.key === design.boss.key, row.id + ' boss key');
@@ -75,9 +77,14 @@ assert(l4.setPieces.some(function (p) { return p.kind === 'ogre-cave' && p.ref =
 
 const unnamedBook = JSON.parse(JSON.stringify(campaign.book));
 delete unnamedBook.levels[1].boss.key;
-delete unnamedBook.levels[1].boss.status;
 const unnamed = Map.load(unnamedBook);
-assert(!unnamed.ok && unnamed.errors.some(function (e) { return e.indexOf('boss needs a key') >= 0; }), 'a boss without a key or a TBD mark fails');
+assert(!unnamed.ok && unnamed.errors.some(function (e) { return e.indexOf('boss needs a key') >= 0; }), 'a boss without a key fails');
+
+const flaggedBook = JSON.parse(JSON.stringify(campaign.book));
+flaggedBook.levels[0].boss.bossFlagOnIndividual = true;
+flaggedBook.levels[0].boss.count = 1;
+const flagged = Map.load(flaggedBook);
+assert(!flagged.ok && flagged.errors.some(function (e) { return e.indexOf('L1') >= 0; }), 'a single Thin One with a boss flag fails');
 
 const broken = JSON.parse(JSON.stringify(campaign.book));
 delete broken.levels[3].rubyDoor;

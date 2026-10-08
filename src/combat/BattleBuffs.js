@@ -4,9 +4,11 @@
  * queue's own functions. They do not replace the ones in the play loop.
  *
  * A buff used outside a fight is armed and becomes active at the next
- * beginFight. It ends when endFightIfClear runs, on Macar's death, on a
- * floor change, or when now - t0 exceeds the 300 second cap.
- * t0 is the moment of use. The item leaves the pack on a successful use.
+ * beginFight. While it is armed it has no timer. It ends on Macar's
+ * death, on a floor change, or, once the fight has started, when
+ * now - t0 exceeds the 300 second cap. t0 is beginFight, or the moment
+ * of use when that use is already inside a fight. The item leaves the
+ * pack on a successful use. Only one golden egg may be armed or active.
  */
 (function (root) {
   'use strict';
@@ -27,6 +29,7 @@
     if (now != null) state.now = now;
     var t = state.now;
     state.battleBuffs = state.battleBuffs.filter(function (b) {
+      if (b.t0 == null) return true;
       return (t - b.t0) <= b.cap;
     });
     return state;
@@ -49,10 +52,11 @@
       return { ok: false, reason: 'egg-blocked', endsPoisonSlow: false };
     }
     var removed = pack.splice(idx, 1)[0];
+    var fighting = !!state.fightOn;
     var buff = {
       k: item.k,
-      state: state.fightOn ? 'active' : 'armed',
-      t0: state.now,
+      state: fighting ? 'active' : 'armed',
+      t0: fighting ? state.now : null,
       cap: CAP
     };
     state.battleBuffs.push(buff);
@@ -64,11 +68,16 @@
     };
   }
 
-  function beginFight(state, foe) {
+  function beginFight(state, foe, now) {
+    if (now != null) state.now = now;
     state.fightOn = 1;
     state.foe = foe || null;
     for (var i = 0; i < state.battleBuffs.length; i++) {
-      if (state.battleBuffs[i].state === 'armed') state.battleBuffs[i].state = 'active';
+      var buff = state.battleBuffs[i];
+      if (buff.state === 'armed') {
+        buff.state = 'active';
+        buff.t0 = state.now;
+      }
     }
     return state;
   }

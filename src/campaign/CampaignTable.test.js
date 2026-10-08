@@ -55,14 +55,18 @@ assert(teeth[6] === 'grond_tooth_electrum_7', 'tooth 7 id');
 assert(new Set(teeth).size === 7, 'seven distinct tooth ids');
 assert(T.LEVELS[1].optionalQuest.id === 'grond_tooth_bronze' && T.LEVELS[1].optionalQuest.countsForRitual === false, 'bronze tooth is not one of the seven');
 assert(T.level(8).quest.id === 'holy_hammer' && T.level(8).quest.plus === 3, 'L8 Holy Hammer +3');
-assert(T.level(9).quest.name === 'Holy Anvil of Truth', 'L9 Holy Anvil of Truth');
+assert(T.level(9).quest.id === 'holy_anvil' && T.level(9).quest.displayName === 'Holy Anvil of Truth', 'L9 quest id is holy_anvil and the display name is Holy Anvil of Truth');
 assert(T.level(9).elevator.transitionCard === 'assets/creatures/mon_deepdragon.png', 'L9 card keeps the deep dragon stand-in');
 assert(T.level(9).elevator.note === 'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.', 'L9 keeps the stand-in until red dragon art passes');
-assert(T.level(1).boss.status === 'tbd' && T.level(1).boss.pending === 'Sage' && T.level(1).boss.separateFromGuardian === true, 'L1 boss is TBD pending Sage and is not the guardian');
+assert(T.level(1).boss.sameAsGuardian === true && T.level(1).boss.count === 6 && T.level(1).boss.firesWhen === 'lastDies', 'L1 boss is the six Thin Ones and fires when the last dies');
+assert(T.level(1).boss.bossFlagOnIndividual === false, 'no Thin One wears a boss flag');
+assert(T.level(6).minions.every(function (m) { return m.locked && m.option === 'A'; }), 'L6 minions are locked as written');
+assert(T.level(7).minions.every(function (m) { return m.locked && m.option === 'A'; }), 'L7 minions are locked as written');
+assert(T.level(10).minions.every(function (m) { return m.locked; }) && T.LOCKED.recommendationsLocked === true, 'L10 retinue and the other unnumbered picks are locked');
 [8, 9, 10].forEach(function (n) {
   assert(T.level(n).quest.behindBoss === true && T.level(n).lever.needsBoss === false, 'L' + n + ' quest sits behind the boss and the lever does not');
 });
-assert(T.level(10).quest.kind === 'ritual' && T.level(10).quest.xpOnce === 5000, 'L10 ritual');
+assert(T.level(10).quest.kind === 'ritual' && T.level(10).quest.xpOnce === 10000 && T.level(10).pacing.ritualXp === 10000, 'L10 ritual is 10,000 XP');
 
 assert(!T.level(2).residents.some(m => /spider/i.test(m.key)), 'L2 residents have no spiders');
 assert(!T.level(2).wander.some(m => /spider/i.test(m.key)), 'L2 wander has no spiders');
@@ -80,10 +84,12 @@ assert(T.level(8).reuse.fromChapter === 4, 'L8 is built from cut chapter IV');
 assert(T.level(10).reuse.alsoFromChapters.join() === '3,4', 'L10 reuses III and IV undead');
 assert(T.level(1).builtFrom.chapter === 1 && T.level(10).builtFrom.chapter === 5, 'L1 keeps chapter I and L10 keeps the chapter V finale');
 
-const pace = T.LEVELS.map(l => l.pacing.bossPlusGuardianXp);
-for (let i = 1; i < pace.length; i++) {
-  assert(pace[i] > pace[i - 1], 'boss-plus-guardian XP rises at L' + (i + 1));
-}
+T.LEVELS.forEach(function (lvl) {
+  const fromBlocks = T.statBossGuardianXp(lvl);
+  assert(lvl.pacing.bossPlusGuardianXp === fromBlocks && lvl.pacing.bossPlusGuardianSource === 'stat-block', lvl.id + ' boss-plus-guardian XP is the stat blocks');
+});
+assert(T.statBossGuardianXp(T.level(1)) === 52 * 6, 'L1 counts the six Thin Ones once');
+assert(T.statBossGuardianXp(T.level(2)) === 181 + 260, 'L2 is Guardian II plus the Goblin King');
 const hit = T.LEVELS.map(l => l.pacing.hitOnlyBy);
 assert(hit.join() === '0,0,0,0,1,2,2,2,2,3', 'weapon-plus requirement climbs');
 assert(T.level(6).pacing.guardianHitOnlyBy === 1 && T.level(6).rubyGuardian.hitOnlyBy === 1, 'L6 guardian needs +1 while the floor elementals need +2');
@@ -94,8 +100,11 @@ T.LEVELS.forEach(function (lvl) {
   const floor = T.FIGHTER_XP[macar];
   const nextKey = 'F' + (parseInt(macar.slice(1), 10) + 1);
   const next = T.FIGHTER_XP[nextKey];
-  if (macar === 'F10') {
-    assert(xp === 500000 && floor === 500001, 'L10 cumulative XP is the printed 500000, one short of the F10 line');
+  if (lvl.level === 10) {
+    assert(xp === 500000 && floor === 500001, 'the L10 clear stays 500,000 and is not floored up to the F10 line');
+    assert(lvl.pacing.xpFloor == null && lvl.pacing.xpVersusF10Threshold == null, 'there is no XP floor');
+    assert(T.pathXp() === xp + lvl.quest.xpOnce && T.pathXp() === 510000, 'the path adds the 10,000 ritual and nothing else');
+    assert(T.pathXp() >= floor, 'the full L1-L10 path plus the ritual clears 500,001');
   } else {
     assert(xp >= floor && (next == null || xp < next), lvl.id + ' XP sits in the ' + macar + ' band');
   }

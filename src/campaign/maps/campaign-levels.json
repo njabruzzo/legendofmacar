@@ -12,7 +12,7 @@
       "guardian": { "placement": "unbuilt", "key": "thinOne", "tier": 1, "count": 6 },
       "lever": { "placement": "unbuilt", "x": null, "y": null },
       "elevator": { "placement": "unbuilt", "x": null, "y": null, "auto": true, "standIn": true, "transitionCard": "assets/ui/intro_ch1.jpg" },
-      "boss": { "placement": "unbuilt", "status": "tbd", "pending": "Sage", "candidate": "one of the Thin Ones", "separateFromGuardian": true, "x": null, "y": null },
+      "boss": { "placement": "unbuilt", "key": "thinOne", "group": true, "count": 6, "sameAsGuardian": true, "bossFlagOnIndividual": false, "firesWhen": "lastDies", "x": null, "y": null },
       "setPieces": [
         { "id": "kin-boulders", "kind": "burial", "placed": false },
         { "id": "chapel-tooth", "kind": "quest-prop", "placed": false }

@@ -7,8 +7,9 @@
  * separate encounters. Beating the guardian unlocks the lever and the
  * elevator. A living boss never blocks the elevator. Killing the boss
  * opens the stairs. On L8-L10 the quest item sits behind the boss, so
- * that requirement is a quest gate, not an elevator gate. L1's boss is
- * still TBD, pending Sage (one of the Thin Ones), and is not the guardian.
+ * that requirement is a quest gate, not an elevator gate. On L1 the six
+ * Thin Ones together are the boss. The boss-kill hook fires when the last
+ * one dies. No single Thin One wears a boss flag.
  */
 (function (root) {
   'use strict';
@@ -89,9 +90,10 @@
 
   function forLevel(level) {
     var behindBoss = level >= 8 && level <= 10;
+    var groupBoss = level === 1;
     return {
       level: level,
-      separateEncounters: true,
+      separateEncounters: !groupBoss,
       elevator: 'guardian',
       stairs: 'bossKill',
       questItemBehindBoss: behindBoss,
@@ -100,9 +102,9 @@
       nick: NICK_STAIR,
       campaign: CAMPAIGN_GATE,
       authoritativeLeverGate: 'rubyGuardian',
-      boss: level === 1
-        ? { status: 'tbd', pending: 'Sage', candidate: 'one of the Thin Ones', mergedWithGuardian: false }
-        : { status: 'set', mergedWithGuardian: false },
+      boss: groupBoss
+        ? { status: 'group', key: 'thinOne', count: 6, sameAsGuardian: true, bossFlagOnIndividual: false, firesWhen: 'lastDies' }
+        : { status: 'set', separateFromGuardian: true, bossFlagOnIndividual: false },
       appliedToPlay: false
     };
   }
@@ -115,8 +117,8 @@
   }
 
   /**
-   * A TBD L1 boss is valid. A missing key on that row is not an error.
-   * Merging the boss into the elevator gate is an error on every level.
+   * L1's boss is the six Thin Ones as a group. A TBD row, or a boss flag
+   * on one Thin One, is an error. A boss-gated elevator is an error.
    */
   function validate(rows) {
     var list = rows || LEVELS;
@@ -125,7 +127,6 @@
     for (var i = 0; i < (list ? list.length : 0); i++) {
       var row = list[i];
       var id = row && row.level;
-      if (!row || row.separateEncounters !== true) errors.push('L' + id + ' guardian and boss must stay separate encounters');
       if (!row || row.elevator !== 'guardian') errors.push('L' + id + ' elevator must be the guardian');
       if (!row || row.stairs !== 'bossKill') errors.push('L' + id + ' stairs must open on the boss kill');
       if (!row || row.livingBossBlocksElevator !== false) errors.push('L' + id + ' a living boss must not block the elevator');
@@ -134,12 +135,18 @@
       if (row && (row.elevator === 'boss' || row.authoritativeLeverGate === 'boss')) {
         errors.push('L' + id + ' must not use the boss as the elevator gate');
       }
+      if (row && row.boss && row.boss.bossFlagOnIndividual) {
+        errors.push('L' + id + ' no single creature wears a boss flag');
+      }
       if (id === 1) {
-        if (!row.boss || row.boss.status !== 'tbd' || row.boss.pending !== 'Sage') {
-          errors.push('L1 boss must be TBD pending Sage');
-        } else if (row.boss.mergedWithGuardian) {
-          errors.push('L1 boss must not be merged with the guardian');
+        var boss = row && row.boss;
+        if (!row || row.separateEncounters !== false) errors.push('L1 boss is the guardian group, not a second encounter');
+        if (!boss || boss.status === 'tbd' || boss.pending === 'Sage') errors.push('L1 boss is no longer TBD');
+        if (!boss || boss.key !== 'thinOne' || boss.count !== 6 || boss.sameAsGuardian !== true || boss.firesWhen !== 'lastDies' || boss.bossFlagOnIndividual !== false) {
+          errors.push('L1 boss is the six Thin Ones together and fires when the last dies');
         }
+      } else if (!row || row.separateEncounters !== true) {
+        errors.push('L' + id + ' guardian and boss must stay separate encounters');
       }
     }
     return errors;

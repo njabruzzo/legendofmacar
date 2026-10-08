@@ -31,7 +31,7 @@
     bone: { level: 1, how: 'dig', where: 'L1+ digging' },
     starmetal: { level: 2, how: 'dig', where: 'L2+ digging (3.5)' },
     deepsilver: { level: 1, how: 'dig', where: 'Live ore seams. The deepsilver pick stays cut for lack of benefit.' },
-    hide: { level: 4, how: 'drop', where: 'Worg pelt, L4 (3.5)' },
+    hide: { level: 4, how: 'drop', where: 'L4 worg pelt', source: 'worg_pelt' },
     silk: { level: 3, how: 'pickup', where: 'L3 spiders (3.5)' },
     spring: { level: 1, how: 'pickup', where: 'L1 Brass Walker toy salvage' },
     gear: { level: 1, how: 'pickup', where: 'L1 Brass Walker toy salvage' },
@@ -100,6 +100,8 @@
       availableFrom: 4,
       gp: 200,
       slot: 'secondary',
+      sharesSlotWith: 'light crossbow',
+      slotReason: 'The crossbow needs two hands, so Shield +1 stays in the secondary slot.',
       ingredientSets: [{ ironstone: 3, worg_pelt: 1, ruby_guardian_2: 1 }],
       output: out('shield_plus_1', 'Shield +1', 'shield')
     },
@@ -174,14 +176,14 @@
     pack_bombs: { status: 'keep', neededBy: 1, origin: 'live' },
     resin_fuse_bombs: { status: 'keep', neededBy: 1, origin: 'live' },
     cave_ale: { status: 'keep', neededBy: 2, origin: 'live' },
-    hide_cloak: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac' },
-    bone_scale: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac' },
+    hide_cloak: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac', rule: 'Zero-plus armor stays only when its base AC beats current armor.', hideFrom: 'L4 worg pelt' },
+    bone_scale: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac', rule: 'Zero-plus armor stays only when its base AC beats current armor.' },
     deepsilver_pick: { status: 'cut', neededBy: null, origin: 'live', reason: '3.3 no benefit unless dig speed rises' },
     star_hammer: { status: 'keep', neededBy: 2, origin: 'live' },
-    silk_jack: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac' },
+    silk_jack: { status: 'keep', neededBy: 4, origin: 'live', conditional: 'base-ac', rule: 'Zero-plus armor stays only when its base AC beats current armor.' },
     iron_case_bombs: { status: 'keep', neededBy: 1, origin: 'live' },
     marrow_draught: { status: 'keep', neededBy: 1, origin: 'live' },
-    borgas_burp: { status: 'keep', neededBy: 2, origin: 'live', wielder: 'pordoom' },
+    borgas_burp: { status: 'keep', neededBy: 2, origin: 'live', wielder: 'pordoom', rule18: false, note: "Pordoom's kin item, not a rule-18 case. The fix to throw the tapped row still applies later." },
     emerald_clockwork_bolts: { status: 'keep', neededBy: 1, origin: 'live' }
   };
 
@@ -197,7 +199,7 @@
     { id: 'pixie_dust', name: 'Pixie Dust', usableByMacar: 'Y', kind: 'consumable' },
     { id: 'golden_egg', name: 'Golden Egg', usableByMacar: 'Y', kind: 'consumable' },
     { id: 'holy_hammer', name: 'Holy Hammer', usableByMacar: 'Y', kind: 'weapon' },
-    { id: 'holy_anvil', name: 'Holy Anvil of Truth', usableByMacar: 'Y', kind: 'quest' },
+    { id: 'holy_anvil', name: 'Holy Anvil of Truth', displayName: 'Holy Anvil of Truth', usableByMacar: 'Y', kind: 'quest' },
     { id: 'temple-ritual', name: 'Temple ritual', usableByMacar: 'Y', kind: 'ritual' }
   ];
 

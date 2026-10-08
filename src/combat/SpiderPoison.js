@@ -8,25 +8,39 @@
  * Kin use the same numbers. Ghosts are immune. Antitoxin ends the slow.
  *
  * There is no raw-death path and no damage-over-time path.
+ * At 1 HP the failed save leaves the creature at 1 HP and still applies the slow.
+ *
+ * The save grid is the PHB fighter poison base plus the 1.16 size offset.
+ * F9-F10 base is 8. Offsets: large +2, huge +3, giant +4, phase and Queen +6.
  */
 (function (root) {
   'use strict';
 
   var POISON_MODE = 'h1';
 
+  var OFFSET = { large: 2, huge: 3, giant: 4, phase: 6, queen: 6 };
+
+  var POISON_BASE = [
+    { from: 1, to: 4, base: 13 },
+    { from: 5, to: 6, base: 11 },
+    { from: 7, to: 8, base: 10 },
+    { from: 9, to: 10, base: 8, source: 'PHB fighter' }
+  ];
+
   var SPIDERS = {
-    spider: { name: 'large', save: 2 },
-    spiderHuge: { name: 'huge', save: 1 },
-    spiderGiant: { name: 'giant', save: 0 },
-    phasespider: { name: 'phase', save: -2 },
-    spiderQueen: { name: 'queen', save: -2 }
+    spider: { name: 'large', offset: OFFSET.large },
+    spiderHuge: { name: 'huge', offset: OFFSET.huge },
+    spiderGiant: { name: 'giant', offset: OFFSET.giant },
+    phasespider: { name: 'phase', offset: OFFSET.phase },
+    spiderQueen: { name: 'queen', offset: OFFSET.queen }
   };
 
   function fighterPoisonBase(level) {
-    if (level <= 4) return 13;
-    if (level <= 6) return 11;
-    if (level <= 8) return 10;
-    return 8;
+    for (var i = 0; i < POISON_BASE.length; i++) {
+      var band = POISON_BASE[i];
+      if (level >= band.from && level <= band.to) return band.base;
+    }
+    throw new Error('poison base is printed for F1 through F10');
   }
 
   function conBonus(con) {
@@ -41,9 +55,10 @@
     var base = opts.base != null ? opts.base : fighterPoisonBase(opts.level);
     var bonus = opts.conBonus != null ? opts.conBonus : conBonus(opts.con);
     if (bonus == null) throw new Error('CON bonus is only printed for 14-18');
+    var offset = opts.offset != null ? opts.offset : spider.offset;
     var anti = opts.antitoxin ? 4 : 0;
     var periapt = opts.periaptPlus || 0;
-    return base - bonus - spider.save - anti - periapt;
+    return base + offset - bonus - anti - periapt;
   }
 
   function failedSave(hp) {
@@ -93,6 +108,8 @@
 
   var api = {
     POISON_MODE: POISON_MODE,
+    OFFSET: OFFSET,
+    POISON_BASE: POISON_BASE,
     SPIDERS: SPIDERS,
     fighterPoisonBase: fighterPoisonBase,
     conBonus: conBonus,
