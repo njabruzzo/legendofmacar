@@ -15132,6 +15132,9 @@ function update(dt){
       }
       continue;
     }
+    // Old saves can leave the shaman waiting for a conversation that no
+    // longer exists. Restore ordinary hostile AI without affecting Noz.
+    if(e.team==='foe'&&(e.shaman||e.name==='Goblin Shaman')) e.npc=0;
     if(e.npc && e.team!=='party'){ e.moving=0; e.ix=0; e.iy=0; continue; }
 
     let tgt=null, want=e.range, form=0;

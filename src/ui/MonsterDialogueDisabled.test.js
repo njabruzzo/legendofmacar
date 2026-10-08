@@ -13,4 +13,5 @@ for(const key of ['toy_find','toy_wind','noz_untie','noz_bell','noz_trade_again'
 assert.equal(c.majorTalkKey({name:'Goblin King'}),'');
 c.maybeShamanTalks({},1);c.maybeGoblinMercy({});assert(!c.G.talk);
 assert(!html.includes("interact('Talk to the bones'"));
+assert(html.includes("if(e.team==='foe'&&(e.shaman||e.name==='Goblin Shaman')) e.npc=0;"),'saved shamans no longer wait for dialogue');
 console.log('Monster dialogue disabled; toy and Noz dialogue preserved');
