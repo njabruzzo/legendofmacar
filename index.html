@@ -7103,6 +7103,7 @@ function tickAutosave(){
 }
 function beginFreshDescent(){
   G.wipeAsk=0;
+  G.kills=0;
   if(typeof GameSave!=='undefined' && GameSave.applyBlankCampaign) GameSave.applyBlankCampaign(G);
   startChapter(1);
   G._ownsBook=1;

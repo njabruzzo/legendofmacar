@@ -149,6 +149,7 @@ assert(!burned.equipped.helmet && !burned.charXp.macar && !Object.keys(burned.fl
   const blank=blankAt.indexOf('applyBlankCampaign');
   const start=blankAt.indexOf('startChapter(1)');
   assert(blank>=0 && start>blank, 'beginFreshDescent blanks the campaign before Chapter I');
+  assert(/G\.kills=0/.test(blankAt), 'Burn after Continue clears the in-memory kill counter');
 }
 
 const vault={
