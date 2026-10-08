@@ -51,7 +51,7 @@ assert(!/drawPromptBtn|drawHint|drawInspect|drawLog/.test(tail),
 assert(/drawTalk\(g\)/.test(tail), 'stone-mouth talk still paints over the pack');
 assert(/if\(!field && !packTalk\)\{\s*promptBtn=null;/.test(plates),
   'pack, pause, craft, trade, and menus drop the prompt hit rect');
-const sleepHint=plates.indexOf("if(G.scene==='play'&&G.sleepShow&&G.hint)");
+const sleepHint=plates.indexOf("if(G.scene==='play'&&G.sleepShow&&!G.paused&&G.hint)");
 const platesReturn=plates.indexOf('if(!field && !packTalk)');
 assert(sleepHint>0 && sleepHint<platesReturn, 'the rest-card hint is drawn before the play-plate return');
 assert(/drawHint\(g,UIS\)/.test(plates.slice(sleepHint, platesReturn+1)),
@@ -112,6 +112,12 @@ assert(restHint.promptBtn===null, 'the rest-card hint does not leave a prompt hi
 const restQuiet=runPlates({scene:'play', paused:false, sleepShow:{t:1,dur:5}, hint:null});
 assert(restQuiet.calls.length===0 && restQuiet.promptBtn===null,
   'a rest card with no hint stays blank');
+const restPaused=runPlates({
+  scene:'play', paused:true, sleepShow:{t:1,dur:5},
+  hint:{text:'Macar camps. Hit points restored. The book is marked.', life:4},
+});
+assert(restPaused.calls.length===0 && restPaused.promptBtn===null,
+  'a paused rest card draws nothing, hint included');
 
 const onDown=html.match(/function onDown\([\s\S]*?\nfunction onMove/)[0];
 assert(/promptBtn&&x>=promptBtn\.x[\s\S]*?!G\.inspect/.test(onDown),

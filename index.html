@@ -8994,7 +8994,7 @@ function drawPlayPlates(g){
   /* The rest card is not the play field, but campRest's hint is the
      message on that card. It expires with the card, so it has to paint
      here. The prompt, the log, and the kin sheet stay off. */
-  if(G.scene==='play'&&G.sleepShow&&G.hint){
+  if(G.scene==='play'&&G.sleepShow&&!G.paused&&G.hint){
     beginUiLayer(g);
     drawHint(g,UIS);
     promptBtn=null;
