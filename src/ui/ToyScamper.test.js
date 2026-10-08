@@ -79,6 +79,8 @@ vm.runInContext([
   extractFn('settleToyTalk'),
   extractFn('closeTalk'),
   extractFn('startTalkObj'),
+  extractFn('isMajorTalkKey'),
+  extractFn('isMonsterTalkKey'),
   extractFn('startTalk'),
   extractFn('pickTalk')
 ].join('\n'), ctx);

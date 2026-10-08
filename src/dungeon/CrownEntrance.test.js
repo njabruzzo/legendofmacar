@@ -25,7 +25,7 @@ Object.assign(c,{SPR:{crown_bone_wall:bones,rubble,rubble2},ZOOM:1,DIGT:null,hal
 let caps=0;const g={save(){},restore(){},translate(){},transform(a,b,c,d){assert.equal(a,58);assert(Math.abs(c+58*1.8)<.001);assert.equal(b,29);assert(Math.abs(d-29*1.8)<.001);},fillRect(){caps++;}};
 for(let x=102;x<112;x++)assert(c.drawCrownEntranceCell(g,L,x,15,true,false,true,false));
 assert.equal(faces.length,8);assert(faces.every(img=>img===bones),'central faces and both thick ends use bone texture');assert.equal(caps,3,'all three bone cells have a full tile-depth cap');
-assert.equal(piles.filter(p=>p.h===90).length,7);assert.equal(piles.filter(p=>p.h===90*.58).length,2,'both bone ends have overlapping broken stone');assert(piles.every(p=>p.img===rubble||p.img===rubble2),'jambs and transitions share rubble assets');
+assert.equal(piles.filter(p=>p.h===90).length,21,'seven rubble cells each have three full-height depth banks');assert.equal(piles.filter(p=>p.h===90*.58).length,2,'both bone ends have overlapping broken stone');assert(piles.every(p=>p.img===rubble||p.img===rubble2),'jambs and transitions share rubble assets');
 c.secretSeamAt=()=>{throw Error('ordinary secret overlay must not cover bones');};
 c.drawSecretFadedFace(g,L,106,15,80,null,null);
 assert(fn('drawWorld').includes('if(drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW))return;'));

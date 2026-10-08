@@ -174,7 +174,7 @@ assert(/e\.nozCamp=1/.test(ch2) && /interact\('Untie Noz'/.test(ch2),
   'Noz untie stays on the four-way');
 assert(/startTalk\(L\.flags\.bellSaid\?'noz_trade_again':'noz_bell'\)/.test(ch2),
   'bronze bell talk stays');
-assert(/startTalk\('web_skeleton'\)/.test(ch2), 'web skeleton talk stays');
+assert(!/startTalk\('web_skeleton'\)/.test(ch2), 'web skeleton dialogue prompt removed');
 assert(/startTalk\('goblin_mercy'\)/.test(html), 'false-surrender goblin stays');
 ['shaman_hail','shaman_bargain','shaman_chant','shaman_blood','goblin_yield'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(html), k+' Quill tree stays');
