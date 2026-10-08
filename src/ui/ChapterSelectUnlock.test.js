@@ -108,7 +108,34 @@ assert.ok(!/migrate\(/.test(peekFns) && !/applyCampaign\(/.test(peekFns),
   'the peek does not call migrate or applyCampaign');
 
 const menu = html.match(/function drawTitleMenu\(g\)\{[\s\S]*?\nfunction drawCredits/)[0];
-assert.ok(/menuBtn\(g,'Chapters'[\s\S]*G\.scene='chapters'/.test(menu),
-  'the title Chapters button still only changes the scene');
+const chapterBtns = [];
+const chapterBtnRe = /menuBtn\(g,'Chapters',/g;
+let chapterBtnAt;
+while((chapterBtnAt = chapterBtnRe.exec(menu))){
+  const call = menu.slice(chapterBtnAt.index).match(/menuBtn\(g,'Chapters',[\s\S]*?\)\s*=>\s*\{[\s\S]*?\}/);
+  assert.ok(call, 'a Chapters button has a handler');
+  chapterBtns.push(call[0]);
+}
+assert.ok(chapterBtns.length>=1, 'the title menu has a Chapters button');
+chapterBtns.forEach(function(handler){
+  const direct = /G\.scene='chapters'/.test(handler);
+  const via = /openChapters\(\)/.test(handler);
+  assert.ok((direct || via) && direct!==via,
+    'the title Chapters button still only changes the scene');
+  assert.ok(!/startChapter\(/.test(handler) && !/beginChapterFromList\(/.test(handler),
+    'the title Chapters button does not open a chapter');
+});
+const openChaptersFn = html.match(/function openChapters\(\)\{[\s\S]*?\n\}/);
+if(openChaptersFn){
+  const body = openChaptersFn[0];
+  assert.ok(/G\.scene='chapters'/.test(body), 'openChapters switches to the chapter list');
+  assert.ok(/autosaveNow\(/.test(body), 'openChapters flushes the book');
+  const calls = body.match(/[A-Za-z_][A-Za-z0-9_]*\(/g).filter(function(c){
+    return c!=='openChapters(' && c!=='autosaveNow(';
+  });
+  assert.deepStrictEqual(calls, [], 'openChapters only flushes, then shows the list');
+  assert.ok(!/startChapter\(/.test(body) && !/beginChapterFromList\(/.test(body) && !/G\.ch\s*=/.test(body),
+    'openChapters does not open a chapter');
+}
 
 console.log('title chapters follow the saved unlock without loading the run');

@@ -44,7 +44,8 @@ assert(!/startChapter\(6\)/.test(html), 'nothing calls startChapter(6)');
 
 assert(/G\.unlocked=Math\.max\(G\.unlocked,G\.ch\+1\)/.test(html), 'clearing a chapter unlocks the next one');
 const select = html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\nfunction enterPlayFromIntro/)[0];
-assert(/locked=m\.locked\|\|n>G\.unlocked/.test(select), 'chapter list seals anything past unlocked');
+assert(/const book=chapterSelectProgress\(\)/.test(select) && /locked=m\.locked\|\|n>book\.unlocked/.test(select),
+  'chapter list seals anything past unlocked');
 function sealed(n, unlocked) { return n > unlocked; }
 assert(!sealed(4, 4) && sealed(5, 4), 'after III, IV is open on the list and V stays sealed');
 assert(!sealed(5, 5), 'clearing IV opens V');
