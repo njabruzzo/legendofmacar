@@ -3,10 +3,12 @@
  * Does not change useChapterDescent, floorTravelReady, or throwCh1LiftLever.
  * Open PR #319 owns the live chapter stair.
  *
- * Nick: a floor's exit opens on its boss kill.
- * New levels (D3-B, locked): the ruby guardian gates the lever, and the
- * lever gates the auto-elevator. The boss is not required for that lever.
- * L8-L10 still keep the quest item behind the boss.
+ * Nick, on the campaign floors: the ruby guardian and the floor boss are
+ * separate encounters. Beating the guardian unlocks the lever and the
+ * elevator. A living boss never blocks the elevator. Killing the boss
+ * opens the stairs. On L8-L10 the quest item sits behind the boss, so
+ * that requirement is a quest gate, not an elevator gate. L1's boss is
+ * still TBD, pending Sage (one of the Thin Ones), and is not the guardian.
  */
 (function (root) {
   'use strict';
@@ -19,13 +21,17 @@
   };
 
   var CAMPAIGN_GATE = {
-    id: 'd3-b',
+    id: 'nick-separate-exits',
     decision: 'D3-B',
+    ruling: 'Nick: guardian and boss are separate encounters',
     leverRequires: ['rubyGuardianDead'],
     elevatorRequires: ['leverPulled'],
+    elevator: 'guardian',
+    stairs: 'bossKill',
     elevatorAuto: true,
     showsTransitionCard: true,
     bossRequiredForLever: false,
+    livingBossBlocksElevator: false,
     questBehindBossFrom: 8
   };
 
@@ -82,27 +88,71 @@
   };
 
   function forLevel(level) {
+    var behindBoss = level >= 8 && level <= 10;
     return {
       level: level,
+      separateEncounters: true,
+      elevator: 'guardian',
+      stairs: 'bossKill',
+      questItemBehindBoss: behindBoss,
+      bossOptionalForElevator: true,
+      livingBossBlocksElevator: false,
       nick: NICK_STAIR,
       campaign: CAMPAIGN_GATE,
       authoritativeLeverGate: 'rubyGuardian',
-      bossKillVacuous: level === 1,
-      questRequiresBoss: level >= CAMPAIGN_GATE.questBehindBossFrom,
+      boss: level === 1
+        ? { status: 'tbd', pending: 'Sage', candidate: 'one of the Thin Ones', mergedWithGuardian: false }
+        : { status: 'set', mergedWithGuardian: false },
       appliedToPlay: false
     };
   }
 
+  var LEVELS = [];
+  for (var n = 1; n <= 10; n++) LEVELS.push(forLevel(n));
+
   function liveChapter(n) {
     return LIVE[n] || null;
+  }
+
+  /**
+   * A TBD L1 boss is valid. A missing key on that row is not an error.
+   * Merging the boss into the elevator gate is an error on every level.
+   */
+  function validate(rows) {
+    var list = rows || LEVELS;
+    var errors = [];
+    if (!list || list.length !== 10) errors.push('expected one row for each of 10 levels');
+    for (var i = 0; i < (list ? list.length : 0); i++) {
+      var row = list[i];
+      var id = row && row.level;
+      if (!row || row.separateEncounters !== true) errors.push('L' + id + ' guardian and boss must stay separate encounters');
+      if (!row || row.elevator !== 'guardian') errors.push('L' + id + ' elevator must be the guardian');
+      if (!row || row.stairs !== 'bossKill') errors.push('L' + id + ' stairs must open on the boss kill');
+      if (!row || row.livingBossBlocksElevator !== false) errors.push('L' + id + ' a living boss must not block the elevator');
+      if (!row || row.bossOptionalForElevator !== true) errors.push('L' + id + ' boss must stay optional for the elevator');
+      if (!row || row.questItemBehindBoss !== (id >= 8)) errors.push('L' + id + ' questItemBehindBoss');
+      if (row && (row.elevator === 'boss' || row.authoritativeLeverGate === 'boss')) {
+        errors.push('L' + id + ' must not use the boss as the elevator gate');
+      }
+      if (id === 1) {
+        if (!row.boss || row.boss.status !== 'tbd' || row.boss.pending !== 'Sage') {
+          errors.push('L1 boss must be TBD pending Sage');
+        } else if (row.boss.mergedWithGuardian) {
+          errors.push('L1 boss must not be merged with the guardian');
+        }
+      }
+    }
+    return errors;
   }
 
   var api = {
     NICK_STAIR: NICK_STAIR,
     CAMPAIGN_GATE: CAMPAIGN_GATE,
     LIVE: LIVE,
+    LEVELS: LEVELS,
     forLevel: forLevel,
     liveChapter: liveChapter,
+    validate: validate,
     wired: false
   };
 

@@ -56,6 +56,12 @@ assert(new Set(teeth).size === 7, 'seven distinct tooth ids');
 assert(T.LEVELS[1].optionalQuest.id === 'grond_tooth_bronze' && T.LEVELS[1].optionalQuest.countsForRitual === false, 'bronze tooth is not one of the seven');
 assert(T.level(8).quest.id === 'holy_hammer' && T.level(8).quest.plus === 3, 'L8 Holy Hammer +3');
 assert(T.level(9).quest.name === 'Holy Anvil of Truth', 'L9 Holy Anvil of Truth');
+assert(T.level(9).elevator.transitionCard === 'assets/creatures/mon_deepdragon.png', 'L9 card keeps the deep dragon stand-in');
+assert(T.level(9).elevator.note === 'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.', 'L9 keeps the stand-in until red dragon art passes');
+assert(T.level(1).boss.status === 'tbd' && T.level(1).boss.pending === 'Sage' && T.level(1).boss.separateFromGuardian === true, 'L1 boss is TBD pending Sage and is not the guardian');
+[8, 9, 10].forEach(function (n) {
+  assert(T.level(n).quest.behindBoss === true && T.level(n).lever.needsBoss === false, 'L' + n + ' quest sits behind the boss and the lever does not');
+});
 assert(T.level(10).quest.kind === 'ritual' && T.level(10).quest.xpOnce === 5000, 'L10 ritual');
 
 assert(!T.level(2).residents.some(m => /spider/i.test(m.key)), 'L2 residents have no spiders');

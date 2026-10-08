@@ -140,7 +140,10 @@
     }
     if (!elev || elev.auto !== true) errors.push(id + ' elevator must be automatic');
     if (!elev || elev.standIn !== true) errors.push(id + ' transition card must be marked as a stand-in');
-    if (level.boss != null && !level.boss.key) errors.push(id + ' boss needs a key');
+    /* L1's boss is TBD pending Sage and has no key yet. That is valid. */
+    if (level.boss != null && level.boss.status !== 'tbd' && !level.boss.key) {
+      errors.push(id + ' boss needs a key');
+    }
     if (!level.exit || level.exit.ref !== 'campaign') errors.push(id + ' campaign exit.ref must be campaign');
     return errors;
   }

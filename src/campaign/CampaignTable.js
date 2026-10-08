@@ -75,8 +75,8 @@
     return { enablesWhen: 'rubyGuardianDead', needsBoss: false, decision: 'D3-B' };
   }
 
-  function elevator(artKey, standInFor) {
-    return {
+  function elevator(artKey, standInFor, note) {
+    var row = {
       auto: true,
       showsTransitionCard: true,
       transitionCard: artKey,
@@ -84,6 +84,8 @@
       standInFor: standInFor || null,
       newArt: false
     };
+    if (note) row.note = note;
+    return row;
   }
 
   var LEVELS = [
@@ -94,7 +96,8 @@
       theme: 'Cave-in, buried kin, ruby door, Bone Crown chapel',
       builtFrom: { chapter: 1, anchor: 'makeChapter n===1' },
       reuse: { kept: ['all'], cutOrMoved: [], cutAsChapter: false },
-      boss: null,
+      /* Separate from the six Thin Ones who are the ruby guardian. Sage has not named which Thin One, if any, is the floor boss. */
+      boss: { status: 'tbd', pending: 'Sage', candidate: 'one of the Thin Ones', separateFromGuardian: true },
       residents: [
         mon('rat', 'Cave Rat', '1/2', 7, 8, { tt: 'C' }),
         mon('centipede', 'Giant Centipede', '1/4', 9, 32, { poisonSave: 4, xpNote: 'verify' }),
@@ -398,7 +401,11 @@
       ],
       rubyDoor: door(),
       lever: lever(),
-      elevator: elevator('assets/creatures/mon_deepdragon.png', 'Deep dragon art stands in for the red dragon'),
+      elevator: elevator(
+        'assets/creatures/mon_deepdragon.png',
+        'Deep dragon art stands in for the red dragon',
+        'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.'
+      ),
       quest: { kind: 'quest', id: 'holy_anvil', name: 'Holy Anvil of Truth', alias: 'Holy Anvil', behindBoss: true, forgeTier: 'top', usableByMacar: 'Y' },
       pacing: { cumulativeXp: 410000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, bossPlusGuardianXp: 21260, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
       setPieces: ['dragon-hoard']

@@ -12,7 +12,7 @@
       "guardian": { "placement": "unbuilt", "key": "thinOne", "tier": 1, "count": 6 },
       "lever": { "placement": "unbuilt", "x": null, "y": null },
       "elevator": { "placement": "unbuilt", "x": null, "y": null, "auto": true, "standIn": true, "transitionCard": "assets/ui/intro_ch1.jpg" },
-      "boss": null,
+      "boss": { "placement": "unbuilt", "status": "tbd", "pending": "Sage", "candidate": "one of the Thin Ones", "separateFromGuardian": true, "x": null, "y": null },
       "setPieces": [
         { "id": "kin-boulders", "kind": "burial", "placed": false },
         { "id": "chapel-tooth", "kind": "quest-prop", "placed": false }
@@ -112,7 +112,7 @@
       "rubyDoor": { "placement": "unbuilt", "x": null, "y": null, "prop": "rubydoor" },
       "guardian": { "placement": "unbuilt", "key": "rubyGuardian", "tier": 9, "count": 1 },
       "lever": { "placement": "unbuilt", "x": null, "y": null },
-      "elevator": { "placement": "unbuilt", "x": null, "y": null, "auto": true, "standIn": true, "transitionCard": "assets/creatures/mon_deepdragon.png" },
+      "elevator": { "placement": "unbuilt", "x": null, "y": null, "auto": true, "standIn": true, "transitionCard": "assets/creatures/mon_deepdragon.png", "note": "Keep this deep-dragon stand-in on the L9 card until red dragon art passes." },
       "boss": { "placement": "unbuilt", "key": "redDragon", "x": null, "y": null },
       "setPieces": [
         { "id": "dragon-hoard", "kind": "quest-chest", "placed": false }

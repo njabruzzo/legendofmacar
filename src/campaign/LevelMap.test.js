@@ -56,8 +56,15 @@ campaign.book.levels.forEach(function (row, i) {
   assert(row.guardian.tier === design.rubyGuardian.tier, row.id + ' guardian tier');
   assert(row.elevator.transitionCard === design.elevator.transitionCard, row.id + ' transition card');
   assert(fs.existsSync(path.join(root, row.elevator.transitionCard)), row.id + ' stand-in art exists');
-  const bossKey = design.boss ? design.boss.key : null;
-  assert((row.boss && row.boss.key) === bossKey || (row.boss == null && bossKey == null), row.id + ' boss key');
+  if (row.id === 'L1') {
+    assert(row.boss.status === 'tbd' && row.boss.pending === 'Sage' && !row.boss.key, 'L1 map boss is TBD pending Sage and has no key yet');
+    assert(design.boss.status === 'tbd' && design.boss.separateFromGuardian === true, 'L1 table boss stays separate from the guardian');
+  } else if (row.id === 'L9') {
+    assert(row.elevator.note === design.elevator.note, 'L9 map keeps the deep-dragon stand-in note');
+    assert(row.boss && row.boss.key === design.boss.key, row.id + ' boss key');
+  } else {
+    assert(row.boss && row.boss.key === design.boss.key, row.id + ' boss key');
+  }
   Map.FEATURES.forEach(function (feature) {
     assert(Object.prototype.hasOwnProperty.call(row, feature), row.id + ' has ' + feature);
   });
@@ -65,6 +72,12 @@ campaign.book.levels.forEach(function (row, i) {
 
 const l4 = campaign.book.levels[3];
 assert(l4.setPieces.some(function (p) { return p.kind === 'ogre-cave' && p.ref === 'OgreCave'; }), 'L4 map carries the ogre cave set piece');
+
+const unnamedBook = JSON.parse(JSON.stringify(campaign.book));
+delete unnamedBook.levels[1].boss.key;
+delete unnamedBook.levels[1].boss.status;
+const unnamed = Map.load(unnamedBook);
+assert(!unnamed.ok && unnamed.errors.some(function (e) { return e.indexOf('boss needs a key') >= 0; }), 'a boss without a key or a TBD mark fails');
 
 const broken = JSON.parse(JSON.stringify(campaign.book));
 delete broken.levels[3].rubyDoor;
