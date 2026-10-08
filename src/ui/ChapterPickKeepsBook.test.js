@@ -111,7 +111,7 @@ assert.strictEqual(packed.length, 0, 'an empty shelf does not apply a campaign')
 assert.strictEqual(G.coin.gp, 0);
 
 const ruby = html.match(/The ruby seals the descent from this floor\./);
-assert.ok(ruby, 'the ruby door line is unchanged');
+assert.ok(ruby, 'chapters I and II still seal the descent in the ruby door line');
 assert.ok(/if\(!keep && \(!G\.res\|\|!G\.res\.ironstone&&G\.res\.ironstone!==0\)\) initEconomy\(\)/.test(html),
   'a kept book is not replaced by a blank economy');
 

@@ -6814,15 +6814,23 @@ function travelFloor(n){
   for(const e of G.ents){if(e.team!=='party'||!e.col)continue;const old=party.find(q=>q.key===e.col.key);if(old){e.hp=old.hp;e.maxhp=old.maxhp;e.dead=old.dead;e.ghost=old.ghost;}e.x=spawn.x;e.y=spawn.y;e.dest=null;e.moving=0;}
   G.cam.x=spawn.x;G.cam.y=spawn.y;G.scene='play';ensureFloorTravelProps();rebuildVision();writeGameSave(true);return true;
 }
+function floorRubyLine(L){
+  const late=L&&(L.n===3||L.n===4);
+  if(L&&L.flags&&L.flags.floorRubyActivated) return late?'The ruby has freed the old lever.':'The ruby has opened the way down.';
+  return late?'The ruby holds the old lever. The stair waits past the boss.':'The ruby seals the descent from this floor.';
+}
+function floorLeverLine(L){
+  return L&&(L.n===3||L.n===4)?'Choose a floor. The ruby holds this lever.':'Choose a floor. The ruby seals the way down.';
+}
 function openFloorLever(){
   const n=G.lvl.n,choices=[];
   if(n>1)choices.push({t:'Go up to floor '+(n-1)+'.',then:()=>travelFloor(n-1)});
   if(n<5)choices.push(floorTravelReady()?{t:'Go down to floor '+(n+1)+'.',then:()=>travelFloor(n+1)}:{t:'The ruby door must be activated first.'});
-  choices.push({t:'Leave it.'});startTalkObj({key:'floor_travel',who:'FLOOR LEVER',line:'Choose a floor. The ruby seals the way down.',choices});
+  choices.push({t:'Leave it.'});startTalkObj({key:'floor_travel',who:'FLOOR LEVER',line:floorLeverLine(G.lvl),choices});
 }
 function openFloorRuby(){
   const L=G.lvl,door=G.props.find(q=>q.k==='floorRubyDoor');if(!L||!door)return;
-  startTalkObj({key:'floor_ruby',who:'RUBY DOOR',line:L.flags.floorRubyActivated?'The ruby has opened the way down.':'The ruby seals the descent from this floor.',choices:L.flags.floorRubyActivated?[{t:'Leave it.'}]:[{t:'Activate the ruby.',then:()=>{L.flags.floorRubyActivated=1;burst(door.x,door.y,'#ff334a',18,2);writeGameSave(true);}},{t:'Leave it.'}]});
+  startTalkObj({key:'floor_ruby',who:'RUBY DOOR',line:floorRubyLine(L),choices:L.flags.floorRubyActivated?[{t:'Leave it.'}]:[{t:'Activate the ruby.',then:()=>{L.flags.floorRubyActivated=1;burst(door.x,door.y,'#ff334a',18,2);writeGameSave(true);}},{t:'Leave it.'}]});
 }
 function floorTravelScreenHit(t){
   for(const prop of (G.props||[])){if(prop.gone||!['floorlever','floorRubyDoor'].includes(prop.k))continue;
