@@ -44,6 +44,7 @@
 <script src="src/props/CraftStation.js"></script>
 <script src="src/packs/GhostKit.js"></script>
 <script src="src/saves/GameSave.js"></script>
+<script src="src/saves/Autosave.js"></script>
 <script src="src/loot/SpiderLair.js"></script>
 <script src="src/loot/DmgPotions.js"></script>
 <!-- Systems modules: classic sync tags only (no type=module).
@@ -603,7 +604,16 @@ const MUSIC_LABEL={
   packHorn:'Horn: War Horns \u2014 Eldritch Grim',
   bossHorn:'Horn: War Horns \u2014 Eldritch Grim'
 };
-function openCredits(from){ G.creditsFrom=from||'title_menu'; G.scene='credits'; }
+function openCredits(from){
+  /* Flush while the descent or camp is still the live scene. Credits
+     itself is not a loadable book. */
+  if(typeof autosaveNow==='function') autosaveNow('hide');
+  G.creditsFrom=from||'title_menu'; G.scene='credits';
+}
+function openChapters(){
+  if(typeof autosaveNow==='function') autosaveNow('hide');
+  G.scene='chapters';
+}
 function leaveCredits(){
   const from=G.creditsFrom||'title_menu';
   G.creditsFrom=null;
@@ -7007,21 +7017,61 @@ function capturePlaySave(){
     })
   };
 }
+let lastQuietSaveT=0, lastQuietSaveMs=0;
+function noteQuietSave(){
+  lastQuietSaveT=G.t||0;
+  lastQuietSaveMs=Date.now();
+}
+function bookSceneNow(){
+  if(typeof Autosave!=='undefined' && Autosave.bookScene) return Autosave.bookScene(G);
+  return (G.scene==='camp')?'camp':'play';
+}
 function writeGameSave(quiet){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
-  const extra={scene:(G.scene==='camp')?'camp':'play'};
+  const extra={scene:bookSceneNow()};
   if(G.lvl) extra.play=capturePlaySave();
   const snap=GameSave.snapshot(G, extra);
   let ok=false;
   try{ ok=!!GameSave.write(localStorage, snap); }
   catch(err){ ok=false; }
   if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
+  noteQuietSave();
   if(!quiet){
     say('The book is marked. Progress is kept.','#ffe08a');
     hint('Saved. '+GameSave.label(snap), 3.8);
     G.campSaveFlash=(G.t||0)+2.4;
   }
   return true;
+}
+/* Quiet book. Fresh descent writes before the click handler returns, so
+   Burn it cannot leave an empty slot. Tick and hide only write a scene
+   Continue already knows how to open. */
+function autosaveNow(reason){
+  if(typeof Autosave==='undefined' || typeof writeGameSave!=='function') return false;
+  const nowMs=Date.now();
+  if(!Autosave.due(reason, G.t||0, lastQuietSaveT, nowMs, lastQuietSaveMs)) return false;
+  if(!Autosave.loadable(G)) return false;
+  const ok=!!writeGameSave(true);
+  if(!ok){ lastQuietSaveT=G.t||0; lastQuietSaveMs=nowMs; }
+  return ok;
+}
+function tickAutosave(){
+  if(typeof document!=='undefined' && document.visibilityState==='hidden') return;
+  autosaveNow('tick');
+}
+function beginFreshDescent(){
+  G.wipeAsk=0;
+  startChapter(1);
+  autosaveNow('fresh');
+}
+function bindAutosaveLifecycle(){
+  if(bindAutosaveLifecycle.done) return;
+  bindAutosaveLifecycle.done=1;
+  const flush=function(){ try{ autosaveNow('hide'); }catch(err){} };
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flush();
+  });
+  window.addEventListener('pagehide', flush);
 }
 function remakeSavedEnt(sv){
   const e=ent({kind:sv.kind||'foe', team:sv.team||'foe', x:sv.x||0, y:sv.y||0, hp:sv.hp||1});
@@ -7133,12 +7183,14 @@ function loadSavedGame(){
   if(snap.scene==='camp'){
     G.scene='camp'; G.paused=false; G.lvl=null;
     say('The camp fire is as you left it.','#c9b895');
+    noteQuietSave();
     return;
   }
   G._keepProgress=1;
   G._loadSnap=snap;
   startChapter(snap.ch||1);
   say('The book opens where you left the mark.','#ffe08a');
+  noteQuietSave();
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
@@ -21013,10 +21065,7 @@ function drawTitleMenu(g){
     g.fillStyle='rgba(230,210,170,0.90)';
     g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-6*s);
     g.textAlign='left';
-    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>{
-      if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
-      G.wipeAsk=0; startChapter(1);
-    }, false, null, 'primary');
+    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>beginFreshDescent(), false, null, 'primary');
     y+=btnH+gap;
     menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; }, false, null, 'secondary');
   } else if(hasSave){
@@ -21024,13 +21073,13 @@ function drawTitleMenu(g){
     y+=btnH+gap;
     menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=1; }, false, null, 'secondary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{openChapters();}, false, null, 'secondary');
     y+=btnH+gap;
     menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   } else {
-    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>startChapter(1), false, null, 'primary');
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>beginFreshDescent(), false, null, 'primary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{openChapters();}, false, null, 'secondary');
     y+=btnH+gap;
     menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   }
@@ -21240,7 +21289,7 @@ function drawBetween(g){
   g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.255);
   g.textAlign='left';
   if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
-  menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{openChapters();});
 }
 
 
@@ -21369,7 +21418,7 @@ function drawCamp(g){
   menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
     menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>startChapter(nxt));
-  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{G.scene='chapters';});
+  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{openChapters();});
   const footHits=menuHits.splice(beforeFoot);
   menuHits.unshift.apply(menuHits, footHits);
 }
@@ -21380,15 +21429,15 @@ function drawDead(g){
   bigTitle(g,'MACAR FALLS',VH*.32,(PORT?30:40)*s,'#ff9a7a');
   g.textAlign='center'; g.font='italic 600 '+((PORT?11.5:14)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,180,150,0.8)';
-  g.fillText(hasSave?'The book still holds your last camp.':'The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.42);
+  g.fillText(hasSave?'The book still holds your last mark.':'The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.42);
   g.textAlign='left';
   if(hasSave){
     menuBtn(g,'Continue',VW/2,VH*.54,Math.min(240*s,VW*.68),50*s,()=>loadSavedGame(), false, SPR.icon_save);
     menuBtn(g,'Try again',VW/2,VH*.66,Math.min(240*s,VW*.68),40*s,()=>startChapter(G.ch));
-    menuBtn(g,'Chapters',VW/2,VH*.77,Math.min(240*s,VW*.68),38*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters',VW/2,VH*.77,Math.min(240*s,VW*.68),38*s,()=>{openChapters();});
   } else {
     menuBtn(g,'Try again',VW/2,VH*.60,Math.min(240*s,VW*.68),50*s,()=>startChapter(G.ch));
-    menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{openChapters();});
   }
 }
 
@@ -21404,7 +21453,7 @@ function drawWin(g){
   .forEach((l,i)=>{ if(i===4){ g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='#ffd27a'; }
     g.fillText(l,VW/2,VH*.38+i*22*s); });
   g.textAlign='left';
-  menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{openChapters();});
 }
 
 function packUser(){
@@ -22471,7 +22520,7 @@ function drawPause(g){
   menuBtn(g,'Effects: '+gfxLabel(),VW/2,top+VH*gap*2,Math.min(230*s,VW*.66),34*s,()=>{cycleGfx();});
   menuBtn(g,'Render passes',VW/2,top+VH*gap*3,Math.min(230*s,VW*.66),34*s,()=>{ if(typeof toggleDiagPanel==='function') toggleDiagPanel(); });
   menuBtn(g,'Restart chapter',VW/2,top+VH*gap*4,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;startChapter(G.ch);});
-  menuBtn(g,'Chapters',VW/2,top+VH*gap*5,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,top+VH*gap*5,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;openChapters();});
   menuBtn(g,'Credits',VW/2,top+VH*gap*6,Math.min(230*s,VW*.66),34*s,()=>openCredits('pause'));
 }
 
@@ -22595,6 +22644,7 @@ function loop(now){
   const holdingSystems=typeof SystemsReady!=='undefined' && SystemsReady.systemsHold();
   if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld && !holdingSystems) update(dt);
   tryEnterPlay();
+  tickAutosave();
   syncMusic();
   render(); resolveTaps();
   requestAnimationFrame(loop);
@@ -22602,6 +22652,7 @@ function loop(now){
 resize();
 bakeTextures(PAL.mine);
 loadSprites(()=>{});
+bindAutosaveLifecycle();
 if(window.CraftingEngine) CraftingEngine.load('src/crafting/recipes.json');
 try{
   if(/play/.test((location.hash||'')+(location.search||''))) {

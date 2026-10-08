@@ -93,8 +93,9 @@ assert(/SPR\.icon_save/.test(html), 'save book is drawn on Save and Continue');
   const camp=(html.match(/function campRest\([\s\S]*?\n\}/)||[])[0]||'';
   assert(/writeGameSave\(true\)/.test(camp), 'camp rest writes a quiet save');
 }
-assert(/G\.wipeAsk/.test(html) && /GameSave\.clear\(localStorage\)/.test(html), 'New descent confirms before clearing the book');
-assert(/function drawDead\(/.test(html) && /The book still holds your last camp/.test(html), 'death offers Continue when a mark exists');
+assert(/G\.wipeAsk/.test(html) && /Burn it/.test(html) && /Keep the mark/.test(html), 'New descent confirms before burning the book');
+assert(/function beginFreshDescent\(/.test(html) && !/GameSave\.clear\(localStorage\)/.test(html), 'Burn it writes the new run instead of erasing the slot');
+assert(/function drawDead\(/.test(html) && /The book still holds your last mark/.test(html), 'death offers Continue when a mark exists');
 assert(fs.existsSync(path.join(__dirname,'../../assets/ui/icon_save.png')), 'save icon on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_ruin_house.png')), 'ruin house on disk');
 assert(fs.existsSync(path.join(__dirname,'../../assets/props/prop_secret_door.png')), 'secret door on disk');
