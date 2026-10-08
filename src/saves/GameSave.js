@@ -632,6 +632,30 @@
     return true;
   }
 
+  /* Quiet saves (lever, floor travel, camp rest, chapter end, the king)
+     must not thin a book a title-list pick is still carrying. Lift unlocked
+     to the stored chapter and put back any cleared mark the new snap omitted.
+     Manual Save and Burn it call write / clear and skip this. */
+  function writeNoRegress(store, snap) {
+    if (!store || !snap) return false;
+    var next;
+    try { next = clone(snap); }
+    catch (e) { return false; }
+    var prev = null;
+    try { prev = read(store); }
+    catch (e2) { prev = null; }
+    if (prev) {
+      if ((next.unlocked | 0) < (prev.unlocked | 0)) next.unlocked = prev.unlocked;
+      var kept = clone(next.cleared || {});
+      var old = prev.cleared || {};
+      Object.keys(old).forEach(function (k) {
+        if (old[k] && !kept[k]) kept[k] = old[k];
+      });
+      next.cleared = kept;
+    }
+    return write(store, next);
+  }
+
   function readRaw(store, key) {
     if (!store) return null;
     try { return store.getItem(key); } catch (e) { return null; }
@@ -690,6 +714,7 @@
     snapshot: snapshot,
     applyCampaign: applyCampaign,
     write: write,
+    writeNoRegress: writeNoRegress,
     read: read,
     has: has,
     clear: clear,

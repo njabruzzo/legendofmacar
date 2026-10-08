@@ -7115,7 +7115,10 @@ function writeGameSave(quiet){
   if(G.lvl) extra.play=capturePlaySave();
   const snap=GameSave.snapshot(G, extra);
   let ok=false;
-  try{ ok=!!GameSave.write(localStorage, snap); }
+  try{
+    if(quiet && typeof GameSave.writeNoRegress==='function') ok=!!GameSave.writeNoRegress(localStorage, snap);
+    else ok=!!GameSave.write(localStorage, snap);
+  }
   catch(err){ ok=false; }
   if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
   if(!quiet){
