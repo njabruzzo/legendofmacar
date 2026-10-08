@@ -135,9 +135,8 @@ assert(pry.ok===1 && pry.item.id==='grond_tooth_electrum', 'pry returns the elec
 assert(ctx.G.packs.macar.magic.some(it=>it&&it.id==='grond_tooth_electrum'),
   'the electrum tooth is in Macar\'s pack');
 assert(ctx.G.lvl.flags.electrumTooth===1 && face.emptySocket===1, 'the socket is emptied once');
-assert(/const quest=r\.it && \(r\.it\.quest \|\| r\.it\.grondTooth \|\| r\.it\.cat==='Quest'\)/.test(html)
-  && /if\(quest && !G\.packSlotFilter\) return true/.test(html),
-  'the electrum tooth stays on the default Gear inventory list');
+assert(html.includes("{k:'quest',n:'Quest'}")&&html.includes('InventoryCategories.matches(r,G.packTab)'),
+  'quest fangs have a dedicated inventory category');
 
 const ALTAR_LINE='A bone crown rests on the bloody altar. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';
 const FLOOR_LINE='A bone crown lies on the floor. It is yellowed, fitted for a dwarf brow, sticky where the blood has climbed.';

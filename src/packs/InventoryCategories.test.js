@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert'),cat=require('./InventoryCategories');require('./EquipmentSlots');const Eq=globalThis.EquipmentSlots;
+cat.register([[{n:'Bag of Holding'},{n:'Net of Snaring'}]]);
+for(const item of Eq.startingItems())assert(!cat.matches({kind:'magic',it:item},'magic'),'mundane starting equipment is not magic');
+for(const it of [{n:'Axe +1',plus:1},{n:'Cursed Armor',cursed:true},{n:'Bag of Holding'},{n:'Net of Snaring'},{n:'Bone Crown',boneCrown:1},{n:'Ring of Invisibility',cat:'Ring'}])assert(cat.matches({kind:'magic',it},'magic'));
+assert(!cat.matches({kind:'magic',it:{n:'Iron ore',cat:'Material'}},'magic'));
+assert(!cat.matches({kind:'ale'},'magic'));
+assert(cat.matches({kind:'potion'},'potion'));
+assert(cat.matches({kind:'res'},'materials'));
+assert(cat.matches({kind:'kit'},'supplies'));
+assert(cat.matches({kind:'magic',it:{n:'Bronze Tooth',quest:1}},'quest'));
+assert.equal(Eq.itemSlot({n:'Wand of Magic Missiles',k:'wand',cat:'Rod/Staff/Wand'}),'secondary');
+assert.equal(Eq.itemSlot({n:'Ring of Shooting Stars',k:'wand',cat:'Ring'}),'necklace');
+assert.equal(Eq.itemSlot({n:'Girdle of Giant Strength',k:'misc'}),'pants');
+assert.equal(Eq.itemSlot({n:'Robe of Eyes',k:'misc'}),'chest');
+assert.equal(Eq.itemSlot({n:'Eyes of Charming',k:'misc'}),'helmet');
+console.log('Inventory categories distinguish mundane kit, magic, supplies, materials and quests; wearable/held magic has equipment slots');

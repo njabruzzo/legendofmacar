@@ -37,6 +37,7 @@ assert(/c\.ep=ep/.test(extractFn('convertCoinsToElectrum')), 'electrum conversio
 assert(/kind:'res'/.test(extractFn('collectPackRows')), 'dig stock is a pack row');
 
 const ctx={
+  InventoryCategories:require('./InventoryCategories'),MagicItemAvailability:require('./MagicItemAvailability'),
   G:{
     packs:null, coin:{cp:0,sp:0,ep:0,gp:0,pp:0}, res:{}, equipped:{},
     props:[], ents:[], loot:[], lvl:{n:1, flags:{}}, packWho:'macar', dungeonTurns:1.5

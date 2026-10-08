@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),vm=require('vm'),path=require('path');
+const html=fs.readFileSync(path.join(__dirname,'../../index.html'),'utf8');
+const fn=n=>html.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0];
+require('../packs/EquipmentSlots');const Eq=globalThis.EquipmentSlots;let heals=0,zaps=0,e={hp:5,maxhp:10,hero:1},it;
+const c={G:{equipped:{}},EquipmentSlots:Eq,player:()=>e,wornNecklaceItem:()=>c.G.equipped.necklace,say(){},isEquipWeapon:()=>false,isEquipArmor:()=>false,equipPackItem(){throw Error('activation must not stop at equip');},useWandByName(){zaps++;return 'handled';},applyHeal(){heals++;}};
+vm.createContext(c);vm.runInContext(['useMagicItem','applyWornTurnEffects','hasActivatedMagicPower'].map(fn).join('\n'),c);
+it={n:'Ring of Invisibility',cat:'Ring',k:'invis'};c.useMagicItem(it,e,true);assert(e.invis>0);c.useMagicItem(it,e,true);assert.equal(e.invis,0);
+it={n:'Necklace of Missiles',k:'wand',charges:2};c.useMagicItem(it,e,true);assert.equal(zaps,1);assert.equal(it.charges,1);assert.equal(heals,0);
+it.charges=0;c.useMagicItem(it,e,true);assert.equal(zaps,1,'empty magic does not cast');
+c.G.equipped.necklace={n:'Ring of Regeneration'};c.applyWornTurnEffects(2);assert.equal(e.hp,7);c.G.equipped.necklace=null;c.applyWornTurnEffects(2);assert.equal(e.hp,7,'stowing ends regeneration');
+assert(!e.potionRegen,'ring regeneration is not a lingering potion');
+console.log('Wearable activation, invisibility toggle, charge consumption and worn-only turn regeneration passed');

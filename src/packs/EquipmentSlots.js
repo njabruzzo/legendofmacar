@@ -126,6 +126,11 @@
     if (it.k === 'ring' || it.k === 'dex' || it.cat === 'Ring') return 'necklace';
     if (/^ring of /i.test(String(it.n || ''))) return 'necklace';
     if (/cloak of (?:protection|displacement|elvenkind)/i.test(n)) return 'necklace';
+    if (/cloak|robe/i.test(it.n||'')) return 'chest';
+    if (/girdle|belt/i.test(it.n||'')) return 'pants';
+    if (/^eyes of |phylactery/i.test(it.n||'')) return 'helmet';
+    if (/brooch|scarab/i.test(it.n||'')) return 'necklace';
+    if (it.k==='wand'||it.cat==='Rod/Staff/Wand') return 'secondary';
     return null;
   }
 

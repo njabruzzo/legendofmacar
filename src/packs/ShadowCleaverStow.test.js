@@ -104,6 +104,7 @@ function baseStubs(ctx){
 
 function bootLive(){
   const ctx={
+    InventoryCategories:require('./InventoryCategories'),MagicItemAvailability:require('./MagicItemAvailability'),
     G:{
       packs:{},
       equipped:Eq.emptyEquipped(),
