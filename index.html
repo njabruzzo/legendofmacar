@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -79,6 +80,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
+<script src="src/assets/asset-manifest.js?v=4761d3b4cfd0"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -970,6 +972,19 @@ if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
   if(!MACAR_ONMODEL['macar_'+d+'_w2']) SPRITE_FILES['macar_'+d+'_w2']=MACAR_ONMODEL.macar_e_w2;
 });
+/* The loops above still invent an _atk sibling for every prop and a _w3
+   sibling for every _w1. Keep those guesses: a painted frame should load
+   when the file is really in assets/. ASSET_FILES is that directory.
+   Drop a key whose path is not in it, before loadSprites requests it.
+   Macar walk-frame assignments above, and MACAR_PLAN, are unchanged.
+   The _w3 pass itself is unchanged; a Macar _w3 line is not edited here. */
+if(typeof ASSET_FILES!=='undefined' && ASSET_FILES){
+  Object.keys(SPRITE_FILES).forEach(k=>{
+    const src=SPRITE_FILES[k];
+    if(!src || ASSET_FILES[String(src).split('?')[0]]) return;
+    delete SPRITE_FILES[k];
+  });
+}
 const ICON_SPR={
   sword:'icon_sword', flask:'icon_flask', shield:'icon_shield', pack:'icon_pack',
   cross:'icon_cross', hammer:'icon_attack', pick:'icon_sword', bomb:'icon_bomb',
@@ -6655,6 +6670,11 @@ const CH_INTRO={
      ask:''}
 };
 const CHAPTERS=[1,2,3,4,5];
+/* Next descent from camp (and the unused between plate). Chapters are 1–5 in order. */
+function deeperChapter(ch){
+  const n=(ch|0)+1;
+  return CH_META[n]?n:0;
+}
 
 // Anchor deeper-floor arches to reachable north-facing masonry spans.
 function floorRubyWallSpot(L){
@@ -21268,7 +21288,7 @@ function drawIntro(g){
 function drawBetween(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  const nxt=G.ch===3?5:G.ch+1;
+  const nxt=deeperChapter(G.ch);
   if(!drawSplashCover(g, chapterSplashImg(nxt)||chapterSplashImg(G.ch)||SPR.title_splash)) darken(g,.88);
   else darken(g,.55);
   drawLetterbox(g, VH*0.32, VH*0.40, 0.84, 0.92);
@@ -21397,7 +21417,7 @@ function drawCamp(g){
     });
   }
 
-  const nxt=G.ch===3?5:G.ch+1;
+  const nxt=deeperChapter(G.ch);
   const saved=G.campSaveFlash && (G.t||0)<G.campSaveFlash;
   if(saved){
     g.textAlign='center';
