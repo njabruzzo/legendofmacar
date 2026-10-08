@@ -6,6 +6,13 @@
  for(let n=1;n<=5;n++){
   startChapter(n);G.scene='play';G.talk=null;G.ents=G.ents.filter(e=>e.hero);const p=player(),L=G.lvl;
   let floors=0,approaches=0;
+  if(n===2){
+   for(const [from,to] of [[{x:65.5,y:16.5},{x:73.5,y:16.5}],[{x:78.5,y:20.5},{x:73.5,y:16.5}]]){
+    p.x=from.x;p.y=from.y;
+    const plan=Navigation.planRoute(from,to,p,{canBe:partyRouteCanBe,maxExpand:12000});
+    check(plan.ok,'Noz neighboring room route '+JSON.stringify(from));
+   }
+  }
   for(let y=1;y<L.h-1;y++)for(let x=1;x<L.w-1;x++){
    if(!walk(x+.5,y+.5,p))continue;
    p.x=x+.5;p.y=y+.5;
