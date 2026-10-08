@@ -32,6 +32,9 @@
     check(bodyPixels[seatAt+3]>80,'crown seat on painted head '+key);
     check(Math.abs(crownSeat.x+mirroredSeat.x-img.width)<.01&&crownSeat.y===mirroredSeat.y,'crown mirrors with head '+key);
     check(crownSeat.angle===-mirroredSeat.angle,'crown tilt mirrors with head '+key);
+    const bodySeat=MacarSharedAtlas.geometry(key).brow;
+    const reference=MacarSharedAtlas.geometry('macar_shared_'+dir+'_'+stage).brow;
+    check(bodySeat.every((v,k)=>Math.abs(v-reference[k])<.00001),'identical centered crown across weapons '+key);
     if(dir==='s'&&(stage==='idle'||stage.startsWith('walk')))check(crownSeat.angle===-.05,'front crown rim is leveled '+key);
     const edge=img.getContext('2d').getImageData(0,0,img.width,img.height).data;let border=0;for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++)if((x<2||x>img.width-3||y<2||y>img.height-3)&&edge[(y*img.width+x)*4+3]>80)border++;check(border===0,'no clipped weapon/body edges '+key);
     check(Math.abs(H*Math.hypot(p.shaft[1][0]-p.shaft[0][0],p.shaft[1][1]-p.shaft[0][1])-entSpriteH(hero,ZOOM)*MacarWeaponShaft.target[weapon])<.01,'shaft consistency '+key);
