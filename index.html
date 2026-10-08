@@ -5232,10 +5232,72 @@ function ensureChapterDescents(){
   if(stair)Object.assign(stair,L.stair,{chapterDescent:1,s:1.4});else G.props.push({...L.stair,k:'stairs',chapterDescent:1,s:1.4});
   if(L.n===2){L.lift={x:40,y:8.35};openDescentLanding(L,40,9,14,12);const lift=G.props.find(p=>p.k==='lift');if(lift)Object.assign(lift,L.lift,{s:1.18});}
 }
+/* Descent gates. The moment the stair opens is unchanged.
+   I — Ride the elevator only after the six ruby guardians are dead
+       (rubyGuardiansLeft, not every foe) and the lever is thrown
+       (flags.elevReady). Other packs do not block the ride, and there
+       is no refusal while they live: the ride plate is simply absent.
+   II ruins stair — floorTravelReady (this floor's ruby is lit). Foes do not gate it.
+   II Goblin King warren stair — no gate. The plate always enters the king hall.
+   III dead-city stair and IV temple stair — flags.done and floorTravelReady.
+       done flips only after flags.boss and foesLeft() is clear: every living
+       foe on the map, not the named guardian alone.
+   V — no stair. The Undying King (kind king) dying sets done and wins.
+       Other temple foes do not gate that.
+   Floor lever — one floor down only when floorTravelReady. */
+function livingFloorFoes(){
+  return (G.ents||[]).filter(e=>e&&e.team==='foe'&&!e.dead&&!e.npc);
+}
+function foeBearingWord(from, foe){
+  if(!from||!foe) return '';
+  const dx=(foe.x||0)-from.x, dy=(foe.y||0)-from.y;
+  const ad=Math.hypot(dx,dy);
+  if(ad<1.2) return 'beside you';
+  /* y grows south. atan2(dy, dx) is 0 on east and +π/2 on south. */
+  const names=['east','southeast','south','southwest','west','northwest','north','northeast'];
+  let i=Math.round(Math.atan2(dy, dx)/(Math.PI/4));
+  if(i<0) i+=8;
+  if(i>=8) i-=8;
+  return names[i];
+}
+function chapterDescentRefusal(){
+  const L=G.lvl; if(!L) return '';
+  const needClear=(L.n===3||L.n===4)&&!L.flags.done;
+  const needRuby=typeof floorTravelReady==='function'&&!floorTravelReady();
+  if(!needClear && needRuby) return 'Activate this floor\u2019s ruby door before descending.';
+  if(!needClear) return '';
+  const foes=livingFloorFoes();
+  if(!foes.length){
+    return needRuby
+      ? 'The guardian has not fallen. The ruby is still dark.'
+      : 'This floor\u2019s guardian has not fallen.';
+  }
+  const p=(typeof player==='function')?player():null;
+  let near=foes[0];
+  if(p){
+    let bd=1e9;
+    for(const e of foes){
+      const d=Math.hypot((e.x||0)-p.x,(e.y||0)-p.y);
+      if(d<bd){ bd=d; near=e; }
+    }
+  }
+  const where=p?foeBearingWord(p, near):'';
+  const n=foes.length;
+  const who=n===1?'One foe':n+' foes';
+  let place='';
+  if(where==='beside you') place=', beside you';
+  else if(where) place=', to the '+where;
+  if(!needRuby) return who+' still '+(n===1?'holds':'hold')+' this floor'+place+'.';
+  let line=who+' '+(n===1?'remains':'remain')+place+'. The ruby is still dark.';
+  if(line.length>54 && where && where!=='beside you')
+    line=who+' '+(n===1?'remains':'remain')+', '+where+'. The ruby is still dark.';
+  return line;
+}
 function useChapterDescent(){
   const L=G.lvl;if(!L||!L.stair)return false;
-  if((L.n===3||L.n===4)&&!L.flags.done){hint('Defeat this floor’s guardian before descending.',4);return false;}
-  if(!floorTravelReady()){hint('Activate this floor’s ruby door before descending.',4);return false;}
+  const needClear=(L.n===3||L.n===4)&&!L.flags.done;
+  const needRuby=!floorTravelReady();
+  if(needClear||needRuby){hint(chapterDescentRefusal(),4);return false;}
   if(L.objs&&L.objs[4])L.objs[4].d=1;endChapter();return true;
 }
 function tickChapterDescent(){
@@ -21066,8 +21128,59 @@ function drawCredits(g){
   menuBtn(g,'Back',VW/2,VH-36*s,Math.min(180*s,VW*.5),42*s,()=>leaveCredits());
 }
 
+/* Title Chapters only changes the scene. Continue is what loads the run.
+   Until a chapter has started, the list reads unlocked (and cleared marks)
+   off the book. It does not call migrate or applyCampaign, and it does not write. */
+function bookSnapUsable(snap){
+  if(!snap || typeof snap!=='object' || Array.isArray(snap)) return false;
+  if(snap.v!==1 && snap.v!==2) return false;
+  if(snap.ch!=null && typeof snap.ch!=='number') return false;
+  const play=snap.play;
+  if(play==null) return true;
+  if(typeof play!=='object' || Array.isArray(play)) return false;
+  if(play.ents && !Array.isArray(play.ents)) return false;
+  if(play.props && !Array.isArray(play.props)) return false;
+  if(play.loot && !Array.isArray(play.loot)) return false;
+  if(play.party && !Array.isArray(play.party)) return false;
+  if(play.grid && !Array.isArray(play.grid)) return false;
+  if(play.flags && (typeof play.flags!=='object' || Array.isArray(play.flags))) return false;
+  return true;
+}
+function savedBookProgress(){
+  if(typeof GameSave==='undefined' || typeof localStorage==='undefined') return null;
+  const keys=[GameSave.KEY, GameSave.KEY_PENDING, GameSave.KEY_GOOD, GameSave.KEY_V1];
+  for(let i=0;i<keys.length;i++){
+    const key=keys[i];
+    if(!key) continue;
+    let raw=null;
+    try{ raw=localStorage.getItem(key); }catch(e){ raw=null; }
+    if(!raw) continue;
+    let snap=null;
+    try{ snap=JSON.parse(raw); }catch(e){ snap=null; }
+    if(!bookSnapUsable(snap)) continue;
+    let unlocked=snap.unlocked;
+    if(typeof unlocked!=='number' || !isFinite(unlocked) || unlocked<1) unlocked=1;
+    const cleared=(snap.cleared && typeof snap.cleared==='object' && !Array.isArray(snap.cleared))?snap.cleared:{};
+    return {unlocked:unlocked|0, cleared:cleared};
+  }
+  return null;
+}
+function chapterSelectProgress(){
+  if(G.ch) return {unlocked:G.unlocked||1, cleared:G.cleared||{}};
+  const book=savedBookProgress();
+  if(!book) return {unlocked:G.unlocked||1, cleared:G.cleared||{}};
+  return book;
+}
+function beginChapterFromList(n){
+  if(!G.ch){
+    const book=savedBookProgress();
+    if(book && book.unlocked>(G.unlocked||1)) G.unlocked=book.unlocked;
+  }
+  startChapter(n);
+}
 function drawChapterSelect(g){
   menuHits=[]; const s=UIS;
+  const book=chapterSelectProgress();
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
   if(!drawSplashCover(g, SPR.chapters_plate||SPR.title_splash, {zoom:1, ay:0.48, nudgeY:0})) embers(g);
   darken(g,.36);
@@ -21094,12 +21207,12 @@ function drawChapterSelect(g){
     const col=i%cols, row=(i/cols)|0;
     const x=VW/2 - (cols*cw+(cols-1)*gap)/2 + col*(cw+gap);
     const y=top + row*(ch+gap);
-    const m=CH_META[n], locked=m.locked||n>G.unlocked;
+    const m=CH_META[n], locked=m.locked||n>book.unlocked;
     const intro=CH_INTRO[n]||{fl:m.s||''};
     plate(g, x, y, cw, ch, 10, locked?0.52:0.86);
-    g.strokeStyle=locked?'rgba(120,100,80,0.35)':(G.cleared[n]?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
+    g.strokeStyle=locked?'rgba(120,100,80,0.35)':((book.cleared&&book.cleared[n])?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
     g.lineWidth=1.8; roundPath(g,x,y,cw,ch,10); g.stroke();
-    if(!locked) menuHits.push({x,y,w:cw,h:ch,fn:()=>startChapter(n)});
+    if(!locked) menuHits.push({x,y,w:cw,h:ch,name:'Chapter '+nums[n-1],fn:()=>beginChapterFromList(n)});
     const innerW=cw-36*s;
     const pad=12*s;
     let tSize=(PORT?13:16)*s, sSize=(PORT?9:11)*s, labSize=10*s;
@@ -21136,7 +21249,7 @@ function drawChapterSelect(g){
       lay.sLines.forEach(ln=>{ yy+=sSize; g.fillText(ln, cx, yy); yy+=sStep-sSize; });
     }
     g.textAlign='left';
-    if(G.cleared[n]){
+    if(book.cleared&&book.cleared[n]){
       g.font='700 '+(10*s)+'px '+FONT_UI;
       g.fillStyle='rgba(150,200,130,0.9)';
       g.textAlign='right'; g.fillText('cleared', x+cw-12*s, y+16*s); g.textAlign='left';
