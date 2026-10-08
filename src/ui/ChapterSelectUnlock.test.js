@@ -25,7 +25,19 @@ const GameSave = {
   KEY: 'legendofmacar.save.v2',
   KEY_PENDING: 'legendofmacar.save.v2.pending',
   KEY_GOOD: 'legendofmacar.save.v2.good',
-  KEY_V1: 'legendofmacar.save.v1'
+  KEY_V1: 'legendofmacar.save.v1',
+  read(store){
+    const raw = store.getItem(GameSave.KEY);
+    if(!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  },
+  applyCampaign(G, snap){
+    if(typeof snap.unlocked==='number') G.unlocked=snap.unlocked;
+    if(snap.cleared) G.cleared=snap.cleared;
+    if(snap.coin) G.coin=snap.coin;
+    if(snap.ghostAllies) G.ghostAllies=snap.ghostAllies;
+    return snap;
+  }
 };
 const G = { ch: 0, unlocked: 1, cleared: {} };
 const started = [];
@@ -84,8 +96,18 @@ put(GameSave.KEY_V1, { v: 1, ch: 4, unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 } }
 assert.strictEqual(ctx.savedBookProgress().unlocked, 4, 'a v1 book still names its unlock');
 
 wipe();
-put(GameSave.KEY, { v: 2, ch: 2, scene: 'play' });
-assert.strictEqual(ctx.savedBookProgress().unlocked, 1, 'a book with no unlock field stays at chapter I');
+put(GameSave.KEY, { v: 2, scene: 'play' });
+assert.strictEqual(ctx.savedBookProgress().unlocked, 1, 'a book with no chapter and no unlock stays at chapter I');
+
+wipe();
+put(GameSave.KEY, {
+  v: 2, ch: 5, unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 },
+  floorWorlds: { 5: { x: 8, y: 28, flags: {} } }
+});
+book = ctx.chapterSelectProgress();
+assert.strictEqual(book.unlocked, 5, 'an old skip into V is on the list');
+assert.strictEqual(book.cleared[4], undefined, 'the skipped chapter is not marked cleared');
+assert.strictEqual(G.unlocked, 1, 'listing a reached chapter does not copy the book onto the session');
 
 wipe();
 put(GameSave.KEY, { v: 2, ch: 4, unlocked: 4 });
@@ -99,14 +121,20 @@ assert.deepStrictEqual(started, [2]);
 
 const select = html.match(/function drawChapterSelect\(g\)\{[\s\S]*?\nfunction enterPlayFromIntro/)[0];
 assert.ok(/chapterSelectProgress\(\)/.test(select), 'the chapter list asks the book');
-assert.ok(/fn:\(\)=>startChapter\(n\)/.test(select), 'a chapter card starts play without writing the book');
-const startHead = html.slice(html.indexOf('function startChapter(n){'), html.indexOf('function startChapter(n){') + 420);
-assert.ok(/G\.scene==='chapters' && !G\.ch/.test(startHead) && /savedBookProgress\(\)/.test(startHead),
-  'a title card still adopts the book unlock before play');
+assert.ok(/beginChapterFromList\(n\)/.test(select), 'cards start through the list helper');
+assert.ok(/locked=m\.locked\|\|n>book\.unlocked/.test(select), 'the list seals on the book progress');
 assert.ok(!/n>G\.unlocked/.test(select), 'the list no longer locks on the blank session unlock');
 assert.ok(!/loadSavedGame\(/.test(select), 'opening the list does not load the run');
-const peekFns = ['bookSnapUsable', 'savedBookProgress', 'chapterSelectProgress', 'beginChapterFromList']
-  .map(grab).join('\n');
+const listFn = grab('beginChapterFromList');
+assert.ok(/GameSave\.read\(/.test(listFn) && /applyCampaign\(/.test(listFn),
+  'a title card loads the stored book before play');
+assert.ok(/ensurePacks\(/.test(listFn) && /applyEquipped\(/.test(listFn) && /G\._keepProgress=1/.test(listFn),
+  'the loaded book is kept into the chapter');
+assert.ok(/fn:\(\)=>startChapter\(n\)/.test(listFn),
+  'the card starts play through startChapter');
+assert.ok(!/writeGameSave\(/.test(listFn) && !/autosaveNow\(/.test(listFn),
+  'picking a chapter does not write the book');
+const peekFns = ['bookSnapUsable', 'savedBookProgress', 'chapterSelectProgress'].map(grab).join('\n');
 assert.ok(!/migrate\(/.test(peekFns) && !/applyCampaign\(/.test(peekFns),
   'the peek does not call migrate or applyCampaign');
 

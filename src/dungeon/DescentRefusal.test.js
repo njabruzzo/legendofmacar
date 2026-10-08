@@ -102,6 +102,49 @@ assert.strictEqual(c.useChapterDescent(), true, 'the dead guard at the anchor is
 assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined);
 
 setup(3, {
+  ruby: 0,
+  flags: { boss: 1 },
+  ents: [
+    foe(48, 39, { kind: 'construct', name: 'Ruby Construct' }),
+    foe(6, 6, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1 }),
+    foe(30, 58, { name: 'Orc' })
+  ]
+});
+assert.strictEqual(c.useChapterDescent(), true, 'an old save still names a far dead guard, not the nearer construct');
+assert.strictEqual(c.G.ents.find(e => e.x === 48).chapterBoss, undefined);
+assert.strictEqual(c.G.ents.find(e => e.x === 6).chapterBoss, 1);
+
+function pruneCrowd(ents){
+  if(ents.length>80) return ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12&&!e.chapterBoss));
+  return ents.slice();
+}
+const guard = foe(12, 70, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1, deadT: 40, chapterBoss: 1 });
+const workshop = foe(26, 8, { kind: 'construct', name: 'Ruby Construct' });
+const crowd = [guard, workshop];
+for(let i=0;i<80;i++) crowd.push(foe(i, 3, { dead: 1, looted: 1, deadT: 40, kind: 'rat', name: 'Rat' }));
+assert.ok(crowd.length>80, 'the floor is past the corpse cap');
+const kept = pruneCrowd(crowd);
+assert.ok(kept.indexOf(guard)>=0, 'the stamped Ruin Guard corpse survives the cap');
+assert.ok(kept.indexOf(workshop)>=0, 'the living workshop construct stays');
+assert.ok(!kept.some(e => e.kind==='rat'), 'ordinary looted corpses are the ones removed');
+setup(3, { ruby: 0, done: 1, flags: { boss: 1 }, ents: kept });
+assert.strictEqual(c.chapterDescentRefusal(), '', 'the stair does not say the Ruin Guard still stands');
+assert.strictEqual(c.useChapterDescent(), true, 'a crowded floor still opens once the guard is dead');
+
+const loose = foe(12, 70, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1, deadT: 40 });
+const nearer = foe(48, 39, { kind: 'construct', name: 'Ruby Construct' });
+const crowd2 = [loose, nearer];
+for(let i=0;i<80;i++) crowd2.push(foe(i, 4, { dead: 1, looted: 1, deadT: 40, kind: 'bat', name: 'Bat' }));
+const kept2 = pruneCrowd(crowd2);
+assert.ok(kept2.indexOf(loose)<0, 'an unmarked looted corpse can still be pruned');
+setup(3, { ruby: 0, done: 1, flags: { boss: 1 }, ents: kept2 });
+assert.strictEqual(nearer.chapterBoss, undefined, 'a finished floor does not adopt the workshop construct');
+assert.strictEqual(c.useChapterDescent(), true, 'the stair stays open after that corpse is gone');
+
+assert.ok(/e\.looted&&\(e\.deadT\|\|0\)>12&&!e\.chapterBoss/.test(html),
+  'the corpse cap leaves a chapter boss on the floor');
+
+setup(3, {
   ruby: 1,
   flags: { boss: 0 },
   ents: [foe(26, 8, { kind: 'construct', name: 'Ruby Construct' })]
