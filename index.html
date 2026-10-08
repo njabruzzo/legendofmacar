@@ -13846,13 +13846,10 @@ function wallFaceClearAt(x,y,e){
   const solid=(i,j)=>!!(L.grid[j]&&L.grid[j][i]===1);
   const south=solid(ix,iy+1), east=solid(ix+1,iy), west=solid(ix-1,iy);
   const se=solid(ix+1,iy+1), sw=solid(ix-1,iy+1);
-  // Two masonry neighbors indicate a corridor, bend or dead end. A visual
-  // inset larger than the body radius disconnects those walkable tiles;
-  // even a .5 inset leaves only an exact center line and prevents turns.
-  // Keep the decorative margin in open areas, but use physical clearance
-  // in tight geometry. canBe still checks all eight body-radius samples.
-  const tight=Number(south)+Number(east)+Number(west)+Number(solid(ix,iy-1))>=2;
-  const m=tight?Math.min(WALL_FACE_CLEAR,e.r||.36):WALL_FACE_CLEAR;
+  // Visible floor remains usable up to the actor's physical clearance.
+  // A larger decorative inset made room edges and approaches feel like
+  // invisible walls, even where every body-radius collision sample passed.
+  const m=Math.min(WALL_FACE_CLEAR,e.r||.36);
   const mx=m, my=m;
   if(south && y>iy+1-my) return false;
   if(east && x>ix+1-mx) return false;
