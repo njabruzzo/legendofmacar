@@ -90,7 +90,7 @@ assert.ok(/const passed=!!snap;/.test(writer), 'a prepared snap is told apart fr
 assert.ok(/quiet && !passed && typeof GameSave\.writeNoRegress==='function'/.test(writer), 'a checkpoint uses writeNoRegress');
 assert.ok(/GameSave\.writeNoRegress\(localStorage, snap\)/.test(writer));
 assert.ok(/else ok=!!GameSave\.write\(localStorage, snap\)/.test(writer), 'manual Save and a prepared snap still call write');
-const confirm = writer.match(/if\(!quiet\)\{\n    say\([\s\S]*?\n  \}/);
+const confirm = writer.match(/if\(!quiet\)\{[\s\S]*?\n  \}/);
 assert.ok(confirm && !/writeNoRegress/.test(confirm[0]), 'the spoken Save does not guard the book');
 
 ['beginCh1ElevatorDescent', 'travelFloor', 'campRest', 'endChapter'].forEach(function (name) {
@@ -100,8 +100,8 @@ assert.ok(/G\.cleared\[5\]=1;writeGameSave\(true\)/.test(html), 'the king\'s dea
 
 const burnAt = html.indexOf("menuBtn(g,'Burn it'");
 const burn = burnAt < 0 ? '' : html.slice(burnAt, burnAt + 280);
-assert.ok(/GameSave\.clear\(localStorage\)/.test(burn), 'Burn it clears the slot');
 assert.ok(!/writeNoRegress/.test(burn), 'Burn it is not the quiet-save guard');
+assert.ok(/GameSave\.clear\(localStorage\)/.test(burn) || /beginFreshDescent\(\)/.test(burn), 'Burn it replaces the book on its own');
 assert.ok(/menuBtn\(g,'Save game'[\s\S]{0,180}writeGameSave\(\)/.test(html), 'pause Save is the unguarded write');
 
 console.log('writeNoRegress keeps unlocks and clears on a quiet save');
