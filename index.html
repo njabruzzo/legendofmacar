@@ -6655,6 +6655,11 @@ const CH_INTRO={
      ask:''}
 };
 const CHAPTERS=[1,2,3,4,5];
+/* Next descent from camp (and the unused between plate). Chapters are 1–5 in order. */
+function deeperChapter(ch){
+  const n=(ch|0)+1;
+  return CH_META[n]?n:0;
+}
 
 // Anchor deeper-floor arches to reachable north-facing masonry spans.
 function floorRubyWallSpot(L){
@@ -21222,7 +21227,7 @@ function drawIntro(g){
 function drawBetween(g){
   menuHits=[]; const s=UIS;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  const nxt=G.ch===3?5:G.ch+1;
+  const nxt=deeperChapter(G.ch);
   if(!drawSplashCover(g, chapterSplashImg(nxt)||chapterSplashImg(G.ch)||SPR.title_splash)) darken(g,.88);
   else darken(g,.55);
   drawLetterbox(g, VH*0.32, VH*0.40, 0.84, 0.92);
@@ -21351,7 +21356,7 @@ function drawCamp(g){
     });
   }
 
-  const nxt=G.ch===3?5:G.ch+1;
+  const nxt=deeperChapter(G.ch);
   const saved=G.campSaveFlash && (G.t||0)<G.campSaveFlash;
   if(saved){
     g.textAlign='center';

@@ -398,6 +398,30 @@
     return G;
   }
 
+  /* Camp once sent a cleared Chapter III straight into V, so a book can
+     sit in or past V while unlocked is still 4. Keep that reach. Do not
+     invent a clear for the chapter they skipped, and do not open a sixth. */
+  function keepReachedChapters(snap) {
+    if (!snap || typeof snap !== 'object') return snap;
+    var cap = 5;
+    var reached = snap.unlocked || 1;
+    function consider(n) {
+      n = +n;
+      if (n >= 1 && n <= cap && n > reached) reached = n;
+    }
+    consider(snap.ch || 1);
+    var cleared = snap.cleared || {};
+    Object.keys(cleared).forEach(function (k) {
+      if (cleared[k]) consider(k);
+    });
+    var worlds = snap.floorWorlds || {};
+    Object.keys(worlds).forEach(function (k) {
+      if (worlds[k]) consider(k);
+    });
+    if ((snap.unlocked || 1) < reached) snap.unlocked = reached;
+    return snap;
+  }
+
   function migrate(snap) {
     if (!snap || typeof snap !== 'object') return null;
     snap = clone(snap);
@@ -406,12 +430,13 @@
       snap.v = VER;
       snap.schemaVersion = VER;
       if (snap.play) snap.play = normalizePlay(snap.play);
-      return validateSnap(snap) ? snap : null;
+    } else {
+      snap.v = VER;
+      snap.schemaVersion = VER;
+      snap.migratedFrom = VER_LEGACY;
+      if (snap.play) snap.play = normalizePlay(snap.play);
     }
-    snap.v = VER;
-    snap.schemaVersion = VER;
-    snap.migratedFrom = VER_LEGACY;
-    if (snap.play) snap.play = normalizePlay(snap.play);
+    keepReachedChapters(snap);
     return validateSnap(snap) ? snap : null;
   }
 
@@ -502,6 +527,7 @@
 
   function applyCampaign(G, snap) {
     if (!G || !snap) return null;
+    keepReachedChapters(snap);
     G.ch = snap.ch || 1;
     G.unlocked = snap.unlocked || 1;
     G.cleared = clone(snap.cleared || {});
