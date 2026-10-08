@@ -3164,8 +3164,13 @@ function drawCrownEntranceCell(g,L,x,y,oS,oE,oN,oW){
     if(G.dig&&G.dig.i===x&&G.dig.j===y)drawDigProgress(g,s.x,s.y,H,G.dig.min/digNeedMinutes());
   }else{
     const img=(x%2?SPR.rubble2:SPR.rubble)||SPR.rubble;
-    const p=w2s(x+.5,y+.9);
-    g.save();g.translate(p.x,p.y);drawBillboard(g,img,H,false);g.restore();
+    // Stack rock across the same full depth as the bone corridor. The rear
+    // crest meets the bone cap; the front bank reaches its floor edge.
+    const inset=(crownBoneDepth()-1)/2;
+    for(const offset of [-inset,.5,1+inset]){
+      const p=w2s(x+.5,y+offset);
+      g.save();g.translate(p.x,p.y);drawBillboard(g,img,H,false);g.restore();
+    }
   }
   return true;
 }
@@ -5669,11 +5674,6 @@ function makeChapter(n){
       if(dist(p,L.stair)<2.3){
         interact('Climb down to the ruins',useChapterDescent);
       }
-      const sk=(G.ents||[]).find(e=>e&&e.webTalk&&!e.webTalkDone);
-      if(sk && dist(p,sk)<2.05){
-        interact('Talk to the bones',()=>startTalk('web_skeleton'));
-      maybeShamanTalks(p, dt);
-      }
       const rock=(G.props||[]).find(pr=>pr&&pr.webRock&&!pr.gone);
       if(rock && dist(p,rock)<1.55){
         interact('Move the fallen stone',()=>takeWebSkeletonRing());
@@ -7795,6 +7795,7 @@ function startTalkObj(pack){
   G.paused=false;
 }
 function startTalk(key){
+  if(isMonsterTalkKey(key)) return;
   if((key==='ch1_lift_lever_look'||key==='ch1_lift_lever_thrown_look') && G.lvl && G.lvl.n===1){
     const f=G.lvl.flags;
     if(f.elevReady) key='ch1_lift_ride';
@@ -7808,9 +7809,10 @@ function isMajorTalkKey(key){
   return key==='spider_lord'||key==='goblin_king'||key==='goblin_warlord'||key==='goblin_chieftain'
     ||key==='goblin_boss'||key==='kobold_chief'||key==='shaman_steel';
 }
+function isMonsterTalkKey(key){
+  return isMajorTalkKey(key)||/^(goblin_|shaman_|web_skeleton)/.test(key);
+}
 function majorTalkKey(e){
-  const flags=(G.lvl&&G.lvl.flags)||{};
-  if(typeof MajorTalk!=='undefined'&&MajorTalk.talkKey) return MajorTalk.talkKey(e, flags);
   return '';
 }
 function openMajorTalk(e){
@@ -7894,6 +7896,7 @@ function goblinPackCluster(seed){
   return out;
 }
 function maybeGoblinMercy(hit){
+  return; // Monsters continue fighting without dialogue or begging pauses.
   if(G.talk||G.mercyTalk) return;
   if(!G.fightOn) return;
   const seed=(hit&&isPackGoblinKind(hit))?hit:livingPackGoblins()[0];
@@ -8202,6 +8205,7 @@ function tickSpellZones(dt){
   });
 }
 function maybeShamanTalks(p, dt){
+  return; // Keep shaman combat active without conversational interruptions.
   const s=livingShaman();
   if(!s||!p||G.talk) return;
   const L=G.lvl;
@@ -15128,6 +15132,9 @@ function update(dt){
       }
       continue;
     }
+    // Old saves can leave the shaman waiting for a conversation that no
+    // longer exists. Restore ordinary hostile AI without affecting Noz.
+    if(e.team==='foe'&&(e.shaman||e.name==='Goblin Shaman')) e.npc=0;
     if(e.npc && e.team!=='party'){ e.moving=0; e.ix=0; e.iy=0; continue; }
 
     let tgt=null, want=e.range, form=0;

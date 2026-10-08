@@ -196,8 +196,8 @@ function gob(id, o){
 ctx.G.ents=[gob(1,{hp:10}), gob(2,{dead:1,hp:0}), gob(3,{dead:1,hp:0}), gob(4,{hp:28})];
 ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightOn=1;
 ctx.maybeGoblinMercy(ctx.G.ents[0]);
-assert(ctx.G.ents[0].begging===1 && ctx.G.talkAfter, 'morale break: wounded goblin begs when half the pack is down');
-assert(ctx.G.ents.every(e=>e.mercyPackUsed), 'the rest of that pack will not beg');
+assert(!ctx.G.ents[0].begging && !ctx.G.talkAfter, 'wounded goblins continue combat without dialogue');
+assert(ctx.G.ents.every(e=>!e.mercyPackUsed), 'dialogue removal does not alter pack morale state');
 
 ctx.G.ents=[gob(10,{hp:12,x:80,y:28}), gob(11,{hp:28,x:80.5,y:28.2})];
 ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.fightMercy=0; ctx.G.mercyGoblinId=null; ctx.G.talkAfter=null;
@@ -206,7 +206,7 @@ assert(!ctx.G.ents[0].begging, 'full pack at strength does not beg');
 
 ctx.G.ents=[gob(20,{hp:10,x:96,y:32})];
 ctx.maybeGoblinMercy(ctx.G.ents[0]);
-assert(ctx.G.ents[0].begging===1, 'last standing ≤ half hp begs');
+assert(!ctx.G.ents[0].begging, 'last standing goblin does not interrupt combat');
 
 ctx.G.ents=[gob(30,{hp:10, nozCamp:1})];
 ctx.G.talk=null; ctx.G.mercyTalk=0; ctx.G.talkAfter=null;

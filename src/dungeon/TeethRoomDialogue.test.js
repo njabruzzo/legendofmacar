@@ -144,7 +144,7 @@ const WORN_LINE='The bone crown sits on Macar\'s brow. It is yellowed and cold, 
 assert(html.indexOf("line:'"+ALTAR_LINE+"'")>=0, 'the talk pack keeps the altar line');
 ctx.Object=Object;
 ctx.NPC_TALK.teeth_chapel_crown.line=ALTAR_LINE;
-['isToyTalkKey','startTalkObj','startTalk','teethCrownOnAltarSeat','teethCrownLookLine','openTeethChapelLook']
+['isToyTalkKey','isMajorTalkKey','isMonsterTalkKey','startTalkObj','startTalk','teethCrownOnAltarSeat','teethCrownLookLine','openTeethChapelLook']
   .forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
 const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,gone:0};
 const crownProp={x:altar.x,y:altar.y,k:'bonecrown',gone:0,taken:0,destroyed:0};
