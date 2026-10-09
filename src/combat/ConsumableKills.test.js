@@ -276,14 +276,16 @@ const NM = globalThis.NecklaceMissiles;
     ['breakInvisibility', 'useWandByName', 'useScrollByName', 'necklaceHost', 'useMagicItem'].map(extractFn).join('\n'),
     ctx
   );
-  ['Bag of Beans', 'Candle of Invocation', 'Efreeti Bottle', 'Incense of Meditation', "Nolzur's Marvelous Pigments", 'Robe of Useful Items'].forEach(function (n) {
+  ['Bag of Beans', 'Candle of Invocation', 'Efreeti Bottle', 'Incense of Meditation', "Nolzur's Marvelous Pigments"].forEach(function (n) {
     const ret = ctx.useMagicItem({ n: n, k: 'misc', d: 'once' }, who);
     assert(ret === 'spent', 'K5 ' + n + ' returns spent');
   });
-  ['Book of Infinite Spells', 'Deck of Many Things', 'Scarab of Protection', 'Bag of Holding'].forEach(function (n) {
+  ['Book of Infinite Spells', 'Deck of Many Things', 'Scarab of Protection', 'Bag of Holding', 'Robe of Useful Items'].forEach(function (n) {
     const ret = ctx.useMagicItem({ n: n, k: 'misc', d: 'stays' }, who);
     assert(ret !== 'spent', 'K5 ' + n + ' is not on the one-use list');
   });
+  const pierce = extractFn('useMagicItem').match(/javelin of piercing[\s\S]*?return 'spent';/);
+  assert(pierce && /nearestFoe\(e,12\)/.test(pierce[0]), 'K5 Javelin of Piercing reaches 12 tiles');
   ctx.dmg = 0;
   ctx.foe = null;
   who.invisT = 9; who.invis = 9;
@@ -326,7 +328,7 @@ const NM = globalThis.NecklaceMissiles;
   function hide() { who.invisT = 20; who.invis = 20; who.invisRing = 0; }
   vm.createContext(ctx);
   vm.runInContext(
-    ['breakInvisibility', 'necklaceHost', 'useWandByName', 'useScrollByName', 'useMagicItem'].map(extractFn).join('\n'),
+    ['breakInvisibility', 'cancelOneMagicItem', 'necklaceHost', 'useWandByName', 'useScrollByName', 'useMagicItem'].map(extractFn).join('\n'),
     ctx
   );
   hide();
@@ -362,6 +364,23 @@ const NM = globalThis.NecklaceMissiles;
   ctx.charmFoeKind = function () { return false; };
   ctx.useMagicItem({ n: 'Wand of Fire', k: 'wand', charges: 8, d: 'flame' }, who);
   assert(who.invisT === 20, 'K6 a wand with no foe stays invisible');
+  ctx.foe = foe;
+  hide();
+  foe.gear = { magicAtk: 2, magicAc: 1 };
+  ctx.useMagicItem({ n: 'Wand of Negation', k: 'wand', charges: 6, d: 'negate' }, who);
+  assert(who.invisT === 0 && foe.gear.magicAtk === 0, 'K6 Wand of Negation breaks invisibility on a foe');
+  hide();
+  foe.gear = null;
+  ctx.useMagicItem({ n: 'Wand of Negation', k: 'wand', charges: 6, d: 'negate' }, who);
+  assert(who.invisT === 20, 'K6 Wand of Negation with no foe gear stays invisible');
+  hide();
+  foe.gear = { magicAtk: 3, magicAc: 1 };
+  ctx.useMagicItem({ n: 'Rod of Cancellation', k: 'wand', charges: 4, d: 'cancel' }, who);
+  assert(who.invisT === 0 && foe.gear.magicAtk === 0, 'K6 Rod of Cancellation breaks invisibility on a foe');
+  hide();
+  foe.gear = null;
+  ctx.useMagicItem({ n: 'Rod of Cancellation', k: 'wand', charges: 4, d: 'cancel' }, who);
+  assert(who.invisT === 20, 'K6 Rod of Cancellation with no enchanted foe stays invisible');
 }
 
 /* ---------- K7: unfed camp copy ---------- */
@@ -369,6 +388,7 @@ const NM = globalThis.NecklaceMissiles;
   assert(/Macar camps\. Already whole\./.test(html), 'K7 the already-whole line stays for a whole party');
   assert(/Macar camps\. Hit points restored\./.test(html), 'K7 the restored line stays');
   assert(/Macar camps\. No rations, no healing\./.test(html), 'K7 the unfed line is in the camp hint');
+  assert(/Rations ran short;/.test(html), 'K7b the short-rations line is in the camp hint');
 
   function rest(ents, fed) {
     const p = ents[0];
@@ -382,7 +402,7 @@ const NM = globalThis.NecklaceMissiles;
       openPassagesAt: function () { return false; },
       say: function (t) { ctx.lines.push(t); },
       hint: function (t) { ctx.lastHint = t; },
-      takePartyRation: function () { return fed; },
+      takePartyRation: function () { return typeof fed === 'function' ? fed() : fed; },
       applyHeal: function (e) { e.hp = e.maxhp; return 1; },
       restoreBorrowedGear: function () { return 0; },
       tryPordoomGifts: function () {},
@@ -400,6 +420,18 @@ const NM = globalThis.NecklaceMissiles;
   assert(/Already whole\./.test(whole.lastHint), 'K7 a fed whole party still hears Already whole');
   const healed = rest([{ team: 'party', name: 'Macar', dead: 0, ghost: 0, hp: 4, maxhp: 20, x: 1, y: 1 }], 'fed');
   assert(/Hit points restored\./.test(healed.lastHint) && healed.G.ents[0].hp === 20, 'K7 a fed hurt party still heals');
+  let left = 2;
+  const party = ['Macar', 'Borg', 'Tal', 'Dur'].map(function (name) {
+    return { team: 'party', name: name, dead: 0, ghost: 0, hp: 4, maxhp: 20, x: 1, y: 1 };
+  });
+  const partial = rest(party, function () {
+    if (left > 0) { left--; return 'fed'; }
+    return 'no valid target';
+  });
+  assert(partial.lastHint === 'Macar camps. Rations ran short; 2 went unhealed. The book is marked.',
+    'K7b a party of 4 with 2 rations says who went unhealed (got ' + partial.lastHint + ')');
+  assert(party[0].hp === 20 && party[1].hp === 20, 'K7b the two who ate are healed');
+  assert(party[2].hp === 4 && party[3].hp === 4, 'K7b the two without rations stay hurt');
 }
 
 /* ---------- K8: a controlled foe shoots as the party ---------- */

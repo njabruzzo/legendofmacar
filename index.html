@@ -6400,7 +6400,7 @@ function campRest(){
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
   G.campDoff=1;
   writeGameSave(true);
-  hint((unfed?'Macar camps. No rations, no healing.':(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.'))+' The book is marked.',5);
+  hint((unfed&&healed?'Macar camps. Rations ran short; '+unfed+' went unhealed.':unfed?'Macar camps. No rations, no healing.':healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.')+' The book is marked.',5);
 }
 function isLootableBody(o){
   if(!o||o.hero) return false;
@@ -11492,6 +11492,7 @@ function cancelOneMagicItem(e){
   if(t && t.gear && (t.gear.magicAtk||t.gear.magicAc)){
     t.gear.magicAtk=0; t.gear.magicAc=0;
     say('The rod drinks the foe\'s enchantment.','#7ad0ff');
+    if(typeof breakInvisibility==='function') breakInvisibility(e);
     return;
   }
   const eq=G.equipped||{};
@@ -11610,7 +11611,7 @@ function useWandByName(it, e){
   if(/Wand of Negation/i.test(n)){
     /* RAW: cancels another wand or staff for 1 round. House: strip foe gear plus. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,2):null;
-    if(t && t.gear){ t.gear.magicAtk=0; t.gear.magicAc=0; say('The wand stills the foe\'s charges.','#7ad0ff'); }
+    if(t && t.gear){ t.gear.magicAtk=0; t.gear.magicAc=0; say('The wand stills the foe\'s charges.','#7ad0ff'); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     else say('The wand finds no staff to still.','#c9b895');
     return 'negate';
   }
@@ -11818,7 +11819,7 @@ function useMagicItem(it, e, activate){
       return 'spent';
     }
     if(/javelin of piercing/i.test(it.n||'')){
-      const t=e?nearestFoe(e,8):null;
+      const t=e?nearestFoe(e,12):null;
       if(!t){ say(it.n+' finds no foe.','#c9b895'); return; }
       const dmg=rollDice(1,6,6)*ADD_SCALE;
       damage(t, dmg, '#cfe3ff', {magic:1,kind:'ammo',n:it.n});
@@ -11893,7 +11894,7 @@ function useMagicItem(it, e, activate){
     if(e) e._consumableFx='feather';
     return 'spent';
   }
-  if(/Bag of Beans|Candle of Invocation|Efreeti Bottle|Incense of Meditation|Nolzur's Marvelous Pigments|Robe of Useful Items/i.test(it.n||'')){
+  if(/Bag of Beans|Candle of Invocation|Efreeti Bottle|Incense of Meditation|Nolzur's Marvelous Pigments/i.test(it.n||'')){
     say(it.n+' is spent.','#c9b895');
     if(e) e._consumableFx='spent';
     return 'spent';
