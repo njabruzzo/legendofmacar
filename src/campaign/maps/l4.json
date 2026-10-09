@@ -1,0 +1,341 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 4 campaign map. Data only. The game does not load this file. The transition card is the existing orc sheet.",
+  "levels": [
+    {
+      "id": "L4",
+      "name": "Orc Hold and the Ogre Cave",
+      "level": 4,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 140, "h": 114 },
+      "builtFrom": "Chapter III orc packs and halls, wargs moved from L2, the 7th-level shaman",
+      "spawn": { "x": 8, "y": 28, "role": "arrival-from-L3" },
+      "arrival": { "x": 8, "y": 28, "role": "from-L3" },
+      "layout": {
+        "source": "Chapter III ruin courts that hold orcs, plus the ruby court, the stair, and the ogre cave",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 8, "y": 28, "rw": 5, "rh": 4 },
+          { "id": "hall-of-names", "kind": "rect", "x": 46, "y": 20, "w": 16, "h": 16 },
+          { "id": "ruby-court", "kind": "rect", "x": 48, "y": 42, "w": 24, "h": 16, "was": "ruin-guard" },
+          { "id": "stair-chamber", "kind": "disk", "x": 48.1, "y": 61.4, "rw": 4, "rh": 3.4 },
+          { "id": "ogre-cave", "kind": "disk", "x": 32, "y": 50, "rw": 6, "rh": 5, "was": "south-annex" },
+          { "id": "side-manor", "kind": "disk", "x": 90, "y": 14, "rw": 5, "rh": 4 },
+          { "id": "deep-east", "kind": "disk", "x": 128, "y": 48, "rw": 5, "rh": 4 },
+          { "id": "deep-south", "kind": "disk", "x": 50, "y": 104, "rw": 5.5, "rh": 4.5 },
+          { "id": "far-northeast", "kind": "disk", "x": 126, "y": 10, "rw": 4.5, "rh": 3.8 },
+          { "id": "southwest", "kind": "disk", "x": 12, "y": 102, "rw": 4.5, "rh": 3.8 },
+          { "id": "south-south", "kind": "disk", "x": 88, "y": 102, "rw": 5, "rh": 4 },
+          { "id": "wolf-den", "kind": "disk", "x": 12, "y": 74, "rw": 4.5, "rh": 3.8 },
+          { "id": "moved-wargs-deep", "kind": "disk", "x": 40.1, "y": 70.2, "rw": 5, "rh": 4, "movedFrom": "L2" },
+          { "id": "moved-wargs-east", "kind": "disk", "x": 122.1, "y": 30.1, "rw": 5, "rh": 4, "movedFrom": "L2" },
+          { "id": "moved-wargs-mid", "kind": "disk", "x": 120.1, "y": 62.1, "rw": 5, "rh": 4, "movedFrom": "L2" }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 48,
+        "y": 34.28,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian IV",
+        "tier": 4,
+        "count": 1,
+        "x": 48,
+        "y": 39,
+        "hp": 48,
+        "ac": 3,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "was": "ruin-guard",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian IV",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 45.5,
+        "y": 41.2,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 50.6,
+        "y": 41.4,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/creatures/mon_orc.png",
+        "standInFor": "Orc art stands in for the orc hold",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "orcChief",
+        "name": "Orc chief",
+        "x": 46,
+        "y": 20,
+        "hp": 33,
+        "ac": 3,
+        "room": "hall-of-names",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "orc",
+          "file": "assets/creatures/mon_orc.png",
+          "standIn": true,
+          "standInFor": "Orc chief",
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "placement": "fixed",
+        "x": 48.1,
+        "y": 61.4,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "tooth": {
+        "id": "grond_tooth_electrum_4",
+        "n": 4,
+        "x": 46,
+        "y": 14,
+        "prop": "demonface",
+        "room": "hall-of-names",
+        "cursed": true,
+        "countsForRitual": true,
+        "countsForTeethCarried": true
+      },
+      "setPieces": [
+        {
+          "id": "ogre-cave",
+          "kind": "ogre-cave",
+          "ref": "OgreCave",
+          "placed": true,
+          "x": 32,
+          "y": 50,
+          "room": "ogre-cave",
+          "holders": "orcs",
+          "boulders": { "count": 3, "secondsEach": 10 },
+          "prisoner": { "key": "ogress", "fights": false, "onBouldersCleared": "flee", "rescueXp": 185 },
+          "eggs": { "count": 3, "id": "golden_egg" },
+          "ogreCorpses": false,
+          "ogreLoot": false
+        }
+      ],
+      "spawns": [
+        {
+          "id": "hall-of-names",
+          "room": "hall-of-names",
+          "anchor": { "x": 46, "y": 20 },
+          "members": [
+            { "key": "orcChief", "count": 1, "x": 46, "y": 20, "role": "boss" },
+            { "key": "orcGuard", "count": 6, "x": 46, "y": 18, "role": "guard" },
+            { "key": "orcShaman", "count": 1, "x": 44.2, "y": 18.4, "decision": "D15-A" },
+            { "key": "orcLeader", "count": 1, "x": 48, "y": 16, "role": "leader" }
+          ]
+        },
+        {
+          "id": "ogre-cave-holders",
+          "room": "ogre-cave",
+          "anchor": { "x": 32, "y": 50 },
+          "was": "bugbear and orc x2",
+          "members": [
+            { "key": "orc", "count": 2, "x": 32, "y": 50, "role": "holders" },
+            { "key": "ogress", "count": 1, "x": 32.4, "y": 51.2, "fights": false }
+          ]
+        },
+        {
+          "id": "side-manor",
+          "room": "side-manor",
+          "anchor": { "x": 90, "y": 14 },
+          "was": "orc leader and drow x2",
+          "members": [
+            { "key": "orcLeader", "count": 1, "x": 90, "y": 14 }
+          ]
+        },
+        {
+          "id": "deep-east",
+          "room": "deep-east",
+          "anchor": { "x": 128, "y": 48 },
+          "members": [
+            { "key": "orc", "count": 2, "x": 128, "y": 48 }
+          ]
+        },
+        {
+          "id": "deep-south",
+          "room": "deep-south",
+          "anchor": { "x": 50, "y": 104 },
+          "members": [
+            { "key": "orc", "count": 3, "x": 50, "y": 104 }
+          ]
+        },
+        {
+          "id": "far-northeast",
+          "room": "far-northeast",
+          "anchor": { "x": 126, "y": 10 },
+          "was": "orc leader and spider",
+          "members": [
+            { "key": "orcLeader", "count": 1, "x": 126, "y": 10 }
+          ]
+        },
+        {
+          "id": "southwest",
+          "room": "southwest",
+          "anchor": { "x": 12, "y": 102 },
+          "was": "spider and orc",
+          "members": [
+            { "key": "orc", "count": 1, "x": 12, "y": 102 }
+          ]
+        },
+        {
+          "id": "south-south",
+          "room": "south-south",
+          "anchor": { "x": 88, "y": 102 },
+          "was": "warg and beetle",
+          "members": [
+            { "key": "warg", "count": 1, "x": 88, "y": 102 }
+          ]
+        },
+        {
+          "id": "wolf-den",
+          "room": "wolf-den",
+          "anchor": { "x": 12, "y": 74 },
+          "open": "wolf-count",
+          "members": [
+            { "key": "wolf", "count": 2, "x": 12, "y": 74 }
+          ]
+        },
+        {
+          "id": "moved-wargs-deep",
+          "room": "moved-wargs-deep",
+          "anchor": { "x": 40.1, "y": 70.2 },
+          "movedFrom": "L2",
+          "members": [
+            { "key": "warg", "count": 3, "x": 40.1, "y": 70.2 }
+          ]
+        },
+        {
+          "id": "moved-wargs-east",
+          "room": "moved-wargs-east",
+          "anchor": { "x": 122.1, "y": 30.1 },
+          "movedFrom": "L2",
+          "members": [
+            { "key": "warg", "count": 2, "x": 122.1, "y": 30.1 }
+          ]
+        },
+        {
+          "id": "moved-wargs-mid",
+          "room": "moved-wargs-mid",
+          "anchor": { "x": 120.1, "y": 62.1 },
+          "movedFrom": "L2",
+          "members": [
+            { "key": "warg", "count": 3, "x": 120.1, "y": 62.1 }
+          ]
+        }
+      ],
+      "removed": [
+        { "was": "drow, spiders, bugbear, beetle, duergar, undead, pech, grimlocks, myconids, troglodytes", "to": "not L4" },
+        { "was": "Ruin Guard construct", "to": "ruby guardian stand-in" }
+      ],
+      "ogreCave": {
+        "ref": "OgreCave",
+        "x": 32,
+        "y": 50,
+        "boulders": [
+          { "x": 30.4, "y": 48.4 },
+          { "x": 31.2, "y": 48.6 },
+          { "x": 32.0, "y": 48.8 }
+        ],
+        "eggs": [
+          { "x": 33.2, "y": 51 },
+          { "x": 31.4, "y": 51.6 },
+          { "x": 32.6, "y": 52.4 }
+        ],
+        "fleePath": [
+          { "x": 32, "y": 50 },
+          { "x": 28, "y": 50 },
+          { "x": 28, "y": 76 }
+        ],
+        "exitTile": { "x": 28, "y": 76 }
+      },
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "orc", "count": "1d6" },
+          { "slot": 2, "key": "orc", "count": "1d6" },
+          { "slot": 3, "key": "warg", "count": "1d3" },
+          { "slot": 4, "key": "wolf", "count": "1d4" },
+          { "slot": 5, "key": "orcLeader", "count": "1+1d4 orcs" },
+          { "slot": 6, "key": "warg", "count": "1+1d4 orcs" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 4,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 4",
+          "places": [
+            [90, 14], [96, 34], [88, 58], [30, 76],
+            [50, 80], [12, 74], [106, 48], [128, 48],
+            [50, 104], [126, 10], [120, 80], [12, 102],
+            [88, 102], [26, 28], [46, 20], [48, 42]
+          ]
+        },
+        "chiefCorpse": { "letter": "U", "decision": "D1-A", "on": "orcChief" },
+        "chiefChest": {
+          "letters": ["C", "O", "Q", "S"],
+          "qTimes": 10,
+          "decision": "D2-A",
+          "x": 48.4,
+          "y": 22.2,
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 1000, "band": "~1000", "x": 48, "y": 39 },
+        "tooth": { "id": "grond_tooth_electrum_4" },
+        "eggs": { "id": "golden_egg", "count": 3 },
+        "pelts": { "id": "worg_pelt", "perKill": 1 },
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 4,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}

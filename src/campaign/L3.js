@@ -10,6 +10,10 @@
 (function (root) {
   'use strict';
 
+  var table = root.CampaignTable;
+  if (!table && typeof module === 'object' && module.exports) table = require('./CampaignTable');
+  if (!table || !table.poisonSave) throw new Error('L3 needs CampaignTable.poisonSave');
+
   function formula(base, perHp, hp, terms) {
     var parts = terms || [];
     var xp = base + perHp * hp;
@@ -179,7 +183,7 @@
     mode: 'h1',
     only: true,
     source: 'CampaignTable.poisonSave',
-    mods: { large: 2, huge: 1, giant: 0, phase: -2, queen: -2 },
+    mods: table.poisonSave,
     floor: 2,
     floorRule: '6 #12',
     ghostsImmune: true,
