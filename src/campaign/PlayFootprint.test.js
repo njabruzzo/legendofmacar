@@ -31,7 +31,9 @@ assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
   'L3.js',
   'maps/l3.json',
   'L4.js',
-  'maps/l4.json'
+  'maps/l4.json',
+  'L5.js',
+  'maps/l5.json'
 ].forEach(function (needle) {
   assert(html.indexOf(needle) < 0, 'index.html does not mention ' + needle);
 });
