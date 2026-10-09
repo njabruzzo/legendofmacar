@@ -112,7 +112,7 @@
         mon('centipede', 'Giant Centipede', '1/4', 9, 32, { poisonSave: 4, xpNote: 'verify' }),
         mon('spider', 'Cave Spider', '1+1', 8, 76, { poisonSave: POISON_SAVE.large, tt: 'J-N' }),
         mon('spiderHuge', 'Huge Spider', '2+2', 6, 138, { poisonSave: POISON_SAVE.huge }),
-        mon('beetle', 'Fire Beetle', '1+2', 4, 32),
+        mon('beetle', 'Fire Beetle', '1+2', 4, 32, { glands: 3 }),
         mon('beetleBoring', 'Boring Beetle', 5, 3, 202, { printedPoison: false }),
         mon('kobold', 'Kobold', '1/2', 7, 7),
         mon('koboldChief', 'Kobold Chief', '1+1', 5, 30),
@@ -223,15 +223,15 @@
       boss: mon('orcChief', 'Orc chief', 5, 3, 255, { hp: 33, lair: 'C, O, Qx10, S' }),
       residents: [
         mon('orc', 'Orc', 1, 6, 15),
-        mon('orcLeader', 'Orc leader', 2, 5, 38),
-        mon('orcGuard', 'Orc chief guard', 2, 4, 38),
+        mon('orcLeader', 'Orc leader', 1, 6, 18, { hp: 8 }),
+        mon('orcGuard', 'Orc chief guard', 3, 4, 80, { hp: 15 }),
         mon('warg', 'Worg', '3+3', 6, 126, { artStandIn: 'warg' }),
         mon('wolf', 'Wolf', '2+2', 7, 68, { artStandIn: 'warg' }),
         mon('orcShaman', 'Orc shaman', 7, 5, 656, { hp: 32, casterLevel: 7, decision: 'D15-A', spells: ['Bless', 'Cause Fear', 'Darkness', 'Cause Light Wounds', 'Hold Person', 'Silence 15\' r.'] })
       ],
       minions: [
-        mon('orcLeader', 'Orc leaders and assistants', 2, 5, 38, { source: 'MM1 orc p.76' }),
-        mon('orcGuard', 'Chief guards', 2, 4, 38, { source: 'MM1 orc p.76' })
+        mon('orcLeader', 'Orc leaders and assistants', 1, 6, 18, { hp: 8, source: 'MM1 orc p.76' }),
+        mon('orcGuard', 'Chief guards', 3, 4, 80, { hp: 15, source: 'MM1 orc p.76' })
       ],
       wander: [
         { slot: 1, key: 'orc', count: '1d6' },
@@ -257,9 +257,9 @@
       reuse: { kept: [], cutOrMoved: [], cutAsChapter: false },
       boss: mon('drowMatron', 'Drow Matron', 7, 1, 956, { hp: 32, casterLevel: 7, mr: 64 }),
       residents: [
-        mon('drow', 'Drow warrior', 2, 3, 140, { hp: 11, mr: 52, poison: 'sleep' }),
+        mon('drow', 'Drow warrior', 2, 3, 140, { hp: 11, mr: 54, poison: 'sleep' }),
         mon('drowMage', 'Drow mage', 5, 4, 350, { hp: 14, mr: 60 }),
-        mon('drowPriestess', 'Drow priestess', 5, 3, 380, { hp: 24, mr: 60 })
+        mon('drowPriestess', 'Drow priestess', 5, 3, 400, { hp: 24, mr: 60 })
       ],
       minions: [
         { key: 'drow', role: 'fighter', source: 'Fiend Folio drow bands' },
@@ -324,8 +324,8 @@
       reuse: { kept: [], cutOrMoved: [], cutAsChapter: false },
       boss: mon('stoneLord', 'Stone Lord', 16, 2, 5090, { hp: 72, hitOnlyBy: 2, artStandIn: 'earthelem' }),
       residents: [
-        mon('earthElemental8', 'Earth elemental', 8, 2, 1020, { hitOnlyBy: 2, artStandIn: 'earthelem' }),
-        mon('earthElemental12', 'Earth elemental', 12, 2, 3080, { hitOnlyBy: 2, artStandIn: 'earthelem' }),
+        mon('earthElemental8', 'Earth elemental', 8, 2, 910, { hitOnlyBy: 2, artStandIn: 'earthelem' }),
+        mon('earthElemental12', 'Earth elemental', 12, 2, 2864, { hitOnlyBy: 2, artStandIn: 'earthelem' }),
         mon('xorn', 'Xorn', '7+7', -2, 1280),
         mon('umberhulk', 'Umber hulk', '8+8', 2, 1828)
       ],
@@ -346,7 +346,7 @@
       elevator: elevator('assets/creatures/mon_earthelem.png', 'Earth elemental art'),
       quest: tooth(7),
       pacing: { cumulativeXp: 182200, macar: 'F8', avgHp1e: 60, avgHpGame: 240, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G7', ghostXp: 90500, keyItems: ['Bolts +1', 'Greater Healing'] },
-      setPieces: ['heartstone-vein']
+      setPieces: ['starmetal-vein']
     },
     {
       level: 8,
@@ -375,7 +375,7 @@
         { slot: 3, key: 'duergar', count: '1d4', charmed: true },
         { slot: 4, key: 'orc', count: '1d6', charmed: true },
         { slot: 5, key: 'orc', count: '1d6', charmed: true },
-        { slot: 6, key: 'umberhulk', count: '1' }
+        { slot: 6, key: 'umberhulk', count: '1', charmed: true }
       ],
       rubyDoor: door(),
       lever: lever(),
@@ -393,7 +393,7 @@
       reuse: { kept: ['firegiant'], cutOrMoved: [], cutAsChapter: false },
       boss: mon('redDragon', 'Red Dragon', 11, -1, 3906, { hp: 66, age: 'old', decision: 'D8-B', lair: 'H', speakingXp: 4756, artStandIn: 'deepdragon' }),
       residents: [
-        mon('firegiant', 'Fire giant', '11+3', 3, 2960, { count: 2 }),
+        mon('firegiant', 'Fire giant', '11+3', 3, 2840, { count: 2 }),
         mon('hellHound', 'Hell hound', 5, 4, 315, { count: 2 })
       ],
       minions: [
@@ -433,14 +433,14 @@
       },
       boss: mon('king', 'Undying King', 12, 0, 5552, { hp: 72, hitOnlyBy: 1, decision: 'D14-B' }),
       residents: [
-        mon('skeleton', 'Skeleton', 1, 7, 15),
+        mon('skeleton', 'Skeleton', 1, 7, 19),
         mon('zombie', 'Zombie', 2, 8, 38),
         mon('ghoul', 'Ghoul', 2, 6, 83),
         mon('wight', 'Wight', '4+3', 5, 310),
         mon('wraith', 'Wraith', '5+3', 4, 503),
         mon('spectre', 'Spectre', '7+3', 2, 1170),
         mon('duergar', 'Duergar', '1+2', 4, 86, { artStandIn: 'duergar' }),
-        mon('duergarPriest', 'Duergar priest', 5, 3, 400)
+        mon('duergarPriest', 'Duergar priest', 5, 3, 393)
       ],
       minions: [
         { key: 'wight', role: 'guard', choice: 'C', locked: true, source: 'MM1 wight servants' },
@@ -468,12 +468,11 @@
         usableByMacar: 'Y',
         xpOnce: 10000,
         steps: [
-          'Seven braziers burn. While any burns, the King regenerates and cannot be slain.',
-          'Macar sets the Holy Anvil on the throne dais.',
-          'Each Holy Hammer smash spends one round and puts out one brazier.',
-          'Each smash lowers teethCarried by one.',
-          'The seventh smash ends the curse and makes the King mortal.',
-          'Killing the mortal King wins.'
+          'The King fights and dies in the throne room. His kill opens the stair and unlocks the altar.',
+          'Macar sets the Holy Anvil on the temple altar at (29, 14.5).',
+          'Each Holy Hammer smash takes 1 s. Any hit interrupts it.',
+          'Each smash puts out the nearest brazier and lowers teethCarried by 1.',
+          'The seventh smash ends the curse, grants 10,000 XP once, and wins.'
         ]
       },
       pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
@@ -526,8 +525,23 @@
   }
 
   /**
+   * When a corpse's printed J-Z letters carry no coins, add that band's
+   * coins only. No extra band magic. Nil corpses still use the full band.
+   */
+  var CORPSE_COIN_RULE = {
+    id: 'letters-without-coins',
+    when: 'a corpse\'s printed J-Z letters carry no coins',
+    add: 'the band\'s coins only',
+    mid: 'J+K',
+    high: 'O',
+    extraBandMagic: false,
+    appliesOn: 'every level'
+  };
+
+  /**
    * Running clear through L10, then the ritual once.
-   * The L10 row is the clear only, 491,800. The ritual adds 10,000.
+   * The L10 row is the clear only, 491,800. The ritual is L10.RITUAL.xpOnce.
+   * pacing.ritualXp and the map's ritual.xpOnce are the same number and are not added.
    * The path is 501,800, which clears F10 (500,001).
    */
   function pathXp() {
@@ -538,7 +552,8 @@
       total += at - prev;
       prev = at;
     }
-    total += LEVELS[9].quest.xpOnce;
+    var l10 = require('./L10');
+    total += l10.RITUAL.xpOnce;
     return total;
   }
 
@@ -552,6 +567,7 @@
     level: level,
     formulaXp: formulaXp,
     statBossGuardianXp: statBossGuardianXp,
+    corpseCoinRule: CORPSE_COIN_RULE,
     pathXp: pathXp,
     wired: false
   };

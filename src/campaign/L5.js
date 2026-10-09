@@ -41,8 +41,8 @@
 
   /**
    * Printed XP from rules 1.5 and guardian V from 1.11.
-   * hp on a formula is the figure that makes the printed total,
-   * except the priestess, whose cell is approximate.
+   * hp on a formula is the figure that makes the printed total.
+   * The priestess cell is the formula, 400.
    */
   var MONSTERS = {
     drow: {
@@ -53,14 +53,13 @@
       hp: 11,
       level: 2,
       ac: 3,
-      acVerify: true,
       mv: '12"',
       attacks: [
         { n: 1, form: 'short sword +1', damage: '1d6+1' },
         { n: 1, form: 'hand crossbow', damage: '1d3', plus: 'sleep poison' }
       ],
-      specials: ['MR 52%', 'innate set', 'sleep poison'],
-      mr: 52,
+      specials: ['MR 54%', 'innate set', 'sleep poison'],
+      mr: 54,
       innate: INNATE_BASE.slice(),
       female: false,
       xp: 140,
@@ -69,8 +68,8 @@
         { kind: 'EA', reason: 'poison', xp: 45 },
         { kind: 'SA', reason: 'innate', xp: 8 }
       ]),
-      tt: 'FF',
-      ttVerify: true,
+      tt: 'N×5, Q×2',
+      corpseLetters: { N: 5, Q: 2 },
       art: DROW_ART
     },
     drowMage: {
@@ -93,8 +92,9 @@
         { kind: 'EA', reason: 'printed', xp: 75 },
         { kind: 'SA', reason: 'printed', xp: 40 }
       ]),
-      tt: 'FF',
-      ttVerify: true,
+      tt: 'N×5, Q×2',
+      corpseLetters: { N: 5, Q: 2 },
+      wearsChain: false,
       art: MAGE_ART
     },
     drowPriestess: {
@@ -112,16 +112,16 @@
       female: true,
       innate: INNATE_BASE.concat(INNATE_FOURTH).concat(INNATE_FEMALE),
       innateFemaleVerify: true,
-      xp: 380,
-      xpApprox: true,
-      bandXp: 400,
+      xp: 400,
       xpFormula: formula(90, 5, 24, [
         { kind: 'EA', reason: 'magic resistance', xp: 75 },
         { kind: 'EA', reason: 'spell use', xp: 75 },
         { kind: 'SA', reason: 'innate abilities', xp: 40 }
       ]),
-      tt: 'FF',
-      ttVerify: true,
+      tt: 'N×5, Q×2',
+      corpseLetters: { N: 5, Q: 2 },
+      adamantite: 3,
+      chain: { plus: 1, dropChance: 0.1 },
       art: art('drowMatron', 'assets/creatures/mon_drow_matron.png', true, 'Drow priestess')
     },
     drowMatron: {
@@ -175,7 +175,7 @@
         { kind: 'SA', reason: 'shard cone', xp: 450 },
         { kind: 'SA', reason: 'hit only by +1', xp: 450 }
       ]),
-      ruby: { gp: 1250, band: '~1250' },
+      ruby: { gp: 1250 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian V')
     }
   };
@@ -198,6 +198,15 @@
     klass: 'MU',
     slots: { 1: 4, 2: 2, 3: 1 },
     list: ['Magic Missile', 'Magic Missile', 'Shield', 'Sleep', 'Web', 'Mirror Image', 'Lightning Bolt'],
+    segments: {
+      'Magic Missile': 0.1,
+      'Shield': 0.1,
+      'Sleep': 0.1,
+      'Web': 0.2,
+      'Mirror Image': 0.2,
+      'Lightning Bolt': 0.3
+    },
+    innateSegment: 0.1,
     sleep: {
       spell: 'Sleep',
       affects: '4+1 HD or less',
@@ -214,7 +223,15 @@
     slots: { 1: 3, 2: 3, 3: 1 },
     wis: null,
     list: ['Command', 'Cause Light Wounds', 'Darkness', 'Hold Person', 'Hold Person', "Silence 15' r.", 'Cause Blindness'],
-    spellEverySec: 2
+    spellEverySec: 2,
+    segments: {
+      'Command': 0.1,
+      'Cause Light Wounds': 0.5,
+      'Hold Person': 0.5,
+      "Silence 15' r.": 0.5,
+      'Cause Blindness': 1.0
+    },
+    innateSegment: 0.1
   };
 
   var MATRON = {
@@ -231,9 +248,19 @@
       'Dispel Magic', 'Cause Blindness',
       'Cause Serious Wounds'
     ],
+    segments: {
+      'Command': 0.1,
+      'Cause Fear': 0.1,
+      'Cause Light Wounds': 0.5,
+      'Hold Person': 0.5,
+      "Silence 15' r.": 0.5,
+      'Dispel Magic': 0.6,
+      'Cause Blindness': 1.0,
+      'Cause Serious Wounds': 0.7
+    },
     checkEverySec: 1,
     spellEverySec: 2,
-    darkness: { innate: true, perDay: 1, center: 'Macar', attackMod: -4 },
+    darkness: { innate: true, perDay: 1, center: 'Macar', attackMod: -4, durationSec: '10 + 1 per level' },
     holdPerson: { target: 'Macar', save: 'vs spell', dwarfBonus: true, freeActionImmune: true },
     silence: { range: "15'", target: 'kin cluster', stops: 'voice abilities' },
     causeSerious: { when: 'adjacent', damage: '2d8+1' },
@@ -244,21 +271,20 @@
       'Hold Person on Macar. The dwarf bonus applies, and Free Action makes him immune. Then Silence 15\' r. on the kin cluster.',
       'While Macar is held, warriors close with swords and crossbowmen shoot sleep darts. Darts do not affect ghosts, so the targets skip ghosts.',
       'Cause Serious Wounds, touch 2d8+1, when adjacent. Dispel Magic if Macar has a battle buff.',
-      'Below 30% HP she levitates to a ledge, and the mage covers her with Lightning Bolt.'
+      'Below 30% HP, the floor mage in the mage gallery, if alive, walks to the Matron hall and casts Lightning Bolt once when she is in range. If the mage is dead, she only levitates.'
     ]
   };
 
   /**
    * Drow sleep is the 1.5 ruling, not the spider H1 damage.
    * CampaignTable.poisonSave stays pointed at for the spider sizes.
-   * Those mods are not applied: the dart has no size row, and the FF modifier is verify.
+   * Those mods are not applied: the dart has no size row. The FF modifier is -4.
    */
   var POISON = {
     kind: 'sleep',
     ruling: '1.5',
     save: 'vs poison',
-    ffModifier: null,
-    ffModifierVerify: true,
+    ffModifier: -4,
     spiderTable: table.poisonSave,
     usesSpiderTable: false,
     h1Damage: false,
@@ -312,8 +338,9 @@
     },
     lair: {
       letter: null,
+      present: false,
       source: 'FF',
-      verify: true,
+      reason: '0% in lair, no lair letter',
       onCorpse: false,
       decision: 'D2-A'
     },
@@ -333,20 +360,22 @@
       }
     },
     corpseBand: {
-      warrior: 'FF',
-      mage: 'FF',
-      priestess: 'FF',
+      warrior: 'N×5, Q×2',
+      mage: 'N×5, Q×2',
+      priestess: 'N×5, Q×2',
       matron: 'U',
       guardian: 'ruby only'
     },
     magicFilter: '2.2 usable by a dwarf fighter',
     armorRefit: 'D12-B',
     components: {
-      drow_adamantite: { perWarrior: 0.5, guardAlways: 2 }
+      drow_adamantite: { perWarrior: 0.5, guardAlways: 2, priestessAlways: 3 },
+      drow_chain: { plus: 1, chance: 0.1, from: ['drow', 'matron-guard', 'drowPriestess'] }
     },
     drops: [
       { id: 'drow_adamantite', from: 'drow', chance: 0.5 },
       { id: 'drow_adamantite', from: 'matron-guard', count: 2, always: true },
+      { id: 'drow_adamantite', from: 'drowPriestess', count: 3, always: true },
       { id: 'drow_short_sword_plus_2', from: 'matron-guard', count: 1, always: true }
     ],
     usable: [
@@ -367,7 +396,7 @@
   var XP = {
     drow: 140,
     drowMage: 350,
-    drowPriestess: 380,
+    drowPriestess: 400,
     drowMatron: 956,
     rubyGuardian: 2640
   };
@@ -378,91 +407,95 @@
   var OPEN = [
     {
       id: 'warrior-ac',
-      note: 'The warrior cell prints AC 3 and marks it verify. AC 3 is stored. (open)'
+      note: 'Resolved by §7.3. The warrior stays AC 3.'
     },
     {
       id: 'warrior-mr',
-      note: 'The shared line is 50% magic resistance plus 2% per level, which is 54 at 2nd level. The warrior cell prints 52. The cell is stored. (open)'
+      note: 'Resolved by §7.3. The warrior magic resistance is 54%.'
     },
     {
       id: 'priestess-xp',
-      note: 'The 4+1 to 5 band at 24 hp, with magic resistance, spell use, and innate abilities, sums to 400. The cell prints about 380. The cell is stored as 380. (open)'
+      note: 'Resolved by §7.3. The priestess XP is 400. The 380 figure is retired.'
     },
     {
       id: 'priestess-plus',
-      note: 'The priestess mace is printed as 1d6+2. A mace +1 is 1d6+1, and the extra +1 is not named. (open)'
+      note: 'Resolved by §7.3. The priestess mace stays 1d6+2.'
     },
     {
       id: 'female-innate',
-      note: 'Females also get clairvoyance, detect lie, suggestion, and dispel magic. The RULES mark that list verify. It is stored as written. (open)'
+      note: 'Resolved by §7.3. Females keep clairvoyance, detect lie, suggestion, and dispel magic. Only dispel magic is wired.'
     },
     {
       id: 'spell-segments',
-      note: 'The house cadence is one spell per 2 s. Casting segments for the drow lists are not printed. (open)'
+      note: 'Resolved by §7.3. Wind-up is the casting time times 0.1 s. Innate abilities take 0.1 s.'
     },
     {
       id: 'sleep-modifier',
-      note: 'The dart save is vs poison, and the FF modifier is verify. CampaignTable.poisonSave is the spider size table, so those mods are not applied. (open)'
+      note: 'Resolved by §7.3. The dart save is vs poison at -4. The spider size table is not used.'
     },
     {
       id: 'band-count',
-      note: 'Placed bands follow the section 5 shapes: a mage and one warrior, a priestess and two warriors, plus patrols of three and two. The FF number appearing is not printed. (open)'
+      note: 'Resolved by §7.3. The placed bands stay as they are.'
     },
     {
       id: 'no-slaves',
-      note: 'No slave races are placed. Section 1.5 says to verify that the FF entry prints none. (open)'
+      note: 'Resolved by §7.3. The FF drow entry prints no slaves, so none are placed.'
     },
     {
       id: 'treasure-ff',
-      note: 'Warriors, the mage, and the priestess print treasure type FF, marked verify. No DMG letter is stored for those corpses. (open)'
+      note: 'Resolved by §7.3. Every non-boss drow corpse rolls N×5 and Q×2. The Matron rolls U.'
     },
     {
       id: 'lair-letter',
-      note: 'The Matron chest is a D2 lair chest. The cell says lair FF, verify, and the live LAIR table has no FF row, so the dice are not stored. (open)'
+      note: 'Resolved by §7.3. FF drow print no lair letter, so there is no L5 chest.'
+    },
+    {
+      id: 'nick-chest',
+      note: 'Nick has not decided whether to add a replacement chest on L5. No chest is stored. (open)'
     },
     {
       id: 'map-rooms',
-      note: 'Level 5 is a new floor. The RULES print no room coordinates. (open)'
+      note: 'Resolved by §7.3. The Level 5 rooms stay as placed.'
     },
     {
       id: 'tooth-face',
-      note: 'Electrum tooth 5 is on the Matron hall north wall at (88, 32). The RULES print the tooth and no coordinate. (open)'
+      note: 'Resolved by §7.3. Electrum tooth 5 stays at (88, 32).'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian V\'s ruby is stored as 1250 gp. Section 1.11 prints ~1,250 and no range. (open)'
+      note: 'Resolved by §7.0. Guardian V ruby is exactly 1,250 gp.'
     },
     {
       id: 'priestess-art',
-      note: 'No priestess sheet exists. She uses the matron sheet. (open)'
+      note: 'Resolved by §7.3. The priestess uses the matron sheet.'
     },
     {
       id: 'guardian-art',
-      note: 'No ruby-guardian sheet exists. Guardian V uses the construct sheet. (open)'
+      note: 'Resolved by §7.3. Guardian V uses the construct sheet.'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen level-5 caches are placed on the new floor. The RULES print the count and no coordinates. (open)'
+      note: 'Resolved by §7.3. Sixteen level-5 caches stay as placed.'
     },
     {
       id: 'sword-guard',
-      note: 'One warrior beside the Matron carries the +2 short sword and always drops 2 adamantite. The RULES say the Matron\'s guard and print no headcount. (open)'
+      note: 'Resolved by §7.3. One guard carries the +2 short sword and always drops 2 adamantite.'
     },
     {
       id: 'mage-cover',
-      note: 'Below 30% HP the Matron levitates and the mage covers her with Lightning Bolt. The RULES do not name which mage. (open)'
+      note: 'Resolved by §7.3. Below 30% HP the floor mage, if alive, walks to the hall and casts Lightning Bolt once. If she is dead, the Matron only levitates.'
     },
     {
       id: 'darkness-duration',
-      note: 'Innate darkness is once per day and attacks through it are at -4. The duration is not printed. (open)'
+      note: 'Resolved by §7.3. Innate darkness lasts 10 s plus 1 s per drow level.'
     },
     {
       id: 'matron-addends',
-      note: 'The Matron XP cell prints +175 +175 +125 and does not name the abilities. The amounts match two exceptional abilities and one special ability on the 7 HD band. (open)'
+      note: 'Resolved by §7.3. The Matron addends are spells 175, magic resistance 175, and innate abilities 125.'
     },
     {
       id: 'chain-plus',
-      note: 'Drow chain is +1 to +3. Which plus a corpse rolls is not printed. D12-B refits it for Macar. (open)'
+      note: 'Resolved by §7.3. A drow chain drop is +1 only, at 10% per armored drow. The mage wears none.'
     }
   ];
 

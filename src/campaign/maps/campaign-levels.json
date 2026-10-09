@@ -1068,7 +1068,6 @@
         "guardianRuby": {
           "id": "ruby_guardian_2",
           "gp": 500,
-          "band": "400-600",
           "x": 10.1,
           "y": 31
         },
@@ -1679,7 +1678,6 @@
         },
         "guardianRuby": {
           "gp": 750,
-          "band": "~750",
           "x": 16.4,
           "y": 16.4
         },
@@ -2069,7 +2067,8 @@
               "key": "orcLeader",
               "count": 1,
               "x": 90,
-              "y": 14
+              "y": 14,
+              "role": "assistant"
             }
           ]
         },
@@ -2118,7 +2117,8 @@
               "key": "orcLeader",
               "count": 1,
               "x": 126,
-              "y": 10
+              "y": 10,
+              "role": "assistant"
             }
           ]
         },
@@ -2418,7 +2418,6 @@
         },
         "guardianRuby": {
           "gp": 1000,
-          "band": "~1000",
           "x": 48,
           "y": 39
         },
@@ -2893,7 +2892,6 @@
         },
         "guardianRuby": {
           "gp": 1250,
-          "band": "~1250",
           "x": 48,
           "y": 36
         },
@@ -3141,8 +3139,28 @@
           "placed": true,
           "x": 12,
           "y": 74,
+          "w": 2,
+          "h": 2,
+          "tiles": [
+            [
+              12,
+              74
+            ],
+            [
+              13,
+              74
+            ],
+            [
+              12,
+              75
+            ],
+            [
+              13,
+              75
+            ]
+          ],
           "room": "ember-hall",
-          "count": 1,
+          "count": 4,
           "bossAvoids": true
         }
       ],
@@ -3411,18 +3429,15 @@
           "on": "emberLord"
         },
         "lordChest": {
+          "present": false,
           "letter": null,
-          "contents": "guardian-ruby",
+          "contents": null,
           "extraHoard": false,
           "decision": "D2",
-          "x": 11,
-          "y": 78,
-          "room": "ember-hall",
           "onCorpse": false
         },
         "guardianRuby": {
           "gp": 1500,
-          "band": "~1500",
           "x": 29,
           "y": 24
         },
@@ -3435,7 +3450,7 @@
         },
         "glands": {
           "id": "fire_beetle_gland",
-          "perKill": 2
+          "perKill": 3
         },
         "magicFilter": "2.2 usable by a dwarf fighter"
       },
@@ -3654,7 +3669,7 @@
       },
       "setPieces": [
         {
-          "id": "heartstone-vein",
+          "id": "starmetal-vein",
           "kind": "starmetal-vein",
           "placed": true,
           "x": 64,
@@ -3896,7 +3911,6 @@
         },
         "guardianRuby": {
           "gp": 1750,
-          "band": "~1750",
           "with": "rubyGuardian",
           "x": 48,
           "y": 36
@@ -4209,7 +4223,8 @@
           {
             "slot": 6,
             "key": "umberhulk",
-            "count": "1"
+            "count": "1",
+            "charmed": true
           }
         ]
       },
@@ -4305,7 +4320,6 @@
         },
         "guardianRuby": {
           "gp": 2000,
-          "band": "~2000",
           "with": "rubyGuardian",
           "x": 28,
           "y": 28
@@ -4667,7 +4681,6 @@
         },
         "guardianRuby": {
           "gp": 2250,
-          "band": "~2250",
           "with": "rubyGuardian",
           "x": 48,
           "y": 36
@@ -4858,11 +4871,12 @@
         "teeth": 7,
         "hammer": "holy_hammer",
         "anvil": "holy_anvil",
+        "unlocksOn": "kingKill",
         "site": {
           "id": "altar",
           "x": 29,
           "y": 14.5,
-          "room": "throne-room"
+          "name": "temple altar"
         }
       },
       "setPieces": [
@@ -4873,34 +4887,41 @@
           "count": 7,
           "room": "throne-room",
           "places": [
-            [
-              18,
-              12
-            ],
-            [
-              40,
-              12
-            ],
-            [
-              18,
-              31
-            ],
-            [
-              40,
-              31
-            ],
-            [
-              70,
-              18
-            ],
-            [
-              92,
-              18
-            ],
-            [
-              86,
-              12
-            ]
+            {
+              "x": 18,
+              "y": 12,
+              "room": "throne-room"
+            },
+            {
+              "x": 40,
+              "y": 12,
+              "room": "throne-room"
+            },
+            {
+              "x": 18,
+              "y": 31,
+              "room": "throne-room"
+            },
+            {
+              "x": 40,
+              "y": 31,
+              "room": "throne-room"
+            },
+            {
+              "x": 70,
+              "y": 18,
+              "room": "side-chapel"
+            },
+            {
+              "x": 92,
+              "y": 18,
+              "room": "side-chapel"
+            },
+            {
+              "x": 86,
+              "y": 12,
+              "room": "side-chapel"
+            }
           ]
         },
         {
@@ -5066,16 +5087,16 @@
               74
             ],
             [
-              48,
-              50
+              60,
+              44
             ],
             [
-              40,
-              70
+              36,
+              62
             ],
             [
-              80,
-              40
+              70,
+              44
             ],
             [
               20,
@@ -5099,6 +5120,7 @@
         "lordChest": {
           "letter": null,
           "contents": "chapter-v-hoard",
+          "once": true,
           "quest": null,
           "includesRuby": false,
           "extraHoard": false,
@@ -5110,7 +5132,6 @@
         },
         "guardianRuby": {
           "gp": 2500,
-          "band": "2500",
           "with": "rubyGuardian",
           "x": 22,
           "y": 40
@@ -5123,7 +5144,11 @@
         "elevator": "guardian",
         "stairs": "bossKill",
         "stairsOpenOn": "bossKill",
-        "win": "mortalKing",
+        "win": "ritualComplete",
+        "altarUnlocksOn": "kingKill",
+        "stairNext": null,
+        "elevatorNext": null,
+        "beforeWin": "The curse still holds. Smash the teeth on the altar.",
         "livingBossBlocksElevator": false,
         "leverRequires": [
           "rubyGuardianDead"

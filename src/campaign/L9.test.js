@@ -115,9 +115,11 @@ assert(T.level(9).pacing.cumulativeXp >= T.FIGHTER_XP.F9 && T.level(9).pacing.cu
 assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L9.MONSTERS.redDragon.age === 'old' && L9.MONSTERS.redDragon.hp === 66 && L9.MONSTERS.redDragon.xp === 3906 && L9.MONSTERS.redDragon.breath.perDay === 3 && L9.MONSTERS.redDragon.breath.applyDmgG === false, 'the old red is 66 hp, 3906 XP, and breathes for its current HP');
-assert(L9.MONSTERS.firegiant.xp === 2960 && L9.MONSTERS.firegiant.bandXp === 2840 && L9.MONSTERS.firegiant.immune.indexOf('fire') >= 0, 'the fire giant wired xp is 2960 and the band is 2840');
-assert(L9.MONSTERS.hellHound.xp === 315 && L9.MONSTERS.hellHound.breath.save === 'vs breath for half', 'the hound is the printed 315 and breathes for its HP');
-assert(L9.MONSTERS.rubyGuardian.xp === 10800 && L9.MONSTERS.rubyGuardian.cone.damage === '3d6', 'Guardian IX is 10800 XP and the cone is 3d6');
+assert(L9.MONSTERS.firegiant.xp === 2840 && L9.MONSTERS.firegiant.bandXp == null && L9.MONSTERS.firegiant.immune.indexOf('fire') >= 0 && L9.MONSTERS.firegiant.immune.indexOf('red dragon breath') >= 0, 'the fire giant wired xp is 2840 and fire, including dragon breath, does not harm it');
+assert(L9.MONSTERS.hellHound.xp === 315 && L9.MONSTERS.hellHound.breath.amount === 5 && L9.MONSTERS.hellHound.breath.takesDragonBreath === true, 'the hound breathes 1 per HD and takes dragon breath');
+assert(L9.MONSTERS.redDragon.breath.lengthTiles === 18 && L9.MONSTERS.redDragon.breath.widthAtEndTiles === 6 && L9.MONSTERS.redDragon.breath.widthAtMouthTiles === 1 && L9.MONSTERS.redDragon.breath.hitsAllies === true, 'the breath cone is 18 by 6 tiles, 1 tile at the mouth, and it hits allies');
+assert(L9.MONSTERS.redDragon.speakCast.chance === 0.30 && L9.MONSTERS.redDragon.speakCast.saveField === 'l9SpeakCast' && L9.MONSTERS.redDragon.speakCast.casterXp === 4756, 'the speak-cast roll is 30% and the save field is l9SpeakCast');
+assert(L9.MONSTERS.rubyGuardian.xp === 10800 && L9.MONSTERS.rubyGuardian.cone.damage === '3d6' && L9.MONSTERS.rubyGuardian.cone.lengthTiles === 6 && L9.MONSTERS.rubyGuardian.ruby.gp === 2250 && L9.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian IX is 10800 XP, the cone is 6 tiles, and the ruby is exactly 2250');
 assert(L9.MINIONS.locked === true && L9.MINIONS.decision === 'D7-B' && L9.MINIONS.inBossRoom === true && L9.MINIONS.counts.firegiant === 2 && L9.MINIONS.counts.hellHound === 2, 'two giants and two hounds are the locked minions and stand with the dragon');
 assert(L9.DRAGON.subdual === false && L9.DRAGON.takeoff.belowHpFraction === 0.5 && L9.DRAGON.takeoff.stillCanHit.indexOf('thrown Holy Hammer') >= 0, 'subdual is off, and the takeoff still allows the thrown hammer');
 assert(L9.ANVIL.id === 'holy_anvil' && L9.ANVIL.displayName === 'Holy Anvil of Truth' && L9.ANVIL.behindBoss === true, 'the anvil id and display name match section 6');
@@ -148,7 +150,11 @@ chain.ingredientSets.forEach(function (set) {
 });
 assert(T.level(9).quest.id === 'holy_anvil' && T.level(9).quest.displayName === 'Holy Anvil of Truth' && T.level(9).pacing.keyItems[0] === 'Holy Anvil of Truth', 'the level table tracks the Holy Anvil of Truth');
 
-assert(L9.OPEN.length === 17 && L9.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L9 choice is marked in the data');
+assert(L9.OPEN.length === 2, 'L9 keeps the two Nick flags open');
+L9.OPEN.forEach(function (row) {
+  assert(row.id && row.note && row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L9.LOOT.lair.H.gpAbout == null && L9.LOOT.bossChest.quest === 'holy_anvil', 'lair H rolls in full and the anvil is the quest item');
 assert(html.indexOf('L9.js') < 0 && html.indexOf('maps/l9.json') < 0, 'index.html does not load the L9 data');
 assert(save.indexOf('L9.js') < 0 && save.indexOf('maps/l9.json') < 0, 'GameSave does not load the L9 data');
 assert(L9.wired === false, 'the L9 module is not wired');

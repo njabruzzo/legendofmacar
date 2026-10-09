@@ -90,7 +90,8 @@
       enlarge: { perDay: 1 },
       invisibility: { perDay: 1 },
       immune: ['paralysis', 'illusion', 'poison'],
-      surprise: { chance: '3 in 6', verify: true },
+      surprise: { chance: '3 in 6', surprisedOnly: '1 in 10' },
+      saveVsMagic: 4,
       charmed: true,
       xp: 86,
       xpFormula: formula(20, 2, 6.5, [
@@ -98,7 +99,8 @@
         { kind: 'EA', reason: 'printed', xp: 45 }
       ]),
       tt: 'M',
-      ttVerify: true,
+      ttAlso: 'Q',
+      corpseLetters: { M: 1, Q: 1 },
       art: art('duergar', 'assets/creatures/mon_duergar.png', false, null)
     },
     umberhulk: {
@@ -122,6 +124,9 @@
         { kind: 'SA', reason: 'printed', xp: 300 }
       ]),
       tt: 'G',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('umberhulk', 'assets/creatures/mon_umberhulk.png', false, null)
     },
     orc: {
@@ -156,7 +161,7 @@
         'cone 3d6',
         'hit only by +2 weapons'
       ],
-      cone: { damage: '3d6', range: '3"', rangeFrom: 'tier IV', save: 'vs breath for half', everySec: 4, minTiles: 2 },
+      cone: { damage: '3d6', range: '3"', lengthTiles: 6, rangeFrom: '7.6', save: 'vs breath for half', everySec: 4, minTiles: 2 },
       hitOnlyBy: 2,
       xp: 8420,
       xpFormula: formula(2400, 20, 96, [
@@ -164,7 +169,7 @@
         { kind: 'SA', reason: 'printed', xp: 1250 },
         { kind: 'EA', reason: 'printed', xp: 1600 }
       ]),
-      ruby: { gp: 2000, band: '~2000' },
+      ruby: { gp: 2000 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian VIII')
     }
   };
@@ -256,7 +261,7 @@
     { slot: 3, key: 'duergar', count: '1d4', charmed: true },
     { slot: 4, key: 'orc', count: '1d6', charmed: true },
     { slot: 5, key: 'orc', count: '1d6', charmed: true },
-    { slot: 6, key: 'umberhulk', count: '1' }
+    { slot: 6, key: 'umberhulk', count: '1', charmed: true }
   ];
 
   var HAMMER = {
@@ -268,7 +273,16 @@
     pageVerify: true,
     behindBoss: true,
     usableByMacar: 'Y',
-    thrown: { range: '6"', returns: true, wielder: 'dwarf', multiplier: { normal: 2, giants: 3, verify: true } },
+    thrown: {
+      range: '6"',
+      rangeTiles: 12,
+      returns: true,
+      wielder: 'dwarf fighter',
+      multiplier: { normal: 2, giants: 3, giantsInclude: ['ogre', 'ogre magi', 'troll', 'ettin'] },
+      plusAfterMultiply: 3,
+      otherHands: { plus: 2, throw: false },
+      page: 'DMG p.168'
+    },
     quest: { smashTeethOn: 'holy_anvil', countsAsPlus: 3, forGuardian: 10 }
   };
 
@@ -281,7 +295,8 @@
         magic: { chance: 55, count: 1, kind: 'any' },
         decision: 'D1-A'
       },
-      M: { letter: 'M', onCorpse: true, gp: '2d4', verify: true }
+      M: { letter: 'M', onCorpse: true, gp: '2d4' },
+      Q: { letter: 'Q', onCorpse: true, gems: { chance: 50, dice: '1d4' } }
     },
     lair: {
       I: {
@@ -306,7 +321,7 @@
       includesRuby: false,
       extraHoard: false
     },
-    guardianRuby: { with: 'rubyGuardian', gp: 2000, band: '~2000' },
+    guardianRuby: { with: 'rubyGuardian', gp: 2000 },
     caches: {
       count: 16,
       level: 8,
@@ -346,75 +361,79 @@
   var OPEN = [
     {
       id: 'orc-band',
-      note: 'The 1.4 orc cell prints about 15. At average hp 4.5 the band is 14.5. The wired xp is 15. The 14.5 is a side field. (open)'
+      note: 'Resolved by §7.6. The orc wired xp stays 15. The 14.5 band stays a side field.'
     },
     {
       id: 'duergar-addends',
-      note: 'Duergar XP 86 is 20+2 per hp at 6.5 hp, plus 8 and 45. A 1+2 averages 6.5. The cell prints about 86 and does not name the 8 or the 45. (open)'
+      note: 'Resolved by §7.6. The 8 is infravision and surprise. The 45 is enlarge, invisibility, and poison and paralysis immunity.'
     },
     {
       id: 'duergar-tt',
-      note: 'Duergar treasure type M is marked verify. It is stored as individual M on the corpse. (open)'
+      note: 'Resolved by §7.6. A duergar corpse rolls M and Q. Lair B and F are not rolled.'
+    },
+    {
+      id: 'beholder-letters',
+      note: 'MM1 beholder treasure is I, S, T. I is the chest. S and T are not rolled. Nick has not decided that flag. (open)'
     },
     {
       id: 'ac-facing',
-      note: 'Beholder AC is 0 on the body, 7 on the central eye, and 2 on the eyestalks. All three are stored. Which face is struck first is not printed. (open)'
+      note: 'Resolved by §7.6. Every attack hits body AC 0. Eyestalks at AC 2 are the 19+ Specialty sever. The central eye is not a separate target.'
     },
     {
       id: 'cone-range',
-      note: 'Guardian VIII\'s cone damage is 3d6. The 3" range belongs to the tier IV cone and is not reprinted on the VIII line. (open)'
+      note: 'Resolved by §7.6. Guardian VIII\'s cone is 3 inches, 6 tiles.'
     },
     {
       id: 'guardian-addends',
-      note: 'Guardian VIII prints 1,250 twice and 1,600 once and does not name them. (open)'
+      note: 'Resolved by §7.6. The two 1,250 terms are a +2 weapon to hit and AC -1. The 1,600 is the cone.'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian VIII\'s ruby is stored as 2000 gp on the guardian. Section 1.11 prints ~2,000 and no range. The boss chest does not hold it. (open)'
+      note: 'Resolved by §7.0. Guardian VIII ruby is exactly 2,000 gp, on the guardian.'
     },
     {
       id: 'hammer-roll',
-      note: 'The Holy Hammer lies in the beholder hoard, and the chest also rolls lair I. Whether the hammer replaces I\'s magic item is not printed. (open)'
+      note: 'Resolved by §7.6. The Holy Hammer is added to the chest, and lair I rolls in full.'
     },
     {
       id: 'throw-mult',
-      note: 'A thrown Holy Hammer deals extra damage by a DMG multiplier, marked verify. The stored figures are ×2 normally and ×3 against giants. (open)'
+      note: 'Resolved by §7.6. A dwarf fighter throws it at ×2, or ×3 against giants, ogres, trolls, and ettins, then adds +3.'
     },
     {
       id: 'hammer-page',
-      note: 'The hammer is built on DMG Hammer +3, Dwarven Thrower. The page in the weapons list is marked verify. (open)'
+      note: 'Resolved by §7.6. The hammer is DMG p.168, Hammer +3, Dwarven Thrower.'
     },
     {
       id: 'shaft-spot',
-      note: 'Below 30% HP the beholder backs toward the shaft. No coordinate is printed. A shaft tile sits in the lair at (50, 38). The chapter stair at (50.1, 61.2) is the level stair. (open)'
+      note: 'Resolved by §7.6. The shaft tile stays in the lair at (50, 38).'
     },
     {
       id: 'map-rooms',
-      note: 'The lair is the Chapter IV elder-brain point at (52, 42). The ruby court has no printed coordinate. (open)'
+      note: 'Resolved by §7.6. The lair stays at (52, 42).'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen level-8 caches are placed on this floor. Chapter IV\'s caches stay with the cut chapter. (open)'
+      note: 'Resolved by §7.6. Sixteen level-8 caches stay as placed.'
     },
     {
       id: 'hulk-lair',
-      note: 'The umber hulk prints G. The L8 treasure line prints one lair chest, letter I. G is not placed as a second chest. (open)'
+      note: 'Resolved by §7.6. G is not a second chest. The hulk corpse uses the house high band.'
     },
     {
       id: 'wander-place',
-      note: 'Section 5 is the wander table. The placed thralls are the printed 4 duergar and 1 hulk. Wander packs are not also placed as rooms. (open)'
+      note: 'Resolved by §7.6. Wander packs are not also placed as rooms. The wandering hulk is charmed.'
     },
     {
       id: 'forecast-pack',
-      note: 'The 1.12 cell prints 18,500 and names no pack. The beholder 7,910 plus Guardian VIII 8,420 is 16,330. Four duergar at 86 plus one hulk at 1,828 is 2,172. Those together are 18,502, which rounds to the printed 18,500. The cell still does not name that pack, so it is not added. (open)'
+      note: 'Resolved by §7.6. The column is 16,330. Four duergar and one hulk make 2,172, and 18,502 rounds to the printed 18,500, which is not added.'
     },
     {
       id: 'guardian-art',
-      note: 'No ruby-guardian sheet exists. Guardian VIII uses the construct sheet. (open)'
+      note: 'Resolved by §7.6. Guardian VIII uses the construct sheet.'
     },
     {
       id: 'surprise-verify',
-      note: 'Duergar surprise on 3 in 6 is marked verify. (open)'
+      note: 'Resolved by §7.6. Duergar surprise on 3 in 6, and they are surprised only 1 in 10.'
     }
   ];
 

@@ -122,16 +122,16 @@ assert(L4.MONSTERS.wolf.art.standIn === true && L4.MONSTERS.wolf.art.file === 'a
 assert(L4.MONSTERS.rubyGuardian.art.file === 'assets/creatures/mon_construct.png' && L4.MONSTERS.rubyGuardian.art.standIn === true, 'Guardian IV uses the Ruin Guard sheet');
 assert(L4.bossGuardianXp() === 1030 + 255 && L4.bossGuardianXp() === 1285, 'L4 boss-plus-guardian XP is the stat blocks, 1285');
 assert(L4.FORECAST_BOSS_GUARDIAN_XP === 1285 && T.level(4).pacing.bossPlusGuardianXp === 1285, 'the 1.12 column matches the stat blocks, 1285');
-assert(L4.forecastPackXp() === 2793, 'the annotated pack sums to 2793, not the printed 2990');
+assert(L4.forecastPackXp() === 3045 && L4.forecastPackXp() !== L4.FORECAST_BOSS_GUARDIAN_XP, 'the old annotation pack is not the 1,285 column');
 assert(T.statBossGuardianXp(T.level(4)) === L4.bossGuardianXp(), 'the campaign table uses the same L4 stat-block total');
 assert(T.level(4).pacing.cumulativeXp === 51200 && T.level(4).pacing.macar === 'F6', 'the L4 clear stays at the 1.12 F6 row, 51200');
 assert(T.level(4).pacing.cumulativeXp >= T.FIGHTER_XP.F6 && T.level(4).pacing.cumulativeXp < T.FIGHTER_XP.F7, '51200 sits in the F6 band');
 assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L4.MONSTERS.orc.hd === 1 && L4.MONSTERS.orc.ac === 6 && L4.MONSTERS.orc.xp === 15, 'an orc is 1 HD, AC 6, 15 XP');
-assert(L4.MONSTERS.orcLeader.hd === 2 && L4.MONSTERS.orcLeader.ac === 5 && L4.MONSTERS.orcLeader.attacks[0].damage === '1d10' && L4.MONSTERS.orcLeader.countVerify === true, 'leaders stay HD 2, AC 5, 1d10, marked verify');
-assert(L4.MONSTERS.orcGuard.hd === 2 && L4.MONSTERS.orcGuard.ac === 4 && L4.MONSTERS.orcGuard.attacks[0].damage === '2d4' && L4.MONSTERS.orcGuard.countVerify === true, 'guards stay HD 2, AC 4, 2d4, marked verify');
-assert(L4.MONSTERS.warg.hd === '3+3' && L4.MONSTERS.warg.ac === 6 && L4.MONSTERS.warg.xp === 126 && L4.MONSTERS.warg.ttVerify === true && L4.MONSTERS.warg.movedFrom === 'L2', 'worgs are 3+3, AC 6, 126 XP, moved from L2');
+assert(L4.MONSTERS.orcLeader.hd === 1 && L4.MONSTERS.orcLeader.hp === 8 && L4.MONSTERS.orcLeader.ac === 6 && L4.MONSTERS.orcLeader.attacks[0].damage === '1d8' && L4.MONSTERS.orcLeader.xp === 18, 'leaders are HD 1, 8 hp, AC 6, 1d8, 18 XP');
+assert(L4.MONSTERS.orcGuard.hd === 3 && L4.MONSTERS.orcGuard.hp === 15 && L4.MONSTERS.orcGuard.ac === 4 && L4.MONSTERS.orcGuard.attacks[0].damage === '2d4' && L4.MONSTERS.orcGuard.xp === 80, 'guards are 3 HD, 15 hp, AC 4, 2d4, 80 XP');
+assert(L4.MONSTERS.warg.hd === '3+3' && L4.MONSTERS.warg.ac === 6 && L4.MONSTERS.warg.xp === 126 && L4.MONSTERS.warg.tt === 'Nil' && L4.MONSTERS.warg.movedFrom === 'L2', 'worgs are 3+3, AC 6, 126 XP, treasure Nil');
 assert(L4.MONSTERS.wolf.hd === '2+2' && L4.MONSTERS.wolf.ac === 7 && L4.MONSTERS.wolf.xp === 68, 'wolves are 2+2, AC 7, 68 XP');
 assert(L4.MONSTERS.orcShaman.hd === 7 && L4.MONSTERS.orcShaman.hp === 32 && L4.MONSTERS.orcShaman.ac === 5 && L4.MONSTERS.orcShaman.casterLevel === 7 && L4.MONSTERS.orcShaman.decision === 'D15-A', 'the shaman is 7 HD, 32 hp, AC 5, 7th level, D15-A');
 assert(L4.MONSTERS.orcChief.hd === 5 && L4.MONSTERS.orcChief.hp === 33 && L4.MONSTERS.orcChief.ac === 3 && L4.MONSTERS.orcChief.attacks[0].damage === '1d8+3' && L4.MONSTERS.orcChief.str === '18/50', 'the chief is 5 HD, 33 hp, AC 3, axe 1d8+3');
@@ -169,7 +169,7 @@ const stillBlocked = B.use(eggState, eggs, eggs[0], 6);
 assert(!stillBlocked.ok && stillBlocked.reason === 'egg-blocked', 'a second egg stays blocked while one is active');
 
 assert(L4.LOOT.individual.U.magic.chance === 55 && L4.LOOT.lair.onCorpse === false, 'U magic is 55% and the lair chest is not a corpse drop');
-assert(L4.LOOT.lair.C.cp.dice === '1d10' && L4.LOOT.lair.C.cp.times === 1000 && L4.LOOT.lair.O == null && L4.LOOT.lair.Q == null, 'lair C uses the live copper die, and O and Q dice are unset');
+assert(L4.LOOT.lair.C.cp.dice === '1d12' && L4.LOOT.lair.C.cp.chance === 20 && L4.LOOT.lair.O.cp.dice === '1d4' && L4.LOOT.lair.Q.times === 10 && L4.LOOT.lair.Q.gems.dice === '1d4', 'lair C is 1d12×1000, and O and Q×10 are stored');
 assert(L4.LOOT.lair.S.chance === 40 && L4.LOOT.lair.S.count === '1-8' && L4.LOOT.lair.S.kind === 'potions', 'lair S is 40% for 1-8 potions');
 assert(L4.LOOT.caches.row.gp.chance === 50 && L4.LOOT.caches.row.gp.min === 3 && L4.LOOT.caches.row.gp.max === 18, 'the level-4 cache row keeps the live gold range');
 assert(L4.LOOT.components.worg_pelt.perKill === 1 && L4.LOOT.components.hide.source === 'worg_pelt', 'each warg or wolf kill is one pelt, and hide comes from that pelt');
@@ -188,17 +188,16 @@ Object.keys(shield.ingredientSets[0]).forEach(function (ing) {
   assert(Q.SOURCES[ing] && Q.SOURCES[ing].level <= 4, 'shield ingredient ' + ing + ' resolves by L4');
 });
 
-var resolvedBy12 = ['shaman-wis-bonus', 'shaman-list-versus-slots'];
 assert(L4.OPEN.length === 25, 'L4 still records 25 choice notes');
 L4.OPEN.forEach(function (row) {
   assert(row.id && row.note, row.id + ' has a note');
-  if (resolvedBy12.indexOf(row.id) >= 0) {
-    assert(row.note.indexOf('§1.2') >= 0 && row.note.indexOf('Resolved') === 0 && row.note.indexOf('(open)') < 0 && row.note.indexOf('not printed') < 0, row.id + ' cites section 1.2 as resolved');
+  if (row.note.indexOf('Resolved') === 0) {
+    assert(row.note.indexOf('(open)') < 0 && row.note.indexOf('not printed') < 0, row.id + ' is marked resolved');
   } else {
     assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
   }
 });
-assert(L4.MONSTERS.orcLeader.countVerify === true && L4.MONSTERS.warg.ttVerify === true, 'the verify figures stay marked');
+assert(L4.MONSTERS.wolf.attacks[0].damage === '1d4+1' && L4.CHIEF.morale.holdOnOrUnder === 65 && L4.CHIEF.toHit == null && L4.MONSTERS.orcChief.toHit === 1, 'wolf bite is 1d4+1 and the chief holds on 65');
 assert(html.indexOf('L4.js') < 0 && html.indexOf('maps/l4.json') < 0, 'index.html does not load the L4 data');
 assert(save.indexOf('L4.js') < 0 && save.indexOf('maps/l4.json') < 0, 'GameSave does not load the L4 data');
 assert(L4.wired === false && B.wired === false && Cave.wired === false, 'the L4 module, the buff queue, and the cave are not wired');

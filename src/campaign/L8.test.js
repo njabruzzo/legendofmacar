@@ -145,7 +145,13 @@ chain.ingredientSets.forEach(function (set) {
 });
 assert(T.level(8).pacing.keyItems[0] === 'Holy Hammer +3' && T.level(8).quest.id === 'holy_hammer', 'the L8 key item is the Holy Hammer');
 
-assert(L8.OPEN.length === 18 && L8.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L8 choice is marked in the data');
+assert(L8.OPEN.length === 19, 'L8 records 19 choice notes');
+L8.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L8.MONSTERS.duergar.corpseLetters.M === 1 && L8.MONSTERS.duergar.corpseLetters.Q === 1 && L8.MONSTERS.rubyGuardian.cone.lengthTiles === 6, 'duergar corpses roll M and Q, and the guardian cone is 6 tiles');
 const forecast = L8.OPEN.filter(function (row) { return row.id === 'forecast-pack'; })[0];
 assert(forecast.note.indexOf('18,502') >= 0 && forecast.note.indexOf('rounds to the printed 18,500') >= 0, '18,502 rounds to the printed 18,500');
 assert(html.indexOf('L8.js') < 0 && html.indexOf('maps/l8.json') < 0, 'index.html does not load the L8 data');

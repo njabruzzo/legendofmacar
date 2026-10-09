@@ -143,7 +143,14 @@ assert(L2.LOOT.caches.count === 16 && L2.LOOT.caches.row.gp.chance === 40, 'the 
 assert(L2.LOOT.individual.U.magic.chance === 55 && L2.LOOT.lairC.onCorpse === false, 'U magic is 55% and lair C is not a corpse drop');
 assert(L2.LOOT.questItems[1].countsForRitual === false, 'the bronze tooth is not a ritual tooth');
 
-assert(L2.OPEN.length > 0 && L2.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L2 choice is marked in the data');
+assert(L2.OPEN.length > 0, 'L2 still records its choice notes');
+L2.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L2.LOOT.lairC.cp.dice === '1d12' && L2.LOOT.lairC.cp.chance === 20, 'lair C copper is 1d12×1000 at 20%');
+assert(L2.MONSTERS.rubyGuardian.ruby.gp === 500 && L2.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian II ruby is exactly 500 gp');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'index.html does not load the L2 data');
 assert(save.indexOf('L2.js') < 0 && save.indexOf('maps/l2.json') < 0, 'GameSave does not load the L2 data');
 assert(L2.wired === false, 'the L2 module is not wired');

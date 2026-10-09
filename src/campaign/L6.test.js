@@ -67,8 +67,9 @@ assert(level.wander.slots.length === 6, 'section 5 gives L6 six wander slots');
 assert(JSON.stringify(level.wander.slots) === JSON.stringify(L6.WANDER), 'the map wander table matches the encounter data');
 assert(JSON.stringify(L6.WANDER) === JSON.stringify(T.level(6).wander), 'the wander table matches the campaign table');
 assert(level.loot.caches.count === 16 && level.loot.caches.places.length === 16 && level.loot.caches.level === 6, 'sixteen level-6 caches');
-assert(level.loot.lordCorpse.letter === 'U' && level.loot.lordChest.onCorpse === false && level.loot.lordChest.contents === 'guardian-ruby' && level.loot.lordChest.extraHoard === false, 'the lord corpse is U and the chest is the ruby only');
-assert(level.loot.guardianRuby.gp === 1500, 'Guardian VI drops the 1500 gp ruby');
+assert(level.loot.lordCorpse.letter === 'U' && level.loot.lordChest.present === false && level.loot.lordChest.contents == null && level.loot.lordChest.onCorpse === false, 'the lord corpse is U and there is no L6 chest');
+assert(level.loot.guardianRuby.gp === 1500 && level.loot.guardianRuby.band == null, 'Guardian VI drops the 1500 gp ruby');
+assert(pool.tiles.length === 4 && pool.w === 2 && pool.h === 2, 'the pool is 2×2 tiles');
 
 const exit = E.forLevel(6);
 assert(exit.elevator === 'guardian' && exit.stairs === 'bossKill' && exit.stairsOpenOn === 'bossKill', 'Guardian VI is the elevator and the lord\'s kill opens the stairs');
@@ -99,7 +100,7 @@ assert(T.level(6).pacing.cumulativeXp >= T.FIGHTER_XP.F7 && T.level(6).pacing.cu
 assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L6.MONSTERS.beetle.hd === '1+2' && L6.MONSTERS.beetle.ac === 4 && L6.MONSTERS.beetle.xp === 32, 'the fire beetle is 1+2, AC 4, 32 XP');
-assert(L6.MONSTERS.hellHound.hd === 5 && L6.MONSTERS.hellHound.hdRange === '4-7' && L6.MONSTERS.hellHound.breath.save === 'vs breath for half', 'the hound is the 5 HD choice and breathes for its HP');
+assert(L6.MONSTERS.hellHound.hd === 5 && L6.MONSTERS.hellHound.breath.amount === 5 && L6.MONSTERS.hellHound.breath.damage === '1 per HD' && L6.MONSTERS.hellHound.breath.save === 'vs breath for half', 'the hound breathes 1 hp per HD');
 assert(L6.MONSTERS.salamander.hd === '7+7' && L6.MONSTERS.salamander.acHead === 5 && L6.MONSTERS.salamander.acBody === 3 && L6.MONSTERS.salamander.hitOnlyBy === 1, 'the salamander is 7+7, AC 5/3, hit only by +1');
 assert(L6.MONSTERS.fireElemental8.hitOnlyBy === 2 && L6.MONSTERS.fireElemental12.hitOnlyBy === 2 && L6.MONSTERS.emberLord.hitOnlyBy === 2, 'fire elementals, including the lord, need a +2 weapon');
 assert(L6.MONSTERS.rubyGuardian.xp === T.level(6).rubyGuardian.formula.xp && L6.MONSTERS.rubyGuardian.immune.indexOf('fire') >= 0, 'Guardian VI XP matches the guardian line and fire does not harm it');
@@ -111,7 +112,7 @@ assert(L6.POISON.residentsUsePoison === false && L6.POISON.appliesTo.length === 
 ['large', 'huge', 'giant', 'phase', 'queen'].forEach(function (size) {
   assert(typeof L6.POISON.mods[size] === 'number', 'the shared poison table still has ' + size);
 });
-assert(L6.LOOT.components.magma_shard.perKill === 1 && L6.LOOT.components.fire_beetle_gland.perKill === 2 && L6.LOOT.components.fire_beetle_gland.glandsVerify === true, 'one shard per elemental and two glands per beetle');
+assert(L6.LOOT.components.magma_shard.perKill === 1 && L6.LOOT.components.fire_beetle_gland.perKill === 3 && L6.MONSTERS.beetle.glands === 3, 'one shard per elemental and three glands per beetle');
 assert(L6.LOOT.caches.row.cp == null && L6.LOOT.caches.row.gp.chance === 55 && L6.LOOT.caches.row.gp.min === 5 && L6.LOOT.caches.row.gp.max === 30, 'the level-6 cache row keeps the live gold range');
 assert(L6.LOOT.lair.C.onCorpse === false && L6.LOOT.lair.F.onCorpse === false, 'lair C and F stay off the corpse');
 
@@ -133,7 +134,13 @@ assert(Q.SOURCES.magma_shard.level === 6, 'magma shards are an L6 source');
   });
 });
 
-assert(L6.OPEN.length === 22 && L6.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L6 choice is marked in the data');
+assert(L6.OPEN.length === 23, 'L6 records 23 choice notes');
+L6.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L6.LOOT.lair.C.cp.dice === '1d12' && L6.MONSTERS.hellHound.corpseBand === 'high' && L6.MONSTERS.salamander.attacks[1].heat === '1d6', 'lair C is 1d12, hound corpses use the high band, and tail heat is 1d6');
 assert(html.indexOf('L6.js') < 0 && html.indexOf('maps/l6.json') < 0, 'index.html does not load the L6 data');
 assert(save.indexOf('L6.js') < 0 && save.indexOf('maps/l6.json') < 0, 'GameSave does not load the L6 data');
 assert(L6.wired === false, 'the L6 module is not wired');

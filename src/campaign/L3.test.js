@@ -168,7 +168,15 @@ Object.keys(anti.ingredientSets[0]).forEach(function (ing) {
   assert(Q.SOURCES[ing] && Q.SOURCES[ing].level <= 3, 'antitoxin ingredient ' + ing + ' resolves by L3');
 });
 
-assert(L3.OPEN.length > 0 && L3.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L3 choice is marked in the data');
+assert(L3.OPEN.length > 0, 'L3 still records its choice notes');
+L3.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L3.LOOT.lairC.cp.dice === '1d12' && L3.MONSTERS.spiderGiant.corpseBand === 'high' && L3.MONSTERS.phasespider.corpseBand === 'high', 'lair C is 1d12 and spider lair letters stay off the corpse');
+assert(L3.MONSTERS.phasespider.phaseWindow.sec === 0.5 && L3.MONSTERS.spiderGiant.web.stuckSec === 2, 'the phase window is 0.5 s and the giant web holds for 2 s');
+assert(L3.MONSTERS.rubyGuardian.ruby.gp === 750 && L3.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian III ruby is exactly 750 gp');
 assert(L3.MONSTERS.spider.poisonSaveVerify === true && L3.MONSTERS.spider.ttVerify === true, 'the large-spider verify figures stay marked');
 assert(html.indexOf('L3.js') < 0 && html.indexOf('maps/l3.json') < 0, 'index.html does not load the L3 data');
 assert(save.indexOf('L3.js') < 0 && save.indexOf('maps/l3.json') < 0, 'GameSave does not load the L3 data');

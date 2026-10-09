@@ -4,8 +4,8 @@
  *
  * Numbers are the L10 rows in MACAR_10_LEVEL_RULES (1.10, 1.11, 1.14,
  * section 5) and the DMG XP bands in section 1.0. The map is maps/l10.json.
- * xp is the printed cell. bandXp is a side field and is not wired into
- * boss-plus-guardian XP.
+ * xp is the ruled cell. Half points round up when wired.
+ * bandXp is retired on this floor.
  * A field marked open is a 1e choice the RULES do not print.
  * A field marked verify is stored as the RULES print it.
  */
@@ -44,13 +44,15 @@
       ac: 7,
       mv: '12"',
       attacks: [{ n: 1, form: 'weapon', damage: '1d6' }],
-      specials: ['half damage from sharp weapons', 'immune to sleep, charm, hold and cold'],
-      immune: ['sleep', 'charm', 'hold', 'cold'],
+      specials: ['half damage from sharp weapons', 'immune to sleep, charm, hold, cold and poison'],
+      immune: ['sleep', 'charm', 'hold', 'cold', 'poison'],
       sharpWeaponDamage: 'half',
-      xp: 15,
-      bandXp: 14.5,
-      xpFormula: formula(10, 1, 4.5, []),
+      xp: 19,
+      xpFormula: formula(10, 1, 4.5, [
+        { kind: 'SA', reason: 'sharp weapons do half damage', xp: 4 }
+      ]),
       tt: 'Nil',
+      corpseBand: 'mid',
       art: UNDEAD_ART
     },
     zombie: {
@@ -63,10 +65,11 @@
       attacks: [{ n: 1, form: 'strike', damage: '1d8' }],
       specials: ['always strikes last', 'immunities as skeleton'],
       strikesLast: true,
-      immune: ['sleep', 'charm', 'hold', 'cold'],
+      immune: ['sleep', 'charm', 'hold', 'cold', 'poison'],
       xp: 38,
       xpFormula: formula(20, 2, 9, []),
       tt: 'Nil',
+      corpseBand: 'mid',
       art: UNDEAD_ART
     },
     ghoul: {
@@ -81,13 +84,18 @@
         { n: 1, form: 'claw', damage: '1d3' },
         { n: 1, form: 'bite', damage: '1d6' }
       ],
-      specials: ['touch paralyzes', 'save vs paralysis', 'elves are immune', 'dwarves are not'],
+      specials: ['touch paralyzes', 'save vs paralysis', 'elves are immune', 'dwarves are not', 'immune to poison'],
       paralysis: { save: 'vs paralysis', elvesImmune: true, dwarvesImmune: false },
+      immune: ['poison'],
       xp: 83,
       xpFormula: formula(20, 2, 9, [
         { kind: 'EA', reason: 'paralysis', xp: 45 }
       ]),
-      tt: 'B',
+      tt: 'B, T',
+      ttLair: 'B',
+      corpseLetters: { T: 1 },
+      corpseBand: 'mid',
+      bandCoinsOnly: true,
       art: UNDEAD_ART
     },
     wight: {
@@ -101,12 +109,16 @@
       specials: ['level drain', 'needs silver or a magic weapon'],
       drain: { levels: 1, decision: 'D14-B', until: 'next camp rest' },
       hitOnlyBy: 'silver or magic',
+      immune: ['poison'],
       xp: 310,
       xpFormula: formula(90, 5, 21, [
         { kind: 'SA', reason: 'silver or magic weapon', xp: 40 },
         { kind: 'EA', reason: 'level drain', xp: 75 }
       ]),
       tt: 'B',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: UNDEAD_ART
     },
     wraith: {
@@ -121,12 +133,16 @@
       drain: { levels: 1, decision: 'D14-B', until: 'next camp rest' },
       silverDamage: 'half',
       hitOnlyBy: 'magic',
+      immune: ['poison'],
       xp: 503,
       xpFormula: formula(150, 6, 25.5, [
         { kind: 'SA', reason: 'magic weapon', xp: 75 },
         { kind: 'EA', reason: 'level drain', xp: 125 }
       ]),
       tt: 'E',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('wraith', 'assets/creatures/mon_wraith.png', false, null)
     },
     spectre: {
@@ -137,17 +153,17 @@
       ac: 2,
       mv: '15"/30"',
       attacks: [{ n: 1, form: 'touch', damage: '1d8' }],
-      specials: ['drains 2 levels', 'needs a +1 weapon'],
+      specials: ['drains 2 levels', 'needs a +1 weapon', 'immune to poison'],
       drain: { levels: 2, decision: 'D14-B', until: 'next camp rest' },
       hitOnlyBy: 1,
+      immune: ['poison'],
       xp: 1170,
       xpFormula: formula(375, 10, 34.5, [
         { kind: 'SA', reason: '+1 weapon', xp: 175 },
         { kind: 'EA', reason: 'drains 2 levels', xp: 275 }
       ]),
-      tt: 'Q',
-      ttTimes: 3,
-      ttVerify: true,
+      tt: ['Q', 'Q', 'Q', 'X', 'Y'],
+      onCorpse: true,
       art: UNDEAD_ART
     },
     duergar: {
@@ -172,6 +188,7 @@
       ]),
       tt: 'M',
       ttAlso: 'Q',
+      corpseLetters: { M: 1, Q: 1 },
       art: art('duergar', 'assets/creatures/mon_duergar.png', false, null)
     },
     duergarPriest: {
@@ -182,15 +199,19 @@
       ac: 3,
       mv: '6"',
       attacks: [{ n: 1, form: 'weapon', damage: '1d8+1' }],
-      specials: ['C5 spells'],
+      specials: ['C5 spells', 'immune to paralysis, illusion and poison'],
       slots: { 1: 3, 2: 3, 3: 1 },
       spells: ['Command', 'Cause Light Wounds', 'Cause Light Wounds', 'Hold Person', 'Hold Person', 'Silence', 'Animate Dead'],
-      xp: 400,
-      bandXp: 277.5,
+      immune: ['paralysis', 'illusion', 'poison'],
+      xp: 393,
       xpFormula: formula(90, 5, 22.5, [
-        { kind: 'EA', reason: 'spell use', xp: 75 }
+        { kind: 'SA', reason: 'infravision and surprise', xp: 40 },
+        { kind: 'EA', reason: 'enlarge, invisibility, immunities', xp: 75 },
+        { kind: 'EA', reason: 'C5 spells', xp: 75 }
       ]),
       tt: 'M',
+      ttAlso: 'Q',
+      corpseLetters: { M: 1, Q: 1 },
       art: art('duergar', 'assets/creatures/mon_duergar.png', true, 'Duergar priest')
     },
     king: {
@@ -215,8 +236,6 @@
       ],
       hitOnlyBy: 1,
       regeneration: { hpPerRound: 2, while: 'any ritual brazier burns' },
-      unslayableWhile: 'any brazier burns',
-      atZeroHp: { dropSec: 5, risesAtHpFraction: 0.25 },
       immune: ['sleep', 'charm', 'hold', 'poison', 'cold'],
       animateDead: { count: '1d4', kind: 'skeleton', cooldownSec: 10, when: 'fewer than 4 undead are alive' },
       drain: { decision: 'D14-B', until: 'next camp rest' },
@@ -260,15 +279,15 @@
         { kind: 'EA', reason: 'printed', xp: 2500 },
         { kind: 'EA', reason: 'printed', xp: 2500 }
       ]),
-      ruby: { gp: 2500, band: '2500' },
+      ruby: { gp: 2500 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian X')
     }
   };
 
   /**
-   * The five steps name Macar at the anvil, Animate Dead, the touch,
-   * the axe, and the throne room. They do not name a covering creature.
-   * The locked wight and wraith guard still stand in that room.
+   * The King dies before the ritual. The four steps are Animate Dead,
+   * the touch, the axe, and the throne room. They do not interrupt a smash
+   * and they do not name a covering creature.
    */
   var KING = {
     key: 'king',
@@ -277,8 +296,8 @@
     coveringUnit: null,
     room: 'throne-room',
     neverLeaves: true,
+    diesBeforeRitual: true,
     priority: [
-      'If Macar is channeling at the anvil, the King attacks him, to interrupt.',
       'If fewer than 4 undead are alive, he casts Animate Dead. The cooldown is 10 s. It raises 1d4 skeletons.',
       'He touch-drains whoever is adjacent, preferring Macar.',
       'He axes the highest-level kin.',
@@ -321,9 +340,10 @@
   };
 
   /**
-   * No L10 attack is a poison save. Undead and duergar are immune to poison.
-   * H1 and the spider size table stay available, and the floor of 2
-   * still binds any poison save.
+   * No L10 attack is a poison save. Poison is on every undead immune
+   * list, and on the King, the duergar, and the priest. H1 and the
+   * spider size table stay available, and the floor of 2 still binds
+   * any poison save.
    */
   var POISON = {
     mode: 'h1',
@@ -345,11 +365,19 @@
   ];
 
   /**
-   * Plan: Macar places the anvil on the temple altar and smashes each
-   * of the 7 electrum teeth with the hammer.
-   * Section 1.10 adds the seven braziers and the mortal-king kill.
-   * Section 6 #7 sets the award at 10,000, once.
+   * The King dies first. Then Macar sets the anvil on the temple altar
+   * and smashes the 7 teeth. The 10,000 XP is xpOnce, read once.
    */
+  var HINT = 'The curse still holds. Smash the teeth on the altar.';
+  var TOOTH_IDS = [
+    'grond_tooth_electrum',
+    'grond_tooth_electrum_2',
+    'grond_tooth_electrum_3',
+    'grond_tooth_electrum_4',
+    'grond_tooth_electrum_5',
+    'grond_tooth_electrum_6',
+    'grond_tooth_electrum_7'
+  ];
   var RITUAL = {
     id: 'temple-ritual',
     name: 'Temple ritual',
@@ -358,32 +386,50 @@
     usableByMacar: 'Y',
     xpOnce: 10000,
     xpRuledBy: '6 #7',
+    xpReadFrom: 'RITUAL.xpOnce',
     site: 'altar',
-    alsoCalled: 'throne dais',
+    altar: { x: 29, y: 14.5 },
+    unlocksOn: 'kingKill',
+    kingDiesBefore: true,
     teeth: 7,
-    toothIds: [
-      'grond_tooth_electrum',
-      'grond_tooth_electrum_2',
-      'grond_tooth_electrum_3',
-      'grond_tooth_electrum_4',
-      'grond_tooth_electrum_5',
-      'grond_tooth_electrum_6',
-      'grond_tooth_electrum_7'
-    ],
-    hammer: { id: 'holy_hammer', from: 'L8' },
-    anvil: { id: 'holy_anvil', from: 'L9' },
-    channel: { rounds: 1, interruptedIfHit: true },
-    perSmash: ['puts out one brazier', 'lowers teethCarried by one'],
-    onSeventh: ['the curse ends', 'the King becomes mortal', '10000 XP once'],
-    win: 'Killing the mortal King wins.',
+    toothIds: TOOTH_IDS,
+    teethCounted: ['party', 'altar'],
+    hammer: { id: 'holy_hammer', from: 'L8', tool: true, consumed: false },
+    anvil: { id: 'holy_anvil', from: 'L9', tool: true, consumed: false },
+    questLock: {
+      until: 'ritual ends',
+      cannot: ['sell', 'drop', 'break', 'recipe'],
+      ids: ['holy_anvil', 'holy_hammer'].concat(TOOTH_IDS),
+      teethMayMoveBetweenPacks: true
+    },
+    unclaimedTooth: {
+      when: 'Macar leaves its floor',
+      goesTo: { level: 10, site: 'altar', x: 29, y: 14.5 },
+      reason: 'the curse draws it home'
+    },
+    smash: {
+      sec: 1,
+      interruptedBy: 'any hit',
+      putsOut: 'nearest brazier',
+      lowers: 'teethCarried',
+      by: 1
+    },
+    onSeventh: ['the curse ends', '10000 XP once', 'the run is won'],
+    win: 'ritualComplete',
     steps: [
-      'Seven braziers burn. While any burns, the King regenerates and cannot be slain.',
-      'Macar sets the Holy Anvil on the altar.',
-      'Each Holy Hammer smash spends one round and puts out one brazier.',
-      'Each smash lowers teethCarried by one.',
-      'The seventh smash ends the curse and makes the King mortal.',
-      'Killing the mortal King wins.'
+      'The King fights and dies in the throne room. His kill opens the stair and unlocks the altar.',
+      'Macar sets the Holy Anvil on the temple altar at (29, 14.5).',
+      'Each Holy Hammer smash takes 1 s. Any hit interrupts it.',
+      'Each smash puts out the nearest brazier and lowers teethCarried by 1.',
+      'The seventh smash ends the curse, grants 10,000 XP once, and wins.'
     ]
+  };
+
+  var EXIT = {
+    win: 'ritualComplete',
+    altarUnlocksOn: 'kingKill',
+    stair: { opensOn: 'bossKill', next: null, beforeWin: HINT },
+    elevator: { gate: 'guardian', next: null, beforeWin: HINT }
   };
 
   var LOOT = {
@@ -400,11 +446,13 @@
       decision: 'D2',
       onCorpse: false,
       contents: 'chapter-v-hoard',
+      once: true,
       quest: null,
       includesRuby: false,
       extraHoard: false
     },
-    guardianRuby: { with: 'rubyGuardian', gp: 2500, band: '2500' },
+    guardianRuby: { with: 'rubyGuardian', gp: 2500 },
+    corpseCoinRule: table.corpseCoinRule,
     caches: {
       count: 16,
       level: 8,
@@ -429,16 +477,16 @@
     ]
   };
 
-  /** Printed cells only. Skeleton and priest bandXp stay off this sum. */
+  /** Ruled cells. Skeleton 19 and priest 393 stay off the boss-plus-guardian sum. */
   var XP = {
-    skeleton: 15,
+    skeleton: 19,
     zombie: 38,
     ghoul: 83,
     wight: 310,
     wraith: 503,
     spectre: 1170,
     duergar: 86,
-    duergarPriest: 400,
+    duergarPriest: 393,
     king: 5552,
     rubyGuardian: 16800
   };
@@ -465,92 +513,101 @@
   var OPEN = [
     {
       id: 'skeleton-xp',
-      note: 'The skeleton cell prints about 15. At average hp 4.5 the 1 HD band is 14.5, with the sharp-weapon special left out. The wired xp is 15. The 14.5 is a side field. (open)'
+      note: 'Resolved by §7.10. Skeleton XP is 19. The sharp-weapon special is the 4-point term. bandXp is retired.'
     },
     {
       id: 'priest-xp',
-      note: 'The duergar priest prints about 400. At 5 HD and 22.5 hp, one exceptional ability for spell use is 277.5. The wired xp is 400. The 277.5 is a side field. (open)'
+      note: 'Resolved by §7.10. The duergar priest is 393 XP. bandXp is retired. The corpse rolls M and Q.'
     },
     {
       id: 'spectre-tt',
-      note: 'Spectre treasure is Q times 3, marked verify. It is stored as three individual Q rolls. (open)'
+      note: 'Resolved by §7.10. Spectre treasure is Q, Q, Q, X, and Y, all on the corpse.'
     },
     {
       id: 'duergar-page',
-      note: 'The duergar source line marks the MM2 page verify. The letters stored are M and Q. (open)'
+      note: 'Resolved by §7.10. Individuals roll M and Q on the corpse. Lair B and F are not rolled. pageVerify stays.'
     },
     {
       id: 'guard-count',
-      note: 'Choice C locks wights and wraiths as the King\'s guard and prints no count. Two of each stand in the throne room. (open)'
+      note: 'Resolved by §7.10. Two wights and two wraiths stay as the King\'s guard.'
     },
     {
       id: 'population-count',
-      note: 'Choice B locks duergar as the level population and prints no count. Four duergar and one priest stand in the south court. (open)'
+      note: 'Resolved by §7.10. Four duergar and one priest stay in the south court.'
     },
     {
       id: 'hoard-letter',
-      note: 'The King is a house creature and has no MM lair letter. The chest is the Chapter V hoard. No letter is stored. The ruby is not in it. (open)'
+      note: 'Resolved by §7.10. The boss chest rolls the Chapter V hoard once, without the ruby.'
     },
     {
       id: 'anvil-shared',
-      note: 'Adamantine Chain +2 takes the Holy Anvil as an ingredient, and the ritual also places that anvil on the altar. Whether the forge spends it is not printed. (open)'
+      note: 'Resolved by §7.10. The Holy Anvil is a tool. Adamantine Chain +2 requires it and does not spend it.'
     },
     {
       id: 'king-order',
-      note: 'The plan says the King dies before the ritual. Section 1.10 says the seventh smash makes him mortal and the kill after that wins. The encoded steps follow 1.10. (open)'
+      note: 'Resolved by §7.10. The King dies before the ritual. He is not unslayable, and he does not interrupt a smash.'
     },
     {
       id: 'anvil-site',
-      note: 'The plan says the temple altar. Section 1.10 says the throne dais. The anvil is placed on the altar at (29, 14.5). The throne stands at (29, 10). (open)'
+      note: 'Resolved by §7.10. The teeth are smashed on the temple altar at (29, 14.5).'
     },
     {
       id: 'final-exit',
-      note: 'The live chapter has no stair. The win is the King. Section 6 still opens the campaign stair on that kill. (open)'
+      note: 'Resolved by §7.10. The win is ritualComplete. The King\'s kill opens the stair and unlocks the altar.'
     },
     {
       id: 'elevator-next',
-      note: 'L10 still has the guardian elevator and the Chapter V card. No next floor is printed. (open)'
+      note: 'Resolved by §7.10. The stair and the elevator both have next null. Before the win they show the altar hint.'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen caches use the level-8 row, as printed for L10. The RULES print the row and no coordinates. (open)'
+      note: 'Resolved by §7.10. Sixteen caches stay on the level-8 row, on floor tiles.'
     },
     {
       id: 'map-rooms',
-      note: 'The King, the altar, and the throne keep the Chapter V points. The ruby court has no printed coordinate. (open)'
+      note: 'Resolved by §7.10. The King, the altar, and the throne stay at the Chapter V points.'
     },
     {
       id: 'wander-place',
-      note: 'Section 5 is the wander table. The placed retinue is the locked guard and the duergar population. Wander packs are not also placed as rooms. (open)'
+      note: 'Resolved by §7.10. Wander packs are not also placed as rooms.'
     },
     {
       id: 'forecast-pack',
-      note: 'The 1.12 cell is 22,352, the King 5,552 plus Guardian X 16,800. The sources line also says undead about 8,000. That pack is not named in the boss-plus-guardian cell, so it is not added. (open)'
+      note: 'Resolved by §7.10. The column stays 22,352. Undead of about 8,000 stay in the cumulative kills.'
     },
     {
       id: 'guardian-addends',
-      note: 'Guardian X prints 2,100 twice and 2,500 twice and does not name them. (open)'
+      note: 'Resolved by §7.10. The two 2,100 terms are a +3 weapon and AC -3. The two 2,500 terms are the cone and the two attacks.'
     },
     {
       id: 'brazier-places',
-      note: 'Seven braziers are required. The Chapter V map has seven brazier props. Four ring the throne room and three stand in side chapels. (open)'
+      note: 'Resolved by §7.10. The braziers at (70, 18), (92, 18), and (86, 12) are side chapels.'
     },
     {
       id: 'undead-art',
-      note: 'No skeleton, zombie, ghoul, wight, or spectre sheet exists. They use the undead sheet. (open)'
+      note: 'Resolved by §7.10. Skeleton, zombie, ghoul, wight, and spectre use the undead sheet.'
     },
     {
       id: 'priest-art',
-      note: 'No duergar-priest sheet exists. The priest uses the duergar sheet. (open)'
+      note: 'Resolved by §7.10. The priest uses the duergar sheet.'
     },
     {
       id: 'nil-band',
-      note: 'Skeleton and zombie print Nil. Ghoul and wight print B, and the wraith prints E. Those letters are lair letters and are not a second chest. Which house corpse band they use is not printed on the L10 line. (open)'
+      note: 'Resolved by §7.10. Skeletons and zombies use the mid band. A ghoul corpse rolls T plus mid-band coins. Wights and wraiths use O+M. Guardian X\'s ruby is exactly 2,500 gp.'
+    },
+    {
+      id: 'undying-rise',
+      note: 'Nick has not decided whether the King rises once at 25% HP before the ritual. He dies at 0 HP. (open)'
+    },
+    {
+      id: 'elevator-epilogue',
+      note: 'Nick has not decided whether the elevator plays an epilogue card. No card is stored. (open)'
     }
   ];
 
   function printedXp(mon) {
-    return formula(mon.xpFormula.base, mon.xpFormula.perHp, mon.xpFormula.hp, mon.xpFormula.terms).xp;
+    var raw = formula(mon.xpFormula.base, mon.xpFormula.perHp, mon.xpFormula.hp, mon.xpFormula.terms).xp;
+    return Math.round(raw);
   }
 
   function bossGuardianXp() {
@@ -572,6 +629,7 @@
     POISON: POISON,
     WANDER: WANDER,
     RITUAL: RITUAL,
+    EXIT: EXIT,
     LOOT: LOOT,
     XP: XP,
     FORECAST_BOSS_GUARDIAN_XP: FORECAST_BOSS_GUARDIAN_XP,

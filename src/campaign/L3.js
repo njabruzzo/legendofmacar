@@ -92,6 +92,10 @@
         { kind: 'EA', reason: 'poison', xp: 75 }
       ]),
       tt: 'C',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
+      web: { asSpell: 'Web', stuckSec: 2, tileUntilBurned: true, fireClearsSec: 1 },
       art: art('spider_giant', 'assets/creatures/mon_spider_giant.png', false, null)
     },
     phasespider: {
@@ -102,14 +106,18 @@
       ac: 7,
       mv: '6"*15"',
       attacks: [{ n: 1, form: 'bite', damage: '1d6' }],
-      specials: ['poison, save at -2', 'phases out; can only be hit as it bites'],
+      specials: ['poison, save at -2', 'phases out; can only be hit in a 0.5 s window when its bite lands'],
       poisonSave: -2,
+      phaseWindow: { sec: 0.5, opens: 'when its bite lands', oncePerBite: true, bitesPerSec: 1, inPhaseRound: 'only if webbed or held' },
       xp: 515,
       xpFormula: formula(150, 6, 27.5, [
         { kind: 'SA', reason: 'phase', xp: 75 },
         { kind: 'EA', reason: 'poison', xp: 125 }
       ]),
       tt: 'E',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('phasespider', 'assets/creatures/mon_phasespider.png', false, null)
     },
     pixie: {
@@ -174,7 +182,7 @@
       hitOnlyBy: 0,
       xp: 441,
       xpFormula: formula(150, 6, 36, [{ kind: 'SA', reason: 'ruby shard', xp: 75 }]),
-      ruby: { gp: 750, band: '~750' },
+      ruby: { gp: 750 },
       art: art('thinone', 'assets/creatures/mon_thinone.png', true, 'Ruby Guardian III')
     }
   };
@@ -271,7 +279,7 @@
       letter: 'C',
       decision: 'D2-A',
       onCorpse: false,
-      cp: { chance: 20, dice: '1d10', times: 1000 },
+      cp: { chance: 20, dice: '1d12', times: 1000 },
       sp: { chance: 30, dice: '1d6', times: 1000 },
       ep: null,
       gp: null,
@@ -339,75 +347,75 @@
   var OPEN = [
     {
       id: 'ruby-room',
-      note: 'The ruby door, Guardian III, the lever, and the exit elevator sit in the west disk at (16.4, 16.4). The former Spider Lord den is the Queen\'s hall. The RULES do not name the ruby room. (open)'
+      note: 'Resolved by §7.1. The ruby room stays in the west disk at (16.4, 16.4).'
     },
     {
       id: 'arrival-stair',
-      note: 'Arrival uses the Chapter II landing at (40, 7.55). The south stair uses the Chapter II stair at (40.1, 51.6) and opens on the boss kill. The RULES print no L3 coordinates. (open)'
+      note: 'Resolved by §7.1. Arrival stays at (40, 7.55) and the south stair at (40.1, 51.6) opens on the boss kill.'
     },
     {
       id: 'pixie-tile',
-      note: 'The pixie hangs on the north web room\'s web prop at (26.2, 14.6). The RULES say a web room and print no tile. (open)'
+      note: 'Resolved by §7.1. The pixie stays on the north web at (26.2, 14.6).'
     },
     {
       id: 'tooth-face',
-      note: 'Electrum tooth 3 is on the queen hall\'s north wall at (10.1, 26.8). The RULES print the tooth and no coordinate. (open)'
+      note: 'Resolved by §7.1. Electrum tooth 3 stays at (10.1, 26.8).'
     },
     {
       id: 'giant-count',
-      note: 'One giant spider stands in the east disk. MM1 number appearing is 1-8, and the RULES do not print how many dens to place. (open)'
+      note: 'Resolved by §7.1. One giant spider stays in the east den. MM1 prints 1-8.'
     },
     {
       id: 'phase-count',
-      note: 'One phase spider stands in the west disk. Section 1.3 does not reprint number appearing. (open)'
+      note: 'Resolved by §7.1. One phase spider stays in the west den. MM1 prints 1-4.'
     },
     {
       id: 'brood-tunnels',
-      note: 'The brood comes from side tunnels at (6.4, 31) and (14.2, 31). The RULES say side tunnels and print no points. (open)'
+      note: 'Resolved by §7.1. The brood tunnels stay at (6.4, 31) and (14.2, 31).'
     },
     {
       id: 'lair-letters-on-corpses',
-      note: 'Giant spiders print treasure type C and phase spiders print E. Those are lair letters. A corpse does not take lair C or E. The house corpse band for those two is not printed. (open)'
+      note: 'Resolved by §7.1. Giant spider C and phase spider E are lair letters. Both corpses use the house high band.'
     },
     {
       id: 'silk-rate',
-      note: 'Spider venom is 50% per spider and 100% from the Queen. Section 3.5 names silk and prints no percent, so silk stays a web harvest. (open)'
+      note: 'Resolved by §7.1. Silk stays a web harvest: one silk per web corpse searched.'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian III\'s ruby is stored as 750 gp. Section 1.11 prints ~750 and no range. (open)'
+      note: 'Resolved by §7.0. Guardian III ruby is exactly 750 gp.'
     },
     {
       id: 'guardian-art',
-      note: 'Ruby Guardian III uses the Thin One sheet. No guardian sheet exists, and none is bound. (open)'
+      note: 'Resolved by §7.1. Ruby Guardian III uses the Thin One sheet.'
     },
     {
       id: 'pixie-art',
-      note: 'No pixie sheet exists. The pixie binds no file. (open)'
+      note: 'Resolved by §7.1. No pixie sheet exists, so the pixie binds no file.'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen caches use the Chapter II cache lattice, rolled on the level-3 row. The RULES require sixteen caches and print no L3 points. (open)'
+      note: 'Resolved by §7.1. Sixteen caches stay on the Chapter II lattice, level-3 row.'
     },
     {
       id: 'lair-c-copper',
-      note: 'The Queen\'s chest uses the live lair-C copper die, 1d10×1000. Printed DMG type C is often 1d12×1000. (open)'
+      note: 'Resolved by §7.1. Lair C copper is 1d12×1000 at 20%.'
     },
     {
       id: 'phase-window',
-      note: 'A phase spider can only be hit as it bites. The RULES print no length for that window. (open)'
+      note: 'Resolved by §7.1. The phase spider is hittable for 0.5 s when its bite lands, once per bite.'
     },
     {
       id: 'giant-web',
-      note: 'A giant spider webs as the Web spell. The Queen\'s shot is stuck for 2 s. The ordinary Web duration is not reprinted. (open)'
+      note: 'Resolved by §7.1. A giant spider web holds a stuck target for 2 s. The tile stays until fire clears it in 1 s.'
     },
     {
       id: 'ghost-poison-gap',
-      note: 'Ghosts are immune to poison in this data and in SpiderPoison. The live onHitFx still applies spider poison to ghosts. That page is not changed here. (open)'
+      note: 'Ghosts are immune to poison in this data. The live onHitFx still applies spider poison to ghosts. That page is unchanged here. (open)'
     },
     {
       id: 'queen-chest',
-      note: 'The lair C chest sits at (12.4, 32.8), off the corpse. The RULES print the chest and no coordinate. (open)'
+      note: 'Resolved by §7.1. The lair C chest stays at (12.4, 32.8), off the corpse.'
     }
   ];
 

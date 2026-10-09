@@ -135,7 +135,9 @@
       neededBy: 10,
       availableFrom: 9,
       gp: 20000,
-      ingredientSets: [{ adamantine_chain_1: 1, dragon_scale: 1, holy_anvil: 1 }],
+      ingredientSets: [{ adamantine_chain_1: 1, dragon_scale: 1 }],
+      requires: ['holy_anvil'],
+      consumesRequires: false,
       output: out('adamantine_chain_2', 'Adamantine Chain +2', 'armor')
     },
     {
@@ -222,6 +224,12 @@
       }
       if (best == null || at < best) best = at;
     }
+    var req = recipe.requires || [];
+    for (var r = 0; r < req.length; r++) {
+      var tool = sources[req[r]];
+      if (!tool) return null;
+      if (best == null || tool.level > best) best = tool.level;
+    }
     return best;
   }
 
@@ -238,6 +246,14 @@
       }
       var sets = setsOf(recipe);
       if (!sets.length) errors.push(recipe.id + ' has no ingredients');
+      var req = recipe.requires || [];
+      for (var q = 0; q < req.length; q++) {
+        var tool = book[req[q]];
+        if (!tool) errors.push(recipe.id + ' requires ' + req[q] + ' and that tool has no source');
+        else if (recipe.neededBy == null || tool.level > recipe.neededBy) {
+          errors.push(recipe.id + ' requires ' + req[q] + ' at L' + tool.level + ' after L' + recipe.neededBy);
+        }
+      }
       for (var s = 0; s < sets.length; s++) {
         var keys = Object.keys(sets[s]);
         for (var i = 0; i < keys.length; i++) {

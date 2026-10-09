@@ -59,30 +59,30 @@
     orcLeader: {
       key: 'orcLeader',
       name: 'Orc leader',
-      source: 'MM1 Orc p.76; fight as gnolls (verify per-band counts)',
-      hd: 2,
-      ac: 5,
+      source: 'MM1 Orc p.76; 1 leader and 2 assistants, HD 1, 8 hp',
+      hd: 1,
+      hp: 8,
+      ac: 6,
       mv: '9"',
-      attacks: [{ n: 1, form: 'weapon', damage: '1d10' }],
+      attacks: [{ n: 1, form: 'weapon', damage: '1d8' }],
       specials: [],
-      countVerify: true,
-      xp: 38,
-      xpFormula: formula(20, 2, 9, []),
+      xp: 18,
+      xpFormula: formula(10, 1, 8, []),
       tt: 'L',
       art: ORC_STAND
     },
     orcGuard: {
       key: 'orcGuard',
       name: 'Orc chief guard',
-      source: 'MM1 Orc p.76 lair guards (verify)',
-      hd: 2,
+      source: 'MM1 Orc p.76 lair guards; AC 4, 15 hp, attack as 3 HD',
+      hd: 3,
+      hp: 15,
       ac: 4,
       mv: '9"',
       attacks: [{ n: 1, form: 'weapon', damage: '2d4' }],
       specials: [],
-      countVerify: true,
-      xp: 38,
-      xpFormula: formula(20, 2, 9, []),
+      xp: 80,
+      xpFormula: formula(35, 3, 15, []),
       tt: 'L',
       art: ORC_STAND
     },
@@ -97,8 +97,8 @@
       specials: [],
       xp: 126,
       xpFormula: formula(60, 4, 16.5, []),
-      tt: 'B',
-      ttVerify: true,
+      tt: 'Nil',
+      corpseBand: 'mid',
       movedFrom: 'L2',
       art: WARG_ART
     },
@@ -109,7 +109,7 @@
       hd: '2+2',
       ac: 7,
       mv: '18"',
-      attacks: [{ n: 1, form: 'bite', damage: '2d4' }],
+      attacks: [{ n: 1, form: 'bite', damage: '1d4+1' }],
       specials: [],
       xp: 68,
       xpFormula: formula(35, 3, 11, []),
@@ -144,7 +144,8 @@
       ac: 3,
       mv: '9"',
       str: '18/50',
-      attacks: [{ n: 1, form: 'battle axe', damage: '1d8+3' }],
+      toHit: 1,
+      attacks: [{ n: 1, form: 'battle axe', damage: '1d8+3', toHit: 1 }],
       specials: ['Specialty Attack, house bands, whole round'],
       xp: 255,
       xpFormula: formula(90, 5, 33, []),
@@ -189,7 +190,7 @@
       hitOnlyBy: 0,
       xp: 1030,
       xpFormula: formula(375, 10, 48, [{ kind: 'SA', reason: 'shard cone', xp: 175 }]),
-      ruby: { gp: 1000, band: '~1000' },
+      ruby: { gp: 1000 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian IV')
     }
   };
@@ -213,7 +214,16 @@
     bless: { range: '5"', bonus: 1, rounds: 6, targets: 'orcs' },
     holdPerson: { target: 'Macar', save: 'vs spell', dwarfBonus: true, freeActionImmune: true },
     silence: { range: "15'", target: 'kin', stops: 'voice abilities' },
-    spellEverySec: 2
+    spellEverySec: 2,
+    /* Casting time × 0.1 s. PHB cleric spells. */
+    segments: {
+      'Bless': 1.0,
+      'Cause Fear': 0.1,
+      'Darkness': 0.4,
+      'Cause Light Wounds': 0.5,
+      'Hold Person': 0.5,
+      "Silence 15' r.": 0.5
+    }
   };
 
   var CHIEF = {
@@ -224,6 +234,7 @@
     specialty: 'house bands, whole round, when adjacent',
     helplessHitsLand: true,
     moraleBelowHpFraction: 0.25,
+    morale: { roll: 'd100', holdOnOrUnder: 65, once: true },
     fallback: 'ogre-cave',
     corpse: 'U',
     lairChest: 'C, O, Qx10, S',
@@ -231,7 +242,7 @@
       'On the first round he roars, and the shaman casts Bless on all orcs within 5 inches: +1 to hit and morale for 6 rounds.',
       'While the shaman lives, the shaman tries Hold Person on Macar, then Silence 15\' r. on a kin. At most one spell per 2 s.',
       'When adjacent to Macar he uses the Specialty Attack. If Macar is held, every hit lands.',
-      'Below 25% HP he rolls morale. On a failure, he and his guards fall back to the boulder cave.'
+      'Below 25% HP he rolls morale once. He holds on d100 of 65 or less. On a failure, he and his guards fall back to the boulder cave.'
     ]
   };
 
@@ -282,7 +293,7 @@
       decision: 'D2-A',
       C: {
         letter: 'C',
-        cp: { chance: 20, dice: '1d10', times: 1000 },
+        cp: { chance: 20, dice: '1d12', times: 1000 },
         sp: { chance: 30, dice: '1d6', times: 1000 },
         ep: null,
         gp: null,
@@ -292,8 +303,16 @@
         magic: { chance: 10, count: 2, kind: 'any' }
       },
       S: { chance: 40, count: '1-8', kind: 'potions' },
-      O: null,
-      Q: null
+      O: {
+        letter: 'O',
+        cp: { chance: 25, dice: '1d4', times: 1000 },
+        sp: { chance: 20, dice: '1d3', times: 1000 }
+      },
+      Q: {
+        letter: 'Q',
+        times: 10,
+        gems: { chance: 50, dice: '1d4' }
+      }
     },
     caches: {
       count: 16,
@@ -314,6 +333,7 @@
       orc: 'L',
       chief: 'U',
       wolf: 'Nil',
+      warg: 'mid',
       ogress: 'not rolled',
       guardian: 'ruby only'
     },
@@ -334,8 +354,8 @@
 
   var XP = {
     orc: 15,
-    orcLeader: 38,
-    orcGuard: 38,
+    orcLeader: 18,
+    orcGuard: 80,
     warg: 126,
     wolf: 68,
     orcShaman: 656,
@@ -358,31 +378,31 @@
   var OPEN = [
     {
       id: 'orc-hp',
-      note: 'Orc XP 15 is 10+1 per hp at 5 hp. A 1d8 averages 4.5, and the RULES print about 15. (open)'
+      note: 'Resolved by §7.2. Orc XP stays 15, at 5 hp.'
     },
     {
       id: 'guard-count',
-      note: 'The chief hall places 6 guards, the count in the 1.12 annotation. Section 1.4 says to verify the MM lair-guard count. (open)'
+      note: 'Resolved by §7.2. Six chief bodyguards stay. MM1 lair prints 5-30.'
     },
     {
       id: 'assistant-count',
-      note: 'One leader stands in the Hall of Names. Section 1.4 says to verify per-band assistant counts, so no assistant number is placed. (open)'
+      note: 'Resolved by §7.2. The three placed leaders are 1 leader and 2 assistants. No new placement was added.'
     },
     {
       id: 'leader-gnoll',
-      note: 'Leaders stay at the written HD 2, AC 5, and 1d10. The RULES mark "fight as gnolls" as verify. (open)'
+      note: 'Resolved by §7.2. Leaders and assistants are HD 1, 8 hp, AC 6, weapon 1d8, XP 18.'
     },
     {
       id: 'guard-gnoll',
-      note: 'Guards stay at the written HD 2, AC 4, and 2d4. The RULES mark the lair-guard line as verify. (open)'
+      note: 'Resolved by §7.2. Chief guards are AC 4, 15 hp, attack as 3 HD, 2d4, XP 80.'
     },
     {
       id: 'chief-to-hit',
-      note: 'The chief\'s STR 18/50 is printed as damage 1d8+3. The 1e to-hit bonus is not printed. (open)'
+      note: 'Resolved by §7.2. STR 18/50 gives +1 to hit, stored with the printed +3 damage.'
     },
     {
       id: 'chief-morale',
-      note: 'Below 25% HP he rolls morale. MM1 prints no morale score, so the target number is unset. (open)'
+      note: 'Resolved by §7.2. Below 25% HP he holds on d100 of 65 or less, rolled once.'
     },
     {
       id: 'shaman-wis-bonus',
@@ -394,67 +414,67 @@
     },
     {
       id: 'shaman-segments',
-      note: 'Bless, Hold Person, and Silence have the effects printed in 1.4. Casting segments for the orc shaman are not printed. (open)'
+      note: 'Resolved by §7.2. Wind-up is the casting time times 0.1 s: Bless 1.0, Cause Fear 0.1, Darkness 0.4, Cause Light Wounds 0.5, Hold Person 0.5, Silence 0.5.'
     },
     {
       id: 'wolf-count',
-      note: 'Two wolves stand at (12, 74). Section 1.4 does not reprint number appearing. The wander slot is 1d4. (open)'
+      note: 'Resolved by §7.2. Two wolves stay. MM1 prints 2-20.'
     },
     {
       id: 'warg-transplant',
-      note: 'Worg packs removed from L2 keep their Chapter II points on this ruin map: (40.1, 70.2), (122.1, 30.1), and (120.1, 62.1), plus the Chapter III warg at (88, 102). The 1.12 annotation says 4 worgs. (open)'
+      note: 'Resolved by §7.2. Nine worgs stay where they were placed. MM1 prints 3-12 per group.'
     },
     {
       id: 'cut-companions',
-      note: 'Drow, spiders, the bugbear, and the beetle that shared live orc and warg packs are not L4 residents. The orc and warg counts from those packs stay. (open)'
+      note: 'Resolved by §7.2. Drow, spiders, the bugbear, and the beetle are not L4 residents.'
     },
     {
       id: 'ogre-cave-room',
-      note: 'The ogre cave is the south annex at (32, 50), where live orcs already stand. The RULES do not name the room. (open)'
+      note: 'Resolved by §7.2. The ogre cave stays the south annex at (32, 50).'
     },
     {
       id: 'ogress-path',
-      note: 'She flees along a scripted path to (28, 76) and despawns. OgreCave names an exit tile and prints no path. (open)'
+      note: 'Resolved by §7.2. The ogress flees to (28, 76) and despawns.'
     },
     {
       id: 'tooth-face',
-      note: 'Electrum tooth 4 is on the Hall of Names north wall at (46, 14). The RULES print the tooth and no coordinate. (open)'
+      note: 'Resolved by §7.2. Electrum tooth 4 stays at (46, 14).'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian IV\'s ruby is stored as 1000 gp. Section 1.11 prints ~1,000 and no range. (open)'
+      note: 'Resolved by §7.0. Guardian IV ruby is exactly 1,000 gp.'
     },
     {
       id: 'chief-art',
-      note: 'The chief, shaman, leaders, and guards use the orc sheet. No separate sheets are bound. (open)'
+      note: 'Resolved by §7.2. The chief, shaman, leaders, and guards use the orc sheet.'
     },
     {
       id: 'ogress-art',
-      note: 'No ogre sheet exists. The ogress binds no file. (open)'
+      note: 'Resolved by §7.2. No ogre sheet exists, so the ogress binds no file.'
     },
     {
       id: 'cache-places',
-      note: 'Thirteen caches are the Chapter III points. Three more, at (26, 28), (46, 20), and (48, 42), bring the count to 16. (open)'
+      note: 'Resolved by §7.2. Sixteen caches stay: the Chapter III points plus (26, 28), (46, 20), and (48, 42).'
     },
     {
       id: 'lair-c-copper',
-      note: 'The chief\'s type C row uses the live lair-C copper die, 1d10×1000. Printed DMG type C is often 1d12×1000. (open)'
+      note: 'Resolved by §7.2. Lair C copper is 1d12×1000 at 20%.'
     },
     {
       id: 'lair-o-q',
-      note: 'The chest names lair O and Q×10. The live LAIR table has no O or Q row, so those dice are not stored. (open)'
+      note: 'Resolved by §7.2. O is cp 1d4×1000 at 25% and sp 1d3×1000 at 20%. Q×10 is ten rolls of 1d4 gems at 50%.'
     },
     {
       id: 'warg-corpse',
-      note: 'Worgs print treasure type B, marked verify. Type B is a lair letter, so it stays off the corpse. The corpse band is not printed. (open)'
+      note: 'Resolved by §7.2. Worg treasure is Nil. The corpse uses the house mid band.'
     },
     {
       id: 'ogre-percent',
-      note: 'MM1 mentions ogres as possible orc lair allies and says to verify the percentage. Nick\'s lock uses the ogress as a prisoner, so that percentage is not rolled. (open)'
+      note: 'Resolved by §7.2. The ogre percentage is not rolled. The ogress is a prisoner.'
     },
     {
       id: 'forecast-pack',
-      note: 'The 1.12 cell prints 2,990 and annotates 1 chief, 1 shaman, 6 guards, 4 worgs, 8 orcs, and Guardian IV. Those XP figures sum to 2,793, not 2,990. Placement follows the live packs, not that annotation. (open)'
+      note: 'Resolved by §7.2. The column is 1,285. The old 2,990 annotation is retired.'
     }
   ];
 

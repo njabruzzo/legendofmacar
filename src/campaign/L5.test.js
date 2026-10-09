@@ -105,9 +105,9 @@ assert(T.level(5).pacing.cumulativeXp === 75200 && T.level(5).pacing.macar === '
 assert(T.level(5).pacing.cumulativeXp >= T.FIGHTER_XP.F7 && T.level(5).pacing.cumulativeXp < T.FIGHTER_XP.F8, '75200 sits in the F7 band');
 assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
-assert(L5.MONSTERS.drow.hd === 2 && L5.MONSTERS.drow.hp === 11 && L5.MONSTERS.drow.ac === 3 && L5.MONSTERS.drow.mr === 52 && L5.MONSTERS.drow.acVerify === true, 'the warrior is 2 HD, 11 hp, AC 3, MR 52%, marked verify');
+assert(L5.MONSTERS.drow.hd === 2 && L5.MONSTERS.drow.hp === 11 && L5.MONSTERS.drow.ac === 3 && L5.MONSTERS.drow.mr === 54, 'the warrior is 2 HD, 11 hp, AC 3, MR 54%');
 assert(L5.MONSTERS.drowMage.hd === 5 && L5.MONSTERS.drowMage.hp === 14 && L5.MONSTERS.drowMage.ac === 4 && L5.MONSTERS.drowMage.mr === 60, 'the mage is 5 HD, 14 hp, AC 4, MR 60%');
-assert(L5.MONSTERS.drowPriestess.hd === 5 && L5.MONSTERS.drowPriestess.hp === 24 && L5.MONSTERS.drowPriestess.ac === 3 && L5.MONSTERS.drowPriestess.mr === 60 && L5.MONSTERS.drowPriestess.xp === 380, 'the priestess is 5 HD, 24 hp, AC 3, MR 60%, about 380 XP');
+assert(L5.MONSTERS.drowPriestess.hd === 5 && L5.MONSTERS.drowPriestess.hp === 24 && L5.MONSTERS.drowPriestess.ac === 3 && L5.MONSTERS.drowPriestess.mr === 60 && L5.MONSTERS.drowPriestess.xp === 400 && L5.MONSTERS.drowPriestess.bandXp == null, 'the priestess is 5 HD, 24 hp, AC 3, MR 60%, 400 XP');
 assert(L5.MONSTERS.drowMatron.hd === 7 && L5.MONSTERS.drowMatron.hp === 32 && L5.MONSTERS.drowMatron.ac === 1 && L5.MONSTERS.drowMatron.mr === 64 && L5.MONSTERS.drowMatron.attacks[0].extra === '1d4', 'the Matron is 7 HD, 32 hp, AC 1, MR 64%, whip 1d4+1d4');
 assert(L5.MONSTERS.rubyGuardian.hd === 10 && L5.MONSTERS.rubyGuardian.hp === 60 && L5.MONSTERS.rubyGuardian.ac === 2 && L5.MONSTERS.rubyGuardian.attacks[0].damage === '2d10' && L5.MONSTERS.rubyGuardian.hitOnlyBy === 1, 'Guardian V is 10 HD, 60 hp, AC 2, 2d10, hit only by +1');
 assert(L5.MONSTERS.rubyGuardian.cone.damage === '2d6' && L5.MONSTERS.rubyGuardian.cone.range === '3"' && L5.MONSTERS.rubyGuardian.xp === T.level(5).rubyGuardian.formula.xp, 'the cone matches IV and the XP matches the guardian line');
@@ -120,7 +120,7 @@ assert(L5.MATRON.priority.length === 5 && L5.MATRON.levitateBelowHpFraction === 
 assert(L5.MATRON.bossFlagOnIndividual === false && L5.MATRON.separateFromGuardian === true, 'the Matron stays separate from Guardian V');
 
 assert(L5.POISON.kind === 'sleep' && L5.POISON.h1Damage === false && L5.POISON.usesSpiderTable === false && L5.POISON.spiderTable === T.poisonSave, 'drow sleep points at the spider table and does not apply those mods');
-assert(L5.POISON.ffModifier == null && L5.POISON.ffModifierVerify === true && L5.POISON.save === 'vs poison', 'the FF poison modifier stays unset');
+assert(L5.POISON.ffModifier === -4 && L5.POISON.save === 'vs poison', 'the dart save is vs poison at -4');
 assert(L5.POISON.durationTurns === '2d4' && L5.POISON.secondsPerTurn === 5 && L5.POISON.wakeOnDamage === true && L5.POISON.rawSlay === false && L5.POISON.autoHit === true, 'sleep lasts 2d4 turns of 5 s, hits land, and damage wakes the target');
 assert(L5.POISON.ghostsImmune === true && L5.POISON.antitoxinPlus === 4 && L5.POISON.saveFloor === 2 && L5.POISON.floorRule === '6 #12', 'ghosts are immune, antitoxin is +4, and the poison save floors at 2');
 assert(L5.SWORD.plus === 2 && L5.SWORD.always === true && L5.SWORD.usableByMacar === 'Y' && L5.LOOT.components.drow_adamantite.perWarrior === 0.5 && L5.LOOT.components.drow_adamantite.guardAlways === 2, 'the sword is guaranteed and adamantite is 50% per warrior, 2 from the guard');
@@ -147,8 +147,15 @@ Object.keys(hammer.ingredientSets[0]).forEach(function (ing) {
   assert(Q.SOURCES[ing] && Q.SOURCES[ing].level <= 5, 'rune hammer ingredient ' + ing + ' resolves by L5');
 });
 
-assert(L5.OPEN.length === 22 && L5.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L5 choice is marked in the data');
-assert(L5.MONSTERS.drow.acVerify === true && L5.MONSTERS.drow.ttVerify === true && L5.MONSTERS.drowPriestess.innateFemaleVerify === true, 'the verify figures stay marked');
+assert(L5.OPEN.length === 23, 'L5 records 23 choice notes');
+L5.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+assert(L5.MONSTERS.drow.corpseLetters.N === 5 && L5.MONSTERS.drow.corpseLetters.Q === 2 && L5.MONSTERS.drowPriestess.adamantite === 3, 'non-boss drow roll N×5 and Q×2, and the priestess drops 3 adamantite');
+assert(L5.LOOT.lair.present === false && L5.MONSTERS.drowPriestess.innateFemaleVerify === true, 'there is no L5 lair chest, and the female innate list stays marked');
+assert(L5.MONSTERS.rubyGuardian.ruby.gp === 1250 && L5.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian V ruby is exactly 1250 gp');
 assert(html.indexOf('L5.js') < 0 && html.indexOf('maps/l5.json') < 0, 'index.html does not load the L5 data');
 assert(save.indexOf('L5.js') < 0 && save.indexOf('maps/l5.json') < 0, 'GameSave does not load the L5 data');
 assert(L5.wired === false, 'the L5 module is not wired');

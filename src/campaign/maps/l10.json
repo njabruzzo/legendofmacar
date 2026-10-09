@@ -121,7 +121,8 @@
         "teeth": 7,
         "hammer": "holy_hammer",
         "anvil": "holy_anvil",
-        "site": { "id": "altar", "x": 29, "y": 14.5, "room": "throne-room" }
+        "unlocksOn": "kingKill",
+        "site": { "id": "altar", "x": 29, "y": 14.5, "name": "temple altar" }
       },
       "setPieces": [
         {
@@ -131,8 +132,13 @@
           "count": 7,
           "room": "throne-room",
           "places": [
-            [18, 12], [40, 12], [18, 31], [40, 31],
-            [70, 18], [92, 18], [86, 12]
+            { "x": 18, "y": 12, "room": "throne-room" },
+            { "x": 40, "y": 12, "room": "throne-room" },
+            { "x": 18, "y": 31, "room": "throne-room" },
+            { "x": 40, "y": 31, "room": "throne-room" },
+            { "x": 70, "y": 18, "room": "side-chapel" },
+            { "x": 92, "y": 18, "room": "side-chapel" },
+            { "x": 86, "y": 12, "room": "side-chapel" }
           ]
         },
         {
@@ -190,14 +196,15 @@
           "places": [
             [72, 22], [29, 62], [10, 66], [60, 10],
             [96, 22], [29, 86], [10, 88], [84, 10],
-            [64, 42], [8, 74], [48, 50], [40, 70],
-            [80, 40], [20, 80], [50, 20], [8, 50]
+            [64, 42], [8, 74], [60, 44], [36, 62],
+            [70, 44], [20, 80], [50, 20], [8, 50]
           ]
         },
         "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "king" },
         "lordChest": {
           "letter": null,
           "contents": "chapter-v-hoard",
+          "once": true,
           "quest": null,
           "includesRuby": false,
           "extraHoard": false,
@@ -207,7 +214,7 @@
           "room": "throne-room",
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 2500, "band": "2500", "with": "rubyGuardian", "x": 22, "y": 40 },
+        "guardianRuby": { "gp": 2500, "with": "rubyGuardian", "x": 22, "y": 40 },
         "magicFilter": "2.2 usable by a dwarf fighter"
       },
       "exit": {
@@ -216,7 +223,11 @@
         "elevator": "guardian",
         "stairs": "bossKill",
         "stairsOpenOn": "bossKill",
-        "win": "mortalKing",
+        "win": "ritualComplete",
+        "altarUnlocksOn": "kingKill",
+        "stairNext": null,
+        "elevatorNext": null,
+        "beforeWin": "The curse still holds. Smash the teeth on the altar.",
         "livingBossBlocksElevator": false,
         "leverRequires": ["rubyGuardianDead"]
       }

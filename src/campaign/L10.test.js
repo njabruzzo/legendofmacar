@@ -52,14 +52,15 @@ const throne = level.spawns.filter(function (group) { return group.id === 'thron
 const court = level.spawns.filter(function (group) { return group.id === 'south-court'; })[0];
 assert(braziers && braziers.placed === true && braziers.count === 7 && braziers.places.length === 7, 'seven ritual braziers are placed');
 assert(dais && dais.placed === true && dais.altar.x === 29 && dais.altar.y === 14.5 && dais.anvil === 'holy_anvil', 'the anvil sits on the altar');
-assert(level.ritual.id === 'temple-ritual' && level.ritual.xpOnce === 10000 && level.ritual.teeth === 7 && level.ritual.hammer === 'holy_hammer' && level.ritual.anvil === 'holy_anvil' && level.ritual.behindBoss === true, 'the temple ritual spends the seven teeth, the hammer, and the anvil');
+assert(level.ritual.id === 'temple-ritual' && level.ritual.xpOnce === 10000 && level.ritual.teeth === 7 && level.ritual.hammer === 'holy_hammer' && level.ritual.anvil === 'holy_anvil' && level.ritual.behindBoss === true && level.ritual.unlocksOn === 'kingKill', 'the temple ritual uses the seven teeth, the hammer, and the anvil after the King dies');
 assert(throne.room === level.boss.room, 'the throne spawn is the boss room');
 assert(throne.members.some(function (member) { return member.key === 'king' && member.count === 1 && member.role === 'boss'; }), 'the throne room has the King');
 assert(throne.members.some(function (member) { return member.key === 'wight' && member.count === 2 && member.role === 'minion'; }), 'two wights stand in the boss room');
 assert(throne.members.some(function (member) { return member.key === 'wraith' && member.count === 2 && member.role === 'minion'; }), 'two wraiths stand in the boss room');
 assert(court.room === 'south-court' && court.members.some(function (member) { return member.key === 'duergar' && member.count === 4 && member.role === 'population'; }), 'four duergar stand in the south court');
 assert(court.members.some(function (member) { return member.key === 'duergarPriest' && member.count === 1 && member.role === 'population'; }), 'the priest stands with the duergar');
-assert(L10.KING.coveringUnit == null && L10.KING.priority.length === 5 && L10.KING.neverLeaves === true, 'the five steps name the throne room and no covering creature');
+assert(L10.KING.coveringUnit == null && L10.KING.priority.length === 4 && L10.KING.neverLeaves === true && L10.KING.diesBeforeRitual === true, 'the four steps name the throne room and the King dies before the ritual');
+assert(L10.MONSTERS.king.unslayableWhile == null && L10.MONSTERS.king.atZeroHp == null && L10.MONSTERS.king.regeneration.hpPerRound === 2, 'the King dies at 0 HP and still regenerates 2');
 assert(!level.spawns.some(function (group) {
   return group.members.some(function (member) { return member.role === 'cover'; });
 }), 'no covering unit is placed');
@@ -78,6 +79,16 @@ assert(level.wander.slots.length === 6, 'section 5 gives L10 six wander slots');
 assert(JSON.stringify(level.wander.slots) === JSON.stringify(L10.WANDER), 'the map wander table matches the encounter data');
 assert(JSON.stringify(L10.WANDER) === JSON.stringify(T.level(10).wander), 'the wander table matches the campaign table');
 assert(level.loot.caches.count === 16 && level.loot.caches.places.length === 16 && level.loot.caches.level === 8 && level.loot.caches.floor === 10, 'sixteen caches use the level-8 row');
+[[48, 50], [40, 70], [80, 40]].forEach(function (tile) {
+  assert(!level.loot.caches.places.some(function (place) { return place[0] === tile[0] && place[1] === tile[1]; }), 'no cache sits in solid rock at ' + tile.join(','));
+});
+[[60, 44], [36, 62], [70, 44]].forEach(function (tile) {
+  assert(level.loot.caches.places.some(function (place) { return place[0] === tile[0] && place[1] === tile[1]; }), 'a cache sits on the floor at ' + tile.join(','));
+});
+[[70, 18], [92, 18], [86, 12]].forEach(function (tile) {
+  const chapel = braziers.places.filter(function (place) { return place.x === tile[0] && place.y === tile[1]; })[0];
+  assert(chapel && chapel.room === 'side-chapel', 'the brazier at ' + tile.join(',') + ' is a side chapel');
+});
 assert(level.loot.lordCorpse.letter === 'U' && level.loot.lordChest.onCorpse === false && level.loot.lordChest.contents === 'chapter-v-hoard' && level.loot.lordChest.includesRuby === false && level.loot.lordChest.letter == null, 'the corpse is U and the chest is the Chapter V hoard, not the ruby');
 assert(level.loot.guardianRuby.gp === 2500 && level.loot.guardianRuby.with === 'rubyGuardian', 'Guardian X keeps the 2500 gp ruby');
 assert(L10.LOOT.bossChest.includesRuby === false && L10.LOOT.guardianRuby.with === 'rubyGuardian', 'the ruby is listed with the guardian only');
@@ -85,7 +96,9 @@ assert(L10.LOOT.bossChest.includesRuby === false && L10.LOOT.guardianRuby.with =
 const exit = E.forLevel(10);
 assert(exit.elevator === 'guardian' && exit.stairs === 'bossKill' && exit.stairsOpenOn === 'bossKill', 'Guardian X is the elevator and the King\'s kill opens the stairs');
 assert(exit.guardian.count === 1 && exit.boss != null && exit.separateEncounters === true, 'L10 keeps one guardian and a boss');
-assert(level.exit.elevator === exit.elevator && level.exit.stairs === exit.stairs && level.exit.stairsOpenOn === exit.stairsOpenOn && level.exit.win === 'mortalKing', 'the map exit uses the same gates and the mortal-king win');
+assert(level.exit.elevator === exit.elevator && level.exit.stairs === exit.stairs && level.exit.stairsOpenOn === exit.stairsOpenOn && level.exit.win === 'ritualComplete', 'the map exit uses the same gates and the ritual win');
+assert(level.exit.stairNext === null && level.exit.elevatorNext === null && level.exit.beforeWin === L10.EXIT.stair.beforeWin && L10.EXIT.elevator.next === null, 'both exits are next null and show the altar hint before the win');
+assert(level.exit.altarUnlocksOn === 'kingKill' && L10.RITUAL.unlocksOn === 'kingKill', 'the King\'s kill unlocks the altar');
 assert(E.validate().length === 0, 'the ten exit rows still pass');
 const bare = E.LEVELS.map(function (row) { return Object.assign({}, row); });
 bare[9] = Object.assign({}, bare[9], { boss: null });
@@ -113,24 +126,38 @@ Object.keys(L10.XP).forEach(function (key) {
 });
 assert(L10.bossGuardianXp() === 16800 + 5552 && L10.bossGuardianXp() === 22352, 'L10 boss-plus-guardian XP is the stat blocks, 22352');
 assert(L10.bossGuardianXp() === L10.XP.king + L10.XP.rubyGuardian, 'the boss-plus-guardian sum uses the printed xp fields');
-assert(L10.bossGuardianXp() !== L10.XP.king + L10.XP.rubyGuardian + L10.MONSTERS.skeleton.bandXp, 'the skeleton band is not in the boss-plus-guardian total');
+assert(L10.bossGuardianXp() !== L10.XP.king + L10.XP.rubyGuardian + L10.XP.skeleton, 'skeleton XP is not in the boss-plus-guardian total');
 assert(L10.FORECAST_BOSS_GUARDIAN_XP === 22352 && T.level(10).pacing.bossPlusGuardianXp === 22352, 'the 1.12 column matches the stat blocks, 22352');
 assert(T.statBossGuardianXp(T.level(10)) === L10.bossGuardianXp(), 'the campaign table uses the same L10 stat-block total');
 assert(T.level(10).boss.xp === 5552 && T.level(10).rubyGuardian.formula.xp === 16800, 'the table xp fields are the printed King and guardian totals');
 assert(T.level(9).pacing.cumulativeXp === 406800, 'the clear through L9 stays 406800');
 assert(T.level(10).pacing.cumulativeXp === 491800 && T.level(10).pacing.macar === 'F10', 'the L10 clear stays 491800');
 assert(L10.PATH.throughL9 === 406800 && L10.PATH.l10Clear === 85000 && L10.PATH.ritual === 10000 && L10.PATH.total === 501800, 'L10\'s 85000 plus the 10000 ritual reach 501800 from 406800');
-assert(T.level(10).quest.xpOnce === 10000 && T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
-assert(T.pathXp() === T.level(9).pacing.cumulativeXp + (T.level(10).pacing.cumulativeXp - T.level(9).pacing.cumulativeXp) + T.level(10).quest.xpOnce, 'the path is the L9 cumulative, the L10 clear, and the ritual');
+assert(T.level(10).quest.xpOnce === 10000 && T.level(10).pacing.ritualXp === 10000 && level.ritual.xpOnce === 10000, 'the ritual number also sits on the table and the map');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
+const savedXp = L10.RITUAL.xpOnce;
+L10.RITUAL.xpOnce = 1;
+assert(T.pathXp() === T.level(10).pacing.cumulativeXp + 1, 'path XP reads RITUAL.xpOnce and not the other copies');
+L10.RITUAL.xpOnce = savedXp;
+assert(T.pathXp() === 501800 && T.pathXp() !== 511800, 'adding the ritual a second time would be 511800');
+assert(T.level(10).pacing.cumulativeXp + L10.RITUAL.xpOnce + T.level(10).pacing.ritualXp === 511800, 'the double-counted path is 511800');
 
 assert(L10.MONSTERS.king.hp === 72 && L10.MONSTERS.king.xp === 5552 && L10.MONSTERS.king.regeneration.hpPerRound === 2, 'the King is 72 hp, 5552 XP, and regenerates 2 while a brazier burns');
-assert(L10.MONSTERS.skeleton.xp === 15 && L10.MONSTERS.skeleton.bandXp === 14.5, 'the skeleton wired xp is 15 and the band is 14.5');
-assert(L10.MONSTERS.duergarPriest.xp === 400 && L10.MONSTERS.duergarPriest.bandXp === 277.5, 'the priest wired xp is 400 and the band is 277.5');
+assert(L10.MONSTERS.skeleton.xp === 19 && L10.MONSTERS.skeleton.bandXp == null && L10.MONSTERS.skeleton.corpseBand === 'mid', 'the skeleton wired xp is 19 and the corpse uses the mid band');
+assert(L10.MONSTERS.duergarPriest.xp === 393 && L10.MONSTERS.duergarPriest.bandXp == null && L10.MONSTERS.duergarPriest.corpseLetters.M === 1 && L10.MONSTERS.duergarPriest.corpseLetters.Q === 1, 'the priest is 393 XP and rolls M and Q');
+assert(L10.MONSTERS.spectre.tt.join() === 'Q,Q,Q,X,Y' && L10.MONSTERS.spectre.onCorpse === true, 'spectre treasure is Q, Q, Q, X, and Y on the corpse');
+assert(L10.MONSTERS.ghoul.corpseLetters.T === 1 && L10.MONSTERS.ghoul.bandCoinsOnly === true && L10.MONSTERS.wight.corpseBand === 'high' && L10.MONSTERS.wraith.corpseBand === 'high', 'a ghoul corpse rolls T plus mid-band coins, and wights and wraiths use O+M');
+assert(L10.LOOT.bossChest.once === true && L10.LOOT.bossChest.includesRuby === false && L10.MONSTERS.rubyGuardian.ruby.gp === 2500 && L10.MONSTERS.rubyGuardian.ruby.band == null, 'the hoard rolls once without the ruby, and Guardian X\'s ruby is exactly 2500');
+assert(L10.LOOT.corpseCoinRule === T.corpseCoinRule && T.corpseCoinRule.extraBandMagic === false && T.corpseCoinRule.appliesOn === 'every level', 'letters with no coins add the band\'s coins only, on every level');
 assert(L10.MONSTERS.rubyGuardian.xp === 16800 && L10.MONSTERS.rubyGuardian.cone.damage === '4d6' && L10.MONSTERS.rubyGuardian.hitOnlyBy === 3, 'Guardian X is 16800 XP, the cone is 4d6, and only +3 hits');
 assert(L10.MINIONS.locked === true && L10.MINIONS.guard.inBossRoom === true && L10.MINIONS.guard.counts.wight === 2 && L10.MINIONS.guard.counts.wraith === 2, 'two wights and two wraiths are the locked guard and stand with the King');
 assert(L10.MINIONS.population.inBossRoom === false && L10.MINIONS.animated.placed === false, 'the duergar are the population, and Animate Dead is not a placed pack');
-assert(L10.RITUAL.xpOnce === 10000 && L10.RITUAL.toothIds.length === 7 && L10.RITUAL.hammer.from === 'L8' && L10.RITUAL.anvil.from === 'L9', 'the ritual is 10000 XP and uses the seven teeth, the L8 hammer, and the L9 anvil');
-assert(L10.RITUAL.steps.length === 6 && L10.RITUAL.steps[5] === 'Killing the mortal King wins.', 'the ritual ends when the mortal King dies');
+assert(L10.RITUAL.xpOnce === 10000 && L10.RITUAL.alsoCalled == null && L10.RITUAL.altar.x === 29 && L10.RITUAL.altar.y === 14.5, 'the ritual award is 10000 at the temple altar');
+assert(L10.RITUAL.toothIds.length === 7 && L10.RITUAL.hammer.from === 'L8' && L10.RITUAL.anvil.tool === true && L10.RITUAL.anvil.consumed === false, 'the ritual uses the seven teeth, the L8 hammer, and the anvil as a tool');
+assert(L10.RITUAL.smash.sec === 1 && L10.RITUAL.smash.interruptedBy === 'any hit' && L10.RITUAL.smash.putsOut === 'nearest brazier' && L10.RITUAL.smash.by === 1, 'each smash takes 1 s, any hit interrupts it, and it puts out the nearest brazier');
+assert(L10.RITUAL.teethCounted.join() === 'party,altar' && L10.RITUAL.unclaimedTooth.goesTo.level === 10 && L10.RITUAL.unclaimedTooth.goesTo.x === 29, 'the ritual counts party teeth plus altar teeth, and a missed tooth goes to the altar');
+assert(L10.RITUAL.questLock.until === 'ritual ends' && L10.RITUAL.questLock.teethMayMoveBetweenPacks === true && L10.RITUAL.questLock.cannot.join() === 'sell,drop,break,recipe', 'the anvil, the hammer, and the teeth stay locked until the ritual ends');
+assert(L10.RITUAL.questLock.ids.length === 9 && L10.RITUAL.steps.length === 5 && L10.RITUAL.win === 'ritualComplete', 'the lock covers nine items and the seventh smash wins');
 
 assert(L10.POISON.mode === 'h1' && L10.POISON.floor === 2 && L10.POISON.floorRule === '6 #12' && L10.POISON.mods === T.poisonSave, 'H1 points at CampaignTable.poisonSave and floors at 2');
 assert(L10.POISON.residentsUsePoison === false && L10.POISON.appliesTo.length === 0, 'no L10 attack is a poison save, so the spider mods are not applied');
@@ -154,12 +181,23 @@ const chain = Q.FORGE_RECIPES.filter(function (row) { return row.id === 'adamant
 assert(chain && chain.neededBy === 10 && chain.availableFrom <= 10, 'Adamantine Chain +2 is due by L10');
 chain.ingredientSets.forEach(function (set) {
   Object.keys(set).forEach(function (ing) {
-    assert(Q.SOURCES[ing] && Q.SOURCES[ing].level <= 10, 'adamantine_chain_2 ingredient ' + ing + ' resolves by L10');
+    assert(ing !== 'holy_anvil' && Q.SOURCES[ing] && Q.SOURCES[ing].level <= 10, 'adamantine_chain_2 ingredient ' + ing + ' resolves by L10');
   });
 });
+assert(chain.requires.join() === 'holy_anvil' && chain.consumesRequires === false, 'Adamantine Chain +2 requires the anvil and does not spend it');
 assert(T.level(10).quest.id === 'temple-ritual' && T.level(10).quest.xpOnce === 10000 && T.level(10).pacing.keyItems[0] === 'ritual complete', 'the level table tracks the temple ritual and its XP');
 
-assert(L10.OPEN.length === 21 && L10.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L10 choice is marked in the data');
+assert(L10.OPEN.length === 23, 'L10 records 23 choice notes');
+L10.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
+const nick = L10.OPEN.filter(function (row) { return row.note.indexOf('(open)') >= 0; });
+assert(nick.length === 2 && nick[0].id === 'undying-rise' && nick[1].id === 'elevator-epilogue', 'the two Nick flags stay open');
+['king', 'duergar', 'skeleton', 'zombie', 'ghoul', 'wight', 'wraith', 'spectre', 'duergarPriest'].forEach(function (key) {
+  assert(L10.MONSTERS[key].immune.indexOf('poison') >= 0, key + ' lists poison immunity');
+});
 assert(html.indexOf('L10.js') < 0 && html.indexOf('maps/l10.json') < 0, 'index.html does not load the L10 data');
 assert(save.indexOf('L10.js') < 0 && save.indexOf('maps/l10.json') < 0, 'GameSave does not load the L10 data');
 assert(L10.wired === false, 'the L10 module is not wired');
