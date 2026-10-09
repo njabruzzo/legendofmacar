@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const P = require('./SpiderPoison');
 const B = require('./BattleBuffs');
+const T = require('../campaign/CampaignTable');
 
 let failed = 0;
 function assert(cond, msg) {
@@ -49,25 +50,35 @@ assert(!kin.saved && kin.hp === 20 && kin.slow.moveMul === 0.5, 'kin take the sa
 function target(level, spider) {
   return P.saveTarget({ level: level, con: 16, spider: spider });
 }
-assert(P.OFFSET.large === 2 && P.OFFSET.huge === 3 && P.OFFSET.giant === 4, '1.16 offsets are large +2, huge +3, giant +4');
-assert(P.OFFSET.phase === 6 && P.OFFSET.queen === 6, 'phase spider and the Queen are +6');
+assert(P.poisonSave === T.poisonSave, 'SpiderPoison uses CampaignTable.poisonSave');
+assert(T.poisonSave.large === 2 && T.poisonSave.huge === 1 && T.poisonSave.giant === 0, 'size modifiers are large +2, huge +1, giant 0');
+assert(T.poisonSave.phase === -2 && T.poisonSave.queen === -2, 'phase and the Queen are -2');
 assert(P.fighterPoisonBase(9) === 8 && P.fighterPoisonBase(10) === 8, 'F9-F10 poison base is the PHB fighter 8');
 assert(P.POISON_BASE[3].from === 9 && P.POISON_BASE[3].to === 10 && P.POISON_BASE[3].base === 8, 'the F9-F10 band is explicit in the grid');
-assert(target(4, 'spider') === 11, 'F4 vs large spider is base 13 plus 2 minus CON 4');
-assert(target(4, 'spiderHuge') === 12, 'F4 vs huge spider is base 13 plus 3 minus CON 4');
-assert(target(4, 'spiderGiant') === 13, 'F4 vs giant spider is base 13 plus 4 minus CON 4');
-assert(target(4, 'phasespider') === 15 && target(4, 'spiderQueen') === 15, 'F4 vs phase spider or the Queen is base 13 plus 6 minus CON 4');
-assert([target(5, 'spider'), target(6, 'spiderHuge'), target(6, 'spiderGiant'), target(5, 'spiderQueen')].join() === '9,10,11,13', 'F5-F6 row');
-assert([target(7, 'spider'), target(8, 'spiderHuge'), target(7, 'spiderGiant'), target(8, 'spiderQueen')].join() === '8,9,10,12', 'F7-F8 row');
-assert([target(9, 'spider'), target(10, 'spiderHuge'), target(9, 'spiderGiant'), target(10, 'spiderQueen')].join() === '6,7,8,10', 'F9-F10 row uses base 8 plus the same offsets');
-assert(P.saveTarget({ level: 4, con: 18, spider: 'spiderGiant' }) === 12, 'CON 18 is a +5 bonus');
-assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', antitoxin: true }) === 9, 'antitoxin lowers the target by 4');
-assert(P.saveTarget({ level: 9, con: 16, spider: 'spiderGiant' }) === 8, 'F9 giant spider is base 8 plus 4 minus CON 4');
-assert(P.saveTarget({ level: 10, con: 16, spider: 'spiderGiant' }) === 8, 'F10 uses the same base 8');
+assert([target(4, 'spider'), target(4, 'spiderHuge'), target(4, 'spiderGiant'), target(4, 'phasespider')].join() === '7,8,9,11', 'F4 row at CON 16');
+assert(target(4, 'spiderQueen') === 11, 'F4 Queen matches the phase spider');
+assert([target(5, 'spider'), target(5, 'spiderHuge'), target(5, 'spiderGiant'), target(5, 'phasespider')].join() === '5,6,7,9', 'F5 row at CON 16');
+assert([target(6, 'spider'), target(6, 'spiderHuge'), target(6, 'spiderGiant'), target(6, 'phasespider')].join() === '5,6,7,9', 'F6 row at CON 16');
+assert([target(7, 'spider'), target(7, 'spiderHuge'), target(7, 'spiderGiant'), target(7, 'phasespider')].join() === '4,5,6,8', 'F7 row at CON 16');
+assert([target(8, 'spider'), target(8, 'spiderHuge'), target(8, 'spiderGiant'), target(8, 'phasespider')].join() === '4,5,6,8', 'F8 row at CON 16');
+assert([target(9, 'spider'), target(9, 'spiderHuge'), target(9, 'spiderGiant'), target(9, 'phasespider')].join() === '2,3,4,6', 'F9 row at CON 16');
+assert([target(10, 'spider'), target(10, 'spiderHuge'), target(10, 'spiderGiant'), target(10, 'phasespider')].join() === '2,3,4,6', 'F10 row at CON 16');
+assert(P.saveTarget({ level: 4, con: 18, spider: 'spiderGiant' }) === 8, 'CON 18 vs a giant spider at F4 is 8');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', antitoxin: true }) === 5, 'antitoxin vs a giant spider at F4 is 5');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', periaptPlus: 1 }) === 8, 'a periapt bonus also lowers the target');
 
-const saved = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 11 });
-assert(saved.saved && saved.hp === 40 && saved.slow == null, 'a roll that meets the target saves');
-const poisoned = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 10 });
+const sizes = [['spider', 'large'], ['spiderHuge', 'huge'], ['spiderGiant', 'giant'], ['phasespider', 'phase'], ['spiderQueen', 'queen']];
+for (let level = 1; level <= 10; level++) {
+  sizes.forEach(function (pair) {
+    const mod = T.poisonSave[pair[1]];
+    const got = P.saveTarget({ level: level, con: 16, spider: pair[0] });
+    assert(got === P.fighterPoisonBase(level) - 4 - mod, 'F' + level + ' ' + pair[1] + ' agrees with CampaignTable.poisonSave');
+  });
+}
+
+const saved = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 7 });
+assert(saved.saved && saved.hp === 40 && saved.slow == null, 'a roll that meets the F4 large target of 7 saves');
+const poisoned = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 6 });
 assert(!poisoned.saved && poisoned.hp === 20, 'a roll under the target fails');
 
 const cured = P.cure({ hp: poisoned.hp, slow: poisoned.slow });

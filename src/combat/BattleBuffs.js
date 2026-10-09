@@ -6,8 +6,10 @@
  * A buff used outside a fight is armed and becomes active at the next
  * beginFight. While it is armed it has no timer. It ends on Macar's
  * death, on a floor change, or, once the fight has started, when
- * now - t0 exceeds the 300 second cap. t0 is beginFight, or the moment
- * of use when that use is already inside a fight. The item leaves the
+ * now - t0 exceeds the 300 second cap. The cap starts when the buff's
+ * fight begins. A buff used outside a fight is armed and has no timer
+ * until beginFight. A buff used during a fight is already in its fight,
+ * so its timer starts at that use. The item leaves the
  * pack on a successful use. Only one golden egg may be armed or active.
  */
 (function (root) {
@@ -56,6 +58,7 @@
     var buff = {
       k: item.k,
       state: fighting ? 'active' : 'armed',
+      /* Armed outside a fight: no timer. Used in a fight: the 300 s cap starts at this use. */
       t0: fighting ? state.now : null,
       cap: CAP
     };

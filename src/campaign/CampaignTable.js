@@ -26,6 +26,9 @@
     F8: 125001, F9: 250001, F10: 500001
   };
 
+  /* Rules 1.16. Subtracted from the fighter poison base. Not an amount added on top. */
+  var POISON_SAVE = { large: 2, huge: 1, giant: 0, phase: -2, queen: -2 };
+
   function gxp(base, perHp, hp, terms) {
     var xp = base + perHp * hp;
     for (var i = 0; i < terms.length; i++) xp += terms[i];
@@ -103,8 +106,8 @@
       residents: [
         mon('rat', 'Cave Rat', '1/2', 7, 8, { tt: 'C' }),
         mon('centipede', 'Giant Centipede', '1/4', 9, 32, { poisonSave: 4, xpNote: 'verify' }),
-        mon('spider', 'Cave Spider', '1+1', 8, 76, { poisonSave: 2, tt: 'J-N' }),
-        mon('spiderHuge', 'Huge Spider', '2+2', 6, 138, { poisonSave: 1 }),
+        mon('spider', 'Cave Spider', '1+1', 8, 76, { poisonSave: POISON_SAVE.large, tt: 'J-N' }),
+        mon('spiderHuge', 'Huge Spider', '2+2', 6, 138, { poisonSave: POISON_SAVE.huge }),
         mon('beetle', 'Fire Beetle', '1+2', 4, 32),
         mon('beetleBoring', 'Boring Beetle', 5, 3, 202, { printedPoison: false }),
         mon('kobold', 'Kobold', '1/2', 7, 7),
@@ -174,12 +177,12 @@
       theme: 'Spider packs from Chapter II, a trapped pixie, the Queen',
       builtFrom: { chapter: null, movedFrom: 2, note: 'Spider packs, web corpses, and spider art leave L2' },
       reuse: { kept: ['spider packs', 'web corpses'], cutOrMoved: ['Spider Lord retired'], cutAsChapter: false },
-      boss: mon('spiderQueen', 'Spider Queen', '8+8', 3, 1828, { hp: 44, decision: 'D4-A', lair: 'C', poisonSave: -2, artStandIn: 'spiderGiant' }),
+      boss: mon('spiderQueen', 'Spider Queen', '8+8', 3, 1828, { hp: 44, decision: 'D4-A', lair: 'C', poisonSave: POISON_SAVE.queen, artStandIn: 'spiderGiant' }),
       residents: [
-        mon('spider', 'Large spider', '1+1', 8, 76, { poisonSave: 2 }),
-        mon('spiderHuge', 'Huge spider', '2+2', 6, 138, { poisonSave: 1 }),
-        mon('spiderGiant', 'Giant spider', '4+4', 4, 315, { poisonSave: 0 }),
-        mon('phasespider', 'Phase spider', '5+5', 7, 515, { poisonSave: -2 }),
+        mon('spider', 'Large spider', '1+1', 8, 76, { poisonSave: POISON_SAVE.large }),
+        mon('spiderHuge', 'Huge spider', '2+2', 6, 138, { poisonSave: POISON_SAVE.huge }),
+        mon('spiderGiant', 'Giant spider', '4+4', 4, 315, { poisonSave: POISON_SAVE.giant }),
+        mon('phasespider', 'Phase spider', '5+5', 7, 515, { poisonSave: POISON_SAVE.phase }),
         mon('pixie', 'Pixie', '1/2', 5, 0, { fights: false, gives: 'pixie-dust' })
       ],
       minions: [
@@ -536,6 +539,7 @@
   var api = {
     LOCKED: LOCKED,
     FIGHTER_XP: FIGHTER_XP,
+    poisonSave: POISON_SAVE,
     GUARDIANS: GUARDIANS,
     LEVELS: LEVELS,
     CUT_CHAPTERS: CUT_CHAPTERS,

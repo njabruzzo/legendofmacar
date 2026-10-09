@@ -124,6 +124,8 @@
       var node = level[feature];
       if (!node || (node.placement !== 'unbuilt' && node.placement !== 'fixed')) {
         errors.push(id + ' ' + feature + ' must be unbuilt or fixed');
+      } else if (node.placement === 'fixed') {
+        errors = errors.concat(validatePoint(id, feature, node, false));
       }
     });
     var g = level.guardian;

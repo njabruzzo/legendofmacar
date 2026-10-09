@@ -40,6 +40,11 @@ const pack2 = [dust()];
 mid.fightOn = 1;
 const inFight = B.use(mid, pack2, pack2[0], 3);
 assert(inFight.buff.state === 'active' && pack2.length === 0, 'dust used in a fight starts active and leaves the pack');
+assert(inFight.buff.t0 === 3, 'a buff used in a fight starts its 300 second timer at use');
+B.expire(mid, 303);
+assert(mid.battleBuffs.length === 1, 'that timer still holds 300 seconds after the in-fight use');
+B.expire(mid, 303.01);
+assert(mid.battleBuffs.length === 0, 'that timer drops the buff just after 300 seconds from use');
 
 const eggs = B.create(0);
 const carton = [egg(1), egg(2)];

@@ -86,6 +86,13 @@ flaggedBook.levels[0].boss.count = 1;
 const flagged = Map.load(flaggedBook);
 assert(!flagged.ok && flagged.errors.some(function (e) { return e.indexOf('L1') >= 0; }), 'a single Thin One with a boss flag fails');
 
+const unfixed = JSON.parse(JSON.stringify(campaign.book));
+unfixed.levels[2].elevator.placement = 'fixed';
+unfixed.levels[2].elevator.x = null;
+unfixed.levels[2].elevator.y = null;
+const missingPoint = Map.load(unfixed);
+assert(!missingPoint.ok && missingPoint.errors.some(function (e) { return e.indexOf('fixed point needs x and y') >= 0; }), 'a fixed feature without coordinates is rejected');
+
 const broken = JSON.parse(JSON.stringify(campaign.book));
 delete broken.levels[3].rubyDoor;
 const bad = Map.load(broken);

@@ -10,15 +10,20 @@
  * There is no raw-death path and no damage-over-time path.
  * At 1 HP the failed save leaves the creature at 1 HP and still applies the slow.
  *
- * The save grid is the PHB fighter poison base plus the 1.16 size offset.
- * F9-F10 base is 8. Offsets: large +2, huge +3, giant +4, phase and Queen +6.
+ * The save target is the PHB fighter poison base, minus CON, minus the
+ * size modifier in CampaignTable.poisonSave. F9-F10 base is 8.
+ * Those modifiers are large +2, huge +1, giant 0, phase -2, queen -2.
+ * They are not amounts added to the target.
  */
 (function (root) {
   'use strict';
 
-  var POISON_MODE = 'h1';
+  var table = root.CampaignTable;
+  if (!table && typeof module === 'object' && module.exports) table = require('../campaign/CampaignTable');
+  if (!table || !table.poisonSave) throw new Error('SpiderPoison needs CampaignTable.poisonSave');
 
-  var OFFSET = { large: 2, huge: 3, giant: 4, phase: 6, queen: 6 };
+  var POISON_MODE = 'h1';
+  var POISON_SAVE = table.poisonSave;
 
   var POISON_BASE = [
     { from: 1, to: 4, base: 13 },
@@ -28,11 +33,11 @@
   ];
 
   var SPIDERS = {
-    spider: { name: 'large', offset: OFFSET.large },
-    spiderHuge: { name: 'huge', offset: OFFSET.huge },
-    spiderGiant: { name: 'giant', offset: OFFSET.giant },
-    phasespider: { name: 'phase', offset: OFFSET.phase },
-    spiderQueen: { name: 'queen', offset: OFFSET.queen }
+    spider: { name: 'large', size: 'large' },
+    spiderHuge: { name: 'huge', size: 'huge' },
+    spiderGiant: { name: 'giant', size: 'giant' },
+    phasespider: { name: 'phase', size: 'phase' },
+    spiderQueen: { name: 'queen', size: 'queen' }
   };
 
   function fighterPoisonBase(level) {
@@ -55,10 +60,11 @@
     var base = opts.base != null ? opts.base : fighterPoisonBase(opts.level);
     var bonus = opts.conBonus != null ? opts.conBonus : conBonus(opts.con);
     if (bonus == null) throw new Error('CON bonus is only printed for 14-18');
-    var offset = opts.offset != null ? opts.offset : spider.offset;
+    var mod = opts.mod != null ? opts.mod : POISON_SAVE[spider.size];
+    if (typeof mod !== 'number') throw new Error('spider save modifier is missing');
     var anti = opts.antitoxin ? 4 : 0;
     var periapt = opts.periaptPlus || 0;
-    return base + offset - bonus - anti - periapt;
+    return base - bonus - mod - anti - periapt;
   }
 
   function failedSave(hp) {
@@ -108,7 +114,7 @@
 
   var api = {
     POISON_MODE: POISON_MODE,
-    OFFSET: OFFSET,
+    poisonSave: POISON_SAVE,
     POISON_BASE: POISON_BASE,
     SPIDERS: SPIDERS,
     fighterPoisonBase: fighterPoisonBase,
