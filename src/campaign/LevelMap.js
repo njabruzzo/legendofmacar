@@ -134,6 +134,10 @@
     } else if (!(g.count >= 1) || !g.tier) {
       errors.push(id + ' guardian needs a tier and a count');
     }
+    /* A fixed guardian is a point. Null x/y used to pass. */
+    if (g && g.placement === 'fixed') {
+      errors = errors.concat(validatePoint(id, 'guardian', g, false));
+    }
     var elev = level.elevator;
     if (!elev || typeof elev.transitionCard !== 'string' || !elev.transitionCard) {
       errors.push(id + ' elevator needs a transition-card art key');
@@ -145,12 +149,28 @@
     if (level.boss && level.boss.status === 'tbd') errors.push(id + ' boss is not TBD');
     if (level.boss != null && !level.boss.key) errors.push(id + ' boss needs a key');
     if (level.boss && level.boss.bossFlagOnIndividual) errors.push(id + ' no single creature wears a boss flag');
+    if (g && g.bossFlagOnIndividual) errors.push(id + ' no single creature wears a boss flag');
+    if (level.boss && (level.boss.sameAsGuardian || level.boss.firesWhen === 'lastDies')) {
+      errors.push(id + ' boss is not a last-death guardian group');
+    }
+    /* A fixed boss is a point. Null x/y used to pass. */
+    if (level.boss && level.boss.placement === 'fixed') {
+      errors = errors.concat(validatePoint(id, 'boss', level.boss, false));
+    }
+    /* A boss-less level is valid only with the explicit lever exception, and only on L1. */
+    var leverStairs = level.stairsOpenOn === 'lever';
+    if (leverStairs) {
+      if (id !== 'L1') errors.push(id + ' stairs may open on the lever only on L1');
+      if (level.boss != null) errors.push(id + ' a lever-stair level has no boss');
+    } else if (level.boss == null) {
+      errors.push(id + ' stairs require a boss unless stairsOpenOn is lever');
+    }
     if (id === 'L1') {
-      var b = level.boss;
-      if (!b || b.key !== 'thinOne' || b.count !== 6 || b.sameAsGuardian !== true || b.firesWhen !== 'lastDies' || b.bossFlagOnIndividual !== false) {
-        errors.push('L1 boss is the six Thin Ones together and fires when the last dies');
+      if (level.stairsOpenOn !== 'lever') errors.push('L1 stairs open on the lever');
+      if (level.boss != null) errors.push('L1 has no boss');
+      if (!g || g.key !== 'thinOne' || g.count !== 6 || g.bossFlagOnIndividual !== false) {
+        errors.push('L1 guardian is the six Thin Ones and none wears a boss flag');
       }
-      if (!g || g.key !== 'thinOne' || g.count !== 6) errors.push('L1 guardian is the same six Thin Ones');
     }
     if (!level.exit || level.exit.ref !== 'campaign') errors.push(id + ' campaign exit.ref must be campaign');
     return errors;

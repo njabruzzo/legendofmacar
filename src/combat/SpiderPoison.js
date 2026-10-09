@@ -64,7 +64,10 @@
     if (typeof mod !== 'number') throw new Error('spider save modifier is missing');
     var anti = opts.antitoxin ? 4 : 0;
     var periapt = opts.periaptPlus || 0;
-    return base - bonus - mod - anti - periapt;
+    var target = base - bonus - mod - anti - periapt;
+    /* 6 #12 — the save target never goes below 2, so a natural 1 always fails. */
+    if (target < 2) target = 2;
+    return target;
   }
 
   function failedSave(hp) {

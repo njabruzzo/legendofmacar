@@ -25,7 +25,9 @@ assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
   'QuestRegistry',
   'LevelMap',
   'ExitRules',
-  'CampaignTable'
+  'CampaignTable',
+  'L2.js',
+  'maps/l2.json'
 ].forEach(function (needle) {
   assert(html.indexOf(needle) < 0, 'index.html does not mention ' + needle);
 });

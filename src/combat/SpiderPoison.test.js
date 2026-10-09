@@ -76,6 +76,15 @@ for (let level = 1; level <= 10; level++) {
   });
 }
 
+assert(/6 #12/.test(src) && src.indexOf('pending Sage ruling') < 0, 'the save-target floor cites 6 #12');
+assert(P.saveTarget({ level: 10, con: 18, spider: 'spider' }) === 2, 'F10 CON 18 vs a large spider floors at 2');
+assert(P.saveTarget({ level: 10, con: 16, spider: 'spider', antitoxin: true, periaptPlus: 1 }) === 2, 'bonuses cannot push the target under 2');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spider' }) === 7, 'a target already above 2 is unchanged');
+const naturalOne = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, roll: 1 });
+assert(!naturalOne.saved && naturalOne.target === 2 && naturalOne.hp === 20, 'a natural 1 fails the floored save');
+const meetsFloor = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, roll: 2 });
+assert(meetsFloor.saved && meetsFloor.hp === 40, 'a roll of 2 meets the floored target');
+
 const saved = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 7 });
 assert(saved.saved && saved.hp === 40 && saved.slow == null, 'a roll that meets the F4 large target of 7 saves');
 const poisoned = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 6 });
