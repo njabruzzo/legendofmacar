@@ -26,9 +26,13 @@ function extractFn(name){
   throw new Error('unclosed '+name);
 }
 
-assert(/\{key:'animate', ico:'cross', label:'Animate'\}/.test(html), 'Animate is an action-bar skill');
-assert(/HUD_DESK_GROUPS=\[\['pack'\],\['wall','attack','bow','bomb','ale','animate'\]/.test(html),
-  'desktop bar includes Animate with the combat group');
+assert(/\{key:'animate', ico:'bones', label:'Animate'\}/.test(html), 'Animate is an action-bar skill');
+assert(/bones:'bones'/.test(html) && /bones:'assets\/props\/prop_bones\.png'/.test(html),
+  'Animate uses the existing bones pile, not the medical cross');
+assert(/HUD_DESK_GROUPS=\[\['pack'\],\['wall','attack','bow','bomb','ale'\],\['search','secret','shovel','camp','craft'\]\]/.test(html),
+  'desktop groups stay fixed so Animate cannot recenter the bar');
+assert(/function placeAnimateButton\(/.test(html) && /placeAnimateButton\(\)/.test(html),
+  'Animate is parked after the other plates are measured');
 assert(/k==='animate' && !\(typeof wearingBoneCrown/.test(html),
   'Animate is hidden unless the bone crown is worn');
 assert(/const TAP=HUD_TAP/.test(html) && /HUD_TAP=44/.test(html)
@@ -168,8 +172,8 @@ assert(/refreshAnimateButton\(\)/.test(extractFn('takeBoneCrown'))
   && /refreshAnimateButton\(\)/.test(extractFn('dropBoneCrown'))
   && /refreshAnimateButton\(\)/.test(extractFn('tryAnimateDead')),
   'take, an inventory drop, and a spent charge refresh Animate');
-assert(/Animate is ready: the cross button\. One thrall\./.test(extractFn('takeBoneCrown')),
-  'the take hint names the cross button and one thrall');
+assert(/Animate is ready: the bones button\. One thrall\./.test(extractFn('takeBoneCrown')),
+  'the take hint names the bones button and one thrall');
 assert(/The slot frees when it falls or is turned\./.test(extractFn('tryAnimateDead'))
   && !/crown leaves/.test(extractFn('tryAnimateDead')),
   'the post-animate hint frees the slot when the thrall falls or is turned');

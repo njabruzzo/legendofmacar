@@ -166,7 +166,8 @@ assert(!/From simple beginnings/.test(menu) && !/B O O K   O N E/.test(menu),
   'the splash line and Book One label are not repeated on screen 2');
 assert(/wrapLines/.test(html.match(/function layoutHighPlate\(g, spec\)\{[\s\S]*?function paintHighPlate/)[0]),
   'quote wraps on word boundaries');
-assert(/menuBtn\(g,'New descent'[\s\S]*startChapter\(1\)[\s\S]*'primary'/.test(menu),
+assert(/menuBtn\(g,'New descent'[\s\S]*beginFreshDescent\(\)[\s\S]*'primary'/.test(menu)
+  && /function beginFreshDescent\(\)\{[\s\S]*?startChapter\(1\)/.test(html),
   'blank-book primary is New descent and starts Chapter I');
 assert(/menuBtn\(g,'Continue'[\s\S]*loadSavedGame\(\)[\s\S]*'primary'/.test(menu),
   'marked-book primary is Continue');

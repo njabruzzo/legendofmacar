@@ -85,7 +85,7 @@ assert(/Drop electrum/.test(html) && /10 \/ 100 \/ All/.test(html),
 const saveSrc=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
 assert(/emptySocket/.test(saveSrc) && /toothKind/.test(saveSrc),
   'SAVE copies emptySocket + toothKind on the face');
-assert(/flags: clone\(L\.flags/.test(saveSrc) && /packs: clone\(G\.packs/.test(saveSrc),
+assert(/flags: clone\(L\.flags/.test(saveSrc) && /clone\(G\.packs \|\| \{\}\)/.test(saveSrc),
   'SAVE keeps electrumTooth / bronzeTooth flags and the pack item');
 assert(/G\.scene='dead'/.test(extractFn('killMacarHourglass')),
   'hourglass burst kills Macar via the dead scene');

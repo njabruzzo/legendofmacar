@@ -45,6 +45,7 @@
 <script src="src/props/CraftStation.js"></script>
 <script src="src/packs/GhostKit.js"></script>
 <script src="src/saves/GameSave.js"></script>
+<script src="src/saves/Autosave.js"></script>
 <script src="src/loot/SpiderLair.js"></script>
 <script src="src/loot/DmgPotions.js"></script>
 <!-- Systems modules: classic sync tags only (no type=module).
@@ -605,7 +606,16 @@ const MUSIC_LABEL={
   packHorn:'Horn: War Horns \u2014 Eldritch Grim',
   bossHorn:'Horn: War Horns \u2014 Eldritch Grim'
 };
-function openCredits(from){ G.creditsFrom=from||'title_menu'; G.scene='credits'; }
+function openCredits(from){
+  /* Flush while the descent or camp is still the live scene. Credits
+     itself is not a loadable book. */
+  if(typeof autosaveNow==='function') autosaveNow('hide');
+  G.creditsFrom=from||'title_menu'; G.scene='credits';
+}
+function openChapters(){
+  if(typeof autosaveNow==='function') autosaveNow('hide');
+  G.scene='chapters';
+}
 function leaveCredits(){
   const from=G.creditsFrom||'title_menu';
   G.creditsFrom=null;
@@ -991,6 +1001,8 @@ const ICON_SPR={
   plant:'icon_plant', shovel:'icon_shovel', campfire:'icon_campfire',
   crossbow:'icon_crossbow', secret:'icon_secret', climb:'icon_climb',
   attack:'icon_attack', defend:'icon_defend', craft:'icon_craft',
+  /* Existing bone pile (skull in the heap). Not a medical cross. */
+  bones:'bones',
   specialtyI:'icon_specialty_i', specialtyII:'icon_specialty_ii',
   specialtyIII:'icon_specialty_iii', specialtyIV:'icon_specialty_iv'
 };
@@ -4668,7 +4680,7 @@ const G={ scene:'title', lvl:null, ch:0, t:0, paused:false,
   abil:null, abilSaid:0, packs:null, packWho:'macar', packFrom:null,
   trail:[], charXp:null, inspect:null, loot:[], showObjs:0, showLog:0, faceOffer:0, faceDrop:null, packSel:null,
   day:1, dayClock:0, ghostAllies:{}, campTalkDay:{}, pordoomGiftDay:0, borrowed:[],
-  hudMore:0, miniBig:0, animateDeadSpent:0 };
+  hudMore:0, miniBig:0, animateDeadSpent:0, _ownsBook:0 };
 
 function say(t,c,k){
   const combat=k==='combat' || /attack|goes down|broken|swing|hammer|guard|rally|combat|preparing|d20|\bhit\b|\bmiss\b/i.test(t);
@@ -7116,6 +7128,15 @@ function capturePlaySave(){
     })
   };
 }
+let lastQuietSaveT=0, lastQuietSaveMs=0;
+function noteQuietSave(){
+  lastQuietSaveT=G.t||0;
+  lastQuietSaveMs=Date.now();
+}
+function bookSceneNow(){
+  if(typeof Autosave!=='undefined' && Autosave.bookScene) return Autosave.bookScene(G);
+  return (G.scene==='camp')?'camp':'play';
+}
 function writeGameSave(quiet, snap){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
   /* A prepared snap (a fresh descent) replaces the book. The lever, floor
@@ -7123,7 +7144,7 @@ function writeGameSave(quiet, snap){
      those quiet writes keep the stored unlock and clears. */
   const passed=!!snap;
   if(!snap){
-    const extra={scene:(G.scene==='camp')?'camp':'play'};
+    const extra={scene:bookSceneNow()};
     if(G.lvl) extra.play=capturePlaySave();
     snap=GameSave.snapshot(G, extra);
   }
@@ -7134,12 +7155,71 @@ function writeGameSave(quiet, snap){
   }
   catch(err){ ok=false; }
   if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
+  noteQuietSave();
   if(!quiet){
+    G._ownsBook=1;
     say('The book is marked. Progress is kept.','#ffe08a');
     hint('Saved. '+GameSave.label(snap), 3.8);
     G.campSaveFlash=(G.t||0)+2.4;
   }
   return true;
+}
+/* Quiet book. Fresh descent writes before the click handler returns, so
+   Burn it cannot leave an empty slot. Tick and hide only write a scene
+   Continue already knows how to open, and only when this session owns
+   the slot. A chapter picked from the title does not. */
+function autosaveNow(reason){
+  if(typeof Autosave==='undefined' || typeof GameSave==='undefined' || typeof writeGameSave!=='function') return false;
+  if(reason!=='fresh' && !G._ownsBook) return false;
+  const nowMs=Date.now();
+  if(!Autosave.due(reason, G.t||0, lastQuietSaveT, nowMs, lastQuietSaveMs)) return false;
+  if(!Autosave.loadable(G)) return false;
+  const extra={scene:bookSceneNow()};
+  if(G.lvl) extra.play=capturePlaySave();
+  const snap=GameSave.snapshot(G, extra);
+  if(reason!=='fresh'){
+    let prev=null;
+    try{ prev=GameSave.read(localStorage); }catch(err){ prev=null; }
+    if(prev && Autosave.regresses(prev, snap)){ noteQuietSave(); return false; }
+  }
+  const ok=!!writeGameSave(true, snap);
+  if(!ok){ lastQuietSaveT=G.t||0; lastQuietSaveMs=nowMs; }
+  return ok;
+}
+let autosaveIdlePending=0;
+function runAutosaveTick(){
+  autosaveIdlePending=0;
+  if(typeof document!=='undefined' && document.visibilityState==='hidden') return;
+  autosaveNow('tick');
+}
+function scheduleAutosaveTick(){
+  if(autosaveIdlePending) return;
+  autosaveIdlePending=1;
+  if(typeof requestIdleCallback==='function') requestIdleCallback(runAutosaveTick, {timeout:1500});
+  else setTimeout(runAutosaveTick, 32);
+}
+function tickAutosave(){
+  if(typeof document!=='undefined' && document.visibilityState==='hidden') return;
+  if(!G._ownsBook) return;
+  if(typeof Autosave==='undefined' || !Autosave.due('tick', G.t||0, lastQuietSaveT, Date.now(), lastQuietSaveMs)) return;
+  scheduleAutosaveTick();
+}
+function beginFreshDescent(){
+  G.wipeAsk=0;
+  G.kills=0;
+  if(typeof GameSave!=='undefined' && GameSave.applyBlankCampaign) GameSave.applyBlankCampaign(G);
+  startChapter(1);
+  G._ownsBook=1;
+  autosaveNow('fresh');
+}
+function bindAutosaveLifecycle(){
+  if(bindAutosaveLifecycle.done) return;
+  bindAutosaveLifecycle.done=1;
+  const flush=function(){ try{ autosaveNow('hide'); }catch(err){} };
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flush();
+  });
+  window.addEventListener('pagehide', flush);
 }
 function remakeSavedEnt(sv){
   const e=ent({kind:sv.kind||'foe', team:sv.team||'foe', x:sv.x||0, y:sv.y||0, hp:sv.hp||1});
@@ -7248,15 +7328,18 @@ function loadSavedGame(){
   if(typeof EquipmentSlots!=='undefined'&&EquipmentSlots.ensureShape) G.equipped=EquipmentSlots.ensureShape(G.equipped||{});
   if(typeof applyEquipped==='function') applyEquipped();
   if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
+  G._ownsBook=1;
   if(snap.scene==='camp'){
     G.scene='camp'; G.paused=false; G.lvl=null;
     say('The camp fire is as you left it.','#c9b895');
+    noteQuietSave();
     return;
   }
   G._keepProgress=1;
   G._loadSnap=snap;
   startChapter(snap.ch||1);
   say('The book opens where you left the mark.','#ffe08a');
+  noteQuietSave();
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
@@ -9075,22 +9158,52 @@ function beginUiLayer(g){
   g.globalCompositeOperation='source-over';
   g.globalAlpha=1;
 }
+/* World prompts, the combat log, field hints, and the kin sheet are the
+   play field. Pack, camp, craft, trade, pause, the rest card, and menus
+   paint their own controls. A leftover prompt must not cover them, and a
+   tap must not land on a control the player cannot see. */
+function playFieldPlates(){
+  return G.scene==='play' && !G.paused && !G.sleepShow;
+}
 function drawPlayPlates(g){
   if(G.scene==='camp'){
+    promptBtn=null;
     if(!G.hint && !G.talk) return;
     beginUiLayer(g);
     if(G.hint) drawHint(g,UIS);
     drawTalk(g);
     return;
   }
-  if(G.scene!=='play' && G.scene!=='pack') return;
-  if(!(G.talk || G.hint || G.inspect || PROMPT || G.scene==='play')) return;
+  const field=playFieldPlates();
+  /* Stone-mouth "Drop it in?" opens while the pack is still up. */
+  const packTalk=G.scene==='pack' && !!G.talk;
+  /* The rest card is not the play field, but campRest's hint is the
+     message on that card. It expires with the card, so it has to paint
+     here. The prompt, the log, and the kin sheet stay off. */
+  if(G.scene==='play'&&G.sleepShow&&!G.paused&&G.hint){
+    beginUiLayer(g);
+    drawHint(g,UIS);
+    promptBtn=null;
+    return;
+  }
+  if(!field && !packTalk){
+    promptBtn=null;
+    return;
+  }
   beginUiLayer(g);
   const s=UIS;
-  if(G.scene==='play') drawLog(g,s);
-  drawPromptBtn(g,s);
-  drawHint(g,s);
-  drawInspect(g,s);
+  if(field){
+    if(G.scene==='play') drawLog(g,s);
+    /* Dialogue and the kin sheet own the screen. The prompt stays armed
+       for when they close, but it must not paint or take the tap. */
+    if(G.talk || G.inspect) promptBtn=null;
+    else drawPromptBtn(g,s);
+    drawHint(g,s);
+    drawInspect(g,s);
+    drawTalk(g);
+    return;
+  }
+  promptBtn=null;
   drawTalk(g);
 }
 function drawTalk(g){
@@ -12929,7 +13042,7 @@ function takeBoneCrown(crown){
   }
   burst(crown.x, crown.y, '#e8d0b8', 18, 2.6);
   say('The bone crown seats on Macar\'s head. The dead will answer — one at a time.','#e8d0b8');
-  hint('Animate is ready: the cross button. One thrall.',3.6);
+  hint('Animate is ready: the bones button. One thrall.',3.6);
   if(typeof riseSkeletalDwarves==='function') riseSkeletalDwarves(crown);
   if(typeof refreshAnimateButton==='function') refreshAnimateButton();
   return {ok:1, worn:1};
@@ -14195,7 +14308,7 @@ const HUDSKILLS=[
   {key:'shovel', ico:'shovel', label:'Dig'},
   {key:'camp', ico:'campfire', label:'Camp'},
   {key:'craft', ico:'craft', label:'Craft'},
-  {key:'animate', ico:'cross', label:'Animate'},
+  {key:'animate', ico:'bones', label:'Animate'},
 ];
 /* Rally is not a HUD verb (bar or More). Key 5 still fires the war-horn if remembered. */
 const HUD_TAP=44;
@@ -14204,8 +14317,9 @@ const HUD_MOBILE_ORDER=['pack','ale','search','secret','shovel','camp','craft','
 /* Touch: these ride the right-thumb cluster, one row above the Attack slab.
    Defend sits outermost, nearest the thumb's resting arc. */
 const HUD_TOUCH_COMBAT=['ale','bomb','bow','wall'];
-/* Desktop bar groups: PACK ‖ combat ‖ field work. */
-const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale','animate'],['search','secret','shovel','camp','craft']];
+/* Desktop bar groups: PACK ‖ combat ‖ field work.
+   Animate is not in a group. Adding it here recenters the bar. */
+const HUD_DESK_GROUPS=[['pack'],['wall','attack','bow','bomb','ale'],['search','secret','shovel','camp','craft']];
 /* Keycaps drawn on mouse/keyboard only. Mirrors the keydown table. */
 const HUD_KEYS={pack:'I', wall:'V', attack:'1', bow:'X', bomb:'B', ale:'2',
   search:'F', secret:'T', shovel:'G', camp:'C', craft:'K'};
@@ -14364,9 +14478,10 @@ function layoutUI(){
     const TAP=HUD_TAP;
     const edge=8;
     const gap=PORT?6:5;
+    /* Animate is not in this row. Pushing it widens Attack and shoves
+       Heal / Throw / Shoot / Defend, and on a phone it collapses the
+       field grid. placeAnimateButton parks it after this layout. */
     const combatRow=HUD_TOUCH_COMBAT.map(find).filter(Boolean);
-    const animSkill=find('animate');
-    if(animSkill) combatRow.push(animSkill);
     const util=HUD_MOBILE_ORDER.filter(k=>HUD_TOUCH_COMBAT.indexOf(k)<0)
       .map(find).filter(b=>b && !HUD_OVERFLOW[b.key]);
 
@@ -14447,6 +14562,7 @@ function layoutUI(){
     const mr=miniRect();
     UIBTN.push({x: mr.x - 8 - TAP/2, y: mr.y + TAP/2, r: TAP/2, key:'pause'});
     UI.stickHome={ x: stickX, y: stickY, r: stickR };
+    placeAnimateButton();
     return;
   }
 
@@ -14520,6 +14636,183 @@ function layoutUI(){
   UI.hudTop = L.top - 6*s;
   UIBTN.push({x: padL + 20*s, y: padT + 20*s, r: 16*s, key:'pause'});
   UI.stickHome={ x: stickX, y: y, r: stickR };
+  placeAnimateButton();
+}
+/* Crown on or off must not move the plates above. Animate is measured
+   after they exist: a 44px plate above the touch context band (the
+   Look / Take plate sits on Defend's column), or an end slot past the
+   last desktop plate. Same-row when the right reserve can hold it. */
+function placeAnimateButton(){
+  if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return;
+  const skill=HUDSKILLS.find(b=>b.key==='animate');
+  if(!skill || UIBTN.some(b=>b.key==='animate')) return;
+  if(typeof loadSpriteKeyNow==='function') loadSpriteKeyNow('bones');
+  const disabled=!!(G&&G.animateDeadSpent);
+  function zoneGap(B, r){
+    const dx=Math.max(r.x-(B.x+B.w), B.x-(r.x+r.w), 0);
+    const dy=Math.max(r.y-(B.y+B.h), B.y-(r.y+r.h), 0);
+    if(dx===0 && dy===0) return -1;
+    return Math.hypot(dx, dy);
+  }
+  function plateBlocked(c){
+    for(let i=0;i<UIBTN.length;i++) if(btnGap(c, UIBTN[i])<4) return true;
+    const st=UI.stickHome;
+    if(st && btnGap(c, {x:st.x,y:st.y,r:st.r})<6) return true;
+    const inset=UI.inset||{t:0,r:0,b:0,l:0};
+    const B=btnBox(c);
+    if(B.x<(inset.l||0)-0.5 || B.y<(inset.t||0)-0.5) return true;
+    if(B.x+B.w>VW-(inset.r||0)+0.5 || B.y+B.h>VH-(inset.b||0)+0.5) return true;
+    const zones=[];
+    if(typeof miniRect==='function'){
+      const m=miniRect();
+      if(m&&m.sz) zones.push({x:m.x,y:m.y,w:m.sz,h:m.sz});
+    }
+    if(hudMobile() && typeof touchTabs==='function'){
+      const t=touchTabs();
+      if(t&&t.log) zones.push({x:t.log.x, y:t.y, w:t.obj.x+t.obj.w-t.log.x, h:t.h});
+    }
+    if(typeof partyPortraitFrame==='function'){
+      const f=partyPortraitFrame();
+      if(f&&f.cards) for(let i=0;i<f.cards.length;i++) zones.push(f.cards[i]);
+    }
+    for(let i=0;i<zones.length;i++) if(zoneGap(B, zones[i])<8) return true;
+    return false;
+  }
+  if(hudMobile()){
+    const defend=UIBTN.find(b=>b.key==='wall');
+    if(!defend) return;
+    const TAP=HUD_TAP, gap=8, step=TAP+gap;
+    /* The context plate (Look / Take) is drawn just above the combat
+       cluster, right-aligned, and it is not a UIBTN. A long label can
+       span nearly the width, so that whole band is reserved. */
+    const s=UIS||1;
+    const promptH=Math.max(PORT?44:40, (PORT?48:44)*s);
+    const lift=PORT?Math.max(56,56*s):Math.max(16,16*s);
+    const clusterTop=UI.cluster?UI.cluster.top:(defend.y-TAP/2);
+    const promptY=Math.max(72*s, clusterTop-promptH-lift);
+    const promptBand={x:0, y:promptY, w:VW, h:promptH};
+    const blocked=(c)=>{
+      if(plateBlocked(c)) return true;
+      const B=btnBox(c);
+      return zoneGap(B, promptBand)<8;
+    };
+    const y0=promptY-gap-TAP/2;
+    for(let col=0; col<4; col++){
+      const x=defend.x-col*step;
+      for(let row=0; row<8; row++){
+        const y=y0-row*step;
+        const c={x:x, y:y, r:TAP/2};
+        if(blocked(c)) continue;
+        UIBTN.push({x:x, y:y, r:TAP/2, key:'animate', ico:skill.ico, label:skill.label,
+          slot:1, nolabel:1, disabled:disabled});
+        return;
+      }
+    }
+    /* Every column above the Look plate was blocked. Keep scanning the
+       safe field so a crowned player still gets a plate. */
+    const insetM=UI.inset||{t:0,r:0,b:0,l:0};
+    const minX=(insetM.l||0)+TAP/2, maxX=VW-(insetM.r||0)-TAP/2;
+    const minY=(insetM.t||0)+TAP/2, maxY=VH-(insetM.b||0)-TAP/2;
+    const stride=Math.max(8, TAP/2);
+    function pushTap(x,y){
+      UIBTN.push({x:x, y:y, r:TAP/2, key:'animate', ico:skill.ico, label:skill.label,
+        slot:1, nolabel:1, disabled:disabled});
+    }
+    for(let y=minY; y<=maxY+0.5; y+=stride){
+      for(let x=maxX; x>=minX-0.5; x-=stride){
+        if(blocked({x:x, y:y, r:TAP/2})) continue;
+        pushTap(x,y); return;
+      }
+    }
+    for(let y=minY; y<=maxY+0.5; y+=stride){
+      for(let x=minX; x<=maxX+0.5; x+=stride){
+        if(plateBlocked({x:x, y:y, r:TAP/2})) continue;
+        pushTap(x,y); return;
+      }
+    }
+    pushTap(Math.max(minX, Math.min(maxX, defend.x)), Math.max(minY, Math.min(maxY, y0)));
+    return;
+  }
+  const plates=UIBTN.filter(b=>!b.chip && b.key!=='pause');
+  let edge=-Infinity, anchor=null;
+  for(let i=0;i<plates.length;i++){
+    const b=plates[i];
+    const right=b.x+(b.w||b.r*2)/2;
+    if(right>edge){ edge=right; anchor=b; }
+  }
+  if(!anchor) return;
+  const s=UIS||1, slot=anchor.r*2;
+  const groupGap=Math.max(14, 18*s), tight=Math.max(4, 5*s);
+  const padR=Math.max((UI.inset&&UI.inset.r)||0, 8);
+  const rightLimit=VW-padR-10*s;
+  const labelPx=UI.labelPx||12;
+  const top=anchor.y-(anchor.h||slot)/2;
+  const aboveY=top-7*s-labelPx-6-slot/2;
+  const candidates=[
+    {x:edge+groupGap+slot/2, y:anchor.y, gap:groupGap, row:1},
+    {x:edge+tight+slot/2, y:anchor.y, gap:tight, row:1},
+    {x:anchor.x, y:aboveY, gap:0, row:0}
+  ];
+  for(let i=0;i<candidates.length;i++){
+    const cnd=candidates[i];
+    const c={x:cnd.x, y:cnd.y, r:slot/2};
+    if(cnd.row && cnd.x+slot/2>rightLimit+0.5) continue;
+    if(plateBlocked(c)) continue;
+    if(cnd.row){
+      UI.barDividers.push({x:edge+cnd.gap/2, y1:anchor.y-slot*0.36, y2:anchor.y+slot*0.36});
+    }
+    UIBTN.push({x:c.x, y:c.y, r:slot/2, key:'animate', ico:skill.ico, label:skill.label,
+      slot:1, disabled:disabled});
+    return;
+  }
+  /* Narrow landscape: the end slot fails rightLimit, and above-Craft is
+     off-screen because Craft itself overflows. Clamp that spot, then
+     sit above Attack or Defend. A scan is the last resort so Animate
+     always lands on screen and clear of the other plates. */
+  const inset=UI.inset||{t:0,r:0,b:0,l:0};
+  const minX=(inset.l||0)+slot/2;
+  const maxX=VW-(inset.r||0)-slot/2;
+  const minY=(inset.t||0)+slot/2;
+  const maxY=VH-(inset.b||0)-slot/2;
+  function placeDesk(x,y){
+    UIBTN.push({x:x, y:y, r:slot/2, key:'animate', ico:skill.ico, label:skill.label,
+      slot:1, disabled:disabled});
+  }
+  function fits(x,y){
+    if(x<minX-0.5 || x>maxX+0.5 || y<minY-0.5 || y>maxY+0.5) return false;
+    return !plateBlocked({x:x, y:y, r:slot/2});
+  }
+  const clampedX=Math.max(minX, Math.min(maxX, VW-padR-slot/2));
+  const tryY=Math.max(minY, Math.min(maxY, aboveY));
+  if(fits(clampedX, tryY)){ placeDesk(clampedX, tryY); return; }
+  const named=['attack','wall'];
+  for(let n=0; n<named.length; n++){
+    const a=UIBTN.find(b=>b.key===named[n] && !b.chip);
+    if(!a) continue;
+    const topA=a.y-(a.h||slot)/2;
+    const yAbove=topA-7*s-labelPx-6-slot/2;
+    const x=Math.max(minX, Math.min(maxX, a.x));
+    if(fits(x, yAbove)){ placeDesk(x, yAbove); return; }
+    let yy=yAbove;
+    for(let step=0; step<6; step++){
+      yy-=slot+8;
+      if(fits(x, yy)){ placeDesk(x, yy); return; }
+    }
+  }
+  const stride=Math.max(8, slot*0.5);
+  for(let y=Math.min(maxY, aboveY); y>=minY-0.5; y-=stride){
+    for(let x=maxX; x>=minX-0.5; x-=stride){
+      if(!fits(x,y)) continue;
+      placeDesk(x,y); return;
+    }
+  }
+  for(let y=minY; y<=maxY+0.5; y+=stride){
+    for(let x=minX; x<=maxX+0.5; x+=stride){
+      if(!fits(x,y)) continue;
+      placeDesk(x,y); return;
+    }
+  }
+  placeDesk(clampedX, tryY);
 }
 /* Touch top-right corner: [pause] [minimap], and under the minimap a row
    of two tabs, LOG and QUEST. Everything the corner draws or hit-tests
@@ -14544,12 +14837,19 @@ function touchTabs(){
 /* Hit slop: the tabs draw 30px tall but take a 42px finger. */
 function padRect(r, p){ return r?{x:r.x-p, y:r.y-p, w:r.w+p*2, h:r.h+p*2}:null; }
 
+/* LOG, QUEST, and the large map draw over the field. Animate parks
+   above the bar and can sit under them. Hide that one plate until the
+   overlay closes; every other HUD rect stays where layout put it. */
+function animateSuppressed(){
+  return !!(G && (G.showLog || G.showObjs || G.miniBig));
+}
 /* Nearest button wins. Circles keep their 25% forgiveness ring; rect slabs
    and chips get a few px so neighbouring chips never steal each other's taps. */
 function btnAt(x,y){
   let best=null, bestD=Infinity;
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
+    if(b.key==='animate' && animateSuppressed()) continue;
     let d, tol;
     if(b.w){
       const bx=btnBox(b);
@@ -14579,7 +14879,7 @@ function onDown(id,x,y,ptr){
     if(hit) pickTalk(hit.i);
     return;
   }
-  if(promptBtn&&x>=promptBtn.x&&x<=promptBtn.x+promptBtn.w&&y>=promptBtn.y&&y<=promptBtn.y+promptBtn.h){
+  if(promptBtn&&x>=promptBtn.x&&x<=promptBtn.x+promptBtn.w&&y>=promptBtn.y&&y<=promptBtn.y+promptBtn.h&&!G.inspect){
     fire('use'); return;
   }
   const b=btnAt(x,y);
@@ -14686,7 +14986,10 @@ window.addEventListener('keydown',e=>{
   if(e.key==='7') fire('spec2');
   if(e.key==='8') fire('spec3');
   if(e.key==='9') fire('spec4');
-  if(e.key==='9' && e.shiftKey) debugKillOnScreen();
+  /* Physical Shift+Digit9. On AZERTY that chord is just the digit 9, so
+     it stays dark unless this is a dev host or the page was opened with
+     ?debug=1. */
+  if(devDebugEnabled() && e.shiftKey && (e.code==='Digit9' || e.key==='9')) debugKillOnScreen();
   if(e.key==='Escape'){
     if(G.talk){ dismissTalkWalkOff(); return; }
     if(G.inspect){ G.inspect=null; return; }
@@ -14702,7 +15005,17 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ IN.keys[e.key.toLowerCase()]=0; });
 
 /* ---------------------------- abilities ---------------------------- */
+function devDebugEnabled(){
+  try{
+    const host=String((location&&location.hostname)||'');
+    if(host==='localhost'||host==='127.0.0.1'||host==='::1'||host==='[::1]') return true;
+    const q=String((location&&location.search)||'')+String((location&&location.hash)||'');
+    if(/[?&#]debug=1\b/.test(q)) return true;
+  }catch(err){}
+  return false;
+}
 function debugKillOnScreen(){
+  if(!devDebugEnabled()) return;
   if(G.scene!=='play'||G.paused||G.sleepShow) return;
   let n=0;
   for(const e of G.ents){
@@ -19476,7 +19789,10 @@ function drawHUD(g){
   const bigMap=hudMobile() && !!G.miniBig;
   drawPortraitStack(g,s);
   if(!bigMap) drawMinimap(g,s);
-  drawObjectives(g,s);
+  /* QUEST shares the combat log's rule: live play only. Pause and the
+     rest card keep the rest of the HUD and hide both chips. */
+  if(playFieldPlates()) drawObjectives(g,s);
+  else { UI.objHit=null; UI.objPanel=null; }
   drawGuideArrow(g,s);
   // Material and currency totals remain in inventory, away from the field HUD.
   if(typeof drawHourglassHud==='function') drawHourglassHud(g,s);
@@ -20370,6 +20686,7 @@ function drawButtons(g,s){
   });
   for(const b of UIBTN){
     if(b.overflow && !G.hudMore) continue;
+    if(b.key==='animate' && animateSuppressed()) continue;
     if(b.key==='pause'){ carveFrame(g,b.x-b.r,b.y-b.r,b.r*2,b.r*2,b.r*.4,.7);
       g.fillStyle='rgba(232,212,172,0.85)';
       g.fillRect(b.x-5*s,b.y-6*s,3.6*s,12*s); g.fillRect(b.x+1.6*s,b.y-6*s,3.6*s,12*s); continue; }
@@ -21131,10 +21448,7 @@ function drawTitleMenu(g){
     g.fillStyle='rgba(230,210,170,0.90)';
     g.fillText(hasSave?GameSave.label(GameSave.read(localStorage)):'The mark will be gone.', VW/2, stackTop-6*s);
     g.textAlign='left';
-    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>{
-      if(typeof GameSave!=='undefined') GameSave.clear(localStorage);
-      G.wipeAsk=0; startChapter(1);
-    }, false, null, 'primary');
+    menuBtn(g,'Burn it', VW/2, y, bw, btnH, ()=>beginFreshDescent(), false, null, 'primary');
     y+=btnH+gap;
     menuBtn(g,'Keep the mark', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=0; }, false, null, 'secondary');
   } else if(hasSave){
@@ -21142,13 +21456,13 @@ function drawTitleMenu(g){
     y+=btnH+gap;
     menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>{ G.wipeAsk=1; }, false, null, 'secondary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{openChapters();}, false, null, 'secondary');
     y+=btnH+gap;
     menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   } else {
-    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>startChapter(1), false, null, 'primary');
+    menuBtn(g,'New descent', VW/2, y, bw, btnH, ()=>beginFreshDescent(), false, null, 'primary');
     y+=btnH+gap;
-    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{G.scene='chapters';}, false, null, 'secondary');
+    menuBtn(g,'Chapters', VW/2, y, bw, btnH, ()=>{openChapters();}, false, null, 'secondary');
     y+=btnH+gap;
     menuBtn(g,'Credits', VW/2, y, bw, btnH, ()=>openCredits('title_menu'), false, null, 'secondary');
   }
@@ -21425,7 +21739,7 @@ function drawBetween(g){
   g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.255);
   g.textAlign='left';
   if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
-  menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{openChapters();});
 }
 
 
@@ -21554,7 +21868,7 @@ function drawCamp(g){
   menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
     menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>startChapter(nxt));
-  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{G.scene='chapters';});
+  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{openChapters();});
   const footHits=menuHits.splice(beforeFoot);
   menuHits.unshift.apply(menuHits, footHits);
 }
@@ -21565,15 +21879,15 @@ function drawDead(g){
   bigTitle(g,'MACAR FALLS',VH*.32,(PORT?30:40)*s,'#ff9a7a');
   g.textAlign='center'; g.font='italic 600 '+((PORT?11.5:14)*s)+'px "Trebuchet MS",sans-serif';
   g.fillStyle='rgba(210,180,150,0.8)';
-  g.fillText(hasSave?'The book still holds your last camp.':'The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.42);
+  g.fillText(hasSave?'The book still holds your last mark.':'The kin drag him back to the lift. The seam keeps its secret a while longer.',VW/2,VH*.42);
   g.textAlign='left';
   if(hasSave){
     menuBtn(g,'Continue',VW/2,VH*.54,Math.min(240*s,VW*.68),50*s,()=>loadSavedGame(), false, SPR.icon_save);
     menuBtn(g,'Try again',VW/2,VH*.66,Math.min(240*s,VW*.68),40*s,()=>startChapter(G.ch));
-    menuBtn(g,'Chapters',VW/2,VH*.77,Math.min(240*s,VW*.68),38*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters',VW/2,VH*.77,Math.min(240*s,VW*.68),38*s,()=>{openChapters();});
   } else {
     menuBtn(g,'Try again',VW/2,VH*.60,Math.min(240*s,VW*.68),50*s,()=>startChapter(G.ch));
-    menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{G.scene='chapters';});
+    menuBtn(g,'Chapters',VW/2,VH*.73,Math.min(240*s,VW*.68),44*s,()=>{openChapters();});
   }
 }
 
@@ -21589,7 +21903,7 @@ function drawWin(g){
   .forEach((l,i)=>{ if(i===4){ g.font='800 '+(16*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='#ffd27a'; }
     g.fillText(l,VW/2,VH*.38+i*22*s); });
   g.textAlign='left';
-  menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,VH*.80,Math.min(240*s,VW*.68),46*s,()=>{openChapters();});
 }
 
 function packUser(){
@@ -22656,7 +22970,7 @@ function drawPause(g){
   menuBtn(g,'Effects: '+gfxLabel(),VW/2,top+VH*gap*2,Math.min(230*s,VW*.66),34*s,()=>{cycleGfx();});
   menuBtn(g,'Render passes',VW/2,top+VH*gap*3,Math.min(230*s,VW*.66),34*s,()=>{ if(typeof toggleDiagPanel==='function') toggleDiagPanel(); });
   menuBtn(g,'Restart chapter',VW/2,top+VH*gap*4,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;startChapter(G.ch);});
-  menuBtn(g,'Chapters',VW/2,top+VH*gap*5,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;G.scene='chapters';});
+  menuBtn(g,'Chapters',VW/2,top+VH*gap*5,Math.min(230*s,VW*.66),34*s,()=>{G.paused=false;openChapters();});
   menuBtn(g,'Credits',VW/2,top+VH*gap*6,Math.min(230*s,VW*.66),34*s,()=>openCredits('pause'));
 }
 
@@ -22680,7 +22994,7 @@ function consumePlayUiTap(t){
     if(hit) pickTalk(hit.i);
     return true;
   }
-  if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+  if(G.scene==='play'&&!G.paused&&!G.sleepShow&&!G.inspect&&promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
     fire('use'); return true; }
   const ph=TapGate.firstHit(UI.portraitHits, t.x, t.y);
   if(ph){ applyPortraitTap(ph); return true; }
@@ -22698,7 +23012,7 @@ function resolveTaps(){
         if(hit) pickTalk(hit.i);
         continue;
       }
-      if(promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
+      if(G.scene==='play'&&!G.paused&&!G.sleepShow&&!G.inspect&&promptBtn&&t.x>=promptBtn.x&&t.x<=promptBtn.x+promptBtn.w&&t.y>=promptBtn.y&&t.y<=promptBtn.y+promptBtn.h){
         fire('use'); continue; }
       const p=player(); if(!p) continue;
       if(throwBtn&&t.x>throwBtn.x&&t.x<throwBtn.x+throwBtn.w&&t.y>throwBtn.y&&t.y<throwBtn.y+throwBtn.h){
@@ -22780,6 +23094,7 @@ function loop(now){
   const holdingSystems=typeof SystemsReady!=='undefined' && SystemsReady.systemsHold();
   if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld && !holdingSystems) update(dt);
   tryEnterPlay();
+  tickAutosave();
   syncMusic();
   render(); resolveTaps();
   requestAnimationFrame(loop);
@@ -22787,6 +23102,7 @@ function loop(now){
 resize();
 bakeTextures(PAL.mine);
 loadSprites(()=>{});
+bindAutosaveLifecycle();
 if(window.CraftingEngine) CraftingEngine.load('src/crafting/recipes.json');
 try{
   if(/play/.test((location.hash||'')+(location.search||''))) {

@@ -1,0 +1,484 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 2 campaign map. Data only. The game does not load this file. The transition card is the existing Chapter II intro plate.",
+  "levels": [
+    {
+      "id": "L2",
+      "name": "Noz and the Goblin King",
+      "level": 2,
+      "wired": false,
+      "size": { "w": 144, "h": 118 },
+      "builtFrom": "Chapter II makeChapter n===2, the goblin warrens, and the king hall",
+      "spawn": { "x": 40.15, "y": 8.55, "role": "arrival-from-L1" },
+      "arrival": { "x": 40, "y": 7.55, "prop": "lift", "role": "from-L1" },
+      "layout": {
+        "source": "Chapter II cave disks, the throne hall, and the hourglass vault",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 40, "y": 8, "rw": 5, "rh": 4 },
+          { "id": "four-way", "kind": "disk", "x": 40, "y": 16, "rw": 7.8, "rh": 6.3 },
+          { "id": "bronze-hall", "kind": "disk", "x": 65, "y": 16, "rw": 4, "rh": 3.4 },
+          { "id": "west-rats", "kind": "disk", "x": 16.4, "y": 16.4, "rw": 3.4, "rh": 2.8 },
+          { "id": "ruby-den", "kind": "disk", "x": 10, "y": 31, "rw": 6.5, "rh": 5.5, "was": "spider-lord-den" },
+          { "id": "camp", "kind": "disk", "x": 40, "y": 32, "rw": 6.5, "rh": 5.1 },
+          { "id": "stair-chamber", "kind": "disk", "x": 40, "y": 54, "rw": 4.8, "rh": 4 },
+          { "id": "east-goblins", "kind": "disk", "x": 82, "y": 28, "rw": 5.5, "rh": 4.5 },
+          { "id": "east-leader", "kind": "disk", "x": 96, "y": 32, "rw": 5, "rh": 4.2 },
+          { "id": "south-east-cleared", "kind": "disk", "x": 90, "y": 50, "rw": 5.2, "rh": 4.4, "monsters": "moved-to-L3" },
+          { "id": "west-rats-2", "kind": "disk", "x": 12, "y": 44, "rw": 4.5, "rh": 3.8 },
+          { "id": "west-bodyguard", "kind": "disk", "x": 18, "y": 64, "rw": 5.5, "rh": 4.6 },
+          { "id": "deep-rats", "kind": "disk", "x": 40, "y": 70, "rw": 5.8, "rh": 4.8 },
+          { "id": "orc-den-now-goblins", "kind": "disk", "x": 64, "y": 46, "rw": 5.2, "rh": 4.4 },
+          { "id": "far-east-den", "kind": "disk", "x": 122, "y": 30, "rw": 5.2, "rh": 4.4 },
+          { "id": "south-goblins", "kind": "disk", "x": 40, "y": 98, "rw": 5.5, "rh": 4.6 },
+          { "id": "far-south-rats", "kind": "disk", "x": 8, "y": 92, "rw": 4.8, "rh": 4 },
+          { "id": "north-east-goblins", "kind": "disk", "x": 118, "y": 10, "rw": 4.5, "rh": 3.8 },
+          { "id": "east-rats", "kind": "disk", "x": 120, "y": 62, "rw": 5, "rh": 4.2 },
+          { "id": "north-goblins", "kind": "disk", "x": 90, "y": 6, "rw": 4, "rh": 3.4 },
+          { "id": "warren-mouth", "kind": "disk", "x": 44.8, "y": 44.6, "rw": 3.4, "rh": 2.8 },
+          { "id": "warren-shaman", "kind": "disk", "x": 52, "y": 50, "rw": 3.6, "rh": 3 },
+          { "id": "warren-stair", "kind": "disk", "x": 66, "y": 62, "rw": 4, "rh": 3.4 },
+          { "id": "king-hall", "kind": "rect", "x": 74, "y": 68, "w": 40, "h": 24, "origin": { "x": 58, "y": 58 } },
+          { "id": "hourglass-vault", "kind": "rect", "x": 136, "y": 30, "w": 12, "h": 12, "origin": { "x": 130, "y": 24 } }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 10.2,
+        "y": 25.8,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-den"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian II",
+        "tier": 2,
+        "count": 1,
+        "x": 10.1,
+        "y": 31,
+        "hp": 24,
+        "room": "ruby-den",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "art": {
+          "key": "thinone",
+          "file": "assets/creatures/mon_thinone.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian II",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 8.2,
+        "y": 33.6,
+        "prop": "floorlever",
+        "room": "ruby-den",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 12.6,
+        "y": 33.4,
+        "prop": "lift",
+        "room": "ruby-den",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/ui/intro_ch2.jpg",
+        "standInFor": "Chapter II intro card",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "goblinKing",
+        "name": "Goblin King",
+        "x": 74,
+        "y": 67.6,
+        "hp": 26,
+        "room": "king-hall",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "goblin_king",
+          "file": "assets/creatures/mon_goblin_king.png",
+          "standIn": false,
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "kind": "stairs",
+        "placement": "fixed",
+        "x": 40.1,
+        "y": 51.6,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "role": "floor-exit"
+      },
+      "tooth": {
+        "id": "grond_tooth_electrum_2",
+        "n": 2,
+        "name": "Electrum Tooth 2",
+        "kind": "electrum-tooth",
+        "prop": "demonface",
+        "placement": "fixed",
+        "x": 74,
+        "y": 59.2,
+        "room": "king-hall",
+        "where": "king hall back wall",
+        "cursed": true,
+        "countsForRitual": true,
+        "countsForTeethCarried": true,
+        "usableByMacar": "Y"
+      },
+      "secrets": [
+        {
+          "id": "warrens",
+          "kind": "secret-door",
+          "x": 40,
+          "y": 41.05,
+          "i": 39,
+          "j": 40,
+          "w": 3,
+          "h": 1,
+          "face": "n",
+          "opens": "warren-mouth"
+        },
+        {
+          "id": "bronze-door-cache",
+          "kind": "secret-door",
+          "x": 64.5,
+          "y": 20.1,
+          "i": 63,
+          "j": 20,
+          "w": 3,
+          "h": 1,
+          "face": "n",
+          "keptFrom": "Chapter II"
+        },
+        {
+          "id": "bronze-hourglass",
+          "kind": "hourglass",
+          "x": 126.85,
+          "y": 30.05,
+          "i": 127,
+          "j": 28,
+          "w": 1,
+          "h": 3,
+          "face": "w",
+          "optional": true,
+          "room": {
+            "bounds": { "x0": 130, "y0": 24, "x1": 142, "y1": 36 },
+            "glass": { "x": 138.2, "y": 30.1, "prop": "hourglass", "artKey": "hourglass", "standIn": true, "newArt": false },
+            "face": { "x": 141.35, "y": 30.15, "prop": "demonface", "toothKind": "bronze" },
+            "raidSeconds": 10,
+            "toothId": "grond_tooth_bronze"
+          }
+        }
+      ],
+      "setPieces": [
+        {
+          "id": "noz",
+          "kind": "npc",
+          "x": 40.45,
+          "y": 31.35,
+          "door": { "x": 62.5, "y": 11, "prop": "bronzedoor" },
+          "bell": { "x": 64.3, "y": 12.2, "prop": "bell" },
+          "trade": "unchanged"
+        },
+        {
+          "id": "bronze-hourglass",
+          "kind": "optional-secret",
+          "placed": true,
+          "x": 126.85,
+          "y": 30.05,
+          "toothId": "grond_tooth_bronze",
+          "countsForRitual": false
+        },
+        {
+          "id": "electrum-tooth-2",
+          "kind": "quest-prop",
+          "placed": true,
+          "x": 74,
+          "y": 59.2,
+          "itemId": "grond_tooth_electrum_2"
+        },
+        {
+          "id": "south-stair",
+          "kind": "stairs",
+          "placed": true,
+          "x": 40.1,
+          "y": 51.6,
+          "opensOn": "bossKill"
+        },
+        {
+          "id": "warren-stair",
+          "kind": "stairs",
+          "placed": true,
+          "x": 66,
+          "y": 62,
+          "role": "to-king-hall",
+          "notFloorExit": true,
+          "landsAt": { "x": 62.4, "y": 64.2 }
+        },
+        {
+          "id": "king-chest",
+          "kind": "lair-chest",
+          "placed": true,
+          "x": 76.4,
+          "y": 69.2,
+          "letter": "C",
+          "onCorpse": false
+        }
+      ],
+      "spawns": [
+        {
+          "id": "camp",
+          "room": "camp",
+          "anchor": { "x": 40.1, "y": 32.1 },
+          "dialogue": "insults-only",
+          "parley": false,
+          "bargain": false,
+          "members": [
+            { "key": "goblinShaman", "count": 1, "x": 41.6, "y": 31.2, "kingHall": false, "spellSet": "memorized" },
+            { "key": "goblinBoss", "count": 1, "x": 38.6, "y": 32.8 },
+            { "key": "goblin", "count": 5, "x": 40.1, "y": 32.1 }
+          ]
+        },
+        {
+          "id": "west-rats",
+          "room": "west-rats",
+          "anchor": { "x": 16.4, "y": 16.4 },
+          "members": [
+            { "key": "rat", "count": 3, "x": 16.4, "y": 16.4 }
+          ]
+        },
+        {
+          "id": "east-goblins",
+          "room": "east-goblins",
+          "anchor": { "x": 82.2, "y": 28.1 },
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblin", "count": 4, "x": 82.2, "y": 28.1 }
+          ]
+        },
+        {
+          "id": "east-leader",
+          "room": "east-leader",
+          "anchor": { "x": 96.1, "y": 32.2 },
+          "was": "kobold chief and 3 kobolds",
+          "open": "replacement-dens",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblinLeader", "count": 1, "x": 96.1, "y": 31.4 },
+            { "key": "goblin", "count": 3, "x": 96.1, "y": 32.8 }
+          ]
+        },
+        {
+          "id": "west-rats-2",
+          "room": "west-rats-2",
+          "anchor": { "x": 12.2, "y": 44.1 },
+          "members": [
+            { "key": "rat", "count": 4, "x": 12.2, "y": 44.1 }
+          ]
+        },
+        {
+          "id": "west-bodyguard",
+          "room": "west-bodyguard",
+          "anchor": { "x": 18.2, "y": 64.1 },
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblinBoss", "count": 1, "x": 18.2, "y": 63.4 },
+            { "key": "goblin", "count": 3, "x": 18.2, "y": 64.8 }
+          ]
+        },
+        {
+          "id": "deep-rats",
+          "room": "deep-rats",
+          "anchor": { "x": 40.1, "y": 70.2 },
+          "was": "3 wargs",
+          "open": "replacement-dens",
+          "members": [
+            { "key": "rat", "count": 3, "x": 40.1, "y": 70.2 }
+          ]
+        },
+        {
+          "id": "orc-den-now-goblins",
+          "room": "orc-den-now-goblins",
+          "anchor": { "x": 64.1, "y": 46.2 },
+          "was": "3 orcs",
+          "open": "replacement-dens",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblin", "count": 3, "x": 64.1, "y": 46.2 }
+          ]
+        },
+        {
+          "id": "far-east-den",
+          "room": "far-east-den",
+          "anchor": { "x": 122.1, "y": 30.1 },
+          "was": "goblin bodyguard, 2 wargs, 2 goblins",
+          "open": "replacement-dens",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblinBoss", "count": 1, "x": 122.1, "y": 29.4 },
+            { "key": "goblin", "count": 2, "x": 121.2, "y": 30.6 },
+            { "key": "rat", "count": 2, "x": 123.2, "y": 30.8 }
+          ]
+        },
+        {
+          "id": "south-goblins",
+          "room": "south-goblins",
+          "anchor": { "x": 40.1, "y": 98.1 },
+          "was": "4 kobolds",
+          "open": "replacement-dens",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblin", "count": 4, "x": 40.1, "y": 98.1 }
+          ]
+        },
+        {
+          "id": "far-south-rats",
+          "room": "far-south-rats",
+          "anchor": { "x": 8.1, "y": 92.1 },
+          "members": [
+            { "key": "rat", "count": 5, "x": 8.1, "y": 92.1 }
+          ]
+        },
+        {
+          "id": "north-east-goblins",
+          "room": "north-east-goblins",
+          "anchor": { "x": 118.1, "y": 10.1 },
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblin", "count": 4, "x": 118.1, "y": 10.1 }
+          ]
+        },
+        {
+          "id": "east-rats",
+          "room": "east-rats",
+          "anchor": { "x": 120.1, "y": 62.1 },
+          "was": "3 wargs",
+          "open": "replacement-dens",
+          "members": [
+            { "key": "rat", "count": 3, "x": 120.1, "y": 62.1 }
+          ]
+        },
+        {
+          "id": "north-goblins",
+          "room": "north-goblins",
+          "anchor": { "x": 90.1, "y": 6.1 },
+          "was": "4 kobolds",
+          "open": "replacement-dens",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblin", "count": 4, "x": 90.1, "y": 6.1 }
+          ]
+        },
+        {
+          "id": "warren-shaman",
+          "room": "warren-shaman",
+          "anchor": { "x": 52, "y": 50 },
+          "open": "warren-pin",
+          "dialogue": "insults-only",
+          "parley": false,
+          "members": [
+            { "key": "goblinShaman", "count": 1, "x": 52, "y": 49.4, "kingHall": false, "spellSet": "swap" },
+            { "key": "goblin", "count": 2, "x": 52.8, "y": 50.6 }
+          ]
+        },
+        {
+          "id": "king-hall",
+          "room": "king-hall",
+          "anchor": { "x": 74, "y": 67.6 },
+          "dialogue": "insults-only",
+          "parley": false,
+          "bargain": false,
+          "source": "MM1 goblin p.47",
+          "members": [
+            { "key": "goblinKing", "count": 1, "x": 74, "y": 67.6, "role": "boss" },
+            { "key": "goblinBoss", "count": 1, "x": 71.2, "y": 68.6, "role": "bodyguard" },
+            { "key": "goblinBoss", "count": 1, "x": 72.6, "y": 66.2, "role": "bodyguard" },
+            { "key": "goblinBoss", "count": 1, "x": 75.4, "y": 66.2, "role": "bodyguard" },
+            { "key": "goblinBoss", "count": 1, "x": 76.8, "y": 67.8, "role": "bodyguard" },
+            { "key": "goblinBoss", "count": 1, "x": 73, "y": 69.6, "role": "bodyguard" },
+            { "key": "goblinBoss", "count": 1, "x": 75.2, "y": 69.4, "role": "bodyguard" },
+            { "key": "goblinLeader", "count": 1, "x": 70.2, "y": 66.4, "role": "leader" },
+            { "key": "goblin", "count": 4, "x": 69.2, "y": 67.8, "role": "assistants" }
+          ]
+        }
+      ],
+      "removed": [
+        { "at": [26.2, 15.2], "was": "spider x3", "to": "L3" },
+        { "at": [10.1, 31], "was": "spiderLord and spider x3", "to": "L3", "roomNow": "ruby-den" },
+        { "at": [90.2, 50.1], "was": "spider x3", "to": "L3" },
+        { "at": [66.2, 76.1], "was": "spiderHuge and spider x2", "to": "L3" },
+        { "at": [100.1, 88.1], "was": "spider x3", "to": "L3" },
+        { "at": [48.1, 106.1], "was": "spiderHuge and spider x2", "to": "L3" },
+        { "was": "kobolds, orcs, wargs, 7th-level shaman, goblin mercy beg", "to": "cut or L4" }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "goblin", "count": "1d6" },
+          { "slot": 2, "key": "goblin", "count": "1d6" },
+          { "slot": 3, "key": "rat", "count": "2d4" },
+          { "slot": 4, "key": "rat", "count": "2d4" },
+          { "slot": 5, "key": "goblinLeader", "count": "1+1d4 goblins" },
+          { "slot": 6, "key": "goblinShaman", "count": "1+1d3 goblins" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 2,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 2",
+          "places": [
+            [82, 28], [96, 32], [90, 50], [12, 44],
+            [18, 64], [40, 70], [66, 76], [64, 46],
+            [122, 30], [40, 98], [100, 88], [8, 92],
+            [118, 10], [120, 62], [48, 106], [90, 6]
+          ]
+        },
+        "kingCorpse": { "letter": "U", "decision": "D1-A", "on": "goblinKing" },
+        "kingChest": { "letter": "C", "decision": "D2-A", "x": 76.4, "y": 69.2, "onCorpse": false },
+        "guardianRuby": { "id": "ruby_guardian_2", "gp": 500, "band": "400-600", "x": 10.1, "y": 31 },
+        "tooth": { "id": "grond_tooth_electrum_2" },
+        "bronzeTooth": { "id": "grond_tooth_bronze", "cursed": false, "countsForRitual": false },
+        "dig": ["barley", "starmetal", "resin", "powder", "ironstone", "timber", "bone"],
+        "magicFilter": "2.2 usable by a dwarf fighter",
+        "nozTrade": "unchanged"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 2,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}

@@ -363,12 +363,33 @@
     return true;
   }
 
+  /* An old book can store the hero at 0 HP (the vault-door mark).
+     Clamp the living hero so Continue opens them alive. Crushed kin
+     and fallen companions stay down. Foes in play.ents are not raised. */
+  function clampLivingHp(snap) {
+    var play = snap && snap.play;
+    if (!play || typeof play !== 'object') return;
+    if (typeof play.hp === 'number' && play.hp < 1) play.hp = 1;
+    if (!Array.isArray(play.party)) return;
+    var i, row, macar;
+    for (i = 0; i < play.party.length; i++) {
+      row = play.party[i];
+      if (!row || typeof row.hp !== 'number' || row.hp >= 1) continue;
+      if (row.crushed) continue;
+      macar = row.key === 'macar';
+      if (row.dead && !macar) continue;
+      row.hp = 1;
+      if (macar) row.dead = false;
+    }
+  }
+
   function validateSnap(snap) {
     if (!snap || typeof snap !== 'object') return false;
     var v = snap.v;
     if (v !== VER && v !== VER_LEGACY) return false;
     if (snap.ch != null && typeof snap.ch !== 'number') return false;
     if (snap.play != null && !validatePlay(snap.play)) return false;
+    clampLivingHp(snap);
     return true;
   }
 
@@ -477,6 +498,61 @@
     return out;
   }
 
+  /* Campaign half of a slot. snapshot reads this list; applyBlankCampaign
+     writes the new-game start for the same keys, so a field added later
+     cannot leak through Burn it. Reads stay the old coercions (a missing
+     bomb count is still 0 in the slot). Blanks are the boot book: bombs
+     and ales start at 2, packs and sheets start unset so Chapter I rebuilds
+     them. v, at, scene, and play are slot metadata, not campaign state. */
+  function blankCoin() { return { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }; }
+  function blankObj() { return {}; }
+  function blankArr() { return []; }
+
+  var CAMPAIGN_FIELDS = [
+    { key: 'ch', read: function (G) { return G.ch || 1; }, blank: 1 },
+    { key: 'unlocked', read: function (G) { return G.unlocked || 1; }, blank: 1 },
+    { key: 'cleared', read: function (G) { return clone(G.cleared || {}); }, blank: blankObj },
+    { key: 'floorWorlds', read: function (G) { return clone(G.floorWorlds || {}); }, blank: blankObj },
+    { key: 'coin', read: function (G) { return clone(G.coin || {}); }, blank: blankCoin },
+    { key: 'res', read: function (G) { return clone(G.res || {}); }, blank: blankObj },
+    { key: 'packs', read: function (G) { return clone(G.packs || {}); }, blank: null },
+    { key: 'equipped', read: function (G) { return clone(G.equipped || {}); }, blank: null },
+    { key: 'charXp', read: function (G) { return clone(G.charXp || {}); }, blank: null },
+    { key: 'abil', read: function (G) { return clone(G.abil || {}); }, blank: null },
+    { key: 'ghostAllies', read: function (G) { return clone(G.ghostAllies || {}); }, blank: blankObj },
+    { key: 'borrowed', read: function (G) { return clone(G.borrowed || []); }, blank: blankArr },
+    { key: 'taught', read: function (G) { return clone(G.taught || {}); }, blank: blankObj },
+    { key: 'day', read: function (G) { return G.day || 1; }, blank: 1 },
+    { key: 'dayClock', read: function (G) { return G.dayClock || 0; }, blank: 0 },
+    { key: 'dungeonTurns', read: function (G) { return G.dungeonTurns || 0; }, blank: 0 },
+    { key: 'noisyTurns', read: function (G) { return G.noisyTurns || 0; }, blank: 0 },
+    { key: 'restTurns', read: function (G) { return G.restTurns || 0; }, blank: 0 },
+    { key: 'pordoomGiftDay', read: function (G) { return G.pordoomGiftDay || 0; }, blank: 0 },
+    { key: 'macarGearReady', read: function (G) { return G.macarGearReady || 0; }, blank: 0 },
+    { key: 'gnomeGift', read: function (G) { return !!G.gnomeGift; }, blank: false },
+    { key: 'xp', read: function (G) { return clone(G.xp || {}); }, blank: blankObj },
+    { key: 'skillSnap', read: function (G) { return clone(G.skillSnap || {}); }, blank: blankObj },
+    { key: 'gear', read: function (G) { return clone(G.gear || {}); }, blank: blankObj },
+    { key: 'bombs', read: function (G) { return G.bombs || 0; }, blank: 2 },
+    { key: 'ales', read: function (G) { return G.ales || 0; }, blank: 2 },
+    { key: 'curseStrain', read: function (G) { return G.curseStrain || 0; }, blank: 0 },
+    { key: 'animateDeadSpent', read: function (G) { return G.animateDeadSpent ? 1 : 0; }, blank: 0 },
+    { key: 'thrallId', read: function (G) { return G.thrallId == null ? null : G.thrallId; }, blank: null },
+    { key: 'curseGrowT', read: function (G) { return G.curseGrowT || 0; }, blank: 0 },
+    { key: 'curseDecayT', read: function (G) { return G.curseDecayT || 0; }, blank: 0 },
+    { key: 'hourglassT', read: function (G) { return G.hourglassT || 0; }, blank: 0 }
+  ];
+
+  function applyBlankCampaign(G) {
+    if (!G || typeof G !== 'object') return G;
+    var i, f;
+    for (i = 0; i < CAMPAIGN_FIELDS.length; i++) {
+      f = CAMPAIGN_FIELDS[i];
+      G[f.key] = typeof f.blank === 'function' ? f.blank() : f.blank;
+    }
+    return G;
+  }
+
   function snapshot(G, extra) {
     G = G || {};
     extra = extra || {};
@@ -484,45 +560,18 @@
     if (scene === 'intro' || scene === 'pause') scene = 'play';
     var play = extra.play || null;
     if (play) play = worldSchemaOn ? normalizePlay(play) : stripWorld(play);
-    return {
+    var out = {
       v: worldSchemaOn ? VER : VER_LEGACY,
       schemaVersion: worldSchemaOn ? VER : VER_LEGACY,
       at: Date.now(),
-      scene: scene,
-      ch: G.ch || 1,
-      unlocked: G.unlocked || 1,
-      cleared: clone(G.cleared || {}),
-      floorWorlds: clone(G.floorWorlds||{}),
-      coin: clone(G.coin || {}),
-      res: clone(G.res || {}),
-      packs: clone(G.packs || {}),
-      equipped: clone(G.equipped || {}),
-      charXp: clone(G.charXp || {}),
-      abil: clone(G.abil || {}),
-      ghostAllies: clone(G.ghostAllies || {}),
-      borrowed: clone(G.borrowed || []),
-      taught: clone(G.taught || {}),
-      day: G.day || 1,
-      dayClock: G.dayClock || 0,
-      dungeonTurns: G.dungeonTurns || 0,
-      noisyTurns: G.noisyTurns || 0,
-      restTurns: G.restTurns || 0,
-      pordoomGiftDay: G.pordoomGiftDay || 0,
-      macarGearReady: G.macarGearReady || 0,
-      gnomeGift: !!G.gnomeGift,
-      xp: clone(G.xp || {}),
-      skillSnap: clone(G.skillSnap || {}),
-      gear: clone(G.gear || {}),
-      bombs: G.bombs || 0,
-      ales: G.ales || 0,
-      curseStrain: G.curseStrain || 0,
-      animateDeadSpent: G.animateDeadSpent ? 1 : 0,
-      thrallId: G.thrallId == null ? null : G.thrallId,
-      curseGrowT: G.curseGrowT || 0,
-      curseDecayT: G.curseDecayT || 0,
-      hourglassT: G.hourglassT || 0,
-      play: play
+      scene: scene
     };
+    var i;
+    for (i = 0; i < CAMPAIGN_FIELDS.length; i++) {
+      out[CAMPAIGN_FIELDS[i].key] = CAMPAIGN_FIELDS[i].read(G);
+    }
+    out.play = play;
+    return out;
   }
 
   function applyCampaign(G, snap) {
@@ -712,6 +761,7 @@
     VER_LEGACY: VER_LEGACY,
     clone: clone,
     snapshot: snapshot,
+    applyBlankCampaign: applyBlankCampaign,
     applyCampaign: applyCampaign,
     write: write,
     writeNoRegress: writeNoRegress,
