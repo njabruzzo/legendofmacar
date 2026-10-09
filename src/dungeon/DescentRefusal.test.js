@@ -110,7 +110,7 @@ setup(3, {
     foe(30, 58, { name: 'Orc' })
   ]
 });
-assert.strictEqual(c.useChapterDescent(), true, 'an old save still names a far dead guard when no living match is near the spawn');
+assert.strictEqual(c.useChapterDescent(), true, 'an old save still names a far dead guard when the only living construct is the workshop');
 assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined);
 assert.strictEqual(c.G.ents.find(e => e.x === 6).chapterBoss, 1);
 
@@ -136,6 +136,38 @@ assert.strictEqual(hints[0], GUARD);
 assert.strictEqual(c.G.scene, 'play');
 assert.strictEqual(c.G.ents.find(e => e.hp === 32).chapterBoss, 1, 'the living guard is the boss');
 assert.strictEqual(c.G.ents.find(e => e.x === 26).chapterBoss, undefined);
+
+/* Old save: the guard chased off 48,39 and only the workshop construct is dead.
+   Meticulous's chase was about 9.5 tiles, with the guard still at 48 HP. */
+function chasedGuard(dist){
+  const guard = foe(48, 39 + dist, { kind: 'construct', name: 'Ruby Construct', hp: 48 });
+  const shop = foe(26, 8, { kind: 'construct', name: 'Ruby Construct', dead: 1, looted: 1 });
+  setup(3, {
+    ruby: 0,
+    flags: { boss: 1 },
+    objs: [
+      { t: 'Cross the dead barracks', d: 0 },
+      { t: 'Read the Hall of Names', d: 0 },
+      { t: 'Destroy the Ruin Guard', d: 0 }
+    ],
+    ents: [guard, shop, foe(30, 58, { name: 'Orc' })]
+  });
+  const off = Math.hypot(guard.x - 48, guard.y - 39);
+  assert.ok(Math.abs(off - dist) < 1e-6, 'the guard stands ' + dist + ' tiles off the spawn');
+  assert.ok(Math.hypot(guard.x - 26, guard.y - 8) > 6, 'the chase is not the north workshop');
+  assert.strictEqual(c.noteChapterBossDown(c.G.lvl), false, 'a living guard ' + dist + ' tiles out is not already down');
+  assert.strictEqual(c.G.lvl.flags.done, 0);
+  assert.strictEqual(c.G.lvl.objs[2].d, 0, 'Destroy the Ruin Guard stays open at ' + dist + ' tiles');
+  assert.strictEqual(c.useChapterDescent(), false, 'a living guard ' + dist + ' tiles off spawn keeps the stair shut');
+  assert.strictEqual(hints[0], GUARD);
+  assert.strictEqual(c.G.scene, 'play');
+  assert.strictEqual(guard.chapterBoss, 1, 'the living guard is the boss at ' + dist + ' tiles');
+  assert.strictEqual(shop.chapterBoss, undefined, 'the workshop corpse is not the boss');
+}
+chasedGuard(10);
+chasedGuard(6);
+chasedGuard(3.9);
+chasedGuard(9.5);
 
 setup(3, {
   ruby: 0,

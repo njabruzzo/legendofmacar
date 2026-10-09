@@ -5280,19 +5280,23 @@ function bindChapterBoss(L){
   const marked=ents.filter(e=>e&&e.chapterBoss&&foeMatchesChapterBoss(e, spec));
   if(marked.length) return marked;
   if(!(L.flags&&L.flags[spec.flag])) return [];
-  /* Once the boss is already down, do not adopt a living pack-mate. */
-  if(L.flags.done) return [];
   const matches=ents.filter(e=>foeMatchesChapterBoss(e, spec));
   if(!matches.length) return [];
-  if(spec.unique||matches.length===1){
-    matches.forEach(e=>{ e.chapterBoss=1; });
-    return matches;
-  }
-  /* A dead pack-mate wins only when nothing living still stands within a
-     few tiles of the boss. flags.done already returned above. */
+  /* A living match is the boss wherever it stands. The one exception is
+     chapter III's other Ruby Construct, which keeps the north workshop at
+     26,8 (about 38 tiles from the guard). Six tiles covers that pack's
+     spread and still leaves a chased guard, even ten tiles off 48,39,
+     eligible. A corpse is the boss only when no eligible body still lives,
+     or the floor already recorded the kill. */
+  const workshop=e=>L.n===3&&Math.hypot((e.x||0)-26,(e.y||0)-8)<=6;
   const dead=matches.filter(e=>e.dead);
-  const near=matches.filter(e=>!e.dead&&Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y)<=4);
-  const pool=(!near.length&&dead.length)?dead:(near.length?near:matches);
+  const living=matches.filter(e=>!e.dead&&!workshop(e));
+  const pool=(L.flags.done||!living.length)?dead:living;
+  if(!pool.length) return [];
+  if(spec.unique||pool.length===1){
+    pool.forEach(e=>{ e.chapterBoss=1; });
+    return pool;
+  }
   let best=pool[0], bd=1e9;
   for(const e of pool){
     const d=Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y);
