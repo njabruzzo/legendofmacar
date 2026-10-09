@@ -40,7 +40,7 @@ assert(/function holdFollowWalk\(e, lead\)/.test(html)
   'ghost follow keeps walk art through one-frame steering settles while Macar is moving');
 assert(/_ghost_\(\?:e_\|s_\|nw_\|ne_\|se_\|w3\|back_w\)/.test(html),
   'unsigned flag does not include front w1/w2/atk');
-assert(/punch!==false/.test(html) && /const punch=!e\.ghost/.test(html),
+assert(/punch!==false/.test(html) && /const punch=eight\?!eight\.magentaCleanup:!e\.ghost/.test(html),
   'ghost west flip keeps mid-alpha (no living punch)');
 assert(/plant the signed idle/.test(html) && !/function ghostLiveTwin\(/.test(html),
   'cyan ghost walk/atk are not mapped in as living twins');

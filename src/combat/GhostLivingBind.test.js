@@ -74,7 +74,7 @@ assert(/talporInterimGhostKey\(key\)\) return true/.test(extractFn('partyGhostKe
 assert(/punch!==false/.test(extractFn('flippedSprite'))
   && /Ghost sheets[\s\S]*solid/.test(extractFn('flippedSprite')),
   'ghost flips skip the living a=255 punch');
-assert(/const punch=!e\.ghost/.test(html)
+assert(/const punch=eight\?!eight\.magentaCleanup:!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'ghost billboard passes punch=false into blitFacing');
 assert(/Mid-alpha ghost \+ lighter/.test(html)
