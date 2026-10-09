@@ -52,6 +52,8 @@ assert(T.GUARDIANS.map(g => g.formula.xp).join() === '52,181,441,1030,2640,3852,
 const teeth = T.LEVELS.slice(0, 7).map(l => l.quest.id);
 assert(teeth[0] === 'grond_tooth_electrum', 'tooth 1 keeps the live id');
 assert(teeth[6] === 'grond_tooth_electrum_7', 'tooth 7 id');
+assert(T.level(7).quest.lastTooth === true, 'tooth 7 is the last tooth');
+assert(T.LEVELS.slice(0, 6).every(function (lvl) { return lvl.quest.lastTooth !== true; }), 'only tooth 7 carries the last-tooth flag');
 assert(new Set(teeth).size === 7, 'seven distinct tooth ids');
 assert(T.LEVELS[1].optionalQuest.id === 'grond_tooth_bronze' && T.LEVELS[1].optionalQuest.countsForRitual === false, 'bronze tooth is not one of the seven');
 assert(T.level(8).quest.id === 'holy_hammer' && T.level(8).quest.plus === 3, 'L8 Holy Hammer +3');

@@ -1,0 +1,227 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 8 campaign map. Data only. The game does not load this file. The transition card is the existing beholder sheet. The lair reuses the Chapter IV elder-brain point and the death-tyrant sheet.",
+  "levels": [
+    {
+      "id": "L8",
+      "name": "The Eye Tyrant and the Holy Hammer",
+      "level": 8,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 132, "h": 106 },
+      "builtFrom": "Chapter IV lair. The Elder Brain is cut. The death-tyrant sheet is lair art.",
+      "spawn": { "x": 8, "y": 28, "role": "arrival-from-L7" },
+      "arrival": { "x": 8, "y": 28, "role": "from-L7" },
+      "layout": {
+        "source": "Chapter IV size. The beholder lair is the elder-brain point. The ruby court is not printed.",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 8, "y": 28, "rw": 5, "rh": 4 },
+          { "id": "ruby-court", "kind": "rect", "x": 28, "y": 28, "w": 16, "h": 14 },
+          { "id": "stair-chamber", "kind": "disk", "x": 50.1, "y": 61.2, "rw": 4, "rh": 3.4 },
+          { "id": "beholder-lair", "kind": "rect", "x": 52, "y": 42, "w": 18, "h": 16, "was": "elder-brain" }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 28,
+        "y": 22,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian VIII",
+        "tier": 8,
+        "count": 1,
+        "x": 28,
+        "y": 28,
+        "hp": 96,
+        "ac": -1,
+        "hitOnlyBy": 2,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian VIII",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 24,
+        "y": 30,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 32,
+        "y": 30,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/creatures/mon_beholder.png",
+        "standInFor": "Beholder art; death-tyrant sheet is the lair reuse",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "beholder",
+        "name": "Beholder",
+        "x": 52,
+        "y": 42,
+        "hp": 60,
+        "ac": 0,
+        "room": "beholder-lair",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "beholder",
+          "file": "assets/creatures/mon_beholder.png",
+          "standIn": false,
+          "standInFor": null,
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "chapter-stair",
+        "placement": "fixed",
+        "x": 50.1,
+        "y": 61.2,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "hammer": {
+        "id": "holy_hammer",
+        "plus": 3,
+        "x": 50,
+        "y": 44,
+        "prop": "weapon",
+        "room": "beholder-lair",
+        "behindBoss": true,
+        "usableByMacar": "Y",
+        "decision": "D18-A"
+      },
+      "setPieces": [
+        {
+          "id": "beholder-hoard",
+          "kind": "quest-chest",
+          "placed": true,
+          "x": 50,
+          "y": 44,
+          "room": "beholder-lair",
+          "quest": "holy_hammer",
+          "letter": "I",
+          "includesRuby": false
+        },
+        {
+          "id": "shaft",
+          "kind": "retreat",
+          "placed": true,
+          "x": 50,
+          "y": 38,
+          "room": "beholder-lair"
+        }
+      ],
+      "lairArt": {
+        "key": "deathtyrant",
+        "file": "assets/creatures/mon_deathtyrant.png",
+        "standIn": true,
+        "standInFor": "Chapter IV lair",
+        "newArt": false,
+        "x": 46,
+        "y": 40,
+        "room": "beholder-lair"
+      },
+      "spawns": [
+        {
+          "id": "beholder-lair",
+          "room": "beholder-lair",
+          "anchor": { "x": 52, "y": 42 },
+          "was": "elder brain and death tyrant",
+          "members": [
+            { "key": "beholder", "count": 1, "x": 52, "y": 42, "role": "boss" },
+            { "key": "duergar", "count": 4, "x": 48, "y": 40, "role": "minion", "charmed": true },
+            { "key": "umberhulk", "count": 1, "x": 54, "y": 46, "role": "minion", "charmed": true }
+          ]
+        }
+      ],
+      "absent": [
+        { "was": "elder brain", "to": "cut", "reason": "not MM1; Chapter IV is cut" },
+        { "was": "death tyrant", "to": "lair art", "reason": "sheet kept, not a combatant" }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "duergar", "count": "1d4", "charmed": true },
+          { "slot": 2, "key": "duergar", "count": "1d4", "charmed": true },
+          { "slot": 3, "key": "duergar", "count": "1d4", "charmed": true },
+          { "slot": 4, "key": "orc", "count": "1d6", "charmed": true },
+          { "slot": 5, "key": "orc", "count": "1d6", "charmed": true },
+          { "slot": 6, "key": "umberhulk", "count": "1" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 8,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 8",
+          "places": [
+            [8, 28], [28, 28], [52, 42], [50, 44],
+            [90, 14], [50, 74], [10, 56], [98, 48],
+            [28, 62], [122, 48], [50, 96], [122, 14],
+            [10, 84], [28, 92], [80, 72], [50, 16]
+          ]
+        },
+        "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "beholder" },
+        "lordChest": {
+          "letter": "I",
+          "contents": "lair-I",
+          "quest": "holy_hammer",
+          "includesRuby": false,
+          "extraHoard": false,
+          "decision": "D2",
+          "x": 50,
+          "y": 44,
+          "room": "beholder-lair",
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 2000, "band": "~2000", "with": "rubyGuardian", "x": 28, "y": 28 },
+        "hammer": { "id": "holy_hammer" },
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 8,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}

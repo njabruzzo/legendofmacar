@@ -50,7 +50,7 @@
   ];
 
   function tooth(n) {
-    return {
+    var row = {
       kind: 'electrum-tooth',
       n: n,
       id: n === 1 ? 'grond_tooth_electrum' : ('grond_tooth_electrum_' + n),
@@ -60,6 +60,9 @@
       countsForTeethCarried: true,
       usableByMacar: 'Y'
     };
+    /* Tooth 7 is the last of the seven. The L7 map already says so. */
+    if (n === 7) row.lastTooth = true;
+    return row;
   }
 
   function mon(key, name, hd, ac, xp, extra) {
