@@ -1,0 +1,248 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 7 campaign map. Data only. The game does not load this file. The transition card is the existing earth elemental sheet.",
+  "levels": [
+    {
+      "id": "L7",
+      "name": "The Deep Stone",
+      "level": 7,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 120, "h": 96 },
+      "builtFrom": "New floor. Earth-elemental keys already exist.",
+      "spawn": { "x": 16, "y": 18, "role": "arrival-from-L6" },
+      "arrival": { "x": 16, "y": 18, "role": "from-L6" },
+      "layout": {
+        "source": "New deep. The RULES print no room coordinates.",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 16, "y": 18, "rw": 5, "rh": 4 },
+          { "id": "ruby-court", "kind": "rect", "x": 48, "y": 36, "w": 20, "h": 16 },
+          { "id": "stair-chamber", "kind": "disk", "x": 48, "y": 80, "rw": 4, "rh": 3.4 },
+          { "id": "stone-hall", "kind": "rect", "x": 88, "y": 40, "w": 18, "h": 16 },
+          { "id": "xorn-west", "kind": "disk", "x": 24, "y": 58, "rw": 5, "rh": 4 },
+          { "id": "hulk-burrow", "kind": "disk", "x": 24, "y": 82, "rw": 5, "rh": 4 },
+          { "id": "staff-elemental", "kind": "disk", "x": 104, "y": 28, "rw": 5, "rh": 4 },
+          { "id": "device-elemental", "kind": "disk", "x": 104, "y": 70, "rw": 5, "rh": 4 },
+          { "id": "vein-cut", "kind": "disk", "x": 64, "y": 58, "rw": 4, "rh": 3.4 }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 48,
+        "y": 28,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian VII",
+        "tier": 7,
+        "count": 1,
+        "x": 48,
+        "y": 36,
+        "hp": 84,
+        "ac": 0,
+        "hitOnlyBy": 2,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian VII",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 44,
+        "y": 38,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 52,
+        "y": 38,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/creatures/mon_earthelem.png",
+        "standInFor": "Earth elemental art",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "stoneLord",
+        "name": "Stone Lord",
+        "x": 88,
+        "y": 40,
+        "hp": 72,
+        "ac": 2,
+        "hitOnlyBy": 2,
+        "room": "stone-hall",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "earthelem",
+          "file": "assets/creatures/mon_earthelem.png",
+          "standIn": false,
+          "standInFor": null,
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "placement": "fixed",
+        "x": 48,
+        "y": 80,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "tooth": {
+        "id": "grond_tooth_electrum_7",
+        "n": 7,
+        "x": 88,
+        "y": 36,
+        "prop": "demonface",
+        "room": "stone-hall",
+        "cursed": true,
+        "lastTooth": true,
+        "countsForRitual": true,
+        "countsForTeethCarried": true
+      },
+      "setPieces": [
+        {
+          "id": "heartstone-vein",
+          "kind": "starmetal-vein",
+          "placed": true,
+          "x": 64,
+          "y": 58,
+          "room": "vein-cut",
+          "idSource": "campaign-table",
+          "pickup": "starmetal"
+        }
+      ],
+      "spawns": [
+        {
+          "id": "stone-hall",
+          "room": "stone-hall",
+          "anchor": { "x": 88, "y": 40 },
+          "members": [
+            { "key": "stoneLord", "count": 1, "x": 88, "y": 40, "role": "boss" },
+            { "key": "xorn", "count": 1, "x": 84, "y": 42, "role": "cover" },
+            { "key": "umberhulk", "count": 1, "x": 92, "y": 42, "role": "minion" }
+          ]
+        },
+        {
+          "id": "xorn-west",
+          "room": "xorn-west",
+          "anchor": { "x": 24, "y": 58 },
+          "open": "band-count",
+          "members": [
+            { "key": "xorn", "count": 1, "x": 24, "y": 58 }
+          ]
+        },
+        {
+          "id": "hulk-burrow",
+          "room": "hulk-burrow",
+          "anchor": { "x": 24, "y": 82 },
+          "open": "band-count",
+          "members": [
+            { "key": "umberhulk", "count": 1, "x": 24, "y": 82 }
+          ]
+        },
+        {
+          "id": "staff-elemental",
+          "room": "staff-elemental",
+          "anchor": { "x": 104, "y": 28 },
+          "open": "band-count",
+          "members": [
+            { "key": "earthElemental8", "count": 1, "x": 104, "y": 28 }
+          ]
+        },
+        {
+          "id": "device-elemental",
+          "room": "device-elemental",
+          "anchor": { "x": 104, "y": 70 },
+          "open": "band-count",
+          "members": [
+            { "key": "earthElemental12", "count": 1, "x": 104, "y": 70 }
+          ]
+        }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "xorn", "count": "1" },
+          { "slot": 2, "key": "xorn", "count": "1" },
+          { "slot": 3, "key": "umberhulk", "count": "1" },
+          { "slot": 4, "key": "umberhulk", "count": "1" },
+          { "slot": 5, "key": "earthElemental8", "count": "1" },
+          { "slot": 6, "key": "earthElemental8", "count": "1" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 7,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 7",
+          "places": [
+            [16, 18], [48, 36], [48, 80], [88, 40],
+            [24, 58], [24, 82], [104, 28], [104, 70],
+            [64, 58], [40, 50], [72, 20], [12, 70],
+            [60, 80], [96, 50], [36, 20], [80, 78]
+          ]
+        },
+        "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "stoneLord" },
+        "lordChest": {
+          "letter": "G",
+          "contents": "lair-G",
+          "source": "umber hulk",
+          "includesRuby": false,
+          "extraHoard": false,
+          "decision": "D2",
+          "x": 90,
+          "y": 44,
+          "room": "stone-hall",
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 1750, "band": "~1750", "with": "rubyGuardian", "x": 48, "y": 36 },
+        "tooth": { "id": "grond_tooth_electrum_7" },
+        "heartstones": { "id": "heartstone", "perKill": 1 },
+        "veins": [{ "id": "starmetal", "x": 64, "y": 58, "room": "vein-cut" }],
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 7,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}
