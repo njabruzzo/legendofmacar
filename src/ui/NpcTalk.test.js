@@ -46,13 +46,14 @@ function toyChoicesComplete(body){
 ['toy_find','toy_wind','toy_grond','toy_teeth','toy_ruby','toy_froren','toy_mordain','toy_anvil'].forEach(k=>{
   assert(toyChoicesComplete(talkPack(k)), k+' every choice has reply or then');
 });
-assert(/Ten empty sockets/.test(talk) && /Wind me, thick-skull/.test(talk),
+assert(/Seven empty sockets/.test(talk) && /Wind me, thick-skull/.test(talk),
   'toy_find names empty sockets');
 assert(/then:\(\)=>\{ if\(G\.lvl\) G\.lvl\.flags\.toyWound=1; startTalk\('toy_wind'\)/.test(talkPack('toy_find')),
   'Wind it opens toy_wind and marks wound');
 assert(/then:\(\)=>startTalk\('toy_froren'\)/.test(talkPack('toy_find')),
   'Who made you opens toy_froren');
-assert(/What are those holes\?/.test(talkPack('toy_find')) && /Shake it\./.test(talkPack('toy_find')),
+assert(/What are those holes\?/.test(talkPack('toy_find')) && /Shake it\./.test(talkPack('toy_find')) &&
+  /Seven bites gone through the stone/.test(talkPack('toy_find')),
   'toy_find inspects sockets');
 assert(/Your kin kissed Grond/.test(talk) && /then:\(\)=>startTalk\('toy_grond'\)/.test(talkPack('toy_wind')),
   'toy_wind names Grond and opens toy_grond');
@@ -61,15 +62,18 @@ assert(/then:\(\)=>startTalk\('toy_teeth'\)/.test(talkPack('toy_wind')),
 assert(/then:\(\)=>startTalk\('toy_ruby'\)/.test(talkPack('toy_wind')),
   'The ruby? opens toy_ruby');
 assert(/Why insult me\?/.test(talkPack('toy_wind')), 'toy_wind has Why insult me');
+assert(/Seven teeth wait\. I don\\'t care/.test(talkPack('toy_wind')),
+  'toy_wind put-down names seven teeth');
 assert(/Grond\. Deep hunger/.test(talkPack('toy_grond')) && /Who worshiped him\?/.test(talkPack('toy_grond')),
   'toy_grond pins hunger and worship');
 assert(/then:\(\)=>startTalk\('toy_ruby'\)/.test(talkPack('toy_grond')),
   'toy_grond And the ruby opens toy_ruby');
 assert(/then:\(\)=>startTalk\('toy_froren'\)/.test(talkPack('toy_grond')),
   'Was Froren of Grond opens toy_froren');
-assert(/Ten teeth torn/.test(talkPack('toy_teeth')) && /Mordain\\'s holy hammer/.test(talkPack('toy_teeth')) &&
-  /Anvil of Truth/.test(talkPack('toy_teeth')),
-  'toy_teeth pins ten teeth, Mordain hammer, Anvil of Truth');
+assert(/Seven teeth torn/.test(talkPack('toy_teeth')) && /Mordain\\'s holy hammer/.test(talkPack('toy_teeth')) &&
+  /Anvil of Truth/.test(talkPack('toy_teeth')) && /Why seven\?/.test(talkPack('toy_teeth')) &&
+  /Seven stone mouths grin in the deep/.test(talkPack('toy_teeth')) && !/Why ten\?/.test(talk),
+  'toy_teeth pins seven teeth, Mordain hammer, Anvil of Truth');
 assert(/then:\(\)=>startTalk\('toy_mordain'\)/.test(talkPack('toy_teeth')),
   'Mordain hammer opens toy_mordain');
 assert(/then:\(\)=>startTalk\('toy_anvil'\)/.test(talkPack('toy_teeth')),
@@ -77,13 +81,19 @@ assert(/then:\(\)=>startTalk\('toy_anvil'\)/.test(talkPack('toy_teeth')),
 assert(/Heart of it all\. Not a door/.test(talkPack('toy_ruby')) &&
   /The lust that called Grond down the hall/.test(talkPack('toy_ruby')),
   'toy_ruby pins lust-heart');
-assert(/Soft Froren\. Tinker/.test(talkPack('toy_froren')) && /Not Grond\\'s\. Never Grond\\'s/.test(talkPack('toy_froren')),
+assert(/Soft Froren\. Tinker/.test(talkPack('toy_froren')) && /Not Grond\\'s\. Never Grond\\'s/.test(talkPack('toy_froren')) &&
+  /He left an anvil for honest hands/.test(talkPack('toy_froren')),
   'toy_froren pins soft tinker not Grond');
+assert(/t:'His anvil\?', reply:'THE TOY: "A tinker\\'s anvil\. It mends a blade\. Not the Anvil of Truth— that one\\'s deeper laid\."'/.test(talkPack('toy_froren')) &&
+  !/t:'His anvil\?', then:/.test(talkPack('toy_froren')),
+  'His anvil is a reply and does not open toy_anvil');
 assert(/then:\(\)=>startTalk\('toy_wind'\)/.test(talkPack('toy_froren')),
   'toy_froren Back returns to toy_wind');
 assert(/Mordain\\'s holy hammer\. Not for ore/.test(talkPack('toy_mordain')),
   'toy_mordain line');
-assert(/Anvil of Truth\. Soft Froren\\'s stand/.test(talkPack('toy_anvil')),
+assert(/Anvil of Truth\. No tinker\\'s stand/.test(talkPack('toy_anvil')) &&
+  /t:'Froren\\'s anvil\?'/.test(talkPack('toy_anvil')) &&
+  /This one breaks the deal Grond made/.test(talkPack('toy_anvil')),
   'toy_anvil line');
 assert(/interact\(L\.flags\.toyWound\?'Talk to the brass walker':'Wind the brass walker'/.test(html) &&
   /startTalk\(L\.flags\.toyWound\?'toy_wind':'toy_find'\)/.test(html),

@@ -31,7 +31,7 @@ const talk=html.match(/const NPC_TALK=\{[\s\S]*?\n\};/)[0];
  'goblin_mercy','web_skeleton','web_skeleton_more'].forEach(k=>{
   assert(new RegExp(k+':\\{').test(talk), k+' is in NPC_TALK');
 });
-assert(/who:'A TOY'/.test(talk) && /Cold brass\. Ten empty sockets\. A key in its back\. It ticks once: "Wind me, thick-skull\. Or stay blind\."/.test(talk),
+assert(/who:'A TOY'/.test(talk) && /Cold brass\. Seven empty sockets\. A key in its back\. It ticks once: "Wind me, thick-skull\. Or stay blind\."/.test(talk),
   'toy_find Quill line');
 assert(/t:'Wind it\.'/.test(talk) && /say:'MACAR: "Walk\."'/.test(talk), 'toy_find Wind it');
 assert(/t:'Who made you\?'/.test(talk) && /then:\(\)=>startTalk\('toy_froren'\)/.test(talk),
@@ -47,17 +47,17 @@ assert(/Kin under the fall/.test(talk) && /Red door warm to a dwarf/.test(talk) 
   'toy_wind clues are cave-in, ruby door, north seam SEARCH, hall anvil');
 assert(/then:\(\)=>startTalk\('toy_grond'\)/.test(talk), 'Who is Grond opens toy_grond');
 assert(/then:\(\)=>startTalk\('toy_teeth'\)/.test(talk), 'teeth / end-it open toy_teeth');
-assert(/Go clutch the heart\. Leave the sockets bare\. Ten teeth wait/.test(talk),
-  'toy_wind put-down names the heart and ten teeth');
+assert(/Go clutch the heart\. Leave the sockets bare\. Seven teeth wait/.test(talk),
+  'toy_wind put-down names the heart and seven teeth');
 assert(/Grond\. Deep hunger\. Pretty name/.test(talk) &&
   /The lust that called Grond down the hall/.test(talk),
   'toy_grond pins Grond as hunger and ruby-lust');
-assert(/Ten teeth torn/.test(talk) && /Mordain\\'s holy hammer/.test(talk) &&
-  /Anvil of Truth/.test(talk) && /Ten teeth\. Mordain\\'s hammer/.test(talk),
-  'toy_teeth pins ten teeth, Mordain hammer, Anvil of Truth');
+assert(/Seven teeth torn/.test(talk) && /Mordain\\'s holy hammer/.test(talk) &&
+  /Anvil of Truth/.test(talk) && /Seven teeth\. Mordain\\'s hammer/.test(talk),
+  'toy_teeth pins seven teeth, Mordain hammer, Anvil of Truth');
 assert(/Heart of it all\. Not a door/.test(talk) && /Soft Froren\. Tinker/.test(talk),
   'toy_ruby and toy_froren packs are present');
-assert(/Mordain\\'s holy hammer\. Not for ore/.test(talk) && /Anvil of Truth\. Soft Froren\\'s stand/.test(talk),
+assert(/Mordain\\'s holy hammer\. Not for ore/.test(talk) && /Anvil of Truth\. No tinker\\'s stand/.test(talk),
   'toy_mordain and toy_anvil packs are present');
 assert(!/chapter III|ruins stair|bronze door|gnome/i.test(talk.match(/toy_wind:\{[\s\S]*?\n  \},/)[0]),
   'toy_wind has no later-chapter compass');

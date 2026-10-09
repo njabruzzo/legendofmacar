@@ -7783,11 +7783,11 @@ const NPC_TALK={
   },
   toy_find:{
     who:'A TOY',
-    line:'Cold brass. Ten empty sockets. A key in its back. It ticks once: "Wind me, thick-skull. Or stay blind."',
+    line:'Cold brass. Seven empty sockets. A key in its back. It ticks once: "Wind me, thick-skull. Or stay blind."',
     choices:[
       {t:'Wind it.', say:'MACAR: "Walk."', then:()=>{ if(G.lvl) G.lvl.flags.toyWound=1; startTalk('toy_wind'); }},
       {t:'Who made you?', then:()=>startTalk('toy_froren')},
-      {t:'What are those holes?', reply:'THE TOY: "Sockets. Toothless. Stolen. Ten bites gone through the stone. Wind me if you want the bone."'},
+      {t:'What are those holes?', reply:'THE TOY: "Sockets. Toothless. Stolen. Seven bites gone through the stone. Wind me if you want the bone."'},
       {t:'Shake it.', reply:'A dry rattle: "Empty. Like your purse. Like your nerve. Wind me, coward, or I stay mute forever."'},
       {t:'Put it down.', reply:'THE TOY: "Sockets bare. Key cold. Go dig for crowns. Die old."'}
     ]
@@ -7801,7 +7801,7 @@ const NPC_TALK={
       {t:'Where are your teeth?', then:()=>startTalk('toy_teeth')},
       {t:'Why insult me?', reply:'THE TOY: "Because you smell of want. Gold. Rank. The same stink that broke the rank. I bite soft fools. You brought the bite to me."'},
       {t:'The ruby?', then:()=>startTalk('toy_ruby')},
-      {t:'Put it down.', reply:'THE TOY: "Go clutch the heart. Leave the sockets bare. Ten teeth wait. I don\'t care."'}
+      {t:'Put it down.', reply:'THE TOY: "Go clutch the heart. Leave the sockets bare. Seven teeth wait. I don\'t care."'}
     ]
   },
   toy_grond:{
@@ -7818,13 +7818,13 @@ const NPC_TALK={
   },
   toy_teeth:{
     who:'THE TOY',
-    line:'Ten teeth torn. Scattered deep. Gather each. Do not weep. Smash them true— Mordain\'s holy hammer, Anvil of Truth— break the greed that stole my youth.',
+    line:'Seven teeth torn. Scattered deep. Gather each. Do not weep. Smash them true— Mordain\'s holy hammer, Anvil of Truth— break the greed that stole my youth.',
     choices:[
-      {t:'Say that again.', reply:'THE TOY: "Ten teeth. Mordain\'s hammer. Anvil of Truth. Smash. Or stay thick. Your choice, dwarf."'},
-      {t:'Where do I look?', reply:'THE TOY: "Everywhere the dark grows bold. No map from me. That tale\'s old. Follow greed. Follow power. Follow what the ruby calls a flower."'},
+      {t:'Say that again.', reply:'THE TOY: "Seven teeth. Mordain\'s hammer. Anvil of Truth. Smash. Or stay thick. Your choice, dwarf."'},
+      {t:'Where do I look?', reply:'THE TOY: "Seven stone mouths grin in the deep. Each bites a tooth it means to keep. No map from me. Follow greed. Follow the grin."'},
       {t:'Mordain\'s hammer?', then:()=>startTalk('toy_mordain')},
       {t:'The Anvil of Truth?', then:()=>startTalk('toy_anvil')},
-      {t:'Why ten?', reply:'THE TOY: "Ten bites. Ten sins. Ten locks on what greed begins. One short and the lie still grins."'},
+      {t:'Why seven?', reply:'THE TOY: "Seven bites. Seven sins. Seven locks on what greed begins. One short and the lie still grins."'},
       {t:'Put it down.', reply:'THE TOY: "Sockets wait. Teeth do not. Tick."'}
     ]
   },
@@ -7840,10 +7840,10 @@ const NPC_TALK={
   },
   toy_froren:{
     who:'THE TOY',
-    line:'Soft Froren. Tinker. Fool with joy in his hands. He wound me for children, not for kings\' demands. Not Grond\'s. Never Grond\'s. He left an anvil where soft truth still stands.',
+    line:'Soft Froren. Tinker. Fool with joy in his hands. He wound me for children, not for kings\' demands. Not Grond\'s. Never Grond\'s. He left an anvil for honest hands.',
     choices:[
       {t:'Where is he now?', reply:'THE TOY: "Gone under the fall, or worse. Joy does not last when greed rehearses."'},
-      {t:'His anvil?', then:()=>startTalk('toy_anvil')},
+      {t:'His anvil?', reply:'THE TOY: "A tinker\'s anvil. It mends a blade. Not the Anvil of Truth— that one\'s deeper laid."'},
       {t:'Did he hide the teeth?', reply:'THE TOY: "He hid joy. Others tore teeth. Different work. Different grief."'},
       {t:'Back.', then:()=>startTalk('toy_wind')}
     ]
@@ -7860,9 +7860,9 @@ const NPC_TALK={
   },
   toy_anvil:{
     who:'THE TOY',
-    line:'Anvil of Truth. Soft Froren\'s stand. Cold iron that will not bend for a crowned hand. Lay the teeth. Raise the hammer. Strike. Let greed learn what soft fools demand.',
+    line:'Anvil of Truth. No tinker\'s stand. Cold iron that will not bend for a crowned hand. Set it on the altar. Lay the teeth. Strike. Let greed learn what soft fools demand.',
     choices:[
-      {t:'Is it in the start hall?', reply:'THE TOY: "An anvil stands where joy once stood. Whether Truth still wears that wood— prove it. I tick. I don\'t."'},
+      {t:'Froren\'s anvil?', reply:'THE TOY: "Froren\'s anvil mends a blade. This one breaks the deal Grond made. Different iron. Deeper laid."'},
       {t:'Why smash there?', reply:'THE TOY: "Because lies ring false on honest steel. Teeth of greed break when Truth makes them kneel."'},
       {t:'Back to the teeth.', then:()=>startTalk('toy_teeth')},
       {t:'Put it down.', reply:'THE TOY: "Truth does not chase. You do. Tick."'}
@@ -13177,7 +13177,7 @@ function maybeCrownAltarHint(p){
 /* HOUSE: Grond tooth hunt (Sage; Nick 10s). Copper id is dead.
    Quest unique, not combat magic, no sell, Macar pack only.
    Ids now: grond_tooth_electrum, grond_tooth_bronze.
-   Stub later: grond_tooth_03 … 10 — do not invent yet.
+   Stub later: seven teeth — do not invent yet.
    Smash-on-Anvil is dialogue-only (no systems).
    Ch1 face: Pry once (`L.flags.electrumTooth`) → Electrum Tooth
    (silvery-electrum). Face stays; empty socket after.
