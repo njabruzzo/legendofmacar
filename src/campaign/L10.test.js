@@ -78,6 +78,16 @@ assert(level.wander.slots.length === 6, 'section 5 gives L10 six wander slots');
 assert(JSON.stringify(level.wander.slots) === JSON.stringify(L10.WANDER), 'the map wander table matches the encounter data');
 assert(JSON.stringify(L10.WANDER) === JSON.stringify(T.level(10).wander), 'the wander table matches the campaign table');
 assert(level.loot.caches.count === 16 && level.loot.caches.places.length === 16 && level.loot.caches.level === 8 && level.loot.caches.floor === 10, 'sixteen caches use the level-8 row');
+[[48, 50], [40, 70], [80, 40]].forEach(function (tile) {
+  assert(!level.loot.caches.places.some(function (place) { return place[0] === tile[0] && place[1] === tile[1]; }), 'no cache sits in solid rock at ' + tile.join(','));
+});
+[[60, 44], [36, 62], [70, 44]].forEach(function (tile) {
+  assert(level.loot.caches.places.some(function (place) { return place[0] === tile[0] && place[1] === tile[1]; }), 'a cache sits on the floor at ' + tile.join(','));
+});
+[[70, 18], [92, 18], [86, 12]].forEach(function (tile) {
+  const chapel = braziers.places.filter(function (place) { return place.x === tile[0] && place.y === tile[1]; })[0];
+  assert(chapel && chapel.room === 'side-chapel', 'the brazier at ' + tile.join(',') + ' is a side chapel');
+});
 assert(level.loot.lordCorpse.letter === 'U' && level.loot.lordChest.onCorpse === false && level.loot.lordChest.contents === 'chapter-v-hoard' && level.loot.lordChest.includesRuby === false && level.loot.lordChest.letter == null, 'the corpse is U and the chest is the Chapter V hoard, not the ruby');
 assert(level.loot.guardianRuby.gp === 2500 && level.loot.guardianRuby.with === 'rubyGuardian', 'Guardian X keeps the 2500 gp ruby');
 assert(L10.LOOT.bossChest.includesRuby === false && L10.LOOT.guardianRuby.with === 'rubyGuardian', 'the ruby is listed with the guardian only');
@@ -160,6 +170,16 @@ chain.ingredientSets.forEach(function (set) {
 assert(T.level(10).quest.id === 'temple-ritual' && T.level(10).quest.xpOnce === 10000 && T.level(10).pacing.keyItems[0] === 'ritual complete', 'the level table tracks the temple ritual and its XP');
 
 assert(L10.OPEN.length === 21 && L10.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L10 choice is marked in the data');
+['king', 'duergar'].forEach(function (key) {
+  assert(L10.MONSTERS[key].immune.indexOf('poison') >= 0, key + ' lists poison immunity');
+});
+['skeleton', 'zombie'].forEach(function (key) {
+  assert(L10.MONSTERS[key].immune.indexOf('poison') < 0 && L10.MONSTERS[key].immune.indexOf('cold') >= 0, key + ' lists cold and does not list poison');
+});
+['ghoul', 'wight', 'wraith', 'spectre', 'duergarPriest'].forEach(function (key) {
+  const immune = L10.MONSTERS[key].immune || [];
+  assert(immune.indexOf('poison') < 0, key + ' does not list poison');
+});
 assert(html.indexOf('L10.js') < 0 && html.indexOf('maps/l10.json') < 0, 'index.html does not load the L10 data');
 assert(save.indexOf('L10.js') < 0 && save.indexOf('maps/l10.json') < 0, 'GameSave does not load the L10 data');
 assert(L10.wired === false, 'the L10 module is not wired');

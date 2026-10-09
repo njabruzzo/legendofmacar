@@ -226,7 +226,7 @@
           "y": 44,
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 1250, "band": "~1250", "x": 48, "y": 36 },
+        "guardianRuby": { "gp": 1250, "x": 48, "y": 36 },
         "tooth": { "id": "grond_tooth_electrum_5" },
         "sword": { "id": "drow_short_sword_plus_2", "plus": 2, "always": true },
         "adamantite": { "id": "drow_adamantite", "perWarrior": 0.5, "guardAlways": 2 },

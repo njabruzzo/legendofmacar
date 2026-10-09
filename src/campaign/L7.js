@@ -32,7 +32,7 @@
   }
 
   var EARTH = art('earthelem', 'assets/creatures/mon_earthelem.png', false, null);
-  var GROUND = { perDie: -2, vs: 'targets not on the ground', verify: true, xpTerm: false };
+  var GROUND = { perDie: -2, minPerDie: 1, vs: 'targets not on the ground', ghosts: true, xpTerm: false };
 
   var MONSTERS = {
     earthElemental8: {
@@ -46,11 +46,10 @@
       specials: ['needs a +2 weapon to hit', 'ground penalty (verify)'],
       hitOnlyBy: 2,
       groundPenalty: GROUND,
-      xp: 1020,
-      xpApprox: true,
-      bandXp: 910,
+      xp: 910,
       xpFormula: formula(375, 10, 36, [{ kind: 'SA', reason: 'hit only by +2', xp: 175 }]),
       tt: 'Nil',
+      corpseBand: 'high',
       art: EARTH
     },
     earthElemental12: {
@@ -64,11 +63,10 @@
       specials: ['needs a +2 weapon to hit', 'ground penalty (verify)'],
       hitOnlyBy: 2,
       groundPenalty: GROUND,
-      xp: 3080,
-      xpApprox: true,
-      bandXp: 2864,
+      xp: 2864,
       xpFormula: formula(1300, 16, 54, [{ kind: 'SA', reason: 'hit only by +2', xp: 700 }]),
       tt: 'Nil',
+      corpseBand: 'high',
       art: EARTH
     },
     xorn: {
@@ -91,7 +89,8 @@
         { kind: 'SA', reason: '4 attacks', xp: 175 },
         { kind: 'SA', reason: 'phasing', xp: 175 }
       ]),
-      tt: 'Nil',
+      tt: 'O, P, Q×5, X',
+      corpseLetters: { O: 1, P: 1, Q: 5, X: 1 },
       art: art('xorn', 'assets/creatures/mon_xorn.png', false, null)
     },
     umberhulk: {
@@ -101,7 +100,7 @@
       hd: '8+8',
       ac: 2,
       mv: '6"',
-      burrow: '1"-6"',
+      burrow: { stoneTilesPerSec: 0.2, rubbleTilesPerSec: 1.2, walk: '6"' },
       attacks: [
         { n: 2, form: 'claw', damage: '3d4' },
         { n: 1, form: 'bite', damage: '2d5' }
@@ -114,6 +113,9 @@
         { kind: 'SA', reason: 'printed', xp: 300 }
       ]),
       tt: 'G',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('umberhulk', 'assets/creatures/mon_umberhulk.png', false, null)
     },
     stoneLord: {
@@ -158,7 +160,7 @@
         { kind: 'SA', reason: 'shard cone', xp: 950 },
         { kind: 'SA', reason: 'hit only by +2', xp: 950 }
       ]),
-      ruby: { gp: 1750, band: '~1750' },
+      ruby: { gp: 1750 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian VII')
     }
   };
@@ -172,7 +174,8 @@
     key: 'stoneLord',
     separateFromGuardian: true,
     bossFlagOnIndividual: false,
-    coveringUnit: { key: 'xorn', role: 'cover', inBossRoom: true },
+    coveringUnit: { key: 'xorn', role: 'cover', inBossRoom: true, erupts: true },
+    metalTie: { mostMetal: true, tie: 'nearest', stillTied: 'Macar' },
     sink: { sec: 1, surprise: '1-3 on d6', stonecunning: '1 in 6' },
     tremor: {
       belowHpFraction: 0.25,
@@ -180,13 +183,14 @@
       proneSec: 1,
       save: 'vs paralysis',
       ghostsImmune: true,
+      knocksSelfDown: false,
       ghostRule: '1.13'
     },
     priority: [
       'It sinks into the floor for 1 s and rises under Macar. Surprise is 1-3 on d6. Dwarf stonecunning lets Macar sense it and cuts that to 1 in 6.',
       'It strikes Macar with its fist.',
-      'A xorn erupts from the wall and attacks whichever kin carries the most metal.',
-      'Below 25% HP, once only, a tremor knocks every kin prone for 1 s. A save vs paralysis negates it.'
+      'The stone-hall xorn erupts from the wall and attacks whichever kin carries the most metal. On a tie it takes the nearest. If still tied, it takes Macar.',
+      'Below 25% HP, once only, a tremor knocks every kin prone for 1 s. A save vs paralysis negates it. Ghosts are immune. The lord is not knocked down.'
     ]
   };
 
@@ -254,7 +258,7 @@
       includesRuby: false,
       extraHoard: false
     },
-    guardianRuby: { with: 'rubyGuardian', gp: 1750, band: '~1750' },
+    guardianRuby: { with: 'rubyGuardian', gp: 1750 },
     caches: {
       count: 16,
       level: 7,
@@ -292,8 +296,8 @@
   };
 
   var XP = {
-    earthElemental8: 1020,
-    earthElemental12: 3080,
+    earthElemental8: 910,
+    earthElemental12: 2864,
     xorn: 1280,
     umberhulk: 1828,
     stoneLord: 5090,
@@ -306,79 +310,79 @@
   var OPEN = [
     {
       id: 'elemental-xp',
-      note: 'The 8 HD cell prints about 1,020 and the 12 HD cell prints about 3,080. At average hp (36 and 54) with one special ability for a +2 weapon, the bands are 910 and 2,864. Both figures are stored. (open)'
+      note: 'Resolved by §7.5. The 8 HD elemental is 910 XP and the 12 HD elemental is 2,864. bandXp is retired.'
     },
     {
       id: 'elemental-addend',
-      note: 'The elemental cells, including the Stone Lord\'s +1,250, do not name the special-ability term. Needing a +2 weapon to hit is the special ability that band prices. (open)'
+      note: 'Resolved by §7.5. The elemental special ability is a +2 or better weapon to hit.'
     },
     {
       id: 'ground-penalty',
-      note: 'Earth elementals take -2 per damage die against targets not on the ground, marked verify. That line is not given an XP term. The Stone Lord\'s exact 5,090 includes only one special ability. (open)'
+      note: 'Resolved by §7.5. Earth elementals take -2 per damage die, minimum 1, against targets not on the ground. Ghosts count. It has no XP term.'
     },
     {
       id: 'xorn-hp',
-      note: 'Xorn XP 1,280 is 375+10 per hp at 38 hp, plus 175 three times. A 7+7 averages 38.5, and the cell prints about 1,280. (open)'
+      note: 'Resolved by §7.5. Xorn XP stays 1,280, at 38 hp.'
     },
     {
       id: 'hulk-addends',
-      note: 'The hulk cell prints +400 and +300 and does not name them. The amounts match one exceptional ability and one special ability on the 8+8 band. (open)'
+      note: 'Resolved by §7.5. The hulk addends are the confusing gaze 400 and tunneling 300.'
     },
     {
       id: 'band-count',
-      note: 'The stone hall holds one xorn and one umber hulk with the lord. Other rooms hold one xorn, one hulk, one 8 HD elemental, and one 12 HD elemental. Number appearing is not reprinted. (open)'
+      note: 'Resolved by §7.5. The placed xorn and hulk counts stay as they are.'
     },
     {
       id: 'xorn-which',
-      note: 'Step 3 says a xorn erupts from the wall. One xorn is placed in the stone hall as that unit. The RULES do not say which xorn when more than one is on the floor. (open)'
+      note: 'Resolved by §7.5. The stone-hall xorn is the one that erupts.'
     },
     {
       id: 'metal-tie',
-      note: 'The erupting xorn attacks whichever kin carries the most metal. A tie between kin is not printed. (open)'
+      note: 'Resolved by §7.5. A metal tie takes the nearest kin. If still tied, it takes Macar.'
     },
     {
       id: 'map-rooms',
-      note: 'Level 7 is a new floor. The ruby court, the stone hall, the stair, and the other packs have no printed coordinates. (open)'
+      note: 'Resolved by §7.5. The Level 7 rooms stay as placed.'
     },
     {
       id: 'tooth-face',
-      note: 'Electrum tooth 7, the last tooth, is in the stone hall at (88, 36). The RULES print the tooth and no coordinate. (open)'
+      note: 'Resolved by §7.5. Electrum tooth 7 stays at (88, 36).'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian VII\'s ruby is stored as 1750 gp on the guardian. Section 1.11 prints ~1,750 and no range. The boss chest does not hold it. (open)'
+      note: 'Resolved by §7.0. Guardian VII ruby is exactly 1,750 gp, on the guardian.'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen level-7 caches are placed on this floor. The RULES print the count and no coordinates. (open)'
+      note: 'Resolved by §7.5. Sixteen level-7 caches stay as placed.'
     },
     {
       id: 'lair-off-corpse',
-      note: 'Umber hulks print G. That letter is a lair row, so it stays off the corpse. One D2 chest in the stone hall rolls G because the hulk is the boss-room minion. The RULES do not give every hulk a chest. (open)'
+      note: 'Resolved by §7.5. Umber hulk G rolls only in the stone-hall chest. Other hulk corpses use the house high band.'
     },
     {
       id: 'nil-treasure',
-      note: 'Xorns and earth elementals print Nil. No corpse coins are stored for them. The house high-tier line also allows O+M. (open)'
+      note: 'Resolved by §7.5. Earth elementals are Nil and use the house high band. Xorn corpses roll O, P, Q×5, and X.'
     },
     {
       id: 'vein-name',
-      note: 'The campaign table names a heartstone-vein set piece. Section 1.7 prints heartstones as one per earth elemental and starmetal veins as a separate pickup. The placed landmark is a starmetal vein. (open)'
+      note: 'Resolved by §7.5. The set piece is starmetal-vein. Heartstones come from earth elementals.'
     },
     {
       id: 'burrow-rate',
-      note: 'The hulk burrows at 1" to 6". Which rate it uses is not printed. (open)'
+      note: 'Resolved by §7.5. The hulk burrows 0.2 tiles/s through stone and 1.2 through rubble. Walking stays 6 inches.'
     },
     {
       id: 'tremor-self',
-      note: 'The tremor knocks every kin prone. Whether the lord is knocked prone by his own tremor is not printed. (open)'
+      note: 'Resolved by §7.5. The Stone Lord is not knocked down by its own tremor. Ghosts are immune to the tremor.'
     },
     {
       id: 'forecast-pack',
-      note: 'The 1.12 cell prints 11,582 and names no pack. The Stone Lord 5,090 plus Guardian VII 5,212 is 10,302, and 10,302 plus one xorn\'s 1,280 is 11,582. Whether that extra term is a xorn is not printed. (open)'
+      note: 'Resolved by §7.5. The column is 10,302. The extra 1,280 was one xorn and is not in that column.'
     },
     {
       id: 'guardian-art',
-      note: 'No ruby-guardian sheet exists. Guardian VII uses the construct sheet. (open)'
+      note: 'Resolved by §7.5. Guardian VII uses the construct sheet.'
     }
   ];
 

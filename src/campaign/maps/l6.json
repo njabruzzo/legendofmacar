@@ -137,8 +137,11 @@
           "placed": true,
           "x": 12,
           "y": 74,
+          "w": 2,
+          "h": 2,
+          "tiles": [[12, 74], [13, 74], [12, 75], [13, 75]],
           "room": "ember-hall",
-          "count": 1,
+          "count": 4,
           "bossAvoids": true
         }
       ],
@@ -240,19 +243,17 @@
         },
         "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "emberLord" },
         "lordChest": {
+          "present": false,
           "letter": null,
-          "contents": "guardian-ruby",
+          "contents": null,
           "extraHoard": false,
           "decision": "D2",
-          "x": 11,
-          "y": 78,
-          "room": "ember-hall",
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 1500, "band": "~1500", "x": 29, "y": 24 },
+        "guardianRuby": { "gp": 1500, "x": 29, "y": 24 },
         "tooth": { "id": "grond_tooth_electrum_6" },
         "shards": { "id": "magma_shard", "perKill": 1 },
-        "glands": { "id": "fire_beetle_gland", "perKill": 2 },
+        "glands": { "id": "fire_beetle_gland", "perKill": 3 },
         "magicFilter": "2.2 usable by a dwarf fighter"
       },
       "exit": {

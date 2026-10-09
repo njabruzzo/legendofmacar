@@ -45,7 +45,7 @@ assert(fs.existsSync(path.join(root, level.elevator.transitionCard)), 'the stand
 assert(level.stairs.opensOn === 'bossKill' && level.stairs.stairsOpenOn === 'bossKill', 'the stair opens when the lord dies');
 assert(level.tooth.id === 'grond_tooth_electrum_7' && level.tooth.n === 7 && level.tooth.lastTooth === true && level.tooth.cursed === true && level.tooth.countsForRitual === true && level.tooth.countsForTeethCarried === true, 'electrum tooth 7 is the last tooth and counts toward the seven');
 
-const vein = level.setPieces.filter(function (p) { return p.id === 'heartstone-vein'; })[0];
+const vein = level.setPieces.filter(function (p) { return p.id === 'starmetal-vein'; })[0];
 const hall = level.spawns.filter(function (group) { return group.id === 'stone-hall'; })[0];
 assert(vein && vein.placed === true && vein.pickup === 'starmetal', 'the table set piece is a placed starmetal vein');
 assert(hall.room === level.boss.room, 'the stone hall is the boss room');
@@ -101,8 +101,9 @@ assert(T.level(7).pacing.cumulativeXp === 182200 && T.level(7).pacing.macar === 
 assert(T.level(7).pacing.cumulativeXp >= T.FIGHTER_XP.F8 && T.level(7).pacing.cumulativeXp < T.FIGHTER_XP.F9, '182200 sits in the F8 band');
 assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
-assert(L7.MONSTERS.earthElemental8.hd === 8 && L7.MONSTERS.earthElemental8.hitOnlyBy === 2 && L7.MONSTERS.earthElemental8.xp === 1020 && L7.MONSTERS.earthElemental8.bandXp === 910, 'the 8 HD elemental is the printed 1020, and the band at 36 hp is 910');
-assert(L7.MONSTERS.earthElemental12.xp === 3080 && L7.MONSTERS.earthElemental12.bandXp === 2864 && L7.MONSTERS.earthElemental12.hitOnlyBy === 2, 'the 12 HD elemental is the printed 3080, and the band at 54 hp is 2864');
+assert(L7.MONSTERS.earthElemental8.hd === 8 && L7.MONSTERS.earthElemental8.hitOnlyBy === 2 && L7.MONSTERS.earthElemental8.xp === 910 && L7.MONSTERS.earthElemental8.bandXp == null, 'the 8 HD elemental is 910 XP and bandXp is retired');
+assert(L7.MONSTERS.earthElemental12.xp === 2864 && L7.MONSTERS.earthElemental12.bandXp == null && L7.MONSTERS.earthElemental12.hitOnlyBy === 2, 'the 12 HD elemental is 2864 XP and bandXp is retired');
+assert(L7.MONSTERS.xorn.corpseLetters.O === 1 && L7.MONSTERS.xorn.corpseLetters.P === 1 && L7.MONSTERS.xorn.corpseLetters.Q === 5 && L7.MONSTERS.xorn.corpseLetters.X === 1, 'a xorn corpse rolls O, P, Q×5, and X');
 assert(L7.MONSTERS.xorn.hd === '7+7' && L7.MONSTERS.xorn.ac === -2 && L7.MONSTERS.xorn.xp === 1280, 'the xorn is 7+7, AC -2, 1280 XP');
 assert(L7.MONSTERS.umberhulk.hd === '8+8' && L7.MONSTERS.umberhulk.gaze.save === 'vs spell' && L7.MONSTERS.umberhulk.xp === 1828, 'the hulk is 8+8 and its gaze is a spell save');
 assert(L7.MONSTERS.stoneLord.hp === 72 && L7.MONSTERS.stoneLord.hitOnlyBy === 2 && L7.MONSTERS.stoneLord.xp === 5090, 'the Stone Lord is 16 HD, 72 hp, hit only by +2');
@@ -139,7 +140,12 @@ const bolts = Q.FORGE_RECIPES.filter(function (row) { return row.id === 'bolts_p
 assert(bolts && bolts.neededBy <= 7 && bolts.availableFrom <= 7, 'Bolts +1 are due by L7');
 assert(Q.LIVE_PLAN.marrow_draught && Q.LIVE_PLAN.marrow_draught.status === 'keep' && Q.LIVE_PLAN.marrow_draught.neededBy <= 7, 'Greater Healing stays the kept marrow draught');
 
-assert(L7.OPEN.length === 19 && L7.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L7 choice is marked in the data');
+assert(L7.OPEN.length === 19, 'L7 records 19 choice notes');
+L7.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (row.note.indexOf('Resolved') === 0) assert(row.note.indexOf('(open)') < 0, row.id + ' is marked resolved');
+  else assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+});
 assert(html.indexOf('L7.js') < 0 && html.indexOf('maps/l7.json') < 0, 'index.html does not load the L7 data');
 assert(save.indexOf('L7.js') < 0 && save.indexOf('maps/l7.json') < 0, 'GameSave does not load the L7 data');
 assert(L7.wired === false, 'the L7 module is not wired');

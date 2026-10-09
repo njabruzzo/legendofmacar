@@ -42,7 +42,8 @@
       ac: 4,
       mv: '12"',
       attacks: [{ n: 1, form: 'bite', damage: '2d4' }],
-      specials: ['glowing glands'],
+      specials: ['3 glowing glands'],
+      glands: 3,
       xp: 32,
       xpFormula: formula(20, 2, 6, []),
       tt: 'Nil',
@@ -58,8 +59,8 @@
       ac: 4,
       mv: '12"',
       attacks: [{ n: 1, form: 'bite', damage: '1d10' }],
-      specials: ['breath equal to HP', 'detects hidden or invisible 50%'],
-      breath: { damage: 'equal to HP', save: 'vs breath for half' },
+      specials: ['breath 1 hp per HD', 'detects hidden or invisible 50%'],
+      breath: { damage: '1 per HD', amount: 5, save: 'vs breath for half' },
       detectHidden: 0.5,
       xp: 315,
       xpFormula: formula(90, 5, 22, [
@@ -67,6 +68,9 @@
         { kind: 'SA', reason: 'printed', xp: 40 }
       ]),
       tt: 'C',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('warg', 'assets/creatures/mon_warg.png', true, 'Hell hound')
     },
     salamander: {
@@ -80,10 +84,11 @@
       mv: '9"',
       attacks: [
         { n: 1, form: 'spear', damage: '1d6', heat: '1d6' },
-        { n: 1, form: 'tail', damage: '2d6', heat: '1d8' }
+        { n: 1, form: 'tail', damage: '2d6', heat: '1d6' }
       ],
       specials: ['needs a +1 weapon to hit', 'immune to fire, sleep, charm and hold'],
       hitOnlyBy: 1,
+      acFacing: { attackers: 5, constricting: 3 },
       immune: ['fire', 'sleep', 'charm', 'hold'],
       xp: 1105,
       xpFormula: formula(375, 10, 38, [
@@ -91,6 +96,9 @@
         { kind: 'SA', reason: 'printed', xp: 175 }
       ]),
       tt: 'F',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('magmaelem', 'assets/creatures/mon_magmaelem.png', true, 'Salamander')
     },
     fireElemental8: {
@@ -166,7 +174,7 @@
         { kind: 'SA', reason: 'shard cone', xp: 700 },
         { kind: 'SA', reason: 'hit only by +1', xp: 700 }
       ]),
-      ruby: { gp: 1500, band: '~1500' },
+      ruby: { gp: 1500 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian VI')
     }
   };
@@ -184,13 +192,13 @@
     cannotCrossWater: true,
     checkEverySec: 1,
     targetOrder: ['kin carrying bombs or oil', 'Macar'],
-    ignite: { chance: '1 in 6', what: 'one pack bomb', damage: 'its normal damage', fireResistanceNegates: true },
-    flare: { belowHpFraction: 0.25, once: true, radius: '1"', damage: '2d8', save: 'vs breath for half' },
+    ignite: { chance: '1 in 6', what: 'one pack bomb', which: 'one random bomb from the pack, each equally likely', damage: 'its normal damage', fireResistanceNegates: true },
+    flare: { belowHpFraction: 0.25, once: true, radius: '1"', damage: '2d8', save: 'vs breath for half', hurtsSelf: false },
     priority: [
       'It never enters water tiles. A pool tile is Macar\'s safe zone and is placed in the room.',
       'It attacks the target with the most flammables first: kin carrying bombs or oil, then Macar.',
       'A hit ignites the target\'s pack bombs. There is a 1-in-6 chance one bomb detonates in the pack for its normal damage. Fire resistance negates this.',
-      'Below 25% HP it flares once: a 1" radius burst for 2d8, save vs breath for half.'
+      'Below 25% HP it flares once: a 1" radius burst for 2d8, save vs breath for half. The flare and its own fire do not hurt the lord.'
     ]
   };
 
@@ -239,7 +247,7 @@
       C: {
         letter: 'C',
         onCorpse: false,
-        cp: { chance: 20, dice: '1d10', times: 1000 },
+        cp: { chance: 20, dice: '1d12', times: 1000 },
         sp: { chance: 30, dice: '1d6', times: 1000 },
         ep: null,
         gp: null,
@@ -262,10 +270,11 @@
       }
     },
     bossChest: {
+      present: false,
       letter: null,
       decision: 'D2',
       onCorpse: false,
-      contents: 'guardian-ruby',
+      contents: null,
       extraHoard: false
     },
     caches: {
@@ -285,11 +294,11 @@
     },
     magicFilter: '2.2 usable by a dwarf fighter',
     components: {
-      fire_beetle_gland: { perKill: 2, glandsOnBeetle: 3, glandsVerify: true },
+      fire_beetle_gland: { perKill: 3, glandsOnBeetle: 3 },
       magma_shard: { perKill: 1, from: ['fireElemental8', 'fireElemental12', 'emberLord'] }
     },
     drops: [
-      { id: 'fire_beetle_gland', from: 'beetle', count: 2 },
+      { id: 'fire_beetle_gland', from: 'beetle', count: 3 },
       { id: 'magma_shard', from: 'fireElemental8', count: 1 },
       { id: 'magma_shard', from: 'fireElemental12', count: 1 },
       { id: 'magma_shard', from: 'emberLord', count: 1 }
@@ -321,91 +330,95 @@
   var OPEN = [
     {
       id: 'beetle-hp',
-      note: 'Fire beetle XP 32 is 20+2 per hp at 6 hp. A 1+2 HD creature averages 6.5, and the cell prints about 32. (open)'
+      note: 'Resolved by §7.4. Fire beetle XP stays 32, at 6 hp.'
     },
     {
       id: 'hound-hp',
-      note: 'Hell hound XP 315 is 90+5 per hp at 22 hp, plus 75 and 40. Five HD average 22.5, and the cell prints about 315. (open)'
+      note: 'Resolved by §7.4. Hell hound XP stays 315, at 22 hp.'
     },
     {
       id: 'salamander-hp',
-      note: 'Salamander XP 1,105 is 375+10 per hp at 38 hp, plus 175 and 175. A 7+7 average is 38.5, and the cell prints about 1,105. (open)'
+      note: 'Resolved by §7.4. Salamander XP stays 1,105, at 38 hp.'
     },
     {
       id: 'hound-addends',
-      note: 'The hound cell prints +75 and +40 and does not name them. The amounts match one exceptional ability and one special ability on the 5 HD band. (open)'
+      note: 'Resolved by §7.4. The hound addends are breath 75 and seeing invisible plus surprise 40.'
     },
     {
       id: 'salamander-addends',
-      note: 'The salamander cell prints two +175 terms and does not name them. They match two special abilities. The 7+7 band\'s exceptional ability is 275, which is not the printed addend. (open)'
+      note: 'Resolved by §7.4. The two 175 terms are hit only by magic weapons, and heat damage.'
     },
     {
       id: 'elemental-addend',
-      note: 'Each elemental cell prints one special-ability term and does not name it. Needing a magic weapon to hit is the special ability that band prices. (open)'
+      note: 'Resolved by §7.4. The elemental special ability is a +2 or better weapon to hit.'
     },
     {
       id: 'band-count',
-      note: 'The ember hall holds one salamander and one hell hound with the lord. Other packs follow the section 5 shapes, plus one 12 HD elemental. Number appearing is not reprinted. (open)'
+      note: 'Resolved by §7.4. The ember hall keeps one salamander and one hell hound with the lord.'
     },
     {
       id: 'fire-giants',
-      note: 'Section 4 names Chapter V fire giants in the L6 built-from cell. The stat block and locked minion option A do not include them, so they are not placed. (open)'
+      note: 'Resolved by §7.4. Fire giants are not placed on L6. They stand on L9.'
     },
     {
       id: 'hound-art',
-      note: 'No hell hound sheet exists. The warg sheet stands in. (open)'
+      note: 'Resolved by §7.4. The hell hound uses the warg sheet.'
     },
     {
       id: 'salamander-art',
-      note: 'No salamander sheet exists. The magma sheet stands in. (open)'
+      note: 'Resolved by §7.4. The salamander uses the magma sheet.'
     },
     {
       id: 'guardian-art',
-      note: 'No ruby-guardian sheet exists. Guardian VI uses the construct sheet. (open)'
+      note: 'Resolved by §7.4. Guardian VI uses the construct sheet.'
     },
     {
       id: 'map-rooms',
-      note: 'The ember hall is the Chapter V west vestry at (8, 74). The ruby court, the stair, and the other packs have no printed coordinates. (open)'
+      note: 'Resolved by §7.4. The ember hall stays the west vestry at (8, 74).'
     },
     {
       id: 'tooth-face',
-      note: 'Electrum tooth 6 is on the vestry north wall at (8, 70). The RULES print the tooth and no coordinate. (open)'
+      note: 'Resolved by §7.4. Electrum tooth 6 stays at (8, 70).'
     },
     {
       id: 'ruby-band',
-      note: 'Guardian VI\'s ruby is stored as 1500 gp. Section 1.11 prints ~1,500 and no range. (open)'
+      note: 'Resolved by §7.0. Guardian VI ruby is exactly 1,500 gp, on the guardian.'
     },
     {
       id: 'ruby-chest',
-      note: 'The D2 chest holds the guardian ruby and no other hoard. One ruby is stored. The cell does not say the ruby is rolled twice. (open)'
+      note: 'Resolved by §7.4. The guardian ruby is not in a chest. There is no L6 chest.'
+    },
+    {
+      id: 'nick-chest',
+      note: 'Nick has not decided whether to add a replacement chest on L6. No chest is stored. (open)'
     },
     {
       id: 'cache-places',
-      note: 'Sixteen level-6 caches are placed on this floor. Chapter V\'s ten caches stay with the temple. (open)'
+      note: 'Resolved by §7.4. Sixteen level-6 caches stay as placed.'
     },
     {
       id: 'lair-off-corpse',
-      note: 'Hell hounds print C and salamanders print F. Both letters are lair rows, so they stay off the corpse. The RULES do not give each one a chest. (open)'
+      note: 'Resolved by §7.4. Hell hound C and salamander F are lair letters and are not rolled. Both corpses use the house high band.'
     },
     {
       id: 'beetle-glands',
-      note: 'The drop ruling is 2 glands per beetle. MM1 says the beetle has 3 glowing glands, marked verify. (open)'
+      note: 'Resolved by §7.4. Each fire beetle drops 3 glands.'
     },
     {
       id: 'bomb-which',
-      note: 'A hit ignites pack bombs, and 1 in 6 detonates one for its normal damage. Which bomb, when several kinds are carried, is not printed. (open)'
+      note: 'Resolved by §7.4. The detonating bomb is one random bomb from the pack, each equally likely.'
     },
     {
       id: 'flare-self',
-      note: 'The flare is a 1" burst, once, below 25% HP. Whether the lord is harmed by his own burst is not printed. (open)'
+      note: 'Resolved by §7.4. The Ember Lord takes no damage from its own flare or its own fire.'
     },
     {
       id: 'pool-size',
-      note: 'One pool tile sits in the ember hall at (12, 74). The RULES say a pool tile is placed in the room and print no size. (open)'
+      note: 'Resolved by §7.4. The pool is 2×2 tiles at (12-13, 74-75).'
     },
     {
       id: 'ac-facing',
-      note: 'Salamander AC is 5 on the head and 3 on the body. Both are stored. Which face is struck first is not printed. (open)'
+      note: 'Resolved by §7.4. Attackers strike AC 5. The creature being constricted strikes AC 3.'
     }
   ];
 

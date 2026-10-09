@@ -180,7 +180,7 @@
           { "slot": 3, "key": "duergar", "count": "1d4", "charmed": true },
           { "slot": 4, "key": "orc", "count": "1d6", "charmed": true },
           { "slot": 5, "key": "orc", "count": "1d6", "charmed": true },
-          { "slot": 6, "key": "umberhulk", "count": "1" }
+          { "slot": 6, "key": "umberhulk", "count": "1", "charmed": true }
         ]
       },
       "loot": {
@@ -209,7 +209,7 @@
           "room": "beholder-lair",
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 2000, "band": "~2000", "with": "rubyGuardian", "x": 28, "y": 28 },
+        "guardianRuby": { "gp": 2000, "with": "rubyGuardian", "x": 28, "y": 28 },
         "hammer": { "id": "holy_hammer" },
         "magicFilter": "2.2 usable by a dwarf fighter"
       },

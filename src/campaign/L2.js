@@ -149,7 +149,7 @@
       hitOnlyBy: 0,
       xp: 181,
       xpFormula: formula(60, 4, 24, [{ kind: 'SA', reason: 'construct', xp: 25 }]),
-      ruby: { id: 'ruby_guardian_2', gp: 500, band: '400-600' },
+      ruby: { id: 'ruby_guardian_2', gp: 500 },
       art: art('thinone', 'assets/creatures/mon_thinone.png', true, 'Ruby Guardian II')
     }
   };
@@ -267,7 +267,7 @@
       letter: 'C',
       decision: 'D2-A',
       onCorpse: false,
-      cp: { chance: 20, dice: '1d10', times: 1000 },
+      cp: { chance: 20, dice: '1d12', times: 1000 },
       sp: { chance: 30, dice: '1d6', times: 1000 },
       ep: null,
       gp: null,
@@ -404,7 +404,7 @@
     },
     {
       id: 'lair-c-copper',
-      note: 'The king\'s chest uses the live LAIR.C row: 20% of 1d10×1000 cp. Printed DMG type C is often 1d12×1000. (open)'
+      note: 'Resolved by §7.1. Lair C copper is 1d12×1000 at 20%.'
     },
     {
       id: 'bronze-door-secret',

@@ -464,7 +464,7 @@
         },
         "kingCorpse": { "letter": "U", "decision": "D1-A", "on": "goblinKing" },
         "kingChest": { "letter": "C", "decision": "D2-A", "x": 76.4, "y": 69.2, "onCorpse": false },
-        "guardianRuby": { "id": "ruby_guardian_2", "gp": 500, "band": "400-600", "x": 10.1, "y": 31 },
+        "guardianRuby": { "id": "ruby_guardian_2", "gp": 500, "x": 10.1, "y": 31 },
         "tooth": { "id": "grond_tooth_electrum_2" },
         "bronzeTooth": { "id": "grond_tooth_bronze", "cursed": false, "countsForRitual": false },
         "dig": ["barley", "starmetal", "resin", "powder", "ironstone", "timber", "bone"],

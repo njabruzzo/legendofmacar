@@ -270,7 +270,7 @@
         },
         "queenCorpse": { "letter": "U", "decision": "D1-A", "on": "spiderQueen" },
         "queenChest": { "letter": "C", "decision": "D2-A", "x": 12.4, "y": 32.8, "onCorpse": false },
-        "guardianRuby": { "gp": 750, "band": "~750", "x": 16.4, "y": 16.4 },
+        "guardianRuby": { "gp": 750, "x": 16.4, "y": 16.4 },
         "tooth": { "id": "grond_tooth_electrum_3" },
         "pixieDust": { "id": "pixie_dust", "count": 1 },
         "venom": { "perSpider": 0.5, "queen": 1 },

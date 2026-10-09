@@ -321,7 +321,9 @@
   };
 
   /**
-   * No L10 attack is a poison save. Undead and duergar are immune to poison.
+   * No L10 attack is a poison save. The King lists poison. Duergar list
+   * poison. Skeletons and zombies list sleep, charm, hold, and cold.
+   * Ghouls, wights, wraiths, spectres, and the priest do not list poison.
    * H1 and the spider size table stay available, and the floor of 2
    * still binds any poison save.
    */
@@ -469,11 +471,11 @@
     },
     {
       id: 'priest-xp',
-      note: 'The duergar priest prints about 400. At 5 HD and 22.5 hp, one exceptional ability for spell use is 277.5. The wired xp is 400. The 277.5 is a side field. (open)'
+      note: 'Pending a Sage ruling. The duergar priest prints about 400. At 5 HD and 22.5 hp, one exceptional ability for spell use is 277.5. The wired xp is 400. The 277.5 is a side field. (open)'
     },
     {
       id: 'spectre-tt',
-      note: 'Spectre treasure is Q times 3, marked verify. It is stored as three individual Q rolls. (open)'
+      note: 'Pending a Sage ruling. Spectre treasure is Q times 3, marked verify. It is stored as three individual Q rolls. (open)'
     },
     {
       id: 'duergar-page',
@@ -493,11 +495,11 @@
     },
     {
       id: 'anvil-shared',
-      note: 'Adamantine Chain +2 takes the Holy Anvil as an ingredient, and the ritual also places that anvil on the altar. Whether the forge spends it is not printed. (open)'
+      note: 'Pending a Sage ruling. Adamantine Chain +2 takes the Holy Anvil as an ingredient, and the ritual also places that anvil on the altar. Whether the anvil is a tool or an ingredient is not ruled. (open)'
     },
     {
       id: 'king-order',
-      note: 'The plan says the King dies before the ritual. Section 1.10 says the seventh smash makes him mortal and the kill after that wins. The encoded steps follow 1.10. (open)'
+      note: 'Pending a Sage ruling. The plan says the King dies before the ritual. Section 1.10 says the seventh smash makes him mortal and the kill after that wins. The encoded steps follow 1.10. (open)'
     },
     {
       id: 'anvil-site',
@@ -505,11 +507,11 @@
     },
     {
       id: 'final-exit',
-      note: 'The live chapter has no stair. The win is the King. Section 6 still opens the campaign stair on that kill. (open)'
+      note: 'Pending a Sage ruling. The live chapter has no stair. The win is the King. Section 6 still opens the campaign stair on that kill. (open)'
     },
     {
       id: 'elevator-next',
-      note: 'L10 still has the guardian elevator and the Chapter V card. No next floor is printed. (open)'
+      note: 'Pending a Sage ruling. L10 still has the guardian elevator and the Chapter V card. No next floor is printed. (open)'
     },
     {
       id: 'cache-places',

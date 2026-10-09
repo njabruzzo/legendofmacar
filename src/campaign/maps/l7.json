@@ -132,7 +132,7 @@
       },
       "setPieces": [
         {
-          "id": "heartstone-vein",
+          "id": "starmetal-vein",
           "kind": "starmetal-vein",
           "placed": true,
           "x": 64,
@@ -228,7 +228,7 @@
           "room": "stone-hall",
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 1750, "band": "~1750", "with": "rubyGuardian", "x": 48, "y": 36 },
+        "guardianRuby": { "gp": 1750, "with": "rubyGuardian", "x": 48, "y": 36 },
         "tooth": { "id": "grond_tooth_electrum_7" },
         "heartstones": { "id": "heartstone", "perKill": 1 },
         "veins": [{ "id": "starmetal", "x": 64, "y": 58, "room": "vein-cut" }],

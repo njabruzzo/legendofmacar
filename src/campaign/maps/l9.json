@@ -190,7 +190,7 @@
           "room": "dragon-lair",
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 2250, "band": "~2250", "with": "rubyGuardian", "x": 48, "y": 36 },
+        "guardianRuby": { "gp": 2250, "with": "rubyGuardian", "x": 48, "y": 36 },
         "anvil": { "id": "holy_anvil" },
         "scales": { "id": "dragon_scale", "count": 3, "on": "redDragon" },
         "magicFilter": "2.2 usable by a dwarf fighter"

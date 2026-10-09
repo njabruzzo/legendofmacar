@@ -179,7 +179,7 @@
           "anchor": { "x": 90, "y": 14 },
           "was": "orc leader and drow x2",
           "members": [
-            { "key": "orcLeader", "count": 1, "x": 90, "y": 14 }
+            { "key": "orcLeader", "count": 1, "x": 90, "y": 14, "role": "assistant" }
           ]
         },
         {
@@ -204,7 +204,7 @@
           "anchor": { "x": 126, "y": 10 },
           "was": "orc leader and spider",
           "members": [
-            { "key": "orcLeader", "count": 1, "x": 126, "y": 10 }
+            { "key": "orcLeader", "count": 1, "x": 126, "y": 10, "role": "assistant" }
           ]
         },
         {
@@ -321,7 +321,7 @@
           "y": 22.2,
           "onCorpse": false
         },
-        "guardianRuby": { "gp": 1000, "band": "~1000", "x": 48, "y": 39 },
+        "guardianRuby": { "gp": 1000, "x": 48, "y": 39 },
         "tooth": { "id": "grond_tooth_electrum_4" },
         "eggs": { "id": "golden_egg", "count": 3 },
         "pelts": { "id": "worg_pelt", "perKill": 1 },

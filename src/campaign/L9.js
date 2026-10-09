@@ -4,8 +4,8 @@
  *
  * Numbers are the L9 rows in MACAR_10_LEVEL_RULES (1.9, 1.11, section 5)
  * and the DMG XP bands in section 1.0. The map is maps/l9.json.
- * xp is the printed cell. bandXp and speakingXp are side fields and are
- * not wired into boss-plus-guardian XP.
+ * xp is the ruled cell. speakingXp is the caster result of the 30% roll.
+ * It is not wired into boss-plus-guardian XP.
  * A field marked open is a 1e choice the RULES do not print.
  * A field marked verify is stored as the RULES print it.
  */
@@ -54,17 +54,38 @@
         shape: 'cone',
         length: '9"',
         widthAtEnd: '3"',
-        shapeVerify: true,
+        lengthTiles: 18,
+        widthAtEndTiles: 6,
+        widthAtMouthTiles: 1,
         damage: 'current HP',
         codeDamage: 'current game HP',
         applyDmgG: false,
         save: 'vs breath for half',
         perDay: 3,
+        hitsAllies: true,
+        avoidsAllies: false,
+        fireGiants: 'immune',
+        hellHounds: { damage: 'full', save: 'vs breath for half' },
         fireResistance: 'halves again after the save',
         cadence: 'never two consecutive 3 s windows'
       },
-      speaks: null,
-      casts: null,
+      speakCast: {
+        roll: 'once per L9 load',
+        chance: 0.30,
+        speak: 0.75,
+        castIfSpeaking: 0.40,
+        saveField: 'l9SpeakCast',
+        casterXp: 4756,
+        otherwiseXp: 3906,
+        spells: [
+          { name: 'Magic Missile', n: 2, level: 1, windupSec: 0.1 },
+          { name: 'Mirror Image', level: 2, windupSec: 0.2 },
+          { name: 'Web', level: 2, windupSec: 0.2 },
+          { name: 'Slow', level: 3, windupSec: 0.3 },
+          { name: 'Hold Person', level: 3, windupSec: 0.3, dwarfSaveBonus: true, freeActionImmune: true }
+        ],
+        cadence: '1 cast per 2 s, never in the same 1 s as a breath'
+      },
       specials: ['breath', 'some reds talk and cast spells'],
       bossFlagOnIndividual: false,
       xp: 3906,
@@ -90,15 +111,17 @@
         { n: 1, form: 'weapon', damage: '5d6' },
         { n: 1, form: 'hurl rocks', damage: '2d10' }
       ],
-      specials: ['immune to fire'],
-      immune: ['fire'],
+      specials: ['immune to fire, even red dragon breath'],
+      immune: ['fire', 'red dragon breath'],
       count: 2,
-      xp: 2960,
-      bandXp: 2840,
+      xp: 2840,
       xpFormula: formula(1300, 16, 52.5, [
         { kind: 'SA', reason: 'immune to fire', xp: 700 }
       ]),
-      tt: null,
+      tt: 'E',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('firegiant', 'assets/creatures/mon_firegiant.png', false, null)
     },
     hellHound: {
@@ -111,8 +134,8 @@
       ac: 4,
       mv: '12"',
       attacks: [{ n: 1, form: 'bite', damage: '1d10' }],
-      specials: ['breath equal to HP', 'detects hidden or invisible 50%'],
-      breath: { damage: 'equal to HP', save: 'vs breath for half' },
+      specials: ['breath 1 hp per HD', 'detects hidden or invisible 50%'],
+      breath: { damage: '1 per HD', amount: 5, save: 'vs breath for half', takesDragonBreath: true, dragonBreathSave: 'vs breath for half' },
       detectHidden: 0.5,
       count: 2,
       xp: 315,
@@ -121,6 +144,9 @@
         { kind: 'SA', reason: 'printed', xp: 40 }
       ]),
       tt: 'C',
+      ttLair: true,
+      onCorpse: false,
+      corpseBand: 'high',
       art: art('warg', 'assets/creatures/mon_warg.png', true, 'Hell hound')
     },
     beetle: {
@@ -131,7 +157,8 @@
       ac: 4,
       mv: '12"',
       attacks: [{ n: 1, form: 'bite', damage: '2d4' }],
-      specials: ['glowing glands'],
+      specials: ['3 glowing glands'],
+      glands: 3,
       xp: 32,
       xpFormula: formula(20, 2, 6, []),
       tt: 'Nil',
@@ -153,15 +180,15 @@
         'cone 3d6',
         'hit only by +2 weapons'
       ],
-      cone: { damage: '3d6', range: '3"', rangeFrom: 'tier IV', save: 'vs breath for half', everySec: 4, minTiles: 2 },
+      cone: { damage: '3d6', range: '3"', lengthTiles: 6, rangeFrom: '7.6', save: 'vs breath for half', everySec: 4, minTiles: 2 },
       hitOnlyBy: 2,
       xp: 10800,
       xpFormula: formula(3000, 25, 108, [
-        { kind: 'SA', reason: 'printed', xp: 1550 },
-        { kind: 'SA', reason: 'printed', xp: 1550 },
-        { kind: 'EA', reason: 'printed', xp: 2000 }
+        { kind: 'SA', reason: '+2 weapon to hit', xp: 1550 },
+        { kind: 'SA', reason: 'AC -2', xp: 1550 },
+        { kind: 'EA', reason: 'cone', xp: 2000 }
       ]),
-      ruby: { gp: 2250, band: '~2250' },
+      ruby: { gp: 2250 },
       art: art('construct', 'assets/creatures/mon_construct.png', true, 'Ruby Guardian IX')
     }
   };
@@ -254,7 +281,6 @@
       H: {
         letter: 'H',
         onCorpse: false,
-        gpAbout: 64000,
         cp: { chance: 25, min: 3, max: 18, times: 1000 },
         sp: { chance: 50, min: 1, max: 30, times: 1000 },
         ep: { chance: 50, min: 1, max: 10, times: 1000 },
@@ -281,7 +307,7 @@
       includesRuby: false,
       extraHoard: false
     },
-    guardianRuby: { with: 'rubyGuardian', gp: 2250, band: '~2250' },
+    guardianRuby: { with: 'rubyGuardian', gp: 2250 },
     caches: {
       count: 16,
       level: 8,
@@ -314,10 +340,10 @@
     questItems: [ANVIL]
   };
 
-  /** Printed cells only. speakingXp and fire-giant bandXp stay off this sum. */
+  /** Ruled cells. speakingXp stays off the boss-plus-guardian sum. */
   var XP = {
     redDragon: 3906,
-    firegiant: 2960,
+    firegiant: 2840,
     hellHound: 315,
     beetle: 32,
     rubyGuardian: 10800
@@ -328,72 +354,12 @@
 
   var OPEN = [
     {
-      id: 'speak-cast',
-      note: 'The age table prints 4,756 if an old red speaks and casts. MM1 percentages are not printed here. The wired xp is 3,906. The 4,756 is a side field. (open)'
+      id: 'dragon-letters',
+      note: 'MM1 red treasure is H, S, T. H is the chest. S and T are not rolled. Nick has not decided that flag. (open)'
     },
     {
-      id: 'breath-shape',
-      note: 'The breath cone is 9" long and 3" wide at the end, marked verify. (open)'
-    },
-    {
-      id: 'giant-hd',
-      note: 'Fire giants are 11+2-5 HD. The campaign table uses 11+3. The cell does not pick the bonus. (open)'
-    },
-    {
-      id: 'giant-xp',
-      note: 'Each fire giant prints about 2,960, and that is the wired xp. At 11+3 the average is 52.5 hp, and one special ability for fire immunity is 2,840. The 2,840 is a side field. (open)'
-    },
-    {
-      id: 'giant-tt',
-      note: 'The L9 fire-giant sentence prints no treasure letter. No corpse letter is stored. (open)'
-    },
-    {
-      id: 'hound-lair',
-      note: 'Hell hounds print C on their MM line. The L9 treasure sentence prints one lair chest, letter H. C is not placed as a second chest. (open)'
-    },
-    {
-      id: 'cone-range',
-      note: 'Guardian IX\'s cone damage is 3d6. The 3" range belongs to the tier IV cone and is not reprinted on the IX line. (open)'
-    },
-    {
-      id: 'guardian-addends',
-      note: 'Guardian IX prints 1,550 twice and 2,000 once and does not name them. (open)'
-    },
-    {
-      id: 'ruby-band',
-      note: 'Guardian IX\'s ruby is stored as 2250 gp on the guardian. Section 1.11 prints ~2,250 and no range. The boss chest does not hold it. (open)'
-    },
-    {
-      id: 'hoard-gp',
-      note: 'Lair H is printed as about 64,000 gp. The cell does not show the roll that makes that average. (open)'
-    },
-    {
-      id: 'anvil-roll',
-      note: 'The Holy Anvil lies in the dragon hoard, and the chest also rolls lair H. Whether the anvil replaces one of H\'s magic items is not printed. (open)'
-    },
-    {
-      id: 'map-rooms',
-      note: 'Level 9 is a new floor. Fire giants are the reused creature. The ruby court, the lair, and the stair have no printed coordinates. (open)'
-    },
-    {
-      id: 'cache-places',
-      note: 'Sixteen caches use the level-8 row, as printed for L9. The RULES print the row and no coordinates. (open)'
-    },
-    {
-      id: 'wander-place',
-      note: 'Section 5 is the wander table. The placed minions are the printed 2 fire giants and 2 hell hounds. Wander packs are not also placed as rooms. (open)'
-    },
-    {
-      id: 'forecast-pack',
-      note: 'The 1.12 cell prints 21,260 and names no pack. The old red 3,906 plus Guardian IX 10,800 is 14,706. Two giants at 2,960 plus two hounds at 315 is 6,550. Those together are 21,256, which is 4 under 21,260. The cell does not name that pack, so it is not added. (open)'
-    },
-    {
-      id: 'guardian-art',
-      note: 'No ruby-guardian sheet exists. Guardian IX uses the construct sheet. (open)'
-    },
-    {
-      id: 'dragon-art',
-      note: 'No red-dragon sheet exists. The deep-dragon sheet stands in until red dragon art passes. (open)'
+      id: 'difficulty-dip',
+      note: 'The boss-plus-guardian column stays 14,706. Nick has not decided whether boss-room minions count in that column. (open)'
     }
   ];
 
