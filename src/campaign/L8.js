@@ -205,7 +205,17 @@
       ]
     },
     eyestalks: { specialtyTotal: 19, severs: 1, chosen: 'at random', ruling: true, rawSeparateHp: true },
-    retreat: { belowHpFraction: 0.3, mv: '3"', toward: 'shaft' },
+    /*
+     * Wiring pass: the shaft is at the lair's north entrance (50, 38).
+     * A fleeing beholder retreats toward the arrival point (8, 28).
+     * Do not move the shaft. The layout stays as placed.
+     */
+    retreat: {
+      belowHpFraction: 0.3,
+      mv: '3"',
+      toward: 'shaft',
+      wiringNote: 'The shaft is at the lair north entrance, so a fleeing beholder retreats toward the arrival. Flag for the wiring pass. Do not move the layout.'
+    },
     priority: [
       'Anti-magic cone: 90 degrees, 14 tiles. Magic item bonuses and spells stop inside it. The beholder keeps Macar in the cone while he holds a magic weapon or wears magic armor.',
       'Up to 2 eye rays per second at targets outside the cone. Each eye has a 3 s cooldown, in the printed priority order.',
@@ -396,7 +406,7 @@
     },
     {
       id: 'forecast-pack',
-      note: 'The 1.12 cell prints 18,500 and names no pack. The beholder 7,910 plus Guardian VIII 8,420 is 16,330. The difference is 2,170. Four duergar at 86 plus one hulk at 1,828 is 2,172, which is not that difference. (open)'
+      note: 'The 1.12 cell prints 18,500 and names no pack. The beholder 7,910 plus Guardian VIII 8,420 is 16,330. Four duergar at 86 plus one hulk at 1,828 is 2,172. Those together are 18,502, which rounds to the printed 18,500. The cell still does not name that pack, so it is not added. (open)'
     },
     {
       id: 'guardian-art',

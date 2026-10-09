@@ -1,0 +1,209 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 9 campaign map. Data only. The game does not load this file. The transition card is the existing deep-dragon sheet until red dragon art passes.",
+  "levels": [
+    {
+      "id": "L9",
+      "name": "The Red Dragon and the Holy Anvil",
+      "level": 9,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 120, "h": 96 },
+      "builtFrom": "New floor. Fire giants are the reused Chapter V creature.",
+      "spawn": { "x": 16, "y": 18, "role": "arrival-from-L8" },
+      "arrival": { "x": 16, "y": 18, "role": "from-L8" },
+      "layout": {
+        "source": "New floor. The RULES print no room coordinates.",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 16, "y": 18, "rw": 5, "rh": 4 },
+          { "id": "ruby-court", "kind": "rect", "x": 48, "y": 36, "w": 20, "h": 16 },
+          { "id": "stair-chamber", "kind": "disk", "x": 48, "y": 80, "rw": 4, "rh": 3.4 },
+          { "id": "dragon-lair", "kind": "rect", "x": 88, "y": 40, "w": 22, "h": 18 }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 48,
+        "y": 28,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian IX",
+        "tier": 9,
+        "count": 1,
+        "x": 48,
+        "y": 36,
+        "hp": 108,
+        "ac": -2,
+        "hitOnlyBy": 2,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian IX",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 44,
+        "y": 38,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 52,
+        "y": 38,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/creatures/mon_deepdragon.png",
+        "standInFor": "Deep dragon art stands in for the red dragon",
+        "note": "Keep this deep-dragon stand-in on the L9 card until red dragon art passes.",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "redDragon",
+        "name": "Red Dragon",
+        "x": 88,
+        "y": 40,
+        "hp": 66,
+        "ac": -1,
+        "age": "old",
+        "room": "dragon-lair",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "deepdragon",
+          "file": "assets/creatures/mon_deepdragon.png",
+          "standIn": true,
+          "standInFor": "Red dragon",
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "placement": "fixed",
+        "x": 48,
+        "y": 80,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "anvil": {
+        "id": "holy_anvil",
+        "name": "Holy Anvil of Truth",
+        "displayName": "Holy Anvil of Truth",
+        "x": 90,
+        "y": 44,
+        "prop": "anvil",
+        "room": "dragon-lair",
+        "behindBoss": true,
+        "forgeTier": "top",
+        "usableByMacar": "Y"
+      },
+      "setPieces": [
+        {
+          "id": "dragon-hoard",
+          "kind": "quest-chest",
+          "placed": true,
+          "x": 90,
+          "y": 44,
+          "room": "dragon-lair",
+          "quest": "holy_anvil",
+          "letter": "H",
+          "includesRuby": false
+        }
+      ],
+      "spawns": [
+        {
+          "id": "dragon-lair",
+          "room": "dragon-lair",
+          "anchor": { "x": 88, "y": 40 },
+          "members": [
+            { "key": "redDragon", "count": 1, "x": 88, "y": 40, "role": "boss" },
+            { "key": "firegiant", "count": 2, "x": 84, "y": 42, "role": "minion" },
+            { "key": "hellHound", "count": 2, "x": 92, "y": 42, "role": "minion" }
+          ]
+        }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "hellHound", "count": "1d3" },
+          { "slot": 2, "key": "hellHound", "count": "1d3" },
+          { "slot": 3, "key": "hellHound", "count": "1d3" },
+          { "slot": 4, "key": "beetle", "count": "1d4" },
+          { "slot": 5, "key": "beetle", "count": "1d4" },
+          { "slot": 6, "key": "firegiant", "count": "1" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 8,
+          "floor": 9,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 8, used for L9",
+          "places": [
+            [16, 18], [48, 36], [48, 80], [88, 40],
+            [90, 44], [24, 58], [24, 82], [72, 22],
+            [104, 28], [104, 70], [64, 58], [36, 20],
+            [12, 70], [60, 80], [96, 50], [40, 50]
+          ]
+        },
+        "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "redDragon" },
+        "lordChest": {
+          "letter": "H",
+          "contents": "lair-H",
+          "quest": "holy_anvil",
+          "includesRuby": false,
+          "extraHoard": false,
+          "decision": "D2",
+          "x": 90,
+          "y": 44,
+          "room": "dragon-lair",
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 2250, "band": "~2250", "with": "rubyGuardian", "x": 48, "y": 36 },
+        "anvil": { "id": "holy_anvil" },
+        "scales": { "id": "dragon_scale", "count": 3, "on": "redDragon" },
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 9,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}
