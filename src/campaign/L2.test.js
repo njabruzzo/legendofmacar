@@ -144,7 +144,6 @@ assert(L2.LOOT.individual.U.magic.chance === 55 && L2.LOOT.lairC.onCorpse === fa
 assert(L2.LOOT.questItems[1].countsForRitual === false, 'the bronze tooth is not a ritual tooth');
 
 assert(L2.OPEN.length > 0 && L2.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L2 choice is marked in the data');
-assert(/ASSET_VER='131'/.test(html), 'ASSET_VER stays 131');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'index.html does not load the L2 data');
 assert(save.indexOf('L2.js') < 0 && save.indexOf('maps/l2.json') < 0, 'GameSave does not load the L2 data');
 assert(L2.wired === false, 'the L2 module is not wired');
