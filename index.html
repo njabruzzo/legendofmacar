@@ -81,7 +81,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=4761d3b4cfd0"></script>
+<script src="src/assets/asset-manifest.js?v=fb2f5358a115"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -550,7 +550,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='130';
+const ASSET_VER='131';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -988,6 +988,10 @@ if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_
    Drop a key whose path is not in it, before loadSprites requests it.
    Macar walk-frame assignments above, and MACAR_PLAN, are unchanged.
    The _w3 pass itself is unchanged; a Macar _w3 line is not edited here. */
+/* Camp rest card (Nick, bare-head vB). Its own sheet, not a shared-atlas
+   cell. After MacarSharedAtlas.register so that rebind cannot point this
+   key at macar-body-v1.png. vA (crowned) is not registered. */
+SPRITE_FILES.restCardMacar='assets/ui/rest_card_macar_vB.png';
 if(typeof ASSET_FILES!=='undefined' && ASSET_FILES){
   Object.keys(SPRITE_FILES).forEach(k=>{
     const src=SPRITE_FILES[k];
@@ -1102,7 +1106,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1',
     'floor_mine','wall_worked','wall_face','wall_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','restCardMacar',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross','icon_attack','icon_defend','icon_helm','icon_quiver','icon_save'];
@@ -20762,7 +20766,17 @@ function drawSleepRest(g){
   glow.addColorStop(0.38,'rgba(180,70,18,0.12)');
   glow.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=glow; g.fillRect(0,0,VW,VH);
-  const img=blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
+  /* Own rest-card sheet for every weapon kit (bare-head vB).
+     vA is not bound. When restCardMacarCrown is registered,
+     wearingBoneCrown() selects it. A missing decode keeps the living blit. */
+  if(SPRITE_FILES.restCardMacar && !sprReady('restCardMacar') && !SPRITE_LOADING.restCardMacar)
+    loadSpriteKeyNow('restCardMacar');
+  const crowned=typeof wearingBoneCrown==='function' && wearingBoneCrown();
+  if(crowned && SPRITE_FILES.restCardMacarCrown && !sprReady('restCardMacarCrown') && !SPRITE_LOADING.restCardMacarCrown)
+    loadSpriteKeyNow('restCardMacarCrown');
+  const card=(crowned && sprReady('restCardMacarCrown'))?SPR.restCardMacarCrown
+    :(sprReady('restCardMacar')?SPR.restCardMacar:null);
+  const img=card||blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
   const caption='Macar decides to camp to rest and heal.';
   g.textAlign='center';
   if(img){

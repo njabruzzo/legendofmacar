@@ -1098,6 +1098,7 @@ var ASSET_FILES={
   "assets/ui/intro_ch3.jpg":1,
   "assets/ui/intro_ch4.jpg":1,
   "assets/ui/intro_ch5.jpg":1,
+  "assets/ui/rest_card_macar_vB.png":1,
   "assets/ui/title_logo.png":1,
   "assets/ui/title_menu.jpg":1,
   "assets/ui/title_splash.jpg":1
