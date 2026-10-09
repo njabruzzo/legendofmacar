@@ -192,7 +192,8 @@ assert(/G\.throwRow/.test(packFn) && /G\.throwRow/.test(extractFn('throwBomb')),
   'a tapped burp row is the throw');
 assert(/Eaten at camp/.test(packFn), 'rations say they are eaten at camp');
 assert(/The torch is spent/.test(packFn), 'a torch tap spends one torch');
-assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
+assert(/equipPackItem\(it,\{silent:true\}\)/.test(packFn), 'a necklace tap equips through the doll');
+assert(!/G\.equipped\.necklace=it/.test(packFn), 'a necklace tap does not assign the doll slot raw');
 
 if (failed) { console.error('\n' + failed + ' failed'); process.exit(1); }
 console.log('\nconsumable use checks passed');

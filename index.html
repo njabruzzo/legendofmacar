@@ -6373,7 +6373,7 @@ function campRest(){
   } else {
     say('The stone is closed around you. A quiet watch.','#c9b895');
   }
-  let healed=0;
+  let healed=0, unfed=0;
   G.ents.forEach(e=>{
     if(e.team!=='party') return;
     if(e.ghost && e.dead) returnGhost(e, true);
@@ -6381,6 +6381,7 @@ function campRest(){
     if(!e.ghost && typeof takePartyRation==='function'){
       const fed=takePartyRation();
       if(fed!=='fed'){
+        unfed++;
         say((e.name||'A kin')+' has no ration. The rest does not heal them.','#c9b895');
         return;
       }
@@ -6399,7 +6400,7 @@ function campRest(){
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
   G.campDoff=1;
   writeGameSave(true);
-  hint((healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.')+' The book is marked.',5);
+  hint((unfed?'Macar camps. No rations, no healing.':(healed?'Macar camps. Hit points restored.':'Macar camps. Already whole.'))+' The book is marked.',5);
 }
 function isLootableBody(o){
   if(!o||o.hero) return false;
@@ -6854,7 +6855,13 @@ function startChapter(n){
   applyEquipped();
   (G.carryEffects||[]).forEach(x=>{
     const e=G.ents.find(z=>z.hero)||G.ents[0];
-    if(x.t==='potion') drinkPotion(x.p,e);
+    if(x.t==='potion'){
+      if(drinkPotion(x.p,e)==='keep'){
+        const pk=packOf('macar');
+        pk.potions=pk.potions||[];
+        pk.potions.push(x.p);
+      }
+    }
     if(x.t==='herb'){ const pk=packOf(packOwner(e)); pk.herbs[x.n]=(pk.herbs[x.n]||0)+1; syncPackTotals(); useHerb(x.n,e); }
     if(x.t==='magic') useMagicItem(x.it,e);
   });
@@ -11456,11 +11463,29 @@ function applyWornTurnEffects(turns){
 function hasActivatedMagicPower(it){
   return !!it&&(it.k==='wand'||it.cat==='Rod/Staff/Wand'||it.k==='sense'||/ring of invisibility/i.test(it.n||''));
 }
+function removeSpentMagic(it){
+  if(!it) return;
+  const packs=(typeof G!=='undefined' && G.packs)||{};
+  Object.keys(packs).forEach(function(k){
+    const bag=packs[k];
+    if(!bag || !bag.magic) return;
+    const i=bag.magic.indexOf(it);
+    if(i>=0) bag.magic.splice(i,1);
+  });
+  const eq=(typeof G!=='undefined' && G.equipped)||null;
+  if(eq){
+    Object.keys(eq).forEach(function(k){ if(eq[k]===it) eq[k]=null; });
+  }
+  if(typeof applyEquipped==='function') applyEquipped();
+  if(typeof syncPackTotals==='function') syncPackTotals();
+}
 function activatePackMagicPower(){
   const it=packSelItem();if(!it||!hasActivatedMagicPower(it))return false;
   if(G.packFrom!=='play'){say('Use this power during a descent.','#c9b895');return false;}
   if(EquipmentSlots.isEquippable(it)&&!wornSlotOf(it)){say('Equip '+it.n+' before using its power.','#c9b895');return false;}
-  useMagicItem(it,packUser(),true);syncPackTotals();G.scene='play';return true;
+  const res=useMagicItem(it,packUser(),true);
+  if(res==='spent'||((it.k==='wand'||it.cat==='Rod/Staff/Wand')&&!(it.charges>0))) removeSpentMagic(it);
+  syncPackTotals();G.scene='play';return true;
 }
 function cancelOneMagicItem(e){
   const t=typeof nearestFoe==='function'?nearestFoe(e,2):null;
@@ -11529,10 +11554,15 @@ function useWandByName(it, e){
   }
   if(/Beguiling|Rulership|Staff of Command/i.test(n)){
     /* RAW: charm / command in a radius. House: existing charmFoeKind / hex-stun. */
-    if(typeof charmFoeKind==='function') charmFoeKind(e, null, 8);
-    else {
+    if(typeof charmFoeKind==='function'){
+      const held=charmFoeKind(e, null, 8);
+      if(held && held!=='keep' && typeof breakInvisibility==='function') breakInvisibility(e);
+    } else {
       const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
-      if(t){ t.stun=Math.max(t.stun||0, 3.2); t.charmed=1; t.aggro=0; say((t.name||'A foe')+' is held in thrall.','#e0d2ff'); }
+      if(t){
+        t.stun=Math.max(t.stun||0, 3.2); t.charmed=1; t.aggro=0; say((t.name||'A foe')+' is held in thrall.','#e0d2ff');
+        if(typeof breakInvisibility==='function') breakInvisibility(e);
+      }
       else say(it.n+' finds no mind to command.','#c9b895');
     }
     return 'charm';
@@ -11566,7 +11596,7 @@ function useWandByName(it, e){
     /* RAW Fear: cone, save vs wands or flee. RAW Paralyzation: ray, 3d4 rounds.
        House: hex-stun the nearest foe. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
-    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' stuns '+(t.name||'a foe')+'.','#7ad0ff'); }
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' stuns '+(t.name||'a foe')+'.','#7ad0ff'); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     else say(it.n+' finds no foe in reach.','#7ad0ff');
     return 'stun';
   }
@@ -11593,14 +11623,14 @@ function useWandByName(it, e){
   if(/Polymorph/i.test(n)){
     /* RAW: polymorph other or self. House: hex the foe if one stands, else self-buff. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
-    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' twists '+(t.name||'a foe')+'.','#c07bff'); }
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' twists '+(t.name||'a foe')+'.','#c07bff'); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     else if(e){ e.polymorph=1; e.buff=Math.max(e.buff||0, 12); say('The shape will take.','#e0d2ff'); }
     return 'hex';
   }
   if(/Wand of Conjuration/i.test(n)){
     /* RAW: unseen servant, elementals, monster summoning. House: hex-stun (help harries). */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
-    if(t){ t.stun=Math.max(t.stun||0, 3.2); say('Conjured help harries '+(t.name||'a foe')+'.','#c07bff'); }
+    if(t){ t.stun=Math.max(t.stun||0, 3.2); say('Conjured help harries '+(t.name||'a foe')+'.','#c07bff'); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     else say('The servant comes, but finds no foe.','#c9b895');
     return 'hex';
   }
@@ -11610,18 +11640,18 @@ function useWandByName(it, e){
     if(pick<=1){
       const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
       const dmg=rollDice(6,6,0)*ADD_SCALE;
-      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); if(typeof breakInvisibility==='function') breakInvisibility(e); }
       return 'bolt';
     }
     if(pick<=2){
       const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
       const dmg=rollDice(6,6,0)*ADD_SCALE;
-      if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+      if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); if(typeof breakInvisibility==='function') breakInvisibility(e); }
       return 'flame';
     }
     if(pick<=3){
       const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
-      if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' hexes '+(t.name||'a foe')+'.','#c07bff'); }
+      if(t){ t.stun=Math.max(t.stun||0, 3.2); say(it.n+' hexes '+(t.name||'a foe')+'.','#c07bff'); if(typeof breakInvisibility==='function') breakInvisibility(e); }
       return 'hex';
     }
     applyHeal(e, 8);
@@ -11632,7 +11662,7 @@ function useWandByName(it, e){
        House: both missiles, 1 charge. bolt FX. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
     const dmg=rollDice(2,4,2)*ADD_SCALE;
-    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     return 'bolt';
   }
   if(/Necklace of Missiles/i.test(n)){
@@ -11641,6 +11671,7 @@ function useWandByName(it, e){
     const res=NM.fire(it, e, necklaceHost());
     if(res && res.say) say(res.say, '#ff8a3a');
     if(res && res.reason==='no valid target') return 'keep';
+    if(res && res.ok && typeof breakInvisibility==='function') breakInvisibility(e);
     if(res && (res.spent || !(it.charges>0))) return 'spent';
     return 'bead';
   }
@@ -11650,7 +11681,7 @@ function useWandByName(it, e){
        House: one charge, 6d6 flame. Necklace of Missiles is its own bead pipe. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
     const dmg=rollDice(6,6,0)*ADD_SCALE;
-    if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+    if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     return 'flame';
   }
   if(/Wand of Lightning|Staff of the Magi|Shooting Stars/i.test(n)){
@@ -11658,7 +11689,7 @@ function useWandByName(it, e){
        RAW Shooting Stars: ball lightning outdoors. House: one charge, 6d6 bolt. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
     const dmg=rollDice(6,6,0)*ADD_SCALE;
-    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+    if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); if(typeof breakInvisibility==='function') breakInvisibility(e); }
     return 'bolt';
   }
   return 'zap';
@@ -11681,7 +11712,10 @@ function useScrollByName(it, e){
      RAW would roll the scribed spells. */
   const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
   const dmg=rollDice(6,6,0)*ADD_SCALE;
-  if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it&&it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
+  if(t){
+    damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it&&it.n}); burst(t.x,t.y,'#ff8a3a',16,3);
+    if(typeof breakInvisibility==='function') breakInvisibility(e);
+  }
   else say('The script flares and finds no foe.','#c9b895');
   return 'cast';
 }
@@ -11728,7 +11762,8 @@ function useMagicItem(it, e, activate){
     if(!(it.charges>0)){
       /* House: 0 charges is dead wood. RAW: a drained wand/staff/rod is useless. */
       say(it.n+' is dead wood.','#c9b895');
-      return;
+      if(typeof removeSpentMagic==='function') removeSpentMagic(it);
+      return 'spent';
     }
     if(e){
       const mode=typeof useWandByName==='function'?useWandByName(it, e):'zap';
@@ -11741,7 +11776,10 @@ function useMagicItem(it, e, activate){
       if(mode==='zap'){
         const t=nearestFoe(e,8);
         const dmg=rollDice(6,6,0)*ADD_SCALE;
-        if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+        if(t){
+          damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3);
+          if(typeof breakInvisibility==='function') breakInvisibility(e);
+        }
       }
       it.charges=Math.max(0,(it.charges||1)-1);
       say(it.n+' ('+it.charges+' charges left).','#7ad0ff');
@@ -11772,8 +11810,20 @@ function useMagicItem(it, e, activate){
     if(/javelin of lightning/i.test(it.n||'')){
       const t=e?nearestFoe(e,8):null;
       const dmg=rollDice(6,6,0)*ADD_SCALE;
-      if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
+      if(t){
+        damage(t, dmg, '#7ad0ff', {magic:1,kind:'wand',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3);
+        if(typeof breakInvisibility==='function') breakInvisibility(e);
+      }
       say(it.n+' becomes a lightning bolt.','#7ad0ff');
+      return 'spent';
+    }
+    if(/javelin of piercing/i.test(it.n||'')){
+      const t=e?nearestFoe(e,8):null;
+      if(!t){ say(it.n+' finds no foe.','#c9b895'); return; }
+      const dmg=rollDice(1,6,6)*ADD_SCALE;
+      damage(t, dmg, '#cfe3ff', {magic:1,kind:'ammo',n:it.n});
+      if(typeof breakInvisibility==='function') breakInvisibility(e);
+      say(it.n+' leaps to '+(t.name||'the foe')+'.','#cfe3ff');
       return 'spent';
     }
     if(/slaying/i.test(it.n||'')){
@@ -11789,6 +11839,7 @@ function useMagicItem(it, e, activate){
         damage(t, dmg, '#cfe3ff', {kind:'ammo',n:it.n});
         say(it.n+' flies as +6 vs '+(t.name||'the foe')+'.','#cfe3ff');
       }
+      if(typeof breakInvisibility==='function') breakInvisibility(e);
       return 'spent';
     }
     if(typeof isPlusShotAmmo==='function' && isPlusShotAmmo(it)){
@@ -11840,6 +11891,11 @@ function useMagicItem(it, e, activate){
   if(/Feather Token/i.test(it.n||'')){
     say('The feather has no work in the deep.','#c9b895');
     if(e) e._consumableFx='feather';
+    return 'spent';
+  }
+  if(/Bag of Beans|Candle of Invocation|Efreeti Bottle|Incense of Meditation|Nolzur's Marvelous Pigments|Robe of Useful Items/i.test(it.n||'')){
+    say(it.n+' is spent.','#c9b895');
+    if(e) e._consumableFx='spent';
     return 'spent';
   }
   say('This item’s special effect is not implemented yet. It stays in your pack.','#c9b895');
@@ -12352,7 +12408,7 @@ function applyDmgPotion(p, e){
       if(typeof endEthereal==='function') endEthereal(e);
       else { e.etherealT=0; e.ethereal=0; e.etherealPending=0; e.etherealDelay=0; }
       say('The body takes weight again.','#e0d2ff');
-      return true;
+      return 'keep';
     }
     e.etherealPending=1;
     e.etherealDelay=3;
@@ -12666,7 +12722,7 @@ function meleeSwing(e,arc,reach,dmg,col){
 }
 function shoot(from,tx,ty,dmg,kind,col,spd){
   const a=ang(tx-from.x,ty-from.y);
-  const s={x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:from.team,kind,col,life:2.2,spin:0,
+  const s={x:from.x,y:from.y,vx:Math.cos(a)*(spd||9),vy:Math.sin(a)*(spd||9),dmg,team:((from.controlT>0||from.charmed)&&from.team==='foe')?'party':from.team,kind,col,life:2.2,spin:0,
     rust:from.rust,poison:from.poison,killPoison:from.killPoison,slowPoison:from.slowPoison,sa:from.sa,from};
   G.shots.push(s);
   return s;
@@ -15468,6 +15524,12 @@ function update(dt){
   G.hurt=Math.max(0,G.hurt-dt*1.4);
 
   const p=player();
+  if(p && ((p.etherealT||0)>0 || p.etherealPending)){
+    interact('Take weight', function(){
+      if(typeof endEthereal==='function') endEthereal(p);
+      say('The body takes weight again.','#e0d2ff');
+    });
+  }
   const fightNow=foeInTheFight();
   if(p){
     p._followDt=dt; p._partyBlocked=false;
@@ -22255,10 +22317,9 @@ function usePackRow(r){
     const it=bag.magic[r.i];
     if(!it) return;
     if(!inField){ say('Throw a bead during a descent.','#c9b895'); return; }
-    G.equipped=G.equipped||{};
-    G.equipped.necklace=it;
+    if(!wornSlotOf(it)) equipPackItem(it,{silent:true});
     const spent=useMagicItem(it, who, true);
-    if(spent==='spent' || !(it.charges>0)) bag.magic.splice(r.i,1);
+    if(spent==='spent' || !(it.charges>0)) removeSpentMagic(it);
     syncPackTotals();
     return;
   }
@@ -22318,14 +22379,14 @@ function usePackRow(r){
     const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal';
     if(inField){
       const spent=useMagicItem(it, who);
-      if(spent==='spent'||consume) bag.magic.splice(r.i,1);
+      if((spent==='spent'||consume) && bag.magic[r.i]===it) bag.magic.splice(r.i,1);
     } else if(consume){
       bag.magic.splice(r.i,1);
       G.carryEffects=G.carryEffects||[];
       G.carryEffects.push({t:'magic',it});
       say('Set aside for the next descent: '+it.n,'#ffd27a');
     } else {
-      useMagicItem(it, who);
+      if(useMagicItem(it, who)==='spent' && bag.magic[r.i]===it) bag.magic.splice(r.i,1);
     }
   } else if(r.kind==='ale'){
     if(inField&&(bag.ales||0)>0){
