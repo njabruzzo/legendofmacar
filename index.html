@@ -68,6 +68,7 @@
 <script src="src/combat/DwarfWalkLegs.js?v=1"></script>
 <script src="src/combat/MacarSharedAtlas.js?v=142"></script>
 <script src="src/combat/NpcDirectionalAtlas.js?v=6"></script>
+<script src="src/combat/Monster8Dir.js?v=1"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -81,7 +82,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
+<script src="src/assets/asset-manifest.js?v=e5535862bcf3"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -294,7 +295,24 @@ function turnToward(e,dx,dy,dt,rate){
   return Math.abs(d)-max;
 }
 const WALK_CYCLES_PER_SECOND=1.675; // Two alternating steps per full stride.
-function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND; }
+function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND*((e&&typeof monsterCadenceMul==='function'&&monsterCadenceMul(e))||1); }
+/* Planted-foot slide stays within 25% of the drawn stride. Unbound foes and
+   kin keep 1× (149 ms on a 4-frame cycle, 298.5 ms on the 2-frame cycle).
+   Bound 8-dir monsters and Macar scale the same clock. Gameplay speed is
+   unchanged — only how fast the walk frames advance. */
+function monsterCadenceMul(e){
+  if(!e||typeof Monster8Dir==='undefined'||e.dead||e.crushed) return 1;
+  const plan=Monster8Dir.planFor(e);
+  let strideSrc=0, canvasH=1, drawH=0;
+  if(plan){
+    strideSrc=plan.strideSrc; canvasH=plan.canvasH;
+    drawH=entSpriteH(e,ZOOM*(e.scale||1));
+  }else if(e.hero&&!e.ghost){
+    strideSrc=Monster8Dir.MACAR.strideSrc; canvasH=Monster8Dir.MACAR.canvasH;
+    drawH=Monster8Dir.MACAR.spriteH*ZOOM*(e.scale||1);
+  }else return 1;
+  return Monster8Dir.cadenceMul({sp:e.sp||0,tw:TW,drawH:drawH,canvasH:canvasH,strideSrc:strideSrc,frameMs:Monster8Dir.FRAME_MS});
+}
 function holdFollowWalk(e, lead){
   if(!e||!lead||!lead.moving) return;
   const t=(typeof G!=='undefined'&&G&&G.t)||0;
@@ -550,7 +568,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='131';
+const ASSET_VER='132';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -978,6 +996,7 @@ if(typeof MacarWeaponShaft!=='undefined') MacarWeaponShaft.register(MACAR_ONMODE
 if(typeof MacarSharedAtlas!=='undefined') MacarSharedAtlas.register(MACAR_ONMODEL);
 Object.keys(MACAR_ONMODEL).forEach(k=>{ SPRITE_FILES[k]=MACAR_ONMODEL[k]; });
 if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_FILES);
+if(typeof Monster8Dir!=='undefined') Monster8Dir.register(SPRITE_FILES);
 ['se','ne'].forEach(d=>{
   if(!MACAR_ONMODEL['macar_'+d+'_w1']) SPRITE_FILES['macar_'+d+'_w1']=MACAR_ONMODEL.macar_e_w1;
   if(!MACAR_ONMODEL['macar_'+d+'_w2']) SPRITE_FILES['macar_'+d+'_w2']=MACAR_ONMODEL.macar_e_w2;
@@ -1033,7 +1052,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
 };
-Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); if(typeof NpcDirectionalAtlas!=='undefined') for(const actor of NpcDirectionalAtlas.actors) WORLD_ART_KEYS[n].push(...NpcDirectionalAtlas.keys(actor),...(actor.startsWith('gnome_')?[]:NpcDirectionalAtlas.keys(actor,true))); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); });
+Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined')WORLD_ART_KEYS[n].push(...MacarSharedAtlas.keys()); if(typeof NpcDirectionalAtlas!=='undefined') for(const actor of NpcDirectionalAtlas.actors) WORLD_ART_KEYS[n].push(...NpcDirectionalAtlas.keys(actor),...(actor.startsWith('gnome_')?[]:NpcDirectionalAtlas.keys(actor,true))); WORLD_ART_KEYS[n].push(...MacarIdleAtlas.keys('macar')); WORLD_ART_KEYS[n].push('craftstation','ch1_lift_lever','rubydoor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'); if(n==='1'&&typeof Monster8Dir!=='undefined') WORLD_ART_KEYS[n].push(...Monster8Dir.keys('thinone')); });
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 function loadSpriteKeyNow(k, cb){
@@ -2255,11 +2274,16 @@ function drawEntBillboard(g,e,img,z,flip){
   const W=img.width*(H/Math.max(1,img.height))*widen;
   const b=spriteBounds(img);
   // Anchor mirrors with the blit, or an off-centre sheet slides on the turn.
-  const cx=npc ? .5 : shaft?shaft.foot[0]:(b&&b.ok)?b.cx:0.5;
+  // Bound 8-dir monsters plant on a declared foot x and baseline row, never
+  // the per-frame opaque-box centre. Magenta punch stays off when the art
+  // has no fringe, on both the flipped and unflipped sides.
+  const eight=(typeof Monster8Dir!=='undefined')?Monster8Dir.planFor(e):null;
+  const anc=eight?Monster8Dir.anchor(eight):null;
+  const cx=anc?anc.footX:(npc ? .5 : shaft?shaft.foot[0]:(b&&b.ok)?b.cx:0.5);
   const dx=-W*(flip?1-cx:cx);
-  const dy=npc?-H*440/512:shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H);
+  const dy=anc?-H*anc.baselineFrac:(npc?-H*440/512:shaft?-H*shaft.foot[1]:img.__macarIntegratedMotion?-H:((b&&b.ok)?-H*b.botY:-H));
   const party=e.kind==='dwarf' && !e.dead;
-  const punch=!e.ghost;
+  const punch=eight?!eight.magentaCleanup:!e.ghost;
   if(e.hero && !e.dead){
     g.save();
     g.globalAlpha=1;
@@ -4049,7 +4073,13 @@ function wantsSpriteFlip(e){
   let left=sx<-0.02;
   if(Math.abs(sx)<0.02) left=!!e.faceLeft;
   else e.faceLeft=left?1:0;
-  const paintedLeft=!!(SPRITE_PAINTED_LEFT[e.kind]||SPRITE_PAINTED_LEFT[e.sprite]);
+  /* Bound 8-dir sheets carry their own painted-left flag, keyed by sprite.
+     Kind is not consulted, so a later goblin_king plan cannot inherit goblin.
+     Unbound sheets keep the kind-or-sprite table so their mirror stays put. */
+  const spr=(typeof entSpriteKey==='function')?entSpriteKey(e):(e.sprite||e.kind);
+  const paintedLeft=(typeof Monster8Dir!=='undefined'&&Monster8Dir.bound(spr))
+    ?Monster8Dir.paintedLeft(spr)
+    :!!(SPRITE_PAINTED_LEFT[e.kind]||SPRITE_PAINTED_LEFT[e.sprite]);
   return paintedLeft?!left:left;
 }
 function attackProgress(e){
@@ -4148,6 +4178,10 @@ function entAnimKey(e){
   if(typeof NpcDirectionalAtlas!=='undefined'){
     const directed=NpcDirectionalAtlas.select(k,e,screenOctant(e));
     if(directed){loadSpriteKeyNow(directed);if(sprReady(directed))return directed;}
+  }
+  if(typeof Monster8Dir!=='undefined'&&Monster8Dir.bound(k)){
+    const posed=Monster8Dir.select(k,e,screenOctant(e));
+    if(posed){loadSpriteKeyNow(posed);return posed;}
   }
   if(singlePoseLocked(e)){
     if(k==='dwarf_skeleton_idle' && (wantsMeleePose(e)||wantsMeleeRecover(e)) && SPR[k+'_atk'] && SPR[k+'_atk'].width)
@@ -4751,7 +4785,9 @@ const FOE={
   spitter:()=>ent({kind:'spider',sprite:'spitter',hp:34,sp:2.4,dmg:9,range:5.5,cd:2,scale:1.05,ranged:1,name:'Spitter',glow:'#c07bff'}),
   beetle:()=>ent({kind:'beetle',sprite:'beetle',hp:40,sp:2.1,dmg:8,range:.9,cd:1.15,scale:1.0,name:'Iron Beetle',glow:'#6a8a4a'}),
   fungi:()=>ent({kind:'fungi',sprite:'myconid',hp:58,sp:1.9,dmg:10,range:1,cd:1.35,scale:1.15,name:'Myconid',glow:'#a35bff'}),
-  statue:()=>ent({kind:'statue',sprite:'thinone',hp:95,sp:1.55,dmg:11,range:1.2,cd:1.5,scale:1.45,aggro:99,name:'Thin One',glow:'#ff3b3b',rubyDrop:1}),
+  /* Scale 2.065: STRUCTURE_PASS_L1_L2.md line 40, base 70, so the 512×416
+     canvas keeps the live 138.1 / 78.1 stature. hp, sp, dmg, range, cd, aggro stay. */
+  statue:()=>ent({kind:'statue',sprite:'thinone',hp:95,sp:1.55,dmg:11,range:1.2,cd:1.5,scale:2.065,aggro:99,name:'Thin One',glow:'#ff3b3b',rubyDrop:1}),
   crawler:()=>ent({kind:'crawler',sprite:'crawler',hp:48,sp:3.1,dmg:10,range:1.0,cd:1.0,scale:1.05,name:'Vein Crawler',glow:'#c06bff'}),
   undead:()=>ent({kind:'undead',sprite:'undead',hp:52,sp:2.5,dmg:11,range:.95,cd:1.1,scale:1,name:'Dead Kin',glow:'#7cff9c'}),
   fungiElder:()=>ent({kind:'fungi',sprite:'elder',hp:125,sp:1.6,dmg:14,range:6,cd:2.2,scale:1.5,ranged:1,name:'Spore Elder',glow:'#d07bff'}),
@@ -18164,7 +18200,13 @@ function drawEnt(g,e){
      let that gold show through as a sparkle outline. Ghosts never got it. */
   const img=solidDwarfSprite(e, entAnimImg(e));
   const pose=singlePoseOffset(e);
-  const bob0=pose?0:((img && e.moving && !e.dead)?Math.sin((e.gait||0)*TAU)*1.6*z:0);
+  const eight=(typeof Monster8Dir!=='undefined')?Monster8Dir.planFor(e):null;
+  let bob0=0;
+  if(!pose && img && e.moving && !e.dead){
+    /* Pass frames sit highest, stride frames sit lowest, locked to the
+       frame index. Unbound monsters keep the legacy sine. */
+    bob0=eight?Monster8Dir.bob(e.gait, Monster8Dir.walkCount(eight, screenOctant(e)), z):Math.sin((e.gait||0)*TAU)*1.6*z;
+  }
   if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);
   } else {
@@ -18177,7 +18219,9 @@ function drawEnt(g,e){
   if(e.hero && !e.dead){ g.globalAlpha=1; g.globalCompositeOperation='source-over'; }
   if(e.ghost && !e.dead) g.globalAlpha=GHOST_DRAW_ALPHA;
   g.save(); g.translate(pose?pose.x:0, -bob0+(pose?pose.y:0)); g.scale(img?1:(flip?-1:1),1); g.scale(1/squash,squash);
-  if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
+  if(eight && deadImg && drawEntBillboard(g,e,deadImg,z,false)){
+    /* Painted dead uses the monster's own canvas, foot x, and baseline. */
+  } else if(deadImg && drawDeadBillboard(g,e,deadImg,z)){
     /* prone corpse sprite */
   } else if(!(img && drawEntBillboard(g,e,img,z,flip))){
     if(e.kind==='dwarf') drawDwarf(g,e,z,sw);

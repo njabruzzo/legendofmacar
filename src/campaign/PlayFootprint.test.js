@@ -16,7 +16,7 @@ const root = path.join(__dirname, '../..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const recipes = fs.readFileSync(path.join(root, 'src/crafting/recipes.json'), 'utf8');
 
-assert(/ASSET_VER='131'/.test(html), 'ASSET_VER stays 131');
+assert(/ASSET_VER='132'/.test(html), 'ASSET_VER stays 132');
 [
   'src/campaign/',
   'BattleBuffs',

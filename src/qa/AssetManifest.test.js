@@ -52,7 +52,8 @@ const ATLASES = [
   'src/combat/MacarMotionAtlas.js',
   'src/combat/MacarSharedAtlas.js',
   'src/combat/MacarWeaponShaft.js',
-  'src/combat/NpcDirectionalAtlas.js'
+  'src/combat/NpcDirectionalAtlas.js',
+  'src/combat/Monster8Dir.js'
 ];
 
 function freshContext(withManifest) {
