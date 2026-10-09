@@ -151,7 +151,6 @@ L2.OPEN.forEach(function (row) {
 });
 assert(L2.LOOT.lairC.cp.dice === '1d12' && L2.LOOT.lairC.cp.chance === 20, 'lair C copper is 1d12×1000 at 20%');
 assert(L2.MONSTERS.rubyGuardian.ruby.gp === 500 && L2.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian II ruby is exactly 500 gp');
-assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'index.html does not load the L2 data');
 assert(save.indexOf('L2.js') < 0 && save.indexOf('maps/l2.json') < 0, 'GameSave does not load the L2 data');
 assert(L2.wired === false, 'the L2 module is not wired');

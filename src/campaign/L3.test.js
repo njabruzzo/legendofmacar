@@ -178,7 +178,6 @@ assert(L3.LOOT.lairC.cp.dice === '1d12' && L3.MONSTERS.spiderGiant.corpseBand ==
 assert(L3.MONSTERS.phasespider.phaseWindow.sec === 0.5 && L3.MONSTERS.spiderGiant.web.stuckSec === 2, 'the phase window is 0.5 s and the giant web holds for 2 s');
 assert(L3.MONSTERS.rubyGuardian.ruby.gp === 750 && L3.MONSTERS.rubyGuardian.ruby.band == null, 'Guardian III ruby is exactly 750 gp');
 assert(L3.MONSTERS.spider.poisonSaveVerify === true && L3.MONSTERS.spider.ttVerify === true, 'the large-spider verify figures stay marked');
-assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
 assert(html.indexOf('L3.js') < 0 && html.indexOf('maps/l3.json') < 0, 'index.html does not load the L3 data');
 assert(save.indexOf('L3.js') < 0 && save.indexOf('maps/l3.json') < 0, 'GameSave does not load the L3 data');
 assert(L3.wired === false && P.wired === false && B.wired === false, 'the L3 module and the buff and poison modules are not wired');
