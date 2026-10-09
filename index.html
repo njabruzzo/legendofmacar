@@ -21031,7 +21031,12 @@ function drawHint(g,s){
   g.globalAlpha=a;
   g.font='700 '+(13*s)+'px "Trebuchet MS",sans-serif'; g.textAlign='center';
   const plateH=30*s;
-  const w=g.measureText(G.hint.t).width+30*s;
+  let w=g.measureText(G.hint.t).width+30*s;
+  if(w>VW-16){
+    const fit=(VW-16)/w;
+    g.font='700 '+(13*s*fit)+'px "Trebuchet MS",sans-serif';
+    w=VW-16;
+  }
   let x=VW/2-w/2;
   let y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
   /* Phone portrait only. The top pin covers the party name, the HP bar,
