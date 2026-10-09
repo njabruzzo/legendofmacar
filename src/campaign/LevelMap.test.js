@@ -93,6 +93,20 @@ unfixed.levels[2].elevator.y = null;
 const missingPoint = Map.load(unfixed);
 assert(!missingPoint.ok && missingPoint.errors.some(function (e) { return e.indexOf('fixed point needs x and y') >= 0; }), 'a fixed feature without coordinates is rejected');
 
+const nullGuardian = JSON.parse(JSON.stringify(campaign.book));
+nullGuardian.levels[1].guardian.placement = 'fixed';
+nullGuardian.levels[1].guardian.x = null;
+nullGuardian.levels[1].guardian.y = null;
+const badGuardian = Map.load(nullGuardian);
+assert(!badGuardian.ok && badGuardian.errors.some(function (e) { return e.indexOf('L2 guardian fixed point needs x and y') >= 0; }), 'a fixed guardian with null x/y is rejected');
+
+const nullBoss = JSON.parse(JSON.stringify(campaign.book));
+nullBoss.levels[1].boss.placement = 'fixed';
+nullBoss.levels[1].boss.x = null;
+nullBoss.levels[1].boss.y = null;
+const badBoss = Map.load(nullBoss);
+assert(!badBoss.ok && badBoss.errors.some(function (e) { return e.indexOf('L2 boss fixed point needs x and y') >= 0; }), 'a fixed boss with null x/y is rejected');
+
 const broken = JSON.parse(JSON.stringify(campaign.book));
 delete broken.levels[3].rubyDoor;
 const bad = Map.load(broken);

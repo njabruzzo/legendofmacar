@@ -134,6 +134,10 @@
     } else if (!(g.count >= 1) || !g.tier) {
       errors.push(id + ' guardian needs a tier and a count');
     }
+    /* A fixed guardian is a point. Null x/y used to pass. */
+    if (g && g.placement === 'fixed') {
+      errors = errors.concat(validatePoint(id, 'guardian', g, false));
+    }
     var elev = level.elevator;
     if (!elev || typeof elev.transitionCard !== 'string' || !elev.transitionCard) {
       errors.push(id + ' elevator needs a transition-card art key');
@@ -145,6 +149,10 @@
     if (level.boss && level.boss.status === 'tbd') errors.push(id + ' boss is not TBD');
     if (level.boss != null && !level.boss.key) errors.push(id + ' boss needs a key');
     if (level.boss && level.boss.bossFlagOnIndividual) errors.push(id + ' no single creature wears a boss flag');
+    /* A fixed boss is a point. Null x/y used to pass. */
+    if (level.boss && level.boss.placement === 'fixed') {
+      errors = errors.concat(validatePoint(id, 'boss', level.boss, false));
+    }
     if (id === 'L1') {
       var b = level.boss;
       if (!b || b.key !== 'thinOne' || b.count !== 6 || b.sameAsGuardian !== true || b.firesWhen !== 'lastDies' || b.bossFlagOnIndividual !== false) {
