@@ -273,7 +273,7 @@ assert(!/x0=116, y0=16/.test(extractFn('buildTeethCrownRoom')),
   'old east-of-door chapel coords are gone');
 assert(/sec\.kind==='teeth'/.test(html) && /buildTeethCrownRoom\(L, sec\)/.test(html),
   'openSecret branches to the teeth chapel');
-assert(/Take the bone crown/.test(html) && /\{key:'animate', ico:'cross', label:'Animate'\}/.test(html),
+assert(/Take the bone crown/.test(html) && /\{key:'animate', ico:'bones', label:'Animate'\}/.test(html),
   'TAKE prompt and the Animate bar button exist');
 assert(!/return 'Animate the dead'/.test(html),
   'the floating Animate the dead prompt is gone');
