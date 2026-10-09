@@ -109,7 +109,7 @@ const saved = L10.RITUAL.xpOnce;
 L10.RITUAL.xpOnce = 1;
 assert(T.pathXp() === clear + 1, 'path XP reads RITUAL.xpOnce');
 L10.RITUAL.xpOnce = saved;
-assert(T.pathXp() === 501800 && clear + L10.RITUAL.xpOnce + T.level(10).pacing.ritualXp === 511800 && T.pathXp() !== 511800, 'a second ritual award would make the path 511800');
+assert(T.pathXp() === 501800 && clear + L10.RITUAL.xpOnce === T.pathXp() && clear + L10.RITUAL.xpOnce + L10.RITUAL.xpOnce === 511800 && T.pathXp() !== 511800, 'a second ritual award would make the path 511800');
 
 if (failed) {
   console.error(failed + ' failed');

@@ -466,16 +466,15 @@
         item: false,
         behindBoss: true,
         usableByMacar: 'Y',
-        xpOnce: 10000,
         steps: [
           'The King fights and dies in the throne room. His kill opens the stair and unlocks the altar.',
           'Macar sets the Holy Anvil on the temple altar at (29, 14.5).',
           'Each Holy Hammer smash takes 1 s. Any hit interrupts it.',
           'Each smash puts out the nearest brazier and lowers teethCarried by 1.',
-          'The seventh smash ends the curse, grants 10,000 XP once, and wins.'
+          'The seventh smash ends the curse, grants the ritual XP once, and wins.'
         ]
       },
-      pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
+      pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
       setPieces: ['ritual-braziers', 'throne-dais']
     }
   ];
@@ -540,9 +539,9 @@
 
   /**
    * Running clear through L10, then the ritual once.
-   * The L10 row is the clear only, 491,800. The ritual is L10.RITUAL.xpOnce.
-   * pacing.ritualXp and the map's ritual.xpOnce are the same number and are not added.
-   * The path is 501,800, which clears F10 (500,001).
+   * The L10 row is the clear only, 491,800. The ritual award lives only on
+   * L10.RITUAL.xpOnce. In a browser that global is root.L10. Node falls back
+   * to require. The path is 501,800, which clears F10 (500,001).
    */
   function pathXp() {
     var total = 0;
@@ -552,7 +551,8 @@
       total += at - prev;
       prev = at;
     }
-    var l10 = require('./L10');
+    var l10 = root.L10;
+    if (!l10 && typeof module === 'object' && module.exports) l10 = require('./L10');
     total += l10.RITUAL.xpOnce;
     return total;
   }

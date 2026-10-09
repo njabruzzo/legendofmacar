@@ -116,7 +116,6 @@
       "ritual": {
         "id": "temple-ritual",
         "name": "Temple ritual",
-        "xpOnce": 10000,
         "behindBoss": true,
         "teeth": 7,
         "hammer": "holy_hammer",
@@ -209,8 +208,8 @@
           "includesRuby": false,
           "extraHoard": false,
           "decision": "D2",
-          "x": 29,
-          "y": 14.5,
+          "x": 28,
+          "y": 12,
           "room": "throne-room",
           "onCorpse": false
         },

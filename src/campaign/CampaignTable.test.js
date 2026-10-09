@@ -3,8 +3,12 @@
  * Run: node src/campaign/CampaignTable.test.js
  */
 'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const T = require('./CampaignTable');
 const Cave = require('./OgreCave');
+const L10 = require('./L10');
 
 let failed = 0;
 function assert(cond, msg) {
@@ -72,7 +76,7 @@ assert(T.level(10).minions.every(function (m) { return m.locked; }) && T.LOCKED.
 [8, 9, 10].forEach(function (n) {
   assert(T.level(n).quest.behindBoss === true && T.level(n).lever.needsBoss === false, 'L' + n + ' quest sits behind the boss and the lever does not');
 });
-assert(T.level(10).quest.kind === 'ritual' && T.level(10).quest.xpOnce === 10000 && T.level(10).pacing.ritualXp === 10000, 'L10 ritual is 10,000 XP');
+assert(T.level(10).quest.kind === 'ritual' && T.level(10).quest.xpOnce == null && T.level(10).pacing.ritualXp == null, 'the L10 quest is the ritual and does not store a second award');
 
 assert(!T.level(2).residents.some(m => /spider/i.test(m.key)), 'L2 residents have no spiders');
 assert(!T.level(2).wander.some(m => /spider/i.test(m.key)), 'L2 wander has no spiders');
@@ -110,7 +114,7 @@ T.LEVELS.forEach(function (lvl) {
   if (lvl.level === 10) {
     assert(xp === 491800 && floor === 500001, 'the L10 clear stays 491,800, under the F10 line');
     assert(lvl.pacing.xpFloor == null && lvl.pacing.xpVersusF10Threshold == null, 'there is no XP floor');
-    assert(T.pathXp() === xp + lvl.quest.xpOnce && T.pathXp() === 501800, 'the path adds the 10,000 ritual and nothing else');
+    assert(T.pathXp() === xp + L10.RITUAL.xpOnce && T.pathXp() === 501800, 'the path adds the ritual award and nothing else');
     assert(T.pathXp() >= floor, 'the full L1-L10 path plus the ritual clears 500,001');
   } else {
     assert(xp >= floor && (next == null || xp < next), lvl.id + ' XP sits in the ' + macar + ' band');
@@ -120,6 +124,20 @@ T.LEVELS.forEach(function (lvl) {
 const cave = Cave.OGRE_CAVE;
 assert(cave.level === 4 && cave.boulders.count === 3 && cave.goldenEggs.count === 3, 'ogre cave counts match the table level');
 assert(cave.prisoner.fights === false && cave.prisoner.rescueXp === 185, 'ogress rescue XP is 185 and she does not fight');
+
+let browserXp = null;
+let browserErr = null;
+try {
+  const sandbox = {};
+  vm.createContext(sandbox);
+  ['CampaignTable.js', 'L10.js'].forEach(function (file) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), sandbox, { filename: file });
+  });
+  browserXp = sandbox.CampaignTable.pathXp();
+} catch (err) {
+  browserErr = err;
+}
+assert(!browserErr && browserXp === 501800 && browserXp === T.pathXp(), 'pathXp reads the browser L10 and does not call require');
 
 if (failed) {
   console.error(failed + ' failed');

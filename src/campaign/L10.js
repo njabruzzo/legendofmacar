@@ -366,7 +366,7 @@
 
   /**
    * The King dies first. Then Macar sets the anvil on the temple altar
-   * and smashes the 7 teeth. The 10,000 XP is xpOnce, read once.
+   * and smashes the 7 teeth. The ritual XP is xpOnce, and it is the only copy.
    */
   var HINT = 'The curse still holds. Smash the teeth on the altar.';
   var TOOTH_IDS = [
@@ -414,14 +414,14 @@
       lowers: 'teethCarried',
       by: 1
     },
-    onSeventh: ['the curse ends', '10000 XP once', 'the run is won'],
+    onSeventh: ['the curse ends', 'the ritual XP once', 'the run is won'],
     win: 'ritualComplete',
     steps: [
       'The King fights and dies in the throne room. His kill opens the stair and unlocks the altar.',
       'Macar sets the Holy Anvil on the temple altar at (29, 14.5).',
       'Each Holy Hammer smash takes 1 s. Any hit interrupts it.',
       'Each smash puts out the nearest brazier and lowers teethCarried by 1.',
-      'The seventh smash ends the curse, grants 10,000 XP once, and wins.'
+      'The seventh smash ends the curse, grants the ritual XP once, and wins.'
     ]
   };
 
@@ -449,7 +449,10 @@
       once: true,
       quest: null,
       includesRuby: false,
-      extraHoard: false
+      extraHoard: false,
+      x: 28,
+      y: 12,
+      room: 'throne-room'
     },
     guardianRuby: { with: 'rubyGuardian', gp: 2500 },
     corpseCoinRule: table.corpseCoinRule,
@@ -499,14 +502,12 @@
 
   /**
    * Cumulative after L9 is 406,800. The L10 row is the clear only, 491,800,
-   * so this floor adds 85,000. The ritual adds 10,000 once.
-   * 406,800 + 85,000 + 10,000 = 501,800.
+   * so this floor adds 85,000. PATH.total adds RITUAL.xpOnce once.
    */
   var PATH = {
     throughL9: 406800,
     l10Cumulative: 491800,
     l10Clear: 85000,
-    ritual: 10000,
     total: 501800
   };
 

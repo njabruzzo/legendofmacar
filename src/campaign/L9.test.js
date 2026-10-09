@@ -150,10 +150,12 @@ chain.ingredientSets.forEach(function (set) {
 });
 assert(T.level(9).quest.id === 'holy_anvil' && T.level(9).quest.displayName === 'Holy Anvil of Truth' && T.level(9).pacing.keyItems[0] === 'Holy Anvil of Truth', 'the level table tracks the Holy Anvil of Truth');
 
-assert(L9.OPEN.length === 2, 'L9 keeps the two Nick flags open');
+assert(L9.OPEN.length === 3, 'L9 keeps three Nick flags open');
 L9.OPEN.forEach(function (row) {
   assert(row.id && row.note && row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
 });
+const speak = L9.OPEN.filter(function (row) { return row.id === 'speak-cast'; })[0];
+assert(speak && L9.MONSTERS.redDragon.xp === 3906 && L9.MONSTERS.redDragon.speakCast.chance === 0.30, 'the talk-and-cast roll stays stored, and the dragon stays a non-caster at 3906 until Nick picks');
 assert(L9.LOOT.lair.H.gpAbout == null && L9.LOOT.bossChest.quest === 'holy_anvil', 'lair H rolls in full and the anvil is the quest item');
 assert(html.indexOf('L9.js') < 0 && html.indexOf('maps/l9.json') < 0, 'index.html does not load the L9 data');
 assert(save.indexOf('L9.js') < 0 && save.indexOf('maps/l9.json') < 0, 'GameSave does not load the L9 data');
