@@ -1,0 +1,119 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "live-chapters",
+  "affectsPlay": false,
+  "note": "The five chapters as makeChapter builds them today. The game does not load this file.",
+  "levels": [
+    {
+      "id": "C1",
+      "chapter": 1,
+      "name": "Chapter I",
+      "title": "The Rubble and the Ruby",
+      "status": "live",
+      "size": { "w": 132, "h": 90 },
+      "spawn": { "x": 20.5, "y": 22 },
+      "rubyDoor": { "placement": "fixed", "x": 36.5, "y": 7.28, "prop": "rubydoor" },
+      "guardian": {
+        "placement": "fixed",
+        "key": "thinOne",
+        "count": 6,
+        "wakesOn": "rubyDoor",
+        "spawns": [
+          { "x": 33.6, "y": 12.4 },
+          { "x": 39.2, "y": 12.2 },
+          { "x": 32.4, "y": 14.6 },
+          { "x": 40.1, "y": 14.8 },
+          { "x": 36.4, "y": 13.6 },
+          { "x": 34.8, "y": 15.8 }
+        ]
+      },
+      "lever": { "placement": "fixed", "x": 37.15, "y": 22.05, "prop": "ch1-lever" },
+      "elevator": { "placement": "fixed", "x": 36.5, "y": 21.5, "prop": "lift", "transitionCard": null, "auto": false },
+      "boss": null,
+      "setPieces": [
+        { "id": "dwarf-mouth", "kind": "prop", "x": 43.2, "y": 7.28, "prop": "dwarfface" },
+        { "id": "kin-boulders", "kind": "burial" },
+        { "id": "chapel-tooth", "kind": "quest-prop" }
+      ],
+      "exit": { "ref": "live", "chapter": 1 }
+    },
+    {
+      "id": "C2",
+      "chapter": 2,
+      "name": "Chapter II",
+      "title": "The First Floor",
+      "status": "live",
+      "size": { "w": 144, "h": 118 },
+      "spawn": { "x": 40.15, "y": 8.55 },
+      "rubyDoor": { "placement": "procedural", "x": null, "y": null, "prop": "floorRubyDoor" },
+      "guardian": { "placement": "none", "key": null, "count": 0, "note": "Chapter II has no ruby-guardian fight." },
+      "lever": { "placement": "procedural", "x": null, "y": null, "prop": "floorlever" },
+      "elevator": { "placement": "fixed", "x": 40, "y": 7.55, "prop": "lift", "role": "arrival", "transitionCard": null, "auto": false },
+      "boss": { "key": "goblinKing", "name": "Goblin King", "x": 74, "y": 67.6, "optional": true, "space": "king-hall" },
+      "setPieces": [
+        { "id": "noz-door", "kind": "prop", "x": 62.5, "y": 11, "prop": "bronzedoor" },
+        { "id": "south-stair", "kind": "stairs", "x": 40.1, "y": 51.6 },
+        { "id": "spider-lord", "kind": "spawn", "x": 10.1, "y": 31, "key": "spiderLord", "note": "Campaign L3 takes this pack. Left in the live expression." }
+      ],
+      "exit": { "ref": "live", "chapter": 2 }
+    },
+    {
+      "id": "C3",
+      "chapter": 3,
+      "name": "Chapter III",
+      "title": "The Ruin",
+      "status": "live",
+      "size": { "w": 140, "h": 114 },
+      "spawn": { "x": 8, "y": 28 },
+      "rubyDoor": { "placement": "fixed", "x": 48, "y": 34.28, "prop": "rubydoor" },
+      "guardian": { "placement": "none", "key": null, "count": 0, "note": "The Ruin Guard is the chapter boss, not a ruby guardian." },
+      "lever": { "placement": "procedural", "x": null, "y": null, "prop": "floorlever" },
+      "elevator": { "placement": "none", "x": null, "y": null, "transitionCard": null },
+      "boss": { "key": "construct", "name": "Ruin Guard", "x": 48, "y": 39 },
+      "setPieces": [
+        { "id": "hall-of-names", "kind": "prop", "x": 46, "y": 14, "prop": "names" },
+        { "id": "south-stair", "kind": "stairs", "x": 48.1, "y": 61.4 }
+      ],
+      "exit": { "ref": "live", "chapter": 3 }
+    },
+    {
+      "id": "C4",
+      "chapter": 4,
+      "name": "Chapter IV",
+      "title": "The Dead City",
+      "status": "live",
+      "size": { "w": 132, "h": 106 },
+      "spawn": { "x": 8, "y": 28 },
+      "rubyDoor": { "placement": "procedural", "x": null, "y": null, "prop": "floorRubyDoor" },
+      "guardian": { "placement": "none", "key": null, "count": 0 },
+      "lever": { "placement": "procedural", "x": null, "y": null, "prop": "floorlever" },
+      "elevator": { "placement": "none", "x": null, "y": null, "transitionCard": null },
+      "boss": { "key": "elderbrain", "name": "Elder Brain", "x": 52, "y": 42 },
+      "setPieces": [
+        { "id": "death-tyrant", "kind": "spawn", "key": "deathtyrant", "x": 46, "y": 40 },
+        { "id": "south-stair", "kind": "stairs", "x": 50.1, "y": 61.2 }
+      ],
+      "exit": { "ref": "live", "chapter": 4 }
+    },
+    {
+      "id": "C5",
+      "chapter": 5,
+      "name": "Chapter V",
+      "title": "The Holy Sacrifice",
+      "status": "live",
+      "size": { "w": 108, "h": 98 },
+      "spawn": { "x": 10, "y": 44 },
+      "rubyDoor": { "placement": "procedural", "x": null, "y": null, "prop": "floorRubyDoor" },
+      "guardian": { "placement": "none", "key": null, "count": 0 },
+      "lever": { "placement": "procedural", "x": null, "y": null, "prop": "floorlever" },
+      "elevator": { "placement": "none", "x": null, "y": null, "transitionCard": null },
+      "boss": { "key": "king", "name": "The Undying King", "x": 29, "y": 16 },
+      "setPieces": [
+        { "id": "altar", "kind": "prop", "x": 29, "y": 14.5, "prop": "altar" },
+        { "id": "throne", "kind": "prop", "x": 29, "y": 10, "prop": "throne" }
+      ],
+      "exit": { "ref": "live", "chapter": 5 }
+    }
+  ]
+}
