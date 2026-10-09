@@ -52,7 +52,8 @@ const hoard = level.setPieces.filter(function (p) { return p.id === 'beholder-ho
 const shaft = level.setPieces.filter(function (p) { return p.id === 'shaft'; })[0];
 const lair = level.spawns.filter(function (group) { return group.id === 'beholder-lair'; })[0];
 assert(hoard && hoard.placed === true && hoard.room === level.boss.room && hoard.quest === 'holy_hammer' && hoard.includesRuby === false, 'the hoard is in the beholder lair and holds the hammer, not the ruby');
-assert(shaft && shaft.placed === true && shaft.room === level.boss.room, 'the shaft the beholder retreats toward is in the boss room');
+assert(shaft && shaft.placed === true && shaft.room === level.boss.room && shaft.x === 50 && shaft.y === 38, 'the shaft stays at the lair north entrance');
+assert(L8.BEHOLDER.retreat.wiringNote.indexOf('arrival') >= 0 && L8.BEHOLDER.retreat.wiringNote.indexOf('wiring pass') >= 0, 'the retreat toward the arrival is flagged for the wiring pass');
 assert(lair.room === level.boss.room, 'the lair spawn is the boss room');
 assert(lair.members.some(function (member) { return member.key === 'beholder' && member.count === 1; }), 'the lair has the beholder');
 assert(lair.members.some(function (member) { return member.key === 'duergar' && member.count === 4 && member.role === 'minion' && member.charmed === true; }), 'four charmed duergar stand in the boss room');
@@ -145,6 +146,8 @@ chain.ingredientSets.forEach(function (set) {
 assert(T.level(8).pacing.keyItems[0] === 'Holy Hammer +3' && T.level(8).quest.id === 'holy_hammer', 'the L8 key item is the Holy Hammer');
 
 assert(L8.OPEN.length === 18 && L8.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L8 choice is marked in the data');
+const forecast = L8.OPEN.filter(function (row) { return row.id === 'forecast-pack'; })[0];
+assert(forecast.note.indexOf('18,502') >= 0 && forecast.note.indexOf('rounds to the printed 18,500') >= 0, '18,502 rounds to the printed 18,500');
 assert(html.indexOf('L8.js') < 0 && html.indexOf('maps/l8.json') < 0, 'index.html does not load the L8 data');
 assert(save.indexOf('L8.js') < 0 && save.indexOf('maps/l8.json') < 0, 'GameSave does not load the L8 data');
 assert(L8.wired === false, 'the L8 module is not wired');
