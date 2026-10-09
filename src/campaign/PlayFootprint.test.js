@@ -27,7 +27,9 @@ assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
   'ExitRules',
   'CampaignTable',
   'L2.js',
-  'maps/l2.json'
+  'maps/l2.json',
+  'L3.js',
+  'maps/l3.json'
 ].forEach(function (needle) {
   assert(html.indexOf(needle) < 0, 'index.html does not mention ' + needle);
 });
