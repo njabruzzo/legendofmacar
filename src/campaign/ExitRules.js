@@ -6,10 +6,10 @@
  * Nick, on the campaign floors: the ruby guardian and the floor boss are
  * separate encounters. Beating the guardian unlocks the lever and the
  * elevator. A living boss never blocks the elevator. Killing the boss
- * opens the stairs. On L8-L10 the quest item sits behind the boss, so
- * that requirement is a quest gate, not an elevator gate. On L1 the six
- * Thin Ones together are the boss. The boss-kill hook fires when the last
- * one dies. No single Thin One wears a boss flag.
+ * opens the stairs. L1 is the one exception: it has no boss, the six
+ * Thin Ones are only the ruby guardian, and the lever opens the stairs.
+ * On L8-L10 the quest item sits behind the boss, so that requirement
+ * is a quest gate, not an elevator gate. No creature wears a boss flag.
  */
 (function (root) {
   'use strict';
@@ -29,6 +29,7 @@
     elevatorRequires: ['leverPulled'],
     elevator: 'guardian',
     stairs: 'bossKill',
+    stairsException: { level: 1, stairsOpenOn: 'lever' },
     elevatorAuto: true,
     showsTransitionCard: true,
     bossRequiredForLever: false,
@@ -90,21 +91,21 @@
 
   function forLevel(level) {
     var behindBoss = level >= 8 && level <= 10;
-    var groupBoss = level === 1;
+    var leverStairs = level === 1;
     return {
       level: level,
-      separateEncounters: !groupBoss,
+      separateEncounters: !leverStairs,
       elevator: 'guardian',
-      stairs: 'bossKill',
+      stairs: leverStairs ? 'lever' : 'bossKill',
+      stairsOpenOn: leverStairs ? 'lever' : 'bossKill',
       questItemBehindBoss: behindBoss,
       bossOptionalForElevator: true,
       livingBossBlocksElevator: false,
       nick: NICK_STAIR,
       campaign: CAMPAIGN_GATE,
       authoritativeLeverGate: 'rubyGuardian',
-      boss: groupBoss
-        ? { status: 'group', key: 'thinOne', count: 6, sameAsGuardian: true, bossFlagOnIndividual: false, firesWhen: 'lastDies' }
-        : { status: 'set', separateFromGuardian: true, bossFlagOnIndividual: false },
+      boss: leverStairs ? null : { status: 'set', separateFromGuardian: true, bossFlagOnIndividual: false },
+      guardian: leverStairs ? { key: 'thinOne', count: 6, bossFlagOnIndividual: false } : null,
       appliedToPlay: false
     };
   }
@@ -117,8 +118,10 @@
   }
 
   /**
-   * L1's boss is the six Thin Ones as a group. A TBD row, or a boss flag
-   * on one Thin One, is an error. A boss-gated elevator is an error.
+   * A level may omit its boss only when stairsOpenOn is 'lever', and only
+   * L1 may set that exception. Every other level needs a boss, and its
+   * stairs open on the boss kill. A boss flag on one creature, a last-death
+   * guardian group, or a boss-gated elevator is an error.
    */
   function validate(rows) {
     var list = rows || LEVELS;
@@ -127,8 +130,8 @@
     for (var i = 0; i < (list ? list.length : 0); i++) {
       var row = list[i];
       var id = row && row.level;
+      var leverStairs = row && row.stairsOpenOn === 'lever';
       if (!row || row.elevator !== 'guardian') errors.push('L' + id + ' elevator must be the guardian');
-      if (!row || row.stairs !== 'bossKill') errors.push('L' + id + ' stairs must open on the boss kill');
       if (!row || row.livingBossBlocksElevator !== false) errors.push('L' + id + ' a living boss must not block the elevator');
       if (!row || row.bossOptionalForElevator !== true) errors.push('L' + id + ' boss must stay optional for the elevator');
       if (!row || row.questItemBehindBoss !== (id >= 8)) errors.push('L' + id + ' questItemBehindBoss');
@@ -138,12 +141,28 @@
       if (row && row.boss && row.boss.bossFlagOnIndividual) {
         errors.push('L' + id + ' no single creature wears a boss flag');
       }
+      if (row && row.guardian && row.guardian.bossFlagOnIndividual) {
+        errors.push('L' + id + ' no single creature wears a boss flag');
+      }
+      if (row && row.boss && (row.boss.sameAsGuardian || row.boss.firesWhen === 'lastDies' || row.boss.status === 'tbd' || row.boss.pending === 'Sage')) {
+        errors.push('L' + id + ' boss is not a last-death guardian group and is not TBD');
+      }
+      if (leverStairs) {
+        if (id !== 1) errors.push('L' + id + ' stairs may open on the lever only on L1');
+        if (!row || row.stairs !== 'lever') errors.push('L' + id + ' stairs must open on the lever');
+        if (!row || row.boss != null) errors.push('L' + id + ' a lever-stair level has no boss');
+      } else if (!row || row.boss == null) {
+        errors.push('L' + id + ' stairs require a boss unless stairsOpenOn is lever');
+      } else if (!row || row.stairs !== 'bossKill' || row.stairsOpenOn !== 'bossKill') {
+        errors.push('L' + id + ' stairs must open on the boss kill');
+      }
       if (id === 1) {
-        var boss = row && row.boss;
-        if (!row || row.separateEncounters !== false) errors.push('L1 boss is the guardian group, not a second encounter');
-        if (!boss || boss.status === 'tbd' || boss.pending === 'Sage') errors.push('L1 boss is no longer TBD');
-        if (!boss || boss.key !== 'thinOne' || boss.count !== 6 || boss.sameAsGuardian !== true || boss.firesWhen !== 'lastDies' || boss.bossFlagOnIndividual !== false) {
-          errors.push('L1 boss is the six Thin Ones together and fires when the last dies');
+        var guardian = row && row.guardian;
+        if (!row || row.stairsOpenOn !== 'lever' || row.stairs !== 'lever') errors.push('L1 stairs open on the lever');
+        if (!row || row.boss != null) errors.push('L1 has no boss');
+        if (!row || row.separateEncounters !== false) errors.push('L1 has no separate boss encounter');
+        if (!guardian || guardian.key !== 'thinOne' || guardian.count !== 6 || guardian.bossFlagOnIndividual !== false) {
+          errors.push('L1 guardian is the six Thin Ones and none wears a boss flag');
         }
       } else if (!row || row.separateEncounters !== true) {
         errors.push('L' + id + ' guardian and boss must stay separate encounters');

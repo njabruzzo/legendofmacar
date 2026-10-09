@@ -58,8 +58,12 @@ assert(T.level(8).quest.id === 'holy_hammer' && T.level(8).quest.plus === 3, 'L8
 assert(T.level(9).quest.id === 'holy_anvil' && T.level(9).quest.displayName === 'Holy Anvil of Truth', 'L9 quest id is holy_anvil and the display name is Holy Anvil of Truth');
 assert(T.level(9).elevator.transitionCard === 'assets/creatures/mon_deepdragon.png', 'L9 card keeps the deep dragon stand-in');
 assert(T.level(9).elevator.note === 'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.', 'L9 keeps the stand-in until red dragon art passes');
-assert(T.level(1).boss.sameAsGuardian === true && T.level(1).boss.count === 6 && T.level(1).boss.firesWhen === 'lastDies', 'L1 boss is the six Thin Ones and fires when the last dies');
-assert(T.level(1).boss.bossFlagOnIndividual === false, 'no Thin One wears a boss flag');
+assert(T.level(1).boss == null && T.level(1).stairsOpenOn === 'lever', 'L1 has no boss and the lever opens the stairs');
+assert(T.level(1).rubyGuardian.key === 'thinOne' && T.level(1).rubyGuardian.count === 6 && T.level(1).rubyGuardian.bossFlagOnIndividual === false, 'the six Thin Ones are the L1 guardian and none wears a boss flag');
+T.LEVELS.forEach(function (lvl) {
+  if (lvl.level === 1) return;
+  assert(lvl.boss && typeof lvl.boss.xp === 'number' && lvl.stairsOpenOn === 'bossKill', lvl.id + ' has a boss and the boss kill opens the stairs');
+});
 assert(T.level(6).minions.every(function (m) { return m.locked && m.option === 'A'; }), 'L6 minions are locked as written');
 assert(T.level(7).minions.every(function (m) { return m.locked && m.option === 'A'; }), 'L7 minions are locked as written');
 assert(T.level(10).minions.every(function (m) { return m.locked; }) && T.LOCKED.recommendationsLocked === true, 'L10 retinue and the other unnumbered picks are locked');
@@ -88,7 +92,8 @@ T.LEVELS.forEach(function (lvl) {
   const fromBlocks = T.statBossGuardianXp(lvl);
   assert(lvl.pacing.bossPlusGuardianXp === fromBlocks && lvl.pacing.bossPlusGuardianSource === 'stat-block', lvl.id + ' boss-plus-guardian XP is the stat blocks');
 });
-assert(T.statBossGuardianXp(T.level(1)) === 52 * 6, 'L1 counts the six Thin Ones once');
+assert(T.statBossGuardianXp(T.level(1)) === 52 * 6 && T.level(1).pacing.bossPlusGuardianXp === 312, 'L1 Thin One XP counts under the guardian, 312');
+assert(T.statBossGuardianXp(T.level(1)) === T.level(1).rubyGuardian.formula.xp * T.level(1).rubyGuardian.count, 'the L1 column is the guardian line only');
 assert(T.statBossGuardianXp(T.level(2)) === 181 + 260, 'L2 is Guardian II plus the Goblin King');
 const hit = T.LEVELS.map(l => l.pacing.hitOnlyBy);
 assert(hit.join() === '0,0,0,0,1,2,2,2,2,3', 'weapon-plus requirement climbs');

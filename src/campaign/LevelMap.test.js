@@ -57,10 +57,12 @@ campaign.book.levels.forEach(function (row, i) {
   assert(row.elevator.transitionCard === design.elevator.transitionCard, row.id + ' transition card');
   assert(fs.existsSync(path.join(root, row.elevator.transitionCard)), row.id + ' stand-in art exists');
   if (row.id === 'L1') {
-    assert(row.boss.key === 'thinOne' && row.boss.count === 6 && row.boss.sameAsGuardian === true, 'L1 map boss is the six Thin Ones');
-    assert(row.boss.firesWhen === 'lastDies' && row.boss.bossFlagOnIndividual === false, 'L1 fires when the last Thin One dies and flags none of them');
-    assert(design.boss.sameAsGuardian === true && design.boss.count === 6 && design.boss.bossFlagOnIndividual === false, 'L1 table boss is the same group');
-    assert(Map.load(campaign.book).ok, 'the L1 group boss passes the campaign validator');
+    assert(row.boss == null && row.stairsOpenOn === 'lever', 'L1 has no boss and the lever opens the stairs');
+    assert(row.exit.stairs === 'lever' && row.exit.stairsOpenOn === 'lever', 'L1 exit stairs open on the lever');
+    assert(row.guardian.key === 'thinOne' && row.guardian.count === 6 && row.guardian.bossFlagOnIndividual === false, 'L1 guardian is the six Thin Ones and none wears a boss flag');
+    assert(design.boss == null && design.stairsOpenOn === 'lever', 'L1 table has no boss and stairs open on the lever');
+    assert(design.rubyGuardian.key === 'thinOne' && design.rubyGuardian.count === 6 && design.rubyGuardian.bossFlagOnIndividual === false, 'L1 table guardian is the six Thin Ones');
+    assert(Map.load(campaign.book).ok, 'L1 with no boss and lever stairs passes the campaign validator');
   } else if (row.id === 'L9') {
     assert(row.elevator.note === design.elevator.note, 'L9 map keeps the deep-dragon stand-in note');
     assert(row.boss && row.boss.key === design.boss.key, row.id + ' boss key');
@@ -81,10 +83,30 @@ const unnamed = Map.load(unnamedBook);
 assert(!unnamed.ok && unnamed.errors.some(function (e) { return e.indexOf('boss needs a key') >= 0; }), 'a boss without a key fails');
 
 const flaggedBook = JSON.parse(JSON.stringify(campaign.book));
-flaggedBook.levels[0].boss.bossFlagOnIndividual = true;
-flaggedBook.levels[0].boss.count = 1;
+flaggedBook.levels[0].guardian.bossFlagOnIndividual = true;
 const flagged = Map.load(flaggedBook);
-assert(!flagged.ok && flagged.errors.some(function (e) { return e.indexOf('L1') >= 0; }), 'a single Thin One with a boss flag fails');
+assert(!flagged.ok && flagged.errors.some(function (e) { return e.indexOf('L1') >= 0; }), 'a Thin One with a boss flag fails');
+
+const bossed = JSON.parse(JSON.stringify(campaign.book));
+bossed.levels[0].boss = { placement: 'unbuilt', key: 'thinOne', count: 6, sameAsGuardian: true, firesWhen: 'lastDies', bossFlagOnIndividual: false };
+const withBoss = Map.load(bossed);
+assert(!withBoss.ok && withBoss.errors.some(function (e) { return e.indexOf('L1') >= 0; }), 'L1 rejects a Thin One boss');
+
+const noFlag = JSON.parse(JSON.stringify(campaign.book));
+delete noFlag.levels[0].stairsOpenOn;
+const missingException = Map.load(noFlag);
+assert(!missingException.ok && missingException.errors.some(function (e) { return e.indexOf('stairs') >= 0; }), 'L1 without the lever exception fails');
+
+const dropped = JSON.parse(JSON.stringify(campaign.book));
+dropped.levels[1].boss = null;
+const noBoss = Map.load(dropped);
+assert(!noBoss.ok && noBoss.errors.some(function (e) { return e.indexOf('L2') >= 0 && e.indexOf('boss') >= 0; }), 'L2 stairs still require a boss');
+
+const borrowed = JSON.parse(JSON.stringify(campaign.book));
+borrowed.levels[2].boss = null;
+borrowed.levels[2].stairsOpenOn = 'lever';
+const notL1 = Map.load(borrowed);
+assert(!notL1.ok && notL1.errors.some(function (e) { return e.indexOf('L3') >= 0; }), 'only L1 may open the stairs on the lever');
 
 const unfixed = JSON.parse(JSON.stringify(campaign.book));
 unfixed.levels[2].elevator.placement = 'fixed';

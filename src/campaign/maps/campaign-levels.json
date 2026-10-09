@@ -9,15 +9,16 @@
       "id": "L1",
       "name": "The Rubble and the Ruby",
       "rubyDoor": { "placement": "unbuilt", "x": null, "y": null, "prop": "rubydoor" },
-      "guardian": { "placement": "unbuilt", "key": "thinOne", "tier": 1, "count": 6 },
+      "guardian": { "placement": "unbuilt", "key": "thinOne", "tier": 1, "count": 6, "bossFlagOnIndividual": false },
       "lever": { "placement": "unbuilt", "x": null, "y": null },
       "elevator": { "placement": "unbuilt", "x": null, "y": null, "auto": true, "standIn": true, "transitionCard": "assets/ui/intro_ch1.jpg" },
-      "boss": { "placement": "unbuilt", "key": "thinOne", "group": true, "count": 6, "sameAsGuardian": true, "bossFlagOnIndividual": false, "firesWhen": "lastDies", "x": null, "y": null },
+      "boss": null,
+      "stairsOpenOn": "lever",
       "setPieces": [
         { "id": "kin-boulders", "kind": "burial", "placed": false },
         { "id": "chapel-tooth", "kind": "quest-prop", "placed": false }
       ],
-      "exit": { "ref": "campaign", "level": 1 }
+      "exit": { "ref": "campaign", "level": 1, "stairs": "lever", "stairsOpenOn": "lever" }
     },
     {
       "id": "L2",

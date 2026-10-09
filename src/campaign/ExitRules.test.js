@@ -15,7 +15,8 @@ assert(E.wired === false, 'exit rules are not applied to play');
 assert(E.NICK_STAIR.opensOn === 'bossKill' && E.NICK_STAIR.wired === false, 'Nick stair hook is boss kill and unwired');
 assert(E.NICK_STAIR.ownsLiveChapters === false, 'this hook does not own the live chapters');
 assert(E.CAMPAIGN_GATE.decision === 'D3-B' && E.CAMPAIGN_GATE.bossRequiredForLever === false, 'the lever needs the guardian, not the boss');
-assert(E.CAMPAIGN_GATE.elevator === 'guardian' && E.CAMPAIGN_GATE.stairs === 'bossKill', 'elevator is the guardian and stairs are the boss kill');
+assert(E.CAMPAIGN_GATE.elevator === 'guardian' && E.CAMPAIGN_GATE.stairs === 'bossKill', 'elevator is the guardian and the stair rule is the boss kill');
+assert(E.CAMPAIGN_GATE.stairsException.level === 1 && E.CAMPAIGN_GATE.stairsException.stairsOpenOn === 'lever', 'L1 is the lever exception to the boss-kill stair');
 assert(E.CAMPAIGN_GATE.livingBossBlocksElevator === false, 'a living boss never blocks the elevator');
 assert(E.CAMPAIGN_GATE.leverRequires[0] === 'rubyGuardianDead', 'ruby guardian gates the lever');
 assert(E.CAMPAIGN_GATE.elevatorRequires[0] === 'leverPulled' && E.CAMPAIGN_GATE.elevatorAuto === true, 'the lever gates an automatic elevator');
@@ -23,29 +24,47 @@ assert(E.CAMPAIGN_GATE.elevatorRequires[0] === 'leverPulled' && E.CAMPAIGN_GATE.
 for (let n = 1; n <= 10; n++) {
   const row = E.forLevel(n);
   assert(row.appliedToPlay === false, 'L' + n + ' exit row is data only');
-  assert(row.separateEncounters === (n !== 1), 'L' + n + ' encounter split');
-  assert(row.elevator === 'guardian' && row.stairs === 'bossKill', 'L' + n + ' elevator is the guardian and stairs open on the boss kill');
+  assert(row.elevator === 'guardian', 'L' + n + ' elevator is the guardian');
   assert(row.questItemBehindBoss === (n >= 8), 'L' + n + ' quest item behind the boss');
   assert(row.bossOptionalForElevator === true && row.livingBossBlocksElevator === false, 'L' + n + ' boss does not gate the elevator');
   assert(row.authoritativeLeverGate === 'rubyGuardian', 'L' + n + ' lever gate is the ruby guardian');
-  assert(row.boss.bossFlagOnIndividual === false, 'L' + n + ' gives no creature a boss flag');
+  if (n === 1) {
+    assert(row.separateEncounters === false, 'L1 has no separate boss encounter');
+    assert(row.stairs === 'lever' && row.stairsOpenOn === 'lever', 'L1 stairs open on the lever');
+    assert(row.boss == null, 'L1 has no boss');
+    assert(row.guardian.key === 'thinOne' && row.guardian.count === 6 && row.guardian.bossFlagOnIndividual === false, 'L1 guardian is the six Thin Ones and none wears a boss flag');
+  } else {
+    assert(row.separateEncounters === true, 'L' + n + ' guardian and boss stay separate encounters');
+    assert(row.stairs === 'bossKill' && row.stairsOpenOn === 'bossKill', 'L' + n + ' stairs open on the boss kill');
+    assert(row.boss && row.boss.bossFlagOnIndividual === false && row.boss.separateFromGuardian === true, 'L' + n + ' has a boss and gives no creature a boss flag');
+  }
 }
-const l1 = E.forLevel(1);
-assert(l1.boss.status === 'group' && l1.boss.key === 'thinOne' && l1.boss.count === 6, 'L1 boss is the six Thin Ones together');
-assert(l1.boss.sameAsGuardian === true && l1.boss.firesWhen === 'lastDies', 'the L1 boss-kill hook fires when the last Thin One dies');
-assert(l1.boss.bossFlagOnIndividual === false, 'no single Thin One wears a boss flag');
 assert(E.forLevel(8).questItemBehindBoss === true && E.forLevel(8).elevator === 'guardian', 'L8 quest sits behind the boss and the elevator does not');
-assert(E.validate().length === 0, 'the ten exit rows pass, including the L1 group boss');
+assert(E.validate().length === 0, 'the ten exit rows pass, with L1 boss-less on the lever');
 
 const merged = E.LEVELS.map(function (row) { return Object.assign({}, row); });
 merged[3] = Object.assign({}, merged[3], { elevator: 'boss' });
 assert(E.validate(merged).some(function (err) { return err.indexOf('L4') >= 0; }), 'a boss-gated elevator fails validation');
-const flagged = E.LEVELS.map(function (row) { return Object.assign({}, row, { boss: Object.assign({}, row.boss) }); });
-flagged[0] = Object.assign({}, flagged[0], { boss: { status: 'group', key: 'thinOne', count: 1, sameAsGuardian: false, bossFlagOnIndividual: true, firesWhen: 'lastDies' } });
-assert(E.validate(flagged).some(function (err) { return err.indexOf('L1') >= 0; }), 'a single Thin One with a boss flag fails');
-const tbd = E.LEVELS.map(function (row) { return Object.assign({}, row, { boss: Object.assign({}, row.boss) }); });
-tbd[0] = Object.assign({}, tbd[0], { boss: { status: 'tbd', pending: 'Sage', count: 6, sameAsGuardian: true, bossFlagOnIndividual: false, firesWhen: 'lastDies' } });
-assert(E.validate(tbd).some(function (err) { return err.indexOf('TBD') >= 0; }), 'L1 TBD is no longer a valid boss');
+const flagged = E.LEVELS.map(function (row) {
+  return Object.assign({}, row, {
+    guardian: row.guardian ? Object.assign({}, row.guardian) : null,
+    boss: row.boss ? Object.assign({}, row.boss) : null
+  });
+});
+flagged[0].guardian.bossFlagOnIndividual = true;
+assert(E.validate(flagged).some(function (err) { return err.indexOf('L1') >= 0; }), 'a Thin One with a boss flag fails');
+const bare = E.LEVELS.map(function (row) { return Object.assign({}, row); });
+bare[1] = Object.assign({}, bare[1], { boss: null });
+assert(E.validate(bare).some(function (err) { return err.indexOf('L2') >= 0 && err.indexOf('boss') >= 0; }), 'L2 stairs still require a boss');
+const leverOn3 = E.LEVELS.map(function (row) { return Object.assign({}, row); });
+leverOn3[2] = Object.assign({}, leverOn3[2], { boss: null, stairs: 'lever', stairsOpenOn: 'lever', separateEncounters: false });
+assert(E.validate(leverOn3).some(function (err) { return err.indexOf('L3') >= 0; }), 'only L1 may open the stairs on the lever');
+const noException = E.LEVELS.map(function (row) { return Object.assign({}, row); });
+noException[0] = Object.assign({}, noException[0], { stairs: 'bossKill', stairsOpenOn: 'bossKill' });
+assert(E.validate(noException).some(function (err) { return err.indexOf('L1') >= 0; }), 'L1 without the lever exception fails');
+const restoredBoss = E.LEVELS.map(function (row) { return Object.assign({}, row); });
+restoredBoss[0] = Object.assign({}, restoredBoss[0], { boss: { status: 'group', key: 'thinOne', count: 6, sameAsGuardian: true, firesWhen: 'lastDies', bossFlagOnIndividual: false } });
+assert(E.validate(restoredBoss).some(function (err) { return err.indexOf('L1') >= 0; }), 'L1 rejects the Thin Ones as a boss');
 
 assert(E.liveChapter(1).flag === 'elevReady' && E.liveChapter(1).replace === false, 'chapter I still rides the elevator after the lever');
 assert(E.liveChapter(2).bossRequired === false && E.liveChapter(2).stair.y === 51.6, 'chapter II king stays optional and the stair stays put');

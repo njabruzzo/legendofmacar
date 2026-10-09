@@ -37,7 +37,7 @@
 
   /* Section 1.11. xp is the printed DMG total; formula parts must sum to it. */
   var GUARDIANS = [
-    { tier: 1, level: 1, count: 6, key: 'thinOne', name: 'Ruby Guardian I', hd: 2, hp: 12, ac: 6, mv: 6, attack: '1d8', special: 'none', hitOnlyBy: 0, rubyGp: '200-999', formula: gxp(20, 2, 12, [8]) },
+    { tier: 1, level: 1, count: 6, key: 'thinOne', name: 'Ruby Guardian I', hd: 2, hp: 12, ac: 6, mv: 6, attack: '1d8', special: 'none', hitOnlyBy: 0, rubyGp: '200-999', bossFlagOnIndividual: false, formula: gxp(20, 2, 12, [8]) },
     { tier: 2, level: 2, count: 1, key: 'rubyGuardian', name: 'Ruby Guardian II', hd: 4, hp: 24, ac: 5, mv: 6, attack: '1d10', special: 'none', hitOnlyBy: 0, rubyGp: 500, formula: gxp(60, 4, 24, [25]) },
     { tier: 3, level: 3, count: 1, key: 'rubyGuardian', name: 'Ruby Guardian III', hd: 6, hp: 36, ac: 4, mv: 6, attack: '2d6', special: 'ruby shard 1d6, range 6"', hitOnlyBy: 0, rubyGp: 750, formula: gxp(150, 6, 36, [75]) },
     { tier: 4, level: 4, count: 1, key: 'rubyGuardian', name: 'Ruby Guardian IV', hd: 8, hp: 48, ac: 3, mv: 6, attack: '2d8', special: 'shard cone 3", 2d6, save vs breath for half', hitOnlyBy: 0, rubyGp: 1000, formula: gxp(375, 10, 48, [175]) },
@@ -101,8 +101,9 @@
       theme: 'Cave-in, buried kin, ruby door, Bone Crown chapel',
       builtFrom: { chapter: 1, anchor: 'makeChapter n===1' },
       reuse: { kept: ['all'], cutOrMoved: [], cutAsChapter: false },
-      /* The six Thin Ones together are the floor boss. No one of them wears a boss flag. The boss-kill hook fires when the last one dies. */
-      boss: { key: 'thinOne', name: 'Ruby Guardian I', group: true, count: 6, sameAsGuardian: true, bossFlagOnIndividual: false, firesWhen: 'lastDies', xpEach: 52 },
+      /* The six Thin Ones are the ruby guardian. None wears a boss flag. L1 has no boss. The lever opens the stairs. */
+      boss: null,
+      stairsOpenOn: 'lever',
       residents: [
         mon('rat', 'Cave Rat', '1/2', 7, 8, { tt: 'C' }),
         mon('centipede', 'Giant Centipede', '1/4', 9, 32, { poisonSave: 4, xpNote: 'verify' }),
@@ -479,18 +480,18 @@
 
   /**
    * Boss-plus-guardian XP is the stat-block total, not the 1.12 forecast.
-   * L1 counts the six Thin Ones once: they are both the guardian and the boss.
+   * L1 has no boss. The six Thin Ones are the guardian, so their XP is that line only.
    */
   function statBossGuardianXp(lvl) {
     var g = lvl.rubyGuardian;
     var xp = g.formula.xp * g.count;
-    if (lvl.boss && lvl.boss.sameAsGuardian) return xp;
     if (lvl.boss && typeof lvl.boss.xp === 'number') xp += lvl.boss.xp;
     return xp;
   }
 
   LEVELS.forEach(function (lvl, i) {
     lvl.rubyGuardian = GUARDIANS[i];
+    if (lvl.stairsOpenOn == null) lvl.stairsOpenOn = 'bossKill';
     lvl.pacing.bossPlusGuardianXp = statBossGuardianXp(lvl);
     lvl.pacing.bossPlusGuardianSource = 'stat-block';
     lvl.wired = false;
