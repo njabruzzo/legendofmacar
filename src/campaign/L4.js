@@ -198,7 +198,8 @@
     level: 7,
     wis: 14,
     decision: 'D15-A',
-    slots: { 1: 3, 2: 3, 3: 2, 4: 1 },
+    /* §1.2. PHB 7th-level cleric is 3/3/2/1. WIS 14 adds two 1st-level slots. */
+    slots: { 1: 5, 2: 3, 3: 2, 4: 1 },
     emptySlots: [3, 4],
     houseList: [
       'Bless',
@@ -385,11 +386,11 @@
     },
     {
       id: 'shaman-wis-bonus',
-      note: 'The shaman row prints 3/3/2/1 slots plus a WIS 14 bonus, and leaves the 3rd and 4th slots empty. The bonus spell count is not printed. (open)'
+      note: 'Resolved by §1.2. A 7th-level cleric is 3/3/2/1, and WIS 14 adds two 1st-level slots, so the row is 5/3/2/1. The 3rd and 4th slots stay empty under the house list.'
     },
     {
       id: 'shaman-list-versus-slots',
-      note: 'The house list names Bless, Cause Fear, Darkness, Cause Light Wounds twice, Hold Person, and Silence. That is more 1st-level preparations than the 3 base 1st-level slots. Both are stored as written. (open)'
+      note: 'Resolved by §1.2. Bless, Cause Fear, Darkness, and Cause Light Wounds twice are the five locked 1st-level spells, and they fill the five 1st-level slots.'
     },
     {
       id: 'shaman-segments',

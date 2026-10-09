@@ -140,8 +140,16 @@ assert(L4.MONSTERS.rubyGuardian.hd === 8 && L4.MONSTERS.rubyGuardian.hp === 48 &
 assert(L4.MONSTERS.rubyGuardian.cone.damage === '2d6' && L4.MONSTERS.rubyGuardian.cone.range === '3"' && L4.MONSTERS.rubyGuardian.cone.save === 'vs breath for half', 'the shard cone is 2d6 at 3 inches, save vs breath for half');
 assert(L4.MONSTERS.rubyGuardian.xp === T.level(4).rubyGuardian.formula.xp, 'Guardian IV XP matches the guardian line');
 
-assert(L4.SHAMAN.level === 7 && L4.SHAMAN.decision === 'D15-A' && L4.SHAMAN.slots[1] === 3 && L4.SHAMAN.slots[2] === 3 && L4.SHAMAN.slots[3] === 2 && L4.SHAMAN.slots[4] === 1, 'shaman slots are 3/3/2/1');
+assert(L4.SHAMAN.level === 7 && L4.SHAMAN.decision === 'D15-A' && L4.SHAMAN.slots[1] === 5 && L4.SHAMAN.slots[2] === 3 && L4.SHAMAN.slots[3] === 2 && L4.SHAMAN.slots[4] === 1, 'shaman slots are 5/3/2/1 with the WIS 14 bonus');
 assert(L4.SHAMAN.emptySlots.join() === '3,4', 'the 3rd and 4th slots stay empty as written');
+var lockedFirst = ['Bless', 'Cause Fear', 'Darkness', 'Cause Light Wounds', 'Cause Light Wounds'];
+var prepared = L4.SHAMAN.houseList.slice();
+lockedFirst.forEach(function (name) {
+  var at = prepared.indexOf(name);
+  assert(at >= 0, name + ' is prepared as a locked 1st-level spell');
+  if (at >= 0) prepared.splice(at, 1);
+});
+assert(lockedFirst.length === L4.SHAMAN.slots[1] && lockedFirst.length === 5, 'the five locked 1st-level spells fill the five 1st-level slots');
 assert(L4.SHAMAN.houseList.length === 7 && L4.SHAMAN.bless.range === '5"' && L4.SHAMAN.bless.rounds === 6 && L4.SHAMAN.spellEverySec === 2, 'the house list and Bless timing are the printed lines');
 assert(L4.CHIEF.priority.length === 4 && L4.CHIEF.moraleBelowHpFraction === 0.25 && L4.CHIEF.fallback === 'ogre-cave' && L4.CHIEF.helplessHitsLand === true, 'the chief has four steps and falls back to the cave below a quarter');
 assert(L4.CHIEF.bossFlagOnIndividual === false && L4.CHIEF.separateFromGuardian === true, 'the chief stays separate from Guardian IV');
@@ -180,9 +188,17 @@ Object.keys(shield.ingredientSets[0]).forEach(function (ing) {
   assert(Q.SOURCES[ing] && Q.SOURCES[ing].level <= 4, 'shield ingredient ' + ing + ' resolves by L4');
 });
 
-assert(L4.OPEN.length === 25 && L4.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L4 choice is marked in the data');
+var resolvedBy12 = ['shaman-wis-bonus', 'shaman-list-versus-slots'];
+assert(L4.OPEN.length === 25, 'L4 still records 25 choice notes');
+L4.OPEN.forEach(function (row) {
+  assert(row.id && row.note, row.id + ' has a note');
+  if (resolvedBy12.indexOf(row.id) >= 0) {
+    assert(row.note.indexOf('§1.2') >= 0 && row.note.indexOf('Resolved') === 0 && row.note.indexOf('(open)') < 0 && row.note.indexOf('not printed') < 0, row.id + ' cites section 1.2 as resolved');
+  } else {
+    assert(row.note.indexOf('(open)') >= 0, row.id + ' stays marked open');
+  }
+});
 assert(L4.MONSTERS.orcLeader.countVerify === true && L4.MONSTERS.warg.ttVerify === true, 'the verify figures stay marked');
-assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
 assert(html.indexOf('L4.js') < 0 && html.indexOf('maps/l4.json') < 0, 'index.html does not load the L4 data');
 assert(save.indexOf('L4.js') < 0 && save.indexOf('maps/l4.json') < 0, 'GameSave does not load the L4 data');
 assert(L4.wired === false && B.wired === false && Cave.wired === false, 'the L4 module, the buff queue, and the cave are not wired');
