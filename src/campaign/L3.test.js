@@ -118,7 +118,10 @@ assert(L3.MONSTERS.rubyGuardian.shard.damage === '1d6' && L3.MONSTERS.rubyGuardi
 assert(L3.MONSTERS.rubyGuardian.xp === T.level(3).rubyGuardian.formula.xp, 'Guardian III XP matches the guardian line');
 
 assert(L3.POISON.mode === 'h1' && L3.POISON.only === true && L3.POISON.mods.queen === -2 && L3.POISON.floor === 2, 'poison is H1 only, Queen modifier -2, floor 2');
-assert(L3.POISON.mods.large === T.poisonSave.large && L3.POISON.mods.queen === T.poisonSave.queen, 'L3 uses CampaignTable.poisonSave');
+assert(L3.POISON.mods === T.poisonSave, 'L3.POISON.mods is CampaignTable.poisonSave');
+['large', 'huge', 'giant', 'phase', 'queen'].forEach(function (size) {
+  assert(L3.POISON.mods[size] === T.poisonSave[size], 'L3 poison mod for ' + size + ' is the shared table');
+});
 assert(P.POISON_MODE === 'h1' && P.SPIDERS.spiderQueen.size === 'queen', 'SpiderPoison is H1 and knows the Queen');
 assert(P.saveTarget({ spider: 'spiderQueen', level: 5, con: 16 }) === 9, 'F5 CON 16 versus the Queen needs 9');
 assert(P.saveTarget({ spider: 'spider', level: 5, con: 16 }) === 5, 'F5 versus a large spider needs 5');
