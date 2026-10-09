@@ -81,7 +81,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=4761d3b4cfd0"></script>
+<script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -550,7 +550,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='130';
+const ASSET_VER='131';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -988,6 +988,11 @@ if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_
    Drop a key whose path is not in it, before loadSprites requests it.
    Macar walk-frame assignments above, and MACAR_PLAN, are unchanged.
    The _w3 pass itself is unchanged; a Macar _w3 line is not edited here. */
+/* Camp rest cards. Own sheets, not shared-atlas cells. After
+   MacarSharedAtlas.register so that rebind cannot point these keys
+   at macar-body-v1.png. vB is bare-head. vA2 is the bone crown. */
+SPRITE_FILES.restCardMacar='assets/ui/rest_card_macar_vB.png';
+SPRITE_FILES.restCardMacarCrown='assets/ui/rest_card_macar_vA2.png';
 if(typeof ASSET_FILES!=='undefined' && ASSET_FILES){
   Object.keys(SPRITE_FILES).forEach(k=>{
     const src=SPRITE_FILES[k];
@@ -1102,7 +1107,7 @@ function worldArtReady(n){
 function loadSprites(done){
   const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1',
     'floor_mine','wall_worked','wall_face','wall_face_shade',
-    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+    'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','restCardMacar','restCardMacarCrown',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
     'rubble','rubble2','boulder','boulder2',
     'icon_pack','icon_sword','icon_flask','icon_shield','icon_cross','icon_attack','icon_defend','icon_helm','icon_quiver','icon_save'];
@@ -20850,6 +20855,19 @@ function menuBtn(g,label,cx,cy,w,h,fn,dim,icon,style){
   g.fillText(label,cx,cy+labelPx*0.35); g.textAlign='left';
   if(!dim) menuHits.push({x,y,w,h,fn});
 }
+/* Rest-card painting for every weapon kit. The bone crown picks vA2;
+   otherwise the card is bare-head vB. If that sheet is not decoded yet,
+   the other variant shows. drawSleepRest falls through to the living blit. */
+function restCardMacarImage(){
+  const crowned=typeof wearingBoneCrown==='function' && wearingBoneCrown();
+  const primary=crowned?'restCardMacarCrown':'restCardMacar';
+  const other=crowned?'restCardMacar':'restCardMacarCrown';
+  if(SPRITE_FILES[primary] && !sprReady(primary) && !SPRITE_LOADING[primary]) loadSpriteKeyNow(primary);
+  if(SPRITE_FILES[other] && !sprReady(other) && !SPRITE_LOADING[other]) loadSpriteKeyNow(other);
+  if(sprReady(primary)) return SPR[primary];
+  if(sprReady(other)) return SPR[other];
+  return null;
+}
 function drawSleepRest(g){
   const s=UIS, show=G.sleepShow; if(!show) return;
   const t=show.t||0;
@@ -20863,7 +20881,9 @@ function drawSleepRest(g){
   glow.addColorStop(0.38,'rgba(180,70,18,0.12)');
   glow.addColorStop(1,'rgba(0,0,0,0)');
   g.fillStyle=glow; g.fillRect(0,0,VW,VH);
-  const img=blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
+  /* vA2 while the bone crown is worn, vB otherwise. A sheet that has
+     not decoded yields the other variant, then the living idle blit. */
+  const img=restCardMacarImage()||blitLivingMacar(SPR[livingMacarIdleKey()]||SPR.macar);
   const caption='Macar decides to camp to rest and heal.';
   g.textAlign='center';
   if(img){

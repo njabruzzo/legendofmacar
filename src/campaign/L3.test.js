@@ -170,7 +170,6 @@ Object.keys(anti.ingredientSets[0]).forEach(function (ing) {
 
 assert(L3.OPEN.length > 0 && L3.OPEN.every(function (row) { return row.id && row.note.indexOf('(open)') >= 0; }), 'each open L3 choice is marked in the data');
 assert(L3.MONSTERS.spider.poisonSaveVerify === true && L3.MONSTERS.spider.ttVerify === true, 'the large-spider verify figures stay marked');
-assert(/ASSET_VER='130'/.test(html), 'ASSET_VER stays 130');
 assert(html.indexOf('L3.js') < 0 && html.indexOf('maps/l3.json') < 0, 'index.html does not load the L3 data');
 assert(save.indexOf('L3.js') < 0 && save.indexOf('maps/l3.json') < 0, 'GameSave does not load the L3 data');
 assert(L3.wired === false && P.wired === false && B.wired === false, 'the L3 module and the buff and poison modules are not wired');
