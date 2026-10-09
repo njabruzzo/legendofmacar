@@ -99,7 +99,11 @@ assert(plan.footX===256 && plan.canvasW===512 && plan.baselineRow===399 && plan.
   'foot x is the canvas centre 256 and the shared baseline row is 399');
 const anc=M.anchor(plan);
 assert(Math.abs(anc.footX-0.5)<1e-12, 'foot x fraction is W/2');
-assert(M.baselineScreenY(180, plan)===0 && M.baselineScreenY(70, plan)===0,
+assert(!/function baselineScreenY/.test(src), 'baselineScreenY helper is gone');
+function baselineY(drawH, bot){
+  return (bot+1)*(drawH/plan.canvasH) - drawH*anc.baselineFrac;
+}
+assert(baselineY(180, plan.baselineRow)===0 && baselineY(70, plan.baselineRow)===0,
   'the declared baseline lands on one screen y at any draw height');
 
 assert(M.bob(0.05,4,2)===0, 'stride w1 bob is lowest');
@@ -139,15 +143,41 @@ assert(!/thinone_.*wake/.test(html), 'index does not invent a wake key');
 
 const laptop={sp:2.15,tw:116,drawH:70*1.38*2.065,canvasH:416,strideSrc:plan.strideSrc,frameMs:149};
 const phone={sp:2.15,tw:66,drawH:70*0.78*2.065,canvasH:416,strideSrc:plan.strideSrc,frameMs:149};
-[laptop,phone].forEach(function(opts,i){
-  const mul=M.cadenceMul(opts);
-  const slide=M.plantedSlideFrac(opts, mul);
-  assert(slide<=0.25+1e-9, (i?'phone':'laptop')+' planted slide is '+slide.toFixed(3)+' of the stride');
+const cap=M.FRAME_MS/M.MIN_HOLD_MS;
+[0.2,2.15,4.3,40,1000].forEach(function(sp){
+  [laptop,phone].forEach(function(base){
+    const opts=Object.assign({}, base, {sp:sp});
+    const mul=M.cadenceMul(opts);
+    const hold=M.frameHoldMs(mul);
+    assert(mul<=cap+1e-12 && hold+1e-6>=M.MIN_HOLD_MS,
+      'monster frame hold at sp '+sp+' is '+hold.toFixed(2)+' ms (mul '+mul.toFixed(3)+')');
+  });
 });
-const macar={sp:4.3,tw:116,drawH:78*1.38,canvasH:M.MACAR.canvasH,strideSrc:M.MACAR.strideSrc,frameMs:149};
-assert(M.plantedSlideFrac(macar, M.cadenceMul(macar))<=0.25+1e-9, 'Macar planted slide stays within 25%');
+const thinMul=M.cadenceMul(laptop);
+const thinHold=M.frameHoldMs(thinMul);
+const thinSlide=M.plantedSlideFrac(laptop, thinMul);
+assert(Math.abs(thinMul-cap)<1e-12, 'Thin One cadence at 2.15 is clamped to '+cap+' (got '+thinMul+')');
+assert(Math.abs(thinHold-M.MIN_HOLD_MS)<1e-9, 'Thin One frame hold at 2.15 is 80 ms');
+assert(thinSlide>0.25, 'clamped Thin One slide at 2.15 exceeds 25% ('+(thinSlide*100).toFixed(2)+'%)');
+console.log('REPORT thinone sp 2.15 laptop mul '+thinMul.toFixed(4)+' hold '+thinHold.toFixed(2)+' ms slide '+(thinSlide*100).toFixed(2)+'%');
+const phoneSlide=M.plantedSlideFrac(phone, M.cadenceMul(phone));
+console.log('REPORT thinone sp 2.15 phone slide '+(phoneSlide*100).toFixed(2)+'%');
 assert(M.cadenceMul({sp:1,tw:10,drawH:100,canvasH:100,strideSrc:80,frameMs:149})===1,
   'a short step does not slow the 149 ms clock');
+
+const eFace={};
+assert(M.facing(eFace,'e',0)==='e', 'first facing is adopted');
+assert(M.facing(eFace,'w',1)==='e', 'a new facing starts the 120 ms wait');
+assert(M.facing(eFace,'w',1.119)==='e', 'facing does not change for a flip shorter than 120 ms');
+assert(M.facing(eFace,'e',1.15)==='e', 'a short flip that returns leaves the facing put');
+const eHold={};
+assert(M.facing(eHold,'s',0)==='s', 'south is the starting facing');
+assert(M.facing(eHold,'n',5)==='s', 'north does not win before 120 ms');
+assert(M.facing(eHold,'n',5.120)==='n', 'a facing wanted for 120 ms switches');
+const eAtk={atk:0};
+assert(M.facing(eAtk,'e',0)==='e', 'attack snap keeps the facing until windup');
+eAtk.atk=1; eAtk.atkKind='melee'; eAtk.atkMax=1;
+assert(M.facing(eAtk,'w',0.01)==='w', 'windup start snaps facing immediately');
 
 let y0=null, pngN=0;
 keyList.forEach(function(key){
@@ -158,11 +188,11 @@ keyList.forEach(function(key){
   pngN++;
   assert(info.w===512 && info.h===416, rel+' canvas is 512x416');
   assert(info.bot===399, rel+' lowest opaque row is 399 (got '+info.bot+')');
-  const y=M.baselineScreenY(info.h, plan);
+  const y=baselineY(info.h, info.bot);
   if(y0==null) y0=y;
-  assert(y===y0, rel+' baseline screen y matches the set');
+  assert(Math.abs(y-y0)<1e-6, rel+' baseline screen y matches the set');
 });
-assert(pngN===41 && y0===0, 'all 41 keys share screen y 0 for the baseline');
+assert(pngN===41 && Math.abs(y0)<1e-6, 'all 41 keys share screen y 0 for the baseline');
 
 assert(/const ASSET_VER='132'/.test(html), 'ASSET_VER is 132');
 assert(/sprite:'thinone',hp:95,sp:1\.55,dmg:11,range:1\.2,cd:1\.5,scale:2\.065,aggro:99/.test(html),
@@ -176,6 +206,21 @@ assert(/eight && deadImg && drawEntBillboard/.test(extractFn('drawEnt')), 'bound
 assert(/drawDeadBillboard\(g,e,deadImg,z\)/.test(extractFn('drawEnt')), 'unbound dead still uses the dwarf box');
 assert(/monsterCadenceMul/.test(extractFn('gaitAdvance')) && /WALK_CYCLES_PER_SECOND/.test(extractFn('gaitAdvance')),
   'cadence multiplies the existing walk clock');
+assert(/e\.hero\|\|e\.ghost\|\|e\.team==='party'\) return 1/.test(extractFn('monsterCadenceMul'))
+  && !/MACAR/.test(extractFn('monsterCadenceMul')),
+  'Macar, party, and ghosts are exempt from the cadence cap');
+const cadCtx={Monster8Dir:M, ZOOM:1.38, TW:116, entSpriteH:function(e,z){ return 70*z; }};
+vm.createContext(cadCtx);
+vm.runInContext(extractFn('monsterCadenceMul')+'\nthis.monsterCadenceMul=monsterCadenceMul;', cadCtx);
+const hz=M.BASE_HZ, step=0.37;
+function mainGait(g,dt){ return (g||0)+Math.max(0,dt)*hz; }
+const macMul=cadCtx.monsterCadenceMul({hero:1,ghost:0,team:'party',sp:4.3,sprite:'macar',moving:1});
+const partyMul=cadCtx.monsterCadenceMul({hero:0,ghost:0,team:'party',sp:4,sprite:'pordoom',moving:1});
+const ghostMul=cadCtx.monsterCadenceMul({hero:0,ghost:1,team:'foe',sp:4.3,sprite:'pordoom',moving:1});
+assert(macMul===1 && partyMul===1 && ghostMul===1, 'Macar, party, and ghost multipliers are 1');
+assert(mainGait(0.2, step)===(0.2+Math.max(0,step)*hz*macMul), 'Macar walk timing equals main');
+const liveThin=cadCtx.monsterCadenceMul({hero:0,ghost:0,team:'foe',sprite:'thinone',sp:2.15,scale:2.065,moving:1});
+assert(Math.abs(liveThin-thinMul)<1e-9, 'live Thin One cadence matches the clamped plan');
 assert(/scale:\.72/.test(html) && /kind:'beetle',sprite:'beetle'[^}]*scale:1\.0/.test(html),
   'rat and beetle scales are untouched');
 
@@ -252,6 +297,28 @@ atk.atk=0.5;
 assert(ctx.entAnimKey(atk)==='thinone_e_atk_contact', 'Thin One attack reaches contact');
 atk.atk=0.2;
 assert(ctx.entAnimKey(atk)==='thinone_e_atk_recover', 'Thin One attack ends on recover');
+
+ctx.G={t:0};
+const flick=foe('statue','thinone',0.7,-0.7,0.12);
+assert(ctx.entAnimKey(flick)==='thinone_e_w1' && ctx.wantsSpriteFlip(flick)===false, 'held east walk');
+flick.ix=-0.7; flick.iy=0.7; flick.fdx=-0.7; flick.fdy=0.7;
+ctx.G.t=1;
+assert(ctx.entAnimKey(flick)==='thinone_e_w1', 'a new facing starts the wait');
+ctx.G.t=1.119;
+assert(ctx.entAnimKey(flick)==='thinone_e_w1' && ctx.wantsSpriteFlip(flick)===false,
+  'facing does not change for a flip shorter than 120 ms');
+ctx.G.t=1.120;
+assert(ctx.screenOctant(flick)==='w' && ctx.entAnimKey(flick)==='thinone_e_w1' && ctx.wantsSpriteFlip(flick)===true,
+  'facing switches after 120 ms and the mirror follows');
+ctx.G.t=0;
+const snap=foe('statue','thinone',0.7,-0.7,0);
+snap.moving=0;
+assert(ctx.entAnimKey(snap)==='thinone_e_idle', 'standing east before the snap');
+snap.ix=-0.7; snap.iy=0.7; snap.fdx=-0.7; snap.fdy=0.7;
+snap.atk=1; snap.atkMax=1; snap.atkKind='melee';
+ctx.G.t=0.01;
+assert(ctx.entAnimKey(snap)==='thinone_e_atk' && ctx.wantsSpriteFlip(snap)===true,
+  'windup snaps the facing without waiting');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nmonster 8-dir checks passed');

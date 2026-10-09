@@ -296,22 +296,16 @@ function turnToward(e,dx,dy,dt,rate){
 }
 const WALK_CYCLES_PER_SECOND=1.675; // Two alternating steps per full stride.
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND*((e&&typeof monsterCadenceMul==='function'&&monsterCadenceMul(e))||1); }
-/* Planted-foot slide stays within 25% of the drawn stride. Unbound foes and
-   kin keep 1× (149 ms on a 4-frame cycle, 298.5 ms on the 2-frame cycle).
-   Bound 8-dir monsters and Macar scale the same clock. Gameplay speed is
-   unchanged — only how fast the walk frames advance. */
+/* Bound 8-dir monsters speed the walk clock so a planted foot slides less,
+   but never faster than an 80 ms frame. Macar, party kin, and ghosts stay
+   at 1× — the same gaitAdvance as the base clock. Gameplay speed is unchanged. */
 function monsterCadenceMul(e){
   if(!e||typeof Monster8Dir==='undefined'||e.dead||e.crushed) return 1;
+  if(e.hero||e.ghost||e.team==='party') return 1;
   const plan=Monster8Dir.planFor(e);
-  let strideSrc=0, canvasH=1, drawH=0;
-  if(plan){
-    strideSrc=plan.strideSrc; canvasH=plan.canvasH;
-    drawH=entSpriteH(e,ZOOM*(e.scale||1));
-  }else if(e.hero&&!e.ghost){
-    strideSrc=Monster8Dir.MACAR.strideSrc; canvasH=Monster8Dir.MACAR.canvasH;
-    drawH=Monster8Dir.MACAR.spriteH*ZOOM*(e.scale||1);
-  }else return 1;
-  return Monster8Dir.cadenceMul({sp:e.sp||0,tw:TW,drawH:drawH,canvasH:canvasH,strideSrc:strideSrc,frameMs:Monster8Dir.FRAME_MS});
+  if(!plan) return 1;
+  const drawH=entSpriteH(e,ZOOM*(e.scale||1));
+  return Monster8Dir.cadenceMul({sp:e.sp||0,tw:TW,drawH:drawH,canvasH:plan.canvasH,strideSrc:plan.strideSrc,frameMs:Monster8Dir.FRAME_MS});
 }
 function holdFollowWalk(e, lead){
   if(!e||!lead||!lead.moving) return;
@@ -4077,9 +4071,14 @@ function wantsSpriteFlip(e){
      Kind is not consulted, so a later goblin_king plan cannot inherit goblin.
      Unbound sheets keep the kind-or-sprite table so their mirror stays put. */
   const spr=(typeof entSpriteKey==='function')?entSpriteKey(e):(e.sprite||e.kind);
-  const paintedLeft=(typeof Monster8Dir!=='undefined'&&Monster8Dir.bound(spr))
-    ?Monster8Dir.paintedLeft(spr)
-    :!!(SPRITE_PAINTED_LEFT[e.kind]||SPRITE_PAINTED_LEFT[e.sprite]);
+  /* Bound sheets mirror the held octant, so a one-frame heading blip cannot
+     flip the blit while the facing timer is still waiting. */
+  if(typeof Monster8Dir!=='undefined'&&Monster8Dir.bound(spr)){
+    const oct=e._faceOct||screenOctant(e);
+    const mirror=Monster8Dir.flips(oct);
+    return Monster8Dir.paintedLeft(spr)?!mirror:mirror;
+  }
+  const paintedLeft=!!(SPRITE_PAINTED_LEFT[e.kind]||SPRITE_PAINTED_LEFT[e.sprite]);
   return paintedLeft?!left:left;
 }
 function attackProgress(e){
@@ -4180,7 +4179,10 @@ function entAnimKey(e){
     if(directed){loadSpriteKeyNow(directed);if(sprReady(directed))return directed;}
   }
   if(typeof Monster8Dir!=='undefined'&&Monster8Dir.bound(k)){
-    const posed=Monster8Dir.select(k,e,screenOctant(e));
+    const want=screenOctant(e);
+    const now=(typeof G!=='undefined'&&G&&typeof G.t==='number')?G.t:0;
+    const oct=Monster8Dir.facing(e,want,now);
+    const posed=Monster8Dir.select(k,e,oct);
     if(posed){loadSpriteKeyNow(posed);return posed;}
   }
   if(singlePoseLocked(e)){
@@ -18205,7 +18207,7 @@ function drawEnt(g,e){
   if(!pose && img && e.moving && !e.dead){
     /* Pass frames sit highest, stride frames sit lowest, locked to the
        frame index. Unbound monsters keep the legacy sine. */
-    bob0=eight?Monster8Dir.bob(e.gait, Monster8Dir.walkCount(eight, screenOctant(e)), z):Math.sin((e.gait||0)*TAU)*1.6*z;
+    bob0=eight?Monster8Dir.bob(e.gait, Monster8Dir.walkCount(eight, e._faceOct||screenOctant(e)), z):Math.sin((e.gait||0)*TAU)*1.6*z;
   }
   if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);

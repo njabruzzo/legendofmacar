@@ -8,20 +8,20 @@
     planted foot / body centre at x = 256. Scale 2.065 is
     STRUCTURE_PASS_L1_L2.md line 40: "Bind e.scale = 2.065 (from 1.45) at base 70."
     Walk timing base is the LPC universal cycle: 4 frames × 149 ms.
+    A planted foot may slide more than 25% once the hold is clamped at 80 ms.
+    Macar, party kin, and ghosts are not on this clock.
     DwarfWalkLegs is not applied. These keys are painted; legShift stays off. */
  const FRAME_MS=149;
  const BASE_HZ=1.675;
  const SLIDE_LIMIT=0.25;
+ const MIN_HOLD_MS=80;
+ const FACE_MS=120;
  const CONTACT_T=0.45;
  const RECOVER_T=0.72;
  const WALK4=['w1','pass_a','w2','pass_b'];
  const WALK2=['w1','w2'];
  const ATTACK3=['atk','atk_contact','atk_recover'];
  const VIEW={e:'e',se:'se',s:'s',ne:'ne',n:'back',w:'e',sw:'se',nw:'ne'};
- /* East body cell of macar-body-v1.png (row of the side view, idle column):
-    foot-centre spread about 57 px inside the 229 px cell. Prereq 6 scales
-    Macar's gait with the same 25% plant rule as a bound monster. */
- const MACAR={strideSrc:57,canvasH:229,spriteH:78};
  const plans={
   thinone:{
    sprite:'thinone',
@@ -78,6 +78,44 @@
   if(t<RECOVER_T)return 'atk_contact';
   return 'atk_recover';
  }
+ /* A new screen octant must be wanted for FACE_MS before the sheet turns.
+    A one-frame heading blip while bodies bunch does not flip the sprite.
+    Windup start snaps to the target immediately. now is seconds. */
+ function facing(e, want, now){
+  if(!e) return want||'s';
+  want=want||'s';
+  const t=(typeof now==='number')?now:0;
+  const attacking=!!(e.atk>0&&e.atkKind!=='bow'&&!e.dead&&!e.crushed);
+  if(attacking&&!e._faceAtk){
+   e._faceAtk=1;
+   e._faceOct=want;
+   e._faceWant=want;
+   e._faceSince=t;
+   return want;
+  }
+  if(!attacking) e._faceAtk=0;
+  if(!e._faceOct){
+   e._faceOct=want;
+   e._faceWant=want;
+   e._faceSince=t;
+   return want;
+  }
+  if(want===e._faceOct){
+   e._faceWant=want;
+   e._faceSince=t;
+   return e._faceOct;
+  }
+  if(want!==e._faceWant){
+   e._faceWant=want;
+   e._faceSince=t;
+   return e._faceOct;
+  }
+  if((t-e._faceSince)*1000>=FACE_MS){
+   e._faceOct=want;
+   e._faceSince=t;
+  }
+  return e._faceOct;
+ }
  function select(stem,e,oct){
   const p=plans[stem];
   if(!p||!e)return null;
@@ -98,14 +136,6 @@
   const baselineFrac=(p.baselineRow+1)/p.canvasH;
   return {footX:footX,baselineFrac:baselineFrac,baselineRow:p.baselineRow,canvasH:p.canvasH,canvasW:p.canvasW};
  }
- /* Screen y of the declared baseline's bottom edge. drawH is the on-screen
-    canvas height. Every key that shares baselineRow lands on this same y. */
- function baselineScreenY(drawH,p){
-  const a=anchor(p);
-  if(!a)return 0;
-  const dy=-drawH*a.baselineFrac;
-  return dy+drawH*a.baselineFrac;
- }
  function bob(gait,count,z){
   const n=count||4;
   const i=frameIndex(gait,n);
@@ -123,7 +153,9 @@
   const travel=screenEastPxPerSec(opts.sp,opts.tw)*((opts.frameMs||FRAME_MS)/1000);
   const limit=stride*SLIDE_LIMIT;
   if(!(limit>0)||travel<=limit)return 1;
-  return travel/limit;
+  const cap=FRAME_MS/MIN_HOLD_MS;
+  const mul=travel/limit;
+  return mul>cap?cap:mul;
  }
  function plantedSlideFrac(opts,mul){
   opts=opts||{};
@@ -160,11 +192,12 @@
  }
  const api={
   FRAME_MS:FRAME_MS,BASE_HZ:BASE_HZ,SLIDE_LIMIT:SLIDE_LIMIT,
-  CONTACT_T:CONTACT_T,RECOVER_T:RECOVER_T,MACAR:MACAR,plans:plans,
+  MIN_HOLD_MS:MIN_HOLD_MS,FACE_MS:FACE_MS,
+  CONTACT_T:CONTACT_T,RECOVER_T:RECOVER_T,plans:plans,
   plan:plan,bound:bound,planFor:planFor,paintedView:paintedView,flips:flips,
   paintedLeft:paintedLeft,walkCount:walkCount,walkPoses:walkPoses,
   frameIndex:frameIndex,frameHoldMs:frameHoldMs,attackPose:attackPose,
-  select:select,anchor:anchor,baselineScreenY:baselineScreenY,bob:bob,
+  facing:facing,select:select,anchor:anchor,bob:bob,
   screenEastPxPerSec:screenEastPxPerSec,cadenceMul:cadenceMul,
   plantedSlideFrac:plantedSlideFrac,keys:keys,register:register
  };
