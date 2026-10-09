@@ -85,9 +85,10 @@ vm.runInContext(
 );
 
 function fresh(){
-  ctx.who={name:'Macar', hero:1, hp:20, maxhp:80, sp:4, buff:0, cd:1, poisonT:3};
+  ctx.who={name:'Macar', hero:1, hp:20, maxhp:80, sp:4, buff:0, cd:1, poisonT:3, x:0, y:0, lvl:3};
   ctx.healed=0; ctx.healN=0; ctx.dmg=0; ctx.cleared=0; ctx.says=[]; ctx.saveOk=false;
-  ctx.foe={name:'Goblin', kind:'goblin', hp:20, stun:0, aggro:6};
+  ctx.foe={name:'Goblin', kind:'goblin', hp:20, stun:0, aggro:6, x:2, y:0, team:'foe'};
+  ctx.G.ents=[ctx.foe];
   return ctx.who;
 }
 
@@ -126,7 +127,7 @@ assert(who.fly===1 && who.hover===1 && who.flyPotion===1, 'Flying sets fly/hover
 
 who=fresh();
 ctx.drinkPotion({n:'Invisibility', k:'invis'}, who);
-assert(who.invis>0, 'Invisibility sets e.invis');
+assert(who.invis>0 && who.invisT>=50, 'Invisibility sets invisT for 4+1d4 turns');
 
 who=fresh();
 ctx.drinkPotion({n:'Invulnerability', k:'invuln'}, who);
@@ -149,9 +150,16 @@ ctx.drinkPotion({n:'Giant Control', k:'giantctrl'}, who);
 assert(ctx.foe.stun===0, 'Giant Control does not thrall a goblin');
 
 who=fresh();
-ctx.foe={name:'Hill Giant', kind:'giant', hp:40, stun:0, aggro:6};
+ctx.foe={name:'Hill Giant', kind:'giant', hp:40, stun:0, aggro:6, x:2, y:0, team:'foe'};
+ctx.G.ents=[ctx.foe];
 ctx.drinkPotion({n:'Giant Control', k:'giantctrl'}, who);
-assert(ctx.foe.charmed===1 && ctx.foe.stun>=8, 'Giant Control holds a giant');
+assert(ctx.foe.charmed===1 && ctx.foe.controlT>=8 && ctx.foe.stun===0, 'Giant Control holds a giant');
+
+who=fresh();
+ctx.foe={name:'Ogre', kind:'ogre', hp:40, stun:0, aggro:6, x:2, y:0, team:'foe'};
+ctx.G.ents=[ctx.foe];
+ctx.drinkPotion({n:'Giant Control', k:'giantctrl'}, who);
+assert(!ctx.foe.charmed && /No giant within reach/.test(ctx.lastSay), 'an ogre is not a giant');
 
 ctx.foe={name:'Goblin', kind:'goblin', hp:20, stun:0, aggro:6};
 who=fresh();
@@ -173,6 +181,10 @@ names.forEach(n=>{
 
 assert(/e\.fly=1; e\.hover=1; e\.flyPotion=1/.test(extractFn('drinkPotion')),
   'drinkPotion still contains the leftover fly flags');
+assert(/moveMul:2\.0/.test(extractFn('applyDmgPotion')) && !/\*1\.35/.test(extractFn('applyDmgPotion')),
+  'Potion of Speed is moveMul 2.0');
+assert(!/giant\|ogre\|troll\|ettin/.test(extractFn('applyDmgPotion')),
+  'ogre is off the giant-control list');
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nDMG potion checks passed');

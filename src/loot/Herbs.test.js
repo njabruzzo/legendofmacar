@@ -131,5 +131,10 @@ ctx.who.potionRegen=0;
 ctx.useHerb('Luminous Vrak', ctx.who);
 assert(ctx.who.potionRegen===5, 'Vrak ticks 5 rounds');
 
+ctx.G.packs.macar.herbs.Crowtongue=1;
+ctx.useHerb('Crowtongue', ctx.who);
+assert(ctx.who.invisT===12 && ctx.who.invis>=12, 'Crowtongue hides for 12 seconds');
+assert(/moveMul:2\.0/.test(extractFn('useHerb')), 'Zulsendra haste is moveMul 2.0');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nherb checks passed');

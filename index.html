@@ -74,6 +74,8 @@
 <script src="src/ui/EquipCompare.js"></script>
 <script src="src/vendor/rotjs/rot-path.js"></script>
 <script src="src/systems/Navigation.js"></script>
+<script src="src/combat/Invisibility.js"></script>
+<script src="src/combat/NecklaceMissiles.js"></script>
 <script src="src/systems/EnemyIntent.js"></script>
 <script src="src/systems/Interaction.js"></script>
 <script src="src/systems/Discovery.js"></script>
@@ -6376,6 +6378,13 @@ function campRest(){
     if(e.team!=='party') return;
     if(e.ghost && e.dead) returnGhost(e, true);
     if(e.dead) return;
+    if(!e.ghost && typeof takePartyRation==='function'){
+      const fed=takePartyRation();
+      if(fed!=='fed'){
+        say((e.name||'A kin')+' has no ration. The rest does not heal them.','#c9b895');
+        return;
+      }
+    }
     const miss=e.maxhp-e.hp;
     if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE);
     if(typeof clearPoison==='function') clearPoison(e);
@@ -9476,6 +9485,7 @@ function wornDisplacementPlus(e){
   return it.plus|0;
 }
 function wearingDisplacement(e){
+  if(e && (e.appearT||0)>0) return false;
   if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return false;
   const it=(G.equipped||{}).necklace||(G.equipped||{}).ring;
   return !!(it && /cloak of displacement/i.test(it.n||''));
@@ -10718,7 +10728,8 @@ function beginFight(foe){
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
   const elf=typeof wearingElvenkind==='function'&&wearingElvenkind(typeof player==='function'?player():null);
-  const pSur=pSeg<=(sneak?4:2) && !elf;
+  const espSafe=surpriseBlockedByEsp(typeof player==='function'?player():null, foe);
+  const pSur=pSeg<=(sneak?4:2) && !elf && !espSafe;
   const fSur=fSeg<=(elf?4:sneak?1:2);
   if(pSur&&!fSur){
     G.ents.forEach(e=>{
@@ -11624,10 +11635,19 @@ function useWandByName(it, e){
     if(t){ damage(t, dmg, '#7ad0ff', {magic:1,kind:'bolt',n:it.n}); burst(t.x,t.y,'#7ad0ff',16,3); }
     return 'bolt';
   }
-  if(/Wand of Fire|Necklace of Missiles|Staff of Power/i.test(n)){
+  if(/Necklace of Missiles/i.test(n)){
+    const NM=typeof NecklaceMissiles!=='undefined'?NecklaceMissiles:null;
+    if(!NM){ say('The beads will not leave the cord.','#c9b895'); return 'keep'; }
+    const res=NM.fire(it, e, necklaceHost());
+    if(res && res.say) say(res.say, '#ff8a3a');
+    if(res && res.reason==='no valid target') return 'keep';
+    if(res && (res.spent || !(it.charges>0))) return 'spent';
+    return 'bead';
+  }
+  if(/Wand of Fire|Staff of Power/i.test(n)){
     /* RAW Fire: burning hands / pyrotechnics / fireball / wall of fire (2 ch for fireball).
-       RAW Power: cone of cold, lightning, fireballs. RAW Necklace: 3d6–9d6 beads.
-       House: one charge, 6d6 flame. */
+       RAW Power: cone of cold, lightning, fireballs.
+       House: one charge, 6d6 flame. Necklace of Missiles is its own bead pipe. */
     const t=typeof nearestFoe==='function'?nearestFoe(e,8):null;
     const dmg=rollDice(6,6,0)*ADD_SCALE;
     if(t){ damage(t, dmg, '#ff8a3a', {magic:1,kind:'flame',n:it.n}); burst(t.x,t.y,'#ff8a3a',16,3); }
@@ -11677,7 +11697,7 @@ function useMagicItem(it, e, activate){
       return;
     }
     if(e){ e.stun=Math.max(e.stun||0,2.2); damage(e, ADD_SCALE*4, '#ff6a5a'); }
-    return;
+    return 'spent';
   }
   if(!activate && (isEquipWeapon(it) || it.k==='weapon'||it.cat==='Sword'||it.cat==='Weapon')){
     wieldWeapon(it); return;
@@ -11693,7 +11713,14 @@ function useMagicItem(it, e, activate){
     say('Worn: '+it.n+'.','#e0d2ff'); return;
   }
   if(activate && /ring of invisibility/i.test(it.n||'')){
-    if(e){e.invis=e.invis>0?0:1e9;e.aggro=2;}
+    if(e){
+      if(e.invisRing && ((e.invisT||0)>0 || (e.invis||0)>0)){
+        e.invis=0; e.invisT=0; e.invisRing=0; e.invisNoBreak=0; e.aggro=7.5;
+      } else {
+        e.invisRing=1; e.invis=1e9; e.invisT=1e9; e.invisNoBreak=0; e.aggro=2;
+        e.invisGen=(e.invisGen||0)+1;
+      }
+    }
     return;
   }
   if(it.k==='wand'||it.cat==='Rod/Staff/Wand'){
@@ -11705,6 +11732,12 @@ function useMagicItem(it, e, activate){
     }
     if(e){
       const mode=typeof useWandByName==='function'?useWandByName(it, e):'zap';
+      if(mode==='keep') return;
+      if(mode==='bead'||mode==='spent'){
+        say(it.n+' ('+(it.charges||0)+' charges left).','#7ad0ff');
+        if(mode==='spent' || !(it.charges>0)) return 'spent';
+        return;
+      }
       if(mode==='zap'){
         const t=nearestFoe(e,8);
         const dmg=rollDice(6,6,0)*ADD_SCALE;
@@ -11769,7 +11802,46 @@ function useMagicItem(it, e, activate){
     say('The bag opens extra room in the pack. Weight is a fraction of what it holds.','#cfe3ff');
     return;
   }
-  if(it.k==='sense'){ if(e) e.trueSee=40; return; }
+  if(it.k==='sense'){
+    if(/Medallion of ESP/i.test(it.n||'')){
+      if(e) e.espT=Math.max(e.espT||0, 10);
+      say('Thoughts press in for a short while.','#e0d2ff');
+      return;
+    }
+    if(e) e.trueSee=40;
+    return;
+  }
+  if(/Dust of Disappearance/i.test(it.n||'')){
+    const sec=(typeof rollDice==='function'?rollDice(2,10,0):12)*10;
+    (G.ents||[]).forEach(o=>{
+      if(!o||o.dead) return;
+      if(typeof dist==='function' && e && dist(e,o)>2) return;
+      if(typeof grantInvisibility==='function') grantInvisibility(o, sec, {noBreak:1});
+      else { o.invisT=Math.max(o.invisT||0, sec); o.invis=Math.max(o.invis||0, sec); o.invisNoBreak=1; o.aggro=2; }
+    });
+    say('The dust takes everyone nearby from sight.','#e0d2ff');
+    return 'spent';
+  }
+  if(/Dust of Appearance/i.test(it.n||'')){
+    const sec=(typeof rollDice==='function'?rollDice(2,10,0):12)*10;
+    let cx=e?e.x:0, cy=e?e.y:0;
+    const t=e&&typeof nearestFoe==='function'?nearestFoe(e,6):null;
+    if(t){ cx=t.x; cy=t.y; }
+    else if(e){ cx=(e.x||0)+(e.fdx||1)*6; cy=(e.y||0)+(e.fdy||0)*6; }
+    (G.ents||[]).forEach(o=>{
+      if(!o||o.dead) return;
+      if(typeof dist==='function' && dist(o,{x:cx,y:cy})>2) return;
+      o.invisT=0; o.invis=0; o.invisNoBreak=0; o.invisRing=0;
+      o.displace=0; o.displaced=0; o.appearT=Math.max(o.appearT||0, sec);
+    });
+    say('The cloud strips invisibility and displacement.','#ffe08a');
+    return 'spent';
+  }
+  if(/Feather Token/i.test(it.n||'')){
+    say('The feather has no work in the deep.','#c9b895');
+    if(e) e._consumableFx='feather';
+    return 'spent';
+  }
   say('This item’s special effect is not implemented yet. It stays in your pack.','#c9b895');
 }
 
@@ -12027,13 +12099,175 @@ function applyHeal(e, n){
 }
 function clearPoison(e){ e.poisonT=0; e._pt=0; e.slowT=0; }
 function potionHay(p){ return String((p&&(p.n||''))+' '+(p&&(p.k||''))); }
-function charmFoeKind(e, re, rounds){
-  const t=nearestFoe(e,8);
-  if(!t){ say('Nothing of that kind is near.','#c9b895'); return false; }
-  if(re && !re.test([t.kind,t.name,t.n].join(' '))){ say((t.name||'The foe')+' is the wrong kind.','#c9b895'); return false; }
-  t.stun=Math.max(t.stun||0, rounds||8);
-  t.charmed=1; t.aggro=0;
-  say((t.name||'The foe')+' is held in thrall.','#e0d2ff');
+function grantInvisibility(e, seconds, opts){
+  if(typeof Invisibility!=='undefined' && Invisibility.grant) return Invisibility.grant(e, seconds, opts);
+  if(!e) return;
+  opts=opts||{};
+  const s=Math.max(0, +seconds||0);
+  e.invisT=Math.max(e.invisT||0, s);
+  e.invis=Math.max(e.invis||0, s);
+  e.invisNoBreak=opts.noBreak?1:0;
+  e.invisRing=opts.ring?1:0;
+  e.aggro=2;
+  e.invisGen=(e.invisGen||0)+1;
+}
+function breakInvisibility(e){
+  if(typeof Invisibility!=='undefined' && Invisibility.breakHostile) return Invisibility.breakHostile(e);
+  if(!e || e.invisNoBreak) return;
+  if(!((e.invisT||0)>0 || (e.invis||0)>0)) return;
+  e.invis=0; e.invisT=0; e.invisRing=0; e.invisNoBreak=0;
+  e.aggro=7.5;
+}
+function endEthereal(e){
+  if(!e) return;
+  e.etherealT=0; e.ethereal=0; e.etherealPending=0; e.etherealDelay=0; e.etherealHold=0;
+}
+function foeSkips(foe, actor){
+  if(!actor) return false;
+  if((actor.etherealT||0)>0) return true;
+  if(typeof Invisibility!=='undefined' && Invisibility.skipsTarget) return !!Invisibility.skipsTarget(foe, actor);
+  return (actor.invisT||0)>0 || (actor.invis||0)>0;
+}
+function hasMind(e){
+  if(!e) return false;
+  if(e.mindless || e.undead || e.construct) return false;
+  const h=[e.kind,e.name,e.n,e.sprite].join(' ');
+  if(/undead|skeleton|zombie|wight|ghoul|wraith|spectre|lich|vampire|ghost|construct|golem|statue|thin one|thinone|ruby guardian/i.test(h)) return false;
+  return true;
+}
+function surpriseBlockedByEsp(hero, foe){
+  if(!hero || !foe || !((hero.espT||0)>0)) return false;
+  if(!hasMind(foe)) return false;
+  const d=typeof dist==='function'?dist(hero, foe):Math.hypot((hero.x||0)-(foe.x||0),(hero.y||0)-(foe.y||0));
+  return d<=18;
+}
+function necklaceHost(){
+  return {
+    ents:(typeof G!=='undefined'&&G.ents)||[],
+    dist:typeof dist==='function'?dist:function(a,b){ return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0)); },
+    rollDice:typeof rollDice==='function'?rollDice:function(n,s,b){ return n*(s||6)+(b||0); },
+    damage:typeof damage==='function'?damage:function(){},
+    savingThrow:typeof savingThrow==='function'?savingThrow:function(){ return false; },
+    nearestFoe:typeof nearestFoe==='function'?nearestFoe:function(){ return null; },
+    ADD_SCALE:typeof ADD_SCALE!=='undefined'?ADD_SCALE:4
+  };
+}
+function drinkFromPack(bag, list, i, who){
+  const arr=(bag&&bag[list])||[];
+  const pot=arr[i];
+  if(!pot) return 'missing';
+  const res=drinkPotion(pot, who);
+  if(res==='keep') return 'keep';
+  arr.splice(i,1);
+  return res||pot.k||'buff';
+}
+function useStackConsumable(bag, field){
+  if(!bag) return 'missing';
+  const n=bag[field]|0;
+  if(n<=0) return 'no valid target';
+  bag[field]=n-1;
+  return field;
+}
+function feedOneRation(bag){
+  if(!bag || !((bag.rations||0)>0)) return 'no valid target';
+  bag.rations--;
+  return 'fed';
+}
+function takePartyRation(){
+  const order=['macar'];
+  if(typeof ROSTER!=='undefined'){
+    ROSTER.forEach(function(r){ if(r && r.key && r.key!=='macar') order.push(r.key); });
+  }
+  for(let i=0;i<order.length;i++){
+    const bag=typeof packOf==='function'?packOf(order[i]):null;
+    if(bag && (bag.rations||0)>0) return feedOneRation(bag);
+  }
+  return 'no valid target';
+}
+function minimapShowsFoe(p, e){
+  if(!e || e.dead || e.team!=='foe') return false;
+  if(typeof tileVisible==='function' && tileVisible(e.x, e.y)) return true;
+  if(!(p && (p.espT||0)>0 && hasMind(e))) return false;
+  const d=typeof dist==='function'?dist(p,e):Math.hypot((p.x||0)-(e.x||0),(p.y||0)-(e.y||0));
+  return d<=18;
+  return false;
+}
+function treasureMarksFor(p){
+  if(!p || !((p.treasureT||0)>0)) return [];
+  const out=[];
+  const loot=(typeof G!=='undefined' && G.loot)||[];
+  for(let i=0;i<loot.length;i++){
+    const pile=loot[i];
+    if(!pile || pile.gone || pile.opened || pile.looted) continue;
+    const d=typeof dist==='function'?dist(p, pile):Math.hypot((p.x||0)-(pile.x||0),(p.y||0)-(pile.y||0));
+    if(d>48) continue;
+    out.push(pile);
+  }
+  return out;
+}
+function aimableParty(e){
+  let b=null, bd=99;
+  for(const o of ((typeof G!=='undefined'&&G.ents)||[])){
+    if(!o || o.team!=='party' || o.dead) continue;
+    if(foeSkips(e, o)) continue;
+    const d=dist(e,o);
+    if(d<bd){ bd=d; b=o; }
+  }
+  return b;
+}
+function nearestOtherFoe(e, maxd){
+  let b=null, bd=maxd||99;
+  for(const o of ((typeof G!=='undefined'&&G.ents)||[])){
+    if(!o || o===e || o.dead || o.team!=='foe') continue;
+    const d=dist(e,o);
+    if(d<bd){ bd=d; b=o; }
+  }
+  return b;
+}
+function charmFoeKind(e, re, rounds, label){
+  const range=label?12:8;
+  const pool=[];
+  const ents=(typeof G!=='undefined' && G.ents)||[];
+  for(let i=0;i<ents.length;i++){
+    const o=ents[i];
+    if(!o || o.dead || o.npc || o.team!=='foe') continue;
+    if(re && !re.test([o.kind,o.name,o.n].join(' '))) continue;
+    const d=(typeof dist==='function')?dist(e,o):Math.hypot((o.x||0)-(e&&e.x||0),(o.y||0)-(e&&e.y||0));
+    if(d>range) continue;
+    pool.push({o:o, d:d});
+  }
+  if(!pool.length && !label && typeof nearestFoe==='function'){
+    const t=nearestFoe(e, 8);
+    if(t && (!re || re.test([t.kind,t.name,t.n].join(' ')))) pool.push({o:t, d:0});
+  }
+  if(!pool.length){
+    if(label) say('No '+label+' within reach.','#c9b895');
+    else say('Nothing of that kind is near.','#c9b895');
+    return label ? 'keep' : false;
+  }
+  pool.sort(function(a,b){ return a.d-b.d; });
+  let cap=1;
+  if(label==='undead') cap=(typeof rollDice==='function')?rollDice(2,4,0):8;
+  let held=0, tries=0;
+  for(let i=0;i<pool.length;i++){
+    if(tries>=cap) break;
+    tries++;
+    const t=pool[i].o;
+    if(typeof savingThrow==='function' && savingThrow(t, 'spell')){
+      say((t.name||'The foe')+' shrugs the draught off.','#c9b895');
+      continue;
+    }
+    if(label){
+      t.charmed=1;
+      t.controlT=Math.max(t.controlT||0, (typeof rollDice==='function'?rollDice(5,4,0):(rounds||8)));
+      t.aggro=0; t.aim=null; t.noBreathParty=1;
+    } else {
+      t.stun=Math.max(t.stun||0, rounds||8);
+      t.charmed=1; t.aggro=0;
+    }
+    held++;
+    say((t.name||'The foe')+' is held in thrall.','#e0d2ff');
+  }
   return true;
 }
 function applyDmgPotion(p, e){
@@ -12081,7 +12315,7 @@ function applyDmgPotion(p, e){
     /* RAW 1e Speed = haste and ages 1 year. */
     const dur=5+dice(4,4,0);
     if(typeof applyHasteEffect==='function' && applyHasteEffect(e,{
-      duration:dur, moveMul:1.35, cdMul:0.5, cdFloor:.28, policy:'refresh', source:'potion'
+      duration:dur, moveMul:2.0, cdMul:0.5, cdFloor:.28, policy:'refresh', source:'potion'
     })){
       e.ageYears=(e.ageYears||50)+1;
       say('Haste. The year takes its due.','#e0d2ff');
@@ -12089,13 +12323,16 @@ function applyDmgPotion(p, e){
     }
     e.buff=Math.max(e.buff||0, dur);
     e.cd=Math.max(.28,(e.cd||1)*0.5);
-    e.sp=(e.baseSp||e.sp||3)*1.35;
+    e.sp=(e.baseSp||e.sp||3)*2.0;
     e.ageYears=(e.ageYears||50)+1;
     say('Haste. The year takes its due.','#e0d2ff');
     return true;
   }
   if(k==='invis' || /Invisibility/i.test(hay)){
-    e.invis=Math.max(e.invis||0, 30+lv); e.aggro=2; return true;
+    const sec=(4+dice(1,4,0))*10;
+    if(typeof grantInvisibility==='function') grantInvisibility(e, sec);
+    else { e.invis=Math.max(e.invis||0, sec); e.invisT=Math.max(e.invisT||0, sec); e.aggro=2; }
+    return true;
   }
   if(k==='invuln' || /Invulnerability/i.test(hay)){
     e.guardT=Math.max(e.guardT||0, 8+lv); e.invulnPot=1; return true;
@@ -12111,7 +12348,18 @@ function applyDmgPotion(p, e){
     e.gaseous=1; e.hover=1; e.buff=Math.max(e.buff||0, 10); return true;
   }
   if(k==='ethereal' || /Etherealness/i.test(hay)){
-    e.ethereal=1; e.hover=1; e.invis=Math.max(e.invis||0, 8); return true;
+    if((e.etherealT||0)>0 || e.etherealPending){
+      if(typeof endEthereal==='function') endEthereal(e);
+      else { e.etherealT=0; e.ethereal=0; e.etherealPending=0; e.etherealDelay=0; }
+      say('The body takes weight again.','#e0d2ff');
+      return true;
+    }
+    e.etherealPending=1;
+    e.etherealDelay=3;
+    e.etherealHold=(4+dice(1,4,0))*10;
+    e.hover=1;
+    say('The oil takes. In three rounds the body thins.','#e0d2ff');
+    return true;
   }
   if(k==='slip' || /Slipperiness/i.test(hay)){
     e.slip=1; e.webbed=0; e.slowT=0; say('Nothing holds.','#e0d2ff'); return true;
@@ -12142,35 +12390,49 @@ function applyDmgPotion(p, e){
   if(k==='climb' || /Climbing/i.test(hay)){
     e.climb=1; e.buff=Math.max(e.buff||0, 12); return true;
   }
-  if(k==='clairaud' || k==='clairvoy' || k==='esp' || k==='sense' || /Clairaudience|Clairvoyance|^ESP$/i.test(hay)){
+  if(k==='esp' || /^ESP$/i.test(p.n||'')){
+    e.espT=Math.max(e.espT||0, dice(5,8,0));
+    say('Minds nearby press in.','#e0d2ff');
+    return true;
+  }
+  if(k==='clairaud' || k==='clairvoy' || k==='sense' || /Clairaudience|Clairvoyance/i.test(hay)){
     e.trueSee=Math.max(e.trueSee||0, 30); return true;
   }
   if(k==='treasure' || /Treasure Finding/i.test(hay)){
-    e.trueSee=Math.max(e.trueSee||0, 40);
-    const pile=(G.loot||[]).find(x=>x&&!x.gone);
-    say(pile?'The draught pulls toward treasure.':'The draught finds no hoard nearby.','#ffd27a');
+    e.treasureT=Math.max(e.treasureT||0, (4+dice(1,4,0))*10);
+    say('Unopened caches pull at the map.','#ffd27a');
     return true;
   }
   if(k==='animalctrl' || /Animal Control/i.test(hay)){
-    charmFoeKind(e, /rat|beetle|spider|wolf|warg|bat|centipede|animal/i, 10); return true;
+    const r=charmFoeKind(e, /rat|beetle|spider|wolf|warg|bat|centipede|animal/i, 10, 'animal');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='dragonctrl' || /Dragon Control/i.test(hay)){
-    charmFoeKind(e, /dragon|wyrm/i, 10); return true;
+    let dre=/dragon|wyrm/i;
+    const typed=p.dragon||p.type;
+    if(typed && /^[a-z ]+$/i.test(String(typed))) dre=new RegExp(String(typed), 'i');
+    const r=charmFoeKind(e, dre, 10, 'dragon');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='giantctrl' || /Giant Control/i.test(hay)){
-    charmFoeKind(e, /giant|ogre|troll|ettin/i, 10); return true;
+    const r=charmFoeKind(e, /giant|troll|ettin/i, 10, 'giant');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='humanctrl' || /Human Control/i.test(hay)){
-    charmFoeKind(e, /goblin|hobgob|orc|kobold|human|drow|duergar|gnoll|bugbear/i, 10); return true;
+    const r=charmFoeKind(e, /goblin|orc|drow|duergar/i, 10, 'human');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='undeadctrl' || /Undead Control/i.test(hay)){
-    charmFoeKind(e, /undead|skeleton|zombie|ghoul|wight|wraith|spectre|lich/i, 10); return true;
+    const r=charmFoeKind(e, /undead|skeleton|zombie|ghoul|wight|wraith|spectre|lich/i, 10, 'undead');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='plantctrl' || /Plant Control/i.test(hay)){
-    charmFoeKind(e, /fung|shrieker|myconid|plant|violet/i, 10); return true;
+    const r=charmFoeKind(e, /fung|shrieker|myconid|plant|violet/i, 10, 'plant');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='love' || /Philter of Love/i.test(hay)){
-    charmFoeKind(e, null, 12); return true;
+    const r=charmFoeKind(e, null, 12, 'foe');
+    return r==='keep' ? 'keep' : true;
   }
   if(k==='persua' || /Persuasiveness/i.test(hay)){
     e.buff=Math.max(e.buff||0, 10); say('The voice carries.','#e0d2ff'); return true;
@@ -12184,7 +12446,11 @@ function drinkPotion(p, e){
   e=e||player(); if(!e||!p) return;
   const k=p.k, lv=e.lvl||partyLevel();
   say(e.name+' drinks '+p.n+'.','#e0d2ff');
-  if(typeof applyDmgPotion==='function' && applyDmgPotion(p, e)) return;
+  if(typeof applyDmgPotion==='function'){
+    const r=applyDmgPotion(p, e);
+    if(r==='keep') return 'keep';
+    if(r) return k||'buff';
+  }
   if(k==='heal10') applyHeal(e,10);
   else if(k==='heal20') applyHeal(e,20);
   else if(k==='heal40') applyHeal(e,40);
@@ -12220,11 +12486,12 @@ function drinkPotion(p, e){
   else if(k==='juice'){ e.juice=(e.juice||0)+1; }
   else if(k==='sense'||k==='see'){ e.trueSee=30; }
   else { e.buff=Math.max(e.buff||0,6); applyHeal(e,6); }
+  return k||'buff';
 }
 function useHerb(name, e){
-  e=e||player(); const h=HERBS.find(x=>x.n===name); if(!h||!e) return;
+  e=e||player(); const h=HERBS.find(x=>x.n===name); if(!h||!e) return 'missing';
   const pk=packOf(packOwner(e));
-  if(!pk.herbs[name]) return;
+  if(!pk || !pk.herbs || !pk.herbs[name]) return 'missing';
   pk.herbs[name]--; if(pk.herbs[name]<=0) delete pk.herbs[name];
   syncPackTotals();
   say(e.name+' uses '+name+'.','#6aff8a');
@@ -12238,15 +12505,18 @@ function useHerb(name, e){
   else if(k==='antidote'){ clearPoison(e); say('The toxin fades.','#6aff8a'); }
   else if(k==='haste'){
     if(typeof applyHasteEffect==='function' && applyHasteEffect(e,{
-      duration:3, moveMul:1.3, cdMul:0.5, cdFloor:.3, restRemaining:5, restMul:0.85,
+      duration:3, moveMul:2.0, cdMul:0.5, cdFloor:.3, restRemaining:5, restMul:0.85,
       policy:'replace', source:'herb'
     })){ e.stun=Math.max(e.stun||0,0); }
-    else { e.buff=3; e.cd=Math.max(.3,(e.cd||1)*0.5); e.sp=(e.baseSp||e.sp||3)*1.3; e.stun=Math.max(e.stun||0,0); e.afterHaste=5; }
+    else { e.buff=3; e.cd=Math.max(.3,(e.cd||1)*0.5); e.sp=(e.baseSp||e.sp||3)*2.0; e.stun=Math.max(e.stun||0,0); e.afterHaste=5; }
   }
   else if(k==='tickheal'){ e.potionRegen=5; }
   else if(k==='regen'){ e.potionRegen=8; }
   else if(k==='light'){ e.glow='#c8fff0'; }
-  else if(k==='hide'){ e.invis=12; }
+  else if(k==='hide'){
+    if(typeof grantInvisibility==='function') grantInvisibility(e, 12);
+    else { e.invis=Math.max(e.invis||0, 12); e.invisT=Math.max(e.invisT||0, 12); e.aggro=2; }
+  }
   else if(k==='see'){ e.trueSee=20; }
   else if(k==='food'){ applyHeal(e,6); }
   else if(k==='wood'){ gain('ironstone',1); }
@@ -12255,6 +12525,7 @@ function useHerb(name, e){
   else if(k==='orc'){ G.ents.forEach(x=>{ if(!x.dead&&/orc|goblin|hobgob/i.test(x.kind||'')) x.aggro=99; }); }
   else if(k==='sense'){ e.trueSee=16; }
   else applyHeal(e,4);
+  return k;
 }
 
 
@@ -12294,7 +12565,8 @@ function applyResistDamage(e, amt, src){
   return amt;
 }
 function damage(e,amt,col,src){
-  if(e.dead) return;
+  if(!e||e.dead) return;
+  if((e.etherealT||0)>0) return;
   amt=applyResistDamage(e, amt, src);
   if(e.stoneskin>0){ e.stoneskin--; ftext(e.x,e.y,'stoneskin','#cfe3ff'); return; }
   if(e.guard) amt*=.5;
@@ -12352,7 +12624,8 @@ function onHitFx(atk,o,dmg){
     if(!savingThrow(o,'petrify')){ o.stun=Math.max(o.stun||0,2.8); dmg=Math.round(dmg*1.25); ftext(o.x,o.y,'held','#c8d4e0'); }
   }
   if(/Breath/i.test(sa)){
-    if(savingThrow(o,'breath')) dmg=Math.max(1,Math.round(dmg*0.5));
+    if((atk.controlT||0)>0 && atk.noBreathParty && o.team==='party'){ /* breath withheld */ }
+    else if(savingThrow(o,'breath')) dmg=Math.max(1,Math.round(dmg*0.5));
   }
   if(/Paralys|Paralyz/i.test(sa)){
     if(!savingThrow(o,'poison')) o.stun=Math.max(o.stun||0,2.4);
@@ -12368,7 +12641,11 @@ function meleeSwing(e,arc,reach,dmg,col){
   const fa=ang(af.fdx,af.fdy); let hit=0;
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
-  for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
+  const hostile=(e.controlT||0)>0||e.charmed;
+  for(const o of G.ents){
+    if(o.dead||o.npc||o.sleeping||o===e) continue;
+    if(hostile){ if(o.team!=='foe') continue; }
+    else if(o.team===e.team) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
        !EnemyIntent.meleeClear(e,o,{hasLOS:hasLOS,dist:dist,walk:walk})) continue;
@@ -13909,6 +14186,7 @@ function nearestFoe(e,maxd){ let b=null,bd=maxd||99;
   } return b; }
 function nearestAlly(e,maxd,hurt){ let b=null,bd=maxd||99;
   for(const o of G.ents){ if(o.team!=='party'||o.dead) continue; if(hurt&&o.hp>=o.maxhp*.7) continue;
+    if(e&&e.team==='foe'&&typeof foeSkips==='function'&&foeSkips(e,o)) continue;
     const d=dist(e,o); if(d<bd){bd=d;b=o;} } return b; }
 function partyOrderHost(){
   const p=player();
@@ -14954,12 +15232,17 @@ function fire(key){
     return;
   }
   const p=player(); if(!p) return;
+  if((p.etherealT||0)>0 && /^(attack|swing|bomb|bow|throw|ale)$/.test(key)){
+    say('The ethereal hand passes through the work.','#c9b895');
+    return;
+  }
   if(key==='spec1'||key==='spec2'||key==='spec3'||key==='spec4'){
     armSpecialty(+key.slice(4));
     return;
   }
   if(key==='attack'||key==='swing'){
     if(refuseAttack(p)) return;
+    if(typeof breakInvisibility==='function') breakInvisibility(p);
     ensureShadowCleaverWielded();
     p.dest=null; p.moving=0; p.ix=0; p.iy=0;
     p.atkKind='melee';
@@ -14977,7 +15260,15 @@ function fire(key){
     }
     return;
   }
-  if(key==='use'){ if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); } return; }
+  if(key==='use'){
+    if(PROMPT){ const f=PROMPT.fn; PROMPT=null; f(); return; }
+    if((p.etherealT||0)>0 || p.etherealPending){
+      if(typeof endEthereal==='function') endEthereal(p);
+      else { p.etherealT=0; p.ethereal=0; p.etherealPending=0; p.etherealDelay=0; }
+      say('The body takes weight again.','#e0d2ff');
+    }
+    return;
+  }
   if(key==='animate'){
     if(!(typeof wearingBoneCrown==='function' && wearingBoneCrown())) return;
     if(G.animateDeadSpent) return;
@@ -15073,6 +15364,7 @@ function fire(key){
   }
   if(key==='bomb'){
     if(refuseAttack(p)) return;
+    if(typeof breakInvisibility==='function') breakInvisibility(p);
     syncPackTotals();
     if(!nextThrowKind()){
       hint(partyCount('bombKit')?'No bombs in any pack. Craft more at the station.':'No bombs. Loot the red hat — he carries a bomb-making kit.',2.8);
@@ -15088,6 +15380,7 @@ function fire(key){
   }
   if(key==='bow'){
     if(refuseAttack(p)) return;
+    if(typeof breakInvisibility==='function') breakInvisibility(p);
     syncPackTotals();
     if(cds.bow>0) return;
     const magAmmo=typeof takeMagicShotAmmo==='function'?takeMagicShotAmmo():null;
@@ -15111,6 +15404,7 @@ function fire(key){
   }
   const a=ABIL.find(z=>z.key===key); if(!a||cds[key]>0) return;
   if(key==='throw' && refuseAttack(p)) return;
+  if(key==='throw' && typeof breakInvisibility==='function') breakInvisibility(p);
   cds[key]=a.cd; p.dest=null;
   if(key==='ale'){
     const ch=takeHealCharge();
@@ -15419,7 +15713,8 @@ function update(dt){
         e.afterHaste-=dt; e.sp=Math.max(1.2,(e.sp||3)*0.985);
       }
     }
-    if(e.invis>0){ e.invis-=dt; if(e.invis<=0) e.aggro=7.5; }
+    if(typeof Invisibility!=='undefined' && Invisibility.tick) Invisibility.tick(e, dt);
+    else if(e.invis>0 && !e.invisRing && e.invis<1e8){ e.invis-=dt; if(e.invis<=0){ e.invis=0; e.invisT=0; e.aggro=7.5; } }
     if(e.poisonT>0){
       e.poisonT-=dt; e._pt=(e._pt||0)+dt;
       if(e._pt>=0.7){ e._pt=0; damage(e,2,'#6aff8a'); }
@@ -15454,13 +15749,13 @@ function update(dt){
             meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo);
             endSpecialtySwing(e);
           } else if(e.web && e.team==='foe'){
-            const t=player();
+            const t=(e.controlT||0)>0||e.charmed ? nearestOtherFoe(e, 99) : aimableParty(e);
             if(t&&!t.dead){
               e._webFlip=!e._webFlip;
               if(e._webFlip && !(t.webbed>0)) shoot(e,t.x,t.y,0,'web','#e8e0d0',6.5);
               else meleeSwing(e,1.9,e.range+.35,e.dmg*bo);
             }
-          } else if(e.ranged && !partyHoldMelee(e)){ const t=e.team==='party'?nearestFoe(e,e.range+2):player();
+          } else if(e.ranged && !partyHoldMelee(e)){ const t=e.team==='party'?nearestFoe(e,e.range+2):((e.controlT||0)>0||e.charmed?nearestOtherFoe(e, e.range+2):aimableParty(e));
             if(t){ const st=shotStyle(e); shoot(e,t.x,t.y,e.dmg*bo, st[0], st[1], st[2]); }
           } else meleeSwing(e,e.hero?2.3:1.9,e.range+.35,e.dmg*bo); }
         if(e.atk<=0){ e.swung=0; e._attack=null; if(e.hero&&!e.ghost){ e.macarStrikeHold=0; e.macarWindupUntil=0; } }
@@ -15585,7 +15880,7 @@ function update(dt){
           continue;
         }
       }
-      tgt=nearestAlly(e,999);
+      tgt=(e.controlT||0)>0||e.charmed ? nearestOtherFoe(e,999) : nearestAlly(e,999);
       if(tgt){ const d=dist(e,tgt);
         if(d>e.aggro&&!e.boss&&!e.engaged) tgt=null;
         else {
@@ -15602,7 +15897,7 @@ function update(dt){
         const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
-        for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
+        for(const o of G.ents){ if(o===e||o.dead) continue; if((e.etherealT||0)>0||(o.etherealT||0)>0) continue; const dd=dist(e,o);
           const partyGap=form && o.team==='party' && e.team==='party';
           const reach=(e.r+o.r)*(partyGap?3.2:1.15);
           const push=partyGap?1.15:0.35;
@@ -15644,7 +15939,7 @@ function update(dt){
   for(const s of G.shots){
     stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
-    for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
+    for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping||(o.etherealT||0)>0) continue;
       if(dist(s,o)<o.r+.45){
         if(s.kind==='web'){
           applyWeb(o);
@@ -19253,6 +19548,8 @@ function burpDamage(){ return Math.round(rollDice(3,10)*(1+skillLvl('bomb')*0.10
 function bombRadius(){ return 2.7+skillLvl('bomb')*0.06; }
 function burpRadius(){ return 1.8+skillLvl('bomb')*0.04; }
 function nextThrowKind(){
+  if(G.lastThrow==='burp' && partyCount('burps')>0) return 'burp';
+  if(G.lastThrow==='bomb' && partyCount('bombs')>0) return 'bomb';
   if(partyCount('bombs')>0) return 'bomb';
   if(partyCount('burps')>0) return 'burp';
   return null;
@@ -19261,7 +19558,8 @@ function throwRadius(kind){ return kind==='burp'?burpRadius():bombRadius(); }
 function throwBomb(){
   const p=player(); if(!p||!G.aim) return;
   let kind=null;
-  if(G.packPrefer){
+  if(G.throwRow==='burp' || G.throwRow==='bomb'){ kind=G.throwRow; G.throwRow=null; }
+  else if(G.packPrefer){
     const pk=packOf(G.packPrefer);
     if((pk.bombs||0)>0) kind='bomb';
     else if((pk.burps||0)>0) kind='burp';
@@ -19282,6 +19580,7 @@ function throwBomb(){
   if(kind==='burp') say("PORDUM: Borga's Burp. Don't sniff the cork.",'#d2bd63');
   else say('A bomb from the packs. Fuse lit.','#ffb45c');
   G.aim=null;
+  G.throwRow=null;
   learn('bomb',2);
 }
 function explode(x,y,kind){
@@ -19936,7 +20235,7 @@ function drawMinimap(g,s){
   g.font='800 '+markPx+'px '+FONT_UI; g.textAlign='center';
   for(const e of G.ents){
     if(e.team==='foe'){
-      if(e.dead || !tileVisible(e.x,e.y)) continue;
+      if(!minimapShowsFoe(p, e)) continue;
       const mx=ox+e.x*cell, my=oy+e.y*cell;
       g.fillStyle=e.boss?'#ff3a3a':'#e04840';
       g.fillText('E', mx, my+markDy);
@@ -19945,6 +20244,14 @@ function drawMinimap(g,s){
       const mx=ox+e.x*cell, my=oy+e.y*cell;
       g.fillStyle=MAPC[e.col&&e.col.key]||'#fff2cf';
       g.fillText((e.col&&e.col.name||'M')[0], mx, my+markDy);
+    }
+  }
+  if(p && (p.treasureT||0)>0){
+    const piles=treasureMarksFor(p);
+    g.fillStyle='#ffd24a';
+    for(let ti=0; ti<piles.length; ti++){
+      const pile=piles[ti];
+      g.fillText('$', ox+pile.x*cell, oy+pile.y*cell+markDy);
     }
   }
   const gd=L.guide&&L.guide();
@@ -21940,6 +22247,21 @@ function usePackRow(r){
   const who=packUser();
   const bag=packOf(G.packWho);
   const inField=G.packFrom==='play';
+  if(inField && who && (who.etherealT||0)>0){
+    const oil=r.kind==='potion' && r.p && /Etherealness/i.test((r.p.n||'')+' '+(r.p.k||''));
+    if(!oil){ say('The ethereal hand passes through the pack.','#c9b895'); return; }
+  }
+  if(r.kind==='magic' && r.it && /Necklace of Missiles/i.test(r.it.n||'')){
+    const it=bag.magic[r.i];
+    if(!it) return;
+    if(!inField){ say('Throw a bead during a descent.','#c9b895'); return; }
+    G.equipped=G.equipped||{};
+    G.equipped.necklace=it;
+    const spent=useMagicItem(it, who, true);
+    if(spent==='spent' || !(it.charges>0)) bag.magic.splice(r.i,1);
+    syncPackTotals();
+    return;
+  }
   if(isPackEquipable(r)){
     const it=r.it||r;
     if(G.packWho==='macar' || isGhostPack()){
@@ -21963,16 +22285,29 @@ function usePackRow(r){
   const field=r.field||(r.kind==='burp'?'burps':(r.kind==='bombs'?'bombs':(r.kind==='ammo'?'ammo':(r.kind==='torches'?'torches':(r.kind==='rations'?'rations':null)))));
   if(r.kind==='supply'||r.kind==='bombs'||r.kind==='ammo'||r.kind==='torches'||r.kind==='rations'||r.kind==='burp'){
     if(field==='bombs'||field==='burps'){
-      if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('bomb'); G.packPrefer=null; }
+      if(inField){
+        G.packPrefer=G.packWho;
+        G.throwRow=field==='burps'?'burp':'bomb';
+        G.lastThrow=G.throwRow;
+        G.scene='play';
+        fire('bomb');
+        G.packPrefer=null;
+      }
       else if(isGhostPack()) takeStackToMacar(field);
       else say(field==='burps'?"Borga's Burp stays corked until you throw it in the seam.":'Bombs stay packed until you throw them in the seam.','#ffb45c');
     } else if(field==='ammo'){
       if(inField){ G.packPrefer=G.packWho; G.scene='play'; fire('bow'); G.packPrefer=null; }
       else if(isGhostPack()) takeStackToMacar('ammo');
       else say((r.info||r.t||'Kit')+' stays in MACAR\'s pack.','#c9b895');
-    } else if(field==='torches'||field==='rations'){
+    } else if(field==='rations'){
       if(isGhostPack()) takeStackToMacar(field);
-      else say((r.info||r.t||'Kit')+' stays in MACAR\'s pack.','#c9b895');
+      else say('Eaten at camp.','#c9b895');
+    } else if(field==='torches'){
+      if(isGhostPack()) takeStackToMacar(field);
+      else if(inField){
+        const spentTorch=useStackConsumable(bag, 'torches');
+        say(spentTorch==='no valid target'?'No torch in the pack.':'The torch is spent.','#c9b895');
+      } else say('Torches stay packed until a descent.','#c9b895');
     }
     syncPackTotals();
     return;
@@ -21993,13 +22328,19 @@ function usePackRow(r){
       useMagicItem(it, who);
     }
   } else if(r.kind==='ale'){
-    if(inField&&(bag.ales||0)>0){bag.ales--;applyHeal(who,ri(1,10));G.scene='play';}
+    if(inField&&(bag.ales||0)>0){
+      const drank=useStackConsumable(bag, 'ales');
+      if(drank!=='no valid target'){ applyHeal(who,ri(1,10)); G.scene='play'; }
+    }
     else say('Ale and healing draughts sit in the beer flask. Drink them in the seam.','#d2bd63');
   } else if(r.kind==='potion'){
-    const pot=(bag[r.list==='healPots'?'healPots':'potions']||[]).splice(r.i,1)[0];
-    if(!pot) return;
-    if(inField) drinkPotion(pot, who);
-    else { G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff'); }
+    const list=r.list==='healPots'?'healPots':'potions';
+    if(inField) drinkFromPack(bag, list, r.i, who);
+    else {
+      const pot=(bag[list]||[]).splice(r.i,1)[0];
+      if(!pot) return;
+      G.carryEffects=G.carryEffects||[]; G.carryEffects.push({t:'potion',p:pot}); say('Set aside for the next descent: '+pot.n,'#e0d2ff');
+    }
   } else if(r.kind==='gem'){
     const gm=(bag.gems||[])[r.i];
     if(gm) say(gm.n+(gm.gp?(' \u2014 '+gm.gp+' gp. '):'. ')+(gm.d||''),'#ff6a6a');

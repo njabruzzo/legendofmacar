@@ -366,6 +366,52 @@ assert(EI.isMeleePursuer({team:'foe', fleeTo:{x:1,y:1}})===false, 'fleeTo / stor
 assert(EI.isMeleePursuer({team:'foe', npc:1})===false, 'neutral NPCs are excluded');
 assert(EI.isMeleePursuer(gob)===true, 'a cave goblin is the melee pursuer');
 
+require('../combat/Invisibility.js');
+{
+  const e=freshGob(2.5, 4.5);
+  const p=Object.assign({}, mac, {x:5.2, y:4.5, invisT:40, invis:40});
+  const r=EI.decide(e, 0.016, openHost([e, p]));
+  assert(r.act==='idle', 'invisible Macar inside aggro is not pursued');
+}
+{
+  const e=freshGob(2.5, 4.5);
+  e.kind='king'; e.name='THE UNDYING KING';
+  const p=Object.assign({}, mac, {x:5.2, y:4.5, invisT:40, invis:40});
+  const r=EI.decide(e, 0.016, openHost([e, p]));
+  assert(r.act==='pursue', 'the Undying King still pursues an invisible Macar');
+}
+{
+  const e=freshGob(2.5, 4.5);
+  e.kind='statue'; e.name='Thin One'; e.rubyDrop=1; e.sprite='thinone';
+  const p=Object.assign({}, mac, {x:5.2, y:4.5, invisT:40, invis:40});
+  const r=EI.decide(e, 0.016, openHost([e, p]));
+  assert(r.act==='pursue', 'a Ruby Guardian still pursues an invisible Macar');
+}
+{
+  const e=freshGob(2.5, 4.5);
+  e.kind='hellhound'; e.name='Hell Hound'; e._invisRoll=0.9;
+  const p=Object.assign({}, mac, {x:5.2, y:4.5, invisT:40, invis:40, invisGen:1});
+  const r=EI.decide(e, 0.016, openHost([e, p]));
+  assert(r.act==='idle', 'a hell hound that fails the 50% roll does not pursue');
+}
+{
+  const e=freshGob(2.5, 4.5);
+  e.kind='hellhound'; e.name='Hell Hound'; e._invisRoll=0;
+  const p=Object.assign({}, mac, {x:5.2, y:4.5, invisT:40, invis:40, invisGen:2});
+  const r=EI.decide(e, 0.016, openHost([e, p]));
+  assert(r.act==='pursue', 'a hell hound that makes the 50% roll pursues');
+}
+{
+  const e=freshGob(2.5, 4.5);
+  e.controlT=12; e.charmed=1;
+  const other=freshGob(6.2, 4.5);
+  other.name='Orc';
+  const p=Object.assign({}, mac, {x:3.4, y:4.5});
+  const r=EI.decide(e, 0.016, openHost([e, other, p]));
+  assert(r.act==='pursue' && r.move && Math.abs(r.move.dx-other.x)<0.01,
+    'a controlled foe pursues another foe');
+}
+
 /* ---- retreat ≠ boss victory; reload / return / genuine death ---- */
 {
   const endSrc=extractFn('endFightIfClear');
