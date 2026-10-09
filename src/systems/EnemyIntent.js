@@ -81,8 +81,18 @@
    * Visibility: LOS, then darkness. Nav / canBe is not consulted.
    * A target in a dark zone is only sensed inside HEAR_R.
    */
+  function hiddenFrom(seeker, actor) {
+    if (!actor) return false;
+    var Inv = root.Invisibility;
+    if (Inv && typeof Inv.skipsTarget === 'function') return !!Inv.skipsTarget(seeker, actor);
+    if ((actor.etherealT || 0) > 0) return true;
+    if ((actor.invisT || 0) > 0 || (actor.invis || 0) > 0) return true;
+    return false;
+  }
+
   function canSee(from, to, host) {
     if (!from || !to) return false;
+    if (hiddenFrom(from, to)) return false;
     if (!hasLine(host, from.x, from.y, to.x, to.y)) return false;
     if (inDark(host, to) && distOf(host, from, to) > HEAR_R) return false;
     return true;
@@ -162,16 +172,31 @@
     }
   }
 
+  function nearestOtherFoe(e, host) {
+    var ents = (host && host.ents) || [];
+    var best = null, bd = 1e9, i, o, d;
+    for (i = 0; i < ents.length; i++) {
+      o = ents[i];
+      if (!o || o === e || o.dead || o.team !== 'foe') continue;
+      d = distOf(host, e, o);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  }
+
   function pickTarget(e, host) {
     var ents = (host && host.ents) || [];
     var best = null, bd = 1e9, i, o, d;
+    if ((e.controlT || 0) > 0 || e.charmed) return nearestOtherFoe(e, host);
     if (host && typeof host.nearestAlly === 'function') {
       best = host.nearestAlly(e, 999);
     }
+    if (best && hiddenFrom(e, best)) best = null;
     if (best) return best;
     for (i = 0; i < ents.length; i++) {
       o = ents[i];
       if (!o || o.team !== 'party' || o.dead) continue;
+      if (hiddenFrom(e, o)) continue;
       d = distOf(host, e, o);
       if (d < bd) { bd = d; best = o; }
     }
@@ -228,7 +253,7 @@
     var leash = leashOf(e);
     var aggro = aggroOf(e);
     var swinging = (e.atk || 0) > 0;
-    var closeSense = !!(tgt && dTgt <= HEAR_R && meleeClear(e, tgt, host));
+    var closeSense = !!(tgt && !hiddenFrom(e, tgt) && dTgt <= HEAR_R && meleeClear(e, tgt, host));
     var hop, ready;
 
     if (seen) remember(e, tgt);

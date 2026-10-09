@@ -62,5 +62,30 @@ assert(!/PORT\?VH\*0\.30:VH\*0\.16/.test(hint), 'hint is not parked mid-viewport
 assert(/if\(PORT\)/.test(hint) && /partyPortraitFrame\(/.test(hint) && /miniRect\(/.test(hint),
   'phone portrait parks the hint under the party cards, clear of the corner');
 
+const vm=require('vm');
+const campLine='Macar camps. Rations ran short; 2 went unhealed. The book is marked.';
+const phone={
+  VW:390, VH:844, PORT:true,
+  UI:{pad:{t:0}, hudTop:620},
+  G:{hint:{t:campLine, life:4, max:5}},
+  clamp:(v,a,b)=>v<a?a:v>b?b:v,
+  plate(g,x,y,w){ phone.box={x,y,w}; }
+};
+const g={
+  globalAlpha:1, font:'', textAlign:'left', fillStyle:'',
+  drawn:'',
+  measureText(t){
+    const px=parseFloat(String(g.font).match(/([0-9.]+)px/)[1]);
+    return {width:t.length*px*0.62};
+  },
+  fillText(t){ g.drawn=t; }
+};
+vm.createContext(phone);
+vm.runInContext(hint+'\nthis.drawHint=drawHint;', phone);
+phone.drawHint(g, 1);
+assert(phone.box && phone.box.w<=phone.VW-16, 'phone hint box stays within VW-16 (got '+((phone.box&&phone.box.w)||'none')+')');
+assert(phone.box.x>=0 && phone.box.x+phone.box.w<=phone.VW, 'phone hint box stays on the 390-wide screen');
+assert(g.drawn===campLine, 'the short-rations camp line is drawn unchanged');
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nDialogue layer checks passed');
