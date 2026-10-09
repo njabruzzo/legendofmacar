@@ -30,8 +30,9 @@ assert(/e\.rubyDrop \|\| e\.kind==='statue'/.test(html.match(/function rubyGuard
   'rubyGuardiansLeft keys off the six door statues');
 assert(/!L\.flags\.cleared && !rubyGuardiansLeft\(\)/.test(ch1),
   'Ch1 cleared no longer uses map-wide foesLeft');
-assert(/L\.flags\.boss&&!L\.flags\.done&&!foesLeft\(\)/.test(html),
-  'later chapters still use foesLeft for their own bosses');
+assert(/function chapterBossOf\(/.test(html) && /noteChapterBossDown\(L\)/.test(html)
+  && !/L\.flags\.boss&&!L\.flags\.done&&!foesLeft\(\)/.test(html),
+  'later chapters open on their own boss, not every foe on the floor');
 
 const wake=html.match(/function wakeRubyDoor\(\)\{[\s\S]*?\n\}/)[0];
 assert(/L\.flags\.touched=1/.test(wake) && /FOE\.statue\(\)/.test(wake),

@@ -34,7 +34,7 @@
   var ENT_COPY = [
     'kind','sprite','name','team','hp','maxhp','x','y','r','scale','sp','dmg','range','cd',
     'ranged','dead','corpse','looted','crushed','ghost','prone','hidden','boss','glow','aggro',
-    'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally',
+    'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally','chapterBoss',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay'
   ];
@@ -50,7 +50,7 @@
   var ENT_BOOL = {
     ranged:1, dead:1, corpse:1, looted:1, crushed:1, ghost:1, prone:1, hidden:1,
     boss:1, rubyDrop:1, nozCamp:1, shaman:1, webTalk:1, webTalkDone:1, webCorpse:1,
-    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1
+    tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1, chapterBoss:1
   };
 
   function clone(v) {
@@ -681,6 +681,30 @@
     return true;
   }
 
+  /* Quiet saves (lever, floor travel, camp rest, chapter end, the king)
+     must not thin a book a title-list pick is still carrying. Lift unlocked
+     to the stored chapter and put back any cleared mark the new snap omitted.
+     Manual Save and Burn it call write / clear and skip this. */
+  function writeNoRegress(store, snap) {
+    if (!store || !snap) return false;
+    var next;
+    try { next = clone(snap); }
+    catch (e) { return false; }
+    var prev = null;
+    try { prev = read(store); }
+    catch (e2) { prev = null; }
+    if (prev) {
+      if ((next.unlocked | 0) < (prev.unlocked | 0)) next.unlocked = prev.unlocked;
+      var kept = clone(next.cleared || {});
+      var old = prev.cleared || {};
+      Object.keys(old).forEach(function (k) {
+        if (old[k] && !kept[k]) kept[k] = old[k];
+      });
+      next.cleared = kept;
+    }
+    return write(store, next);
+  }
+
   function readRaw(store, key) {
     if (!store) return null;
     try { return store.getItem(key); } catch (e) { return null; }
@@ -740,6 +764,7 @@
     applyBlankCampaign: applyBlankCampaign,
     applyCampaign: applyCampaign,
     write: write,
+    writeNoRegress: writeNoRegress,
     read: read,
     has: has,
     clear: clear,

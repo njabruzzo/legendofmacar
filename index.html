@@ -5259,10 +5259,96 @@ function ensureChapterDescents(){
   if(stair)Object.assign(stair,L.stair,{chapterDescent:1,s:1.4});else G.props.push({...L.stair,k:'stairs',chapterDescent:1,s:1.4});
   if(L.n===2){L.lift={x:40,y:8.35};openDescentLanding(L,40,9,14,12);const lift=G.props.find(p=>p.k==='lift');if(lift)Object.assign(lift,L.lift,{s:1.18});}
 }
+/* One boss per chapter, so a later campaign table can lift this whole
+   gate. Chapters with no single boss are absent and keep their old rule:
+   I — six ruby statues, then the lever. The elevator stays as it is.
+   II ruins stair — the floor ruby. No one foe is the floor's boss.
+   Goblin King warren — he is that hall's boss, but the stair into the
+   hall has no gate, so his death opens nothing.
+   The floor lever still wants the ruby. It is not this stair. */
+function chapterBossOf(n){
+  const table={
+    3:{kind:'construct', name:'Ruby Construct', x:48, y:39, flag:'boss',
+      held:'The Ruin Guard still stands.'},
+    4:{kind:'elderbrain', name:'ELDER BRAIN', x:52, y:42, flag:'boss',
+      held:'The Elder Brain still lives.'},
+    5:{kind:'king', name:'THE UNDYING KING', x:29, y:16, flag:'start', unique:1,
+      held:'The Undying King still reigns.'}
+  };
+  return table[n]||null;
+}
+function foeMatchesChapterBoss(e, spec){
+  if(!e||e.npc||!spec) return false;
+  if(!(e.team==='foe'||e.dead)) return false;
+  if(e.chapterBoss) return true;
+  if(spec.kind && e.kind!==spec.kind) return false;
+  if(spec.name && e.name && e.name!==spec.name) return false;
+  return true;
+}
+function bindChapterBoss(L){
+  const spec=chapterBossOf(L&&L.n);
+  if(!spec||!L) return [];
+  const ents=G.ents||[];
+  const marked=ents.filter(e=>e&&e.chapterBoss&&foeMatchesChapterBoss(e, spec));
+  if(marked.length) return marked;
+  if(!(L.flags&&L.flags[spec.flag])) return [];
+  const matches=ents.filter(e=>foeMatchesChapterBoss(e, spec));
+  if(!matches.length) return [];
+  /* A living match is the boss wherever it stands. The one exception is
+     chapter III's other Ruby Construct, which keeps the north workshop at
+     26,8 (about 38 tiles from the guard). Six tiles covers that pack's
+     spread and still leaves a chased guard, even ten tiles off 48,39,
+     eligible. A corpse is the boss only when no eligible body still lives,
+     or the floor already recorded the kill. */
+  const workshop=e=>L.n===3&&Math.hypot((e.x||0)-26,(e.y||0)-8)<=6;
+  const dead=matches.filter(e=>e.dead);
+  const living=matches.filter(e=>!e.dead&&!workshop(e));
+  const pool=(L.flags.done||!living.length)?dead:living;
+  if(!pool.length) return [];
+  if(spec.unique||pool.length===1){
+    pool.forEach(e=>{ e.chapterBoss=1; });
+    return pool;
+  }
+  let best=pool[0], bd=1e9;
+  for(const e of pool){
+    const d=Math.hypot((e.x||0)-spec.x,(e.y||0)-spec.y);
+    if(d<bd){ bd=d; best=e; }
+  }
+  best.chapterBoss=1;
+  return [best];
+}
+function chapterBossSlain(L){
+  const spec=chapterBossOf(L&&L.n);
+  if(!spec||!L) return false;
+  const bound=bindChapterBoss(L);
+  if(bound.some(e=>!e.dead)) return false;
+  if(bound.some(e=>e.dead)) return true;
+  if(L.flags&&L.flags.done) return true;
+  if(L.flags&&L.flags[spec.flag]) return true;
+  return false;
+}
+function noteChapterBossDown(L){
+  if(!L||!L.flags||L.flags.done) return false;
+  if(!chapterBossSlain(L)) return false;
+  L.flags.done=1;
+  return true;
+}
+function chapterDescentRefusal(){
+  const L=G.lvl; if(!L) return '';
+  const spec=chapterBossOf(L.n);
+  if(spec) return chapterBossSlain(L)?'':(spec.held||'The guardian still stands.');
+  if(typeof floorTravelReady==='function'&&!floorTravelReady())
+    return 'Activate this floor\u2019s ruby door before descending.';
+  return '';
+}
 function useChapterDescent(){
   const L=G.lvl;if(!L||!L.stair)return false;
-  if((L.n===3||L.n===4)&&!L.flags.done){hint('Defeat this floor’s guardian before descending.',4);return false;}
-  if(!floorTravelReady()){hint('Activate this floor’s ruby door before descending.',4);return false;}
+  const spec=chapterBossOf(L.n);
+  if(spec){
+    if(!chapterBossSlain(L)){ hint(chapterDescentRefusal(),4); return false; }
+  } else if(!floorTravelReady()){
+    hint(chapterDescentRefusal(),4); return false;
+  }
   if(L.objs&&L.objs[4])L.objs[4].d=1;endChapter();return true;
 }
 function tickChapterDescent(){
@@ -5788,7 +5874,7 @@ function makeChapter(n){
         spawnLairGroup(46,16,{leader:'orc',pack:[['drow',3],['orc',1]],spread:2.0,aggro:4.2});
         spawnLairGroup(50,22,{pack:[['orc',2],['spider',1]],spread:1.4,aggro:3.4});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.construct(); b.x=48;b.y=39; G.ents.push(b);
+        const b=FOE.construct(); b.x=48;b.y=39; b.chapterBoss=1; G.ents.push(b);
         spawnLairGroup(43,44,{pack:[['undead',3]],spread:1.5,aggro:3.8});
         spawnLairGroup(52,43,{pack:[['rat',1],['rat',1],['orc',1]],spread:1.6,aggro:3.2});
         spawnLairGroup(54,46,{pack:[['orc',1],['spider',1]],spread:1.4,aggro:3.5});
@@ -5840,7 +5926,7 @@ function makeChapter(n){
         spawnLairGroup(88,102,{pack:[['warg',1],['beetle',1]],spread:1.4,aggro:3.4});
         say('Wargs and beetles nest in the south-south court.','#8a9a6a');}
       /* Chapter 3 uses the dungeon-turn clock. Sage's spec has no 20-second realtime roll. */
-      if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
+      if(noteChapterBossDown(L)){L.objs[2].d=1;
         say('The ruin guard falls. The road to the city is open.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
@@ -5909,7 +5995,7 @@ function makeChapter(n){
         spawnLairGroup(50,14,{leader:'neothelid',pack:[['mindflayer',2],['gauth',1]],spread:1.9,aggro:4.4});
         spawnLairGroup(47,18,{leader:'drowMatron',pack:[['urophion',1],['drow',2]],spread:1.5,aggro:3.8});}
       if(L.flags.w2&&!L.flags.boss&&p.y>34){L.flags.boss=1;L.objs[1].d=1;
-        const b=FOE.elderbrain(); b.x=52; b.y=42; G.ents.push(b);
+        const b=FOE.elderbrain(); b.x=52; b.y=42; b.chapterBoss=1; G.ents.push(b);
         const t=FOE.deathtyrant(); t.x=46; t.y=40; G.ents.push(t);
         spawnLairGroup(54,44,{pack:[['blackpudding',1],['mustardjelly',1],['puddingWhite',1]],spread:1.6,aggro:3.2});
         spawnLairGroup(48,46,{pack:[['deepspawn',1],['lurker',1],['trapper',1]],spread:1.7,aggro:3.6});
@@ -5949,7 +6035,7 @@ function makeChapter(n){
       if(!L.flags.cityMidSE&&p.x>68&&p.y>62&&p.x<96){L.flags.cityMidSE=1;
         spawnLairGroup(80,72,{pack:[['cloaker',1],['troll',1]],spread:1.5,aggro:3.4});
         say('A cloaker and a troll hold the mid-south quay.','#5a3a8a');}
-      if(L.flags.boss&&!L.flags.done&&!foesLeft()){L.flags.done=1;L.objs[2].d=1;
+      if(noteChapterBossDown(L)){L.objs[2].d=1;
         say('The pool goes still. The temple road is the last way down.','#ffd27a');
         hint('The south stair waits. Walk there to descend.',4);}
     };
@@ -6016,7 +6102,7 @@ function makeChapter(n){
       if(!L.flags.start&&p.y<34){L.flags.start=1;L.objs[0].d=1;
         say('A brother\u2019s blood, still bright after nine hundred years.','#ffb46a');
         say('MORDAIN heard the oath. His temple guardians wake.','#ff6a4a');
-        const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
+        const k=FOE.king(); k.x=29;k.y=16;k.stun=1.2; k.chapterBoss=1; G.ents.push(k); shake(24); G.flash={c:'#ffd24a',a:.5};
         spawnLairGroup(22,20,{pack:[['golemBrass',1],['golemSilver',1]],spread:2.2,aggro:4.0});
         spawnLairGroup(29,24,{pack:[['drow',2]],spread:1.2,aggro:3.6});
         spawnLairGroup(32,18,{pack:[['dao',1],['earthelem',1]],spread:1.5,aggro:3.4});}
@@ -6058,8 +6144,8 @@ function makeChapter(n){
           spawnLairGroup(38,30,{leader:'stonegiant',pack:[['fomorian',1]],spread:1.6,aggro:3.6});
           shake(16);}
       }
-      if(L.flags.start&&!L.flags.done&&!G.ents.some(e=>e.kind==='king'&&!e.dead)){
-        L.flags.done=1; L.objs[1].d=1; G.cleared[5]=1;writeGameSave(true);
+      if(noteChapterBossDown(L)){
+        L.objs[1].d=1; G.cleared[5]=1;writeGameSave(true);
         setTimeout(()=>{ if(G.lvl===L&&G.scene==='play') G.scene='win'; },1500);}
     };
   }
@@ -6747,15 +6833,23 @@ function travelFloor(n){
   for(const e of G.ents){if(e.team!=='party'||!e.col)continue;const old=party.find(q=>q.key===e.col.key);if(old){e.hp=old.hp;e.maxhp=old.maxhp;e.dead=old.dead;e.ghost=old.ghost;}e.x=spawn.x;e.y=spawn.y;e.dest=null;e.moving=0;}
   G.cam.x=spawn.x;G.cam.y=spawn.y;G.scene='play';ensureFloorTravelProps();rebuildVision();writeGameSave(true);return true;
 }
+function floorRubyLine(L){
+  const late=L&&(L.n===3||L.n===4);
+  if(L&&L.flags&&L.flags.floorRubyActivated) return late?'The ruby has freed the old lever.':'The ruby has opened the way down.';
+  return late?'The ruby holds the old lever. The stair waits past the boss.':'The ruby seals the descent from this floor.';
+}
+function floorLeverLine(L){
+  return L&&(L.n===3||L.n===4)?'Choose a floor. The ruby holds this lever.':'Choose a floor. The ruby seals the way down.';
+}
 function openFloorLever(){
   const n=G.lvl.n,choices=[];
   if(n>1)choices.push({t:'Go up to floor '+(n-1)+'.',then:()=>travelFloor(n-1)});
   if(n<5)choices.push(floorTravelReady()?{t:'Go down to floor '+(n+1)+'.',then:()=>travelFloor(n+1)}:{t:'The ruby door must be activated first.'});
-  choices.push({t:'Leave it.'});startTalkObj({key:'floor_travel',who:'FLOOR LEVER',line:'Choose a floor. The ruby seals the way down.',choices});
+  choices.push({t:'Leave it.'});startTalkObj({key:'floor_travel',who:'FLOOR LEVER',line:floorLeverLine(G.lvl),choices});
 }
 function openFloorRuby(){
   const L=G.lvl,door=G.props.find(q=>q.k==='floorRubyDoor');if(!L||!door)return;
-  startTalkObj({key:'floor_ruby',who:'RUBY DOOR',line:L.flags.floorRubyActivated?'The ruby has opened the way down.':'The ruby seals the descent from this floor.',choices:L.flags.floorRubyActivated?[{t:'Leave it.'}]:[{t:'Activate the ruby.',then:()=>{L.flags.floorRubyActivated=1;burst(door.x,door.y,'#ff334a',18,2);writeGameSave(true);}},{t:'Leave it.'}]});
+  startTalkObj({key:'floor_ruby',who:'RUBY DOOR',line:floorRubyLine(L),choices:L.flags.floorRubyActivated?[{t:'Leave it.'}]:[{t:'Activate the ruby.',then:()=>{L.flags.floorRubyActivated=1;burst(door.x,door.y,'#ff334a',18,2);writeGameSave(true);}},{t:'Leave it.'}]});
 }
 function floorTravelScreenHit(t){
   for(const prop of (G.props||[])){if(prop.gone||!['floorlever','floorRubyDoor'].includes(prop.k))continue;
@@ -6788,7 +6882,7 @@ function startChapter(n){
   if(sfx&&sfx.stopBed) sfx.stopBed();
   G.searching=0; G.secretSearch=0; G.digging=0; G.dig=null; G.loot=[]; G.sleepShow=null;
   G.craftStation=null; G.craftRecipeIds=null; G.craftSel=null; G.craftScroll=0;
-  if(!G.res||!G.res.ironstone&&G.res.ironstone!==0) initEconomy();
+  if(!keep && (!G.res||!G.res.ironstone&&G.res.ironstone!==0)) initEconomy();
   if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
   G._forceSeeds=null;
@@ -7045,13 +7139,20 @@ function bookSceneNow(){
 }
 function writeGameSave(quiet, snap){
   if(typeof GameSave==='undefined'){ if(!quiet) hint('Save is not ready.',2.2); return false; }
+  /* A prepared snap (a fresh descent) replaces the book. The lever, floor
+     travel, camp rest, chapter end, and the king's death pass no snap, so
+     those quiet writes keep the stored unlock and clears. */
+  const passed=!!snap;
   if(!snap){
     const extra={scene:bookSceneNow()};
     if(G.lvl) extra.play=capturePlaySave();
     snap=GameSave.snapshot(G, extra);
   }
   let ok=false;
-  try{ ok=!!GameSave.write(localStorage, snap); }
+  try{
+    if(quiet && !passed && typeof GameSave.writeNoRegress==='function') ok=!!GameSave.writeNoRegress(localStorage, snap);
+    else ok=!!GameSave.write(localStorage, snap);
+  }
   catch(err){ ok=false; }
   if(!ok){ if(!quiet) hint('Could not keep the book.',2.4); return false; }
   noteQuietSave();
@@ -15684,7 +15785,7 @@ function update(dt){
   if(L.tick) L.tick(dt);
   tickFloorTravel();
   endFightIfClear();
-  if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12));
+  if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12&&!e.chapterBoss));
 }
 
 
@@ -21402,8 +21503,75 @@ function drawCredits(g){
   menuBtn(g,'Back',VW/2,VH-36*s,Math.min(180*s,VW*.5),42*s,()=>leaveCredits());
 }
 
+/* Title Chapters only changes the scene. Continue is what loads the run.
+   Until a chapter has started, the list reads unlocked (and cleared marks)
+   off the book. It does not call migrate or applyCampaign, and it does not write. */
+function bookSnapUsable(snap){
+  if(!snap || typeof snap!=='object' || Array.isArray(snap)) return false;
+  if(snap.v!==1 && snap.v!==2) return false;
+  if(snap.ch!=null && typeof snap.ch!=='number') return false;
+  const play=snap.play;
+  if(play==null) return true;
+  if(typeof play!=='object' || Array.isArray(play)) return false;
+  if(play.ents && !Array.isArray(play.ents)) return false;
+  if(play.props && !Array.isArray(play.props)) return false;
+  if(play.loot && !Array.isArray(play.loot)) return false;
+  if(play.party && !Array.isArray(play.party)) return false;
+  if(play.grid && !Array.isArray(play.grid)) return false;
+  if(play.flags && (typeof play.flags!=='object' || Array.isArray(play.flags))) return false;
+  return true;
+}
+function savedBookProgress(){
+  if(typeof GameSave==='undefined' || typeof localStorage==='undefined') return null;
+  const keys=[GameSave.KEY, GameSave.KEY_PENDING, GameSave.KEY_GOOD, GameSave.KEY_V1];
+  for(let i=0;i<keys.length;i++){
+    const key=keys[i];
+    if(!key) continue;
+    let raw=null;
+    try{ raw=localStorage.getItem(key); }catch(e){ raw=null; }
+    if(!raw) continue;
+    let snap=null;
+    try{ snap=JSON.parse(raw); }catch(e){ snap=null; }
+    if(!bookSnapUsable(snap)) continue;
+    let unlocked=snap.unlocked;
+    if(typeof unlocked!=='number' || !isFinite(unlocked) || unlocked<1) unlocked=1;
+    const cleared=(snap.cleared && typeof snap.cleared==='object' && !Array.isArray(snap.cleared))?snap.cleared:{};
+    let reached=unlocked;
+    const consider=function(n){
+      n=+n;
+      if(n>=1 && n<=5 && n>reached) reached=n;
+    };
+    consider(snap.ch||0);
+    Object.keys(cleared).forEach(function(k){ if(cleared[k]) consider(k); });
+    const worlds=snap.floorWorlds;
+    if(worlds && typeof worlds==='object' && !Array.isArray(worlds)){
+      Object.keys(worlds).forEach(function(k){ if(worlds[k]) consider(k); });
+    }
+    return {unlocked:reached|0, cleared:cleared};
+  }
+  return null;
+}
+function chapterSelectProgress(){
+  if(G.ch) return {unlocked:G.unlocked||1, cleared:G.cleared||{}};
+  const book=savedBookProgress();
+  if(!book) return {unlocked:G.unlocked||1, cleared:G.cleared||{}};
+  return book;
+}
+function beginChapterFromList(n){
+  if(!G.ch && typeof GameSave!=='undefined' && typeof GameSave.read==='function'){
+    const book=GameSave.read(localStorage);
+    if(book){
+      GameSave.applyCampaign(G, book);
+      if(typeof ensurePacks==='function') ensurePacks();
+      if(typeof applyEquipped==='function') applyEquipped();
+      G._keepProgress=1;
+    }
+  }
+  ({fn:()=>startChapter(n)}).fn();
+}
 function drawChapterSelect(g){
   menuHits=[]; const s=UIS;
+  const book=chapterSelectProgress();
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
   if(!drawSplashCover(g, SPR.chapters_plate||SPR.title_splash, {zoom:1, ay:0.48, nudgeY:0})) embers(g);
   darken(g,.36);
@@ -21430,12 +21598,12 @@ function drawChapterSelect(g){
     const col=i%cols, row=(i/cols)|0;
     const x=VW/2 - (cols*cw+(cols-1)*gap)/2 + col*(cw+gap);
     const y=top + row*(ch+gap);
-    const m=CH_META[n], locked=m.locked||n>G.unlocked;
+    const m=CH_META[n], locked=m.locked||n>book.unlocked;
     const intro=CH_INTRO[n]||{fl:m.s||''};
     plate(g, x, y, cw, ch, 10, locked?0.52:0.86);
-    g.strokeStyle=locked?'rgba(120,100,80,0.35)':(G.cleared[n]?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
+    g.strokeStyle=locked?'rgba(120,100,80,0.35)':((book.cleared&&book.cleared[n])?'rgba(150,200,130,0.7)':'rgba(255,208,124,0.7)');
     g.lineWidth=1.8; roundPath(g,x,y,cw,ch,10); g.stroke();
-    if(!locked) menuHits.push({x,y,w:cw,h:ch,fn:()=>startChapter(n)});
+    if(!locked) menuHits.push({x,y,w:cw,h:ch,name:'Chapter '+nums[n-1],fn:()=>beginChapterFromList(n)});
     const innerW=cw-36*s;
     const pad=12*s;
     let tSize=(PORT?13:16)*s, sSize=(PORT?9:11)*s, labSize=10*s;
@@ -21472,7 +21640,7 @@ function drawChapterSelect(g){
       lay.sLines.forEach(ln=>{ yy+=sSize; g.fillText(ln, cx, yy); yy+=sStep-sSize; });
     }
     g.textAlign='left';
-    if(G.cleared[n]){
+    if(book.cleared&&book.cleared[n]){
       g.font='700 '+(10*s)+'px '+FONT_UI;
       g.fillStyle='rgba(150,200,130,0.9)';
       g.textAlign='right'; g.fillText('cleared', x+cw-12*s, y+16*s); g.textAlign='left';
