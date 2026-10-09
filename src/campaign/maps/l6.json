@@ -1,0 +1,269 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 6 campaign map. Data only. The game does not load this file. The transition card is the existing magma sheet.",
+  "levels": [
+    {
+      "id": "L6",
+      "name": "The Burning Halls",
+      "level": 6,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 108, "h": 98 },
+      "builtFrom": "New floor on the Chapter V shell. The west vestry is the fire room. Fire giants are not placed.",
+      "spawn": { "x": 10, "y": 44, "role": "arrival-from-L5" },
+      "arrival": { "x": 10, "y": 44, "role": "from-L5" },
+      "layout": {
+        "source": "Chapter V size. The ember hall is the live west vestry. Other rooms are not printed.",
+        "rooms": [
+          { "id": "arrival", "kind": "disk", "x": 10, "y": 44, "rw": 5, "rh": 4 },
+          { "id": "ruby-court", "kind": "rect", "x": 29, "y": 24, "w": 18, "h": 14 },
+          { "id": "stair-chamber", "kind": "disk", "x": 29, "y": 90, "rw": 4, "rh": 3.4 },
+          { "id": "ember-hall", "kind": "rect", "x": 8, "y": 74, "w": 14, "h": 12, "was": "west-vestry" },
+          { "id": "southwest-magma", "kind": "disk", "x": 10, "y": 88, "rw": 5, "rh": 4, "was": "far-southwest-magma" },
+          { "id": "beetle-north", "kind": "disk", "x": 52, "y": 10, "rw": 5, "rh": 4 },
+          { "id": "beetle-east", "kind": "disk", "x": 76, "y": 8, "rw": 4.5, "rh": 3.8 },
+          { "id": "hound-court", "kind": "disk", "x": 64, "y": 42, "rw": 5, "rh": 4 },
+          { "id": "salamander-chapel", "kind": "disk", "x": 96, "y": 22, "rw": 5, "rh": 4 },
+          { "id": "staff-elemental", "kind": "disk", "x": 72, "y": 22, "rw": 5, "rh": 4 }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 29,
+        "y": 18,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian VI",
+        "tier": 6,
+        "count": 1,
+        "x": 29,
+        "y": 24,
+        "hp": 72,
+        "ac": 1,
+        "hitOnlyBy": 1,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian VI",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 26,
+        "y": 26,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 32,
+        "y": 26,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/creatures/mon_magmaelem.png",
+        "standInFor": "Magma elemental art stands in for fire elementals",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "emberLord",
+        "name": "Ember Lord",
+        "x": 8,
+        "y": 74,
+        "hp": 72,
+        "ac": 2,
+        "hitOnlyBy": 2,
+        "room": "ember-hall",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "magmaelem",
+          "file": "assets/creatures/mon_magmaelem.png",
+          "standIn": true,
+          "standInFor": "Ember Lord",
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "placement": "fixed",
+        "x": 29,
+        "y": 90,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "tooth": {
+        "id": "grond_tooth_electrum_6",
+        "n": 6,
+        "x": 8,
+        "y": 70,
+        "prop": "demonface",
+        "room": "ember-hall",
+        "cursed": true,
+        "countsForRitual": true,
+        "countsForTeethCarried": true
+      },
+      "setPieces": [
+        {
+          "id": "water-pool",
+          "kind": "safe-tile",
+          "placed": true,
+          "x": 12,
+          "y": 74,
+          "room": "ember-hall",
+          "count": 1,
+          "bossAvoids": true
+        }
+      ],
+      "spawns": [
+        {
+          "id": "ember-hall",
+          "room": "ember-hall",
+          "anchor": { "x": 8, "y": 74 },
+          "was": "fire giant and magma",
+          "members": [
+            { "key": "emberLord", "count": 1, "x": 8, "y": 74, "role": "boss" },
+            { "key": "salamander", "count": 1, "x": 10, "y": 76, "role": "minion" },
+            { "key": "hellHound", "count": 1, "x": 6, "y": 76, "role": "minion" }
+          ]
+        },
+        {
+          "id": "southwest-magma",
+          "room": "southwest-magma",
+          "anchor": { "x": 10, "y": 88 },
+          "was": "xorn and magma",
+          "members": [
+            { "key": "fireElemental12", "count": 1, "x": 10, "y": 88 }
+          ]
+        },
+        {
+          "id": "beetle-north",
+          "room": "beetle-north",
+          "anchor": { "x": 52, "y": 10 },
+          "open": "band-count",
+          "members": [
+            { "key": "beetle", "count": 4, "x": 52, "y": 10 }
+          ]
+        },
+        {
+          "id": "beetle-east",
+          "room": "beetle-east",
+          "anchor": { "x": 76, "y": 8 },
+          "open": "band-count",
+          "members": [
+            { "key": "beetle", "count": 2, "x": 76, "y": 8 }
+          ]
+        },
+        {
+          "id": "hound-court",
+          "room": "hound-court",
+          "anchor": { "x": 64, "y": 42 },
+          "open": "band-count",
+          "members": [
+            { "key": "hellHound", "count": 2, "x": 64, "y": 42 }
+          ]
+        },
+        {
+          "id": "salamander-chapel",
+          "room": "salamander-chapel",
+          "anchor": { "x": 96, "y": 22 },
+          "open": "band-count",
+          "members": [
+            { "key": "salamander", "count": 1, "x": 96, "y": 22 }
+          ]
+        },
+        {
+          "id": "staff-elemental",
+          "room": "staff-elemental",
+          "anchor": { "x": 72, "y": 22 },
+          "open": "band-count",
+          "members": [
+            { "key": "fireElemental8", "count": 1, "x": 72, "y": 22 }
+          ]
+        }
+      ],
+      "absent": [
+        { "was": "fire giant", "to": "not placed", "reason": "later minion stock, L9" },
+        { "was": "xorn", "to": "not L6" }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "beetle", "count": "1d4" },
+          { "slot": 2, "key": "beetle", "count": "1d4" },
+          { "slot": 3, "key": "hellHound", "count": "1d2" },
+          { "slot": 4, "key": "hellHound", "count": "1d2" },
+          { "slot": 5, "key": "salamander", "count": "1" },
+          { "slot": 6, "key": "fireElemental8", "count": "1" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 6,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 6",
+          "places": [
+            [8, 74], [10, 88], [29, 24], [29, 90],
+            [52, 10], [76, 8], [64, 42], [96, 22],
+            [72, 22], [10, 44], [18, 56], [40, 40],
+            [60, 40], [84, 22], [20, 82], [48, 60]
+          ]
+        },
+        "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "emberLord" },
+        "lordChest": {
+          "letter": null,
+          "contents": "guardian-ruby",
+          "extraHoard": false,
+          "decision": "D2",
+          "x": 11,
+          "y": 78,
+          "room": "ember-hall",
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 1500, "band": "~1500", "x": 29, "y": 24 },
+        "tooth": { "id": "grond_tooth_electrum_6" },
+        "shards": { "id": "magma_shard", "perKill": 1 },
+        "glands": { "id": "fire_beetle_gland", "perKill": 2 },
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 6,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}
