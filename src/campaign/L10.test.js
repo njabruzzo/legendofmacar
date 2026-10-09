@@ -117,10 +117,10 @@ assert(L10.bossGuardianXp() !== L10.XP.king + L10.XP.rubyGuardian + L10.MONSTERS
 assert(L10.FORECAST_BOSS_GUARDIAN_XP === 22352 && T.level(10).pacing.bossPlusGuardianXp === 22352, 'the 1.12 column matches the stat blocks, 22352');
 assert(T.statBossGuardianXp(T.level(10)) === L10.bossGuardianXp(), 'the campaign table uses the same L10 stat-block total');
 assert(T.level(10).boss.xp === 5552 && T.level(10).rubyGuardian.formula.xp === 16800, 'the table xp fields are the printed King and guardian totals');
-assert(T.level(9).pacing.cumulativeXp === 407000, 'the clear through L9 stays 407000');
-assert(T.level(10).pacing.cumulativeXp === 492000 && T.level(10).pacing.macar === 'F10', 'the L10 clear stays 492000');
-assert(L10.PATH.throughL9 === 407000 && L10.PATH.l10Clear === 85000 && L10.PATH.ritual === 10000 && L10.PATH.total === 502000, 'L10\'s 85000 plus the 10000 ritual reach 502000 from 407000');
-assert(T.level(10).quest.xpOnce === 10000 && T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.level(9).pacing.cumulativeXp === 406800, 'the clear through L9 stays 406800');
+assert(T.level(10).pacing.cumulativeXp === 491800 && T.level(10).pacing.macar === 'F10', 'the L10 clear stays 491800');
+assert(L10.PATH.throughL9 === 406800 && L10.PATH.l10Clear === 85000 && L10.PATH.ritual === 10000 && L10.PATH.total === 501800, 'L10\'s 85000 plus the 10000 ritual reach 501800 from 406800');
+assert(T.level(10).quest.xpOnce === 10000 && T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 assert(T.pathXp() === T.level(9).pacing.cumulativeXp + (T.level(10).pacing.cumulativeXp - T.level(9).pacing.cumulativeXp) + T.level(10).quest.xpOnce, 'the path is the L9 cumulative, the L10 clear, and the ritual');
 
 assert(L10.MONSTERS.king.hp === 72 && L10.MONSTERS.king.xp === 5552 && L10.MONSTERS.king.regeneration.hpPerRound === 2, 'the King is 72 hp, 5552 XP, and regenerates 2 while a brazier burns');

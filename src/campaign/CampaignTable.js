@@ -416,7 +416,7 @@
         'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.'
       ),
       quest: { kind: 'quest', id: 'holy_anvil', name: 'Holy Anvil of Truth', displayName: 'Holy Anvil of Truth', behindBoss: true, forgeTier: 'top', usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 407000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
+      pacing: { cumulativeXp: 406800, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
       setPieces: ['dragon-hoard']
     },
     {
@@ -476,7 +476,7 @@
           'Killing the mortal King wins.'
         ]
       },
-      pacing: { cumulativeXp: 492000, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
+      pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
       setPieces: ['ritual-braziers', 'throne-dais']
     }
   ];
@@ -527,8 +527,8 @@
 
   /**
    * Running clear through L10, then the ritual once.
-   * The L10 row is the clear only, 492,000. The ritual adds 10,000.
-   * The path is 502,000, which clears F10 (500,001).
+   * The L10 row is the clear only, 491,800. The ritual adds 10,000.
+   * The path is 501,800, which clears F10 (500,001).
    */
   function pathXp() {
     var total = 0;

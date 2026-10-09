@@ -103,7 +103,7 @@ assert(L5.FORECAST_BOSS_GUARDIAN_XP === 3596 && T.level(5).pacing.bossPlusGuardi
 assert(T.statBossGuardianXp(T.level(5)) === L5.bossGuardianXp(), 'the campaign table uses the same L5 stat-block total');
 assert(T.level(5).pacing.cumulativeXp === 75200 && T.level(5).pacing.macar === 'F7', 'the L5 clear stays at the 1.12 F7 row, 75200');
 assert(T.level(5).pacing.cumulativeXp >= T.FIGHTER_XP.F7 && T.level(5).pacing.cumulativeXp < T.FIGHTER_XP.F8, '75200 sits in the F7 band');
-assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L5.MONSTERS.drow.hd === 2 && L5.MONSTERS.drow.hp === 11 && L5.MONSTERS.drow.ac === 3 && L5.MONSTERS.drow.mr === 52 && L5.MONSTERS.drow.acVerify === true, 'the warrior is 2 HD, 11 hp, AC 3, MR 52%, marked verify');
 assert(L5.MONSTERS.drowMage.hd === 5 && L5.MONSTERS.drowMage.hp === 14 && L5.MONSTERS.drowMage.ac === 4 && L5.MONSTERS.drowMage.mr === 60, 'the mage is 5 HD, 14 hp, AC 4, MR 60%');

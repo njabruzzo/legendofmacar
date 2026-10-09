@@ -450,16 +450,16 @@
   var FORECAST_BOSS_GUARDIAN_XP = 22352;
 
   /**
-   * Cumulative after L9 is 407,000. The L10 row is the clear only, 492,000,
+   * Cumulative after L9 is 406,800. The L10 row is the clear only, 491,800,
    * so this floor adds 85,000. The ritual adds 10,000 once.
-   * 407,000 + 85,000 + 10,000 = 502,000.
+   * 406,800 + 85,000 + 10,000 = 501,800.
    */
   var PATH = {
-    throughL9: 407000,
-    l10Cumulative: 492000,
+    throughL9: 406800,
+    l10Cumulative: 491800,
     l10Clear: 85000,
     ritual: 10000,
-    total: 502000
+    total: 501800
   };
 
   var OPEN = [

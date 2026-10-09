@@ -96,7 +96,7 @@ assert(L6.FORECAST_BOSS_GUARDIAN_XP === 8942 && T.level(6).pacing.bossPlusGuardi
 assert(T.statBossGuardianXp(T.level(6)) === L6.bossGuardianXp(), 'the campaign table uses the same L6 stat-block total');
 assert(T.level(6).pacing.cumulativeXp === 120200 && T.level(6).pacing.macar === 'F7', 'the L6 clear stays at the 1.12 F7 row, 120200');
 assert(T.level(6).pacing.cumulativeXp >= T.FIGHTER_XP.F7 && T.level(6).pacing.cumulativeXp < T.FIGHTER_XP.F8, '120200 sits in the F7 band');
-assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L6.MONSTERS.beetle.hd === '1+2' && L6.MONSTERS.beetle.ac === 4 && L6.MONSTERS.beetle.xp === 32, 'the fire beetle is 1+2, AC 4, 32 XP');
 assert(L6.MONSTERS.hellHound.hd === 5 && L6.MONSTERS.hellHound.hdRange === '4-7' && L6.MONSTERS.hellHound.breath.save === 'vs breath for half', 'the hound is the 5 HD choice and breathes for its HP');

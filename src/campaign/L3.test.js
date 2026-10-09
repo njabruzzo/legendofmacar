@@ -106,7 +106,7 @@ assert(L3.FORECAST_BOSS_GUARDIAN_XP === 2269 && T.level(3).pacing.bossPlusGuardi
 assert(T.statBossGuardianXp(T.level(3)) === L3.bossGuardianXp(), 'the campaign table uses the same L3 stat-block total');
 assert(T.level(3).pacing.cumulativeXp === 32000 && T.level(3).pacing.macar === 'F5', 'the L3 clear stays at the 1.12 F5 row, 32000');
 assert(T.level(3).pacing.cumulativeXp >= T.FIGHTER_XP.F5 && T.level(3).pacing.cumulativeXp < T.FIGHTER_XP.F6, '32000 sits in the F5 band');
-assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L3.MONSTERS.spider.hd === '1+1' && L3.MONSTERS.spider.ac === 8 && L3.MONSTERS.spider.poisonSave === 2, 'large spider is 1+1, AC 8, save +2');
 assert(L3.MONSTERS.spiderHuge.hd === '2+2' && L3.MONSTERS.spiderHuge.ac === 6 && L3.MONSTERS.spiderHuge.poisonSave === 1, 'huge spider is 2+2, AC 6, save +1');

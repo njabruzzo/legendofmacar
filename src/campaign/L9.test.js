@@ -110,9 +110,9 @@ assert(L9.bossGuardianXp() !== L9.MONSTERS.redDragon.speakingXp + L9.XP.rubyGuar
 assert(L9.FORECAST_BOSS_GUARDIAN_XP === 14706 && T.level(9).pacing.bossPlusGuardianXp === 14706, 'the 1.12 column matches the stat blocks, 14706');
 assert(T.statBossGuardianXp(T.level(9)) === L9.bossGuardianXp(), 'the campaign table uses the same L9 stat-block total');
 assert(T.level(9).boss.xp === 3906 && T.level(9).boss.speakingXp === 4756 && T.level(9).rubyGuardian.formula.xp === 10800, 'the table xp fields keep the printed dragon and the speaking side column');
-assert(T.level(9).pacing.cumulativeXp === 407000 && T.level(9).pacing.macar === 'F9', 'the L9 clear stays at the 1.12 F9 row, 407000');
-assert(T.level(9).pacing.cumulativeXp >= T.FIGHTER_XP.F9 && T.level(9).pacing.cumulativeXp < T.FIGHTER_XP.F10, '407000 sits in the F9 band');
-assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.level(9).pacing.cumulativeXp === 406800 && T.level(9).pacing.macar === 'F9', 'the L9 clear stays at the 1.12 F9 row, 406800');
+assert(T.level(9).pacing.cumulativeXp >= T.FIGHTER_XP.F9 && T.level(9).pacing.cumulativeXp < T.FIGHTER_XP.F10, '406800 sits in the F9 band');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L9.MONSTERS.redDragon.age === 'old' && L9.MONSTERS.redDragon.hp === 66 && L9.MONSTERS.redDragon.xp === 3906 && L9.MONSTERS.redDragon.breath.perDay === 3 && L9.MONSTERS.redDragon.breath.applyDmgG === false, 'the old red is 66 hp, 3906 XP, and breathes for its current HP');
 assert(L9.MONSTERS.firegiant.xp === 2960 && L9.MONSTERS.firegiant.bandXp === 2840 && L9.MONSTERS.firegiant.immune.indexOf('fire') >= 0, 'the fire giant wired xp is 2960 and the band is 2840');

@@ -99,7 +99,7 @@ assert(L7.FORECAST_BOSS_GUARDIAN_XP === 10302 && T.level(7).pacing.bossPlusGuard
 assert(T.statBossGuardianXp(T.level(7)) === L7.bossGuardianXp(), 'the campaign table uses the same L7 stat-block total');
 assert(T.level(7).pacing.cumulativeXp === 182200 && T.level(7).pacing.macar === 'F8', 'the L7 clear stays at the 1.12 F8 row, 182200');
 assert(T.level(7).pacing.cumulativeXp >= T.FIGHTER_XP.F8 && T.level(7).pacing.cumulativeXp < T.FIGHTER_XP.F9, '182200 sits in the F8 band');
-assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L7.MONSTERS.earthElemental8.hd === 8 && L7.MONSTERS.earthElemental8.hitOnlyBy === 2 && L7.MONSTERS.earthElemental8.xp === 1020 && L7.MONSTERS.earthElemental8.bandXp === 910, 'the 8 HD elemental is the printed 1020, and the band at 36 hp is 910');
 assert(L7.MONSTERS.earthElemental12.xp === 3080 && L7.MONSTERS.earthElemental12.bandXp === 2864 && L7.MONSTERS.earthElemental12.hitOnlyBy === 2, 'the 12 HD elemental is the printed 3080, and the band at 54 hp is 2864');
