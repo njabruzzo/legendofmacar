@@ -63,7 +63,7 @@ assert(/pordoom_ghost_w1/.test(extractFn('nickSpectralGhostSheet'))
   && !/SPR\.talpor_ghost_back/.test(extractFn('nickSpectralGhostSheet'))
   && /dwarf_talpor_ghost\.png/.test(extractFn('nickSpectralGhostSheet')),
   'Talpor standing idle is colorized off the painted list; his front walks stay painted');
-assert(/const punch=!e\.ghost/.test(html)
+assert(/const punch=eight\?!eight\.magentaCleanup:!e\.ghost/.test(html)
   && /blitFacing\(g,img,dx,dy,W,H,flip,party,punch\)/.test(html),
   'west flip still skips the living a=255 punch');
 assert(/punch!==false/.test(extractFn('flippedSprite'))

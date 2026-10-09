@@ -1,0 +1,14 @@
+Legend of Macar — creature sprite credits
+==========================================
+
+Thin One walk timing and contact (PAINT v4f, bound in game)
+  Base: Liberated Pixel Cup (LPC) universal walk cycle
+  Use: timing and foot contact for the humanoid / boss walk
+        (w1, pass_a, w2, pass_b). The pixels are painted over that skeleton.
+  License: CC-BY-SA 3.0 and GPL 3.0
+  Credit: LPC contributors, Liberated Pixel Cup
+  https://lpc.opengameart.org/
+  https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets
+
+The painted Thin One sheets themselves are original game art. The LPC cycle
+is the motion base only.
