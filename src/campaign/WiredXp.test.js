@@ -33,7 +33,7 @@ const NON_KILL = {
   7: 41708,
   8: 66498,
   9: 118584,
-  10: 60278
+  10: 60285
 };
 
 function placedKillXp(level, monsters) {
@@ -102,6 +102,14 @@ assert(rowXp(T.level(4), 'orcGuard') === 80 && rowXp(T.level(4), 'orcLeader') ==
 assert(rowXp(T.level(5), 'drowPriestess') === 400, 'the L5 table xp matches the priestess');
 assert(rowXp(T.level(9), 'firegiant') === 2840, 'the L9 table xp matches the fire giants');
 assert(rowXp(T.level(7), 'earthElemental8') === 910 && rowXp(T.level(7), 'earthElemental12') === 2864, 'the L7 table xp matches the elementals');
+assert(rowXp(T.level(10), 'duergarPriest') === 393 && rowXp(T.level(10), 'skeleton') === 19, 'the L10 table xp matches the priest and the skeleton');
+const L10 = require('./L10');
+const clear = T.level(10).pacing.cumulativeXp;
+const saved = L10.RITUAL.xpOnce;
+L10.RITUAL.xpOnce = 1;
+assert(T.pathXp() === clear + 1, 'path XP reads RITUAL.xpOnce');
+L10.RITUAL.xpOnce = saved;
+assert(T.pathXp() === 501800 && clear + L10.RITUAL.xpOnce + T.level(10).pacing.ritualXp === 511800 && T.pathXp() !== 511800, 'a second ritual award would make the path 511800');
 
 if (failed) {
   console.error(failed + ' failed');

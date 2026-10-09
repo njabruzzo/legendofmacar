@@ -433,14 +433,14 @@
       },
       boss: mon('king', 'Undying King', 12, 0, 5552, { hp: 72, hitOnlyBy: 1, decision: 'D14-B' }),
       residents: [
-        mon('skeleton', 'Skeleton', 1, 7, 15),
+        mon('skeleton', 'Skeleton', 1, 7, 19),
         mon('zombie', 'Zombie', 2, 8, 38),
         mon('ghoul', 'Ghoul', 2, 6, 83),
         mon('wight', 'Wight', '4+3', 5, 310),
         mon('wraith', 'Wraith', '5+3', 4, 503),
         mon('spectre', 'Spectre', '7+3', 2, 1170),
         mon('duergar', 'Duergar', '1+2', 4, 86, { artStandIn: 'duergar' }),
-        mon('duergarPriest', 'Duergar priest', 5, 3, 400)
+        mon('duergarPriest', 'Duergar priest', 5, 3, 393)
       ],
       minions: [
         { key: 'wight', role: 'guard', choice: 'C', locked: true, source: 'MM1 wight servants' },
@@ -468,12 +468,11 @@
         usableByMacar: 'Y',
         xpOnce: 10000,
         steps: [
-          'Seven braziers burn. While any burns, the King regenerates and cannot be slain.',
-          'Macar sets the Holy Anvil on the throne dais.',
-          'Each Holy Hammer smash spends one round and puts out one brazier.',
-          'Each smash lowers teethCarried by one.',
-          'The seventh smash ends the curse and makes the King mortal.',
-          'Killing the mortal King wins.'
+          'The King fights and dies in the throne room. His kill opens the stair and unlocks the altar.',
+          'Macar sets the Holy Anvil on the temple altar at (29, 14.5).',
+          'Each Holy Hammer smash takes 1 s. Any hit interrupts it.',
+          'Each smash puts out the nearest brazier and lowers teethCarried by 1.',
+          'The seventh smash ends the curse, grants 10,000 XP once, and wins.'
         ]
       },
       pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
@@ -526,8 +525,23 @@
   }
 
   /**
+   * When a corpse's printed J-Z letters carry no coins, add that band's
+   * coins only. No extra band magic. Nil corpses still use the full band.
+   */
+  var CORPSE_COIN_RULE = {
+    id: 'letters-without-coins',
+    when: 'a corpse\'s printed J-Z letters carry no coins',
+    add: 'the band\'s coins only',
+    mid: 'J+K',
+    high: 'O',
+    extraBandMagic: false,
+    appliesOn: 'every level'
+  };
+
+  /**
    * Running clear through L10, then the ritual once.
-   * The L10 row is the clear only, 491,800. The ritual adds 10,000.
+   * The L10 row is the clear only, 491,800. The ritual is L10.RITUAL.xpOnce.
+   * pacing.ritualXp and the map's ritual.xpOnce are the same number and are not added.
    * The path is 501,800, which clears F10 (500,001).
    */
   function pathXp() {
@@ -538,7 +552,8 @@
       total += at - prev;
       prev = at;
     }
-    total += LEVELS[9].quest.xpOnce;
+    var l10 = require('./L10');
+    total += l10.RITUAL.xpOnce;
     return total;
   }
 
@@ -552,6 +567,7 @@
     level: level,
     formulaXp: formulaXp,
     statBossGuardianXp: statBossGuardianXp,
+    corpseCoinRule: CORPSE_COIN_RULE,
     pathXp: pathXp,
     wired: false
   };

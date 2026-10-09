@@ -4871,11 +4871,12 @@
         "teeth": 7,
         "hammer": "holy_hammer",
         "anvil": "holy_anvil",
+        "unlocksOn": "kingKill",
         "site": {
           "id": "altar",
           "x": 29,
           "y": 14.5,
-          "room": "throne-room"
+          "name": "temple altar"
         }
       },
       "setPieces": [
@@ -5119,6 +5120,7 @@
         "lordChest": {
           "letter": null,
           "contents": "chapter-v-hoard",
+          "once": true,
           "quest": null,
           "includesRuby": false,
           "extraHoard": false,
@@ -5130,7 +5132,6 @@
         },
         "guardianRuby": {
           "gp": 2500,
-          "band": "2500",
           "with": "rubyGuardian",
           "x": 22,
           "y": 40
@@ -5143,7 +5144,11 @@
         "elevator": "guardian",
         "stairs": "bossKill",
         "stairsOpenOn": "bossKill",
-        "win": "mortalKing",
+        "win": "ritualComplete",
+        "altarUnlocksOn": "kingKill",
+        "stairNext": null,
+        "elevatorNext": null,
+        "beforeWin": "The curse still holds. Smash the teeth on the altar.",
         "livingBossBlocksElevator": false,
         "leverRequires": [
           "rubyGuardianDead"
