@@ -105,7 +105,9 @@
       campaign: CAMPAIGN_GATE,
       authoritativeLeverGate: 'rubyGuardian',
       boss: leverStairs ? null : { status: 'set', separateFromGuardian: true, bossFlagOnIndividual: false },
-      guardian: leverStairs ? { key: 'thinOne', count: 6, bossFlagOnIndividual: false } : null,
+      guardian: leverStairs
+        ? { key: 'thinOne', count: 6, bossFlagOnIndividual: false }
+        : { key: 'rubyGuardian', count: 1, bossFlagOnIndividual: false },
       appliedToPlay: false
     };
   }
@@ -166,6 +168,11 @@
         }
       } else if (!row || row.separateEncounters !== true) {
         errors.push('L' + id + ' guardian and boss must stay separate encounters');
+      } else {
+        var one = row && row.guardian;
+        if (!one || one.key !== 'rubyGuardian' || one.count !== 1) {
+          errors.push('L' + id + ' guardian count must be 1');
+        }
       }
     }
     return errors;

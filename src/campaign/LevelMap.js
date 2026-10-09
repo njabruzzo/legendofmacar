@@ -171,6 +171,8 @@
       if (!g || g.key !== 'thinOne' || g.count !== 6 || g.bossFlagOnIndividual !== false) {
         errors.push('L1 guardian is the six Thin Ones and none wears a boss flag');
       }
+    } else if (!g || g.count !== 1) {
+      errors.push(id + ' guardian count must be 1');
     }
     if (!level.exit || level.exit.ref !== 'campaign') errors.push(id + ' campaign exit.ref must be campaign');
     return errors;

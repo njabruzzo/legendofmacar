@@ -37,6 +37,7 @@ for (let n = 1; n <= 10; n++) {
     assert(row.separateEncounters === true, 'L' + n + ' guardian and boss stay separate encounters');
     assert(row.stairs === 'bossKill' && row.stairsOpenOn === 'bossKill', 'L' + n + ' stairs open on the boss kill');
     assert(row.boss && row.boss.bossFlagOnIndividual === false && row.boss.separateFromGuardian === true, 'L' + n + ' has a boss and gives no creature a boss flag');
+    assert(row.guardian && row.guardian.key === 'rubyGuardian' && row.guardian.count === 1, 'L' + n + ' guardian count is 1');
   }
 }
 assert(E.forLevel(8).questItemBehindBoss === true && E.forLevel(8).elevator === 'guardian', 'L8 quest sits behind the boss and the elevator does not');
@@ -65,6 +66,11 @@ assert(E.validate(noException).some(function (err) { return err.indexOf('L1') >=
 const restoredBoss = E.LEVELS.map(function (row) { return Object.assign({}, row); });
 restoredBoss[0] = Object.assign({}, restoredBoss[0], { boss: { status: 'group', key: 'thinOne', count: 6, sameAsGuardian: true, firesWhen: 'lastDies', bossFlagOnIndividual: false } });
 assert(E.validate(restoredBoss).some(function (err) { return err.indexOf('L1') >= 0; }), 'L1 rejects the Thin Ones as a boss');
+const twoGuardians = E.LEVELS.map(function (row) {
+  return Object.assign({}, row, { guardian: Object.assign({}, row.guardian) });
+});
+twoGuardians[9].guardian.count = 2;
+assert(E.validate(twoGuardians).some(function (err) { return err.indexOf('L10') >= 0 && err.indexOf('count') >= 0; }), 'L10 rejects a guardian count of 2');
 
 assert(E.liveChapter(1).flag === 'elevReady' && E.liveChapter(1).replace === false, 'chapter I still rides the elevator after the lever');
 assert(E.liveChapter(2).bossRequired === false && E.liveChapter(2).stair.y === 51.6, 'chapter II king stays optional and the stair stays put');

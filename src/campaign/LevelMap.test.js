@@ -97,6 +97,11 @@ delete noFlag.levels[0].stairsOpenOn;
 const missingException = Map.load(noFlag);
 assert(!missingException.ok && missingException.errors.some(function (e) { return e.indexOf('stairs') >= 0; }), 'L1 without the lever exception fails');
 
+const doubled = JSON.parse(JSON.stringify(campaign.book));
+doubled.levels[1].guardian.count = 2;
+const twoGuardians = Map.load(doubled);
+assert(!twoGuardians.ok && twoGuardians.errors.some(function (e) { return e.indexOf('L2') >= 0 && e.indexOf('count') >= 0; }), 'L2 rejects a guardian count of 2');
+
 const dropped = JSON.parse(JSON.stringify(campaign.book));
 dropped.levels[1].boss = null;
 const noBoss = Map.load(dropped);
