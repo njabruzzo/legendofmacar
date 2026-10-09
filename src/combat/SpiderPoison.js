@@ -65,7 +65,7 @@
     var anti = opts.antitoxin ? 4 : 0;
     var periapt = opts.periaptPlus || 0;
     var target = base - bonus - mod - anti - periapt;
-    /* pending Sage ruling — floor the save at 2 so a natural 1 always fails. */
+    /* 6 #12 — the save target never goes below 2, so a natural 1 always fails. */
     if (target < 2) target = 2;
     return target;
   }

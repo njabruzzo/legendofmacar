@@ -76,7 +76,7 @@ for (let level = 1; level <= 10; level++) {
   });
 }
 
-assert(/pending Sage ruling/.test(src), 'the save-target floor is marked pending Sage ruling');
+assert(/6 #12/.test(src) && src.indexOf('pending Sage ruling') < 0, 'the save-target floor cites 6 #12');
 assert(P.saveTarget({ level: 10, con: 18, spider: 'spider' }) === 2, 'F10 CON 18 vs a large spider floors at 2');
 assert(P.saveTarget({ level: 10, con: 16, spider: 'spider', antitoxin: true, periaptPlus: 1 }) === 2, 'bonuses cannot push the target under 2');
 assert(P.saveTarget({ level: 4, con: 16, spider: 'spider' }) === 7, 'a target already above 2 is unchanged');
