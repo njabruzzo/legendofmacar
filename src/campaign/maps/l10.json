@@ -1,0 +1,225 @@
+{
+  "format": "macar-level-map",
+  "version": 1,
+  "book": "campaign-levels",
+  "affectsPlay": false,
+  "note": "Level 10 campaign map. Data only. The game does not load this file. The transition card is the existing Chapter V intro.",
+  "levels": [
+    {
+      "id": "L10",
+      "name": "The Undying King and the Ritual",
+      "level": 10,
+      "wired": false,
+      "stairsOpenOn": "bossKill",
+      "size": { "w": 108, "h": 98 },
+      "builtFrom": "Chapter V finale. The king, the altar, and the throne keep their points.",
+      "spawn": { "x": 10, "y": 44, "role": "arrival" },
+      "arrival": { "x": 10, "y": 44, "role": "from-L9" },
+      "layout": {
+        "source": "Chapter V temple. The ruby court has no printed coordinate.",
+        "rooms": [
+          { "id": "arrival", "kind": "rect", "x": 10, "y": 44, "w": 12, "h": 8 },
+          { "id": "ruby-court", "kind": "rect", "x": 22, "y": 40, "w": 24, "h": 8 },
+          { "id": "throne-room", "kind": "rect", "x": 29, "y": 22, "w": 30, "h": 28 },
+          { "id": "south-court", "kind": "rect", "x": 29, "y": 62, "w": 22, "h": 14 },
+          { "id": "stair-chamber", "kind": "disk", "x": 29, "y": 90, "rw": 4, "rh": 3.4 }
+        ]
+      },
+      "rubyDoor": {
+        "placement": "fixed",
+        "x": 16,
+        "y": 44,
+        "prop": "rubydoor",
+        "touchWakes": "rubyGuardian",
+        "room": "ruby-court"
+      },
+      "guardian": {
+        "placement": "fixed",
+        "key": "rubyGuardian",
+        "name": "Ruby Guardian X",
+        "tier": 10,
+        "count": 1,
+        "x": 22,
+        "y": 40,
+        "hp": 120,
+        "ac": -3,
+        "hitOnlyBy": 3,
+        "room": "ruby-court",
+        "wakesOn": "rubyDoor",
+        "leash": "ruby-room",
+        "bossFlagOnIndividual": false,
+        "art": {
+          "key": "construct",
+          "file": "assets/creatures/mon_construct.png",
+          "standIn": true,
+          "standInFor": "Ruby Guardian X",
+          "newArt": false
+        }
+      },
+      "lever": {
+        "placement": "fixed",
+        "x": 20,
+        "y": 38,
+        "prop": "floorlever",
+        "room": "ruby-court",
+        "enablesWhen": "rubyGuardianDead",
+        "needsBoss": false,
+        "opensStairs": false,
+        "decision": "D3-B"
+      },
+      "elevator": {
+        "placement": "fixed",
+        "x": 26,
+        "y": 40,
+        "prop": "lift",
+        "room": "ruby-court",
+        "auto": true,
+        "standIn": true,
+        "newArt": false,
+        "showsTransitionCard": true,
+        "transitionCard": "assets/ui/intro_ch5.jpg",
+        "standInFor": "Chapter V intro card stands in for the temple",
+        "requires": ["leverPulled"],
+        "gate": "guardian"
+      },
+      "boss": {
+        "placement": "fixed",
+        "key": "king",
+        "name": "Undying King",
+        "x": 29,
+        "y": 16,
+        "hp": 72,
+        "ac": 0,
+        "room": "throne-room",
+        "bossFlagOnIndividual": false,
+        "separateFromGuardian": true,
+        "requiredForStairs": true,
+        "requiredForElevator": false,
+        "art": {
+          "key": "king",
+          "file": "assets/creatures/mon_king.png",
+          "standIn": false,
+          "standInFor": null,
+          "newArt": false
+        }
+      },
+      "stairs": {
+        "id": "south-stair",
+        "placement": "fixed",
+        "x": 29,
+        "y": 90,
+        "prop": "stairs",
+        "room": "stair-chamber",
+        "opensOn": "bossKill",
+        "stairsOpenOn": "bossKill"
+      },
+      "ritual": {
+        "id": "temple-ritual",
+        "name": "Temple ritual",
+        "xpOnce": 10000,
+        "behindBoss": true,
+        "teeth": 7,
+        "hammer": "holy_hammer",
+        "anvil": "holy_anvil",
+        "site": { "id": "altar", "x": 29, "y": 14.5, "room": "throne-room" }
+      },
+      "setPieces": [
+        {
+          "id": "ritual-braziers",
+          "kind": "ritual",
+          "placed": true,
+          "count": 7,
+          "room": "throne-room",
+          "places": [
+            [18, 12], [40, 12], [18, 31], [40, 31],
+            [70, 18], [92, 18], [86, 12]
+          ]
+        },
+        {
+          "id": "throne-dais",
+          "kind": "ritual",
+          "placed": true,
+          "x": 29,
+          "y": 14.5,
+          "room": "throne-room",
+          "altar": { "x": 29, "y": 14.5 },
+          "throne": { "x": 29, "y": 10 },
+          "anvil": "holy_anvil"
+        }
+      ],
+      "spawns": [
+        {
+          "id": "throne-room",
+          "room": "throne-room",
+          "anchor": { "x": 29, "y": 16 },
+          "members": [
+            { "key": "king", "count": 1, "x": 29, "y": 16, "role": "boss" },
+            { "key": "wight", "count": 2, "x": 24, "y": 18, "role": "minion" },
+            { "key": "wraith", "count": 2, "x": 34, "y": 18, "role": "minion" }
+          ]
+        },
+        {
+          "id": "south-court",
+          "room": "south-court",
+          "anchor": { "x": 29, "y": 62 },
+          "members": [
+            { "key": "duergar", "count": 4, "x": 29, "y": 62, "role": "population" },
+            { "key": "duergarPriest", "count": 1, "x": 32, "y": 62, "role": "population" }
+          ]
+        }
+      ],
+      "wander": {
+        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "source": "RULES section 5",
+        "slots": [
+          { "slot": 1, "key": "skeleton", "count": "2d4" },
+          { "slot": 2, "key": "zombie", "count": "1d6" },
+          { "slot": 3, "key": "ghoul", "count": "1d4" },
+          { "slot": 4, "key": "duergar", "count": "1d4" },
+          { "slot": 5, "key": "wight", "count": "1" },
+          { "slot": 6, "key": "wraith", "count": "1" }
+        ]
+      },
+      "loot": {
+        "caches": {
+          "count": 16,
+          "level": 8,
+          "floor": 10,
+          "table": "DMG Appendix A Table V",
+          "source": "DUNGEON_TREASURE level 8, used for L10",
+          "places": [
+            [72, 22], [29, 62], [10, 66], [60, 10],
+            [96, 22], [29, 86], [10, 88], [84, 10],
+            [64, 42], [8, 74], [48, 50], [40, 70],
+            [80, 40], [20, 80], [50, 20], [8, 50]
+          ]
+        },
+        "lordCorpse": { "letter": "U", "decision": "D1-A", "on": "king" },
+        "lordChest": {
+          "letter": null,
+          "contents": "chapter-v-hoard",
+          "quest": null,
+          "includesRuby": false,
+          "extraHoard": false,
+          "decision": "D2",
+          "x": 29,
+          "y": 14.5,
+          "room": "throne-room",
+          "onCorpse": false
+        },
+        "guardianRuby": { "gp": 2500, "band": "2500", "with": "rubyGuardian", "x": 22, "y": 40 },
+        "magicFilter": "2.2 usable by a dwarf fighter"
+      },
+      "exit": {
+        "ref": "campaign",
+        "level": 10,
+        "elevator": "guardian",
+        "stairs": "bossKill",
+        "stairsOpenOn": "bossKill",
+        "win": "mortalKing",
+        "livingBossBlocksElevator": false,
+        "leverRequires": ["rubyGuardianDead"]
+      }
+    }
+  ]
+}

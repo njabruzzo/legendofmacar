@@ -245,7 +245,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_orc.png', 'Orc art stands in for the orc hold'),
       quest: tooth(4),
-      pacing: { cumulativeXp: 51000, macar: 'F6', avgHp1e: 45, avgHpGame: 180, toHitAc0: 16, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G5', ghostXp: 23500, keyItems: ['Golden eggs x3', 'Shield +1 recipe'] },
+      pacing: { cumulativeXp: 51200, macar: 'F6', avgHp1e: 45, avgHpGame: 180, toHitAc0: 16, attacksPerRound: 1, hitOnlyBy: 0, ghostLevel: 'G5', ghostXp: 23500, keyItems: ['Golden eggs x3', 'Shield +1 recipe'] },
       setPieces: ['ogre-cave']
     },
     {
@@ -278,7 +278,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_drow.png', 'Drow art stands in for the drow deep'),
       quest: tooth(5),
-      pacing: { cumulativeXp: 78000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 37000, keyItems: ['Drow +2 sword', 'Rune Hammer +2 recipe', 'Adamantine Armor recipe'] },
+      pacing: { cumulativeXp: 75200, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 37000, keyItems: ['Drow +2 sword', 'Rune Hammer +2 recipe', 'Adamantine Armor recipe'] },
       setPieces: ['drow-plus-two-sword']
     },
     {
@@ -312,7 +312,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_magmaelem.png', 'Magma elemental art stands in for fire elementals'),
       quest: tooth(6),
-      pacing: { cumulativeXp: 123000, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, guardianHitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 59500, keyItems: ['Potion of Fire Resistance recipe'] },
+      pacing: { cumulativeXp: 120200, macar: 'F7', avgHp1e: 52.5, avgHpGame: 210, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, guardianHitOnlyBy: 1, ghostLevel: 'G6', ghostXp: 59500, keyItems: ['Potion of Fire Resistance recipe'] },
       setPieces: ['water-pool']
     },
     {
@@ -345,7 +345,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_earthelem.png', 'Earth elemental art'),
       quest: tooth(7),
-      pacing: { cumulativeXp: 185000, macar: 'F8', avgHp1e: 60, avgHpGame: 240, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G7', ghostXp: 90500, keyItems: ['Bolts +1', 'Greater Healing'] },
+      pacing: { cumulativeXp: 182200, macar: 'F8', avgHp1e: 60, avgHpGame: 240, toHitAc0: 14, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G7', ghostXp: 90500, keyItems: ['Bolts +1', 'Greater Healing'] },
       setPieces: ['heartstone-vein']
     },
     {
@@ -381,7 +381,7 @@
       lever: lever(),
       elevator: elevator('assets/creatures/mon_beholder.png', 'Beholder art; death-tyrant sheet is the lair reuse'),
       quest: { kind: 'weapon', id: 'holy_hammer', name: 'Holy Hammer', plus: 3, basis: 'Hammer +3, Dwarven Thrower', decision: 'D18-A', behindBoss: true, usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 270000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 133000, keyItems: ['Holy Hammer +3'] },
+      pacing: { cumulativeXp: 267200, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 133000, keyItems: ['Holy Hammer +3'] },
       setPieces: ['beholder-hoard']
     },
     {
@@ -416,7 +416,7 @@
         'Keep this deep-dragon stand-in on the L9 card until red dragon art passes.'
       ),
       quest: { kind: 'quest', id: 'holy_anvil', name: 'Holy Anvil of Truth', displayName: 'Holy Anvil of Truth', behindBoss: true, forgeTier: 'top', usableByMacar: 'Y' },
-      pacing: { cumulativeXp: 410000, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
+      pacing: { cumulativeXp: 406800, macar: 'F9', avgHp1e: 67.5, avgHpGame: 270, toHitAc0: 12, attacksPerRound: 1.5, hitOnlyBy: 2, ghostLevel: 'G8', ghostXp: 203000, keyItems: ['Holy Anvil of Truth'] },
       setPieces: ['dragon-hoard']
     },
     {
@@ -476,7 +476,7 @@
           'Killing the mortal King wins.'
         ]
       },
-      pacing: { cumulativeXp: 500000, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
+      pacing: { cumulativeXp: 491800, macar: 'F10', avgHp1e: 70.5, avgHpGame: 282, toHitAc0: 12, attacksPerRound: 1.5, ritualXp: 10000, hitOnlyBy: 3, ghostLevel: 'G8', ghostXp: 248000, keyItems: ['ritual complete'] },
       setPieces: ['ritual-braziers', 'throne-dais']
     }
   ];
@@ -526,7 +526,9 @@
   }
 
   /**
-   * Running clear through L10, then the ritual. Nothing raises the sum to the F10 line.
+   * Running clear through L10, then the ritual once.
+   * The L10 row is the clear only, 491,800. The ritual adds 10,000.
+   * The path is 501,800, which clears F10 (500,001).
    */
   function pathXp() {
     var total = 0;

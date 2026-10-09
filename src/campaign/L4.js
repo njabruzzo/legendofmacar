@@ -344,8 +344,8 @@
     rubyGuardian: 1030
   };
 
-  /** 1.12 prints 2,990 for the annotated pack. Section 6 says stat blocks win. */
-  var FORECAST_BOSS_GUARDIAN_XP = 2990;
+  /** Refreshed 1.12 column is the stat-block sum, 1,285. */
+  var FORECAST_BOSS_GUARDIAN_XP = 1285;
   var FORECAST_PACK = {
     chief: 1,
     shaman: 1,

@@ -315,8 +315,8 @@
     rubyGuardian: 3852
   };
 
-  /** 1.12 prints 9,572 and names no pack. Section 6 says stat blocks win. */
-  var FORECAST_BOSS_GUARDIAN_XP = 9572;
+  /** Refreshed 1.12 column is the stat-block sum. */
+  var FORECAST_BOSS_GUARDIAN_XP = 8942;
 
   var OPEN = [
     {

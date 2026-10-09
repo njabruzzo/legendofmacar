@@ -121,12 +121,12 @@ assert(L4.MONSTERS.warg.art.standIn === false && L4.MONSTERS.warg.art.file === '
 assert(L4.MONSTERS.wolf.art.standIn === true && L4.MONSTERS.wolf.art.file === 'assets/creatures/mon_warg.png', 'wolves use the warg sheet');
 assert(L4.MONSTERS.rubyGuardian.art.file === 'assets/creatures/mon_construct.png' && L4.MONSTERS.rubyGuardian.art.standIn === true, 'Guardian IV uses the Ruin Guard sheet');
 assert(L4.bossGuardianXp() === 1030 + 255 && L4.bossGuardianXp() === 1285, 'L4 boss-plus-guardian XP is the stat blocks, 1285');
-assert(L4.FORECAST_BOSS_GUARDIAN_XP === 2990 && T.level(4).pacing.bossPlusGuardianXp === 1285, 'the 1.12 forecast of 2990 is not the pacing total');
+assert(L4.FORECAST_BOSS_GUARDIAN_XP === 1285 && T.level(4).pacing.bossPlusGuardianXp === 1285, 'the 1.12 column matches the stat blocks, 1285');
 assert(L4.forecastPackXp() === 2793, 'the annotated pack sums to 2793, not the printed 2990');
 assert(T.statBossGuardianXp(T.level(4)) === L4.bossGuardianXp(), 'the campaign table uses the same L4 stat-block total');
-assert(T.level(4).pacing.cumulativeXp === 51000 && T.level(4).pacing.macar === 'F6', 'the L4 clear stays at the 1.12 F6 row, 51000');
-assert(T.level(4).pacing.cumulativeXp >= T.FIGHTER_XP.F6 && T.level(4).pacing.cumulativeXp < T.FIGHTER_XP.F7, '51000 sits in the F6 band');
-assert(T.pathXp() === 510000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 510000');
+assert(T.level(4).pacing.cumulativeXp === 51200 && T.level(4).pacing.macar === 'F6', 'the L4 clear stays at the 1.12 F6 row, 51200');
+assert(T.level(4).pacing.cumulativeXp >= T.FIGHTER_XP.F6 && T.level(4).pacing.cumulativeXp < T.FIGHTER_XP.F7, '51200 sits in the F6 band');
+assert(T.pathXp() === 501800 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 501800');
 
 assert(L4.MONSTERS.orc.hd === 1 && L4.MONSTERS.orc.ac === 6 && L4.MONSTERS.orc.xp === 15, 'an orc is 1 HD, AC 6, 15 XP');
 assert(L4.MONSTERS.orcLeader.hd === 2 && L4.MONSTERS.orcLeader.ac === 5 && L4.MONSTERS.orcLeader.attacks[0].damage === '1d10' && L4.MONSTERS.orcLeader.countVerify === true, 'leaders stay HD 2, AC 5, 1d10, marked verify');
