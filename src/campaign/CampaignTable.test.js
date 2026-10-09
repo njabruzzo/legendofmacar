@@ -108,9 +108,9 @@ T.LEVELS.forEach(function (lvl) {
   const nextKey = 'F' + (parseInt(macar.slice(1), 10) + 1);
   const next = T.FIGHTER_XP[nextKey];
   if (lvl.level === 10) {
-    assert(xp === 500000 && floor === 500001, 'the L10 clear stays 500,000 and is not floored up to the F10 line');
+    assert(xp === 492000 && floor === 500001, 'the L10 clear stays 492,000, under the F10 line');
     assert(lvl.pacing.xpFloor == null && lvl.pacing.xpVersusF10Threshold == null, 'there is no XP floor');
-    assert(T.pathXp() === xp + lvl.quest.xpOnce && T.pathXp() === 510000, 'the path adds the 10,000 ritual and nothing else');
+    assert(T.pathXp() === xp + lvl.quest.xpOnce && T.pathXp() === 502000, 'the path adds the 10,000 ritual and nothing else');
     assert(T.pathXp() >= floor, 'the full L1-L10 path plus the ritual clears 500,001');
   } else {
     assert(xp >= floor && (next == null || xp < next), lvl.id + ' XP sits in the ' + macar + ' band');

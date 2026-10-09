@@ -106,12 +106,12 @@ Object.keys(L8.XP).forEach(function (key) {
 });
 assert(L8.bossGuardianXp() === 8420 + 7910 && L8.bossGuardianXp() === 16330, 'L8 boss-plus-guardian XP is the stat blocks, 16330');
 assert(L8.bossGuardianXp() === L8.XP.beholder + L8.XP.rubyGuardian, 'the boss-plus-guardian sum uses the printed xp fields');
-assert(L8.FORECAST_BOSS_GUARDIAN_XP === 18500 && T.level(8).pacing.bossPlusGuardianXp === 16330, 'the 1.12 forecast of 18500 is not the pacing total');
+assert(L8.FORECAST_BOSS_GUARDIAN_XP === 16330 && T.level(8).pacing.bossPlusGuardianXp === 16330, 'the 1.12 column matches the stat blocks, 16330');
 assert(T.statBossGuardianXp(T.level(8)) === L8.bossGuardianXp(), 'the campaign table uses the same L8 stat-block total');
 assert(T.level(8).boss.xp === 7910 && T.level(8).rubyGuardian.formula.xp === 8420, 'the table xp fields are the printed beholder and guardian totals');
-assert(T.level(8).pacing.cumulativeXp === 270000 && T.level(8).pacing.macar === 'F9', 'the L8 clear stays at the 1.12 F9 row, 270000');
-assert(T.level(8).pacing.cumulativeXp >= T.FIGHTER_XP.F9 && T.level(8).pacing.cumulativeXp < T.FIGHTER_XP.F10, '270000 sits in the F9 band');
-assert(T.pathXp() === 510000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 510000');
+assert(T.level(8).pacing.cumulativeXp === 267200 && T.level(8).pacing.macar === 'F9', 'the L8 clear stays at the 1.12 F9 row, 267200');
+assert(T.level(8).pacing.cumulativeXp >= T.FIGHTER_XP.F9 && T.level(8).pacing.cumulativeXp < T.FIGHTER_XP.F10, '267200 sits in the F9 band');
+assert(T.pathXp() === 502000 && T.pathXp() >= 500001, 'the L1-L10 clear plus the ritual stays 502000');
 
 assert(L8.MONSTERS.beholder.hp === 60 && L8.MONSTERS.beholder.xp === 7910 && L8.MONSTERS.beholder.acBody === 0 && L8.MONSTERS.beholder.acCentralEye === 7 && L8.MONSTERS.beholder.acEyestalk === 2, 'the beholder is 60 hp, AC 0/7/2, 7910 XP');
 assert(L8.MONSTERS.duergar.xp === 86 && L8.MONSTERS.duergar.hd === '1+2' && L8.MONSTERS.duergar.immune.indexOf('poison') >= 0, 'the duergar is 1+2, 86 XP, and immune to poison');
