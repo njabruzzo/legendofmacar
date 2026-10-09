@@ -360,6 +360,10 @@
     {
       id: 'difficulty-dip',
       note: 'The boss-plus-guardian column stays 14,706. Nick has not decided whether boss-room minions count in that column. (open)'
+    },
+    {
+      id: 'speak-cast',
+      note: 'The 30% talk-and-cast roll is stored as ruled and is unconfirmed. Nick has not picked it. Until he does, the dragon stays a non-caster at 3,906 XP. (open)'
     }
   ];
 
