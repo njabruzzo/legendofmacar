@@ -10728,7 +10728,7 @@ function beginFight(foe){
   let pSeg=ri(1,6), fSeg=ri(1,6);
   const sneak=foe&&foe.sa&&/Surprise/i.test(foe.sa);
   const elf=typeof wearingElvenkind==='function'&&wearingElvenkind(typeof player==='function'?player():null);
-  const espSafe=surpriseBlockedByEsp(typeof player==='function'?player():null, foe);
+  const espSafe=typeof surpriseBlockedByEsp==='function' && surpriseBlockedByEsp(typeof player==='function'?player():null, foe);
   const pSur=pSeg<=(sneak?4:2) && !elf && !espSafe;
   const fSur=fSeg<=(elf?4:sneak?1:2);
   if(pSur&&!fSur){

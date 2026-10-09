@@ -284,8 +284,8 @@ assert(!/\.update\(/.test(src) && !/function update\(/.test(src),
   ctx.who=actor({ageYears:50});
   ctx.drinkPotion({n:'Speed', k:'haste'}, ctx.who);
   assert(ctx.who.ageYears===51, 'Speed still ages 1 year on the timed path');
-  assert(ctx.who.buff>=5 && approx(ctx.who.sp, 4*1.35) && ctx.who.cd<=0.55,
-    'Speed drink derives haste (buff + sp + half cd)');
+  assert(ctx.who.buff>=5 && approx(ctx.who.sp, 4*2.0) && ctx.who.cd<=0.55,
+    'Speed drink derives haste (buff + sp + half cd, moveMul 2)');
   assert(TE.hasHaste(ctx.who) && ctx.who.afterHaste!==5,
     'Speed drink does not arm the legacy afterHaste multiply');
   const recastSp=ctx.who.sp;
@@ -298,8 +298,8 @@ assert(!/\.update\(/.test(src) && !/function update\(/.test(src),
   const hz=TE.getHaste(ctx.who);
   assert(!!hz && approx(hz.remaining, 3) && approx(hz.restRemaining, 5),
     'Zulsendra is haste 3 then rest 5 on the timed path');
-  assert(ctx.who.buff===3 && approx(ctx.who.sp, 4*1.3),
-    'Zulsendra replace sets buff 3 and derived 1.3× move');
+  assert(ctx.who.buff===3 && approx(ctx.who.sp, 4*2.0),
+    'Zulsendra replace sets buff 3 and derived 2× move');
   assert(!(ctx.who.afterHaste>0), 'Zulsendra does not set legacy afterHaste when flag is on');
 }
 
@@ -318,8 +318,10 @@ assert(!/\.update\(/.test(src) && !/function update\(/.test(src),
   const drink=extractFn('drinkPotion');
   const herb=extractFn('useHerb');
   const dmg=extractFn('applyDmgPotion');
-  assert(/e\.sp=\(e\.baseSp\|\|e\.sp\|\|3\)\*1\.35/.test(dmg) && /e\.sp=\(e\.baseSp\|\|e\.sp\|\|3\)\*1\.35/.test(drink),
-    'legacy potion haste mutation remains in the flag-off branch');
+  assert(/e\.sp=\(e\.baseSp\|\|e\.sp\|\|3\)\*2\.0/.test(dmg),
+    'Speed flag-off fallback is moveMul 2.0');
+  assert(/e\.sp=\(e\.baseSp\|\|e\.sp\|\|3\)\*1\.35/.test(drink),
+    'non-Speed potion haste flag-off fallback stays 1.35');
   assert(/e\.afterHaste=5/.test(herb), 'legacy Zulsendra afterHaste remains in the flag-off branch');
   assert(/e\.afterHaste>0 && \(e\.buff\|\|0\)<=0/.test(html),
     'legacy afterHaste multiply remains for flag-off / weary');
