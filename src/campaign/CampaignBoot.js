@@ -22,6 +22,7 @@
     'src/campaign/L9.js',
     'src/campaign/L10.js',
     'src/combat/SpiderPoison.js',
+    'src/combat/BattleBuffs.js',
     'src/campaign/CampaignRuntime.js'
   ];
 

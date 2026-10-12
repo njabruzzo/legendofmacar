@@ -6,7 +6,7 @@
 (function (root) {
   'use strict';
 
-  var LIVE = { 2: true, 3: true };
+  var LIVE = { 2: true, 3: true, 4: true };
   var SPIDER_KEYS = { spider: 1, spiderHuge: 1, spiderGiant: 1, phasespider: 1, spiderQueen: 1 };
   var UNWIRED_QUESTS = { holy_hammer: true, holy_anvil: true };
   var PACK = 0.8;
@@ -321,6 +321,8 @@
     foe = foe || {};
     if (key === 'goblinShaman' || key === 'goblinLeader' || key === 'shaman' || key === 'leader') return foe.goblin || null;
     if (key === 'rubyGuardian') return foe.thinone || foe.statue || null;
+    if (key === 'orc' || key === 'orcLeader' || key === 'orcGuard' || key === 'orcShaman' || key === 'orcChief') return foe.orc || null;
+    if (key === 'warg' || key === 'wolf') return foe.warg || foe.wolf || null;
     if (SPIDER_KEYS[key]) return foe.spider || null;
     if (key === 'goblinBoss') return foe.goblinBoss || foe.goblin || null;
     if (key === 'goblinKing') return foe.goblinKing || foe.goblin || null;
@@ -355,9 +357,15 @@
       sprite: (mon && mon.art && mon.art.key) || key,
       scale: 1, atk: 0, atkMax: 0.42, stun: 0, dead: false, r: 0.4
     };
-    if (!(e.scale > 0)) e.scale = 1;
+    if (!(e.scale > 0) || !isFinite(e.scale)) e.scale = 1;
     /* No pixie sheet. The grey stand-in is about 0.4 of Macar. */
     if (key === 'pixie') e.scale = 0.4;
+    /* Orcs and the shaman use the orc sheet, at Macar's size. */
+    if (key === 'orc' || key === 'orcLeader' || key === 'orcGuard' || key === 'orcShaman' || key === 'orcChief') {
+      if (!(e.scale > 0) || !isFinite(e.scale)) e.scale = 1;
+      var orcArt = (mon && mon.art && mon.art.key) || 'orc';
+      if (!e.sprite || e.sprite === key) e.sprite = orcArt;
+    }
     var scale = opts.scale || 4;
     if (!neutral) e.team = 'foe';
     e.boss = 0;
@@ -416,6 +424,24 @@
       e.aggro = 0;
       e.attacks = [];
       e.campaignPoison = 0;
+    }
+    /* A plain orc is 5 hp. The printed 15 XP is that figure. */
+    if (key === 'orc' && !(sheet && typeof sheet.hp === 'number')) {
+      e.hp1e = 5;
+      e.hp = Math.max(1, Math.round(5 * scale));
+      e.maxhp = e.hp;
+    }
+    /* No ogre sheet. The stand-in is Macar's size and never a fighter. */
+    if (key === 'ogress') {
+      e.scale = 1;
+      e.sprite = (mon && mon.art && mon.art.key) || 'ogress';
+      e.sp = e.sp || 2.7;
+      e.team = 'neutral';
+      e.npc = 1;
+      e.aggro = 0;
+      e.attacks = [];
+      e.campaignXp = null;
+      e.targetable = false;
     }
     e.boss = 0;
     e.chapterBoss = 0;
@@ -477,6 +503,13 @@
     var seals = (L.secrets || []).concat(secrets);
     for (var k = 0; k < seals.length; k++) {
       if (seals[k] && !seals[k].open && eng('sealSecretCells')) eng('sealSecretCells')(g, seals[k]);
+    }
+    if (map && map.id === 'L4' && rooms.length && eng('carvePath')) {
+      var pts = [];
+      for (var r = 0; r < rooms.length; r++) pts.push([rooms[r].x, rooms[r].y]);
+      var exitTile = map.ogreCave && map.ogreCave.exitTile;
+      if (exitTile) pts.push([exitTile.x, exitTile.y]);
+      eng('carvePath')(g, pts, 2.4, 0);
     }
     var king = root.L2 && root.L2.KING;
     if (king && king.cornerRoom && map && map.boss && map.boss.key === 'goblinKing' && eng('rect')) {
@@ -541,6 +574,44 @@
       }
     }
     placeKingPieces(G, spec);
+    placeOgreCave(G, spec);
+  }
+
+  function placeOgreCave(G, spec) {
+    var cave = spec.map && spec.map.ogreCave;
+    if (!cave) return;
+    var seconds = (spec.data && spec.data.CAVE && spec.data.CAVE.boulders && spec.data.CAVE.boulders.secondsEach) || 10;
+    var rocks = cave.boulders || [];
+    var props = G.props || (G.props = []);
+    var i;
+    for (i = 0; i < rocks.length; i++) {
+      props.push({
+        x: rocks[i].x, y: rocks[i].y, k: 'boulder', spr: 'boulder', s: 0.9,
+        campaign: 'ogre-seal', seal: 1, seconds: seconds
+      });
+    }
+    var eggs = cave.eggs || [];
+    for (i = 0; i < eggs.length; i++) {
+      props.push({
+        x: eggs[i].x, y: eggs[i].y, k: 'eggs', s: 0.7,
+        campaign: 'golden-egg', itemId: 'golden_egg'
+      });
+    }
+  }
+
+  function seatParty(G, spec) {
+    var at = spec.map && (spec.map.spawn || spec.map.arrival);
+    if (!at || at.x == null) return;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.team !== 'party' || e.dead) continue;
+      e.x = at.x + (e.hero ? 0 : 0.7);
+      e.y = at.y;
+      e.dest = null;
+      e.moving = 0;
+    }
+    if (G.cam) { G.cam.x = at.x; G.cam.y = at.y; }
   }
 
   function placeKingPieces(G, spec) {
@@ -656,6 +727,8 @@
     var spec = load((G.campaignLevel || G.lvl.n) | 0);
     if (!spec) return false;
     G.poisonMode = (spec.data && spec.data.POISON && spec.data.POISON.mode === 'h1') ? 'h1' : '';
+    if (root.BattleBuffs && G._battleBuffs) root.BattleBuffs.onFloorChange(G._battleBuffs, spec.level);
+    syncEgg(G);
     var L = G.lvl;
     L.campaignSpec = spec;
     L.flags = L.flags || {};
@@ -677,6 +750,7 @@
       carveMap(L, spec.map || {});
       placeLevel(G, spec);
       spawnPinned(G, opts, spec);
+      seatParty(G, spec);
     } else {
       stripTravelProps(G);
       placeLevel(G, spec);
@@ -1272,6 +1346,7 @@
   }
 
   function toothTakenFlag(id) {
+    if (id === 'grond_tooth_electrum_4') return 'electrumTooth4';
     if (id === 'grond_tooth_electrum_3') return 'electrumTooth3';
     return 'electrumTooth2';
   }
@@ -1288,7 +1363,8 @@
     var flag = toothTakenFlag(id);
     if (flags[flag]) return { ok: 0, reason: 'taken' };
     var name = mapTooth.name || tooth.name || (id === 'grond_tooth_electrum_3' ? 'Electrum Tooth 3' : 'Electrum Tooth 2');
-    if (id === 'grond_tooth_electrum_3') name = 'Electrum Tooth 3';
+    if (id === 'grond_tooth_electrum_4') name = 'Electrum Tooth 4';
+    else if (id === 'grond_tooth_electrum_3') name = 'Electrum Tooth 3';
     else if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
     var it = {
       id: id,
@@ -1352,6 +1428,31 @@
     return true;
   }
 
+  function buffState(G) {
+    var B = root.BattleBuffs;
+    if (!B || !G) return null;
+    if (!G._battleBuffs) G._battleBuffs = B.create(G.t || 0);
+    return G._battleBuffs;
+  }
+
+  function syncEgg(G) {
+    var B = root.BattleBuffs;
+    var p = hero(G);
+    if (!p) return;
+    var st = G && G._battleBuffs;
+    p.eggAc = (B && st) ? B.acDelta(st) : 0;
+  }
+
+  function armEgg(G, item, pack) {
+    var B = root.BattleBuffs;
+    if (!B || !item) return { ok: false, reason: 'not-a-buff' };
+    var st = buffState(G);
+    var bag = pack || [];
+    var res = B.use(st, bag, item, (G && G.t) || 0);
+    syncEgg(G);
+    return res;
+  }
+
   function noteFight(G) {
     var ents = (G && G.ents) || [];
     for (var i = 0; i < ents.length; i++) {
@@ -1361,6 +1462,24 @@
         e.pixieCap = 0;
       }
     }
+    var B = root.BattleBuffs;
+    var st = G && G._battleBuffs;
+    if (B && st) B.beginFight(st, null, (G && G.t) || 0);
+    syncEgg(G);
+  }
+
+  function noteFightEnd(G) {
+    var B = root.BattleBuffs;
+    var st = G && G._battleBuffs;
+    if (B && st) B.endFightIfClear(st);
+    syncEgg(G);
+  }
+
+  function noteDeath(G) {
+    var B = root.BattleBuffs;
+    var st = G && G._battleBuffs;
+    if (B && st) B.onDeath(st);
+    syncEgg(G);
   }
 
   function actorCon(target, opts) {
@@ -1646,12 +1765,117 @@
     else G.scene = 'camp';
   }
 
+  function releaseOgress(G, spec) {
+    var flags = G.lvl.flags || (G.lvl.flags = {});
+    var cave = spec.map && spec.map.ogreCave;
+    if (!cave) return;
+    var ents = G.ents || [];
+    var her = null;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e && e.campaignKey === 'ogress' && !e.dead && !e.vanished) her = e;
+    }
+    if (!her || her.fleeTo || her._fleeing) return;
+    flags.ogressFled = 1;
+    her._fleeing = 1;
+    her.sealed = 0;
+    her.glanceBack = 0.9;
+    var path = (cave.fleePath || []).map(function (p) { return { x: p.x, y: p.y }; });
+    if (path.length && near(her, path[0], 1.2)) path.shift();
+    var exit = cave.exitTile || { x: 28, y: 76 };
+    if (!path.length) path = [{ x: exit.x, y: exit.y }];
+    her.fleePath = path;
+    her.fleeTo = her.fleePath.shift();
+    her.onArrive = function () {
+      if (her.fleePath && her.fleePath.length) return;
+      her.hidden = 1;
+      her.vanished = 1;
+      her.dead = 1;
+      her.campaignXp = null;
+      if (!flags.ogressXp) {
+        flags.ogressXp = 1;
+        var xp = (spec.data && spec.data.XP && spec.data.XP.ogress) || 185;
+        if (eng('awardPartyXp')) eng('awardPartyXp')(xp, 'Ogress');
+      }
+      if (eng('say')) eng('say')('The ogress looks back once and is gone.', '#d8c49a');
+    };
+  }
+
+  function tickOgreCave(G, dt) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var cave = spec && spec.map && spec.map.ogreCave;
+    if (!cave) return false;
+    var p = hero(G);
+    if (!p) return false;
+    var props = G.props || [];
+    var seals = [];
+    var i;
+    for (i = 0; i < props.length; i++) {
+      if (props[i] && props[i].campaign === 'ogre-seal' && !props[i].gone) seals.push(props[i]);
+    }
+    if (!seals.length) {
+      releaseOgress(G, spec);
+    } else if (G._ogreClear) {
+      var active = G._ogreClear;
+      var rock = null;
+      for (i = 0; i < seals.length; i++) {
+        if (seals[i] === active.rock) rock = seals[i];
+      }
+      if (!rock || !near(p, rock, 1.7)) G._ogreClear = null;
+      else {
+        active.t += dt || 0;
+        var need = rock.seconds || 10;
+        if (eng('hint')) eng('hint')('Clearing the boulder.', 0.4);
+        if (active.t >= need) {
+          rock.gone = 1;
+          G._ogreClear = null;
+          if (eng('say')) eng('say')('A boulder rolls clear.', '#d8c49a');
+          var still = false;
+          for (i = 0; i < seals.length; i++) if (seals[i] !== rock && !seals[i].gone) still = true;
+          if (!still) releaseOgress(G, spec);
+        }
+      }
+      if (G._ogreClear) return true;
+    }
+    if (seals.length && !G._ogreClear && eng('interact')) {
+      var nearRock = null;
+      for (i = 0; i < seals.length; i++) if (!seals[i].gone && near(p, seals[i], 1.6)) nearRock = seals[i];
+      if (nearRock) {
+        eng('interact')('Clear the boulder', function () {
+          G._ogreClear = { rock: nearRock, t: 0 };
+        });
+        return true;
+      }
+    }
+    if (!seals.length && eng('interact')) {
+      for (i = 0; i < props.length; i++) {
+        var egg = props[i];
+        if (!egg || egg.gone || egg.campaign !== 'golden-egg') continue;
+        if (!near(p, egg, 1.3)) continue;
+        eng('interact')('Take the golden egg', function () {
+          if (egg.gone) return;
+          egg.gone = 1;
+          var it = {
+            id: 'golden_egg', n: 'Golden Egg', k: 'egg', cat: 'Quest',
+            quest: 1, noSell: 1, noAuto: 1,
+            d: 'One battle. Armor improves by 4. Only one egg works at a time.'
+          };
+          if (eng('stowPackItem')) eng('stowPackItem')(it);
+          if (eng('say')) eng('say')('Macar takes a golden egg.', '#ffe08a');
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
     dt = dt || 0;
     syncFever(G);
     syncGates(G);
+    if (tickOgreCave(G, dt)) return;
     tickKing(G, dt);
     tickCasters(G, dt);
     tickBarks(G, dt);
@@ -1792,6 +2016,9 @@
     armDust: armDust,
     clearDust: clearDust,
     noteFight: noteFight,
+    noteFightEnd: noteFightEnd,
+    noteDeath: noteDeath,
+    armEgg: armEgg,
     printed: printed,
     beginRun: beginRun,
     kill: kill,

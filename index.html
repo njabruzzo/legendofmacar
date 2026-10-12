@@ -659,9 +659,14 @@ function stepFoeFlee(e, dt){
     PartyOrders.noteMoraleFlee(e);
   const t=aim, d=dist(e,t);
   e.fleeStuck=(e.fleeStuck||0)+dt;
-  if(d>0.55 && e.fleeStuck<3.2){
+    if(d>0.55 && e.fleeStuck<3.2){
     const run=Math.max(e.sp||4, 5.8);
     steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
+    /* A freed prisoner looks back toward the cave while she runs. */
+    if(e.glanceBack>0){
+      e.glanceBack=Math.max(0, e.glanceBack-dt);
+      e.fdx=-(e.fdx||0); e.fdy=-(e.fdy||0);
+    }
   } else {
     e.fleeStuck=0;
     e.x=t.x; e.y=t.y;
@@ -825,6 +830,7 @@ const SPRITE_FILES={
   beetle:'assets/creatures/mon_beetle.png', myconid:'assets/creatures/mon_myconid.png', thinone:'assets/creatures/mon_thinone.png',
   crawler:'assets/creatures/mon_crawler.png', undead:'assets/creatures/mon_undead.png', elder:'assets/creatures/mon_elder.png',
   barrow:'assets/creatures/mon_barrow.png', troll:'assets/creatures/mon_troll.png', construct:'assets/creatures/mon_construct.png',
+  orc:'assets/creatures/mon_orc.png', mon_orc:'assets/creatures/mon_orc.png', warg:'assets/creatures/mon_warg.png',
   wraith:'assets/creatures/mon_wraith.png', burrower:'assets/creatures/mon_burrower.png', champion:'assets/creatures/mon_champion.png',
   warden:'assets/creatures/mon_warden.png', horror:'assets/creatures/mon_horror.png', drake:'assets/creatures/mon_drake.png', king:'assets/creatures/mon_king.png',
   golem_brass:'assets/creatures/mon_golem_brass.png', golem_silver:'assets/creatures/mon_golem_silver.png',
@@ -1207,6 +1213,7 @@ Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 const SPRITE_GAVE_UP={};
+const SPRITE_RETRY={};
 function campaignSpriteKey(key){
   if(!key) return '';
   if(SPRITE_FILES[key] || (SPR[key]&&SPR[key].width)) return key;
@@ -1265,8 +1272,22 @@ function loadSpriteKeyNow(k, cb){
     }
     /* Optional covers (campaign cards, faces, splashes) are asked again
        every frame. One retry, then stop. Required level art and Macar
-       sheets keep trying on the next request. intro_ch2 keeps that rule. */
+       sheets keep trying, with a longer wait after each miss, so two
+       failures do not leave the splash waiting on a loader that stopped.
+       intro_ch2 keeps the stop. */
     if(k==='intro_ch2' || optionalArt(k)) SPRITE_GAVE_UP[k]=1;
+    else if(typeof setTimeout==='function'){
+      const row=SPRITE_RETRY[k]||(SPRITE_RETRY[k]={n:0,wait:0});
+      if(!row.wait){
+        const wait=Math.min(8000, 400*Math.pow(2, row.n));
+        row.n+=1;
+        row.wait=1;
+        setTimeout(function(){
+          row.wait=0;
+          if(!SPRITE_GAVE_UP[k] && !sprReady(k)) loadSpriteKeyNow(k);
+        }, wait);
+      }
+    }
     fin(false);
   };
   img.src=assetUrl(SPRITE_FILES[k]);
@@ -10900,6 +10921,7 @@ function effectiveAC(e, atk){
   const missile=!!(atk&&atk.ranged);
   let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
   if(e.team==='party') ac=partyAC(e,{rear, helpless, missile});
+  if(typeof e.eggAc==='number') ac+=e.eggAc;
   if(e.stoneskin>0) ac-=2;
   return clamp(ac,-8,10);
 }
@@ -11162,6 +11184,7 @@ function endFightIfClear(){
   const bossWin=!!G.fightBossDead;
   const won=!!(G.fightGotKill||bossWin);
   G.fightOn=0;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteFightEnd) CampaignRuntime.noteFightEnd(G);
   if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G);
   G.fightWasBoss=0;
   G.fightBossDead=0;
@@ -12058,6 +12081,16 @@ function useScrollByName(it, e){
 function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
+  if(it.k==='egg' || it.id==='golden_egg'){
+    const pk=packOf(packOwner(e));
+    const bag=pk&&pk.magic?pk.magic:[];
+    const res=(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armEgg)?CampaignRuntime.armEgg(G, it, bag):null;
+    if(res&&res.ok){
+      if(typeof syncPackTotals==='function') syncPackTotals();
+      say('A golden egg. Armor holds for one battle.','#ffe08a');
+    } else if(res&&res.reason==='egg-blocked') say('One egg is already at work.','#c9b895');
+    return;
+  }
   if(it.id==='pixie_dust'){
     if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armDust) CampaignRuntime.armDust(G, e);
     const pk=packOf(packOwner(e));
@@ -12729,7 +12762,7 @@ function damage(e,amt,col,src){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
       say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteDeath) CampaignRuntime.noteDeath(G); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
 }
 function onHitFx(atk,o,dmg){
   if(!atk||!o) return dmg;
@@ -13559,6 +13592,10 @@ function chapelFaceToothTaken(face){
     const f=G.lvl&&G.lvl.flags;
     return !!(f&&f.electrumTooth3);
   }
+  if(face.itemId==='grond_tooth_electrum_4'){
+    const f=G.lvl&&G.lvl.flags;
+    return !!(f&&f.electrumTooth4);
+  }
   const f=G.lvl&&G.lvl.flags;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
   if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
@@ -13579,7 +13616,7 @@ function bindPriedChapelTooth(){
   if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
   (G.props||[]).forEach(p=>{
     if(!p||p.gone||p.k!=='demonface') return;
-    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3') return;
+    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3'||p.itemId==='grond_tooth_electrum_4') return;
     p.emptySocket=1;
   });
 }
@@ -16122,7 +16159,7 @@ function update(dt){
      off the screen, so the first phone tap mid-fight never pried. */
   if(p && typeof nearestDemonFace==='function'){
     const toothFace=nearestDemonFace(p,2.05);
-    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
+    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3'||toothFace.itemId==='grond_tooth_electrum_4') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
       interact('Take the electrum tooth',()=>{
         if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, toothFace);
       });
@@ -17508,7 +17545,7 @@ function demonFaceImg(p){
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
-  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')){
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3' || p.itemId==='grond_tooth_electrum_4')){
     if(typeof OPTIONAL_ART!=='undefined') OPTIONAL_ART.demon_dwarfface=1;
     if(typeof loadSpriteKeyNow==='function' && !(SPR.demon_dwarfface&&SPR.demon_dwarfface.width)) loadSpriteKeyNow('demon_dwarfface');
     const face=SPR.demon_dwarfface||SPR.demonface||null;
@@ -17601,7 +17638,7 @@ function drawDemonDwarfFace(g,p){
   }
   const img=demonFaceImg(p);
   /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
-  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3' || p.itemId==='grond_tooth_electrum_4') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
   g.save();

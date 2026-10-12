@@ -218,9 +218,11 @@ const boot = fs.readFileSync(path.join(__dirname, 'CampaignBoot.js'), 'utf8');
 const ogreAt = boot.indexOf('src/campaign/OgreCave.js');
 const l4At = boot.indexOf('src/campaign/L4.js');
 const poisonAt = boot.indexOf('src/combat/SpiderPoison.js');
+const buffAt = boot.indexOf('src/combat/BattleBuffs.js');
 const runtimeAt = boot.indexOf('src/campaign/CampaignRuntime.js');
 assert(ogreAt >= 0 && l4At > ogreAt, 'the boot loads OgreCave before L4');
 assert(poisonAt >= 0 && runtimeAt > poisonAt, 'the boot loads SpiderPoison before the runtime');
+assert(buffAt > poisonAt && runtimeAt > buffAt, 'the boot loads BattleBuffs before the runtime');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'the page does not name the L2 files');
 assert(/CampaignRuntime\.install\(G,\{scale:ADD_SCALE/.test(html), 'startChapter installs a live level');
 assert(/CampaignRuntime\.noteCleared\(G\)/.test(html), 'endChapter records the next level');
@@ -233,7 +235,9 @@ assert(R.campGoDeeper(clearedChapter) === 'enter' && clearedChapter.campaignLeve
 const afterLevel2 = { ch: 2, campaignLevel: 2, cleared: { 1: 1, 2: 1 } };
 assert(R.campGoDeeper(afterLevel2) === 'enter' && afterLevel2.campaignLevel === 3, 'after Level 2, Go deeper enters Level 3');
 const afterLevel3 = { ch: 2, campaignLevel: 3, unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 } };
-assert(R.campGoDeeper(afterLevel3) === 'soon' && afterLevel3.campaignLevel === 3 && afterLevel3.unlocked === 4, 'after Level 3, Go deeper stays at camp');
+assert(R.campGoDeeper(afterLevel3) === 'enter' && afterLevel3.campaignLevel === 4, 'after Level 3, Go deeper enters Level 4');
+const afterLevel4 = { ch: 4, campaignLevel: 4, unlocked: 5, cleared: { 1: 1, 2: 1, 3: 1, 4: 1 } };
+assert(R.campGoDeeper(afterLevel4) === 'soon' && afterLevel4.campaignLevel === 4 && afterLevel4.unlocked === 5, 'after Level 4, Go deeper stays at camp');
 const oldChapterTwo = { ch: 2, campaignLevel: 1, cleared: { 1: 1, 2: 1 } };
 assert(R.campGoDeeper(oldChapterTwo) === 'enter' && oldChapterTwo.campaignLevel === 2, 'an old chapter II clear still enters campaign Level 2');
 const freshCamp = { ch: 1, campaignLevel: 1, cleared: {} };
@@ -278,6 +282,47 @@ bootCtx.SPR.macar = { width: 8 };
 const enterSrc = html.slice(html.indexOf('function tryEnterPlay'), html.indexOf('function goldTitleLine'));
 require('vm').runInContext(enterSrc + '\nthis.tryEnterPlay=tryEnterPlay;', bootCtx);
 assert(bootCtx.tryEnterPlay() === true && bootCtx.G.scene === 'play', 'a blocked optional image does not block boot');
+const loaderSrc = html.slice(html.indexOf('function loadSpriteKeyNow'), html.indexOf('let MACAR_EQUIP_ART_SIG'));
+const sprFn = html.slice(html.indexOf('function sprReady'), html.indexOf('const SPRITE_LOADING'));
+const retryImages = [];
+function RetryImage() { retryImages.push(this); }
+Object.defineProperty(RetryImage.prototype, 'src', {
+  set: function (v) { this._src = v; },
+  get: function () { return this._src; }
+});
+const retryTimers = [];
+const retryCtx = require('vm').createContext({
+  Image: RetryImage,
+  setTimeout: function (fn, ms) { retryTimers.push({ fn: fn, ms: ms }); return retryTimers.length; },
+  SPRITE_FILES: {
+    floor_mine: 'assets/tiles/tile_floor_mine.png',
+    demon_dwarfface: 'assets/props/prop_demon_dwarfface.png',
+    macar: 'assets/dwarves/macar.png'
+  },
+  SPRITE_GAVE_UP: {},
+  SPRITE_RETRY: {},
+  SPRITE_LOADING: {},
+  SPR: {},
+  OPTIONAL_ART: {},
+  assetUrl: function (s) { return '/' + s; }
+});
+require('vm').runInContext(optSrc + '\n' + sprFn + '\n' + loaderSrc + '\nthis.loadSpriteKeyNow=loadSpriteKeyNow;', retryCtx);
+retryCtx.loadSpriteKeyNow('floor_mine', function () {});
+assert(retryImages.length === 1, 'a required sheet starts one request');
+retryImages[0].onerror();
+retryImages[0].onerror();
+assert(!retryCtx.SPRITE_GAVE_UP.floor_mine && retryTimers.length === 1 && retryTimers[0].ms === 400, 'required art waits and tries again after two failures');
+retryTimers[0].fn();
+assert(retryImages.length === 2, 'the backoff starts another request for the required sheet');
+retryImages[1].onerror();
+retryImages[1].onerror();
+assert(retryTimers.length === 2 && retryTimers[1].ms === 800, 'the next miss waits longer');
+const beforeOptional = retryTimers.length;
+retryCtx.loadSpriteKeyNow('demon_dwarfface', function () {});
+const faceImg = retryImages[retryImages.length - 1];
+faceImg.onerror();
+faceImg.onerror();
+assert(retryCtx.SPRITE_GAVE_UP.demon_dwarfface === 1 && retryTimers.length === beforeOptional, 'a blocked optional image stops instead of holding the loader');
 const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function fitCampaignTitle'));
 assert(cardArt.indexOf('if(key && SPRITE_GAVE_UP[key]) return null;') >= 0, 'a failed intro_ch2 keeps the plain card fallback');
 assert(cardArt.indexOf('punchCampaignCard') >= 0, 'the campaign card keys magenta out of the splash');
@@ -323,7 +368,7 @@ assert(guard3 && guard3.rubyGp === 750 && guard3.hp === 144 && guard3.sprite ===
 let l3sum = 0;
 Object.keys(L3.XP).forEach(function (key) { l3sum += R.kill(R.beginRun(l3), key); });
 assert(l3sum === L3.XP.spider + L3.XP.spiderHuge + L3.XP.spiderGiant + L3.XP.phasespider + L3.XP.pixie + L3.XP.spiderQueen + L3.XP.rubyGuardian, 'one of each L3 printed xp sums without the ritual');
-assert(R.gaps(l3).indexOf('ghost-poison-gap') < 0 && R.gaps(l3).indexOf('elevator-returns-to-camp') >= 0, 'ghosts are immune, and Level 3 still returns to camp');
+assert(R.gaps(l3).indexOf('ghost-poison-gap') < 0 && R.gaps(l3).indexOf('elevator-returns-to-camp') < 0, 'ghosts are immune, and Level 3 enters Level 4');
 const bitten = { hp: 168, maxhp: 168, con: 18, lvl: 3, ghost: 0 };
 const fail = R.poisonHit({ campaignKey: 'spider', campaignPoison: 1 }, bitten, { roll: 1, con: 18, level: 3 });
 assert(fail && fail.saved === false && fail.damage === 84 && fail.killed === false && fail.slow && fail.slow.moveMul === 0.5 && fail.slow.seconds === 2, 'a failed H1 save takes half and slows for 2 seconds');
@@ -430,12 +475,131 @@ const card3 = { ch: 2, campaignLevel: 3, unlocked: 3, cleared: { 1: 1, 2: 1 }, c
 let ended3 = 0;
 let started3 = 0;
 global.endChapter = function () { ended3++; };
-global.startChapter = function () { started3++; };
+global.startChapter = function (n) { started3 = n; };
 R.finishCard(card3);
-assert(ended3 === 1 && started3 === 0 && card3.campaignLevel === 3 && card3.campaignCard == null, 'Descend from Level 3 returns to camp');
+assert(ended3 === 0 && started3 === 4 && card3.campaignLevel === 4 && card3.campaignCard == null, 'Descend from Level 3 enters Level 4 on the chapter 4 shell');
 assert(card3.cleared[1] === 1 && card3.cleared[2] === 1 && card3.cleared[3] === 1 && card3.unlocked === 4, 'Descend from Level 3 clears 1, 2, and 3 and unlocks 4');
-assert(R.campGoDeeper(card3) === 'soon' && card3.campaignLevel === 3, 'Level 4 is unwired, so camp stays on More coming');
 assert(html.indexOf('SpiderPoison') < 0, 'the page does not name SpiderPoison');
+
+const L4 = require('./L4');
+require('../combat/BattleBuffs');
+const G4 = {
+  campaignLevel: 4,
+  ch: 4,
+  t: 0,
+  ents: [{ team: 'party', hero: 1, x: 1, y: 1, hp: 40, maxhp: 40, ac: 4, dead: 0, col: { key: 'macar' } }],
+  props: [{ k: 'floorRubyDoor', x: 1, y: 1 }, { k: 'floorlever', x: 2, y: 2 }],
+  cam: { x: 0, y: 0 },
+  lvl: {
+    n: 4, w: 132, h: 106, grid: null, secrets: [],
+    flags: {},
+    spawn: { x: 20, y: 20 },
+    tick: function () {}
+  }
+};
+const orcFactory = foe('Orc', { kind: 'orc', sprite: 'orc', scale: 1.05, hp: 42, maxhp: 42 });
+assert(R.install(G4, { scale: 4, fresh: true, foe: { orc: orcFactory, statue: factories.thinone, construct: foe('Construct', { kind: 'construct', sprite: 'construct', scale: 1.35 }) }, rng: function () { return 0; } }) === true, 'Level 4 installs onto the chapter 4 shell');
+assert(G4.lvl.title === 'Orc Hold and the Ogre Cave' && G4.poisonMode === '', 'Level 4 keeps its name and does not turn poison on');
+const hero4 = G4.ents.filter(function (e) { return e.hero; })[0];
+assert(hero4.x === 8 && hero4.y === 28, 'Macar arrives at the Level 4 spawn');
+const orcs = G4.ents.filter(function (e) { return e.campaignKey === 'orc'; });
+const shaman4 = G4.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+assert(orcs.length === 8 && orcs[0].sprite === 'orc' && orcs[0].scale === 1.05 && orcs[0].hp === 20 && orcs[0].campaignXp === 15, 'eight orcs use the orc sheet at Macar size and 5 hit points');
+assert(shaman4 && shaman4.sprite === 'orc' && shaman4.scale === 1.05 && shaman4.hp === 128 && shaman4.ac === 5 && shaman4.campaignXp === 656 && shaman4.caster === 1 && isFinite(shaman4.scale), 'the shaman stands in on the orc sheet, sized to Macar');
+const chief = G4.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+assert(chief && chief.campaignKey === 'orcChief' && chief.hp === 132 && chief.ac === 3 && chief.campaignXp === 255 && chief.boss === 0 && chief.dice === '1d8+3', 'the chief has printed hit points and wears no boss flag');
+const guard4 = G4.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
+assert(guard4 && guard4.hp === 192 && guard4.rubyGp === 1000 && guard4.sleeping === 1 && guard4.sprite === 'construct' && guard4.boss === 0, 'Guardian IV sleeps on the construct sheet and drops 1000 gp');
+const face4 = G4.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_4'; })[0];
+assert(face4 && face4.k === 'demonface' && face4.x === 46 && face4.y === 14 && !face4.emptySocket, 'Electrum Tooth 4 is in the demon face at its data point');
+const seals = G4.props.filter(function (p) { return p && p.campaign === 'ogre-seal' && !p.gone; });
+const eggProps = G4.props.filter(function (p) { return p && p.campaign === 'golden-egg'; });
+const ogress = G4.ents.filter(function (e) { return e.campaignKey === 'ogress'; })[0];
+assert(seals.length === 3 && seals[0].seconds === 10 && eggProps.length === 3, 'three boulders seal the cave, and the eggs are inside');
+assert(ogress && ogress.team === 'neutral' && ogress.scale === 1 && isFinite(ogress.scale) && ogress.campaignXp == null && !ogress.fleeTo, 'the ogress is a Macar-sized stand-in and does not fight');
+hero4.x = seals[0].x;
+hero4.y = seals[0].y;
+global.interact = function (label, fn) { global._ogrePrompt = { label: label, fn: fn }; };
+global.say = function () {};
+global.hint = function () {};
+R.tick(G4, 0.1);
+assert(global._ogrePrompt && global._ogrePrompt.label === 'Clear the boulder', 'a sealed boulder offers the clear');
+global._ogrePrompt.fn();
+R.tick(G4, 10);
+assert(seals.filter(function (s) { return !s.gone; }).length === 2 && !ogress.fleeTo, 'one boulder takes ten seconds, and she stays while two remain');
+hero4.x = seals[1].x; hero4.y = seals[1].y;
+R.tick(G4, 0.1);
+global._ogrePrompt.fn();
+R.tick(G4, 10);
+hero4.x = seals[2].x; hero4.y = seals[2].y;
+R.tick(G4, 0.1);
+global._ogrePrompt.fn();
+R.tick(G4, 10);
+assert(ogress._fleeing === 1 && ogress.glanceBack === 0.9 && ogress.fleeTo && ogress.team === 'neutral', 'clearing the boulders sends her out, and she glances back');
+let rescueXp = 0;
+global.awardPartyXp = function (n) { rescueXp += n; };
+ogress.x = ogress.fleeTo.x;
+ogress.y = ogress.fleeTo.y;
+ogress.fleePath = [];
+ogress.fleeTo = null;
+ogress.onArrive();
+assert(ogress.vanished === 1 && ogress.dead === 1 && rescueXp === 185 && G4.lvl.flags.ogressXp === 1, 'she is gone at the exit and the rescue is 185 XP');
+hero4.x = eggProps[0].x; hero4.y = eggProps[0].y;
+R.tick(G4, 0.1);
+assert(global._ogrePrompt && global._ogrePrompt.label === 'Take the golden egg', 'the eggs can be taken once the cave is open');
+let stowedEgg = null;
+global.stowPackItem = function (it) { stowedEgg = it; G4.packs = { macar: { magic: [it, { id: 'golden_egg', k: 'egg', n: 'Golden Egg' }] } }; };
+global._ogrePrompt.fn();
+assert(eggProps[0].gone === 1 && stowedEgg && stowedEgg.k === 'egg' && stowedEgg.id === 'golden_egg', 'a golden egg goes into the pack');
+const bag = G4.packs.macar.magic;
+const armed = R.armEgg(G4, bag[0], bag);
+assert(armed.ok && bag.length === 1 && hero4.eggAc === 0, 'the first egg arms and does not change AC before the battle');
+const blockedEgg = R.armEgg(G4, bag[0], bag);
+assert(!blockedEgg.ok && blockedEgg.reason === 'egg-blocked' && bag.length === 1, 'a second egg waits while one is armed');
+R.noteFight(G4);
+assert(hero4.eggAc === -4, 'the battle turns the egg into +4 AC');
+R.noteFightEnd(G4);
+assert(hero4.eggAc === 0 && G4._battleBuffs.battleBuffs.length === 0, 'the egg ends when the battle ends');
+let stowed4 = null;
+global.stowPackItem = function (it) { stowed4 = it; };
+const pry4 = R.pryTooth(G4, face4);
+assert(pry4.ok === 1 && stowed4.id === 'grond_tooth_electrum_4' && stowed4.n === 'Electrum Tooth 4' && stowed4.curse === 'coin' && stowed4.bind === false && !stowed4.cursed && stowed4.grondTooth === 'electrum', 'tooth 4 is a coin curse with no bind');
+assert(G4.lvl.flags.electrumTooth4 === 1 && face4.emptySocket === 1, 'the pry sets electrumTooth4');
+assert(/toothFace\.itemId==='grond_tooth_electrum_4'/.test(html), 'the page offers the Level 4 tooth');
+guard4.dead = 1;
+hero4.x = 45.5; hero4.y = 41.2;
+global.interact = function (label, fn) { global._l4Prompt = { label: label, fn: fn }; };
+R.tick(G4, 0.1);
+assert(global._l4Prompt && global._l4Prompt.label === 'Pull the lever', 'a dead guardian lets the player pull the Level 4 lever');
+global._l4Prompt.fn();
+assert(G4.scene === 'campaign-card' && G4.campaignCard.key === 'mon_orc' && G4.campaignCard.title === 'Orc Hold and the Ogre Cave', 'the lever shows the orc elevator card');
+let ended4 = 0;
+let started4 = 0;
+global.endChapter = function () { ended4++; };
+global.startChapter = function () { started4++; };
+G4.cleared = { 1: 1, 2: 1, 3: 1 };
+G4.unlocked = 4;
+R.finishCard(G4);
+assert(ended4 === 1 && started4 === 0 && G4.campaignLevel === 4 && G4.cleared[4] === 1 && G4.unlocked === 5, 'the Level 4 elevator clears 1 through 4, unlocks 5, and returns to camp');
+assert(R.campGoDeeper(G4) === 'soon' && G4.campaignLevel === 4, 'Go deeper after Level 4 says more coming');
+G4.scene = 'play';
+G4.lvl.flags.stairsOpen = 0;
+G4.lvl.flags.bossDead = 0;
+chief.dead = 0;
+R.tick(G4, 0.05);
+assert(G4.lvl.flags.stairsOpen === 0, 'the stair stays shut while the chief lives');
+chief.dead = 1;
+hero4.x = 48.1; hero4.y = 61.4;
+R.tick(G4, 0.1);
+assert(G4.lvl.flags.stairsOpen === 1 && global._l4Prompt && global._l4Prompt.label === 'Climb the stair', 'the chief kill opens the stair');
+G4.cleared = { 1: 1, 2: 1, 3: 1 };
+G4.unlocked = 4;
+G4.campaignLevel = 4;
+ended4 = 0;
+global._l4Prompt.fn();
+assert(ended4 === 1 && G4.cleared[1] === 1 && G4.cleared[2] === 1 && G4.cleared[3] === 1 && G4.cleared[4] === 1 && G4.unlocked === 5 && G4.campaignLevel === 4, 'the Level 4 stair records 1 through 4 and unlocks 5');
+assert(R.gaps(R.load(4)).indexOf('elevator-returns-to-camp') >= 0, 'Level 5 is unwired, so the elevator still returns to camp');
+assert(L4.wired === false, 'the L4 data module stays unwired');
 
 if (failed) {
   console.error(failed + ' failed');
