@@ -409,8 +409,8 @@ function castWorld(shaman, hero) {
   assert(img.indexOf("loadSpriteKeyNow('demon_dwarfface')") > tooth, 'tooth 2 and tooth 3 load the portrait when it is missing');
   const drawFace = html.slice(html.indexOf('function drawDemonDwarfFace'), html.indexOf('function drawFloorDust'));
   assert(drawFace.indexOf("p.itemId==='grond_tooth_electrum_3'") > 0 && drawFace.indexOf('!(img&&img.width)) return;') > 0, 'an unloaded electrum face draws nothing');
-  const worldArt = html.slice(html.indexOf('const WORLD_ART_KEYS'), html.indexOf('Object.keys(WORLD_ART_KEYS)'));
-  assert(/2:\[[\s\S]*?'demon_dwarfface'/.test(worldArt), 'chapter 2 preloads the demon face');
+  const worldArt = html.slice(html.indexOf('const WORLD_ART_KEYS'), html.indexOf('function sprReady'));
+  assert(worldArt.indexOf('demon_dwarfface') < 0, 'the demon face lazy-loads and is not required level art');
   const loop = html.slice(html.indexOf('if(typeof tickSpellZones'), html.indexOf('function render('));
   const fleeAt = loop.indexOf('if(!e.hero && e.fleeTo)');
   const stepAt = loop.indexOf('else { stepFoeFlee(e, dt); continue; }');

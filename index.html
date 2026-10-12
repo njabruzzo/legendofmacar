@@ -1192,7 +1192,7 @@ const WORLD_ART_KEYS={
      'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se','demon_dwarfface'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
   3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -1213,21 +1213,17 @@ function campaignSpriteKey(key){
   if(String(key).indexOf('mon_')===0 && SPRITE_FILES[String(key).slice(4)]) return String(key).slice(4);
   return key;
 }
-function campaignOrLevelArt(k){
+const OPTIONAL_ART={};
+function optionalArt(k){
   if(!k) return false;
   if(k==='intro_ch2') return true;
   const name=String(k);
-  if(name.indexOf('intro_')===0 || name.indexOf('mon_')===0) return true;
+  if(name.indexOf('intro_')===0) return true;
+  if(name==='title_splash'||name==='title_menu'||name==='title_logo'||name==='chapters_plate'||name==='intro_cavein') return true;
   if(name==='demon_dwarfface'||name==='demonface'||name==='demon_dwarfface_empty'||name==='demon_dwarfface_vault') return true;
-  const src=SPRITE_FILES[k]||'';
-  if(src.indexOf('/mon_')>=0 || src.indexOf('intro_ch')>=0) return true;
-  const lists=WORLD_ART_KEYS;
-  if(lists){
-    for(const n in lists){
-      const arr=lists[n];
-      if(arr && arr.indexOf(k)>=0) return true;
-    }
-  }
+  if(OPTIONAL_ART[name]) return true;
+  const src=(typeof SPRITE_FILES!=='undefined' && SPRITE_FILES[name])||'';
+  if(src.indexOf('/intro_')>=0 || src.indexOf('title_splash')>=0 || src.indexOf('title_menu')>=0 || src.indexOf('chapters_plate')>=0) return true;
   return false;
 }
 function loadSpriteKeyNow(k, cb){
@@ -1267,9 +1263,10 @@ function loadSpriteKeyNow(k, cb){
       img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
       return;
     }
-    /* Campaign cards and level art are asked again every frame.
-       One retry, then the loader stops. intro_ch2 keeps that rule. */
-    if(k==='intro_ch2' || campaignOrLevelArt(k)) SPRITE_GAVE_UP[k]=1;
+    /* Optional covers (campaign cards, faces, splashes) are asked again
+       every frame. One retry, then stop. Required level art and Macar
+       sheets keep trying on the next request. intro_ch2 keeps that rule. */
+    if(k==='intro_ch2' || optionalArt(k)) SPRITE_GAVE_UP[k]=1;
     fin(false);
   };
   img.src=assetUrl(SPRITE_FILES[k]);
@@ -1300,7 +1297,12 @@ function requestMacarEquipmentArt(){
 function worldArtReady(n){
   n=n||(G&&G.ch)||1;
   const keys=WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1];
-  for(let i=0;i<keys.length;i++) if(!sprReady(keys[i])) return false;
+  for(let i=0;i<keys.length;i++){
+    const k=keys[i];
+    /* A given-up optional image is done. The frame draws its fallback. */
+    if(SPRITE_GAVE_UP[k]) continue;
+    if(!sprReady(k)) return false;
+  }
   return true;
 }
 function loadSprites(done){
@@ -17507,6 +17509,7 @@ function demonFaceImg(p){
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
   if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')){
+    if(typeof OPTIONAL_ART!=='undefined') OPTIONAL_ART.demon_dwarfface=1;
     if(typeof loadSpriteKeyNow==='function' && !(SPR.demon_dwarfface&&SPR.demon_dwarfface.width)) loadSpriteKeyNow('demon_dwarfface');
     const face=SPR.demon_dwarfface||SPR.demonface||null;
     return (face&&face.width)?face:null;
@@ -22183,6 +22186,7 @@ function punchCampaignCard(img){
 }
 function campaignCardArt(card){
   const key=campaignSpriteKey((card&&card.key)||'');
+  if(key) OPTIONAL_ART[key]=1;
   if(key && SPRITE_GAVE_UP[key]) return null;
   if(key && typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
   if(key && SPR[key] && SPR[key].width) return punchCampaignCard(SPR[key]);

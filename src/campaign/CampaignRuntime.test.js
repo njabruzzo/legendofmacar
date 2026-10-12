@@ -248,7 +248,36 @@ assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test
 const loader = html.slice(html.indexOf('function loadSpriteKeyNow'), html.indexOf('let MACAR_EQUIP_ART_SIG'));
 const retryAt = loader.indexOf('img.__retried');
 const giveAt = loader.indexOf('SPRITE_GAVE_UP[k]=1');
-assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader) && loader.indexOf('campaignOrLevelArt(k)') > giveAt - 80, 'campaign card and level art retry once, then the loader stops');
+assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader) && loader.indexOf('optionalArt(k)') > giveAt - 80, 'optional art retries once, then the loader stops');
+assert(loader.indexOf('WORLD_ART_KEYS') < 0, 'required level art is not marked given up');
+const optSrc = html.slice(html.indexOf('function optionalArt'), html.indexOf('function loadSpriteKeyNow'));
+const readySrc = html.slice(html.indexOf('function sprReady'), html.indexOf('const SPRITE_LOADING'))
+  + html.slice(html.indexOf('function worldArtReady'), html.indexOf('function loadSprites'));
+const bootCtx = require('vm').createContext({
+  SPRITE_FILES: {
+    intro_ch2: 'assets/ui/intro_ch2.jpg',
+    demon_dwarfface: 'assets/props/prop_demon_dwarfface.png',
+    title_splash: 'assets/ui/title_splash.jpg',
+    macar: 'assets/dwarves/macar.png',
+    floor_mine: 'assets/tiles/tile_floor_mine.png'
+  },
+  OPTIONAL_ART: {},
+  SPRITE_GAVE_UP: { demon_dwarfface: 1 },
+  SPR: { floor_mine: { width: 4 }, macar: { width: 8 }, wall_cave: { width: 4 } },
+  WORLD_ART_KEYS: { 2: ['floor_mine', 'macar', 'wall_cave', 'demon_dwarfface'] },
+  G: { ch: 2, scene: 'intro', _wantPlay: 1, taught: {} },
+  hint: function () {}
+});
+require('vm').runInContext(optSrc + '\n' + readySrc + '\nthis.optionalArt=optionalArt; this.worldArtReady=worldArtReady;', bootCtx);
+assert(bootCtx.optionalArt('intro_ch2') === true && bootCtx.optionalArt('demon_dwarfface') === true && bootCtx.optionalArt('title_splash') === true, 'cards, faces, and splashes are optional');
+assert(bootCtx.optionalArt('macar') === false && bootCtx.optionalArt('floor_mine') === false && bootCtx.optionalArt('macar_w1') === false, 'Macar and level art keep retrying');
+assert(bootCtx.worldArtReady(2) === true, 'a blocked optional face does not hold the level');
+bootCtx.SPR.macar = { width: 0 };
+assert(bootCtx.worldArtReady(2) === false, 'a missing Macar sheet still holds the level');
+bootCtx.SPR.macar = { width: 8 };
+const enterSrc = html.slice(html.indexOf('function tryEnterPlay'), html.indexOf('function goldTitleLine'));
+require('vm').runInContext(enterSrc + '\nthis.tryEnterPlay=tryEnterPlay;', bootCtx);
+assert(bootCtx.tryEnterPlay() === true && bootCtx.G.scene === 'play', 'a blocked optional image does not block boot');
 const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function fitCampaignTitle'));
 assert(cardArt.indexOf('if(key && SPRITE_GAVE_UP[key]) return null;') >= 0, 'a failed intro_ch2 keeps the plain card fallback');
 assert(cardArt.indexOf('punchCampaignCard') >= 0, 'the campaign card keys magenta out of the splash');
