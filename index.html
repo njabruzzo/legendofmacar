@@ -1204,7 +1204,7 @@ const WORLD_ART_KEYS={
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
   4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se','orc','warg','construct'],
   5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
@@ -4067,6 +4067,8 @@ function fadeMasonryCanvas(img){
   return c;
 }
 function entSpriteKey(e){
+  /* A stand-in with no file is drawn, never left waiting on a missing sheet. */
+  if(e && e.artStandIn && !(e.sprite && SPRITE_FILES[e.sprite])) return '';
   /* Spawn may run before the idle sheet finishes loading. Use it once it has. */
   if(e && e.name==='Skeletal Dwarf' && e.singlePose && !e.dead
      && typeof sprReady==='function' && sprReady('dwarf_skeleton_idle'))
@@ -10437,6 +10439,10 @@ function stowPackItem(it, opts){
   if(!G.packs.macar) G.packs.macar={magic:[]};
   const pk=G.packs.macar;
   pk.magic=pk.magic||[];
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.stackMagic){
+    const stacked=CampaignRuntime.stackMagic(pk.magic, it);
+    if(stacked){ if(typeof syncPackTotals==='function') syncPackTotals(); return stacked; }
+  }
   const i=packHasItem(pk, it);
   if(i>=0){
     const have=pk.magic[i];
@@ -11013,7 +11019,11 @@ function addAttack(atk, def, opts){
   /* Band uses STR+magic only. Matrix still uses addAttack mods (rear/dex/buff). */
   const matrixHit=roll===20 || matrixTot>=need;
   const bandOk=spec?specialtyInBand(specKind, specTot):true;
-  const hit=spec?(bandOk&&matrixHit):matrixHit;
+  let hit=spec?(bandOk&&matrixHit):matrixHit;
+  if(!hit && (def.held||0)>0 && atk && atk.campaignRole==='boss'){
+    const chief=G.lvl&&G.lvl.campaignSpec&&G.lvl.campaignSpec.data&&G.lvl.campaignSpec.data.CHIEF;
+    if(chief&&chief.helplessHitsLand) hit=true;
+  }
   const pct=hitChancePct(need, bonus);
   let tag='';
   if(spec){
@@ -23337,6 +23347,17 @@ function drawTrade(g){
       spendGp(need); r.fn(); say('Bought: '+r.t+'.','#ffd27a');
     }});
   });
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.eggPrice && CampaignRuntime.sellEgg){
+    const eggGp=CampaignRuntime.eggPrice(G);
+    const magic=(G.packs&&G.packs.macar&&G.packs.macar.magic)||[];
+    const egg=magic.find(it=>it&&(it.k==='egg'||it.id==='golden_egg')&&(it.qty||1)>0);
+    if(eggGp>0 && egg){
+      menuBtn(g,'Sell a golden egg ('+eggGp+' gp)',VW/2,VH-60*s,Math.min(280*s,VW*.72),32*s,()=>{
+        const res=CampaignRuntime.sellEgg(G);
+        if(res&&res.ok) say('Noz pays '+res.gp+' gp for the egg.','#ffd27a');
+      });
+    }
+  }
   menuBtn(g,'Back to the cavern',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
 }
 

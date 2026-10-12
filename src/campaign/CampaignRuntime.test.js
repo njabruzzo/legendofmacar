@@ -521,7 +521,7 @@ const seals = G4.props.filter(function (p) { return p && p.campaign === 'ogre-se
 const eggProps = G4.props.filter(function (p) { return p && p.campaign === 'golden-egg'; });
 const ogress = G4.ents.filter(function (e) { return e.campaignKey === 'ogress'; })[0];
 assert(seals.length === 3 && seals[0].seconds === 10 && eggProps.length === 3, 'three boulders seal the cave, and the eggs are inside');
-assert(ogress && ogress.team === 'neutral' && ogress.scale === 1 && isFinite(ogress.scale) && ogress.campaignXp == null && !ogress.fleeTo, 'the ogress is a Macar-sized stand-in and does not fight');
+assert(ogress && ogress.team === 'neutral' && ogress.scale === 1 && isFinite(ogress.scale) && ogress.sprite === '' && ogress.artStandIn && ogress.campaignXp == null && !ogress.fleeTo, 'the ogress is a drawn stand-in at Macar size and does not fight');
 hero4.x = seals[0].x;
 hero4.y = seals[0].y;
 global.interact = function (label, fn) { global._ogrePrompt = { label: label, fn: fn }; };
@@ -558,7 +558,7 @@ global._ogrePrompt.fn();
 assert(eggProps[0].gone === 1 && stowedEgg && stowedEgg.k === 'egg' && stowedEgg.id === 'golden_egg', 'a golden egg goes into the pack');
 const bag = G4.packs.macar.magic;
 const armed = R.armEgg(G4, bag[0], bag);
-assert(armed.ok && bag.length === 1 && hero4.eggAc === 0, 'the first egg arms and does not change AC before the battle');
+assert(armed.ok && bag.length === 1 && hero4.eggAc === -4, 'using the egg is already 4 AC better for the next battle');
 const blockedEgg = R.armEgg(G4, bag[0], bag);
 assert(!blockedEgg.ok && blockedEgg.reason === 'egg-blocked' && bag.length === 1, 'a second egg waits while one is armed');
 R.noteFight(G4);
@@ -605,6 +605,245 @@ global._l4Prompt.fn();
 assert(ended4 === 1 && G4.cleared[1] === 1 && G4.cleared[2] === 1 && G4.cleared[3] === 1 && G4.cleared[4] === 1 && G4.unlocked === 5 && G4.campaignLevel === 4, 'the Level 4 stair records 1 through 4 and unlocks 5');
 assert(R.gaps(R.load(4)).indexOf('elevator-returns-to-camp') >= 0, 'Level 5 is unwired, so the elevator still returns to camp');
 assert(L4.wired === false, 'the L4 data module stays unwired');
+
+const ch4Art = html.match(/4:\[[\s\S]*?\],\s*\n\s*5:/);
+assert(ch4Art && /'orc'/.test(ch4Art[0]) && /'warg'/.test(ch4Art[0]) && /'construct'/.test(ch4Art[0]), 'Level 4 preloads the orc, warg, and construct sheets');
+assert(/ASSET_VER='132'/.test(html), 'asset version stays 132');
+assert(/if\(e && e\.artStandIn && !\(e\.sprite && SPRITE_FILES\[e\.sprite\]\)\) return ''/.test(html), 'a stand-in with no file is drawn');
+assert(!/ogress:'assets/.test(html) && !/ogress:"assets/.test(html), 'the page does not register an ogress sheet');
+
+const guards4 = G4.ents.filter(function (e) { return e.campaignKey === 'orcGuard'; });
+const leaders4 = G4.ents.filter(function (e) { return e.campaignKey === 'orcLeader'; });
+const wargs4 = G4.ents.filter(function (e) { return e.campaignKey === 'warg'; });
+const wolves4 = G4.ents.filter(function (e) { return e.campaignKey === 'wolf'; });
+assert(guards4.length === 6 && guards4.every(function (e) { return e.sprite === 'orc' && e.hd === 3 && e.ac === 4 && e.hp === 60 && isFinite(e.scale); }), 'guards use the orc sheet, AC 4, attack as 3 HD, and 15 hp');
+assert(chief.hd === 5 && chief.ac === 3 && chief.hp === 132 && chief.sprite === 'orc', 'the chief attacks as 5 HD at AC 3');
+assert(shaman4.hd === 7 && shaman4.ac === 5 && shaman4.sprite === 'orc', 'the shaman attacks as 7 HD at AC 5');
+assert(guard4.hd === 8 && guard4.ac === 3 && guard4.hp === 192, 'the guardian attacks as 8 HD at AC 3');
+assert(leaders4.length >= 1 && leaders4.every(function (e) { return e.sprite === 'orc' && e.ac === 6 && isFinite(e.scale); }), 'leaders bind the orc sheet');
+assert(wargs4.length === 9 && wolves4.length === 2 && L4.FORECAST_PACK.worgs === 4, 'the floor places nine worgs and two wolves; the forecast column is four worgs');
+assert(wolves4.every(function (e) { return e.hd === 2 && e.ac === 7 && e.hp !== 144 && e.hp1e !== 36; }) && wargs4.every(function (e) { return e.hd === 3 && e.ac === 6 && e.hp !== 144; }), 'wolves roll 2+2 HD and worgs roll 3+3 HD, not the warg factory');
+assert(wolves4[0].hp1e === 4 && 2 * ((8 + 1) / 2) + 2 === 11, 'a minimum 2d8+2 wolf is 4, and the dice average 11');
+
+const vm = require('vm');
+function extractFn(name) {
+  const re = new RegExp('function ' + name + '\\([\\s\\S]*?\\n\\}');
+  const m = html.match(re);
+  if (!m) throw new Error('missing ' + name);
+  return m[0];
+}
+const acCtx = { clamp: function (v, a, b) { return v < a ? a : v > b ? b : v; }, isRearAttack: function () { return false; }, partyAC: function () { return 6; } };
+vm.createContext(acCtx);
+vm.runInContext(extractFn('effectiveAC'), acCtx);
+assert(acCtx.effectiveAC(guards4[0]) === 4 && acCtx.effectiveAC(chief) === 3 && acCtx.effectiveAC(guard4) === 3 && acCtx.effectiveAC(shaman4) === 5, 'effective AC is the printed armor class');
+assert(acCtx.effectiveAC({ team: 'party', hero: 1, eggAc: -4, stun: 0, prone: 0, held: 0 }) === 2, 'an armed egg makes AC 6 into AC 2 for that battle');
+
+const eggPack = [];
+const oneEgg = { id: 'golden_egg', k: 'egg', n: 'Golden Egg' };
+assert(R.stackMagic(eggPack, oneEgg) && R.stackMagic(eggPack, { id: 'golden_egg', k: 'egg', n: 'Golden Egg' }) && R.stackMagic(eggPack, { id: 'golden_egg', k: 'egg', n: 'Golden Egg' }) && eggPack.length === 1 && eggPack[0].qty === 3, 'three golden eggs stack as one item');
+const eggHero = { team: 'party', hero: 1, dead: 0, hp: 40, maxhp: 40 };
+const eggG = { t: 0, ents: [eggHero], lvl: G4.lvl };
+const stackedArm = R.armEgg(eggG, eggPack[0], eggPack);
+assert(stackedArm.ok && eggPack[0].qty === 2 && eggHero.eggAc === -4, 'arming one egg from a stack of three leaves two and applies the AC');
+const stackedBlock = R.armEgg(eggG, eggPack[0], eggPack);
+assert(!stackedBlock.ok && stackedBlock.reason === 'egg-blocked' && eggPack[0].qty === 2, 'a second egg does not leave the stack while one is pending');
+R.noteFight(eggG);
+assert(eggHero.eggAc === -4, 'the battle keeps the egg AC');
+R.noteFightEnd(eggG);
+assert(eggHero.eggAc === 0 && eggG._battleBuffs.battleBuffs.length === 0, 'the egg AC clears when the battle ends');
+
+let peltN = 0;
+global.stowPackItem = function (it) { if (it && it.id === 'worg_pelt') peltN++; };
+R.onDown(G4, { campaignKey: 'warg', campaignRole: 'resident' });
+R.onDown(G4, { campaignKey: 'wolf', campaignRole: 'resident' });
+assert(peltN === 2, 'each worg and wolf kill drops one worg pelt');
+
+const caches4 = (G4.loot || []).filter(function (z) { return z && String(z.label || '').indexOf('Dungeon cache') === 0 && !z.gone; });
+function cacheAt(x, y) {
+  return caches4.some(function (z) { return z.x === x && z.y === y; });
+}
+assert(caches4.length === 16 && cacheAt(26, 28) && cacheAt(46, 20) && cacheAt(48, 42), 'sixteen caches sit on the printed places');
+const chest4 = G4.props.filter(function (p) { return p && p.campaign === 'lair-chest'; })[0];
+assert(chest4 && chest4.x === 48.4 && chest4.y === 22.2, 'the lair chest is at the chief chest point');
+G4.lvl._campaignHost.d100 = function () { return 1; };
+G4.lvl._campaignHost.rng = function () { return 0; };
+const hoard4 = R.openLairChest(G4, chest4);
+assert(hoard4 && hoard4.coins.cp === 2000 && hoard4.coins.sp === 2000 && hoard4.gems === 11 && hoard4.potions === 1 && chest4.gone === 1, 'the lair chest rolls the printed C, O, Qx10, and S dice');
+
+G4.packs = { macar: { magic: [{ id: 'golden_egg', k: 'egg', n: 'Golden Egg', qty: 2 }] } };
+G4.coin = { gp: 0 };
+let soldXp = 0;
+global.awardPartyXp = function (n) { soldXp += n; };
+global.addCoin = function (k, n) { G4.coin[k] = (G4.coin[k] || 0) + n; };
+assert(R.eggPrice(G4) === 50, 'Noz buys a golden egg for the printed 50 gp');
+const sold = R.sellEgg(G4);
+assert(sold.ok && sold.gp === 50 && G4.packs.macar.magic[0].qty === 1 && G4.coin.gp === 50 && soldXp === 50, 'selling an egg pays 50 gp and awards that treasure xp');
+assert(/Sell a golden egg/.test(html) && /CampaignRuntime\.sellEgg/.test(html) && /CampaignRuntime\.eggPrice/.test(html), 'the Noz trade screen offers the egg sale');
+
+function bootL4(extra) {
+  const g = {
+    campaignLevel: 4,
+    ch: 4,
+    t: 0,
+    ents: [{ team: 'party', hero: 1, x: 12, y: 34, hp: 40, maxhp: 40, dead: 0, col: { key: 'macar' }, name: 'Macar' }],
+    props: [{ k: 'trap', x: 28, y: 28 }, { k: 'slime', x: 17, y: 29 }, { k: 'boulder', campaign: 'ogre-seal', x: 1, y: 1 }, { k: 'boulder', campaign: 'ogre-seal', x: 2, y: 2 }, { k: 'boulder', campaign: 'ogre-seal', x: 3, y: 3 }],
+    loot: [],
+    cam: { x: 0, y: 0 },
+    lvl: {
+      n: 4, w: 132, h: 106, grid: null, secrets: [],
+      flags: {},
+      objs: [{ t: 'Destroy the Elder Brain', d: 0 }, { t: 'Clear the drowned streets', d: 0 }],
+      tick: function () { g.lvl._shell = 1; }
+    }
+  };
+  if (extra && extra.kin) g.ents.push({ team: 'party', x: 44.2, y: 18.4, hp: 20, maxhp: 20, dead: 0, name: 'Kin' });
+  const opts = { scale: 4, fresh: true, foe: { orc: orcFactory, statue: factories.thinone, construct: foe('Construct', { kind: 'construct', sprite: 'construct', scale: 1.35 }) }, rng: function () { return 0; }, rollExpr: function () { return 7; } };
+  assert(R.install(g, opts) === true, 'a Level 4 boot installs');
+  return g;
+}
+
+(function chiefRoar() {
+  const g = bootL4({ kin: 1 });
+  const hero = g.ents.filter(function (e) { return e.hero; })[0];
+  const boss = g.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const shaman = g.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  const kin = g.ents.filter(function (e) { return e.name === 'Kin'; })[0];
+  hero.x = boss.x;
+  hero.y = boss.y;
+  if (kin) { kin.x = shaman.x; kin.y = shaman.y; }
+  g.lvl._campaignHost.save = function (who, kind) { g._save = kind; return false; };
+  global.say = function () {};
+  global.interact = function () {};
+  R.tick(g, 1.1);
+  const blessed = g.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.blessHit === 1; });
+  assert(boss.roared === 1 && blessed.length >= 1 && String(shaman.spellsSpent || '').indexOf('Bless') >= 0, 'the chief roars and the shaman blesses the orcs');
+  let guard = 0;
+  while (guard < 8 && String(shaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+    R.tick(g, 1.1);
+    guard++;
+  }
+  assert(String(shaman.spellsSpent || '').indexOf('Hold Person') >= 0 && g._save === 'spell', 'the shaman spends Hold Person and calls a save vs spell');
+  assert(!(hero.held > 0), 'Hold Person prints no duration, so it does not invent one');
+  guard = 0;
+  while (guard < 8 && String(shaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+    R.tick(g, 1.1);
+    guard++;
+  }
+  assert(String(shaman.spellsSpent || '').indexOf("Silence 15' r.") >= 0, 'the shaman then spends Silence on a kin');
+})();
+
+(function chiefMorale() {
+  const g = bootL4();
+  const boss = g.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const hero = g.ents.filter(function (e) { return e.hero; })[0];
+  hero.x = 1;
+  hero.y = 1;
+  boss.hp = Math.floor(boss.maxhp * 0.25) - 1;
+  g.lvl._campaignHost.d100 = function () { return 65; };
+  R.kingStep(g, boss);
+  assert(boss.moraleHold === 1 && !boss.fleeTo, 'a morale roll of 65 holds the chief');
+  R.kingStep(g, boss);
+  assert(boss.moraleHold === 1 && !boss.fleeTo, 'the chief rolls morale once');
+  const g2 = bootL4();
+  const boss2 = g2.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  g2.ents.filter(function (e) { return e.hero; })[0].x = 1;
+  g2.ents.filter(function (e) { return e.hero; })[0].y = 1;
+  boss2.hp = Math.floor(boss2.maxhp * 0.25) - 1;
+  g2.lvl._campaignHost.d100 = function () { return 66; };
+  R.kingStep(g2, boss2);
+  const followed = g2.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.fleeTo && e.fleeTo.x === 32 && e.fleeTo.y === 50; });
+  assert(boss2.moraleHold === 0 && boss2.fleeTo && boss2.fleeTo.x === 32 && boss2.fleeTo.y === 50 && followed.length === 6, 'a morale roll of 66 sends the chief and his guards to the ogre cave');
+})();
+
+(function guardianCone() {
+  const g = bootL4();
+  const hero = g.ents.filter(function (e) { return e.hero; })[0];
+  const guard = g.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
+  guard.sleeping = 0;
+  hero.x = guard.x;
+  hero.y = guard.y + 4;
+  g.lvl._campaignHost.rollExpr = function () { return 7; };
+  g.lvl._campaignHost.save = function (who, kind) { g._breath = kind; return true; };
+  let hits = [];
+  global.damage = function (t, n) { hits.push(n); };
+  global.interact = function () {};
+  R.tick(g, 0.2);
+  assert(hits.length === 1 && hits[0] === 14 && g._breath === 'breath' && guard.coneCd === 4, 'the cone is 2d6, save vs breath for half, out to 6 tiles');
+  R.tick(g, 0.2);
+  assert(hits.length === 1, 'the cone waits four seconds');
+  hits = [];
+  guard.coneCd = 0;
+  hero.y = guard.y + 1;
+  R.tick(g, 0.2);
+  assert(hits.length === 0, 'the cone does not fire inside 2 tiles');
+})();
+
+(function continueL4() {
+  const g = bootL4();
+  const seals0 = g.props.filter(function (p) { return p && p.campaign === 'ogre-seal'; });
+  seals0[0].gone = 1;
+  const wolf = g.ents.filter(function (e) { return e.campaignKey === 'wolf'; })[0];
+  wolf.hp = 144;
+  wolf.maxhp = 144;
+  g.lvl.flags.ogressXp = 1;
+  const ogress0 = g.ents.filter(function (e) { return e.campaignKey === 'ogress'; })[0];
+  ogress0.vanished = 1;
+  ogress0.dead = 1;
+  const hero = g.ents.filter(function (e) { return e.hero; })[0];
+  hero.x = 12;
+  hero.y = 34;
+  const play = GS.captureWorld(g);
+  const shell = {
+    campaignLevel: 4,
+    ch: 4,
+    t: 0,
+    ents: [
+      { team: 'party', hero: 1, x: 1, y: 1, hp: 40, maxhp: 40, dead: 0, col: { key: 'macar' } },
+      { team: 'foe', kind: 'aboleth', name: 'Aboleth', x: 28, y: 26, hp: 280, maxhp: 280 }
+    ],
+    props: [
+      { k: 'trap', trap: 'trap_spikes', x: 28, y: 28 },
+      { k: 'slime', x: 17, y: 29 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 1, y: 1 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 2, y: 2 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 3, y: 3 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 4, y: 4 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 5, y: 5 },
+      { k: 'boulder', campaign: 'ogre-seal', x: 6, y: 6 }
+    ],
+    loot: [],
+    cam: { x: 0, y: 0 },
+    lvl: {
+      n: 4, w: 132, h: 106, grid: null, secrets: [],
+      flags: {},
+      objs: [{ t: 'Destroy the Elder Brain', d: 0 }, { t: 'Clear the drowned streets', d: 0 }],
+      tick: function () { shell.lvl._shell = 1; }
+    }
+  };
+  GS.applyWorld(shell, play);
+  shell.lvl.flags = Object.assign({}, play.flags || {});
+  const asked = [];
+  global.loadSpriteKeyNow = function (k) { asked.push(k); };
+  let xp = 0;
+  global.awardPartyXp = function (n) { xp += n; };
+  assert(R.install(shell, { scale: 4, fresh: false, foe: { orc: orcFactory }, rng: function () { return 0; } }) === true, 'Continue reinstalls Level 4 from the save');
+  const seals = shell.props.filter(function (p) { return p && p.campaign === 'ogre-seal'; });
+  const gone = seals.filter(function (p) { return p.gone; });
+  const back = shell.ents.filter(function (e) { return e.hero; })[0];
+  const wolf2 = shell.ents.filter(function (e) { return e.campaignKey === 'wolf'; })[0];
+  const ogress2 = shell.ents.filter(function (e) { return e.campaignKey === 'ogress'; })[0];
+  shell.lvl.tick(0.1);
+  assert(seals.length === 3 && gone.length === 1, 'Continue places three boulders and keeps the cleared one cleared');
+  assert(ogress2 && ogress2.vanished && xp === 0, 'a freed ogress stays gone and does not award the rescue again');
+  assert(shell.lvl.objs.length === 0 && !shell.props.some(function (p) { return p && (p.k === 'trap' || p.k === 'slime'); }) && !shell.lvl._shell, 'Continue drops the dead-city objectives, traps, and slime');
+  assert(!shell.ents.some(function (e) { return e && e.kind === 'aboleth'; }), 'Continue does not keep the dead-city residents');
+  assert(back.x === 12 && back.y === 34, 'Continue keeps Macar where the save left him');
+  assert(wolf2 && wolf2.hp !== 144 && wolf2.hd === 2, 'a saved warg-factory wolf comes back on the printed dice');
+  assert(asked.indexOf('orc') >= 0 && asked.indexOf('warg') >= 0 && asked.indexOf('construct') >= 0, 'Continue asks for the orc, warg, and construct sheets again');
+  R.install(shell, { scale: 4, fresh: false, foe: { orc: orcFactory }, rng: function () { return 0; } });
+  const seals2 = shell.props.filter(function (p) { return p && p.campaign === 'ogre-seal'; });
+  assert(seals2.length === 3 && seals2.filter(function (p) { return p.gone; }).length === 1, 'a second Continue does not duplicate the boulders');
+})();
 
 if (failed) {
   console.error(failed + ' failed');

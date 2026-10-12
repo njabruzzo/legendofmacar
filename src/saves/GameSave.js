@@ -38,7 +38,7 @@
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay',
     'campaignKey','campaignXp','campaignRole','caster','spellSet','insultsOnly','rubyGp','spellsSpent',
-    'toHit','dice','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines'
+    'toHit','dice','ac','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines','artStandIn'
   ];
 
   var PROP_COPY = [
