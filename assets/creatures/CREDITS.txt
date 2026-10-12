@@ -12,3 +12,11 @@ Thin One walk timing and contact (PAINT v4f, bound in game)
 
 The painted Thin One sheets themselves are original game art. The LPC cycle
 is the motion base only.
+
+Fire elemental (PAINT v3b over STRUCTURE v6, bound in game)
+  Pose/timing base: "Isometric Hero and Creatures" (Elemental)
+  Author: Clint Bellanger
+  License: CC-BY 3.0
+  https://opengameart.org/content/isometric-hero-and-creatures
+  Used for motion and structure only; no base pixels appear in any key.
+  Paint and structure are ours.
