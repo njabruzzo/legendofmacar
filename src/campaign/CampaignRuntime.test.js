@@ -182,6 +182,10 @@ GS.stampEnt(restored, world.ents[0]);
 assert(restored.campaignXp === 13 && restored.caster === true && restored.spellSet === 'memorized', 'stampEnt writes the campaign fields back');
 
 assert(html.indexOf('src/campaign/CampaignBoot.js') >= 0, 'the page boots the runtime');
+const boot = fs.readFileSync(path.join(__dirname, 'CampaignBoot.js'), 'utf8');
+const ogreAt = boot.indexOf('src/campaign/OgreCave.js');
+const l4At = boot.indexOf('src/campaign/L4.js');
+assert(ogreAt >= 0 && l4At > ogreAt, 'the boot loads OgreCave before L4');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'the page does not name the L2 files');
 assert(/CampaignRuntime\.install\(G,\{scale:ADD_SCALE/.test(html), 'startChapter installs a live level');
 assert(/CampaignRuntime\.noteCleared\(G\)/.test(html), 'endChapter records the next level');
