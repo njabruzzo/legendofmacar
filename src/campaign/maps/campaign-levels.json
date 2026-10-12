@@ -353,6 +353,8 @@
         "room": "king-hall",
         "where": "king hall back wall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true,
         "usableByMacar": "Y"
@@ -1321,6 +1323,8 @@
         "prop": "demonface",
         "room": "queen-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },
@@ -1959,6 +1963,8 @@
         "prop": "demonface",
         "room": "hall-of-names",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },
@@ -2634,6 +2640,8 @@
         "prop": "demonface",
         "room": "matron-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },
@@ -3129,6 +3137,8 @@
         "prop": "demonface",
         "room": "ember-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },
@@ -3663,6 +3673,8 @@
         "prop": "demonface",
         "room": "stone-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "lastTooth": true,
         "countsForRitual": true,
         "countsForTeethCarried": true

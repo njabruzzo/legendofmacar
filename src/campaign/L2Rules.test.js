@@ -357,7 +357,8 @@ function castWorld(shaman, hero) {
   global.convertCoinsToElectrum = function () { converted++; };
   const first = R.pryTooth(g, face);
   assert(first.ok === 1 && stowed && stowed.id === 'grond_tooth_electrum_2' && stowed.grondTooth === 'electrum', 'tooth 2 is a distinct electrum tooth');
-  assert(stowed.n === 'Electrum Tooth 2' && stowed.n !== "Grond's Electrum Tooth" && !stowed.cursed, 'tooth 2 keeps its own name and Tooth 1\'s coin curse, not the bind flag');
+  const dataTooth = g.lvl.campaignSpec.map.tooth;
+  assert(stowed.n === 'Electrum Tooth 2' && stowed.n !== "Grond's Electrum Tooth" && !stowed.cursed && dataTooth.cursed === true && dataTooth.curse === 'coin' && dataTooth.bind === false, 'tooth 2 keeps its name; the data curse converts coins and does not bind');
   assert(g.lvl.flags.electrumTooth2 === 1 && !g.lvl.flags.electrumTooth && face.emptySocket === 1 && converted === 1, 'the pry sets electrumTooth2 and converts coins');
   const second = R.pryTooth(g, face);
   assert(!second.ok && converted === 1, 'the face does not give up a second tooth');

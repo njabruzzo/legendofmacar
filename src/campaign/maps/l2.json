@@ -139,6 +139,8 @@
         "room": "king-hall",
         "where": "king hall back wall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true,
         "usableByMacar": "Y"

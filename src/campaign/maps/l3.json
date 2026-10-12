@@ -127,6 +127,8 @@
         "prop": "demonface",
         "room": "queen-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },

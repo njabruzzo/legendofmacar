@@ -326,7 +326,7 @@
       { id: 'silk', from: 'webs' }
     ],
     questItems: [
-      { id: 'grond_tooth_electrum_3', usableByMacar: 'Y', cursed: true, countsForRitual: true, countsForTeethCarried: true },
+      { id: 'grond_tooth_electrum_3', usableByMacar: 'Y', cursed: true, curse: 'coin', bind: false, countsForRitual: true, countsForTeethCarried: true },
       { id: 'pixie_dust', usableByMacar: 'Y', kind: 'consumable' }
     ]
   };

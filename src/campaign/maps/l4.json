@@ -131,6 +131,8 @@
         "prop": "demonface",
         "room": "hall-of-names",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },

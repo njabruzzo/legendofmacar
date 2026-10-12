@@ -316,11 +316,16 @@
 
   /* Back wall of the king hall. The hall floor starts at y=58, so (74, 59)
      is the first interior row, against that wall, and Macar can stand on it. */
+  /* cursed is the 2026-10-08 coin curse: coins convert once, and each
+     extra tooth speeds the strain. It is not a bind. */
   var TOOTH = {
     id: 'grond_tooth_electrum_2',
     tile: { x: 74, y: 59 },
     wall: 'n',
-    prop: { x: 74, y: 59.2 }
+    prop: { x: 74, y: 59.2 },
+    cursed: true,
+    curse: 'coin',
+    bind: false
   };
 
   var WANDER = [
@@ -397,7 +402,7 @@
       { id: 'ruby_guardian_2', from: 'rubyGuardian', count: 1 }
     ],
     questItems: [
-      { id: 'grond_tooth_electrum_2', usableByMacar: 'Y' },
+      { id: 'grond_tooth_electrum_2', usableByMacar: 'Y', cursed: true, curse: 'coin', bind: false },
       { id: 'grond_tooth_bronze', usableByMacar: 'Y', countsForRitual: false, countsForTeethCarried: false, cursed: false }
     ]
   };

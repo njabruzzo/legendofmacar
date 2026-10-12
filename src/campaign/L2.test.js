@@ -46,7 +46,7 @@ assert(level.boss.bossFlagOnIndividual === false && level.boss.separateFromGuard
 assert(level.boss.key !== level.guardian.key, 'the guardian and the boss are different creatures');
 assert(level.stairs.opensOn === 'bossKill' && level.stairs.x === 40.1 && level.stairs.y === 51.6, 'the south stair opens when the boss dies');
 assert(level.tooth.id === 'grond_tooth_electrum_2' && level.tooth.x === 74 && level.tooth.y === 59.2, 'electrum tooth 2 is on the king hall back wall');
-assert(level.tooth.countsForRitual === true && level.tooth.cursed === true, 'tooth 2 counts for the ritual and is cursed');
+assert(level.tooth.countsForRitual === true && level.tooth.cursed === true && level.tooth.curse === 'coin' && level.tooth.bind === false, 'tooth 2 counts for the ritual; cursed is the coin curse, not a bind');
 const hourglass = level.secrets.filter(function (s) { return s.id === 'bronze-hourglass'; })[0];
 assert(hourglass && hourglass.optional === true && hourglass.room.raidSeconds === 10, 'the bronze hourglass stays an optional 10-second secret');
 assert(hourglass.room.toothId === 'grond_tooth_bronze' && hourglass.room.face.x === 141.35, 'the bronze tooth stays in the hourglass face');
