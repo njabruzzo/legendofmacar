@@ -10,10 +10,12 @@
  * There is no raw-death path and no damage-over-time path.
  * At 1 HP the failed save leaves the creature at 1 HP and still applies the slow.
  *
- * The save target is the PHB fighter poison base, minus CON, minus the
- * size modifier in CampaignTable.poisonSave. F9-F10 base is 8.
- * Those modifiers are large +2, huge +1, giant 0, phase -2, queen -2.
- * They are not amounts added to the target.
+ * The save target is the PHB fighter poison base, minus the dwarf CON
+ * bonus, minus the size modifier in CampaignTable.poisonSave.
+ * F9-F10 base is 8. Those modifiers are large +2, huge +1, giant 0,
+ * phase -2, queen -2. They are not amounts added to the target.
+ * The dwarf CON bonus is +0 below 4, +1 at 4-6, +2 at 7-10, +3 at 11-13,
+ * +4 at 14-17, and +5 at 18. A low CON still rolls the save.
  */
 (function (root) {
   'use strict';
@@ -49,9 +51,13 @@
   }
 
   function conBonus(con) {
-    if (con >= 18) return 5;
-    if (con >= 14) return 4;
-    return null;
+    var n = typeof con === 'number' ? con : 0;
+    if (n >= 18) return 5;
+    if (n >= 14) return 4;
+    if (n >= 11) return 3;
+    if (n >= 7) return 2;
+    if (n >= 4) return 1;
+    return 0;
   }
 
   function saveTarget(opts) {
@@ -59,7 +65,6 @@
     if (!spider) throw new Error('unknown spider');
     var base = opts.base != null ? opts.base : fighterPoisonBase(opts.level);
     var bonus = opts.conBonus != null ? opts.conBonus : conBonus(opts.con);
-    if (bonus == null) throw new Error('CON bonus is only printed for 14-18');
     var mod = opts.mod != null ? opts.mod : POISON_SAVE[spider.size];
     if (typeof mod !== 'number') throw new Error('spider save modifier is missing');
     var anti = opts.antitoxin ? 4 : 0;

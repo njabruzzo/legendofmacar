@@ -63,6 +63,16 @@ assert([target(7, 'spider'), target(7, 'spiderHuge'), target(7, 'spiderGiant'), 
 assert([target(8, 'spider'), target(8, 'spiderHuge'), target(8, 'spiderGiant'), target(8, 'phasespider')].join() === '4,5,6,8', 'F8 row at CON 16');
 assert([target(9, 'spider'), target(9, 'spiderHuge'), target(9, 'spiderGiant'), target(9, 'phasespider')].join() === '2,3,4,6', 'F9 row at CON 16');
 assert([target(10, 'spider'), target(10, 'spiderHuge'), target(10, 'spiderGiant'), target(10, 'phasespider')].join() === '2,3,4,6', 'F10 row at CON 16');
+assert(P.conBonus(3) === 0 && P.conBonus(0) === 0, 'CON below 4 is +0');
+assert(P.conBonus(4) === 1 && P.conBonus(6) === 1, 'CON 4-6 is +1');
+assert(P.conBonus(7) === 2 && P.conBonus(10) === 2, 'CON 7-10 is +2');
+assert(P.conBonus(11) === 3 && P.conBonus(13) === 3, 'CON 11-13 is +3');
+assert(P.conBonus(14) === 4 && P.conBonus(17) === 4, 'CON 14-17 is +4');
+assert(P.conBonus(18) === 5, 'CON 18 is +5');
+const lowSave = P.resolve({ hp: 40 }, { spider: 'spider', level: 3, con: 10, roll: 1 });
+assert(lowSave && lowSave.saved === false && lowSave.target === 9 && lowSave.immune === false, 'CON 10 still rolls the poison save');
+const floorCon = P.resolve({ hp: 40 }, { spider: 'spider', level: 3, con: 3, roll: 20 });
+assert(floorCon && floorCon.saved === true && floorCon.target === 11, 'CON below 4 is +0 and the save still happens');
 assert(P.saveTarget({ level: 4, con: 18, spider: 'spiderGiant' }) === 8, 'CON 18 vs a giant spider at F4 is 8');
 assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', antitoxin: true }) === 5, 'antitoxin vs a giant spider at F4 is 5');
 assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', periaptPlus: 1 }) === 8, 'a periapt bonus also lowers the target');

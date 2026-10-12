@@ -13536,6 +13536,10 @@ function chapelFaceToothTaken(face){
     const f=G.lvl&&G.lvl.flags;
     return !!(f&&f.electrumTooth2);
   }
+  if(face.itemId==='grond_tooth_electrum_3'){
+    const f=G.lvl&&G.lvl.flags;
+    return !!(f&&f.electrumTooth3);
+  }
   const f=G.lvl&&G.lvl.flags;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
   if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
@@ -13556,7 +13560,7 @@ function bindPriedChapelTooth(){
   if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
   (G.props||[]).forEach(p=>{
     if(!p||p.gone||p.k!=='demonface') return;
-    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2') return;
+    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3') return;
     p.emptySocket=1;
   });
 }
@@ -16050,6 +16054,14 @@ function update(dt){
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
       if(o.phased && !(o.phaseOpen>0)) continue;
       if(dist(s,o)<o.r+.45){
+        if(s.kind==='queenweb'){
+          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.resolveWeb) CampaignRuntime.resolveWeb(G, o, s);
+          s.life=0; burst(s.x,s.y,'#e8e0d0',14,2.4); break;
+        }
+        if(s.kind==='shard'){
+          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.resolveShard) CampaignRuntime.resolveShard(G, o, s);
+          s.life=0; burst(s.x,s.y,s.col||'#ff334a',10,2.2); break;
+        }
         if(s.kind==='web'){
           applyWeb(o);
           s.life=0; burst(s.x,s.y,'#e8e0d0',14,2.4); break;
@@ -16091,7 +16103,7 @@ function update(dt){
      off the screen, so the first phone tap mid-fight never pried. */
   if(p && typeof nearestDemonFace==='function'){
     const toothFace=nearestDemonFace(p,2.05);
-    if(toothFace && toothFace.itemId==='grond_tooth_electrum_2' && !toothFace.emptySocket && !(L.flags&&L.flags.electrumTooth2)){
+    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
       interact('Take the electrum tooth',()=>{
         if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, toothFace);
       });
@@ -17477,7 +17489,7 @@ function demonFaceImg(p){
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
-  if(p && p.itemId==='grond_tooth_electrum_2') return SPR.demon_dwarfface||SPR.demonface||null;
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')) return SPR.demon_dwarfface||SPR.demonface||null;
   /* Empty v5 plate only. The fanged sheet used to win until the empty
      image had a width, so a reload drew the tooth back in the socket. */
   if(p && demonFaceShowsEmpty(p)) return SPR.demon_dwarfface_empty||null;

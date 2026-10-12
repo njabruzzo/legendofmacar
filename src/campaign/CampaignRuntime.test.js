@@ -252,13 +252,17 @@ const G3 = {
   }
 };
 const spiderFactory = foe('Cave Spider', { kind: 'spider', sprite: 'spider', hp: 36, maxhp: 36, poison: 1 });
-assert(R.install(G3, { scale: 4, fresh: true, foe: { spider: spiderFactory, thinone: factories.thinone }, rollExpr: function () { return 4; } }) === true, 'Level 3 installs onto the chapter 2 shell');
+assert(R.install(G3, { scale: 4, fresh: true, foe: { spider: spiderFactory, thinone: factories.thinone }, rng: function () { return 0; }, rollExpr: function () { return 4; } }) === true, 'Level 3 installs onto the chapter 2 shell');
 assert(G3.poisonMode === 'h1', 'Level 3 uses the H1 poison mode');
 assert(G3.lvl.title === 'The Webbed Deep and the Spider Queen', 'Level 3 keeps its own name on the shell');
 G3.lvl.tick(0.05);
 assert(!G3.lvl._inner, 'the chapter 2 tick does not run under Level 3');
 const large = G3.ents.filter(function (e) { return e.campaignKey === 'spider'; })[0];
-assert(large && large.campaignXp === 76 && large.hp === 36 && large.boss === 0, 'a large spider keeps factory hp and the printed xp');
+assert(large && large.campaignXp === 76 && large.hp === 8 && large.hp !== 36 && large.boss === 0, 'a large spider rolls 1d8+1 instead of the factory hp');
+const huge = G3.ents.filter(function (e) { return e.campaignKey === 'spiderHuge'; })[0];
+const giant = G3.ents.filter(function (e) { return e.campaignKey === 'spiderGiant' && !e.fromBrood; })[0];
+const phaseSpider = G3.ents.filter(function (e) { return e.campaignKey === 'phasespider'; })[0];
+assert(huge && huge.hp === 16 && giant && giant.hp === 32 && phaseSpider && phaseSpider.hp === 40, 'huge, giant, and phase spiders roll 2d8+2, 4d8+4, and 5d8+5');
 const pix = G3.ents.filter(function (e) { return e.campaignKey === 'pixie'; })[0];
 assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false && pix.scale > 0, 'the pixie does not fight and keeps a drawable scale');
 const queen = G3.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
@@ -268,7 +272,7 @@ assert(guard3 && guard3.rubyGp === 750 && guard3.hp === 144 && guard3.sprite ===
 let l3sum = 0;
 Object.keys(L3.XP).forEach(function (key) { l3sum += R.kill(R.beginRun(l3), key); });
 assert(l3sum === L3.XP.spider + L3.XP.spiderHuge + L3.XP.spiderGiant + L3.XP.phasespider + L3.XP.pixie + L3.XP.spiderQueen + L3.XP.rubyGuardian, 'one of each L3 printed xp sums without the ritual');
-assert(R.gaps(l3).indexOf('ghost-poison-gap') >= 0 && R.gaps(l3).indexOf('elevator-returns-to-camp') >= 0, 'Level 3 still lists the open ghost note and returns to camp');
+assert(R.gaps(l3).indexOf('ghost-poison-gap') < 0 && R.gaps(l3).indexOf('elevator-returns-to-camp') >= 0, 'ghosts are immune, and Level 3 still returns to camp');
 const bitten = { hp: 168, maxhp: 168, con: 18, lvl: 3, ghost: 0 };
 const fail = R.poisonHit({ campaignKey: 'spider', campaignPoison: 1 }, bitten, { roll: 1, con: 18, level: 3 });
 assert(fail && fail.saved === false && fail.damage === 84 && fail.killed === false && fail.slow && fail.slow.moveMul === 0.5 && fail.slow.seconds === 2, 'a failed H1 save takes half and slows for 2 seconds');
@@ -279,7 +283,9 @@ assert(lethalBite && lethalBite.dmg === 12 && lethalBite.poison === 0, 'a killin
 const ghostBite = R.poisonHit({ campaignKey: 'spiderQueen' }, { hp: 40, ghost: 1, con: 18, lvl: 3 }, { roll: 1, con: 18, level: 3 });
 assert(ghostBite && ghostBite.immune === true && ghostBite.damage === 0 && ghostBite.slow == null, 'a ghost is immune to H1 poison');
 const lowCon = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 10, lvl: 3 }, { roll: 1, con: 10, level: 3 });
-assert(lowCon == null, 'a CON bonus outside 14-18 skips the poison');
+assert(lowCon && lowCon.saved === false && lowCon.target === 9 && lowCon.immune === false, 'CON 10 still rolls the poison save');
+const below = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 3, lvl: 3 }, { roll: 20, con: 3, level: 3 });
+assert(below && below.saved === true && below.target === 11, 'CON below 4 is +0 and the save is not skipped');
 global.roundSec = function (n) { return (n || 1) * 1; };
 let gifted = null;
 global.giveMagic = function (it) { gifted = it; return it.n; };
@@ -303,6 +309,67 @@ const phase = G3.ents.filter(function (e) { return e.campaignKey === 'phasespide
 assert(phase && phase.phased === 1 && phase.phaseWindowSec === 0.5, 'the phase spider opens a half-second window when the bite lands');
 assert(/o\.ceiling>0 && !e\.ranged/.test(html), 'melee cannot reach a ceiling');
 assert(/o\.phased && !\(o\.phaseOpen>0\)/.test(html), 'a phased spider is skipped until the window is open');
+assert(R.inchesToTiles('6"') === 12 && R.inchesToTiles('3"') === 6, 'one inch is two tiles');
+guard3.sleeping = 0;
+hero3.x = guard3.x + 12;
+hero3.y = guard3.y;
+hero3.webbed = 0;
+let shots = [];
+global.shoot = function (from, tx, ty, dmg, kind, col, spd) {
+  const s = { from: from, x: from.x, y: from.y, tx: tx, ty: ty, dmg: dmg, kind: kind, col: col, spd: spd, life: 2 };
+  shots.push(s);
+  return s;
+};
+R.tick(G3, 0.05);
+assert(shots.length === 1 && shots[0].kind === 'shard' && shots[0].dice === '1d6', 'the ruby shard fires at 12 tiles');
+R.tick(G3, 0.05);
+assert(shots.length === 1, 'the shard waits 4 seconds');
+hero3.x = guard3.x + 1;
+R.tick(G3, 4);
+assert(shots.length === 1, 'the shard does not fire inside 2 tiles');
+hero3.x = guard3.x + 13;
+R.tick(G3, 0.05);
+assert(shots.length === 1, 'the shard does not fire past 12 tiles');
+hero3.x = queen.x + 6;
+hero3.y = queen.y;
+hero3.webbed = 0;
+shots = [];
+R.tick(G3, 0.05);
+assert(shots.length === 1 && shots[0].kind === 'queenweb' && shots[0].stuckSec === 2, 'the queen web reaches 6 tiles');
+global.savingThrow = function () { return false; };
+const webbed = { x: queen.x, y: queen.y, hp: 40, dead: 0, webbed: 0 };
+assert(R.resolveWeb(G3, webbed, shots[0]).saved === false && webbed.webbed === 2, 'a failed spell save sticks for 2 seconds');
+global.savingThrow = function () { return true; };
+const loose = { x: queen.x, y: queen.y, hp: 40, dead: 0, webbed: 0 };
+assert(R.resolveWeb(G3, loose, shots[0]).saved === true && !(loose.webbed > 0), 'a spell save avoids the web');
+G3.lvl._campaignHost.rollExpr = function (expr) { return expr === '1d6' ? 1 : 4; };
+const shardTarget = { hp: 40, dead: 0 };
+assert(R.resolveShard(G3, shardTarget, { dice: '1d6', from: guard3 }).dmg === 4 && shardTarget.hp === 36, 'the ruby shard is 1d6, scaled');
+assert(/s\.kind==='queenweb'/.test(html) && /s\.kind==='shard'/.test(html), 'the page resolves the queen web and the ruby shard');
+const face3 = G3.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_3'; })[0];
+assert(face3 && face3.k === 'demonface' && face3.x === 10.1 && face3.y === 26.8 && !face3.emptySocket, 'Electrum Tooth 3 is in the demon face');
+let stowedTooth = null;
+let convertedCoins = 0;
+global.stowPackItem = function (it) { stowedTooth = it; G3.packs = { macar: { magic: [it] } }; };
+global.convertCoinsToElectrum = function () { convertedCoins++; };
+const pry3 = R.pryTooth(G3, face3);
+assert(pry3.ok === 1 && stowedTooth.id === 'grond_tooth_electrum_3' && stowedTooth.n === 'Electrum Tooth 3' && stowedTooth.grondTooth === 'electrum' && !stowedTooth.cursed && !stowedTooth.bind, 'tooth 3 is a coin curse with no bind');
+assert(G3.lvl.flags.electrumTooth3 === 1 && !G3.lvl.flags.electrumTooth2 && !G3.lvl.flags.electrumTooth && face3.emptySocket === 1 && convertedCoins === 1, 'the pry sets electrumTooth3 and converts coins');
+assert(L10.RITUAL.toothIds.indexOf('grond_tooth_electrum_3') >= 0 && l3.map.tooth.countsForRitual === true, 'tooth 3 is on the ritual list');
+assert(!R.pryTooth(G3, face3).ok && convertedCoins === 1, 'the face does not give up a second tooth');
+const play3 = JSON.parse(JSON.stringify(GS.captureWorld(G3)));
+const packs3 = JSON.parse(JSON.stringify(G3.packs));
+const restored3 = {
+  ents: [{ hero: 1, team: 'party', hp: 10, maxhp: 10, col: { key: 'macar' } }],
+  props: [],
+  packs: packs3,
+  lvl: { w: G3.lvl.w, h: G3.lvl.h, flags: {}, objs: [] }
+};
+restored3.lvl.flags = Object.assign({}, play3.flags || {});
+GS.applyWorld(restored3, play3);
+const back3 = restored3.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_3'; })[0];
+assert(restored3.lvl.flags.electrumTooth3 === 1 && back3 && back3.emptySocket === 1 && restored3.packs.macar.magic[0].n === 'Electrum Tooth 3' && restored3.packs.macar.magic[0].grondTooth === 'electrum', 'tooth 3 round-trips in the save');
+assert(/toothFace\.itemId==='grond_tooth_electrum_2'\|\|toothFace\.itemId==='grond_tooth_electrum_3'/.test(html), 'the page offers the Level 3 tooth');
 const card3 = { campaignLevel: 3, campaignCard: { key: 'mon_spider_giant' }, lvl: { n: 2, campaignSpec: l3 } };
 let ended3 = 0;
 let started3 = 0;

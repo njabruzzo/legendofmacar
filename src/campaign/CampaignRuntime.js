@@ -553,7 +553,7 @@
         wall: (face && face.wall) || 'n',
         s: 1.12, seed: 774,
         toothKind: 'electrum', itemId: tooth.id || 'grond_tooth_electrum_2',
-        campaign: 1, emptySocket: flags.electrumTooth2 ? 1 : 0
+        campaign: 1, emptySocket: flags[toothTakenFlag(tooth.id)] ? 1 : 0
       });
     }
     var king = data.KING;
@@ -1269,18 +1269,25 @@
     return box;
   }
 
+  function toothTakenFlag(id) {
+    if (id === 'grond_tooth_electrum_3') return 'electrumTooth3';
+    return 'electrumTooth2';
+  }
+
   function pryTooth(G, face) {
     if (!G || !face || face.gone || face.emptySocket) return { ok: 0, reason: 'gone' };
     var flags = (G.lvl && G.lvl.flags) || {};
     if (G.lvl) G.lvl.flags = flags;
-    if (flags.electrumTooth2) return { ok: 0, reason: 'taken' };
     var spec = G.lvl && G.lvl.campaignSpec;
     var data = spec && spec.data;
     var mapTooth = (spec && spec.map && spec.map.tooth) || {};
     var tooth = (data && data.TOOTH) || {};
     var id = face.itemId || mapTooth.id || tooth.id || 'grond_tooth_electrum_2';
-    var name = mapTooth.name || tooth.name || 'Electrum Tooth 2';
-    if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
+    var flag = toothTakenFlag(id);
+    if (flags[flag]) return { ok: 0, reason: 'taken' };
+    var name = mapTooth.name || tooth.name || (id === 'grond_tooth_electrum_3' ? 'Electrum Tooth 3' : 'Electrum Tooth 2');
+    if (id === 'grond_tooth_electrum_3') name = 'Electrum Tooth 3';
+    else if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
     var it = {
       id: id,
       n: name,
@@ -1297,7 +1304,7 @@
        can still be set aside. The map may say cursed. Tooth 2 follows that
        rule and does not take the bind flag. */
     if (eng('stowPackItem')) eng('stowPackItem')(it);
-    flags.electrumTooth2 = 1;
+    flags[flag] = 1;
     face.emptySocket = 1;
     if (eng('convertCoinsToElectrum')) eng('convertCoinsToElectrum')();
     if (eng('say')) eng('say')('Macar takes the electrum tooth. Coin turns while he carries it.', '#c8d4c0');
@@ -1376,21 +1383,21 @@
     opts = opts || {};
     var roll = opts.roll;
     if (roll == null) roll = 1 + Math.floor(Math.random() * 20);
-    try {
-      return poison.resolve(
-        { hp: target.hp, ghost: !!target.ghost },
-        {
-          mode: 'h1',
-          spider: spider,
-          level: actorLevel(target, opts),
-          con: actorCon(target, opts),
-          roll: roll,
-          antitoxin: !!opts.antitoxin
-        }
-      );
-    } catch (err) {
-      return null;
-    }
+    var level = actorLevel(target, opts);
+    if (typeof level !== 'number') level = 3;
+    var con = actorCon(target, opts);
+    if (typeof con !== 'number') con = 0;
+    return poison.resolve(
+      { hp: target.hp, ghost: !!target.ghost },
+      {
+        mode: 'h1',
+        spider: spider,
+        level: level,
+        con: con,
+        roll: roll,
+        antitoxin: !!opts.antitoxin
+      }
+    );
   }
 
   function applyPoison(atk, target, bite, opts) {
@@ -1445,7 +1452,8 @@
       var tunnels = brood.tunnels || [];
       var hugeN = rollCount(brood.huge || '1').main;
       var giantN = brood.giant || 0;
-      var opts = { foe: G._campaignFoe || {}, scale: (G.lvl._campaignHost && G.lvl._campaignHost.scale) || 4 };
+      var host = (G.lvl && G.lvl._campaignHost) || {};
+      var opts = { foe: G._campaignFoe || {}, scale: host.scale || 4, rng: host.rng || null };
       var made = 0;
       function spot(n) {
         if (!tunnels.length) return { x: e.x, y: e.y };
@@ -1520,6 +1528,94 @@
     }
   }
 
+  function inchesToTiles(range) {
+    var m = String(range || '').match(/(\d+(?:\.\d+)?)\s*"/);
+    if (!m) return 0;
+    return (+m[1]) * 2;
+  }
+
+  function cdReady(e, key, dt) {
+    if ((e[key] || 0) > 0) {
+      e[key] -= dt || 0;
+      if (e[key] < 0) e[key] = 0;
+    }
+    return (e[key] || 0) <= 0;
+  }
+
+  function launchShot(G, from, target, kind, extra) {
+    extra = extra || {};
+    var shoot = eng('shoot');
+    var shot = shoot ? shoot(from, target.x, target.y, 0, kind, extra.col || '#fff', extra.spd || 7) : null;
+    if (!shot) {
+      shot = { x: from.x, y: from.y, kind: kind, from: from, team: from.team, life: 2.2 };
+      G.shots = G.shots || [];
+      G.shots.push(shot);
+    }
+    if (extra.dice) shot.dice = extra.dice;
+    if (extra.stuckSec) shot.stuckSec = extra.stuckSec;
+    shot.campaign = 1;
+    return shot;
+  }
+
+  function tickRanged(G, dt) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var data = spec && spec.data;
+    if (!data) return;
+    var p = hero(G);
+    if (!p || p.dead) return;
+    var guard = data.MONSTERS && data.MONSTERS.rubyGuardian;
+    var queenSpec = data.QUEEN;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead) continue;
+      if (e.campaignRole === 'guardian' && guard && guard.shard && !e.sleeping) {
+        if (!cdReady(e, 'shardCd', dt)) continue;
+        var reach = inchesToTiles(guard.shard.range);
+        var min = typeof guard.shard.minTiles === 'number' ? guard.shard.minTiles : 0;
+        var d = tileDist(e, p);
+        if (d + 1e-6 >= min && d <= reach + 1e-6) {
+          launchShot(G, e, p, 'shard', { dice: guard.shard.damage || '1d6', col: '#ff334a', spd: 8 });
+          e.shardCd = guard.shard.everySec || 4;
+        }
+      }
+      if (e.campaignKey === 'spiderQueen' && queenSpec && queenSpec.web) {
+        if (!cdReady(e, 'webCd', dt)) continue;
+        if ((p.webbed || 0) > 0) continue;
+        if (tileDist(e, p) <= inchesToTiles(queenSpec.web.range) + 1e-6) {
+          launchShot(G, e, p, 'queenweb', { stuckSec: queenSpec.web.stuckSec || 2, col: '#e8e0d0', spd: 6.5 });
+          e.webCd = queenSpec.web.cooldownSec || 6;
+        }
+      }
+    }
+  }
+
+  function resolveWeb(G, target, shot) {
+    if (!target || target.dead) return { saved: false, stuck: 0 };
+    var stuck = (shot && shot.stuckSec) || 2;
+    var save = eng('savingThrow');
+    var ok = !!(save && save(target, 'spell'));
+    if (!ok) {
+      target.webbed = Math.max(target.webbed || 0, stuck);
+      target.dest = null;
+      target.moving = 0;
+      if (eng('ftext')) eng('ftext')(target.x, target.y, 'webbed', '#e8e0d0');
+    }
+    return { saved: ok, stuck: ok ? 0 : stuck };
+  }
+
+  function resolveShard(G, target, shot) {
+    if (!target || target.dead) return { dmg: 0 };
+    var dice = (shot && shot.dice) || '1d6';
+    var host = hostOf(G);
+    var roll = (typeof host.rollExpr === 'function') ? host.rollExpr(dice) : rollHpExpr(dice, Math.random, 1);
+    var scale = host.scale || 4;
+    var dmg = Math.max(1, Math.round((roll || 1) * scale));
+    if (eng('damage')) eng('damage')(target, dmg, '#ff334a', (shot && shot.from) || null);
+    else target.hp = Math.max(0, (target.hp || 0) - dmg);
+    return { dmg: dmg, roll: roll };
+  }
+
   function enterNext(G) {
     if (!G) return;
     var spec = G.lvl && G.lvl.campaignSpec;
@@ -1547,6 +1643,7 @@
     tickTimers(G, dt);
     tickQueen(G);
     tickPixie(G, dt);
+    tickRanged(G, dt);
     var p = hero(G);
     if (!p || !eng('interact')) return;
     var spec = L.campaignSpec;
@@ -1707,6 +1804,9 @@
     kingTarget: kingTarget,
     cornerKing: cornerKing,
     pryTooth: pryTooth,
+    inchesToTiles: inchesToTiles,
+    resolveWeb: resolveWeb,
+    resolveShard: resolveShard,
     barkRect: barkRect,
     goblinLines: goblinLines,
     tickBarks: tickBarks
