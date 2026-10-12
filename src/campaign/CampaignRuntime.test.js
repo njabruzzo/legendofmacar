@@ -31,7 +31,7 @@ assert(l2.map.guardian.x === 10.1 && l2.map.guardian.y === 31 && l2.map.guardian
 assert(l2.map.boss.x === 74 && l2.map.boss.y === 67.6 && l2.map.boss.bossFlagOnIndividual === false, 'L2 boss point comes from the map and wears no flag');
 assert(l1 && l1.enter === false && l1.stairsOpenOn === 'lever' && l1.boss == null, 'L1 is the lever exception and is not installed');
 assert(l1.guardian && l1.guardian.key === 'thinOne' && l1.guardian.count === 6, 'L1 guardian is the six Thin Ones');
-assert(l3 && l3.enter === false && l3.map.rubyDoor.x === 16.2 && l3.map.rubyDoor.y === 14.8, 'L3 loads from its map and is not entered');
+assert(l3 && l3.enter === true && l3.map.rubyDoor.x === 16.2 && l3.map.rubyDoor.y === 14.8, 'L3 loads from its map and is entered');
 assert(l3.map.rubyDoor.x !== l2.map.rubyDoor.x, 'the loader keeps each level\'s own ruby door');
 
 const run = R.beginRun(l2);
@@ -66,7 +66,7 @@ assert(L10.RITUAL.xpOnce > sum && R.printed(l2, 'ritual') == null, 'ritual xp st
 const counted = R.spawnCount(l2);
 l2.open[0].note = 'changed open note';
 assert(R.spawnCount(l2) === counted && counted > 0, 'spawn counts come from the map, not an OPEN note');
-assert(R.gaps(l2).indexOf('insults') < 0 && R.gaps(l2).indexOf('goblin-hp') < 0 && R.gaps(l2).indexOf('elevator-returns-to-camp') >= 0, 'ruled gaps are gone and the L2 elevator still returns to camp');
+assert(R.gaps(l2).indexOf('insults') < 0 && R.gaps(l2).indexOf('goblin-hp') < 0 && R.gaps(l2).indexOf('elevator-returns-to-camp') < 0, 'ruled L2 gaps stay closed and the elevator enters Level 3');
 
 const l8 = R.load(8);
 const l9 = R.load(9);
@@ -81,6 +81,8 @@ const later = { ch: 2, campaignLevel: 2 };
 assert(R.noteCleared(later) == null && later.campaignLevel === 2, 'leaving Level 2 does not advance into Level 3');
 assert(R.shouldInstall({ campaignLevel: 1, lvl: { n: 2 } }) === false, 'an old chapter 2 save is not the campaign floor');
 assert(R.shouldInstall({ campaignLevel: 2, lvl: { n: 2 } }) === true, 'campaign Level 2 installs onto chapter 2');
+assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 2 } }) === true, 'campaign Level 3 installs onto the chapter 2 shell');
+assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 3 } }) === false, 'campaign Level 3 does not install onto the old ruin');
 assert(R.shouldInstall({ lvl: { n: 2 } }) === false, 'a missing campaign level stays on the old chapter');
 
 const zero = function () { return 0; };
@@ -158,8 +160,10 @@ assert(global._prompt && global._prompt.label === 'Pull the lever', 'a dead guar
 global._prompt.fn();
 assert(G.scene === 'campaign-card' && G.campaignCard.line === 'The elevator descends.' && G.campaignCard.key === 'intro_ch2', 'the lever shows the elevator card');
 assert(ended === 0 && G.campaignLevel === 2, 'the card does not enter the next level by itself');
+let started = 0;
+global.startChapter = function (n) { started = n; };
 R.finishCard(G);
-assert(ended === 1 && G.campaignLevel === 2 && G.campaignCard == null, 'Descend ends the floor at camp and stays on Level 2');
+assert(ended === 0 && started === 2 && G.campaignLevel === 3 && G.campaignCard == null, 'Descend from Level 2 enters Level 3 on the chapter 2 shell');
 
 const snap = GS.snapshot({ campaignLevel: 2, ch: 2, scene: 'play' });
 assert(snap.campaignLevel === 2, 'a save records the current level');
@@ -193,7 +197,10 @@ assert(html.indexOf('src/campaign/CampaignBoot.js') >= 0, 'the page boots the ru
 const boot = fs.readFileSync(path.join(__dirname, 'CampaignBoot.js'), 'utf8');
 const ogreAt = boot.indexOf('src/campaign/OgreCave.js');
 const l4At = boot.indexOf('src/campaign/L4.js');
+const poisonAt = boot.indexOf('src/combat/SpiderPoison.js');
+const runtimeAt = boot.indexOf('src/campaign/CampaignRuntime.js');
 assert(ogreAt >= 0 && l4At > ogreAt, 'the boot loads OgreCave before L4');
+assert(poisonAt >= 0 && runtimeAt > poisonAt, 'the boot loads SpiderPoison before the runtime');
 assert(html.indexOf('L2.js') < 0 && html.indexOf('maps/l2.json') < 0, 'the page does not name the L2 files');
 assert(/CampaignRuntime\.install\(G,\{scale:ADD_SCALE/.test(html), 'startChapter installs a live level');
 assert(/CampaignRuntime\.noteCleared\(G\)/.test(html), 'endChapter records the next level');
@@ -204,7 +211,11 @@ assert(/flags\.campaign\) return/.test(html), 'a campaign floor skips the proced
 const clearedChapter = { ch: 1, campaignLevel: 1, cleared: { 1: 1 } };
 assert(R.campGoDeeper(clearedChapter) === 'enter' && clearedChapter.campaignLevel === 2, 'a cleared Chapter I save enters campaign Level 2');
 const afterLevel2 = { ch: 2, campaignLevel: 2, cleared: { 1: 1, 2: 1 } };
-assert(R.campGoDeeper(afterLevel2) === 'soon' && afterLevel2.campaignLevel === 2, 'after Level 2, Go deeper stays at camp');
+assert(R.campGoDeeper(afterLevel2) === 'enter' && afterLevel2.campaignLevel === 3, 'after Level 2, Go deeper enters Level 3');
+const afterLevel3 = { ch: 2, campaignLevel: 3, cleared: { 1: 1, 2: 1 } };
+assert(R.campGoDeeper(afterLevel3) === 'soon' && afterLevel3.campaignLevel === 3, 'after Level 3, Go deeper stays at camp');
+const oldChapterTwo = { ch: 2, campaignLevel: 1, cleared: { 1: 1, 2: 1 } };
+assert(R.campGoDeeper(oldChapterTwo) === 'enter' && oldChapterTwo.campaignLevel === 2, 'an old chapter II clear still enters campaign Level 2');
 const freshCamp = { ch: 1, campaignLevel: 1, cleared: {} };
 assert(R.campGoDeeper(freshCamp) === 'chapter' && freshCamp.campaignLevel === 1, 'an uncleared chapter keeps the old descent');
 assert(/pressGoDeeper\(/.test(html) && /More coming\./.test(html), 'camp says more coming instead of opening the next old chapter');
@@ -224,6 +235,82 @@ const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
 assert(cardFn.indexOf('if(!(art&&art.width)) return;') < 0, 'the card does not wait on the jpg');
 assert(cardFn.indexOf("g.fillStyle='#1a140e'") >= 0 && cardFn.indexOf("g.fillStyle='#1a140e'") < cardFn.indexOf("card.title||'The elevator'"), 'a plain fallback paints before the title');
 assert(cardFn.indexOf("menuBtn(g,'Descend'") > cardFn.indexOf("g.fillStyle='#1a140e'"), 'Descend is drawn when the art is missing');
+
+const L3 = require('./L3');
+require('../combat/SpiderPoison');
+assert(G.poisonMode === '' || G.poisonMode == null, 'Level 2 leaves the poison mode off');
+const G3 = {
+  campaignLevel: 3,
+  ch: 2,
+  ents: [{ team: 'party', hero: 1, x: 40.15, y: 8.55, hp: 168, maxhp: 168, con: 18, lvl: 3, dead: 0 }],
+  props: [{ k: 'web', x: 26.2, y: 14.6 }, { k: 'stairs', x: 40.1, y: 54.15 }, { k: 'floorRubyDoor', x: 1, y: 1 }],
+  lvl: {
+    n: 2, w: 144, h: 118, grid: null, secrets: [],
+    flags: {},
+    spawn: { x: 40.15, y: 8.55 },
+    tick: function () { this._inner = (this._inner || 0) + 1; }
+  }
+};
+const spiderFactory = foe('Cave Spider', { kind: 'spider', sprite: 'spider', hp: 36, maxhp: 36, poison: 1 });
+assert(R.install(G3, { scale: 4, fresh: true, foe: { spider: spiderFactory, thinone: factories.thinone }, rollExpr: function () { return 4; } }) === true, 'Level 3 installs onto the chapter 2 shell');
+assert(G3.poisonMode === 'h1', 'Level 3 uses the H1 poison mode');
+assert(G3.lvl.title === 'The Webbed Deep and the Spider Queen', 'Level 3 keeps its own name on the shell');
+G3.lvl.tick(0.05);
+assert(!G3.lvl._inner, 'the chapter 2 tick does not run under Level 3');
+const large = G3.ents.filter(function (e) { return e.campaignKey === 'spider'; })[0];
+assert(large && large.campaignXp === 76 && large.hp === 36 && large.boss === 0, 'a large spider keeps factory hp and the printed xp');
+const pix = G3.ents.filter(function (e) { return e.campaignKey === 'pixie'; })[0];
+assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false, 'the pixie does not fight');
+const queen = G3.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+assert(queen && queen.campaignXp === 1828 && queen.hp === 176 && queen.boss === 0 && queen.sprite === 'spider_giant', 'the queen has printed xp and hp and wears no boss flag');
+const guard3 = G3.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
+assert(guard3 && guard3.rubyGp === 750 && guard3.hp === 144 && guard3.sprite === 'thinone' && guard3.sleeping === 1 && guard3.name !== 'Thin One', 'the Level 3 guardian sleeps on the Thin One sheet and drops 750 gp');
+let l3sum = 0;
+Object.keys(L3.XP).forEach(function (key) { l3sum += R.kill(R.beginRun(l3), key); });
+assert(l3sum === L3.XP.spider + L3.XP.spiderHuge + L3.XP.spiderGiant + L3.XP.phasespider + L3.XP.pixie + L3.XP.spiderQueen + L3.XP.rubyGuardian, 'one of each L3 printed xp sums without the ritual');
+assert(R.gaps(l3).indexOf('ghost-poison-gap') >= 0 && R.gaps(l3).indexOf('elevator-returns-to-camp') >= 0, 'Level 3 still lists the open ghost note and returns to camp');
+const bitten = { hp: 168, maxhp: 168, con: 18, lvl: 3, ghost: 0 };
+const fail = R.poisonHit({ campaignKey: 'spider', campaignPoison: 1 }, bitten, { roll: 1, con: 18, level: 3 });
+assert(fail && fail.saved === false && fail.damage === 84 && fail.killed === false && fail.slow && fail.slow.moveMul === 0.5 && fail.slow.seconds === 2, 'a failed H1 save takes half and slows for 2 seconds');
+const capped = R.applyPoison({ campaignKey: 'spider' }, { hp: 10, con: 18, lvl: 3 }, 8, { roll: 1, con: 18, level: 3 });
+assert(capped && capped.dmg === 9 && capped.poison === 1, 'poison stops at 1 HP when the bite already landed');
+const lethalBite = R.applyPoison({ campaignKey: 'spider' }, { hp: 10, con: 18, lvl: 3 }, 12, { roll: 1, con: 18, level: 3 });
+assert(lethalBite && lethalBite.dmg === 12 && lethalBite.poison === 0, 'a killing bite gets no extra poison');
+const ghostBite = R.poisonHit({ campaignKey: 'spiderQueen' }, { hp: 40, ghost: 1, con: 18, lvl: 3 }, { roll: 1, con: 18, level: 3 });
+assert(ghostBite && ghostBite.immune === true && ghostBite.damage === 0 && ghostBite.slow == null, 'a ghost is immune to H1 poison');
+const lowCon = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 10, lvl: 3 }, { roll: 1, con: 10, level: 3 });
+assert(lowCon == null, 'a CON bonus outside 14-18 skips the poison');
+global.roundSec = function (n) { return (n || 1) * 1; };
+let gifted = null;
+global.giveMagic = function (it) { gifted = it; return it.n; };
+const hero3 = G3.ents.filter(function (e) { return e.hero; })[0];
+hero3.x = pix.x;
+hero3.y = pix.y + 0.4;
+R.tick(G3, 0.4);
+assert(!gifted && !pix.vanished, 'the pixie waits out the free round');
+R.tick(G3, 0.7);
+assert(gifted && gifted.id === 'pixie_dust' && pix.vanished === 1, 'a round beside the web gives pixie dust and the pixie vanishes');
+const beforeBrood = G3.ents.length;
+queen.hp = queen.maxhp * 0.5;
+R.tick(G3, 0.1);
+assert(queen.broodCalled === 1 && queen.ceiling === 3, 'the queen calls the brood once and climbs for 3 seconds');
+assert(G3.ents.filter(function (e) { return e.fromBrood && e.campaignKey === 'spiderHuge'; }).length >= 1, 'the brood includes huge spiders from the tunnels');
+assert(G3.ents.filter(function (e) { return e.fromBrood && e.campaignKey === 'spiderGiant'; }).length === 1, 'the brood includes one giant spider');
+const afterBrood = G3.ents.length;
+R.tick(G3, 0.1);
+assert(G3.ents.length === afterBrood && afterBrood > beforeBrood, 'the brood is called once');
+const phase = G3.ents.filter(function (e) { return e.campaignKey === 'phasespider'; })[0];
+assert(phase && phase.phased === 1 && phase.phaseWindowSec === 0.5, 'the phase spider opens a half-second window when the bite lands');
+assert(/o\.ceiling>0 && !e\.ranged/.test(html), 'melee cannot reach a ceiling');
+assert(/o\.phased && !\(o\.phaseOpen>0\)/.test(html), 'a phased spider is skipped until the window is open');
+const card3 = { campaignLevel: 3, campaignCard: { key: 'mon_spider_giant' }, lvl: { n: 2, campaignSpec: l3 } };
+let ended3 = 0;
+let started3 = 0;
+global.endChapter = function () { ended3++; };
+global.startChapter = function () { started3++; };
+R.finishCard(card3);
+assert(ended3 === 1 && started3 === 0 && card3.campaignLevel === 3 && card3.campaignCard == null, 'Descend from Level 3 returns to camp');
+assert(html.indexOf('SpiderPoison') < 0, 'the page does not name SpiderPoison');
 
 if (failed) {
   console.error(failed + ' failed');

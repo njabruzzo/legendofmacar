@@ -390,7 +390,7 @@ function tickRejoin(e, p, dt){
     if(st.path.length){ tx=st.path[0].x; ty=st.path[0].y; }
   }
   /* Catch-up pace: a touch quicker than Macar so a lost kin closes. */
-  const go=(e.sp||4)*1.15*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+  const go=(e.sp||4)*1.15*moveSlowMul(e)*((e.webbed||0)>0?0:1);
   if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return true; }
   const moved=routeSteerWalk(e, tx-e.x, ty-e.y, go, dt);
   if(!(moved>0.002)) st.stuck+=dt; else st.stuck=0;
@@ -1207,8 +1207,15 @@ Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 const SPRITE_GAVE_UP={};
+function campaignSpriteKey(key){
+  if(!key) return '';
+  if(SPRITE_FILES[key] || (SPR[key]&&SPR[key].width)) return key;
+  if(String(key).indexOf('mon_')===0 && SPRITE_FILES[String(key).slice(4)]) return String(key).slice(4);
+  return key;
+}
 function loadSpriteKeyNow(k, cb){
   cb=cb||function(){};
+  if(typeof campaignSpriteKey==='function') k=campaignSpriteKey(k);
   if(!k||!SPRITE_FILES[k]){ cb(false); return false; }
   if(SPRITE_GAVE_UP[k]){ cb(false); return false; }
   if(sprReady(k)){ cb(true); return true; }
@@ -6965,7 +6972,11 @@ function deeperChapter(ch){
 function pressGoDeeper(){
   if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.campGoDeeper){
     const act=CampaignRuntime.campGoDeeper(G);
-    if(act==='enter'){ startChapter(G.campaignLevel|0); return; }
+    if(act==='enter'){
+      const lv=G.campaignLevel|0;
+      const shell=(CampaignRuntime.shellChapter&&CampaignRuntime.shellChapter(lv))||lv;
+      startChapter(shell); return;
+    }
     if(act==='soon'){
       say('More coming.','#c9b895');
       hint('More coming.',3.2);
@@ -9912,6 +9923,11 @@ function wearingElvenkind(e){
 /* Carried weight and pack items never change Macar's step. */
 function macarCarryMoveMul(_e){ return 1; }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
+function moveSlowMul(e){
+  if(e && e.h1Slow>0) return (e.h1MoveMul>0)?e.h1MoveMul:0.5;
+  if(e && (e.slowT||0)>0) return 0.4;
+  return 1;
+}
 function wornMoveMul(e){
   let mul=1;
   if(typeof DerivedStats!=='undefined' && DerivedStats.wornMoveMul)
@@ -9922,6 +9938,13 @@ function wornMoveMul(e){
     if(/boots of speed/i.test(n)) mul=2;
     /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
     else if(/striding and springing/i.test(n)) mul=1.5;
+  }
+  if(e&&e.pixieDust&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.dustMoveMul)
+    mul=Math.max(mul, CampaignRuntime.dustMoveMul(e));
+  if(e && typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste(e)){
+    const fx=TimedEffects.getHaste(e);
+    const haste=(fx&&fx.moveMul)||1;
+    if(haste>0) mul=Math.max(mul, haste)/haste;
   }
   if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof macarCarryMoveMul==='function')
     mul*=macarCarryMoveMul(e);
@@ -9976,13 +9999,27 @@ function applyLifeStealHit(atk){
 }
 /* Mild haste while the Quickness sword is wielded. Not potion half-cd. */
 function wornAttackCd(e){
-  if(typeof DerivedStats!=='undefined' && DerivedStats.wornAttackCd)
-    return DerivedStats.wornAttackCd(e, G.equipped||{});
+  let cd;
   const base=(e&&e.baseCd!=null)?e.baseCd:((e&&e.cd)||1);
-  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return (e&&e.cd)||base;
-  const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
-  if(!isQuicknessWeapon(wep)) return base;
-  return Math.max(.45, base*0.85);
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornAttackCd)
+    cd=DerivedStats.wornAttackCd(e, G.equipped||{});
+  else if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) cd=(e&&e.cd)||base;
+  else {
+    const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
+    cd=isQuicknessWeapon(wep)?Math.max(.45, base*0.85):base;
+  }
+  if(e&&e.pixieDust&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.dustCdMul){
+    const haste=typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste(e);
+    if(!haste) cd=Math.min(cd, base*CampaignRuntime.dustCdMul(e));
+  }
+  return cd;
+}
+function heroSwingCd(e){
+  if(e&&e.pixieDust&&typeof wornAttackCd==='function'){
+    const haste=typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste && TimedEffects.hasHaste(e);
+    if(!haste) return wornAttackCd(e);
+  }
+  return (e&&e.cd)||1;
 }
 /* MAC-03: haste remaining lives on TimedEffects. Flag default ON.
    Rollback: TimedEffects.FLAG=false or ?timedHaste=0. */
@@ -11035,6 +11072,7 @@ function savingThrow(e, kind){
 }
 function beginFight(foe){
   G.fightOn=1;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteFight) CampaignRuntime.noteFight(G);
   G.displaceMiss=1;
   G.fightGotKill=0;
   G.fightBossDead=0;
@@ -11105,6 +11143,7 @@ function endFightIfClear(){
   const bossWin=!!G.fightBossDead;
   const won=!!(G.fightGotKill||bossWin);
   G.fightOn=0;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G);
   G.fightWasBoss=0;
   G.fightBossDead=0;
   G.fightGotKill=0;
@@ -12000,6 +12039,14 @@ function useScrollByName(it, e){
 function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
+  if(it.id==='pixie_dust'){
+    if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armDust) CampaignRuntime.armDust(G, e);
+    const pk=packOf(packOwner(e));
+    if(pk&&pk.magic) pk.magic=pk.magic.filter(x=>x!==it);
+    if(typeof syncPackTotals==='function') syncPackTotals();
+    say('Pixie dust. One battle, and the fastest step wins.','#e0d2ff');
+    return;
+  }
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
     const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
@@ -12361,7 +12408,7 @@ function applyHeal(e, n, kind){
   burst(e.x,e.y,'#c9a24a',10,2);
   return amt;
 }
-function clearPoison(e){ e.poisonT=0; e._pt=0; e.slowT=0; }
+function clearPoison(e){ if(!e) return; e.poisonT=0; e._pt=0; e.slowT=0; e.h1Slow=0; e.h1MoveMul=0; }
 function potionHay(p){ return String((p&&(p.n||''))+' '+(p&&(p.k||''))); }
 function charmFoeKind(e, re, rounds){
   const t=nearestFoe(e,8);
@@ -12525,7 +12572,7 @@ function drinkPotion(p, e){
   else if(k==='heal20') applyHeal(e,20);
   else if(k==='heal40') applyHeal(e,40);
   else if(k==='healall'){ e.hp=e.maxhp; applyHeal(e,1); say('Wounds close.','#ffe08a'); }
-  else if(k==='antidote'){ clearPoison(e); say('The poison leaves.','#6aff8a'); }
+  else if(k==='antidote'||k==='antitoxin'){ clearPoison(e); say('The poison leaves.','#6aff8a'); }
   else if(k==='haste'){
     if(typeof applyHasteEffect==='function' && applyHasteEffect(e,{
       duration:lv*0.6, moveMul:1.35, cdMul:0.5, cdFloor:.28, policy:'refresh', source:'potion'
@@ -12663,10 +12710,19 @@ function damage(e,amt,col,src){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
       say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); } } } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
 }
 function onHitFx(atk,o,dmg){
   if(!atk||!o) return dmg;
+  if(atk.phaseWindowSec) atk.phaseOpen=atk.phaseWindowSec;
+  if(G.poisonMode==='h1' && atk.campaignPoison && typeof CampaignRuntime!=='undefined' && CampaignRuntime.applyPoison){
+    const hit=CampaignRuntime.applyPoison(atk, o, dmg||0);
+    if(hit && hit.fx && hit.fx.slow && !hit.fx.immune && !hit.fx.saved){
+      o.h1Slow=Math.max(o.h1Slow||0, hit.fx.slow.seconds||2);
+      o.h1MoveMul=hit.fx.slow.moveMul||0.5;
+    }
+    return hit ? hit.dmg : (dmg||0);
+  }
   const sa=atk.sa||'';
   if(atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
   if(atk.poison||/Poison/i.test(sa)){
@@ -12708,6 +12764,8 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
+    if(o.ceiling>0 && !e.ranged) continue;
+    if(o.phased && !(o.phaseOpen>0)) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
        !EnemyIntent.meleeClear(e,o,{hasLOS:hasLOS,dist:dist,walk:walk})) continue;
@@ -14503,7 +14561,7 @@ function applyEnemyIntent(e, ir, dt){
   }
   if(ir.move){
     let vx=ir.move.dx-e.x, vy=ir.move.dy-e.y;
-    const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+    const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
     if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
     else {
       for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
@@ -15322,7 +15380,7 @@ function fire(key){
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
-      if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
+      if(p.ct<=0){ p.ct=heroSwingCd(p); p.swung=0; }
       else p.swung=1;
       armLivingMacarWindup(p);
       armLivingMacarStrike(p);
@@ -15610,7 +15668,8 @@ function update(dt){
     }
 
     let sp=p.sp;
-    if((p.slowT||0)>0){ p.slowT=Math.max(0,p.slowT-dt); sp*=0.4; }
+    if((p.slowT||0)>0) p.slowT=Math.max(0,p.slowT-dt);
+    sp*=moveSlowMul(p);
     if(G.searching) sp*=0.16;
     if(G.secretSearch) sp*=0.18;
     if(G.digging) sp*=0.14;
@@ -15640,7 +15699,7 @@ function update(dt){
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
         faceToward(p, t.x, t.y);
-        p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t;
+        p.atkKind='melee'; p.atk=p.atkMax; p.ct=heroSwingCd(p); p.swung=0; p.aim=t;
         p._attack={fdx:p.fdx,fdy:p.fdy};
         if(typeof armLivingMacarWindup==='function') armLivingMacarWindup(p); }
       if(!t) p.aim=null;
@@ -15943,7 +16002,7 @@ function update(dt){
       const d=dist(e,tgt);
       if(d>want){
         let vx=tgt.x-e.x, vy=tgt.y-e.y;
-        const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+        const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
@@ -15989,6 +16048,7 @@ function update(dt){
     stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
+      if(o.phased && !(o.phaseOpen>0)) continue;
       if(dist(s,o)<o.r+.45){
         if(s.kind==='web'){
           applyWeb(o);
@@ -22064,7 +22124,7 @@ function drawBetween(g){
 
 
 function campaignCardArt(card){
-  const key=(card&&card.key)||'';
+  const key=campaignSpriteKey((card&&card.key)||'');
   if(key && SPRITE_GAVE_UP[key]) return null;
   if(key && typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
   if(key && SPR[key] && SPR[key].width) return SPR[key];
