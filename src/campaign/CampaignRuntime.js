@@ -247,12 +247,41 @@
   }
 
   function commandTiles(shaman) {
+    if (shaman && typeof shaman.commandRangeTiles === 'number') return shaman.commandRangeTiles;
     var lines = (shaman && shaman.cadence) || [];
     for (var i = 0; i < lines.length; i++) {
       var m = String(lines[i]).match(/within (\d+) tiles/);
       if (m) return +m[1];
     }
     return null;
+  }
+
+  function unitRng(opts) {
+    if (opts && typeof opts.rng === 'function') return opts.rng();
+    return Math.random();
+  }
+
+  function rollHpExpr(expr, rng, minHp) {
+    var m = String(expr || '').match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+    var floor = minHp == null ? 1 : minHp;
+    if (!m) return floor;
+    var total = m[3] ? +m[3] : 0;
+    var n = +m[1];
+    var sides = +m[2];
+    for (var i = 0; i < n; i++) total += 1 + Math.floor(rng() * sides);
+    return Math.max(floor, total);
+  }
+
+  function stampHp(e, sheet, scale, rng) {
+    if (!e || !sheet) return e;
+    var hp1e = null;
+    if (typeof sheet.hp === 'number') hp1e = sheet.hp;
+    else if (sheet.hpRoll) hp1e = rollHpExpr(sheet.hpRoll, rng, sheet.hpMin);
+    if (hp1e == null) return e;
+    e.hp1e = hp1e;
+    e.hp = Math.max(1, Math.round(hp1e * (scale || 4)));
+    e.maxhp = e.hp;
+    return e;
   }
 
   function cardKey(src) {
@@ -299,6 +328,10 @@
 
   function makeEnt(opts, spec, key, member, group) {
     var mon = spec.data && spec.data.MONSTERS && spec.data.MONSTERS[key];
+    var sheet = mon;
+    if (member && member.role === 'assistants' && spec.data && spec.data.MONSTERS && spec.data.MONSTERS.goblinLeader) {
+      sheet = spec.data.MONSTERS.goblinLeader;
+    }
     var make = pickFactory(opts.foe, key);
     var e = make ? make() : { team: 'foe', hp: 8, maxhp: 8, name: key, kind: key, sprite: key };
     var scale = opts.scale || 4;
@@ -308,17 +341,30 @@
     e.campaignKey = key;
     var xp = printed(spec, key);
     if (xp != null) e.campaignXp = xp;
-    if (mon) {
-      if (mon.name) e.name = mon.name;
-      if (typeof mon.ac === 'number') e.ac = mon.ac;
-      if (mon.attacks && mon.attacks[0] && mon.attacks[0].damage) e.dice = mon.attacks[0].damage;
-      if (typeof mon.hp === 'number') {
-        e.hp = Math.round(mon.hp * scale);
-        e.maxhp = e.hp;
+    if (sheet) {
+      if (member && member.role === 'assistants') e.name = 'Goblin assistant';
+      else if (mon && mon.name) e.name = mon.name;
+      if (typeof sheet.ac === 'number') e.ac = sheet.ac;
+      if (sheet.attacks && sheet.attacks[0] && sheet.attacks[0].damage) e.dice = sheet.attacks[0].damage;
+      stampHp(e, sheet, scale, function () { return unitRng(opts); });
+      if (sheet.hitAsHd) e.hd = sheet.hitAsHd;
+      if (typeof sheet.toHit === 'number') {
+        e.toHit = sheet.toHit;
+        e.sa = '';
+        e.strMul = 0;
       }
-      if (mon.art && mon.art.key) e.sprite = mon.art.key;
-      if (mon.ruby && typeof mon.ruby.gp === 'number') e.rubyGp = mon.ruby.gp;
+      var artKey = (mon && mon.art && mon.art.key) || (sheet.art && sheet.art.key);
+      if (artKey) e.sprite = artKey;
+      if (mon && mon.ruby && typeof mon.ruby.gp === 'number') e.rubyGp = mon.ruby.gp;
+      if (mon && mon.disease) {
+        e.poison = 0;
+        e.killPoison = 0;
+        e.slowPoison = 0;
+        e.sa = '';
+        e.diseaseBite = mon.disease.perBite;
+      }
     }
+    if (group) e.room = group.room || group.id || e.room;
     if ((mon && mon.dialogue === 'insults-only') || (group && group.dialogue === 'insults-only')) {
       e.insultsOnly = 1;
       e.parley = false;
@@ -396,6 +442,11 @@
     for (var k = 0; k < seals.length; k++) {
       if (seals[k] && !seals[k].open && eng('sealSecretCells')) eng('sealSecretCells')(g, seals[k]);
     }
+    var king = root.L2 && root.L2.KING;
+    if (king && king.cornerRoom && map && map.boss && map.boss.key === 'goblinKing' && eng('rect')) {
+      var room = king.cornerRoom;
+      eng('rect')(g, room.x | 0, room.y | 0, room.w | 0, room.h | 0, 0);
+    }
   }
 
   function stripTravelProps(G) {
@@ -413,6 +464,11 @@
       var p = props[i];
       if (p && p.k === prop.k && near(p, prop, 1.4)) {
         p.campaign = prop.campaign || p.campaign;
+        if (prop.itemId) p.itemId = prop.itemId;
+        if (prop.toothKind) p.toothKind = prop.toothKind;
+        if (prop.wall && !p.wall) p.wall = prop.wall;
+        if (prop.throneDoor) p.throneDoor = 1;
+        if (prop.emptySocket) p.emptySocket = 1;
         return p;
       }
     }
@@ -447,6 +503,33 @@
       if (pieces[p].id === 'warren-stair') {
         placeProp(G, { x: pieces[p].x, y: pieces[p].y, k: 'stairs', campaign: 'warren' });
       }
+    }
+    placeKingPieces(G, spec);
+  }
+
+  function placeKingPieces(G, spec) {
+    var map = spec.map || {};
+    var data = spec.data || {};
+    var tooth = map.tooth;
+    var face = data.TOOTH;
+    if (tooth && tooth.x != null && tooth.y != null) {
+      var flags = (G.lvl && G.lvl.flags) || {};
+      placeProp(G, {
+        x: tooth.x, y: tooth.y, k: 'demonface',
+        wall: (face && face.wall) || 'n',
+        s: 1.12, seed: 774,
+        toothKind: 'electrum', itemId: tooth.id || 'grond_tooth_electrum_2',
+        campaign: 1, emptySocket: flags.electrumTooth2 ? 1 : 0
+      });
+    }
+    var king = data.KING;
+    if (!king) return;
+    if (king.throne) placeProp(G, { x: king.throne.x, y: king.throne.y, k: 'throne', s: 1.2, campaign: 1 });
+    if (king.throneDoor) {
+      placeProp(G, {
+        x: king.throneDoor.x, y: king.throneDoor.y, k: 'gate',
+        campaign: 1, throneDoor: 1, wall: king.throneDoor.wall || 'n'
+      });
     }
   }
 
@@ -525,7 +608,7 @@
     L.flags.placed = 1;
     L.flags.spiderLoot = 1;
     L.flags.campaignInstalled = 1;
-    L._campaignHost = { rollExpr: opts.rollExpr || null, scale: opts.scale || 4 };
+    L._campaignHost = { rollExpr: opts.rollExpr || null, scale: opts.scale || 4, rng: opts.rng || null };
     if (opts.foe) G._campaignFoe = opts.foe;
     if (spec.name) L.title = spec.name;
     if (opts.fresh !== false) {
@@ -556,6 +639,102 @@
     e.spellsSpent = e.spellsSpent ? (e.spellsSpent + ',' + name) : name;
   }
 
+  function actorLevel(def) {
+    if (def && def.lvl) return def.lvl | 0;
+    if (def && def.hero && eng('partyLevel')) return eng('partyLevel')() | 0;
+    return 1;
+  }
+
+  function die20(G) {
+    var host = G && G.lvl && G.lvl._campaignHost;
+    if (host && typeof host.d20 === 'function') return host.d20();
+    if (eng('d20')) return eng('d20')();
+    return 1 + Math.floor(Math.random() * 20);
+  }
+
+  function saveVs(G, target, kind) {
+    var host = G && G.lvl && G.lvl._campaignHost;
+    if (host && typeof host.save === 'function') return !!host.save(target, kind);
+    if (eng('savingThrow')) return !!eng('savingThrow')(target, kind);
+    return false;
+  }
+
+  function touchLands(G, atk, def) {
+    var roll = die20(G);
+    var host = G && G.lvl && G.lvl._campaignHost;
+    var need = null;
+    if (host && typeof host.need === 'function') need = host.need(atk, def);
+    else if (eng('thacNeed') && eng('effectiveAC')) need = eng('thacNeed')(atk, eng('effectiveAC')(def, atk));
+    if (need == null) need = 20;
+    var bonus = eng('hitBonus') ? eng('hitBonus')(atk, def) : ((atk && atk.toHit) || 0);
+    return roll === 20 || (roll + bonus) >= need;
+  }
+
+  function spellList(shaman, e) {
+    if (!shaman) return [];
+    if (e && e.spellSet === 'swap') return shaman.swap || [];
+    return shaman.memorized || [];
+  }
+
+  function shamanLine(spec, spell) {
+    var talk = spec && spec.data && spec.data.DIALOGUE && spec.data.DIALOGUE.shaman;
+    if (!talk || !spell) return '';
+    var pool = null;
+    if (spell.stunSec) pool = talk.command;
+    else if (spell.damage) pool = talk.causeLightWounds;
+    if (!pool || !pool.length) return '';
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function showBark(G, speaker, text) {
+    if (!text) return;
+    G.campaignBark = { speaker: speaker, text: text, life: 3.4 };
+    if (eng('say')) eng('say')(speaker + ': ' + text, '#d6e2a8');
+  }
+
+  function resolveSpell(G, e, p, spell, spec) {
+    var shaman = spec.data && spec.data.SHAMAN;
+    var host = (G.lvl && G.lvl._campaignHost) || {};
+    var scale = host.scale || 4;
+    var roll = host.rollExpr;
+    if (spell.stunSec) {
+      var dur = spell.durationSec || spell.stunSec;
+      if (commandLands(G, p, spell) && !(p.stun > 0)) {
+        p.stun = Math.max(p.stun || 0, dur);
+        p.commandHeld = dur;
+      }
+      showBark(G, 'SHAMAN', shamanLine(spec, spell));
+    } else if (spell.area && spell.durationSec) {
+      G.darkZones = G.darkZones || [];
+      G.darkZones.push({ x: p.x, y: p.y, r: 2, t: spell.durationSec, magical: 1 });
+    } else if (spell.touchHit) {
+      var landed = touchLands(G, e, p);
+      if (landed && spell.damage) {
+        var raw = (typeof roll === 'function') ? roll(spell.damage) : 4;
+        if (eng('damage')) eng('damage')(p, Math.round(raw * scale), '#c07bff', e);
+        else p.hp = Math.max(0, (p.hp || 0) - Math.round(raw * scale));
+        showBark(G, 'SHAMAN', shamanLine(spec, spell));
+      } else if (landed && spell.fleeSec) {
+        if (!saveVs(G, p, 'spell')) {
+          p.fearT = Math.max(p.fearT || 0, spell.fleeSec);
+          p.causeFear = spell.fleeSec;
+          var dx = p.x - e.x, dy = p.y - e.y;
+          var len = Math.hypot(dx, dy) || 1;
+          p.fleeTo = { x: p.x + (dx / len) * 4, y: p.y + (dy / len) * 4 };
+          p.fearFlee = 1;
+        }
+      }
+    }
+    markSpent(e, spell.name);
+    if (shaman && shaman.spellEverySec) e.spellCd = shaman.spellEverySec;
+  }
+
+  function commandLands(G, def, spell) {
+    var gate = (spell && spell.saveLevel) || 6;
+    if (actorLevel(def) < gate) return true;
+    return !saveVs(G, def, 'spell');
+  }
+
   function tickCasters(G, dt) {
     var L = G.lvl;
     var spec = L && L.campaignSpec;
@@ -563,50 +742,46 @@
     if (!shaman) return;
     var p = hero(G);
     if (!p) return;
+    if (p.commandHeld > 0) p.commandHeld = Math.max(0, p.commandHeld - dt);
+    if (p.causeFear > 0) {
+      p.causeFear = Math.max(0, p.causeFear - dt);
+      if (p.causeFear <= 0 && p.fearFlee) { p.fearFlee = 0; p.fleeTo = null; }
+    }
     var tiles = commandTiles(shaman);
+    var closeTiles = shaman.closeTiles || 6;
     var every = shaman.spellEverySec;
     var fleeAt = shaman.fleeAtHpFraction;
-    var host = L._campaignHost || {};
-    var roll = host.rollExpr;
-    var scale = host.scale || 4;
     var ents = G.ents || [];
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
       if (!e || !e.caster || e.dead || e.team !== 'foe' || e.sleeping) continue;
       var max = e.maxhp || e.hp || 1;
-      if (typeof fleeAt === 'number' && e.hp <= max * fleeAt && !e.fleeTo) {
+      if (typeof fleeAt === 'number' && e.hp <= max * fleeAt && !e.fleeTo && !e.cornered) {
         var dx = e.x - p.x, dy = e.y - p.y;
         var len = Math.hypot(dx, dy) || 1;
         e.fleeTo = { x: e.x + (dx / len) * 6, y: e.y + (dy / len) * 6 };
       }
-      if (e.spellSet !== 'memorized') continue;
       if (e._wind) {
         e._wind.left -= dt;
         if (e._wind.left > 0) continue;
         var spell = e._wind.spell;
         e._wind = null;
-        if (spell.stunSec && !(p.stun > 0)) {
-          p.stun = Math.max(p.stun || 0, spell.stunSec);
-          p.commandHeld = spell.stunSec;
-        }
-        if (spell.damage && typeof roll === 'function' && eng('damage')) {
-          eng('damage')(p, Math.round(roll(spell.damage) * scale), '#c07bff', e);
-        }
-        markSpent(e, spell.name);
-        if (every) e.spellCd = every;
+        resolveSpell(G, e, p, spell, spec);
         continue;
       }
-      if (p.commandHeld > 0) p.commandHeld = Math.max(0, p.commandHeld - dt);
       if (e.spellCd > 0) { e.spellCd -= dt; continue; }
-      var list = shaman.memorized || [];
+      var list = spellList(shaman, e);
+      var touch = (e.range || 0.8) + 0.4;
       var next = null;
       for (var s = 0; s < list.length; s++) {
         var row = list[s];
         if (spent(e, row.name)) continue;
         if (row.stunSec && tiles != null && near(e, p, tiles) && !(p.stun > 0) && !(p.commandHeld > 0)) { next = row; break; }
-        if (row.damage && row.range === 'touch' && near(e, p, (e.range || 0.8) + 0.4)) { next = row; break; }
+        if (row.area && near(e, p, closeTiles)) { next = row; break; }
+        if (row.touchHit && near(e, p, touch)) { next = row; break; }
       }
       if (next) e._wind = { spell: next, left: next.windupSec || 0 };
+      else if (every) e.spellCd = 0;
     }
   }
 
@@ -635,11 +810,388 @@
     return null;
   }
 
+  function hostOf(G) {
+    return (G && G.lvl && G.lvl._campaignHost) || {};
+  }
+
+  function roll100(G) {
+    var host = hostOf(G);
+    if (typeof host.d100 === 'function') return host.d100() | 0;
+    return 1 + Math.floor(Math.random() * 100);
+  }
+
+  function hostRng(G) {
+    var host = hostOf(G);
+    if (typeof host.rng === 'function') return host.rng;
+    return Math.random;
+  }
+
+  function tileDist(a, b) {
+    if (!a || !b) return 99;
+    return Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0));
+  }
+
+  function diseaseOf(G, atk) {
+    var spec = G && G.lvl && G.lvl.campaignSpec;
+    var key = atk && atk.campaignKey;
+    var mon = spec && spec.data && spec.data.MONSTERS && key && spec.data.MONSTERS[key];
+    return (mon && mon.disease) || null;
+  }
+
+  function tryDisease(G, atk, def) {
+    if (!G || !atk || !def || !(atk.diseaseBite > 0)) return false;
+    var dis = diseaseOf(G, atk);
+    if (!dis || dis.lethal) return false;
+    var roll = roll100(G);
+    if (roll > (dis.perBite || 5)) return false;
+    if (saveVs(G, def, dis.save || 'poison')) return false;
+    def.ratFever = 1;
+    def.disease = 1;
+    if (G.lvl) {
+      G.lvl.flags = G.lvl.flags || {};
+      G.lvl.flags.ratFever = 1;
+    }
+    return true;
+  }
+
+  function onFoeHit(G, atk, def) {
+    return tryDisease(G, atk, def);
+  }
+
+  function healKindBlocked(e, kind) {
+    return !!(e && e.ratFever && (kind === 'rest' || kind === 'regen'));
+  }
+
+  function applyHealKind(e, n, kind, scale) {
+    if (!e || e.dead) return 0;
+    if (healKindBlocked(e, kind)) return 0;
+    var amt = Math.round((+n || 0) * (scale || 4));
+    var cap = e.maxhp == null ? Infinity : e.maxhp;
+    e.hp = Math.min(cap, (e.hp || 0) + amt);
+    return amt;
+  }
+
+  function cureDisease(G, e) {
+    if (e) {
+      e.ratFever = 0;
+      e.disease = 0;
+      e.diseaseT = 0;
+      e.campRestSec = 0;
+    }
+    if (G && G.lvl && G.lvl.flags) G.lvl.flags.ratFever = 0;
+  }
+
+  function noteCampRest(G, who, sec) {
+    if (!who) return false;
+    var fever = !!(who.ratFever || (G && G.lvl && G.lvl.flags && G.lvl.flags.ratFever));
+    if (!fever) return false;
+    who.ratFever = 1;
+    var spec = G && G.lvl && G.lvl.campaignSpec;
+    var rat = spec && spec.data && spec.data.MONSTERS && spec.data.MONSTERS.rat;
+    var need = (rat && rat.disease && rat.disease.campSec) || 360;
+    who.campRestSec = (who.campRestSec || 0) + (sec || 0);
+    if (who.campRestSec >= need) {
+      cureDisease(G, who);
+      return true;
+    }
+    return false;
+  }
+
+  function syncFever(G) {
+    var flags = G && G.lvl && G.lvl.flags;
+    if (!flags) return;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.team !== 'party' || e.dead) continue;
+      if (flags.ratFever) e.ratFever = 1;
+    }
+  }
+
+  function attackMod(e) {
+    return (e && e.ratFever) ? -1 : 0;
+  }
+
+  function darkPenalty(e, zones, dwarf) {
+    var magical = false;
+    var plain = false;
+    zones = zones || [];
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      if (!z || (z.t || 0) <= 0 || !e) continue;
+      if (Math.hypot((e.x || 0) - z.x, (e.y || 0) - z.y) > (z.r || 1)) continue;
+      if (z.magical) magical = true;
+      else plain = true;
+    }
+    if (magical) return -4;
+    if (plain && !dwarf) return -4;
+    return 0;
+  }
+
+  function saidLine(e, kind) {
+    return String((e && e.kingLines) || '').split(',').indexOf(kind) >= 0;
+  }
+
+  function markLine(e, kind) {
+    if (!e || saidLine(e, kind)) return false;
+    e.kingLines = e.kingLines ? (e.kingLines + ',' + kind) : kind;
+    return true;
+  }
+
+  function kingBark(G, e, kind) {
+    var data = G && G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var line = data && data.DIALOGUE && data.DIALOGUE.king && data.DIALOGUE.king[kind];
+    if (!line || !markLine(e, kind)) return;
+    showBark(G, 'KING', line);
+  }
+
+  function onHurt(G, e) {
+    if (!e || e.dead || e.hp <= 0 || e.campaignRole !== 'boss') return;
+    kingBark(G, e, 'hurt');
+  }
+
+  function onDown(G, e) {
+    if (!e || e.campaignRole !== 'boss') return;
+    kingBark(G, e, 'death');
+  }
+
+  function kingOf(G) {
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e && e.campaignRole === 'boss' && !e.dead) return e;
+    }
+    return null;
+  }
+
+  function callGoblins(G, king, n) {
+    if (!king || king.called) return 0;
+    king.called = 1;
+    var room = king.room || 'king-hall';
+    var pool = [];
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead || e === king) continue;
+      if (e.campaignKey !== 'goblin') continue;
+      if (e.room !== room) continue;
+      pool.push(e);
+    }
+    var take = Math.min(Math.max(0, n | 0), pool.length);
+    for (var j = 0; j < take; j++) {
+      pool[j].aggro = 99;
+      pool[j].engaged = 1;
+    }
+    return take;
+  }
+
+  function cornerKing(king) {
+    if (!king) return;
+    king.cornered = 1;
+    king.moraleChecked = 1;
+    king.fleeTo = null;
+    king.fleePath = null;
+    king.onArrive = null;
+    king.fleeStuck = 0;
+  }
+
+  function startKingFlee(G, king) {
+    var data = G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var K = data && data.KING;
+    if (!K || !K.throneDoor || !K.corner) return;
+    king.fleePath = [{ x: K.corner.x, y: K.corner.y }];
+    king.fleeTo = { x: K.throneDoor.x, y: K.throneDoor.y };
+    king.fleeStuck = 0;
+    king.onArrive = function () { cornerKing(king); };
+    kingBark(G, king, 'flee');
+  }
+
+  function shamanAlive(G) {
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e && e.caster && !e.dead && e.team === 'foe') return true;
+    }
+    return false;
+  }
+
+  function kingStep(G, king) {
+    if (!G || !king || king.dead) return;
+    var data = G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var K = data && data.KING;
+    if (!K) return;
+    var morale = K.morale || {};
+    var max = king.maxhp || king.hp || 1;
+    var frac = morale.belowHpFraction == null ? 0.3 : morale.belowHpFraction;
+    if (!king.cornered && !king.moraleChecked && king.hp < max * frac) {
+      king.moraleChecked = 1;
+      var roll = roll100(G);
+      var hold = morale.holdOnOrUnder == null ? 55 : morale.holdOnOrUnder;
+      if (roll <= hold) king.moraleHold = 1;
+      else {
+        king.moraleHold = 0;
+        var n = rollHpExpr(K.call || '1d4', hostRng(G), 1);
+        callGoblins(G, king, n);
+        startKingFlee(G, king);
+      }
+    }
+    if (king.fleeTo) return;
+    var p = hero(G);
+    var close = (data.SHAMAN && data.SHAMAN.closeTiles) || 6;
+    if (p && shamanAlive(G) && tileDist(king, p) <= close) {
+      kingBark(G, king, 'taunt');
+      var ents = G.ents || [];
+      for (var i = 0; i < ents.length; i++) {
+        var e = ents[i];
+        if (e && e.caster && !e.dead) { e.aggro = 99; e.engaged = 1; }
+      }
+    }
+    var reach = (king.range || 0.8) + 0.4;
+    if (p && tileDist(king, p) <= reach) king.specialty = 1;
+  }
+
+  function tickKing(G, dt) {
+    var data = G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var K = data && data.KING;
+    var king = kingOf(G);
+    if (!K || !king) return;
+    king._moraleT = (king._moraleT || 0) + (dt || 0);
+    if (king._moraleT < (K.checkEverySec || 1)) return;
+    king._moraleT = 0;
+    kingStep(G, king);
+  }
+
+  function kingTarget(king, G) {
+    if (!king || king.campaignRole !== 'boss') return null;
+    var p = hero(G);
+    if (!p) return null;
+    var macarD = tileDist(king, p);
+    if (macarD <= 4) return p;
+    var ents = (G && G.ents) || [];
+    var best = null;
+    var bd = macarD;
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e === king || e.hero || e.team !== 'party') continue;
+      if (e.dead && !e.ghost) continue;
+      var d = tileDist(king, e);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best || p;
+  }
+
+  function ghostKinRisen(G) {
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e && e.ghost && !e.hero && e.team === 'party') return true;
+    }
+    return false;
+  }
+
+  function goblinLines(G) {
+    var talk = G && G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data && G.lvl.campaignSpec.data.DIALOGUE;
+    var lines = (talk && talk.lines) ? talk.lines.slice() : [];
+    var from = ((talk && talk.ghostFrom) || 12) - 1;
+    var to = ((talk && talk.ghostTo) || 15) - 1;
+    if (!ghostKinRisen(G)) {
+      lines = lines.filter(function (_line, i) { return i < from || i > to; });
+    }
+    return lines;
+  }
+
+  function tickBarks(G, dt) {
+    var L = G && G.lvl;
+    var talk = L && L.campaignSpec && L.campaignSpec.data && L.campaignSpec.data.DIALOGUE;
+    if (!talk) return;
+    L._barkClock = (L._barkClock || 0) + (dt || 0);
+    if (G.campaignBark && G.campaignBark.life > 0) {
+      G.campaignBark.life -= dt || 0;
+      if (G.campaignBark.life <= 0) G.campaignBark = null;
+    }
+    if (G.campaignBark && G.campaignBark.speaker && G.campaignBark.speaker !== 'GOBLIN' && G.campaignBark.life > 2.5) return;
+    var p = hero(G);
+    if (!p) return;
+    var every = talk.barkEverySec || 6;
+    L._barkAt = L._barkAt || {};
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead || !e.insultsOnly || e.team !== 'foe') continue;
+      if (tileDist(e, p) > 8) continue;
+      var room = e.room || 'floor';
+      if ((L._barkAt[room] || 0) > L._barkClock) continue;
+      var pool = goblinLines(G);
+      if (!pool.length) return;
+      var rng = hostRng(G);
+      var line = pool[Math.floor(rng() * pool.length) % pool.length];
+      L._barkAt[room] = L._barkClock + every;
+      showBark(G, 'GOBLIN', line);
+      return;
+    }
+  }
+
+  function overlapBox(a, b) {
+    if (!a || !b) return false;
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function barkRect(vw, vh, portrait, face) {
+    vw = vw || 390;
+    vh = vh || 844;
+    var w = 220;
+    var h = 36;
+    var x = 132;
+    var y = 8;
+    if (portrait && portrait.w) {
+      x = (portrait.x || 0) + portrait.w + 8;
+      y = portrait.y || 8;
+    }
+    if (x + w > vw - 8) w = Math.max(96, vw - 8 - x);
+    var box = { x: x, y: y, w: w, h: h };
+    if (overlapBox(box, portrait)) box.y = (portrait.y || 0) + (portrait.h || 0) + 8;
+    if (overlapBox(box, face)) box.y = (face.y || 0) + (face.h || 0) + 8;
+    if (box.y + box.h > vh - 8) box.y = Math.max(8, vh - box.h - 8);
+    if (overlapBox(box, portrait)) box.x = (portrait.x || 0) + (portrait.w || 0) + 8;
+    return box;
+  }
+
+  function pryTooth(G, face) {
+    if (!G || !face || face.gone || face.emptySocket) return { ok: 0, reason: 'gone' };
+    var flags = (G.lvl && G.lvl.flags) || {};
+    if (G.lvl) G.lvl.flags = flags;
+    if (flags.electrumTooth2) return { ok: 0, reason: 'taken' };
+    var data = G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var tooth = (data && data.TOOTH) || {};
+    var id = face.itemId || tooth.id || 'grond_tooth_electrum_2';
+    var it = {
+      id: id,
+      n: "Grond's Electrum Tooth",
+      k: 'misc',
+      cat: 'Quest',
+      noSell: 1,
+      quest: 1,
+      noAuto: 1,
+      grondTooth: 'electrum',
+      spr: 'icon_pack',
+      d: 'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
+    };
+    if (eng('stowPackItem')) eng('stowPackItem')(it);
+    flags.electrumTooth2 = 1;
+    face.emptySocket = 1;
+    if (eng('convertCoinsToElectrum')) eng('convertCoinsToElectrum')();
+    if (eng('say')) eng('say')('Macar takes the electrum tooth. Coin turns while he carries it.', '#c8d4c0');
+    return { ok: 1, item: it };
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
+    syncFever(G);
     syncGates(G);
+    tickKing(G, dt || 0);
     tickCasters(G, dt || 0);
+    tickBarks(G, dt || 0);
     var p = hero(G);
     if (!p || !eng('interact')) return;
     var spec = L.campaignSpec;
@@ -778,7 +1330,24 @@
     tick: tick,
     showCard: showCard,
     finishCard: finishCard,
-    spawnWander: spawnWander
+    spawnWander: spawnWander,
+    rollHpExpr: rollHpExpr,
+    onFoeHit: onFoeHit,
+    onHurt: onHurt,
+    onDown: onDown,
+    cureDisease: cureDisease,
+    noteCampRest: noteCampRest,
+    healKindBlocked: healKindBlocked,
+    applyHealKind: applyHealKind,
+    attackMod: attackMod,
+    darkPenalty: darkPenalty,
+    kingStep: kingStep,
+    kingTarget: kingTarget,
+    cornerKing: cornerKing,
+    pryTooth: pryTooth,
+    barkRect: barkRect,
+    goblinLines: goblinLines,
+    tickBarks: tickBarks
   };
 
   root.CampaignRuntime = api;

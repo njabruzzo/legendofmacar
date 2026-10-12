@@ -42,6 +42,8 @@
       ac: 6,
       mv: '6"',
       attacks: [{ n: 1, form: 'weapon', damage: '1d6' }],
+      hpRoll: '1d8-1',
+      hpMin: 1,
       specials: ['-1 to hit in daylight; none underground', 'infravision 6"'],
       xp: 13,
       xpFormula: formula(10, 1, 3, []),
@@ -62,6 +64,9 @@
       hd: '1+1',
       ac: 6,
       mv: '9"',
+      hpRoll: '1d8+1',
+      hpMin: 1,
+      hitAsHd: 1.25,
       attacks: [{ n: 1, form: 'weapon', damage: '1d8' }],
       specials: [],
       xp: 31,
@@ -76,8 +81,11 @@
       hd: 2,
       ac: 5,
       mv: '9"',
+      hpRoll: '2d8',
+      hpMin: 1,
+      hitAsHd: 2,
       attacks: [{ n: 1, form: 'weapon', damage: '2d4' }],
-      specials: [],
+      specials: ['hits as 2 HD on the monster matrix'],
       xp: 38,
       xpFormula: formula(20, 2, 9, []),
       tt: 'K',
@@ -90,8 +98,21 @@
       hd: '1/2',
       ac: 7,
       mv: '12"//6"',
+      hpRoll: '1d4',
+      hpMin: 1,
       attacks: [{ n: 1, form: 'bite', damage: '1d3' }],
-      specials: ['disease 5% per bite'],
+      disease: {
+        perBite: 5,
+        save: 'poison',
+        name: 'rat fever',
+        toHit: -1,
+        blocksRegen: true,
+        blocksRest: true,
+        campSec: 360,
+        cure: 'Cure Disease',
+        lethal: false
+      },
+      specials: ['disease 5% per bite; save vs poison negates; rat fever never kills'],
       xp: 8,
       xpFormula: formula(5, 1, 3, []),
       tt: 'C',
@@ -105,6 +126,7 @@
       hp: 9,
       ac: 6,
       mv: '6"',
+      hitAsHd: 2,
       attacks: [{ n: 1, form: 'staff', damage: '1d6' }],
       specials: ['spells'],
       casterLevel: 2,
@@ -121,12 +143,14 @@
       name: 'Goblin King',
       source: 'MM1 goblin chief, scaled up: RULING',
       hd: '4+1',
+      hitAsHd: 4.25,
       hp: 26,
       ac: 3,
       armor: 'chain and shield',
       mv: '9"',
       str: 18,
-      attacks: [{ n: 1, form: 'weapon', damage: '1d8+2' }],
+      toHit: 1,
+      attacks: [{ n: 1, form: 'weapon', damage: '1d8+2', toHit: 1 }],
       specials: ['commands', 'morale break', 'Specialty Attack, house bands, whole round'],
       xp: 260,
       xpFormula: formula(90, 5, 26, [{ kind: 'SA', reason: 'specialty and command', xp: 40 }]),
@@ -168,7 +192,10 @@
         segments: 1,
         windupSec: 0.1,
         effect: 'Halt! The target loses 1 round.',
-        save: 'vs spell if INT 13+ or 6+ HD/levels',
+        rangeTiles: 2,
+        durationSec: 1,
+        save: 'vs spell only if the target is level 6 or higher',
+        saveLevel: 6,
         stunSec: 1,
         neverTargets: 'a kin who already holds a Command'
       },
@@ -178,7 +205,9 @@
         segments: 5,
         windupSec: 0.5,
         range: 'touch',
-        damage: '1d8'
+        damage: '1d8',
+        save: false,
+        touchHit: true
       }
     ],
     swap: [
@@ -189,6 +218,7 @@
         windupSec: 0.4,
         area: '2" globe',
         attackPenalty: -4,
+        durationSec: 80,
         note: 'attacks into or out of the globe are at -4'
       },
       {
@@ -198,15 +228,20 @@
         windupSec: 0.4,
         range: 'touch',
         save: 'vs spell',
-        flee: '1 round per level'
+        touchHit: true,
+        durationSec: 2,
+        fleeSec: 2,
+        flee: '2 s'
       }
     ],
     cadence: [
-      'When Macar is within 6 tiles and visible, cast Command first: 0.1 s wind-up, then Macar is stunned 1 s. Command never targets a kin who already holds a Command.',
-      'Close to melee only after Command, then cast Cause Light Wounds on the next touch: 0.5 s wind-up, then the touch.',
+      'When Macar is within 6 tiles the shaman closes in. Command reaches 2 tiles: 0.1 s wind-up, then a 1 s stun. Macar saves vs spell only at level 6 or higher. Command never targets a kin who already holds a Command.',
+      'After Command, the next touch is Cause Light Wounds: 0.5 s wind-up, a matrix touch hit, no save, then 1d8.',
       'With both spells spent, fight with the staff and flee at 50% HP.',
       'At most one spell per 2 s.'
     ],
+    commandRangeTiles: 2,
+    closeTiles: 6,
     spellEverySec: 2,
     fleeAtHpFraction: 0.5
   };
@@ -216,17 +251,45 @@
     separateFromGuardian: true,
     bossFlagOnIndividual: false,
     checkEverySec: 1,
+    morale: { belowHpFraction: 0.3, roll: 'd100', holdOnOrUnder: 55, once: true },
+    call: '1d4',
+    throneDoor: { x: 78, y: 58, wall: 'n' },
+    cornerRoom: { x: 76, y: 50, w: 6, h: 8 },
+    corner: { x: 78, y: 53 },
+    throne: { x: 74, y: 64.4 },
     priority: [
-      'Below 30% HP, roll goblin morale. On a failure, flee to the throne door and call 1d4 goblins from the room\'s existing spawns. Never invent spawns.',
-      'If a goblin shaman is alive and Macar is within 6 tiles, shout so the shaman casts Command first.',
+      'Below 30% HP, roll morale once. He holds on d100 <= 55. On a failure, call 1d4 goblins from the room\'s existing spawns, once, then flee through the throne door. In the room behind it he is cornered: no more morale checks, and he fights to the death.',
+      'If a goblin shaman is alive and Macar is within 6 tiles, shout so the shaman closes and casts Command.',
       'If Macar is in reach, use the Specialty Attack: house bands, a real 1e matrix check, the whole round.',
-      'If a ghost or kin is closer than Macar, attack it only when Macar is more than 4 tiles away.',
-      'Otherwise advance on Macar.'
+      'Otherwise advance on Macar. If a ghost or kin is closer than Macar, attack it only when Macar is more than 4 tiles away.'
     ],
     inventsSpawns: false,
     corpse: 'U',
     lairChest: 'C'
   };
+
+  var LINES = [
+    'Stumpy! Your beard drags in our dung!',
+    'Dig, dig, little mole. Dig a grave!',
+    'Rock ate your brothers. You next!',
+    'Short legs! Can\'t run! Can\'t hide!',
+    'Shiny beard-man. We take your shiny.',
+    'You smell like old cheese and sad.',
+    'Big hammer, small brain!',
+    'Come closer, stubby. Knives hungry.',
+    'Dwarf gold is goblin gold now!',
+    'Beard so long, you trip! Ha!',
+    'Go home, stub. Oh wait. No home!',
+    'Your ghosts are see-through. Like you!',
+    'Boo! Ha! Dead dwarfs can\'t scare us!',
+    'Ghost friends? Real friends all died.',
+    'Hey ghosty! You forgot your body!',
+    'Tiny king of a dead hole!',
+    'We pick our teeth with dwarf bones!',
+    'Who you calling? Your mama mountain?',
+    'Hit like a pebble! Pebble-dwarf!',
+    'Stone-head! Rust-beard! Lump!'
+  ];
 
   var DIALOGUE = {
     mode: 'insults-only',
@@ -234,7 +297,30 @@
     bargain: false,
     mercyBeg: false,
     falseSurrender: false,
-    retired: ['maybeGoblinMercy']
+    retired: ['maybeGoblinMercy'],
+    barkEverySec: 6,
+    lines: LINES,
+    ghostFrom: 12,
+    ghostTo: 15,
+    shaman: {
+      command: ['Maglubiyet says: GROVEL!', 'Kneel, stubby! A god commands!'],
+      causeLightWounds: ['Maglubiyet bites your beard!', 'Bleed, little rock-man!']
+    },
+    king: {
+      taunt: 'Bow to the king, stubby!',
+      hurt: 'You scratched the KING?!',
+      flee: 'Guards! GUARDS! King is busy!',
+      death: 'Not... my... crown...'
+    }
+  };
+
+  /* Back wall of the king hall. The hall floor starts at y=58, so (74, 59)
+     is the first interior row, against that wall, and Macar can stand on it. */
+  var TOOTH = {
+    id: 'grond_tooth_electrum_2',
+    tile: { x: 74, y: 59 },
+    wall: 'n',
+    prop: { x: 74, y: 59.2 }
   };
 
   var WANDER = [
@@ -351,56 +437,12 @@
       note: 'One leader and 4 assistants stand in the hall. The printed ratio is one cell per 40 goblins, and this floor does not field the MM 40-400 band. (open)'
     },
     {
-      id: 'goblin-hp',
-      note: 'Goblin XP 13 is 10+1 per hp at 3 hp. A 1d8-1 roll averages 3.5. (open)'
-    },
-    {
-      id: 'rat-hp',
-      note: 'Giant rat XP 8 is 5+1 per hp at 3 hp. A 1d4 averages 2.5, and the RULES print about 8. (open)'
-    },
-    {
-      id: 'rat-disease',
-      note: 'The bite is 5% disease, as printed. The save and the disease effect are not printed. (open)'
-    },
-    {
-      id: 'bodyguard-gnoll',
-      note: 'Bodyguards stay at the written HD 2, AC 5, and 2d4. The RULES mark "fight as gnolls" as verify. (open)'
-    },
-    {
-      id: 'king-to-hit',
-      note: 'The king\'s STR 18 is printed as damage 1d8+2. The 1e +1 to hit for STR 18 is not printed. (open)'
-    },
-    {
-      id: 'king-morale',
-      note: 'Below 30% HP he rolls goblin morale. MM1 prints no morale score, so the target number is unset. (open)'
-    },
-    {
-      id: 'throne-door',
-      note: 'On a failed morale roll he flees to the hall entrance at (62.4, 64.2). The RULES say "throne door" and give no coordinate. (open)'
-    },
-    {
       id: 'shaman-sets',
       note: 'The camp shaman memorizes Command and Cause Light Wounds. The warren shaman memorizes Darkness and Cause Fear. The ruling says to pick per spawn. (open)'
     },
     {
-      id: 'darkness-duration',
-      note: 'Darkness uses the PHB Light duration, 6 turns + 1 per level, so 8 turns at level 2. The RULES print the globe and the -4 and not the duration. (open)'
-    },
-    {
-      id: 'command-range',
-      note: 'The cadence fires inside 6 tiles, as printed. The PHB range of Command is 1 inch and is not reprinted. (open)'
-    },
-    {
-      id: 'cause-light-wounds-save',
-      note: 'Cause Light Wounds is a touch for 1d8 with no separate save, which is the PHB touch. The RULES do not say whether a save applies. (open)'
-    },
-    {
       id: 'guardian-art',
       note: 'Ruby Guardian II uses the Thin One sheet as a stand-in. No guardian sheet exists, and none is bound. (open)'
-    },
-    {
-      id: 'insults',
-      note: 'Goblins insult and never parley or bargain. The RULES do not print the insult lines, so none are stored. (open)'
     },
     {
       id: 'lair-c-copper',
@@ -439,6 +481,7 @@
     SHAMAN: SHAMAN,
     KING: KING,
     DIALOGUE: DIALOGUE,
+    TOOTH: TOOTH,
     WANDER: WANDER,
     LOOT: LOOT,
     XP: XP,

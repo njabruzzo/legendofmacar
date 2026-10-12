@@ -6506,9 +6506,14 @@ function campRest(){
     if(e.ghost && e.dead) returnGhost(e, true);
     if(e.dead) return;
     const miss=e.maxhp-e.hp;
-    if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE);
+    if(miss>0) healed+=applyHeal(e, miss/ADD_SCALE, 'rest');
     if(typeof clearPoison==='function') clearPoison(e);
   });
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.noteCampRest){
+    G.ents.forEach(e=>{
+      if(e.team==='party' && !e.dead) CampaignRuntime.noteCampRest(G, e, 360);
+    });
+  }
   G.day=(G.day||1)+1;
   G.dayClock=0;
   const returned=restoreBorrowedGear();
@@ -9735,13 +9740,14 @@ function applyHoverFlags(e){
   }
 }
 function tickWoundClosure(e, dt){
-  if(!wearingWoundClosure(e) || !e || e.hp>=e.maxhp) return;
+  if(!wearingWoundClosure(e) || !e || e.hp>=e.maxhp || e.ratFever) return;
   e.hp=Math.min(e.maxhp, e.hp+2.2*(dt||0));
 }
 function clearWornDisease(e){
   if(!wearingHealthPeriapt(e) || !e) return;
   if(e.disease) e.disease=0;
   if(e.diseaseT) e.diseaseT=0;
+  if(e.ratFever && typeof CampaignRuntime!=='undefined' && CampaignRuntime.cureDisease) CampaignRuntime.cureDisease(G, e);
 }
 /* Boots or Cloak of Elvenkind: one hide, no stack, no potion invis, no Specialty tot. */
 function wearingElvenkind(e){
@@ -10476,6 +10482,7 @@ function giveClue(it, silent){
   return it.n;
 }
 function attachLoreClue(pile, e){
+  if(e && e.campaignKey) return pile||{};
   if(typeof LoreClues!=='undefined'&&LoreClues.attach) return LoreClues.attach(pile||{}, e);
   return pile;
 }
@@ -10654,6 +10661,12 @@ function wornWeaponPlus(e, def){
   if(wep && typeof weaponVsPlus==='function') plus+=weaponVsPlus(wep, def);
   return plus;
 }
+function darkAttackMod(e){
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.darkPenalty)
+    return CampaignRuntime.darkPenalty(e, G.darkZones, typeof isDwarf==='function' && isDwarf(e));
+  if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) return -4;
+  return 0;
+}
 function hitBonus(e, def){
   let b=0;
   if(e.team==='party'){
@@ -10667,11 +10680,14 @@ function hitBonus(e, def){
     if(e.ranged) b+=dexMissile(effectiveDex(e));
     else b+=strMods(typeof meleeStrAbil==='function'?meleeStrAbil(e):ab, attackClass(e)==='f'?'f':(e.cls||'f')).hit;
   } else {
+    if(e.toHit) b+=e.toHit|0;
     if(e.sa&&/\+\d/.test(e.sa)){ const m=e.sa.match(/\+(\d)/); if(m) b+=+m[1]; }
     if(e.blessHit && (e.blessT||0)>0) b+=1;
   }
+  if(e.ratFever) b-=1;
   if(e.strMul>1) b+=2;
-  if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) b-=4;
+  if(typeof darkAttackMod==='function') b+=darkAttackMod(e);
+  else if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) b-=4;
   return b;
 }
 function effectiveAC(e, atk){
@@ -11604,7 +11620,7 @@ function applyEquipped(){
 }
 function applyWornTurnEffects(turns){
   const e=player(),it=e&&wornNecklaceItem(e);
-  if(e&&!e.dead&&it&&/ring of regeneration/i.test(it.n||''))e.hp=Math.min(e.maxhp,e.hp+turns);
+  if(e&&!e.dead&&!e.ratFever&&it&&/ring of regeneration/i.test(it.n||''))e.hp=Math.min(e.maxhp,e.hp+turns);
 }
 function hasActivatedMagicPower(it){
   return !!it&&(it.k==='wand'||it.cat==='Rod/Staff/Wand'||it.k==='sense'||/ring of invisibility/i.test(it.n||''));
@@ -11652,6 +11668,7 @@ function useWandByName(it, e){
        House: existing k:heal band (18) + clearPoison. */
     applyHeal(e, 18);
     clearPoison(e);
+    if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.cureDisease) CampaignRuntime.cureDisease(G, e);
     return 'cure';
   }
   if(/Rod of Cancellation/i.test(n)){
@@ -11813,7 +11830,10 @@ function useScrollByName(it, e){
      ink is gone. Closest wired FX: flame (offensive) or heal. No MU list. */
   const hay=String((it&&it.n)||'')+' '+String((it&&it.d)||'');
   if(/heal|cure/i.test(hay)){
-    if(e){ applyHeal(e, 18); clearPoison(e); }
+    if(e){
+      applyHeal(e, 18); clearPoison(e);
+      if(/disease/i.test(hay) && typeof CampaignRuntime!=='undefined' && CampaignRuntime.cureDisease) CampaignRuntime.cureDisease(G, e);
+    }
     return 'cure';
   }
   if((it&&it.k)==='prot' || /Protection from/i.test(hay)){
@@ -11884,7 +11904,10 @@ function useMagicItem(it, e, activate){
     return 'spent';
   }
   if(/Ointment|Curing/.test(it.n)){
-    if(e){ applyHeal(e, 18); clearPoison(e); }
+    if(e){
+      applyHeal(e, 18); clearPoison(e);
+      if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.cureDisease) CampaignRuntime.cureDisease(G, e);
+    }
     return;
   }
   if(it.k==='scroll'||it.k==='prot'){
@@ -12181,8 +12204,9 @@ function placeDungeonCache(x, y, level){
   spawnLoot(x, y, pile);
   return pile;
 }
-function applyHeal(e, n){
+function applyHeal(e, n, kind){
   if(!e||e.dead) return 0;
+  if(kind && typeof CampaignRuntime!=='undefined' && CampaignRuntime.healKindBlocked && CampaignRuntime.healKindBlocked(e, kind)) return 0;
   const amt=Math.round(n*ADD_SCALE);
   e.hp=Math.min(e.maxhp, e.hp+amt);
   ftext(e.x,e.y,'+'+amt,'#e0c169',e.hero);
@@ -12465,6 +12489,7 @@ function damage(e,amt,col,src){
   if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
+  if(e.hp>0 && typeof CampaignRuntime!=='undefined' && CampaignRuntime.onHurt) CampaignRuntime.onHurt(G, e);
   if(amt>0 && sfx && sfx.hit) sfx.hit(src);
   if(e.hp>0) e.flash=.18;
   ftext(e.x,e.y,'-'+amt,col||(e.team==='party'?'#ff6a5a':'#ffe6a8'),true,'dmg');
@@ -12476,6 +12501,7 @@ function damage(e,amt,col,src){
   }
   if(e.hp>0 && e.team==='foe') maybeGoblinMercy(e);
   if(e.hp<=0){ e.dead=1; e.deadT=0;
+    if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.onDown) CampaignRuntime.onDown(G, e);
     if(e.thrall && typeof releaseThrall==='function') releaseThrall(e);
     if(e.team==='foe'){ G.kills++;
       if(G.fightOn) G.fightGotKill=1;
@@ -12525,6 +12551,7 @@ function onHitFx(atk,o,dmg){
     if((typeof magicResist==='function'?magicResist(o):o.mr)||savingThrow(o,'spell')) {}
     else o.stun=Math.max(o.stun||0,1.6);
   }
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.onFoeHit) CampaignRuntime.onFoeHit(G, atk, o);
   return dmg;
 }
 function meleeSwing(e,arc,reach,dmg,col){
@@ -13299,6 +13326,10 @@ function chapelNorthFace(p, r){
 }
 function chapelFaceToothTaken(face){
   if(!face||face.emptySocket) return true;
+  if(face.itemId==='grond_tooth_electrum_2'){
+    const f=G.lvl&&G.lvl.flags;
+    return !!(f&&f.electrumTooth2);
+  }
   const f=G.lvl&&G.lvl.flags;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
   if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
@@ -13319,12 +13350,13 @@ function bindPriedChapelTooth(){
   if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
   (G.props||[]).forEach(p=>{
     if(!p||p.gone||p.k!=='demonface') return;
-    if(p.wall==='e'||p.toothKind==='bronze') return;
+    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2') return;
     p.emptySocket=1;
   });
 }
 function maybeTeethChapelLooks(p){
   if(!p||G.talk||PROMPT) return false;
+  if(G.lvl && G.lvl.n && G.lvl.n!==1) return false;
   const hits=[];
   const crown=typeof nearestBoneCrown==='function'?nearestBoneCrown(p, 3.25):null;
   if(crown){
@@ -15535,9 +15567,15 @@ function update(dt){
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     /* Crown plates used to float here. Animate is the bar button. */
-    if(!PROMPT && typeof nearestDemonFace==='function' && typeof pryGrondTooth==='function'){
+    if(!PROMPT && typeof nearestDemonFace==='function'){
       const face=nearestDemonFace(p,2.05);
-      if(face && !chapelFaceToothTaken(face)) interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
+      if(face && face.itemId==='grond_tooth_electrum_2' && !face.emptySocket && !(L.flags&&L.flags.electrumTooth2)){
+        interact('Take the electrum tooth',()=>{
+          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, face);
+        });
+      } else if(face && face.itemId!=='grond_tooth_electrum_2' && typeof pryGrondTooth==='function' && !chapelFaceToothTaken(face)){
+        interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
+      }
     }
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
     if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
@@ -15575,8 +15613,8 @@ function update(dt){
     if(e.flash>0) e.flash-=dt;
     if(!e.hero && e.fleeTo){ stepFoeFlee(e, dt); continue; }
     if(e.stun>0){ e.stun-=dt; continue; }
-    if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
-    if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+    if(e.regen && e.hp<e.maxhp && !e.ratFever) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
+    if(e.potionRegen>0){ e.potionRegen-=dt; if(!e.ratFever) e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
     if(e.potionFireRes>0) e.potionFireRes-=dt;
     if(e.tinyT>0){ e.tinyT-=dt; if(e.tinyT<=0) e.tiny=0; }
     if(typeof tickWoundClosure==='function') tickWoundClosure(e, dt);
@@ -15737,6 +15775,10 @@ function update(dt){
         }
       }
       tgt=nearestAlly(e,999);
+      if(e.campaignRole==='boss' && typeof CampaignRuntime!=='undefined' && CampaignRuntime.kingTarget){
+        const kt=CampaignRuntime.kingTarget(e, G);
+        if(kt) tgt=kt;
+      }
       if(tgt){ const d=dist(e,tgt);
         if(d>e.aggro&&!e.boss&&!e.engaged) tgt=null;
         else {
@@ -15770,7 +15812,7 @@ function update(dt){
         else faceToward(e, tgt.x, tgt.y);
         if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
           e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=tgt;
-          if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+          if(e.team==='foe' && !e.specialty && e.campaignRole!=='boss' && chanceOk(18)) e.specialty=pickMonsterSpecialty();
         }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
@@ -15929,6 +15971,7 @@ function render(){
     }
   }
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
+  if(G.scene==='play' && worldArtReady(G.ch)) drawCampaignBark(g);
   if(G.sleepShow && G.scene==='play' && worldArtReady(G.ch)) drawSleepRest(g);
   if(G.scene==='title') drawTitle(g);
   if(G.scene==='title_menu') drawTitleMenu(g);
@@ -19845,6 +19888,26 @@ function face(g,cx,cy,rr,c,dead,ghost){
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.stroke();
 }
 
+function drawCampaignBark(g){
+  const b=G.campaignBark;
+  if(!g || !b || !(b.life>0)) return;
+  const frame=typeof partyPortraitFrame==='function'?partyPortraitFrame():{x:8,y:8,w:118,h:30};
+  const box=(typeof CampaignRuntime!=='undefined' && CampaignRuntime.barkRect)
+    ? CampaignRuntime.barkRect(VW, VH, frame, null)
+    : {x:(frame.x||8)+(frame.w||118)+8, y:frame.y||8, w:220, h:36};
+  g.save();
+  g.globalAlpha=Math.max(0.35, Math.min(1, b.life));
+  g.fillStyle='rgba(12,10,8,0.84)';
+  g.fillRect(box.x, box.y, box.w, box.h);
+  g.strokeStyle='#d6e2a8';
+  g.strokeRect(box.x+0.5, box.y+0.5, box.w-1, box.h-1);
+  g.fillStyle='#d6e2a8';
+  g.font='600 12px '+(typeof FONT_UI!=='undefined'?FONT_UI:'sans-serif');
+  g.textAlign='left';
+  g.textBaseline='middle';
+  g.fillText((b.speaker?b.speaker+': ':'')+(b.text||''), box.x+8, box.y+box.h/2, Math.max(40, box.w-16));
+  g.restore();
+}
 function drawHUD(g){
   const s=UIS;
   const bigMap=hudMobile() && !!G.miniBig;
