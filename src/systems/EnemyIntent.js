@@ -139,6 +139,7 @@
   }
 
   function leashOf(e) {
+    if (e && typeof e.leash === 'number' && isFinite(e.leash) && e.leash > 0) return e.leash;
     return e && e.boss ? LEASH_BOSS : LEASH;
   }
 

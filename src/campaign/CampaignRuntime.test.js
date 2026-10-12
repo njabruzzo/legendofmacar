@@ -194,10 +194,15 @@ GS.applyCampaign(back, snap);
 assert(back.campaignLevel === 2, 'loading that save restores Level 2');
 const old = {};
 GS.applyCampaign(old, { v: 2, ch: 2, scene: 'play' });
-assert(old.campaignLevel === 1, 'an old save with no level field loads as Level 1');
-const blank = { campaignLevel: 4, ch: 3 };
+assert(old.campaignLevel === 1 && !old.campaignBook, 'an old save with no level field loads as Level 1');
+const blank = { campaignLevel: 4, campaignBook: 1, ch: 3 };
 GS.applyBlankCampaign(blank);
-assert(blank.campaignLevel === 1, 'a new game blanks the level back to Level 1');
+assert(blank.campaignLevel === 1 && !blank.campaignBook, 'a new game blanks the level back to Level 1');
+const replaySnap = GS.snapshot({ campaignLevel: 1, campaignBook: 1, ch: 1, day: 12, scene: 'play' });
+assert(replaySnap.campaignBook === 1 && replaySnap.campaignLevel === 1, 'a Chapter I replay save still records the book');
+const replayBack = {};
+GS.applyCampaign(replayBack, replaySnap);
+assert(replayBack.campaignBook === 1 && R.noteChapter(replayBack, 2) === 2 && replayBack.campaignLevel === 2, 'loading that save enters Level 2 from Chapter II');
 
 const worldG = {
   ents: [
@@ -251,11 +256,20 @@ const stayThree = { campaignLevel: 3, ch: 2 };
 assert(R.noteChapter(stayThree, 2) === 3 && stayThree.campaignLevel === 3, 'Level 3 stays when Chapter II is its shell');
 const stayFour = { campaignLevel: 4, ch: 4 };
 assert(R.noteChapter(stayFour, 4) === 4 && stayFour.campaignLevel === 4, 're-entering Chapter IV stays on Level 4');
-const replayOne = { campaignLevel: 4, ch: 4 };
-assert(R.noteChapter(replayOne, 1) === 1 && replayOne.campaignLevel === 1, 'replaying Chapter I enters Level 1');
+const replayOne = { campaignLevel: 4, ch: 4, day: 12, floorWorlds: { 4: { x: 8 } }, cleared: { 4: 1 } };
+assert(R.keepsBook(replayOne) === true, 'an L4 save is a campaign book');
+assert(R.noteChapter(replayOne, 1) === 1 && replayOne.campaignLevel === 1 && replayOne.campaignBook === 1 && replayOne.day === 12 && replayOne.floorWorlds[4].x === 8 && replayOne.cleared[4] === 1, 'replaying Chapter I enters Level 1 and keeps the book');
+assert(R.noteChapter(replayOne, 2) === 2 && replayOne.campaignLevel === 2 && replayOne.campaignBook === 1, 'Chapter II after that replay enters Level 2');
+assert(R.shouldInstall({ campaignLevel: replayOne.campaignLevel, campaignBook: 1, lvl: { n: 2 } }) === true, 'that Chapter II installs the campaign floor');
+assert(R.noteChapter(replayOne, 4) === 4 && replayOne.campaignLevel === 4 && replayOne.campaignBook === 1, 'Chapter IV from that book enters Level 4');
+assert(R.shouldInstall({ campaignLevel: 4, campaignBook: 1, lvl: { n: 4 } }) === true, 'that Chapter IV installs Level 4');
 const oldBook = { campaignLevel: 1, ch: 2 };
-assert(R.noteChapter(oldBook, 2) === 1 && oldBook.campaignLevel === 1, 'an old chapter II save stays off the campaign');
+assert(R.noteChapter(oldBook, 2) === 1 && oldBook.campaignLevel === 1 && !oldBook.campaignBook, 'an old chapter II save stays off the campaign');
 assert(/CampaignRuntime\.noteChapter\(G, n\)/.test(html), 'every chapter entry sets the campaign level');
+assert(/keepsBook\(G\)/.test(html) && html.indexOf('keepsBook(G)') < html.indexOf('if(n===1&&!keep)G.floorWorlds'), 'a campaign book is kept before chapter I wipes the floors');
+assert(R.clearedName({ campaignLevel: 4, ch: 4 }) === 'Orc Hold and the Ogre Cave', 'camp after Level 4 names the orc hold');
+assert(R.clearedName({ campaignLevel: 1, ch: 4 }) === '', 'a chapter with no live level keeps its own title');
+assert(/CampaignRuntime\.clearedName\(G\)/.test(html) && /cleared\+' cleared'/.test(html), 'the camp subtitle uses the campaign level name');
 
 const ver = (html.match(/ASSET_VER='(\d+)'/) || [])[1];
 assert(ver && html.indexOf('CampaignBoot.js?v=' + ver) >= 0, 'the boot script carries ASSET_VER');
@@ -524,6 +538,58 @@ assert(orcs.length === 8 && orcs[0].sprite === 'orc' && orcs[0].scale === 1.05 &
 assert(shaman4 && shaman4.sprite === 'orc' && shaman4.scale === 1.05 && shaman4.hp === 128 && shaman4.ac === 5 && shaman4.campaignXp === 656 && shaman4.caster === 1 && isFinite(shaman4.scale), 'the shaman stands in on the orc sheet, sized to Macar');
 const chief = G4.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(chief && chief.campaignKey === 'orcChief' && chief.hp === 132 && chief.ac === 3 && chief.campaignXp === 255 && chief.boss === 0 && chief.dice === '1d8+3', 'the chief has printed hit points and wears no boss flag');
+const hallGuards = G4.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.campaignRole === 'guard'; });
+assert(hallGuards.length === 6 && chief.leash === 7.2 && chief.aggro === 7.2 && chief.homeX === 46 && chief.homeY === 20 && chief.boss === 0, 'the chief is leashed to the hall and wears no boss flag');
+assert(hallGuards.every(function (e) { return e.leash === 7.2 && e.aggro === 7.2 && Math.hypot(e.homeX - 46, e.homeY - 18) < 1.2 && e.boss === 0; }), 'the guards share the hall leash');
+(function chiefStaysInTheHall() {
+  require('../systems/SystemsReady.js');
+  require('../systems/EnemyIntent.js');
+  const EI = global.EnemyIntent;
+  const ruby = G4.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
+  const pack = [chief].concat(hallGuards);
+  const homes = pack.map(function (e) { return { e: e, x: e.x, y: e.y }; });
+  function host() {
+    return {
+      ents: G4.ents,
+      dist: function (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); },
+      hasLOS: function () { return true; },
+      canBe: function () { return true; },
+      inDarkZone: function () { return false; },
+      nearestAlly: function () { return hero4; }
+    };
+  }
+  hero4.x = ruby.x;
+  hero4.y = ruby.y;
+  pack.forEach(function (e) {
+    e.intent = 'idle';
+    e.engaged = 0;
+    const r = EI.decide(e, 0.05, host());
+    assert(r.act !== 'pursue' && r.act !== 'attack', (e.campaignKey || 'orc') + ' does not leave the hall for the guardian');
+    assert(Math.hypot(e.x - ruby.x, e.y - ruby.y) > e.leash, (e.campaignKey || 'orc') + ' stays outside a leash of the guardian');
+  });
+  hero4.x = chief.homeX + 2;
+  hero4.y = chief.homeY;
+  const noticed = EI.decide(chief, 0.05, host());
+  assert(noticed.act === 'pursue' || noticed.act === 'attack', 'the chief notices Macar inside the hall');
+  chief.x = chief.homeX;
+  chief.y = chief.homeY + chief.leash + 1;
+  chief.engaged = 1;
+  chief.intent = 'pursue';
+  hero4.x = ruby.x;
+  hero4.y = ruby.y;
+  const back = EI.decide(chief, 0.05, host());
+  assert(back.act === 'return' && back.move && back.move.dx === chief.homeX && back.move.dy === chief.homeY, 'past the hall leash the chief returns home');
+  hallGuards.forEach(function (e) {
+    e.x = e.homeX;
+    e.y = e.homeY + e.leash + 1;
+    e.engaged = 1;
+    e.intent = 'pursue';
+    const guardBack = EI.decide(e, 0.05, host());
+    assert(guardBack.act === 'return', 'a guard past the hall leash returns home');
+  });
+  assert(chief.boss === 0 && hallGuards.every(function (e) { return e.boss === 0; }), 'the hall leash does not set the boss flag');
+  homes.forEach(function (h) { h.e.x = h.x; h.e.y = h.y; h.e.intent = 'idle'; h.e.engaged = 0; });
+})();
 const guard4 = G4.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
 assert(guard4 && guard4.hp === 192 && guard4.rubyGp === 1000 && guard4.sleeping === 1 && guard4.sprite === 'construct' && guard4.boss === 0, 'Guardian IV sleeps on the construct sheet and drops 1000 gp');
 const face4 = G4.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_4'; })[0];
@@ -732,6 +798,47 @@ assert(/Sell a golden egg/.test(html) && /CampaignRuntime\.sellEgg/.test(html) &
   tradeG.packs.macar.magic = [];
   vm.runInContext('drawTrade(g);', tradeCtx);
   assert(!tradeCtx.menuHits.some(function (h) { return /Sell a golden egg/.test(h.label); }), 'Noz does not offer an egg when the pack has none');
+})();
+
+(function nozReadsLivePurse() {
+  const lines = [];
+  const purseG = {
+    coin: { cp: 0, sp: 0, ep: 0, gp: 1096, pp: 0 },
+    packs: { macar: { magic: [{ id: 'grond_tooth_electrum', grondTooth: 'electrum', qty: 1 }] } }
+  };
+  const ctx = {
+    menuHits: [],
+    UIS: 1,
+    VW: 800,
+    VH: 600,
+    PORT: false,
+    G: purseG,
+    g: { fillStyle: '', font: '', textAlign: 'left', fillRect: function () {}, fillText: function (t) { lines.push(String(t)); } },
+    giveGnomeThanks: function () {},
+    embers: function () {},
+    darken: function () {},
+    plate: function () {},
+    wareCostGp: function () { return 0; },
+    gpTotal: function () { return Math.floor((purseG.coin.ep || 0) / 2) + (purseG.coin.gp || 0); },
+    say: function () {},
+    spendGp: function () {},
+    addToPack: function () {},
+    hasElectrumToothInPack: function () { return true; },
+    convertCoinsToElectrum: function () {
+      const c = purseG.coin;
+      c.ep = Math.round(((c.gp || 0) * 200 + (c.ep || 0) * 100) / 100);
+      c.cp = 0; c.sp = 0; c.gp = 0; c.pp = 0;
+      return c.ep;
+    }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(
+    'function menuBtn(g,label,cx,cy,w,h,fn){ menuHits.push({label:label, fn:fn}); }\n' +
+    extractFn('warePriceText') + '\n' + extractFn('gnomeWares') + '\n' + extractFn('drawTrade') + '\n drawTrade(g);',
+    ctx
+  );
+  assert(lines.some(function (t) { return t === '2192 ep'; }) && !lines.some(function (t) { return /0 cp/.test(t); }), 'Noz shows the electrum the tooth made from 1096 gp');
+  assert(purseG.coin.gp === 0 && purseG.coin.ep === 2192, 'the shop reads the purse after the tooth converts it');
 })();
 
 function bootL4(extra) {

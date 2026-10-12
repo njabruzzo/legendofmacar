@@ -7126,6 +7126,7 @@ function tickFloorTravel(){
 }
 function startChapter(n){
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
+  if(n===1 && !G._keepProgress && typeof CampaignRuntime!=='undefined' && CampaignRuntime.keepsBook && CampaignRuntime.keepsBook(G)) G._keepProgress=1;
   const keep=!!G._keepProgress;
   if(n===1&&!keep)G.floorWorlds={};
   const loadSnap=G._loadSnap||null;
@@ -22326,7 +22327,11 @@ function drawCamp(g){
   goldTitleLine(g,'CAMP', titleY+titleSize*0.72, titleSize);
   g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(210,190,150,0.78)';
-  const cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  let cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.clearedName){
+    const named=CampaignRuntime.clearedName(G);
+    if(named) cleared=named;
+  }
   g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 
@@ -23360,8 +23365,11 @@ function drawTrade(g){
   g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(255,210,122,0.95)';
   g.fillText('NOZ  \u00b7  A VOICE BEHIND THE BRONZE', VW/2, VH*.07);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.8)';
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   const c=G.coin||{};
-  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.115);
+  const tooth=typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack();
+  const purse=tooth ? ((c.ep||0)+' ep') : ((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp');
+  g.fillText(purse, VW/2, VH*.115);
   g.textAlign='left';
   const rows=gnomeWares();
   const top=VH*.18, bot=VH-58*s, h=Math.min(PORT?52*s:58*s, Math.max(36*s,(bot-top)/rows.length));

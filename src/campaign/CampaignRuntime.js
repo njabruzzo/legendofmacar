@@ -113,18 +113,43 @@
     return nxt;
   }
 
-  /* The chapter being entered is the campaign level. A live level whose
-     shell is already this chapter was chosen before start (Level 3 rides
-     Chapter II) and stays. A stored level outside the live set stays too,
-     so an old chapter save is not promoted into the campaign. */
+  /* A save is a campaign book once it has entered a live level, or once
+     that fact was written down. Replaying Chapter I sets the level to 1,
+     which is not itself live, so the flag has to survive that pick. */
+  function hasCampaignBook(G) {
+    if (!G) return false;
+    if (G.campaignBook) return true;
+    return !!LIVE[G.campaignLevel | 0];
+  }
+
+  function keepsBook(G) {
+    return hasCampaignBook(G);
+  }
+
+  /* The chapter picked is the campaign level when the save has a book:
+     Chapter I is Level 1, Chapter II is Level 2, Chapter IV is Level 4.
+     A live level whose shell is already this chapter was chosen before
+     start (Level 3 rides Chapter II) and stays. A save that never entered
+     the campaign stays off it. The book flag is set before the level
+     changes, so Chapter I does not forget the book. */
   function noteChapter(G, chapter) {
     if (!G) return 0;
     chapter = chapter | 0;
     var stored = G.campaignLevel | 0;
+    var book = hasCampaignBook(G);
+    if (book) G.campaignBook = 1;
     if (stored && shellChapter(stored) === chapter) return stored;
-    if (stored && !LIVE[stored]) return stored;
+    if (!book && stored) return stored;
     G.campaignLevel = chapter;
     return G.campaignLevel;
+  }
+
+  function clearedName(G) {
+    if (!G) return '';
+    var level = G.campaignLevel | 0;
+    if (!LIVE[level]) return '';
+    var spec = load(level);
+    return (spec && spec.name) || '';
   }
 
   function printed(spec, key) {
@@ -519,6 +544,32 @@
     return e;
   }
 
+  /* Hall disk matches carveMap: a rect with no rw/rh is 11 by 7.2.
+     The leash is the shorter radius, so the pack notices the hall and
+     turns around before the ruby door. */
+  function roomLeash(spec, roomId) {
+    var rooms = (spec && spec.map && spec.map.layout && spec.map.layout.rooms) || [];
+    var room = null;
+    var i;
+    for (i = 0; i < rooms.length; i++) if (rooms[i] && rooms[i].id === roomId) room = rooms[i];
+    if (!room) return 7.2;
+    var rw = room.rw || (room.kind === 'rect' ? 11 : 4);
+    var rh = room.rh || (room.kind === 'rect' ? 7.2 : 3);
+    return Math.min(rw, rh);
+  }
+
+  function stampHallLeash(e, spec, group) {
+    if (!e || !spec || (spec.level | 0) !== 4 || !group) return;
+    var room = group.room || group.id || '';
+    if (room !== 'hall-of-names') return;
+    if (e.campaignKey !== 'orcChief' && !(e.campaignKey === 'orcGuard' && e.campaignRole === 'guard')) return;
+    var reach = roomLeash(spec, room);
+    e.homeX = e.x;
+    e.homeY = e.y;
+    e.aggro = reach;
+    e.leash = reach;
+  }
+
   function stampGuardian(opts, spec, e) {
     var mon = spec.data && spec.data.MONSTERS && spec.data.MONSTERS.rubyGuardian;
     var node = spec.map && spec.map.guardian;
@@ -766,6 +817,7 @@
           var e = makeEnt(opts, spec, member.key, member, group);
           e.x = spots[s].x;
           e.y = spots[s].y;
+          stampHallLeash(e, spec, group);
           G.ents.push(e);
         }
       }
@@ -2614,6 +2666,8 @@
     blocksWarren: blocksWarren,
     noteCleared: noteCleared,
     noteChapter: noteChapter,
+    keepsBook: keepsBook,
+    clearedName: clearedName,
     campGoDeeper: campGoDeeper,
     poisonHit: poisonHit,
     applyPoison: applyPoison,

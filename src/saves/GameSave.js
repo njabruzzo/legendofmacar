@@ -38,7 +38,8 @@
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay',
     'campaignKey','campaignXp','campaignRole','caster','spellSet','insultsOnly','rubyGp','spellsSpent',
-    'toHit','dice','ac','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines','artStandIn'
+    'toHit','dice','ac','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines','artStandIn',
+    'homeX','homeY','leash'
   ];
 
   var PROP_COPY = [
@@ -497,6 +498,7 @@
       bombs: snap.bombs || 0,
       ales: snap.ales || 0,
       campaignLevel: snap.campaignLevel || 1,
+      campaignBook: snap.campaignBook ? 1 : 0,
       play: snap.play ? stripWorld(snap.play) : null
     };
     return out;
@@ -545,7 +547,8 @@
     { key: 'curseGrowT', read: function (G) { return G.curseGrowT || 0; }, blank: 0 },
     { key: 'curseDecayT', read: function (G) { return G.curseDecayT || 0; }, blank: 0 },
     { key: 'hourglassT', read: function (G) { return G.hourglassT || 0; }, blank: 0 },
-    { key: 'campaignLevel', read: function (G) { return G.campaignLevel || 1; }, blank: 1 }
+    { key: 'campaignLevel', read: function (G) { return G.campaignLevel || 1; }, blank: 1 },
+    { key: 'campaignBook', read: function (G) { return G.campaignBook ? 1 : 0; }, blank: 0 }
   ];
 
   function applyBlankCampaign(G) {
@@ -615,6 +618,7 @@
     G.curseDecayT = snap.curseDecayT || 0;
     G.hourglassT = snap.hourglassT || 0;
     G.campaignLevel = snap.campaignLevel || 1;
+    G.campaignBook = snap.campaignBook ? 1 : 0;
     relinkEquippedToPack(G);
     return snap;
   }

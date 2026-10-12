@@ -352,6 +352,17 @@ function freshGob(x,y){
   assert(r.act==='return', 'beyond leash the pursuer returns (bounded)');
 }
 
+/* a room leash is shorter than the default and still returns home */
+{
+  const e=freshGob(2.5, 4.5);
+  e.leash=7.2; e.aggro=7.2; e.boss=0;
+  e.x=2.5; e.y=4.5+7.2+0.4; e.engaged=1; e.intent='pursue';
+  const p=Object.assign({}, mac, {x:e.x, y:e.y+1});
+  const host=openHost([e,p]);
+  const r=EI.decide(e, 0.016, host);
+  assert(r.act==='return' && r.move && r.move.dx===e.homeX && r.move.dy===e.homeY, 'a numeric room leash returns home inside the default 11');
+}
+
 /* flag off */
 {
   EI.FLAG=false;
