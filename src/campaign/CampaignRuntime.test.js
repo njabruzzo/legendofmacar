@@ -215,7 +215,9 @@ assert(/function bust\(url\)/.test(boot) && /bust\(url\)/.test(boot) && /\+ 'v='
 assert(/preloadCard\(spec\)/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'level setup preloads the elevator card');
 assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test(html), 'showing the card loads the jpg if it is still missing');
 const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
-assert(cardFn.indexOf('if(!(art&&art.width)) return;') >= 0 && cardFn.indexOf('if(!(art&&art.width)) return;') < cardFn.indexOf("g.fillStyle='#050308'"), 'the card does not paint a black plate without art');
+assert(cardFn.indexOf('if(!(art&&art.width)) return;') < 0, 'the card does not wait on the jpg');
+assert(cardFn.indexOf("g.fillStyle='#1a140e'") >= 0 && cardFn.indexOf("g.fillStyle='#1a140e'") < cardFn.indexOf("card.title||'The elevator'"), 'a plain fallback paints before the title');
+assert(cardFn.indexOf("menuBtn(g,'Descend'") > cardFn.indexOf("g.fillStyle='#1a140e'"), 'Descend is drawn when the art is missing');
 
 if (failed) {
   console.error(failed + ' failed');

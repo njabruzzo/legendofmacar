@@ -517,6 +517,23 @@ function foeMoveAim(e, chase){
   if(e && e.fleeTo && e.fleeTo.x!=null && e.fleeTo.y!=null) return e.fleeTo;
   return chase||null;
 }
+/* Cause Fear sets causeFear, fearFlee, and fleeTo on Macar. Walk that
+   point and ignore stick, tap, and auto-path until the 2 s ends. */
+function heroFearStep(p, dt){
+  if(!p || (p.stun>0)) return false;
+  if(!((p.causeFear>0) || p.fearFlee)) return false;
+  if(!(p.fleeTo && p.fleeTo.x!=null && p.fleeTo.y!=null)) return false;
+  p.dest=null;
+  p.ix=0; p.iy=0;
+  if(typeof Navigation!=='undefined' && Navigation.clearRoute) Navigation.clearRoute(p);
+  const aim=p.fleeTo;
+  const dx=aim.x-p.x, dy=aim.y-p.y;
+  const d=Math.hypot(dx,dy);
+  if(d<=0.28){ p.moving=0; p.ix=0; p.iy=0; return true; }
+  const run=Math.max(p.sp||3.2, 4.4);
+  steerWalk(p, dx, dy, run, dt||0);
+  return true;
+}
 function stepFoeFlee(e, dt){
   if(e.stun>0) e.stun=Math.max(0, e.stun-dt);
   const aim=foeMoveAim(e, null);
@@ -11862,7 +11879,9 @@ function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
   say(it.n+': '+it.d, '#ffd27a');
-  if(it.cursed){
+  /* Electrum teeth may be marked cursed by the level data. Tooth 1's
+     curse is the coin conversion (grondTooth), not a bind or a stun. */
+  if(it.cursed && it.grondTooth!=='electrum'){
     const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
     if((it.k==='cursed'&&/Armor|Shield|Sword|Weapon/.test(it.cat||'')) || (ES&&ES.isEquippable&&ES.isEquippable(it))){
       equipPackItem(it, {silent:true});
@@ -15464,6 +15483,11 @@ function update(dt){
       dx=0; dy=0; analog=0; routeDest=false;
       if(typeof Navigation!=='undefined' && Navigation.clearRoute) Navigation.clearRoute(p);
     }
+    const feared=!(p.stun>0) && heroFearStep(p, dt);
+    if(feared){
+      dx=0; dy=0; analog=0; routeDest=false;
+      if(typeof Navigation!=='undefined' && Navigation.clearRoute) Navigation.clearRoute(p);
+    }
 
     let sp=p.sp;
     if((p.slowT||0)>0){ p.slowT=Math.max(0,p.slowT-dt); sp*=0.4; }
@@ -15481,7 +15505,7 @@ function update(dt){
       routed=!!(nr&&nr.handled);
       if(routed && Math.hypot(p.x-leadX,p.y-leadY)>.002) p.stuck=0;
     }
-    if(!routed) steerWalk(p, dx, dy, sp, dt);
+    if(!routed && !feared) steerWalk(p, dx, dy, sp, dt);
     constrainPartyStep(p, leadX, leadY);
     p._frameStep=Math.hypot(p.x-leadX,p.y-leadY);
     if(p.moving) recordTrail(p);
@@ -15578,11 +15602,7 @@ function update(dt){
     /* Crown plates used to float here. Animate is the bar button. */
     if(!PROMPT && typeof nearestDemonFace==='function'){
       const face=nearestDemonFace(p,2.05);
-      if(face && face.itemId==='grond_tooth_electrum_2' && !face.emptySocket && !(L.flags&&L.flags.electrumTooth2)){
-        interact('Take the electrum tooth',()=>{
-          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, face);
-        });
-      } else if(face && face.itemId!=='grond_tooth_electrum_2' && typeof pryGrondTooth==='function' && !chapelFaceToothTaken(face)){
+      if(face && face.itemId!=='grond_tooth_electrum_2' && typeof pryGrondTooth==='function' && !chapelFaceToothTaken(face)){
         interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
       }
     }
@@ -15620,7 +15640,10 @@ function update(dt){
     if(e.dead){ if(e.ghost){ e.ghostReturn=(e.ghostReturn||0)-dt; if(e.ghostReturn<=0) returnGhost(e); } if(!e.crushed) e.deadT=(e.deadT||0)+dt; continue; }
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
-    if(!e.hero && e.fleeTo){ stepFoeFlee(e, dt); continue; }
+    if(!e.hero && e.fleeTo){
+      if(e.hidden || e.sleeping || e.crushed || e.tied){ e.moving=0; e.ix=0; e.iy=0; }
+      else { stepFoeFlee(e, dt); continue; }
+    }
     if(e.stun>0){ e.stun-=dt; continue; }
     tickRegen(e, dt);
     if(e.potionFireRes>0) e.potionFireRes-=dt;
@@ -15884,6 +15907,16 @@ function update(dt){
   if(typeof tickElectrumCurse==='function') tickElectrumCurse(dt);
   if(L.tick) L.tick(dt);
   tickFloorTravel();
+  /* After chapter prompts. A corpse or a stair used to keep this plate
+     off the screen, so the first phone tap mid-fight never pried. */
+  if(p && typeof nearestDemonFace==='function'){
+    const toothFace=nearestDemonFace(p,2.05);
+    if(toothFace && toothFace.itemId==='grond_tooth_electrum_2' && !toothFace.emptySocket && !(L.flags&&L.flags.electrumTooth2)){
+      interact('Take the electrum tooth',()=>{
+        if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, toothFace);
+      });
+    }
+  }
   endFightIfClear();
   if(G.ents.length>80) G.ents=G.ents.filter(e=>!(e.dead&&e.team==='foe'&&e.looted&&(e.deadT||0)>12&&!e.chapterBoss));
 }
@@ -17261,6 +17294,10 @@ function demonFaceImg(p){
   /* Hourglass vault keeps main's wide plate. The v4 portrait and the
      empty-socket sheet are the chapter 1 chapel face only. */
   if(p && vaultDemonFace(p)) return SPR.demon_dwarfface_vault||null;
+  /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
+     tan masonry panel; this wall keeps the pre-pickup portrait and the
+     socket ellipse stands in for the missing fang. */
+  if(p && p.itemId==='grond_tooth_electrum_2') return SPR.demon_dwarfface||SPR.demonface||null;
   /* Empty v5 plate only. The fanged sheet used to win until the empty
      image had a width, so a reload drew the tooth back in the socket. */
   if(p && demonFaceShowsEmpty(p)) return SPR.demon_dwarfface_empty||null;
@@ -19896,13 +19933,25 @@ function face(g,cx,cy,rr,c,dead,ghost){
   roundPath(g,cx-rr,cy-rr,rr*2,rr*2,3); g.stroke();
 }
 
+function barkHud(){
+  const obstacles=[];
+  const pause=(typeof UIBTN!=='undefined')?UIBTN.find(b=>b&&b.key==='pause'):null;
+  if(pause&&pause.r) obstacles.push({x:pause.x-pause.r, y:pause.y-pause.r, w:pause.r*2, h:pause.r*2});
+  if(typeof miniRect==='function'){
+    const m=miniRect();
+    if(m&&m.sz) obstacles.push({x:m.x, y:m.y, w:m.sz, h:m.sz});
+  }
+  return {scale:(typeof UIS==='number'?UIS:1), obstacles:obstacles};
+}
 function drawCampaignBark(g){
   const b=G.campaignBark;
   if(!g || !b || !(b.life>0)) return;
   const frame=typeof partyPortraitFrame==='function'?partyPortraitFrame():{x:8,y:8,w:118,h:30};
+  const hud=barkHud();
   const box=(typeof CampaignRuntime!=='undefined' && CampaignRuntime.barkRect)
-    ? CampaignRuntime.barkRect(VW, VH, frame, null)
-    : {x:(frame.x||8)+(frame.w||118)+8, y:frame.y||8, w:220, h:36};
+    ? CampaignRuntime.barkRect(VW, VH, frame, null, hud)
+    : {x:(frame.x||8)+(frame.w||118)+8, y:(frame.y||8)+(frame.h||30)+8, w:Math.max(96, VW-16), h:36, font:12*(typeof UIS==='number'?UIS:1)};
+  const fontPx=box.font||Math.max(10, Math.round(12*(typeof UIS==='number'?UIS:1)));
   g.save();
   g.globalAlpha=Math.max(0.35, Math.min(1, b.life));
   g.fillStyle='rgba(12,10,8,0.84)';
@@ -19910,7 +19959,7 @@ function drawCampaignBark(g){
   g.strokeStyle='#d6e2a8';
   g.strokeRect(box.x+0.5, box.y+0.5, box.w-1, box.h-1);
   g.fillStyle='#d6e2a8';
-  g.font='600 12px '+(typeof FONT_UI!=='undefined'?FONT_UI:'sans-serif');
+  g.font='600 '+fontPx+'px '+(typeof FONT_UI!=='undefined'?FONT_UI:'sans-serif');
   g.textAlign='left';
   g.textBaseline='middle';
   g.fillText((b.speaker?b.speaker+': ':'')+(b.text||''), box.x+8, box.y+box.h/2, Math.max(40, box.w-16));
@@ -20881,6 +20930,10 @@ function drawPromptBtn(g,s){
     y=Math.max(72*s, cl.top-h-lift);
   }
   promptBtn={x,y,w:pw,h};
+  if(hudMobile()){
+    const slop=24;
+    promptBtn={x:x-slop,y:y-slop,w:pw+slop*2,h:h+slop*2};
+  }
   const pulse=.5+Math.sin(G.elapsed*4)*.25;
   plate(g,x,y,pw,h,7,.9);
   g.strokeStyle='rgba(255,208,124,'+(.5+pulse*.5)+')'; g.lineWidth=2.4*s; roundPath(g,x,y,pw,h,7); g.stroke();
@@ -21901,11 +21954,15 @@ function drawCampaignCard(g){
   menuHits=[]; const s=UIS;
   const card=G.campaignCard||{};
   const art=campaignCardArt(card);
-  /* Never paint the black plate over the floor until the jpg has pixels. */
-  if(!(art&&art.width)) return;
-  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  drawSplashCover(g, art, {zoom:1, ay:0.52, nudgeY:0});
-  drawLetterbox(g, VH*0.22, VH*0.28, 0.72, 0.82);
+  const ready=!!(art&&art.width);
+  if(ready){
+    g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+    drawSplashCover(g, art, {zoom:1, ay:0.52, nudgeY:0});
+    drawLetterbox(g, VH*0.22, VH*0.28, 0.72, 0.82);
+  } else {
+    /* intro_ch2 missing or still decoding: a plain plate, never a stuck blank. */
+    g.fillStyle='#1a140e'; g.fillRect(0,0,VW,VH);
+  }
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
   g.font='700 '+((PORT?22:32)*s)+'px '+FONT_TITLE;

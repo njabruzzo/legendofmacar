@@ -307,7 +307,7 @@
     eq = ensureShape(eq);
     var it = eq[slot];
     if (!it) return {ok: true, equipped: eq};
-    if (it.cursed) return {ok: false, reason: 'cursed', equipped: eq, item: it};
+    if (it.cursed && it.grondTooth !== 'electrum') return {ok: false, reason: 'cursed', equipped: eq, item: it};
     eq[slot] = null;
     if (slot === 'primary') eq.weapon = null;
     if (slot === 'chest') eq.armor = null;

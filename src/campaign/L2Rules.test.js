@@ -3,6 +3,9 @@
  * Run: node src/campaign/L2Rules.test.js
  */
 'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const L2 = require('./L2');
 require('./CampaignTable');
 require('./ExitRules');
@@ -187,7 +190,32 @@ function castWorld(shaman, hero) {
   R.tick(g, 0);
   R.tick(g, 0.5);
   const hero = g.ents[0];
-  assert(hero.causeFear === 2 && hero.fearT === 2, 'Cause Fear lasts 2 s after a failed save');
+  assert(hero.causeFear === 2 && hero.fearT === 2 && hero.fearFlee === 1, 'Cause Fear lasts 2 s after a failed save');
+  assert(hero.fleeTo && Math.hypot(hero.fleeTo.x - shaman.x, hero.fleeTo.y - shaman.y) > Math.hypot(hero.x - shaman.x, hero.y - shaman.y), 'the flee point is away from the shaman');
+  const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
+  const fearSrc = html.match(/function heroFearStep\(p, dt\)\{[\s\S]*?\n\}/);
+  assert(!!fearSrc, 'hero movement has a fear step (old code only set the flag)');
+  const ctx = { steerWalk: function (e, dx, dy, sp, dt) {
+    const m = Math.hypot(dx, dy) || 1;
+    e.x += (dx / m) * sp * dt;
+    e.y += (dy / m) * sp * dt;
+    e.moving = 1;
+  } };
+  vm.createContext(ctx);
+  vm.runInContext(fearSrc[0] + '\nthis.heroFearStep=heroFearStep;', ctx);
+  const step = { x: hero.x, y: hero.y, sp: 4, causeFear: 2, fearFlee: 1, fleeTo: { x: hero.fleeTo.x, y: hero.fleeTo.y }, dest: { x: shaman.x, y: shaman.y }, ix: 2, iy: 1 };
+  const before = Math.hypot(step.x - shaman.x, step.y - shaman.y);
+  assert(ctx.heroFearStep(step, 0.4) === true, 'fear movement accepts the flee point');
+  assert(Math.hypot(step.x - shaman.x, step.y - shaman.y) > before + 0.5, 'Macar walks away along the flee point');
+  assert(step.dest === null && step.ix === 0, 'stick and tap destinations are ignored while fear holds');
+  const quiet = { x: step.x, y: 0, causeFear: 0, fearFlee: 0, fleeTo: null, dest: { x: 9, y: 0 } };
+  assert(ctx.heroFearStep(quiet, 0.4) === false && quiet.x === step.x && quiet.dest.x === 9, 'after the flag clears, fear no longer steals the step');
+  const upd = html.slice(html.indexOf('function update(dt){'), html.indexOf('function w2s('));
+  const fearAt = upd.indexOf('heroFearStep(p, dt)');
+  const steerAt = upd.indexOf('steerWalk(p,');
+  assert(fearAt > 0 && steerAt > fearAt && upd.indexOf('if(!routed && !feared)') > fearAt, 'the fear step runs instead of player input');
+  R.tick(g, 2.1);
+  assert(hero.causeFear === 0 && !hero.fearFlee && hero.fleeTo == null && hero.dest == null, 'fear ends cleanly after 2 s');
 })();
 
 (function commandRange() {
@@ -242,6 +270,7 @@ function castWorld(shaman, hero) {
   global.convertCoinsToElectrum = function () { converted++; };
   const first = R.pryTooth(g, face);
   assert(first.ok === 1 && stowed && stowed.id === 'grond_tooth_electrum_2' && stowed.grondTooth === 'electrum', 'tooth 2 is a distinct electrum tooth');
+  assert(stowed.n === 'Electrum Tooth 2' && stowed.n !== "Grond's Electrum Tooth" && stowed.cursed === 1, 'tooth 2 keeps its own name and the data curse flag');
   assert(g.lvl.flags.electrumTooth2 === 1 && !g.lvl.flags.electrumTooth && face.emptySocket === 1 && converted === 1, 'the pry sets electrumTooth2 and converts coins');
   const second = R.pryTooth(g, face);
   assert(!second.ok && converted === 1, 'the face does not give up a second tooth');
@@ -273,8 +302,34 @@ function castWorld(shaman, hero) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
   assert(!hit(box, portrait) && !hit(box, face), 'the phone ribbon misses the portrait and Macar\'s face');
+  const pause = { x: 254, y: 8, w: 44, h: 44 };
+  const mini = { x: 306, y: 8, w: 76, h: 76 };
+  assert(!hit(box, pause) && !hit(box, mini), 'the phone ribbon stays clear of Pause and the minimap');
+  assert(box.font && box.font !== 12, 'the phone ribbon font scales with the viewport');
   const laptop = R.barkRect(1280, 800, { x: 16, y: 16, w: 188, h: 50 }, { x: 600, y: 360, w: 80, h: 90 });
-  assert(laptop.x >= 16 + 188 && laptop.y >= 8, 'the laptop ribbon sits to the right of the portrait');
+  const lapMini = { x: 1280 - Math.round(96 * Math.min(1.3, 800 / 700)) - Math.round(10 * Math.min(1.3, 800 / 700)), y: 8, w: Math.round(96 * Math.min(1.3, 800 / 700)), h: Math.round(96 * Math.min(1.3, 800 / 700)) };
+  assert(laptop.x >= 16 + 188 && laptop.y >= 8 && !hit(laptop, lapMini), 'the laptop ribbon sits to the right of the portrait and clear of the minimap');
+  assert(laptop.font > 12, 'the laptop ribbon font scales up with the viewport');
+})();
+
+(function holdFace() {
+  const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
+  const img = html.slice(html.indexOf('function demonFaceImg'), html.indexOf('function demonFaceHalf'));
+  const tooth = img.indexOf("p.itemId==='grond_tooth_electrum_2'");
+  const empty = img.indexOf('SPR.demon_dwarfface_empty');
+  assert(tooth > 0 && empty > tooth && img.indexOf('SPR.demon_dwarfface||SPR.demonface') > 0, 'tooth 2 keeps the portrait instead of the chapel empty plate');
+  const loop = html.slice(html.indexOf('if(typeof tickSpellZones'), html.indexOf('function render('));
+  const fleeAt = loop.indexOf('if(!e.hero && e.fleeTo)');
+  const stepAt = loop.indexOf('else { stepFoeFlee(e, dt); continue; }');
+  const gateAt = loop.indexOf('if(e.hidden || e.sleeping || e.crushed || e.tied)');
+  assert(fleeAt >= 0 && gateAt > fleeAt && stepAt > gateAt, 'monster flee runs only after hidden, sleeping, and tied are clear');
+  const noz = html.slice(html.indexOf('noz.fleePath=['), html.indexOf('noz.onArrive'));
+  assert(/noz\.fleeTo=noz\.fleePath\.shift\(\)/.test(noz), 'Noz still flees on his own path');
+  const toothAt = html.indexOf("interact('Take the electrum tooth'");
+  const tickAt = html.indexOf('if(L.tick) L.tick(dt);');
+  assert(toothAt > tickAt, 'the tooth prompt is armed after other interact prompts');
+  const promptFn = html.slice(html.indexOf('function drawPromptBtn'), html.indexOf('function drawHint'));
+  assert(/const slop=24/.test(promptFn), 'the phone prompt hit rect has finger slop so the first tap registers');
 })();
 
 (function nail() {

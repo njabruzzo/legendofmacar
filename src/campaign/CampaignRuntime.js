@@ -745,7 +745,14 @@
     if (p.commandHeld > 0) p.commandHeld = Math.max(0, p.commandHeld - dt);
     if (p.causeFear > 0) {
       p.causeFear = Math.max(0, p.causeFear - dt);
-      if (p.causeFear <= 0 && p.fearFlee) { p.fearFlee = 0; p.fleeTo = null; }
+      if (p.causeFear <= 0 && p.fearFlee) {
+        p.fearFlee = 0;
+        p.fleeTo = null;
+        p.dest = null;
+        p.moving = 0;
+        p.ix = 0;
+        p.iy = 0;
+      }
     }
     var tiles = commandTiles(shaman);
     var closeTiles = shaman.closeTiles || 6;
@@ -1136,23 +1143,71 @@
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
-  function barkRect(vw, vh, portrait, face) {
+  function hudBoxes(vw, vh, hud) {
+    var list = (hud && hud.obstacles) ? hud.obstacles.slice() : [];
+    if (list.length) return list;
+    var pad = 8;
+    var port = vh > vw;
+    var scale = (hud && hud.scale > 0) ? hud.scale : Math.max(0.66, Math.min(1.3, Math.min(vw, vh) / (port ? 430 : 700)));
+    if (vw < 900) {
+      var sz = 76;
+      var mini = { x: vw - sz - pad, y: pad, w: sz, h: sz };
+      var tap = 44;
+      list.push(mini);
+      list.push({ x: mini.x - pad - tap, y: pad, w: tap, h: tap });
+    } else {
+      var msz = Math.round(96 * scale);
+      list.push({ x: vw - msz - Math.round(10 * scale), y: Math.max(8, Math.round(8 * scale)), w: msz, h: msz });
+    }
+    return list;
+  }
+
+  function boxOf(ob) {
+    if (!ob) return null;
+    return { x: ob.x || 0, y: ob.y || 0, w: ob.w || ob.sz || 0, h: ob.h || ob.sz || 0 };
+  }
+
+  function barkRect(vw, vh, portrait, face, hud) {
     vw = vw || 390;
     vh = vh || 844;
-    var w = 220;
-    var h = 36;
-    var x = 132;
-    var y = 8;
-    if (portrait && portrait.w) {
-      x = (portrait.x || 0) + portrait.w + 8;
-      y = portrait.y || 8;
+    var port = vh > vw;
+    var scale = (hud && hud.scale > 0) ? hud.scale : Math.max(0.66, Math.min(1.3, Math.min(vw, vh) / (port ? 430 : 700)));
+    var font = Math.max(10, Math.round(12 * scale));
+    var h = Math.max(28, Math.round(font * 2.4));
+    var pad = 8;
+    var obstacles = hudBoxes(vw, vh, hud);
+    function blocked(box) {
+      if (overlapBox(box, portrait) || overlapBox(box, face)) return true;
+      for (var i = 0; i < obstacles.length; i++) {
+        if (overlapBox(box, boxOf(obstacles[i]))) return true;
+      }
+      return false;
     }
-    if (x + w > vw - 8) w = Math.max(96, vw - 8 - x);
-    var box = { x: x, y: y, w: w, h: h };
-    if (overlapBox(box, portrait)) box.y = (portrait.y || 0) + (portrait.h || 0) + 8;
-    if (overlapBox(box, face)) box.y = (face.y || 0) + (face.h || 0) + 8;
-    if (box.y + box.h > vh - 8) box.y = Math.max(8, vh - box.h - 8);
-    if (overlapBox(box, portrait)) box.x = (portrait.x || 0) + (portrait.w || 0) + 8;
+    var x = pad;
+    var y = pad;
+    if (portrait && portrait.w) {
+      x = (portrait.x || 0) + portrait.w + pad;
+      y = portrait.y || pad;
+    }
+    var right = vw - pad;
+    for (var i = 0; i < obstacles.length; i++) {
+      var ob = boxOf(obstacles[i]);
+      if (y < ob.y + ob.h && y + h > ob.y) right = Math.min(right, ob.x - pad);
+    }
+    var maxW = Math.round(280 * scale);
+    var w = Math.max(72, Math.min(maxW, right - x));
+    var box = { x: x, y: y, w: w, h: h, font: font };
+    if (w < 140 || blocked(box)) {
+      var low = (portrait && portrait.h) ? ((portrait.y || 0) + portrait.h + pad) : (y + h + pad);
+      for (var j = 0; j < obstacles.length; j++) {
+        var o2 = boxOf(obstacles[j]);
+        low = Math.max(low, o2.y + o2.h + pad);
+      }
+      box = { x: pad, y: low, w: Math.max(72, Math.min(maxW, vw - pad * 2)), h: h, font: font };
+      if (overlapBox(box, face)) box.y = (face.y || 0) + (face.h || 0) + pad;
+      if (overlapBox(box, portrait)) box.x = (portrait.x || 0) + (portrait.w || 0) + pad;
+    }
+    if (box.y + box.h > vh - pad) box.y = Math.max(pad, vh - box.h - pad);
     return box;
   }
 
@@ -1161,12 +1216,16 @@
     var flags = (G.lvl && G.lvl.flags) || {};
     if (G.lvl) G.lvl.flags = flags;
     if (flags.electrumTooth2) return { ok: 0, reason: 'taken' };
-    var data = G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var data = spec && spec.data;
+    var mapTooth = (spec && spec.map && spec.map.tooth) || {};
     var tooth = (data && data.TOOTH) || {};
-    var id = face.itemId || tooth.id || 'grond_tooth_electrum_2';
+    var id = face.itemId || mapTooth.id || tooth.id || 'grond_tooth_electrum_2';
+    var name = mapTooth.name || tooth.name || 'Electrum Tooth 2';
+    if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
     var it = {
       id: id,
-      n: "Grond's Electrum Tooth",
+      n: name,
       k: 'misc',
       cat: 'Quest',
       noSell: 1,
@@ -1176,6 +1235,10 @@
       spr: 'icon_pack',
       d: 'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
     };
+    /* Tooth 1 keeps the curse on grondTooth (coins), not a bind. When the
+       level data marks this fang cursed, the item flag is set the same way
+       and use/unequip still follow that coin curse. */
+    if (mapTooth.cursed || tooth.cursed) it.cursed = 1;
     if (eng('stowPackItem')) eng('stowPackItem')(it);
     flags.electrumTooth2 = 1;
     face.emptySocket = 1;
