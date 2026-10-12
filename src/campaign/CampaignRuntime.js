@@ -704,13 +704,25 @@
     G.props = (G.props || []).filter(function (p) { return p && p.k !== 'web' && p.k !== 'eggs'; });
   }
 
+  function campaignReplacesShell(spec, L) {
+    if (!spec || !L) return false;
+    if ((spec.level | 0) !== (L.n | 0)) return true;
+    return (spec.level | 0) >= 4;
+  }
+
+  function stripShellHazards(G, spec) {
+    if (!campaignReplacesShell(spec, G && G.lvl)) return;
+    G.props = (G.props || []).filter(function (p) { return p && p.k !== 'trap'; });
+    if (G.lvl) G.lvl.objs = [];
+  }
+
   function bindTick(G) {
     var L = G.lvl;
     if (!L || (L.tick && L.tick._campaign)) return;
     var inner = L.tick;
     var wrapped = function (dt) {
       var spec = L.campaignSpec;
-      if (inner && (!spec || (spec.level | 0) === (L.n | 0))) inner.call(this, dt);
+      if (inner && !campaignReplacesShell(spec, L)) inner.call(this, dt);
       api.tick(G, dt);
     };
     wrapped._campaign = 1;
@@ -749,6 +761,7 @@
       stripMoved(G, spec);
       carveMap(L, spec.map || {});
       placeLevel(G, spec);
+      stripShellHazards(G, spec);
       spawnPinned(G, opts, spec);
       seatParty(G, spec);
     } else {

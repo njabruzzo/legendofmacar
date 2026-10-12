@@ -119,6 +119,8 @@ const G = {
   }
 };
 assert(R.install(G, { scale: 4, fresh: true, foe: factories, ally: { noz: function () { return { team: 'neutral', name: 'Noz', tied: 1 }; } }, rollExpr: function () { return 4; }, rng: function () { return 0; } }) === true, 'install accepts the chapter shell');
+G.lvl.tick(0);
+assert(G.lvl._inner === 1 && G.lvl.objs.length === 6, 'Level 2 still runs its chapter script');
 assert(G.lvl.flags.campaign === 1 && G.lvl.title === 'Noz and the Goblin King', 'the shell is marked as the campaign floor');
 const gob = G.ents.filter(function (e) { return e.campaignKey === 'goblin' && e.campaignRole !== 'assistants'; })[0];
 assert(gob && gob.campaignXp === 13 && gob.hp === 4 && gob.hp !== 28 && gob.insultsOnly === 1 && gob.boss === 0, 'a goblin rolls 1d8-1, not the factory 28');
@@ -488,17 +490,20 @@ const G4 = {
   ch: 4,
   t: 0,
   ents: [{ team: 'party', hero: 1, x: 1, y: 1, hp: 40, maxhp: 40, ac: 4, dead: 0, col: { key: 'macar' } }],
-  props: [{ k: 'floorRubyDoor', x: 1, y: 1 }, { k: 'floorlever', x: 2, y: 2 }],
+  props: [{ k: 'floorRubyDoor', x: 1, y: 1 }, { k: 'floorlever', x: 2, y: 2 }, { k: 'trap', trap: 'trap_spikes', x: 28, y: 28 }, { k: 'trap', trap: 'trap_runes', x: 46, y: 16 }],
   cam: { x: 0, y: 0 },
   lvl: {
     n: 4, w: 132, h: 106, grid: null, secrets: [],
     flags: {},
     spawn: { x: 20, y: 20 },
-    tick: function () {}
+    objs: [{ t: 'Destroy the Elder Brain', d: 0 }],
+    tick: function () { G4.lvl._shell = 1; }
   }
 };
 const orcFactory = foe('Orc', { kind: 'orc', sprite: 'orc', scale: 1.05, hp: 42, maxhp: 42 });
 assert(R.install(G4, { scale: 4, fresh: true, foe: { orc: orcFactory, statue: factories.thinone, construct: foe('Construct', { kind: 'construct', sprite: 'construct', scale: 1.35 }) }, rng: function () { return 0; } }) === true, 'Level 4 installs onto the chapter 4 shell');
+G4.lvl.tick(0.1);
+assert(!G4.lvl._shell && !G4.props.some(function (p) { return p && p.k === 'trap'; }) && G4.lvl.objs.length === 0, 'Level 4 leaves the dead-city script, traps, and objectives behind');
 assert(G4.lvl.title === 'Orc Hold and the Ogre Cave' && G4.poisonMode === '', 'Level 4 keeps its name and does not turn poison on');
 const hero4 = G4.ents.filter(function (e) { return e.hero; })[0];
 assert(hero4.x === 8 && hero4.y === 28, 'Macar arrives at the Level 4 spawn');
