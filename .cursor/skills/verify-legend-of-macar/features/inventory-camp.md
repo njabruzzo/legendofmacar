@@ -8,7 +8,7 @@ PACK opens Macar's backpack with large item titles and Drop. Camp from the bar r
 - `pack-drop` shows Drop on a row (do not drop the last hammer on a run that still needs combat).
 - `pack-leave` returns to play with Escape.
 - `camp-rest` starts the in-seam rest (`Macar decides to camp to rest and heal.`) when no foe is near.
-- `camp-plate` shows CAMP, tabs, Save, and Go deeper after a chapter clear.
+- `camp-plate` shows CAMP, tabs, Save, Go deeper, and Chapters after a chapter clear.
 
 ## How to get to it (user POV)
 
@@ -16,7 +16,7 @@ PACK opens Macar's backpack with large item titles and Drop. Camp from the bar r
 - On a pack row, choose Drop to put the item at Macar's feet.
 - Press Escape to close the pack.
 - In play, tap Camp or press `c` / `3` to rest if the room is quiet.
-- Clear a chapter to reach the CAMP plate (Save / Go deeper). Continue from title can reopen that plate when the book was marked at camp.
+- Clear a chapter to reach the CAMP plate (Save / Go deeper / Chapters). Continue from title can reopen that plate when the book was marked at camp.
 
 ## Driving it with control-macar
 
@@ -29,7 +29,7 @@ Preconditions:
 - **Open pack.** Press `i`. Run `control-macar browser press --key i` and `control-macar browser wait --scene pack`. Snapshot and screenshot `pack-open`. The tree or pixels show `BACKPACK` and a `Drop` chip. Item titles are large.
 - **Leave pack.** Press Escape. Run `control-macar browser press --key Escape` and `control-macar browser wait --scene play`. Scene is `play`.
 - **Camp rest.** From quiet play, press `c`. Run `control-macar browser press --key c` and `control-macar browser snapshot --path artifacts/<run>/camp-rest.json --aria` plus a screenshot. `sleepShow` is true or the caption / log reads `Macar decides to camp to rest and heal.` Wait until `sleepShow` is false before more movement. A later title reload may show `Continue` because rest writes the book.
-- **CAMP plate.** Only after a chapter clear (or Continue into a camp mark). Run `control-macar browser wait --scene camp` and snapshot `camp-plate`. Gold title is `CAMP`. Tabs include Repair, Improve, Craft, Other. Footer has `Save` and `Go deeper`. If you cannot reach a cleared chapter, record `camp-plate=skip reason=verified-unreachable: CAMP plate is post-chapter; first-room rest is camp-rest, not camp-plate`.
+- **CAMP plate.** Only after a chapter clear (or Continue into a camp mark). Run `control-macar browser wait --scene camp` and snapshot `camp-plate`. Gold title is `CAMP`. Tabs include Repair, Improve, Craft, Other. Footer has `Save`, `Go deeper`, and `Chapters`. If you cannot reach a cleared chapter, record `camp-plate=skip reason=verified-unreachable: CAMP plate is post-chapter; first-room rest is camp-rest, not camp-plate`.
 
 ## Gotchas
 

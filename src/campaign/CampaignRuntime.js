@@ -113,6 +113,20 @@
     return nxt;
   }
 
+  /* The chapter being entered is the campaign level. A live level whose
+     shell is already this chapter was chosen before start (Level 3 rides
+     Chapter II) and stays. A stored level outside the live set stays too,
+     so an old chapter save is not promoted into the campaign. */
+  function noteChapter(G, chapter) {
+    if (!G) return 0;
+    chapter = chapter | 0;
+    var stored = G.campaignLevel | 0;
+    if (stored && shellChapter(stored) === chapter) return stored;
+    if (stored && !LIVE[stored]) return stored;
+    G.campaignLevel = chapter;
+    return G.campaignLevel;
+  }
+
   function printed(spec, key) {
     if (!spec || !key) return null;
     if (spec.data && spec.data.XP && spec.data.XP[key] != null) return spec.data.XP[key] | 0;
@@ -1144,8 +1158,16 @@
       if (mac && !(free && free(mac)) && !saveVs(G, mac, 'spell')) applyHold(mac);
       if (eng('say')) eng('say')('Hold Person.', '#d6e2a8');
     } else if (spell.silence) {
-      var voice = hero(G) || p;
-      if (voice && !saveVs(G, voice, 'spell')) applySilence(voice);
+      var radius = (typeof spell.rangeTiles === 'number') ? spell.rangeTiles : rangeTiles("15'");
+      var center = (p && !p.dead && !p.hero && p.team === 'party') ? p : nearestKin(G, e, radius);
+      if (!center) return;
+      var crowd = G.ents || [];
+      for (var si = 0; si < crowd.length; si++) {
+        var caught = crowd[si];
+        if (!caught || caught.dead) continue;
+        if (tileDist(center, caught) > radius + 1e-6) continue;
+        if (!saveVs(G, caught, 'spell')) applySilence(caught);
+      }
       if (eng('say')) eng('say')('Silence.', '#d6e2a8');
     } else if (spell.unprinted) {
       return;
@@ -2591,6 +2613,7 @@
     shouldInstall: shouldInstall,
     blocksWarren: blocksWarren,
     noteCleared: noteCleared,
+    noteChapter: noteChapter,
     campGoDeeper: campGoDeeper,
     poisonHit: poisonHit,
     applyPoison: applyPoison,

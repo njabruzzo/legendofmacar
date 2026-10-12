@@ -26,6 +26,8 @@ assert(!/fillText\(a\.info/.test(camp), 'info is not stacked on the row');
 assert(!/CRAFT SKILLS/.test(camp), 'full skill grid is not the default camp chrome');
 assert(/G\.campSkills/.test(camp), 'skills sit behind a Skills affordance');
 assert(/'Go deeper'/.test(camp) && /'Save'/.test(camp), 'Save and Go deeper stay');
+assert(/menuBtn\(g,'Go deeper'[\s\S]*menuBtn\(g,'Chapters'/.test(camp), 'Chapters sits on the camp footer with Go deeper');
+assert(/openChapters\(\)/.test(camp), 'the camp Chapters button opens the chapter list');
 assert(/Math\.max\(PORT\?50:48/.test(camp), 'Save / Go deeper stay at least 50px on phone');
 assert(/menuHits\.unshift\.apply\(menuHits, footHits\)/.test(camp), 'Save hit is tested before camp rows');
 assert(/y\+h>footY-6\*s/.test(camp), 'action rows stay above the footer');

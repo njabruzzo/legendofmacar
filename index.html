@@ -7130,7 +7130,9 @@ function startChapter(n){
   if(n===1&&!keep)G.floorWorlds={};
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
-  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
+  G.ch=n;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteChapter) CampaignRuntime.noteChapter(G, n);
+  G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; G.topologyRev=0; BX_KEY=''; TILEBLIT.key='';
   if(typeof Discovery!=='undefined' && Discovery.reset) Discovery.reset();
   if(typeof Navigation!=='undefined' && Navigation.invalidate)
@@ -22435,11 +22437,21 @@ function drawCamp(g){
     g.fillText('The book is marked.', VW/2, footY-6*s);
     g.textAlign='left';
   }
+  const deeper=!!(CH_META[nxt]&&!CH_META[nxt].locked);
+  const footN=deeper?3:2;
+  const footGap=8*s;
+  const footBtnW=Math.min(btnW, (VW-20*s-(footN-1)*footGap)/footN);
+  const footSpan=footN*footBtnW+(footN-1)*footGap;
+  let footX=VW/2-footSpan/2+footBtnW/2;
+  const footCy=footY+btnH/2;
   const beforeFoot=menuHits.length;
-  menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
-  if(CH_META[nxt]&&!CH_META[nxt].locked)
-    menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>pressGoDeeper());
-  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{openChapters();});
+  menuBtn(g, saved?'Saved':'Save', footX, footCy, footBtnW, btnH, ()=>writeGameSave(), false, SPR.icon_save);
+  footX+=footBtnW+footGap;
+  if(deeper){
+    menuBtn(g,'Go deeper', footX, footCy, footBtnW, btnH, ()=>pressGoDeeper());
+    footX+=footBtnW+footGap;
+  }
+  menuBtn(g,'Chapters', footX, footCy, footBtnW, btnH, ()=>{openChapters();});
   const footHits=menuHits.splice(beforeFoot);
   menuHits.unshift.apply(menuHits, footHits);
 }

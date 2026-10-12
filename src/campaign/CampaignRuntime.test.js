@@ -245,6 +245,17 @@ assert(R.campGoDeeper(oldChapterTwo) === 'enter' && oldChapterTwo.campaignLevel 
 const freshCamp = { ch: 1, campaignLevel: 1, cleared: {} };
 assert(R.campGoDeeper(freshCamp) === 'chapter' && freshCamp.campaignLevel === 1, 'an uncleared chapter keeps the old descent');
 assert(/pressGoDeeper\(/.test(html) && /More coming\./.test(html), 'camp says more coming instead of opening the next old chapter');
+const replayTwo = { campaignLevel: 4, ch: 4 };
+assert(R.noteChapter(replayTwo, 2) === 2 && replayTwo.campaignLevel === 2, 'replaying Chapter II enters Level 2');
+const stayThree = { campaignLevel: 3, ch: 2 };
+assert(R.noteChapter(stayThree, 2) === 3 && stayThree.campaignLevel === 3, 'Level 3 stays when Chapter II is its shell');
+const stayFour = { campaignLevel: 4, ch: 4 };
+assert(R.noteChapter(stayFour, 4) === 4 && stayFour.campaignLevel === 4, 're-entering Chapter IV stays on Level 4');
+const replayOne = { campaignLevel: 4, ch: 4 };
+assert(R.noteChapter(replayOne, 1) === 1 && replayOne.campaignLevel === 1, 'replaying Chapter I enters Level 1');
+const oldBook = { campaignLevel: 1, ch: 2 };
+assert(R.noteChapter(oldBook, 2) === 1 && oldBook.campaignLevel === 1, 'an old chapter II save stays off the campaign');
+assert(/CampaignRuntime\.noteChapter\(G, n\)/.test(html), 'every chapter entry sets the campaign level');
 
 const ver = (html.match(/ASSET_VER='(\d+)'/) || [])[1];
 assert(ver && html.indexOf('CampaignBoot.js?v=' + ver) >= 0, 'the boot script carries ASSET_VER');
@@ -773,7 +784,8 @@ function bootL4(extra) {
     guard++;
   }
   assert(String(shaman.spellsSpent || '').indexOf("Silence 15' r.") >= 0, 'the shaman then spends Silence on a kin');
-  assert(hero.silenced > 0 && hero.silenceSrc === 'campaign', 'a failed Silence save silences Macar');
+  assert(kin && kin.silenced > 0 && kin.silenceSrc === 'campaign', 'Silence centered on the kin silences that kin');
+  assert(hero.silenced > 0 && hero.silenceSrc === 'campaign', 'Macar is silenced when he stands inside the 15 foot radius');
 })();
 
 (function holdAndSilence() {
@@ -790,7 +802,7 @@ function bootL4(extra) {
   if (kin) { kin.x = shaman.x; kin.y = shaman.y; }
   g.lvl._campaignHost.save = function (who, kind) {
     g._save = kind;
-    g._saveHero = !!(who && who.hero);
+    if (who && who.hero) g._saveHero = true;
     return false;
   };
   global.say = function () {};
@@ -843,6 +855,7 @@ function bootL4(extra) {
   const walked = { held: 0, stun: 0, dest: { x: 2, y: 2 }, moving: 1, ix: 1, iy: 0 };
   assert(gate.stunnedHold(walked) === false && walked.dest && walked.dest.x === 2, 'Macar can move again after Hold Person expires');
   assert(gate.refuseAttack({ held: 0, defending: 0 }) === false, 'Macar can attack again after Hold Person expires');
+  g._saveHero = false;
   steps = 0;
   while (steps < 200 && !(hero.silenced > 0)) { R.tick(g, 0.05); steps++; }
   assert(steps < 200 && hero.silenceSrc === 'campaign' && g._saveHero, 'Silence fails Macar\'s save vs spell');
@@ -909,6 +922,57 @@ function bootL4(extra) {
   }
   delete global.wearingFreeAction;
   assert(String(immuneShaman.spellsSpent || '').indexOf('Hold Person') >= 0 && !(immuneHero.held > 0), 'Free Action keeps Hold Person from landing');
+})();
+
+(function silenceRadius() {
+  const outside = bootL4({ kin: 1 });
+  const outHero = outside.ents.filter(function (e) { return e.hero; })[0];
+  const outShaman = outside.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  const outKin = outside.ents.filter(function (e) { return e.name === 'Kin'; })[0];
+  outKin.x = outShaman.x;
+  outKin.y = outShaman.y;
+  outHero.x = outShaman.x + 8;
+  outHero.y = outShaman.y;
+  outside.lvl._campaignHost.save = function () { return false; };
+  global.say = function () {};
+  let steps = 0;
+  while (steps < 16 && String(outShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+    R.tick(outside, 1.1);
+    steps++;
+  }
+  assert(steps < 16 && outKin.silenced > 0 && outKin.silenceSrc === 'campaign', 'the kin inside the 15 foot radius is silenced');
+  assert(!(outHero.silenced > 0) && !outHero.silenceSrc, 'Macar outside the radius is not silenced');
+
+  const inside = bootL4({ kin: 1 });
+  const inHero = inside.ents.filter(function (e) { return e.hero; })[0];
+  const inShaman = inside.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  const inKin = inside.ents.filter(function (e) { return e.name === 'Kin'; })[0];
+  inKin.x = inShaman.x;
+  inKin.y = inShaman.y;
+  inHero.x = inShaman.x + 2;
+  inHero.y = inShaman.y;
+  inside.lvl._campaignHost.save = function () { return false; };
+  steps = 0;
+  while (steps < 16 && !(inKin.silenced > 0)) {
+    R.tick(inside, 1.1);
+    steps++;
+  }
+  assert(steps < 16 && inKin.silenced > 0 && inHero.silenced > 0 && inHero.silenceSrc === 'campaign', 'Macar inside the radius is silenced with the kin');
+
+  const solo = bootL4();
+  const soloHero = solo.ents.filter(function (e) { return e.hero; })[0];
+  const soloShaman = solo.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  soloHero.x = soloShaman.x;
+  soloHero.y = soloShaman.y;
+  solo.lvl._campaignHost.save = function () { return false; };
+  steps = 0;
+  while (steps < 20 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+    R.tick(solo, 1.1);
+    steps++;
+  }
+  assert(steps < 20 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') >= 0, 'a solo Macar still draws Hold Person');
+  for (var extra = 0; extra < 8; extra++) R.tick(solo, 1.1);
+  assert(String(soloShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0, 'with no kin the shaman does not spend Silence');
 })();
 
 (function chiefMorale() {
