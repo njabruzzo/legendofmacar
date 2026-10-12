@@ -39,6 +39,32 @@
    scale:2.065,
    /* Minimum profile foot-centre spread on the v4f stride frames (se_w1). */
    strideSrc:45
+  },
+  /* Red dragon PAINT v1c (Nick: Good 12:35 PM CT Oct 12, folded wing as is;
+     Cel cleared the bind). Locked v4k structure: canvas 798x496, rig ground
+     point at x = 399, row 387 (the foot plane, not the lowest opaque row:
+     the near talons project below it at the 30 deg camera). Keys are
+     laptop 1:1: e idle stature 285 src px without the main horns or frill
+     (2.69x Macar 106). Scale 2.8079 at boss base 128 draws the 496-row canvas
+     at 496 px on laptop (ZOOM 1.38) and 280 px on phone (ZOOM 0.78), so the
+     engine only ever downscales. Walk 4 in every facing, attack 3, dead 1.
+     No gold, no magenta fringe. */
+  reddragon:{
+   sprite:'reddragon',
+   filePrefix:'mon_reddragon',
+   facings:['s','se','e','ne','back'],
+   walkFrames:{s:4,se:4,e:4,ne:4,back:4},
+   attack:3,
+   paintedLeft:false,
+   legShift:false,
+   magentaCleanup:false,
+   footX:399,
+   canvasW:798,
+   canvasH:496,
+   baselineRow:387,
+   scale:2.8079,
+   /* Minimum planted front-foot travel w1->w2 on se/ne (canvas.json, 38.1). */
+   strideSrc:38
   }
  };
  function plan(sprite){return plans[sprite]||null;}

@@ -12,3 +12,11 @@ Thin One walk timing and contact (PAINT v4f, bound in game)
 
 The painted Thin One sheets themselves are original game art. The LPC cycle
 is the motion base only.
+
+Red dragon (PAINT v1c over STRUCTURE v4k, bound in game)
+  Mesh and rig: Pixor library "Dragon", CC0
+  https://pixor.art/library/creatures/dragon
+  Girth pass, fan-fold wing mesh, jaw split and anatomy add-ons are our edits
+  on the CC0 mesh. Paint is a procedural render, all ours.
+  Wyvern by Clint Bellanger / Justin Nichol (CC-BY-SA 3.0): timing notes only,
+  no pixels or geometry.
