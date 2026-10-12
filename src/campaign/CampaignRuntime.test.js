@@ -260,7 +260,7 @@ assert(!G3.lvl._inner, 'the chapter 2 tick does not run under Level 3');
 const large = G3.ents.filter(function (e) { return e.campaignKey === 'spider'; })[0];
 assert(large && large.campaignXp === 76 && large.hp === 36 && large.boss === 0, 'a large spider keeps factory hp and the printed xp');
 const pix = G3.ents.filter(function (e) { return e.campaignKey === 'pixie'; })[0];
-assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false, 'the pixie does not fight');
+assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false && pix.scale > 0, 'the pixie does not fight and keeps a drawable scale');
 const queen = G3.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(queen && queen.campaignXp === 1828 && queen.hp === 176 && queen.boss === 0 && queen.sprite === 'spider_giant', 'the queen has printed xp and hp and wears no boss flag');
 const guard3 = G3.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];

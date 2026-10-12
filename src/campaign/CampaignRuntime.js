@@ -588,7 +588,7 @@
     var node = map.guardian;
     if (node && node.placement === 'fixed') {
       var make = pickFactory(opts.foe, node.key || 'rubyGuardian');
-      var g = make ? make() : { team: 'foe', hp: 8, maxhp: 8 };
+      var g = make ? make() : { team: 'foe', hp: 8, maxhp: 8, scale: 1 };
       stampGuardian(opts, spec, g);
       g.x = node.x;
       g.y = node.y;
