@@ -82,6 +82,7 @@
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
+<script src="src/campaign/CampaignBoot.js"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -550,7 +551,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='131';
+const ASSET_VER='132';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -6367,6 +6368,8 @@ function wanderSpawnSpots(p){
   return spots.slice(0,10);
 }
 function spawnWanderers(p){
+  if(G.lvl&&G.lvl.flags&&G.lvl.flags.campaign&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.spawnWander)
+    return CampaignRuntime.spawnWander(G,p,FOE)||[];
   const kinds=wanderKinds().filter(k=>typeof FOE[k]==='function');
   if(!kinds.length && typeof FOE.rat==='function') kinds.push('rat');
   const spots=wanderSpawnSpots(p);
@@ -6863,6 +6866,7 @@ function floorTravelScreenHit(t){
   }return null;
 }
 function tickFloorTravel(){
+  if(G.lvl&&G.lvl.flags&&G.lvl.flags.campaign) return;
   tickChapterDescent();
   if(G.talk)return;const p=player(),L=G.lvl;if(!p||!L)return;
   const lever=G.props.find(q=>q.k==='floorlever');
@@ -6967,9 +6971,11 @@ function startChapter(n){
   if(typeof layoutUI==='function') layoutUI();
   ensureChapterDescents();
   ensureFloorTravelProps();
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.install) CampaignRuntime.install(G,{scale:ADD_SCALE,fresh:!(keep&&loadSnap),foe:FOE,ally:ALLY,rollExpr:rollExpr});
   tidyFloorItems();
   if(n===5&&G.lvl.flags.done){G.cleared[5]=1;G.scene='win';}
-  say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
+  if(G.lvl&&G.lvl.flags&&G.lvl.flags.campaign) say((G.lvl.title||'The floor')+'.','#c9b895');
+  else say((CH_INTRO[n]&&CH_INTRO[n].fl)||'Deeper still.','#c9b895');
   if(typeof tryEnterPlay==='function') tryEnterPlay();
 }
 function pinFallenKin(){
@@ -7348,6 +7354,7 @@ function loadSavedGame(){
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
 function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
+  if(G.ch===1&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteCleared) CampaignRuntime.noteCleared(G);
   G.sang=false; G.campScroll=0; G.campTab='repair'; G.campSel=null; G.campSkills=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
   if(returned) say('The kin take back what Macar borrowed. Their kit is whole again.','#cfe0ea');
@@ -9312,6 +9319,7 @@ function ensureCharXp(){
 }
 function livingParty(){ return (G.ents||[]).filter(e=>e.team==='party'&&!e.dead&&e.col); }
 function monsterXpValue(e){
+  if(e&&e.campaignXp!=null) return e.campaignXp|0;
   const hd=monsterHD(e);
   let base=20, php=2;
   if(hd<=0.5){ base=5; php=1; }
@@ -13865,6 +13873,7 @@ function seedRng(s){
   return ()=>{ x=(Math.imul(x,1664525)+1013904223)>>>0; return (x>>>8)/16777215; };
 }
 function buildGoblinWarrens(L, sec){
+  if((L&&L.flags&&L.flags.campaign)||(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.blocksWarren&&CampaignRuntime.blocksWarren(G))) return;
   const g=L.grid, rnd=seedRng(L.warrenSeed||((Math.random()*1e9)|0)+7);
   const sx=sec.x||sec.i, sy=sec.y||sec.j;
   const mouth={x:sx+4.8, y:sy+3.6};
@@ -13927,6 +13936,7 @@ function buildGoblinWarrens(L, sec){
 }
 function enterGoblinKingLevel(L){
   if(!L) return;
+  if((L.flags&&L.flags.campaign)||(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.blocksWarren&&CampaignRuntime.blocksWarren(G))) return;
   if(!L.flags.kingLevel){
     L.flags.kingLevel=1;
     buildGoblinKingLevel(L);
@@ -15896,6 +15906,7 @@ function render(){
     if(hold&&hold.width) drawTitleMenuCover(g, hold);
   }
   if(G.scene==='camp') drawCamp(g);
+  if(G.scene==='campaign-card') drawCampaignCard(g);
   if(G.scene==='craft') drawCraft(g);
   if(G.scene==='pack') drawPack(g);
   if(G.scene==='trade') drawTrade(g);
@@ -19182,6 +19193,16 @@ function rollKillIndividual(e){
   return ensureKillCoins(hoard);
 }
 function foeDrop(e){
+  if(e&&e.rubyGp!=null){
+    const gp=e.rubyGp|0;
+    const ox=(Math.random()-0.5)*0.55, oy=(Math.random()-0.5)*0.55;
+    spawnLoot(e.x+ox, e.y+oy, {
+      kind:'ruby', glow:'#ff2a3c',
+      items:[{n:'Ruby', gp, k:'gem', guardian:1, d:'A blood-red shard from a ruby guardian. Worth '+gp+' gp.'}]
+    });
+    e.drop=null;
+    return;
+  }
   if(isSpiderLord(e)){
     const hoard=rollSpiderLordHoard();
     let pile=hoardToPile(hoard);
@@ -21763,6 +21784,27 @@ function drawBetween(g){
 }
 
 
+function drawCampaignCard(g){
+  menuHits=[]; const s=UIS;
+  const card=G.campaignCard||{};
+  const art=SPR[card.key]||chapterSplashImg(2);
+  g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
+  if(art&&art.width) drawSplashCover(g, art, {zoom:1, ay:0.52, nudgeY:0});
+  else darken(g,.86);
+  drawLetterbox(g, VH*0.22, VH*0.28, 0.72, 0.82);
+  drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
+  g.textAlign='center';
+  g.font='700 '+((PORT?22:32)*s)+'px '+FONT_TITLE;
+  g.fillStyle='#ffe8b6';
+  g.fillText(card.title||'The elevator', VW/2, VH*0.18);
+  g.font='600 '+((PORT?16:20)*s)+'px '+FONT_UI;
+  g.fillStyle='rgba(220,196,150,0.96)';
+  g.fillText(card.line||'The elevator descends.', VW/2, VH*0.26);
+  g.textAlign='left';
+  menuBtn(g,'Descend',VW/2,VH-(PORT?52:48)*s,Math.min(240*s,VW*.65),50*s,()=>{
+    if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.finishCard) CampaignRuntime.finishCard(G);
+  });
+}
 function drawCamp(g){
   menuHits=[]; const s=UIS;
   if(!worldArtReady(G.ch)){g.fillStyle='#0b0806';g.fillRect(0,0,VW,VH);g.fillStyle='#e0ccab';g.font='18px '+FONT_UI;g.fillText('Preparing camp…',24,48);return;}

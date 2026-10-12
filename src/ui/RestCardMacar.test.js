@@ -25,7 +25,7 @@ function assert(cond, msg){
   else console.log('ok    '+msg);
 }
 
-assert(/const ASSET_VER='131'/.test(html), 'ASSET_VER is 131');
+assert(/const ASSET_VER='132'/.test(html), 'ASSET_VER is 131');
 const manifest=fs.readFileSync(path.join(root,'src/assets/asset-manifest.js'),'utf8');
 const first=(html.match(/const first=\[[\s\S]*?\];/)||[''])[0];
 const atlasAt=html.indexOf('MacarSharedAtlas.register(MACAR_ONMODEL)');
