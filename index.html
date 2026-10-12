@@ -9739,6 +9739,15 @@ function applyHoverFlags(e){
     e._fromLevi=0;
   }
 }
+function tickRegen(e, dt){
+  if(!e) return;
+  if(e.ratFever){
+    if(e.potionRegen>0) e.potionRegen-=dt;
+    return;
+  }
+  if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
+  if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+}
 function tickWoundClosure(e, dt){
   if(!wearingWoundClosure(e) || !e || e.hp>=e.maxhp || e.ratFever) return;
   e.hp=Math.min(e.maxhp, e.hp+2.2*(dt||0));
@@ -15613,8 +15622,7 @@ function update(dt){
     if(e.flash>0) e.flash-=dt;
     if(!e.hero && e.fleeTo){ stepFoeFlee(e, dt); continue; }
     if(e.stun>0){ e.stun-=dt; continue; }
-    if(e.regen && e.hp<e.maxhp && !e.ratFever) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
-    if(e.potionRegen>0){ e.potionRegen-=dt; if(!e.ratFever) e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
+    tickRegen(e, dt);
     if(e.potionFireRes>0) e.potionFireRes-=dt;
     if(e.tinyT>0){ e.tinyT-=dt; if(e.tinyT<=0) e.tiny=0; }
     if(typeof tickWoundClosure==='function') tickWoundClosure(e, dt);
