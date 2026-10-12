@@ -746,12 +746,17 @@
     if (p.causeFear > 0) {
       p.causeFear = Math.max(0, p.causeFear - dt);
       if (p.causeFear <= 0 && p.fearFlee) {
-        p.fearFlee = 0;
-        p.fleeTo = null;
-        p.dest = null;
-        p.moving = 0;
-        p.ix = 0;
-        p.iy = 0;
+        var release = eng('releaseHeroFear');
+        if (release) release(p);
+        else {
+          p.fearFlee = 0;
+          p.fearPlaced = 0;
+          p.fleeTo = null;
+          p.dest = null;
+          p.moving = 0;
+          p.ix = 0;
+          p.iy = 0;
+        }
       }
     }
     var tiles = commandTiles(shaman);
@@ -1235,10 +1240,9 @@
       spr: 'icon_pack',
       d: 'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
     };
-    /* Tooth 1 keeps the curse on grondTooth (coins), not a bind. When the
-       level data marks this fang cursed, the item flag is set the same way
-       and use/unequip still follow that coin curse. */
-    if (mapTooth.cursed || tooth.cursed) it.cursed = 1;
+    /* Tooth 1's curse is grondTooth electrum: coins convert, and the fang
+       can still be set aside. The map may say cursed. Tooth 2 follows that
+       rule and does not take the bind flag. */
     if (eng('stowPackItem')) eng('stowPackItem')(it);
     flags.electrumTooth2 = 1;
     face.emptySocket = 1;

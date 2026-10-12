@@ -214,6 +214,12 @@ assert(ver && html.indexOf('CampaignBoot.js?v=' + ver) >= 0, 'the boot script ca
 assert(/function bust\(url\)/.test(boot) && /bust\(url\)/.test(boot) && /\+ 'v=' \+ ver/.test(boot), 'campaign data requests use that version');
 assert(/preloadCard\(spec\)/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'level setup preloads the elevator card');
 assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test(html), 'showing the card loads the jpg if it is still missing');
+const loader = html.slice(html.indexOf('function loadSpriteKeyNow'), html.indexOf('let MACAR_EQUIP_ART_SIG'));
+const retryAt = loader.indexOf('img.__retried');
+const giveAt = loader.indexOf('SPRITE_GAVE_UP[k]=1');
+assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader), 'intro_ch2 retries once, then the loader stops');
+const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function drawCampaignCard'));
+assert(cardArt.indexOf('if(key && SPRITE_GAVE_UP[key]) return null;') >= 0, 'a failed intro_ch2 keeps the plain card fallback');
 const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
 assert(cardFn.indexOf('if(!(art&&art.width)) return;') < 0, 'the card does not wait on the jpg');
 assert(cardFn.indexOf("g.fillStyle='#1a140e'") >= 0 && cardFn.indexOf("g.fillStyle='#1a140e'") < cardFn.indexOf("card.title||'The elevator'"), 'a plain fallback paints before the title');

@@ -193,8 +193,8 @@ function castWorld(shaman, hero) {
   assert(hero.causeFear === 2 && hero.fearT === 2 && hero.fearFlee === 1, 'Cause Fear lasts 2 s after a failed save');
   assert(hero.fleeTo && Math.hypot(hero.fleeTo.x - shaman.x, hero.fleeTo.y - shaman.y) > Math.hypot(hero.x - shaman.x, hero.y - shaman.y), 'the flee point is away from the shaman');
   const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
-  const fearSrc = html.match(/function heroFearStep\(p, dt\)\{[\s\S]*?\n\}/);
-  assert(!!fearSrc, 'hero movement has a fear step (old code only set the flag)');
+  const fearSrc = html.slice(html.indexOf('function fearStand('), html.indexOf('function stepFoeFlee('));
+  assert(fearSrc.indexOf('function heroFearStep(') > 0 && fearSrc.indexOf('function fearFleePoint(') > 0, 'hero movement has a fear step (old code only set the flag)');
   const ctx = { steerWalk: function (e, dx, dy, sp, dt) {
     const m = Math.hypot(dx, dy) || 1;
     e.x += (dx / m) * sp * dt;
@@ -202,7 +202,7 @@ function castWorld(shaman, hero) {
     e.moving = 1;
   } };
   vm.createContext(ctx);
-  vm.runInContext(fearSrc[0] + '\nthis.heroFearStep=heroFearStep;', ctx);
+  vm.runInContext(fearSrc + '\nthis.heroFearStep=heroFearStep; this.fearFleePoint=fearFleePoint; this.releaseHeroFear=releaseHeroFear;', ctx);
   const step = { x: hero.x, y: hero.y, sp: 4, causeFear: 2, fearFlee: 1, fleeTo: { x: hero.fleeTo.x, y: hero.fleeTo.y }, dest: { x: shaman.x, y: shaman.y }, ix: 2, iy: 1 };
   const before = Math.hypot(step.x - shaman.x, step.y - shaman.y);
   assert(ctx.heroFearStep(step, 0.4) === true, 'fear movement accepts the flee point');
@@ -216,6 +216,93 @@ function castWorld(shaman, hero) {
   assert(fearAt > 0 && steerAt > fearAt && upd.indexOf('if(!routed && !feared)') > fearAt, 'the fear step runs instead of player input');
   R.tick(g, 2.1);
   assert(hero.causeFear === 0 && !hero.fearFlee && hero.fleeTo == null && hero.dest == null, 'fear ends cleanly after 2 s');
+  const rt = fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8');
+  assert(rt.indexOf("eng('releaseHeroFear')") > 0, 'clearing fear asks the host to unwedge Macar');
+
+  /* Campaign warren at the reported corner. x is offset from 48.
+     Away and the ±45/±90 lines sit in rock; the open floor is north and east. */
+  function warrenRow(rocks) {
+    let s = '';
+    for (let i = 0; i < 9; i++) s += i < rocks ? '1' : '0';
+    return s;
+  }
+  const warrenRows = {
+    51: warrenRow(2),
+    52: warrenRow(3),
+    53: warrenRow(5),
+    54: warrenRow(6),
+    55: warrenRow(8),
+    56: warrenRow(9)
+  };
+  function warrenTile(x, y) {
+    const row = warrenRows[Math.floor(y)];
+    if (!row) return 1;
+    const col = Math.floor(x) - 48;
+    if (col < 0 || col >= row.length) return 1;
+    return row.charCodeAt(col) - 48;
+  }
+  function cornerFree(x, y, r) {
+    r = r == null ? 0.36 : r;
+    const samples = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r],
+      [r * 0.7, r * 0.7], [-r * 0.7, r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, -r * 0.7]];
+    for (let i = 0; i < samples.length; i++) {
+      if (warrenTile(x + samples[i][0], y + samples[i][1]) !== 0) return false;
+    }
+    return true;
+  }
+  const walls = {
+    canBe: function (x, y, r) { return cornerFree(x, y, r); },
+    steerWalk: function (e, dx, dy, sp, dt) {
+      const m = Math.hypot(dx, dy) || 1;
+      let left = sp * (dt || 0);
+      while (left > 0.05) {
+        const step = Math.min(0.2, left);
+        const nx = e.x + (dx / m) * step, ny = e.y + (dy / m) * step;
+        if (!cornerFree(nx, ny, e.r)) break;
+        e.x = nx; e.y = ny;
+        left -= step;
+      }
+    }
+  };
+  vm.createContext(walls);
+  vm.runInContext(fearSrc + '\nthis.heroFearStep=heroFearStep; this.fearFleePoint=fearFleePoint; this.releaseHeroFear=releaseHeroFear;', walls);
+  const rock = { x: 49.7, y: 56.2 };
+  const corner = {
+    x: 53, y: 53.9, r: 0.36, sp: 4, causeFear: 2, fearFlee: 1,
+    fleeTo: { x: rock.x, y: rock.y }, dest: { x: 54, y: 53 }, ix: 1, iy: 1
+  };
+  assert(!cornerFree(corner.x, corner.y, corner.r) && !cornerFree(rock.x, rock.y, 0.36), 'the reported corner overlaps the wall and the raw flee point is rock');
+  assert(walls.heroFearStep(corner, 0.35) === true, 'fear still owns the step in the corner');
+  assert(cornerFree(corner.x, corner.y, corner.r), 'Macar is not left wedged in the corner');
+  assert(Math.hypot(corner.x - 53.5, corner.y - 53.5) > 0.45, 'he flees past the unwedge tile instead of standing still');
+  assert(corner.fleeTo && cornerFree(corner.fleeTo.x, corner.fleeTo.y, corner.r) && Math.hypot(corner.fleeTo.x - rock.x, corner.fleeTo.y - rock.y) > 1, 'the flee point is a stand, not the rock');
+  assert(corner.dest === null && corner.ix === 0, 'player input stays ignored while the corner fear runs');
+  const wedged = { x: 53, y: 53.9, r: 0.36, fearFlee: 1, fleeTo: { x: rock.x, y: rock.y }, dest: { x: 4, y: 4 }, moving: 1, ix: 2, iy: 2 };
+  walls.releaseHeroFear(wedged);
+  assert(wedged.fearFlee === 0 && wedged.fleeTo == null && wedged.dest == null && wedged.moving === 0, 'fear clears after the corner');
+  assert(cornerFree(wedged.x, wedged.y, wedged.r) && Math.abs((wedged.x % 1) - 0.5) < 1e-6 && Math.abs((wedged.y % 1) - 0.5) < 1e-6, 'a wedged Macar snaps to the nearest walkable tile center when fear ends');
+
+  const open = {
+    x: 10, y: 10, r: 0.36, sp: 4, causeFear: 2, fearFlee: 1,
+    fleeTo: { x: 14, y: 10 }, dest: { x: 9, y: 10 }, ix: 3, iy: 1
+  };
+  const openCtx = {
+    canBe: function () { return true; },
+    steerWalk: function (e, dx, dy, sp, dt) {
+      const m = Math.hypot(dx, dy) || 1;
+      e.x += (dx / m) * sp * dt;
+      e.y += (dy / m) * sp * dt;
+    }
+  };
+  vm.createContext(openCtx);
+  vm.runInContext(fearSrc + '\nthis.heroFearStep=heroFearStep; this.releaseHeroFear=releaseHeroFear;', openCtx);
+  const openBefore = open.x;
+  assert(openCtx.heroFearStep(open, 0.35) === true, 'open floor still accepts fear');
+  assert(open.x > openBefore + 0.8 && Math.abs(open.y - 10) < 0.25, 'open floor flees along the away line');
+  assert(open.fleeTo && Math.hypot(open.fleeTo.x - 14, open.fleeTo.y - 10) < 0.35, 'open floor keeps the far flee point');
+  const parked = { x: 10, y: 10, r: 0.36, fearFlee: 1, fleeTo: { x: 14, y: 10 }, dest: { x: 1, y: 1 }, moving: 1, ix: 1, iy: 0 };
+  openCtx.releaseHeroFear(parked);
+  assert(parked.x === 10 && parked.y === 10 && parked.fleeTo == null, 'open floor does not snap a Macar who is already standing');
 })();
 
 (function commandRange() {
@@ -270,7 +357,7 @@ function castWorld(shaman, hero) {
   global.convertCoinsToElectrum = function () { converted++; };
   const first = R.pryTooth(g, face);
   assert(first.ok === 1 && stowed && stowed.id === 'grond_tooth_electrum_2' && stowed.grondTooth === 'electrum', 'tooth 2 is a distinct electrum tooth');
-  assert(stowed.n === 'Electrum Tooth 2' && stowed.n !== "Grond's Electrum Tooth" && stowed.cursed === 1, 'tooth 2 keeps its own name and the data curse flag');
+  assert(stowed.n === 'Electrum Tooth 2' && stowed.n !== "Grond's Electrum Tooth" && !stowed.cursed, 'tooth 2 keeps its own name and Tooth 1\'s coin curse, not the bind flag');
   assert(g.lvl.flags.electrumTooth2 === 1 && !g.lvl.flags.electrumTooth && face.emptySocket === 1 && converted === 1, 'the pry sets electrumTooth2 and converts coins');
   const second = R.pryTooth(g, face);
   assert(!second.ok && converted === 1, 'the face does not give up a second tooth');
