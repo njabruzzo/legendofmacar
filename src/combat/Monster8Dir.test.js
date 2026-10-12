@@ -194,7 +194,7 @@ keyList.forEach(function(key){
 });
 assert(pngN===41 && Math.abs(y0)<1e-6, 'all 41 keys share screen y 0 for the baseline');
 
-assert(/const ASSET_VER='132'/.test(html), 'ASSET_VER is 132');
+assert(/const ASSET_VER='133'/.test(html), 'ASSET_VER is 132');
 assert(/sprite:'thinone',hp:95,sp:1\.55,dmg:11,range:1\.2,cd:1\.5,scale:2\.065,aggro:99/.test(html),
   'Thin One stats stay, scale is 2.065');
 assert(/STRUCTURE_PASS_L1_L2\.md line 40/.test(html), 'scale comment cites the structure pass line');
