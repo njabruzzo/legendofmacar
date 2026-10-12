@@ -1192,7 +1192,7 @@ const WORLD_ART_KEYS={
      'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se','demon_dwarfface'],
   3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -1212,6 +1212,23 @@ function campaignSpriteKey(key){
   if(SPRITE_FILES[key] || (SPR[key]&&SPR[key].width)) return key;
   if(String(key).indexOf('mon_')===0 && SPRITE_FILES[String(key).slice(4)]) return String(key).slice(4);
   return key;
+}
+function campaignOrLevelArt(k){
+  if(!k) return false;
+  if(k==='intro_ch2') return true;
+  const name=String(k);
+  if(name.indexOf('intro_')===0 || name.indexOf('mon_')===0) return true;
+  if(name==='demon_dwarfface'||name==='demonface'||name==='demon_dwarfface_empty'||name==='demon_dwarfface_vault') return true;
+  const src=SPRITE_FILES[k]||'';
+  if(src.indexOf('/mon_')>=0 || src.indexOf('intro_ch')>=0) return true;
+  const lists=WORLD_ART_KEYS;
+  if(lists){
+    for(const n in lists){
+      const arr=lists[n];
+      if(arr && arr.indexOf(k)>=0) return true;
+    }
+  }
+  return false;
 }
 function loadSpriteKeyNow(k, cb){
   cb=cb||function(){};
@@ -1250,9 +1267,9 @@ function loadSpriteKeyNow(k, cb){
       img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
       return;
     }
-    /* intro_ch2 is asked again every card frame. One retry, then the
-       plain elevator plate stays up. Other art keeps its own retries. */
-    if(k==='intro_ch2') SPRITE_GAVE_UP[k]=1;
+    /* Campaign cards and level art are asked again every frame.
+       One retry, then the loader stops. intro_ch2 keeps that rule. */
+    if(k==='intro_ch2' || campaignOrLevelArt(k)) SPRITE_GAVE_UP[k]=1;
     fin(false);
   };
   img.src=assetUrl(SPRITE_FILES[k]);
@@ -17489,7 +17506,11 @@ function demonFaceImg(p){
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
-  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')) return SPR.demon_dwarfface||SPR.demonface||null;
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')){
+    if(typeof loadSpriteKeyNow==='function' && !(SPR.demon_dwarfface&&SPR.demon_dwarfface.width)) loadSpriteKeyNow('demon_dwarfface');
+    const face=SPR.demon_dwarfface||SPR.demonface||null;
+    return (face&&face.width)?face:null;
+  }
   /* Empty v5 plate only. The fanged sheet used to win until the empty
      image had a width, so a reload drew the tooth back in the socket. */
   if(p && demonFaceShowsEmpty(p)) return SPR.demon_dwarfface_empty||null;
@@ -17576,6 +17597,8 @@ function drawDemonDwarfFace(g,p){
     return;
   }
   const img=demonFaceImg(p);
+  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
   g.save();
@@ -22135,13 +22158,56 @@ function drawBetween(g){
 }
 
 
+function punchCampaignCard(img){
+  if(!img||!img.width||img.__cardPunched) return img;
+  if(typeof document==='undefined'||typeof isMagentaMatte!=='function') return img;
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    const id=x.getImageData(0,0,c.width,c.height);
+    const d=id.data;
+    let hit=0;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]&&isMagentaMatte(d[i],d[i+1],d[i+2])){
+        d[i]=d[i+1]=d[i+2]=d[i+3]=0;
+        hit=1;
+      }
+    }
+    if(!hit){ img.__cardPunched=1; return img; }
+    x.putImageData(id,0,0);
+    c.__cardPunched=1;
+    return c;
+  }catch(_){ return img; }
+}
 function campaignCardArt(card){
   const key=campaignSpriteKey((card&&card.key)||'');
   if(key && SPRITE_GAVE_UP[key]) return null;
   if(key && typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
-  if(key && SPR[key] && SPR[key].width) return SPR[key];
+  if(key && SPR[key] && SPR[key].width) return punchCampaignCard(SPR[key]);
   const splash=chapterSplashImg(2);
-  return (splash&&splash.width)?splash:null;
+  return (splash&&splash.width)?punchCampaignCard(splash):null;
+}
+function fitCampaignTitle(g, title, maxW, size){
+  title=String(title||'');
+  size=size||22;
+  const floor=Math.max(11, size*0.55);
+  function linesAt(){
+    g.font='700 '+size+'px '+FONT_TITLE;
+    return wrapLines(g, title, maxW);
+  }
+  let lines=linesAt();
+  while(lines.length>2 && size>floor){ size-=1; lines=linesAt(); }
+  if(lines.length>2) lines.length=2;
+  let guard=0;
+  while(guard++<40 && lines.some(ln=>g.measureText(ln).width>maxW+0.5) && size>floor){
+    size-=1;
+    lines=linesAt();
+    if(lines.length>2) lines.length=2;
+  }
+  if(!lines.length) lines=[''];
+  return {lines:lines, size:size};
 }
 function drawCampaignCard(g){
   menuHits=[]; const s=UIS;
@@ -22158,12 +22224,17 @@ function drawCampaignCard(g){
   }
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
-  g.font='700 '+((PORT?22:32)*s)+'px '+FONT_TITLE;
+  const fit=fitCampaignTitle(g, card.title||'The elevator', VW-48*s, (PORT?22:32)*s);
+  g.font='700 '+fit.size+'px '+FONT_TITLE;
   g.fillStyle='#ffe8b6';
-  g.fillText(card.title||'The elevator', VW/2, VH*0.18);
+  let ty=VH*0.15;
+  for(let i=0;i<fit.lines.length;i++){
+    g.fillText(fit.lines[i], VW/2, ty);
+    ty+=fit.size*1.12;
+  }
   g.font='600 '+((PORT?16:20)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(220,196,150,0.96)';
-  g.fillText(card.line||'The elevator descends.', VW/2, VH*0.26);
+  g.fillText(card.line||'The elevator descends.', VW/2, ty+8*s);
   g.textAlign='left';
   menuBtn(g,'Descend',VW/2,VH-(PORT?52:48)*s,Math.min(240*s,VW*.65),50*s,()=>{
     if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.finishCard) CampaignRuntime.finishCard(G);

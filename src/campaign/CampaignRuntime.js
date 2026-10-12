@@ -356,6 +356,8 @@
       scale: 1, atk: 0, atkMax: 0.42, stun: 0, dead: false, r: 0.4
     };
     if (!(e.scale > 0)) e.scale = 1;
+    /* No pixie sheet. The grey stand-in is about 0.4 of Macar. */
+    if (key === 'pixie') e.scale = 0.4;
     var scale = opts.scale || 4;
     if (!neutral) e.team = 'foe';
     e.boss = 0;
@@ -1301,8 +1303,10 @@
       d: 'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
     };
     /* Tooth 1's curse is grondTooth electrum: coins convert, and the fang
-       can still be set aside. The map may say cursed. Tooth 2 follows that
-       rule and does not take the bind flag. */
+       can still be set aside. The map may say cursed. Teeth 2 and 3 carry
+       curse coin and bind false, and the pack item does not take cursed. */
+    it.curse = mapTooth.curse || tooth.curse || 'coin';
+    it.bind = false;
     if (eng('stowPackItem')) eng('stowPackItem')(it);
     flags[flag] = 1;
     face.emptySocket = 1;
@@ -1616,10 +1620,19 @@
     return { dmg: dmg, roll: roll };
   }
 
-  function enterNext(G) {
-    if (!G) return;
+  function markCampaignClear(G) {
     var spec = G.lvl && G.lvl.campaignSpec;
     var cur = (spec && spec.level) || (G.campaignLevel | 0) || 1;
+    G.cleared = G.cleared || {};
+    G.cleared[cur] = 1;
+    var nxt = nextLevel(cur);
+    if (nxt) G.unlocked = Math.max(G.unlocked || 1, nxt);
+    return cur;
+  }
+
+  function enterNext(G) {
+    if (!G) return;
+    var cur = markCampaignClear(G);
     var nxt = nextLevel(cur);
     if (nxt && LIVE[nxt]) {
       G.campaignLevel = nxt;
@@ -1627,6 +1640,8 @@
       if (eng('startChapter')) eng('startChapter')(shell);
       return;
     }
+    /* The next campaign level stays stored on unlocked. Camp gates it. */
+    G.campaignLevel = cur;
     if (eng('endChapter')) eng('endChapter')();
     else G.scene = 'camp';
   }

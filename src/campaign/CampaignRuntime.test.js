@@ -162,8 +162,28 @@ assert(G.scene === 'campaign-card' && G.campaignCard.line === 'The elevator desc
 assert(ended === 0 && G.campaignLevel === 2, 'the card does not enter the next level by itself');
 let started = 0;
 global.startChapter = function (n) { started = n; };
+G.cleared = { 1: 1 };
+G.unlocked = 2;
 R.finishCard(G);
 assert(ended === 0 && started === 2 && G.campaignLevel === 3 && G.campaignCard == null, 'Descend from Level 2 enters Level 3 on the chapter 2 shell');
+assert(G.cleared[1] === 1 && G.cleared[2] === 1 && G.unlocked === 3, 'Descend from Level 2 clears 1 and 2 and unlocks 3');
+
+const stairG = {
+  campaignLevel: 2,
+  ch: 2,
+  cleared: { 1: 1 },
+  unlocked: 2,
+  ents: [{ hero: 1, x: l2.map.stairs.x, y: l2.map.stairs.y, dead: 0, hp: 20 }],
+  props: [],
+  lvl: { n: 2, flags: { campaign: 1, stairsOpen: 1 }, campaignSpec: l2 }
+};
+let stairStarted = 0;
+global.startChapter = function (n) { stairStarted = n; };
+global.interact = function (label, fn) { global._stairPrompt = { label: label, fn: fn }; };
+R.tick(stairG, 0.1);
+assert(global._stairPrompt && global._stairPrompt.label === 'Climb the stair', 'an open Level 2 stair offers the climb');
+global._stairPrompt.fn();
+assert(stairStarted === 2 && stairG.campaignLevel === 3 && stairG.cleared[1] === 1 && stairG.cleared[2] === 1 && stairG.unlocked === 3, 'the Level 2 stair clears 1 and 2 and unlocks 3');
 
 const snap = GS.snapshot({ campaignLevel: 2, ch: 2, scene: 'play' });
 assert(snap.campaignLevel === 2, 'a save records the current level');
@@ -212,8 +232,8 @@ const clearedChapter = { ch: 1, campaignLevel: 1, cleared: { 1: 1 } };
 assert(R.campGoDeeper(clearedChapter) === 'enter' && clearedChapter.campaignLevel === 2, 'a cleared Chapter I save enters campaign Level 2');
 const afterLevel2 = { ch: 2, campaignLevel: 2, cleared: { 1: 1, 2: 1 } };
 assert(R.campGoDeeper(afterLevel2) === 'enter' && afterLevel2.campaignLevel === 3, 'after Level 2, Go deeper enters Level 3');
-const afterLevel3 = { ch: 2, campaignLevel: 3, cleared: { 1: 1, 2: 1 } };
-assert(R.campGoDeeper(afterLevel3) === 'soon' && afterLevel3.campaignLevel === 3, 'after Level 3, Go deeper stays at camp');
+const afterLevel3 = { ch: 2, campaignLevel: 3, unlocked: 4, cleared: { 1: 1, 2: 1, 3: 1 } };
+assert(R.campGoDeeper(afterLevel3) === 'soon' && afterLevel3.campaignLevel === 3 && afterLevel3.unlocked === 4, 'after Level 3, Go deeper stays at camp');
 const oldChapterTwo = { ch: 2, campaignLevel: 1, cleared: { 1: 1, 2: 1 } };
 assert(R.campGoDeeper(oldChapterTwo) === 'enter' && oldChapterTwo.campaignLevel === 2, 'an old chapter II clear still enters campaign Level 2');
 const freshCamp = { ch: 1, campaignLevel: 1, cleared: {} };
@@ -228,12 +248,14 @@ assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test
 const loader = html.slice(html.indexOf('function loadSpriteKeyNow'), html.indexOf('let MACAR_EQUIP_ART_SIG'));
 const retryAt = loader.indexOf('img.__retried');
 const giveAt = loader.indexOf('SPRITE_GAVE_UP[k]=1');
-assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader), 'intro_ch2 retries once, then the loader stops');
-const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function drawCampaignCard'));
+assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader) && loader.indexOf('campaignOrLevelArt(k)') > giveAt - 80, 'campaign card and level art retry once, then the loader stops');
+const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function fitCampaignTitle'));
 assert(cardArt.indexOf('if(key && SPRITE_GAVE_UP[key]) return null;') >= 0, 'a failed intro_ch2 keeps the plain card fallback');
+assert(cardArt.indexOf('punchCampaignCard') >= 0, 'the campaign card keys magenta out of the splash');
 const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
 assert(cardFn.indexOf('if(!(art&&art.width)) return;') < 0, 'the card does not wait on the jpg');
 assert(cardFn.indexOf("g.fillStyle='#1a140e'") >= 0 && cardFn.indexOf("g.fillStyle='#1a140e'") < cardFn.indexOf("card.title||'The elevator'"), 'a plain fallback paints before the title');
+assert(cardFn.indexOf('fitCampaignTitle') > cardFn.indexOf("g.fillStyle='#1a140e'") && cardFn.indexOf('fitCampaignTitle') < cardFn.indexOf("menuBtn(g,'Descend'"), 'the title fits on the painted card and the plain card');
 assert(cardFn.indexOf("menuBtn(g,'Descend'") > cardFn.indexOf("g.fillStyle='#1a140e'"), 'Descend is drawn when the art is missing');
 
 const L3 = require('./L3');
@@ -264,7 +286,7 @@ const giant = G3.ents.filter(function (e) { return e.campaignKey === 'spiderGian
 const phaseSpider = G3.ents.filter(function (e) { return e.campaignKey === 'phasespider'; })[0];
 assert(huge && huge.hp === 16 && giant && giant.hp === 32 && phaseSpider && phaseSpider.hp === 40, 'huge, giant, and phase spiders roll 2d8+2, 4d8+4, and 5d8+5');
 const pix = G3.ents.filter(function (e) { return e.campaignKey === 'pixie'; })[0];
-assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false && pix.scale > 0, 'the pixie does not fight and keeps a drawable scale');
+assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 && L3.PIXIE.fights === false && pix.scale === 0.4, 'the pixie does not fight and stands at pixie size');
 const queen = G3.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(queen && queen.campaignXp === 1828 && queen.hp === 176 && queen.boss === 0 && queen.sprite === 'spider_giant', 'the queen has printed xp and hp and wears no boss flag');
 const guard3 = G3.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
@@ -283,9 +305,14 @@ assert(lethalBite && lethalBite.dmg === 12 && lethalBite.poison === 0, 'a killin
 const ghostBite = R.poisonHit({ campaignKey: 'spiderQueen' }, { hp: 40, ghost: 1, con: 18, lvl: 3 }, { roll: 1, con: 18, level: 3 });
 assert(ghostBite && ghostBite.immune === true && ghostBite.damage === 0 && ghostBite.slow == null, 'a ghost is immune to H1 poison');
 const lowCon = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 10, lvl: 3 }, { roll: 1, con: 10, level: 3 });
-assert(lowCon && lowCon.saved === false && lowCon.target === 9 && lowCon.immune === false, 'CON 10 still rolls the poison save');
+assert(lowCon && lowCon.saved === false && lowCon.target === 13 && lowCon.immune === false, 'CON 10 still rolls the poison save');
 const below = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 3, lvl: 3 }, { roll: 20, con: 3, level: 3 });
-assert(below && below.saved === true && below.target === 11, 'CON below 4 is +0 and the save is not skipped');
+assert(below && below.saved === true && below.target === 15, 'CON below 4 is +0 and the save is not skipped');
+const liveF1 = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 16, lvl: 1 }, { roll: 20, con: 16 });
+const liveF9 = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 16, lvl: 9 }, { roll: 20, con: 16 });
+assert(liveF1 && liveF1.target === 12 && liveF9 && liveF9.target === 6, 'the save reads the live fighter level');
+const natOne = R.poisonHit({ campaignKey: 'spider' }, { hp: 40, con: 18, lvl: 3 }, { roll: 1, con: 18, level: 3 });
+assert(natOne && natOne.saved === false && natOne.target === 10, 'a natural 1 fails the live-level save');
 global.roundSec = function (n) { return (n || 1) * 1; };
 let gifted = null;
 global.giveMagic = function (it) { gifted = it; return it.n; };
@@ -353,7 +380,7 @@ let convertedCoins = 0;
 global.stowPackItem = function (it) { stowedTooth = it; G3.packs = { macar: { magic: [it] } }; };
 global.convertCoinsToElectrum = function () { convertedCoins++; };
 const pry3 = R.pryTooth(G3, face3);
-assert(pry3.ok === 1 && stowedTooth.id === 'grond_tooth_electrum_3' && stowedTooth.n === 'Electrum Tooth 3' && stowedTooth.grondTooth === 'electrum' && !stowedTooth.cursed && !stowedTooth.bind, 'tooth 3 is a coin curse with no bind');
+assert(pry3.ok === 1 && stowedTooth.id === 'grond_tooth_electrum_3' && stowedTooth.n === 'Electrum Tooth 3' && stowedTooth.grondTooth === 'electrum' && stowedTooth.curse === 'coin' && stowedTooth.bind === false && !stowedTooth.cursed, 'tooth 3 is a coin curse with no bind');
 assert(G3.lvl.flags.electrumTooth3 === 1 && !G3.lvl.flags.electrumTooth2 && !G3.lvl.flags.electrumTooth && face3.emptySocket === 1 && convertedCoins === 1, 'the pry sets electrumTooth3 and converts coins');
 assert(L10.RITUAL.toothIds.indexOf('grond_tooth_electrum_3') >= 0 && l3.map.tooth.countsForRitual === true, 'tooth 3 is on the ritual list');
 assert(!R.pryTooth(G3, face3).ok && convertedCoins === 1, 'the face does not give up a second tooth');
@@ -370,13 +397,15 @@ GS.applyWorld(restored3, play3);
 const back3 = restored3.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_3'; })[0];
 assert(restored3.lvl.flags.electrumTooth3 === 1 && back3 && back3.emptySocket === 1 && restored3.packs.macar.magic[0].n === 'Electrum Tooth 3' && restored3.packs.macar.magic[0].grondTooth === 'electrum', 'tooth 3 round-trips in the save');
 assert(/toothFace\.itemId==='grond_tooth_electrum_2'\|\|toothFace\.itemId==='grond_tooth_electrum_3'/.test(html), 'the page offers the Level 3 tooth');
-const card3 = { campaignLevel: 3, campaignCard: { key: 'mon_spider_giant' }, lvl: { n: 2, campaignSpec: l3 } };
+const card3 = { ch: 2, campaignLevel: 3, unlocked: 3, cleared: { 1: 1, 2: 1 }, campaignCard: { key: 'mon_spider_giant' }, lvl: { n: 2, campaignSpec: l3 } };
 let ended3 = 0;
 let started3 = 0;
 global.endChapter = function () { ended3++; };
 global.startChapter = function () { started3++; };
 R.finishCard(card3);
 assert(ended3 === 1 && started3 === 0 && card3.campaignLevel === 3 && card3.campaignCard == null, 'Descend from Level 3 returns to camp');
+assert(card3.cleared[1] === 1 && card3.cleared[2] === 1 && card3.cleared[3] === 1 && card3.unlocked === 4, 'Descend from Level 3 clears 1, 2, and 3 and unlocks 4');
+assert(R.campGoDeeper(card3) === 'soon' && card3.campaignLevel === 3, 'Level 4 is unwired, so camp stays on More coming');
 assert(html.indexOf('SpiderPoison') < 0, 'the page does not name SpiderPoison');
 
 if (failed) {

@@ -50,19 +50,25 @@ assert(!kin.saved && kin.hp === 20 && kin.slow.moveMul === 0.5, 'kin take the sa
 function target(level, spider) {
   return P.saveTarget({ level: level, con: 16, spider: spider });
 }
-assert(P.poisonSave === T.poisonSave, 'SpiderPoison uses CampaignTable.poisonSave');
-assert(T.poisonSave.large === 2 && T.poisonSave.huge === 1 && T.poisonSave.giant === 0, 'size modifiers are large +2, huge +1, giant 0');
-assert(T.poisonSave.phase === -2 && T.poisonSave.queen === -2, 'phase and the Queen are -2');
+assert(P.poisonSave === T.poisonSave, 'SpiderPoison still exposes the printed CampaignTable.poisonSave column');
+assert(T.poisonSave.large === 2 && T.poisonSave.huge === 1 && T.poisonSave.giant === 0, 'the printed column stays large +2, huge +1, giant 0');
+assert(T.poisonSave.phase === -2 && T.poisonSave.queen === -2, 'the printed phase and Queen column stays -2');
+assert(P.SIZE_MOD.large === 2 && P.SIZE_MOD.huge === 3 && P.SIZE_MOD.giant === 4 && P.SIZE_MOD.phase === 6 && P.SIZE_MOD.queen === 6, 'the save adds large +2, huge +3, giant +4, phase +6, queen +6');
+assert(P.fighterPoisonBase(1) === 14 && P.fighterPoisonBase(2) === 14, 'F1-F2 poison base is 14');
+assert(P.fighterPoisonBase(3) === 13 && P.fighterPoisonBase(4) === 13, 'F3-F4 poison base is 13');
+assert(P.fighterPoisonBase(5) === 11 && P.fighterPoisonBase(6) === 11, 'F5-F6 poison base is 11');
+assert(P.fighterPoisonBase(7) === 10 && P.fighterPoisonBase(8) === 10, 'F7-F8 poison base is 10');
 assert(P.fighterPoisonBase(9) === 8 && P.fighterPoisonBase(10) === 8, 'F9-F10 poison base is the PHB fighter 8');
-assert(P.POISON_BASE[3].from === 9 && P.POISON_BASE[3].to === 10 && P.POISON_BASE[3].base === 8, 'the F9-F10 band is explicit in the grid');
-assert([target(4, 'spider'), target(4, 'spiderHuge'), target(4, 'spiderGiant'), target(4, 'phasespider')].join() === '7,8,9,11', 'F4 row at CON 16');
-assert(target(4, 'spiderQueen') === 11, 'F4 Queen matches the phase spider');
-assert([target(5, 'spider'), target(5, 'spiderHuge'), target(5, 'spiderGiant'), target(5, 'phasespider')].join() === '5,6,7,9', 'F5 row at CON 16');
-assert([target(6, 'spider'), target(6, 'spiderHuge'), target(6, 'spiderGiant'), target(6, 'phasespider')].join() === '5,6,7,9', 'F6 row at CON 16');
-assert([target(7, 'spider'), target(7, 'spiderHuge'), target(7, 'spiderGiant'), target(7, 'phasespider')].join() === '4,5,6,8', 'F7 row at CON 16');
-assert([target(8, 'spider'), target(8, 'spiderHuge'), target(8, 'spiderGiant'), target(8, 'phasespider')].join() === '4,5,6,8', 'F8 row at CON 16');
-assert([target(9, 'spider'), target(9, 'spiderHuge'), target(9, 'spiderGiant'), target(9, 'phasespider')].join() === '2,3,4,6', 'F9 row at CON 16');
-assert([target(10, 'spider'), target(10, 'spiderHuge'), target(10, 'spiderGiant'), target(10, 'phasespider')].join() === '2,3,4,6', 'F10 row at CON 16');
+assert(P.POISON_BASE[4].from === 9 && P.POISON_BASE[4].to === 10 && P.POISON_BASE[4].base === 8, 'the F9-F10 band is explicit in the grid');
+assert([target(1, 'spider'), target(2, 'spider'), target(3, 'spider')].join() === '12,12,11', 'F1 and F2 use 14, and F3 uses 13');
+assert([target(4, 'spider'), target(4, 'spiderHuge'), target(4, 'spiderGiant'), target(4, 'phasespider')].join() === '11,12,13,15', 'F4 row at CON 16');
+assert(target(4, 'spiderQueen') === 15, 'F4 Queen matches the phase spider');
+assert([target(5, 'spider'), target(5, 'spiderHuge'), target(5, 'spiderGiant'), target(5, 'phasespider')].join() === '9,10,11,13', 'F5 row at CON 16');
+assert([target(6, 'spider'), target(6, 'spiderHuge'), target(6, 'spiderGiant'), target(6, 'phasespider')].join() === '9,10,11,13', 'F6 row at CON 16');
+assert([target(7, 'spider'), target(7, 'spiderHuge'), target(7, 'spiderGiant'), target(7, 'phasespider')].join() === '8,9,10,12', 'F7 row at CON 16');
+assert([target(8, 'spider'), target(8, 'spiderHuge'), target(8, 'spiderGiant'), target(8, 'phasespider')].join() === '8,9,10,12', 'F8 row at CON 16');
+assert([target(9, 'spider'), target(9, 'spiderHuge'), target(9, 'spiderGiant'), target(9, 'phasespider')].join() === '6,7,8,10', 'F9 row at CON 16');
+assert([target(10, 'spider'), target(10, 'spiderHuge'), target(10, 'spiderGiant'), target(10, 'phasespider')].join() === '6,7,8,10', 'F10 row at CON 16');
 assert(P.conBonus(3) === 0 && P.conBonus(0) === 0, 'CON below 4 is +0');
 assert(P.conBonus(4) === 1 && P.conBonus(6) === 1, 'CON 4-6 is +1');
 assert(P.conBonus(7) === 2 && P.conBonus(10) === 2, 'CON 7-10 is +2');
@@ -70,34 +76,38 @@ assert(P.conBonus(11) === 3 && P.conBonus(13) === 3, 'CON 11-13 is +3');
 assert(P.conBonus(14) === 4 && P.conBonus(17) === 4, 'CON 14-17 is +4');
 assert(P.conBonus(18) === 5, 'CON 18 is +5');
 const lowSave = P.resolve({ hp: 40 }, { spider: 'spider', level: 3, con: 10, roll: 1 });
-assert(lowSave && lowSave.saved === false && lowSave.target === 9 && lowSave.immune === false, 'CON 10 still rolls the poison save');
+assert(lowSave && lowSave.saved === false && lowSave.target === 13 && lowSave.immune === false, 'CON 10 still rolls the poison save');
 const floorCon = P.resolve({ hp: 40 }, { spider: 'spider', level: 3, con: 3, roll: 20 });
-assert(floorCon && floorCon.saved === true && floorCon.target === 11, 'CON below 4 is +0 and the save still happens');
-assert(P.saveTarget({ level: 4, con: 18, spider: 'spiderGiant' }) === 8, 'CON 18 vs a giant spider at F4 is 8');
-assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', antitoxin: true }) === 5, 'antitoxin vs a giant spider at F4 is 5');
-assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', periaptPlus: 1 }) === 8, 'a periapt bonus also lowers the target');
+assert(floorCon && floorCon.saved === true && floorCon.target === 15, 'CON below 4 is +0 and the save still happens');
+assert(P.saveTarget({ level: 3, con: 18, spider: 'spider' }) === 10, 'F3 CON 18 versus large is 13 - 5 + 2');
+assert(P.saveTarget({ level: 4, con: 18, spider: 'spiderGiant' }) === 12, 'CON 18 vs a giant spider at F4 is 12');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', antitoxin: true }) === 9, 'antitoxin vs a giant spider at F4 is 9');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spiderGiant', periaptPlus: 1 }) === 12, 'a periapt bonus also lowers the target');
 
 const sizes = [['spider', 'large'], ['spiderHuge', 'huge'], ['spiderGiant', 'giant'], ['phasespider', 'phase'], ['spiderQueen', 'queen']];
 for (let level = 1; level <= 10; level++) {
   sizes.forEach(function (pair) {
-    const mod = T.poisonSave[pair[1]];
+    const mod = P.SIZE_MOD[pair[1]];
     const got = P.saveTarget({ level: level, con: 16, spider: pair[0] });
-    assert(got === P.fighterPoisonBase(level) - 4 - mod, 'F' + level + ' ' + pair[1] + ' agrees with CampaignTable.poisonSave');
+    assert(got === P.fighterPoisonBase(level) - 4 + mod, 'F' + level + ' ' + pair[1] + ' adds the size modifier');
   });
 }
 
 assert(/6 #12/.test(src) && src.indexOf('pending Sage ruling') < 0, 'the save-target floor cites 6 #12');
-assert(P.saveTarget({ level: 10, con: 18, spider: 'spider' }) === 2, 'F10 CON 18 vs a large spider floors at 2');
-assert(P.saveTarget({ level: 10, con: 16, spider: 'spider', antitoxin: true, periaptPlus: 1 }) === 2, 'bonuses cannot push the target under 2');
-assert(P.saveTarget({ level: 4, con: 16, spider: 'spider' }) === 7, 'a target already above 2 is unchanged');
-const naturalOne = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, roll: 1 });
+assert(P.saveTarget({ level: 10, con: 18, spider: 'spider' }) === 5, 'F10 CON 18 vs a large spider is 5');
+assert(P.saveTarget({ level: 10, con: 18, spider: 'spider', antitoxin: true, periaptPlus: 4 }) === 2, 'bonuses cannot push the target under 2');
+assert(P.saveTarget({ level: 10, con: 16, spider: 'spider', antitoxin: true, periaptPlus: 1 }) === 2, 'a smaller bonus stack still floors at 2');
+assert(P.saveTarget({ level: 4, con: 16, spider: 'spider' }) === 11, 'a target already above 2 is unchanged');
+const naturalOne = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, antitoxin: true, periaptPlus: 4, roll: 1 });
 assert(!naturalOne.saved && naturalOne.target === 2 && naturalOne.hp === 20, 'a natural 1 fails the floored save');
-const meetsFloor = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, roll: 2 });
+const meetsFloor = P.resolve({ hp: 40 }, { spider: 'spider', level: 10, con: 18, antitoxin: true, periaptPlus: 4, roll: 2 });
 assert(meetsFloor.saved && meetsFloor.hp === 40, 'a roll of 2 meets the floored target');
+const naturalAbove = P.resolve({ hp: 40 }, { spider: 'spider', level: 3, con: 18, roll: 1 });
+assert(!naturalAbove.saved && naturalAbove.target === 10 && naturalAbove.hp === 20, 'a natural 1 fails when the target is above the floor');
 
-const saved = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 7 });
-assert(saved.saved && saved.hp === 40 && saved.slow == null, 'a roll that meets the F4 large target of 7 saves');
-const poisoned = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 6 });
+const saved = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 11 });
+assert(saved.saved && saved.hp === 40 && saved.slow == null, 'a roll that meets the F4 large target of 11 saves');
+const poisoned = P.resolve({ hp: 40 }, { spider: 'spider', level: 4, con: 16, roll: 10 });
 assert(!poisoned.saved && poisoned.hp === 20, 'a roll under the target fails');
 
 const cured = P.cure({ hp: poisoned.hp, slow: poisoned.slow });
