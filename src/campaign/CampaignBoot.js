@@ -24,9 +24,26 @@
     'src/campaign/CampaignRuntime.js'
   ];
 
+  function bust(url) {
+    var ver = '';
+    if (typeof document !== 'undefined' && document.getElementsByTagName) {
+      var scripts = document.getElementsByTagName('script');
+      for (var i = scripts.length - 1; i >= 0; i--) {
+        var src = scripts[i].getAttribute('src') || '';
+        if (src.indexOf('CampaignBoot.js') < 0) continue;
+        var m = src.match(/[?&]v=([^&]+)/);
+        if (m) ver = m[1];
+        break;
+      }
+    }
+    if (!ver && typeof ASSET_VER !== 'undefined' && ASSET_VER) ver = String(ASSET_VER);
+    if (!ver) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + ver;
+  }
+
   function xhr(url) {
     var req = new XMLHttpRequest();
-    req.open('GET', url, false);
+    req.open('GET', bust(url), false);
     req.send(null);
     if (req.status && req.status !== 200) throw new Error(url + ' ' + req.status);
     return req.responseText;

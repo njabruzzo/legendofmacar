@@ -331,7 +331,7 @@ function assertFourTopology(plan, msg){
 
 /* host still preserves fleeTo before the party brain */
 {
-  const idxFlee=html.indexOf('if(e.fleeTo){');
+  const idxFlee=html.indexOf('if(!e.hero && e.fleeTo)');
   const idxPilot=html.indexOf('Navigation.tickFollower');
   assert(idxFlee>=0 && idxPilot>idxFlee, 'fleeTo is handled before the nav pilot');
 }

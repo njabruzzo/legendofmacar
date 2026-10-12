@@ -194,6 +194,21 @@
     return n;
   }
 
+  function campGoDeeper(G) {
+    if (!G) return 'chapter';
+    var level = G.campaignLevel || 1;
+    if (G.cleared && G.cleared[1] && level < 2) level = 2;
+    if (LIVE[level] && (G.ch | 0) < level) {
+      G.campaignLevel = level;
+      return 'enter';
+    }
+    if (LIVE[level] && !LIVE[(level | 0) + 1] && (G.ch | 0) >= level) {
+      G.campaignLevel = level;
+      return 'soon';
+    }
+    return 'chapter';
+  }
+
   function gaps(spec) {
     var out = [];
     var open = (spec && spec.open) || [];
@@ -529,6 +544,7 @@
       placeLevel(G, spec);
     }
     bindTick(G);
+    preloadCard(spec);
     return true;
   }
 
@@ -679,9 +695,19 @@
     }
   }
 
+  function preloadCard(spec) {
+    var src = (spec && spec.map && spec.map.elevator && spec.map.elevator.transitionCard)
+      || (spec && spec.table && spec.table.elevator && spec.table.elevator.transitionCard)
+      || '';
+    var key = cardKey(src);
+    var load = eng('loadSpriteKeyNow');
+    if (key && load) load(key);
+  }
+
   function showCard(G) {
     var spec = G.lvl && G.lvl.campaignSpec;
     if (!spec) return;
+    preloadCard(spec);
     var src = (spec.map && spec.map.elevator && spec.map.elevator.transitionCard)
       || (spec.table && spec.table.elevator && spec.table.elevator.transitionCard)
       || '';
@@ -739,6 +765,7 @@
     shouldInstall: shouldInstall,
     blocksWarren: blocksWarren,
     noteCleared: noteCleared,
+    campGoDeeper: campGoDeeper,
     printed: printed,
     beginRun: beginRun,
     kill: kill,

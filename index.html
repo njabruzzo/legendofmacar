@@ -82,7 +82,7 @@
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
-<script src="src/campaign/CampaignBoot.js"></script>
+<script src="src/campaign/CampaignBoot.js?v=132"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -503,6 +503,41 @@ function constrainPartyStep(e, ox, oy){
   e._partyBlocked=!!e._partyBlocked || Math.hypot(target.x-e.x,target.y-e.y)>0.0001;
 }
 
+/* Command and other stuns set e.stun. Tap, stick, keys, and auto-path all stop. */
+function stunnedHold(p){
+  if(!p || !(p.stun>0)) return false;
+  p.dest=null;
+  p.moving=0;
+  p.ix=0;
+  p.iy=0;
+  return true;
+}
+/* A flee point outranks the chase target. Movement reads it before intent. */
+function foeMoveAim(e, chase){
+  if(e && e.fleeTo && e.fleeTo.x!=null && e.fleeTo.y!=null) return e.fleeTo;
+  return chase||null;
+}
+function stepFoeFlee(e, dt){
+  if(e.stun>0) e.stun=Math.max(0, e.stun-dt);
+  const aim=foeMoveAim(e, null);
+  if(!aim) return;
+  if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
+    PartyOrders.noteMoraleFlee(e);
+  const t=aim, d=dist(e,t);
+  e.fleeStuck=(e.fleeStuck||0)+dt;
+  if(d>0.55 && e.fleeStuck<3.2){
+    const run=Math.max(e.sp||4, 5.8);
+    steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
+  } else {
+    e.fleeStuck=0;
+    e.x=t.x; e.y=t.y;
+    if(e.fleePath && e.fleePath.length) e.fleeTo=e.fleePath.shift();
+    else {
+      e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
+      if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
+    }
+  }
+}
 function steerWalk(e,dx,dy,sp,dt){
   if(!(dx||dy) || sp<=0){ e.ix=0; e.iy=0; e.moving=0; return 0; }
   const m=Math.hypot(dx,dy)||1;
@@ -1106,7 +1141,7 @@ function worldArtReady(n){
   return true;
 }
 function loadSprites(done){
-  const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1',
+  const first=['title_splash','title_menu','title_logo','rubydoor','dwarfface','rubydoor_face','pillar','lantern','rubypillar','chapters_plate','intro_ch1','intro_ch2',
     'floor_mine','wall_worked','wall_face','wall_face_shade',
     'macar','macar_w1','macar_w2','macar_atk','macar_atk_contact','restCardMacar','restCardMacarCrown',
     'pordoom_dead','fendur_dead','orbo_dead','talpor_dead',
@@ -6780,6 +6815,21 @@ const CHAPTERS=[1,2,3,4,5];
 function deeperChapter(ch){
   const n=(ch|0)+1;
   return CH_META[n]?n:0;
+}
+/* Camp and the between plate. A cleared Chapter I enters campaign Level 2.
+   After a live floor whose next level is not live, stay at camp. */
+function pressGoDeeper(){
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.campGoDeeper){
+    const act=CampaignRuntime.campGoDeeper(G);
+    if(act==='enter'){ startChapter(G.campaignLevel|0); return; }
+    if(act==='soon'){
+      say('More coming.','#c9b895');
+      hint('More coming.',3.2);
+      return;
+    }
+  }
+  const nxt=deeperChapter(G.ch);
+  if(CH_META[nxt]&&!CH_META[nxt].locked) startChapter(nxt);
 }
 
 // Anchor deeper-floor arches to reachable north-facing masonry spans.
@@ -14246,7 +14296,13 @@ function interactHost(){
   };
 }
 function applyEnemyIntent(e, ir, dt){
-  if(!e||!ir) return;
+  if(!e) return;
+  const flee=typeof foeMoveAim==='function'?foeMoveAim(e, null):null;
+  if(flee){
+    steerWalk(e, flee.x-e.x, flee.y-e.y, Math.max(e.sp||4, 5.8), dt);
+    return;
+  }
+  if(!ir) return;
   if(ir.engaged && !e.engaged){
     if(typeof maybeOpenMajorTalkOnAggro==='function') maybeOpenMajorTalkOnAggro(e);
     e.engaged=1;
@@ -15363,6 +15419,11 @@ function update(dt){
       }
     }
 
+    if(stunnedHold(p)){
+      dx=0; dy=0; analog=0; routeDest=false;
+      if(typeof Navigation!=='undefined' && Navigation.clearRoute) Navigation.clearRoute(p);
+    }
+
     let sp=p.sp;
     if((p.slowT||0)>0){ p.slowT=Math.max(0,p.slowT-dt); sp*=0.4; }
     if(G.searching) sp*=0.16;
@@ -15509,16 +15570,10 @@ function update(dt){
 
   if(typeof tickSpellZones==='function') tickSpellZones(dt);
   for(const e of G.ents){
-    if(e.dead){
-      if(e.ghost){
-        e.ghostReturn=(e.ghostReturn||0)-dt;
-        if(e.ghostReturn<=0) returnGhost(e);
-      }
-      if(!e.crushed) e.deadT=(e.deadT||0)+dt;
-      continue;
-    }
+    if(e.dead){ if(e.ghost){ e.ghostReturn=(e.ghostReturn||0)-dt; if(e.ghostReturn<=0) returnGhost(e); } if(!e.crushed) e.deadT=(e.deadT||0)+dt; continue; }
     e.anim+=dt*(e.moving?1:.35);
     if(e.flash>0) e.flash-=dt;
+    if(!e.hero && e.fleeTo){ stepFoeFlee(e, dt); continue; }
     if(e.stun>0){ e.stun-=dt; continue; }
     if(e.regen && e.hp<e.maxhp) e.hp=Math.min(e.maxhp, e.hp+0.5*dt);
     if(e.potionRegen>0){ e.potionRegen-=dt; e.hp=Math.min(e.maxhp, e.hp+2.2*dt); }
@@ -15593,26 +15648,6 @@ function update(dt){
     if(e.hero) continue;
     if(e.hidden){ e.moving=0; e.ix=0; e.iy=0; continue; }
     if(e.sleeping||e.crushed||e.tied){ e.moving=0; e.ix=0; e.iy=0; continue; }
-    if(e.fleeTo){
-      if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
-        PartyOrders.noteMoraleFlee(e);
-      const t=e.fleeTo, d=dist(e,t);
-      e.fleeStuck=(e.fleeStuck||0)+dt;
-      if(d>0.55 && e.fleeStuck<3.2){
-        const run=Math.max(e.sp||4, 5.8);
-        steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
-      } else {
-        e.fleeStuck=0;
-        e.x=t.x; e.y=t.y;
-        if(e.fleePath && e.fleePath.length){
-          e.fleeTo=e.fleePath.shift();
-        } else {
-          e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
-          if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
-        }
-      }
-      continue;
-    }
     // Old saves can leave the shaman waiting for a conversation that no
     // longer exists. Restore ordinary hostile AI without affecting Noz.
     if(e.team==='foe'&&(e.shaman||e.name==='Goblin Shaman')) e.npc=0;
@@ -21779,18 +21814,26 @@ function drawBetween(g){
   g.font='600 '+(12.5*s)+'px '+FONT_UI; g.fillStyle='rgba(210,190,150,0.88)';
   g.fillText('Foes broken: '+G.kills+'   \u00b7   Kin standing: '+G.ents.filter(e=>e.team==='party'&&!e.dead).length+'/5',VW/2,VH*.255);
   g.textAlign='left';
-  if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>startChapter(nxt));
+  if(CH_META[nxt]&&!CH_META[nxt].locked) menuBtn(g,'Go deeper',VW/2,VH-96*s,Math.min(240*s,VW*.68),50*s,()=>pressGoDeeper());
   menuBtn(g,'Chapters',VW/2,VH-44*s,Math.min(240*s,VW*.68),44*s,()=>{openChapters();});
 }
 
 
+function campaignCardArt(card){
+  const key=(card&&card.key)||'';
+  if(key && typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
+  if(key && SPR[key] && SPR[key].width) return SPR[key];
+  const splash=chapterSplashImg(2);
+  return (splash&&splash.width)?splash:null;
+}
 function drawCampaignCard(g){
   menuHits=[]; const s=UIS;
   const card=G.campaignCard||{};
-  const art=SPR[card.key]||chapterSplashImg(2);
+  const art=campaignCardArt(card);
+  /* Never paint the black plate over the floor until the jpg has pixels. */
+  if(!(art&&art.width)) return;
   g.fillStyle='#050308'; g.fillRect(0,0,VW,VH);
-  if(art&&art.width) drawSplashCover(g, art, {zoom:1, ay:0.52, nudgeY:0});
-  else darken(g,.86);
+  drawSplashCover(g, art, {zoom:1, ay:0.52, nudgeY:0});
   drawLetterbox(g, VH*0.22, VH*0.28, 0.72, 0.82);
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
@@ -21929,7 +21972,7 @@ function drawCamp(g){
   const beforeFoot=menuHits.length;
   menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
   if(CH_META[nxt]&&!CH_META[nxt].locked)
-    menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>startChapter(nxt));
+    menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>pressGoDeeper());
   else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{openChapters();});
   const footHits=menuHits.splice(beforeFoot);
   menuHits.unshift.apply(menuHits, footHits);

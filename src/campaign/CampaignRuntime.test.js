@@ -193,6 +193,22 @@ assert(/e\.campaignXp!=null\) return e\.campaignXp\|0/.test(html), 'kills pay th
 assert(/e\.rubyGp!=null/.test(html), 'a printed ruby amount drops that amount');
 assert(/flags\.campaign\) return/.test(html), 'a campaign floor skips the procedural ruby lever');
 
+const clearedChapter = { ch: 1, campaignLevel: 1, cleared: { 1: 1 } };
+assert(R.campGoDeeper(clearedChapter) === 'enter' && clearedChapter.campaignLevel === 2, 'a cleared Chapter I save enters campaign Level 2');
+const afterLevel2 = { ch: 2, campaignLevel: 2, cleared: { 1: 1, 2: 1 } };
+assert(R.campGoDeeper(afterLevel2) === 'soon' && afterLevel2.campaignLevel === 2, 'after Level 2, Go deeper stays at camp');
+const freshCamp = { ch: 1, campaignLevel: 1, cleared: {} };
+assert(R.campGoDeeper(freshCamp) === 'chapter' && freshCamp.campaignLevel === 1, 'an uncleared chapter keeps the old descent');
+assert(/pressGoDeeper\(/.test(html) && /More coming\./.test(html), 'camp says more coming instead of opening the next old chapter');
+
+const ver = (html.match(/ASSET_VER='(\d+)'/) || [])[1];
+assert(ver && html.indexOf('CampaignBoot.js?v=' + ver) >= 0, 'the boot script carries ASSET_VER');
+assert(/function bust\(url\)/.test(boot) && /bust\(url\)/.test(boot) && /\+ 'v=' \+ ver/.test(boot), 'campaign data requests use that version');
+assert(/preloadCard\(spec\)/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'level setup preloads the elevator card');
+assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test(html), 'showing the card loads the jpg if it is still missing');
+const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
+assert(cardFn.indexOf('if(!(art&&art.width)) return;') >= 0 && cardFn.indexOf('if(!(art&&art.width)) return;') < cardFn.indexOf("g.fillStyle='#050308'"), 'the card does not paint a black plate without art');
+
 if (failed) {
   console.error(failed + ' failed');
   process.exit(1);
