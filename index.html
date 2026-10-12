@@ -68,7 +68,7 @@
 <script src="src/combat/DwarfWalkLegs.js?v=1"></script>
 <script src="src/combat/MacarSharedAtlas.js?v=142"></script>
 <script src="src/combat/NpcDirectionalAtlas.js?v=6"></script>
-<script src="src/combat/Monster8Dir.js?v=1"></script>
+<script src="src/combat/Monster8Dir.js?v=2"></script>
 <script src="src/combat/TimedEffects.js"></script>
 <script src="src/ui/TapGate.js"></script>
 <script src="src/combat/DerivedStats.js"></script>
@@ -82,7 +82,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=e5535862bcf3"></script>
+<script src="src/assets/asset-manifest.js?v=50df9b6a57fd"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -562,7 +562,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='132';
+const ASSET_VER='133';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -18207,7 +18207,7 @@ function drawEnt(g,e){
   if(!pose && img && e.moving && !e.dead){
     /* Pass frames sit highest, stride frames sit lowest, locked to the
        frame index. Unbound monsters keep the legacy sine. */
-    bob0=eight?Monster8Dir.bob(e.gait, Monster8Dir.walkCount(eight, e._faceOct||screenOctant(e)), z):Math.sin((e.gait||0)*TAU)*1.6*z;
+    bob0=eight?Monster8Dir.bob(e.gait, Monster8Dir.walkCount(eight, e._faceOct||screenOctant(e)), z, eight):Math.sin((e.gait||0)*TAU)*1.6*z;
   }
   if(!e.dead && !e.crushed){
     softShadow(g,2.5*z,1*z,17*z,8*z,0.52);

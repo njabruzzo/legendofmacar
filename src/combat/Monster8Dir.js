@@ -39,6 +39,33 @@
    scale:2.065,
    /* Minimum profile foot-centre spread on the v4f stride frames (se_w1). */
    strideSrc:45
+  },
+  /* Fire elemental PAINT v3b over structure v6 (Nick: art Good 2:16 PM CT
+     Oct 12 via Eva). Canvas 472x617, ground row 600, centre x 236. Cel's key
+     scale is 0.48834 laptop px per src (0.27642 phone): 2.45x Macar measured
+     to the rock crown with flame licks excluded. At the default base 70 that
+     is e.scale 3.1192 (70 x 1.38 x 3.1192 = 301.3 px = 617 x 0.48834), so
+     the 617-row canvas is always drawn smaller than itself (downscale only).
+     Attack is 2 keys (atk, atk_contact); the recover beat reuses atk, as in
+     Cel's atk_seq. It hovers on a flame skirt with no planted feet, so there
+     is no stride to protect (strideSrc 0, cadence 1x) and the engine walk
+     bob is off: the bob is baked into the pass keys. */
+  fireelem:{
+   sprite:'fireelem',
+   filePrefix:'mon_fireelem',
+   facings:['s','se','e','ne','back'],
+   walkFrames:{s:4,se:4,e:4,ne:4,back:4},
+   attack:2,
+   paintedLeft:false,
+   legShift:false,
+   magentaCleanup:false,
+   walkBob:false,
+   footX:236,
+   canvasW:472,
+   canvasH:617,
+   baselineRow:600,
+   scale:3.1192,
+   strideSrc:0
   }
  };
  function plan(sprite){return plans[sprite]||null;}
@@ -123,7 +150,10 @@
   const view=paintedView(oct||'s');
   if(e.atk>0&&e.atkKind!=='bow'){
    const t=1-e.atk/Math.max(0.01,e.atkMax||0.42);
-   return stem+'_'+view+'_'+attackPose(t);
+   let pose=attackPose(t);
+   /* Two-key attacks hold no recover key: the recover beat reuses atk. */
+   if(pose==='atk_recover'&&!(p.attack>=3)) pose='atk';
+   return stem+'_'+view+'_'+pose;
   }
   if(e.defending||!e.moving)return stem+'_'+view+'_idle';
   const n=walkCount(p,oct);
@@ -136,7 +166,10 @@
   const baselineFrac=(p.baselineRow+1)/p.canvasH;
   return {footX:footX,baselineFrac:baselineFrac,baselineRow:p.baselineRow,canvasH:p.canvasH,canvasW:p.canvasW};
  }
- function bob(gait,count,z){
+ /* p is optional. A plan with walkBob:false gets no engine bob (its keys
+    carry their own); unbound callers and older call sites are unchanged. */
+ function bob(gait,count,z,p){
+  if(p&&p.walkBob===false)return 0;
   const n=count||4;
   const i=frameIndex(gait,n);
   const pass=n>=4&&(i%2===1);
