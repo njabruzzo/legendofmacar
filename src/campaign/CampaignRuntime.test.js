@@ -680,6 +680,49 @@ const sold = R.sellEgg(G4);
 assert(sold.ok && sold.gp === 50 && G4.packs.macar.magic[0].qty === 1 && G4.coin.gp === 50 && soldXp === 50, 'selling an egg pays 50 gp and awards that treasure xp');
 assert(/Sell a golden egg/.test(html) && /CampaignRuntime\.sellEgg/.test(html) && /CampaignRuntime\.eggPrice/.test(html), 'the Noz trade screen offers the egg sale');
 
+(function nozBuysEggsOnL2() {
+  const tradeG = G;
+  tradeG.packs = { macar: { magic: [{ id: 'golden_egg', k: 'egg', n: 'Golden Egg', qty: 2 }] } };
+  tradeG.coin = { gp: 3 };
+  let xp = 0;
+  global.addCoin = function (k, n) { tradeG.coin[k] = (tradeG.coin[k] || 0) + n; };
+  global.awardPartyXp = function (n) { xp += n; };
+  assert(tradeG.lvl.n === 2 && !(tradeG.lvl.campaignSpec.data && tradeG.lvl.campaignSpec.data.EGGS), 'Noz stands on Level 2, which has no egg table');
+  assert(R.eggPrice(tradeG) === 50, 'the trade price is Level 4 egg sellGp even on Level 2');
+  const tradeCtx = {
+    menuHits: [],
+    UIS: 1,
+    VW: 800,
+    VH: 600,
+    PORT: false,
+    G: tradeG,
+    CampaignRuntime: R,
+    g: { fillStyle: '', font: '', textAlign: 'left', fillRect: function () {}, fillText: function () {} },
+    giveGnomeThanks: function () {},
+    embers: function () {},
+    darken: function () {},
+    plate: function () {},
+    wareCostGp: function () { return 0; },
+    gpTotal: function () { return 100; },
+    say: function () {},
+    spendGp: function () {},
+    addToPack: function () {}
+  };
+  vm.createContext(tradeCtx);
+  vm.runInContext(
+    'function menuBtn(g,label,cx,cy,w,h,fn){ menuHits.push({label:label, fn:fn}); }\n' +
+    extractFn('warePriceText') + '\n' + extractFn('gnomeWares') + '\n' + extractFn('drawTrade') + '\n drawTrade(g);',
+    tradeCtx
+  );
+  const btn = tradeCtx.menuHits.filter(function (h) { return h.label === 'Sell a golden egg (50 gp)'; })[0];
+  assert(btn && typeof btn.fn === 'function', 'Noz offers to buy an egg that is in the pack');
+  btn.fn();
+  assert(tradeG.packs.macar.magic[0].qty === 1 && tradeG.coin.gp === 53 && xp === 50, 'the Level 2 sale pays 50 gp and awards that treasure xp');
+  tradeG.packs.macar.magic = [];
+  vm.runInContext('drawTrade(g);', tradeCtx);
+  assert(!tradeCtx.menuHits.some(function (h) { return /Sell a golden egg/.test(h.label); }), 'Noz does not offer an egg when the pack has none');
+})();
+
 function bootL4(extra) {
   const g = {
     campaignLevel: 4,
@@ -723,13 +766,149 @@ function bootL4(extra) {
     guard++;
   }
   assert(String(shaman.spellsSpent || '').indexOf('Hold Person') >= 0 && g._save === 'spell', 'the shaman spends Hold Person and calls a save vs spell');
-  assert(!(hero.held > 0), 'Hold Person prints no duration, so it does not invent one');
+  assert(hero.held > 0 && hero.holdSrc === 'campaign', 'a failed Hold Person save holds Macar');
   guard = 0;
   while (guard < 8 && String(shaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
     R.tick(g, 1.1);
     guard++;
   }
   assert(String(shaman.spellsSpent || '').indexOf("Silence 15' r.") >= 0, 'the shaman then spends Silence on a kin');
+  assert(hero.silenced > 0 && hero.silenceSrc === 'campaign', 'a failed Silence save silences Macar');
+})();
+
+(function holdAndSilence() {
+  const runtimeSrc = fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8');
+  assert(/PLACEHOLDER pending Sage §7\.15[\s\S]{0,80}holdPersonSec: 6[\s\S]{0,40}silenceSec: 8/.test(runtimeSrc), 'Hold 6 s and Silence 8 s share one placeholder block');
+  assert(R.PLACEHOLDER.holdPersonSec === 6 && R.PLACEHOLDER.silenceSec === 8, 'the placeholder durations are 6 s and 8 s');
+  const g = bootL4({ kin: 1 });
+  const hero = g.ents.filter(function (e) { return e.hero; })[0];
+  const boss = g.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const shaman = g.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  const kin = g.ents.filter(function (e) { return e.name === 'Kin'; })[0];
+  hero.x = boss.x;
+  hero.y = boss.y;
+  if (kin) { kin.x = shaman.x; kin.y = shaman.y; }
+  g.lvl._campaignHost.save = function (who, kind) {
+    g._save = kind;
+    g._saveHero = !!(who && who.hero);
+    return false;
+  };
+  global.say = function () {};
+  global.interact = function () {};
+  global.hint = function () {};
+  let steps = 0;
+  while (steps < 160 && !(hero.held > 0)) { R.tick(g, 0.05); steps++; }
+  assert(steps < 160 && hero.holdSrc === 'campaign' && g._save === 'spell' && g._saveHero, 'Hold Person fails Macar\'s save vs spell');
+  assert(hero.held <= 6 && hero.held > 6 - 0.051, 'the hold clock starts at 6 seconds');
+  const gate = { hint: function () {}, say: function () {} };
+  vm.createContext(gate);
+  vm.runInContext(extractFn('stunnedHold') + '\n' + extractFn('refuseAttack'), gate);
+  const mover = { held: hero.held, stun: 0, dest: { x: 4, y: 4 }, moving: 1, ix: 1, iy: 1, atk: 1, aim: boss };
+  assert(gate.stunnedHold(mover) === true && mover.moving === 0 && mover.dest === null && mover.atk === 0 && mover.aim === null, 'Hold Person stops Macar from moving');
+  assert(gate.refuseAttack({ held: hero.held, defending: 0 }) === true, 'Hold Person stops Macar from attacking');
+  const auto = html.slice(html.indexOf('// auto-attack while standing'), html.indexOf('G.cam.x=lerp'));
+  assert(/!\(\(p\.held\|\|0\)>0\)/.test(auto), 'a held Macar does not start a standing attack');
+  const atkCtx = {
+    G: { fightOn: 1, lvl: g.lvl, equipped: null },
+    beginFight: function () {},
+    effectiveAC: function () { return 10; },
+    thacNeed: function () { return 20; },
+    isRearAttack: function () { return false; },
+    specialtyBand: function () { return null; },
+    d20: function () { return 1; },
+    hitBonus: function () { return 0; },
+    dist: function () { return 1; },
+    say: function () {},
+    ftext: function () {},
+    hitChancePct: function () { return 5; },
+    rollExpr: function () { return 4; },
+    strMods: function () { return { dmg: 0, hit: 0 }; },
+    entityAbil: function () { return {}; },
+    meleeStrAbil: function () { return {}; },
+    ADD_SCALE: 4,
+    wepMult: function () { return 1; },
+    rnd: function () { return 1; }
+  };
+  vm.createContext(atkCtx);
+  vm.runInContext(extractFn('addAttack'), atkCtx);
+  const chiefAtk = { name: 'Chief', campaignRole: 'boss', team: 'foe', dice: '1d8+3', dmg: 8, x: 0, y: 0 };
+  const heldMac = { name: 'Macar', team: 'party', held: hero.held, stun: 0, prone: 0, x: 1, y: 0 };
+  const freeMac = { name: 'Macar', team: 'party', held: 0, stun: 0, prone: 0, x: 1, y: 0 };
+  assert(atkCtx.addAttack(chiefAtk, freeMac) === 0, 'the chief still misses a save-or-miss when Macar is free');
+  assert(atkCtx.addAttack(chiefAtk, heldMac) > 0, 'the chief helpless-hits path lands while Macar is held');
+  assert(atkCtx.addAttack({ name: 'Orc', campaignRole: 'resident', team: 'foe', dice: '1d6', dmg: 6, x: 0, y: 0 }, heldMac) === 0, 'a held Macar is not an automatic hit for every orc');
+  const left = hero.held;
+  R.tick(g, left);
+  assert(!(hero.held > 0) && !hero.holdSrc, 'Hold Person expires');
+  const walked = { held: 0, stun: 0, dest: { x: 2, y: 2 }, moving: 1, ix: 1, iy: 0 };
+  assert(gate.stunnedHold(walked) === false && walked.dest && walked.dest.x === 2, 'Macar can move again after Hold Person expires');
+  assert(gate.refuseAttack({ held: 0, defending: 0 }) === false, 'Macar can attack again after Hold Person expires');
+  steps = 0;
+  while (steps < 200 && !(hero.silenced > 0)) { R.tick(g, 0.05); steps++; }
+  assert(steps < 200 && hero.silenceSrc === 'campaign' && g._saveHero, 'Silence fails Macar\'s save vs spell');
+  assert(hero.silenced <= 8 && hero.silenced > 8 - 0.051, 'the silence clock starts at 8 seconds');
+  const cast = {
+    said: 0,
+    healed: 0,
+    crownChecks: 0,
+    G: { equipped: {}, animateDeadSpent: 0, ents: [], thrallId: null },
+    say: function () { cast.said++; },
+    applyHeal: function () { cast.healed++; },
+    clearPoison: function () {},
+    nearestFoe: function () { return null; },
+    damage: function () {},
+    rollDice: function () { return 6; },
+    ADD_SCALE: 4,
+    burst: function () {},
+    wearingBoneCrown: function () { cast.crownChecks++; return false; },
+    hint: function () {}
+  };
+  vm.createContext(cast);
+  vm.runInContext(extractFn('useScrollByName') + '\n' + extractFn('tryAnimateDead'), cast);
+  const shut = cast.useScrollByName({ n: 'Scroll of 1 Spell', k: 'scroll', d: 'heal' }, { silenced: hero.silenced });
+  const muted = cast.tryAnimateDead({ hero: 1, silenced: hero.silenced }, { id: 3, dead: 1, corpse: 1, hp: 0, maxhp: 8 });
+  assert(shut === 'silenced' && cast.healed === 0, 'Silence blocks scroll use');
+  assert(muted && muted.reason === 'silenced' && cast.crownChecks === 0 && cast.G.animateDeadSpent === 0, 'Silence blocks spellcasting');
+  assert(/spent!=='silenced'/.test(html), 'a silenced scroll stays in the pack');
+  R.tick(g, hero.silenced);
+  assert(!(hero.silenced > 0) && !hero.silenceSrc, 'Silence expires');
+  const read = cast.useScrollByName({ n: 'Heal', k: 'scroll', d: 'cure' }, { silenced: 0 });
+  const again = cast.tryAnimateDead({ hero: 1, silenced: 0 }, { id: 4, dead: 1, corpse: 1, hp: 0, maxhp: 8 });
+  assert(read === 'cure' && cast.healed === 1, 'a scroll works after Silence expires');
+  assert(again && again.reason === 'no-crown' && cast.crownChecks === 1, 'spellcasting works after Silence expires');
+
+  const saved = bootL4({ kin: 1 });
+  const savedHero = saved.ents.filter(function (e) { return e.hero; })[0];
+  const savedBoss = saved.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const savedShaman = saved.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  const savedKin = saved.ents.filter(function (e) { return e.name === 'Kin'; })[0];
+  savedHero.x = savedBoss.x;
+  savedHero.y = savedBoss.y;
+  if (savedKin) { savedKin.x = savedShaman.x; savedKin.y = savedShaman.y; }
+  saved.lvl._campaignHost.save = function () { return true; };
+  steps = 0;
+  while (steps < 12 && String(savedShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+    R.tick(saved, 1.1);
+    steps++;
+  }
+  assert(String(savedShaman.spellsSpent || '').indexOf('Hold Person') >= 0 && !(savedHero.held > 0), 'a successful save is not held');
+  assert(String(savedShaman.spellsSpent || '').indexOf("Silence 15' r.") >= 0 && !(savedHero.silenced > 0), 'a successful save is not silenced');
+
+  const immune = bootL4({ kin: 1 });
+  const immuneHero = immune.ents.filter(function (e) { return e.hero; })[0];
+  const immuneBoss = immune.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const immuneShaman = immune.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
+  immuneHero.x = immuneBoss.x;
+  immuneHero.y = immuneBoss.y;
+  immune.lvl._campaignHost.save = function () { return false; };
+  global.wearingFreeAction = function () { return true; };
+  steps = 0;
+  while (steps < 12 && String(immuneShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+    R.tick(immune, 1.1);
+    steps++;
+  }
+  delete global.wearingFreeAction;
+  assert(String(immuneShaman.spellsSpent || '').indexOf('Hold Person') >= 0 && !(immuneHero.held > 0), 'Free Action keeps Hold Person from landing');
 })();
 
 (function chiefMorale() {

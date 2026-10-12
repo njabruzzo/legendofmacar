@@ -1040,7 +1040,14 @@
     return shaman.memorized || [];
   }
 
-  /* House rows with no printed duration or damage stay on the list and do not fire. */
+  /* PLACEHOLDER pending Sage §7.15. L4 does not print these durations. */
+  var PLACEHOLDER = {
+    holdPersonSec: 6,
+    silenceSec: 8
+  };
+
+  /* House rows with no printed duration or damage stay on the list and do not fire.
+     Hold Person and Silence use the placeholder seconds above. */
   function spellsFromHouse(shaman) {
     var seg = shaman.segments || {};
     var bless = shaman.bless || {};
@@ -1133,15 +1140,35 @@
       blessOrcs(G, center, spell.rounds, spell.rangeTiles);
     } else if (spell.holdPerson) {
       var free = eng('wearingFreeAction');
-      if (!(free && free(p))) saveVs(G, p, 'spell');
+      var mac = hero(G) || p;
+      if (mac && !(free && free(mac)) && !saveVs(G, mac, 'spell')) applyHold(mac);
       if (eng('say')) eng('say')('Hold Person.', '#d6e2a8');
     } else if (spell.silence) {
+      var voice = hero(G) || p;
+      if (voice && !saveVs(G, voice, 'spell')) applySilence(voice);
       if (eng('say')) eng('say')('Silence.', '#d6e2a8');
     } else if (spell.unprinted) {
       return;
     }
     markSpent(e, spell.name);
     if (shaman && shaman.spellEverySec) e.spellCd = shaman.spellEverySec;
+  }
+
+  function applyHold(p) {
+    p.held = Math.max(p.held || 0, PLACEHOLDER.holdPersonSec);
+    p.holdSrc = 'campaign';
+    p.moving = 0;
+    p.dest = null;
+    p.ix = 0;
+    p.iy = 0;
+    p.atk = 0;
+    p.swung = 0;
+    p.aim = null;
+  }
+
+  function applySilence(p) {
+    p.silenced = Math.max(p.silenced || 0, PLACEHOLDER.silenceSec);
+    p.silenceSrc = 'campaign';
   }
 
   function commandLands(G, def, spell) {
@@ -1836,13 +1863,14 @@
     return have;
   }
 
-  function eggSpec(G) {
-    var data = G && G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+  /* Noz trades on Level 2. The printed price lives on Level 4. */
+  function eggSpec() {
+    var data = levelData(4);
     return (data && data.EGGS) || null;
   }
 
   function eggPrice(G) {
-    var eggs = eggSpec(G);
+    var eggs = eggSpec();
     if (!eggs || typeof eggs.sellGp !== 'number') return 0;
     if (eggs.sellWhere && eggs.sellWhere !== 'Noz') return 0;
     return eggs.sellGp | 0;
@@ -1864,7 +1892,7 @@
       G.coin = G.coin || {};
       G.coin.gp = (G.coin.gp || 0) + price;
     }
-    var eggs = eggSpec(G);
+    var eggs = eggSpec();
     if (eggs && eggs.treasureXpOnlyIfSold && eng('awardPartyXp')) eng('awardPartyXp')(price, 'Golden Egg');
     return { ok: true, gp: price };
   }
@@ -1982,6 +2010,14 @@
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
       if (!e) continue;
+      if (e.holdSrc === 'campaign' && (e.held || 0) > 0) {
+        e.held -= dt;
+        if (e.held <= 1e-6) { e.held = 0; e.holdSrc = 0; e.prone = 0; }
+      }
+      if (e.silenceSrc === 'campaign' && (e.silenced || 0) > 0) {
+        e.silenced -= dt;
+        if (e.silenced <= 1e-6) { e.silenced = 0; e.silenceSrc = 0; }
+      }
       if (e.h1Slow > 0) {
         e.h1Slow -= dt;
         if (e.h1Slow <= 0) { e.h1Slow = 0; e.h1MoveMul = 0; }
@@ -2569,6 +2605,7 @@
     stackMagic: stackMagic,
     sellEgg: sellEgg,
     eggPrice: eggPrice,
+    PLACEHOLDER: PLACEHOLDER,
     printed: printed,
     beginRun: beginRun,
     kill: kill,

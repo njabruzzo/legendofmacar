@@ -505,11 +505,14 @@ function constrainPartyStep(e, ox, oy){
 
 /* Command and other stuns set e.stun. Tap, stick, keys, and auto-path all stop. */
 function stunnedHold(p){
-  if(!p || !(p.stun>0)) return false;
+  if(!p || !((p.stun>0) || (p.held||0)>0)) return false;
   p.dest=null;
   p.moving=0;
   p.ix=0;
   p.iy=0;
+  p.atk=0;
+  p.swung=0;
+  p.aim=null;
   return true;
 }
 /* A flee point outranks the chase target. Movement reads it before intent. */
@@ -8696,8 +8699,11 @@ function tickSpellZones(dt){
   G.silenceZones=(G.silenceZones||[]).filter(z=>z.t>0);
   (G.ents||[]).forEach(e=>{
     if(e.blessT>0){ e.blessT-=dt; if(e.blessT<=0) e.blessHit=0; }
-    if(e.held>0){ e.held-=dt; if(e.held<=0) e.prone=0; else { e.stun=Math.max(e.stun||0, 0.05); e.moving=0; } }
-    if(e.silenced>0) e.silenced-=dt;
+    if(e.held>0){
+      if(e.holdSrc==='campaign'){ e.stun=Math.max(e.stun||0, 0.05); e.moving=0; }
+      else { e.held-=dt; if(e.held<=0) e.prone=0; else { e.stun=Math.max(e.stun||0, 0.05); e.moving=0; } }
+    }
+    if(e.silenced>0 && e.silenceSrc!=='campaign') e.silenced-=dt;
     if(e.fearT>0) e.fearT-=dt;
     if(inSilenceZone(e) && e.col && e.col.key==='talpor') e.heals=0;
   });
@@ -12064,6 +12070,10 @@ function useWandByName(it, e){
   return 'zap';
 }
 function useScrollByName(it, e){
+  if(e && (e.silenced||0)>0){
+    if(typeof say==='function') say('Silence. No spell, and the scroll stays shut.','#9a8a78');
+    return 'silenced';
+  }
   /* DMG Table III.B. Protection scrolls: any class (RAW). Spell scrolls: RAW
      class-locked and may fail; house lets the pack-reader cast once, then the
      ink is gone. Closest wired FX: flame (offensive) or heal. No MU list. */
@@ -12168,6 +12178,10 @@ function useMagicItem(it, e, activate){
     return;
   }
   if(it.k==='scroll'||it.k==='prot'){
+    if(e && (e.silenced||0)>0){
+      say('Silence. The scroll stays shut.','#9a8a78');
+      return 'silenced';
+    }
     if(typeof useScrollByName==='function') useScrollByName(it, e);
     else if(e){
       if(/heal|cure/i.test(String(it.n||'')+' '+String(it.d||''))){
@@ -13110,6 +13124,10 @@ function setThrallStay(on){
    PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
    no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
+  if(actor && (actor.silenced||0)>0){
+    say('Silence. The spell does not leave his mouth.','#9a8a78');
+    return {ok:0, reason:'silenced'};
+  }
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   if(!body || !(body.dead||body.corpse)) return {ok:0, reason:'no-body'};
   if(body.col||body.hero||body.ghost) return {ok:0, reason:'kin'};
@@ -15409,6 +15427,11 @@ function debugKillOnScreen(){
   else hint('No foes on screen.',1.6);
 }
 function refuseAttack(p){
+  if(p && (p.held||0)>0){
+    hint('Hold Person. Macar cannot attack.',2.2);
+    say('Macar is held. No attack.','#c07bff');
+    return true;
+  }
   if(!p||!p.defending) return false;
   hint('Defend is up. Lower the shield to attack.',2.6);
   say('Macar holds. No attacks while the shield is raised.','#cfe3ff');
@@ -15764,7 +15787,7 @@ function update(dt){
     if(stepped) takeLoot(stepped);
 
     // auto-attack while standing in reach (Baldur's Gate: never swing while walking)
-    if(!G.digging && !p.defending){
+    if(!G.digging && !p.defending && !((p.held||0)>0)){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
@@ -22699,7 +22722,7 @@ function usePackRow(r){
     const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal';
     if(inField){
       const spent=useMagicItem(it, who);
-      if(spent==='spent'||consume) bag.magic.splice(r.i,1);
+      if(spent!=='silenced' && (spent==='spent'||consume)) bag.magic.splice(r.i,1);
     } else if(consume){
       bag.magic.splice(r.i,1);
       G.carryEffects=G.carryEffects||[];
