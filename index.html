@@ -390,7 +390,7 @@ function tickRejoin(e, p, dt){
     if(st.path.length){ tx=st.path[0].x; ty=st.path[0].y; }
   }
   /* Catch-up pace: a touch quicker than Macar so a lost kin closes. */
-  const go=(e.sp||4)*1.15*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+  const go=(e.sp||4)*1.15*moveSlowMul(e)*((e.webbed||0)>0?0:1);
   if(go<=0){ e.moving=0; e.ix=0; e.iy=0; return true; }
   const moved=routeSteerWalk(e, tx-e.x, ty-e.y, go, dt);
   if(!(moved>0.002)) st.stuck+=dt; else st.stuck=0;
@@ -1207,8 +1207,28 @@ Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 const SPRITE_GAVE_UP={};
+function campaignSpriteKey(key){
+  if(!key) return '';
+  if(SPRITE_FILES[key] || (SPR[key]&&SPR[key].width)) return key;
+  if(String(key).indexOf('mon_')===0 && SPRITE_FILES[String(key).slice(4)]) return String(key).slice(4);
+  return key;
+}
+const OPTIONAL_ART={};
+function optionalArt(k){
+  if(!k) return false;
+  if(k==='intro_ch2') return true;
+  const name=String(k);
+  if(name.indexOf('intro_')===0) return true;
+  if(name==='title_splash'||name==='title_menu'||name==='title_logo'||name==='chapters_plate'||name==='intro_cavein') return true;
+  if(name==='demon_dwarfface'||name==='demonface'||name==='demon_dwarfface_empty'||name==='demon_dwarfface_vault') return true;
+  if(OPTIONAL_ART[name]) return true;
+  const src=(typeof SPRITE_FILES!=='undefined' && SPRITE_FILES[name])||'';
+  if(src.indexOf('/intro_')>=0 || src.indexOf('title_splash')>=0 || src.indexOf('title_menu')>=0 || src.indexOf('chapters_plate')>=0) return true;
+  return false;
+}
 function loadSpriteKeyNow(k, cb){
   cb=cb||function(){};
+  if(typeof campaignSpriteKey==='function') k=campaignSpriteKey(k);
   if(!k||!SPRITE_FILES[k]){ cb(false); return false; }
   if(SPRITE_GAVE_UP[k]){ cb(false); return false; }
   if(sprReady(k)){ cb(true); return true; }
@@ -1243,9 +1263,10 @@ function loadSpriteKeyNow(k, cb){
       img.src=assetUrl(SPRITE_FILES[k])+'&retry=1';
       return;
     }
-    /* intro_ch2 is asked again every card frame. One retry, then the
-       plain elevator plate stays up. Other art keeps its own retries. */
-    if(k==='intro_ch2') SPRITE_GAVE_UP[k]=1;
+    /* Optional covers (campaign cards, faces, splashes) are asked again
+       every frame. One retry, then stop. Required level art and Macar
+       sheets keep trying on the next request. intro_ch2 keeps that rule. */
+    if(k==='intro_ch2' || optionalArt(k)) SPRITE_GAVE_UP[k]=1;
     fin(false);
   };
   img.src=assetUrl(SPRITE_FILES[k]);
@@ -1276,7 +1297,12 @@ function requestMacarEquipmentArt(){
 function worldArtReady(n){
   n=n||(G&&G.ch)||1;
   const keys=WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1];
-  for(let i=0;i<keys.length;i++) if(!sprReady(keys[i])) return false;
+  for(let i=0;i<keys.length;i++){
+    const k=keys[i];
+    /* A given-up optional image is done. The frame draws its fallback. */
+    if(SPRITE_GAVE_UP[k]) continue;
+    if(!sprReady(k)) return false;
+  }
   return true;
 }
 function loadSprites(done){
@@ -6965,7 +6991,11 @@ function deeperChapter(ch){
 function pressGoDeeper(){
   if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.campGoDeeper){
     const act=CampaignRuntime.campGoDeeper(G);
-    if(act==='enter'){ startChapter(G.campaignLevel|0); return; }
+    if(act==='enter'){
+      const lv=G.campaignLevel|0;
+      const shell=(CampaignRuntime.shellChapter&&CampaignRuntime.shellChapter(lv))||lv;
+      startChapter(shell); return;
+    }
     if(act==='soon'){
       say('More coming.','#c9b895');
       hint('More coming.',3.2);
@@ -9912,6 +9942,11 @@ function wearingElvenkind(e){
 /* Carried weight and pack items never change Macar's step. */
 function macarCarryMoveMul(_e){ return 1; }
 /* Worn boots scale the existing e.sp step. Not potion haste (no e.cd / aging). */
+function moveSlowMul(e){
+  if(e && e.h1Slow>0) return (e.h1MoveMul>0)?e.h1MoveMul:0.5;
+  if(e && (e.slowT||0)>0) return 0.4;
+  return 1;
+}
 function wornMoveMul(e){
   let mul=1;
   if(typeof DerivedStats!=='undefined' && DerivedStats.wornMoveMul)
@@ -9922,6 +9957,13 @@ function wornMoveMul(e){
     if(/boots of speed/i.test(n)) mul=2;
     /* Striding: modest bump. No jump/pit helper on this mover — skip 3D jump. */
     else if(/striding and springing/i.test(n)) mul=1.5;
+  }
+  if(e&&e.pixieDust&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.dustMoveMul)
+    mul=Math.max(mul, CampaignRuntime.dustMoveMul(e));
+  if(e && typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste(e)){
+    const fx=TimedEffects.getHaste(e);
+    const haste=(fx&&fx.moveMul)||1;
+    if(haste>0) mul=Math.max(mul, haste)/haste;
   }
   if(e&&(e.hero||(e.col&&e.col.key==='macar')) && typeof macarCarryMoveMul==='function')
     mul*=macarCarryMoveMul(e);
@@ -9976,13 +10018,27 @@ function applyLifeStealHit(atk){
 }
 /* Mild haste while the Quickness sword is wielded. Not potion half-cd. */
 function wornAttackCd(e){
-  if(typeof DerivedStats!=='undefined' && DerivedStats.wornAttackCd)
-    return DerivedStats.wornAttackCd(e, G.equipped||{});
+  let cd;
   const base=(e&&e.baseCd!=null)?e.baseCd:((e&&e.cd)||1);
-  if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) return (e&&e.cd)||base;
-  const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
-  if(!isQuicknessWeapon(wep)) return base;
-  return Math.max(.45, base*0.85);
+  if(typeof DerivedStats!=='undefined' && DerivedStats.wornAttackCd)
+    cd=DerivedStats.wornAttackCd(e, G.equipped||{});
+  else if(!e||!(e.hero||(e.col&&e.col.key==='macar'))) cd=(e&&e.cd)||base;
+  else {
+    const wep=typeof wornPrimaryWeapon==='function'?wornPrimaryWeapon(e):((G.equipped||{}).primary||(G.equipped||{}).weapon);
+    cd=isQuicknessWeapon(wep)?Math.max(.45, base*0.85):base;
+  }
+  if(e&&e.pixieDust&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.dustCdMul){
+    const haste=typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste(e);
+    if(!haste) cd=Math.min(cd, base*CampaignRuntime.dustCdMul(e));
+  }
+  return cd;
+}
+function heroSwingCd(e){
+  if(e&&e.pixieDust&&typeof wornAttackCd==='function'){
+    const haste=typeof TimedEffects!=='undefined' && TimedEffects.useHaste && TimedEffects.useHaste() && TimedEffects.hasHaste && TimedEffects.hasHaste(e);
+    if(!haste) return wornAttackCd(e);
+  }
+  return (e&&e.cd)||1;
 }
 /* MAC-03: haste remaining lives on TimedEffects. Flag default ON.
    Rollback: TimedEffects.FLAG=false or ?timedHaste=0. */
@@ -11035,6 +11091,7 @@ function savingThrow(e, kind){
 }
 function beginFight(foe){
   G.fightOn=1;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteFight) CampaignRuntime.noteFight(G);
   G.displaceMiss=1;
   G.fightGotKill=0;
   G.fightBossDead=0;
@@ -11105,6 +11162,7 @@ function endFightIfClear(){
   const bossWin=!!G.fightBossDead;
   const won=!!(G.fightGotKill||bossWin);
   G.fightOn=0;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G);
   G.fightWasBoss=0;
   G.fightBossDead=0;
   G.fightGotKill=0;
@@ -12000,6 +12058,14 @@ function useScrollByName(it, e){
 function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
+  if(it.id==='pixie_dust'){
+    if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armDust) CampaignRuntime.armDust(G, e);
+    const pk=packOf(packOwner(e));
+    if(pk&&pk.magic) pk.magic=pk.magic.filter(x=>x!==it);
+    if(typeof syncPackTotals==='function') syncPackTotals();
+    say('Pixie dust. One battle, and the fastest step wins.','#e0d2ff');
+    return;
+  }
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
     const ES=typeof EquipmentSlots!=='undefined'?EquipmentSlots:null;
@@ -12361,7 +12427,7 @@ function applyHeal(e, n, kind){
   burst(e.x,e.y,'#c9a24a',10,2);
   return amt;
 }
-function clearPoison(e){ e.poisonT=0; e._pt=0; e.slowT=0; }
+function clearPoison(e){ if(!e) return; e.poisonT=0; e._pt=0; e.slowT=0; e.h1Slow=0; e.h1MoveMul=0; }
 function potionHay(p){ return String((p&&(p.n||''))+' '+(p&&(p.k||''))); }
 function charmFoeKind(e, re, rounds){
   const t=nearestFoe(e,8);
@@ -12525,7 +12591,7 @@ function drinkPotion(p, e){
   else if(k==='heal20') applyHeal(e,20);
   else if(k==='heal40') applyHeal(e,40);
   else if(k==='healall'){ e.hp=e.maxhp; applyHeal(e,1); say('Wounds close.','#ffe08a'); }
-  else if(k==='antidote'){ clearPoison(e); say('The poison leaves.','#6aff8a'); }
+  else if(k==='antidote'||k==='antitoxin'){ clearPoison(e); say('The poison leaves.','#6aff8a'); }
   else if(k==='haste'){
     if(typeof applyHasteEffect==='function' && applyHasteEffect(e,{
       duration:lv*0.6, moveMul:1.35, cdMul:0.5, cdFloor:.28, policy:'refresh', source:'potion'
@@ -12663,10 +12729,19 @@ function damage(e,amt,col,src){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
       say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); } } } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
 }
 function onHitFx(atk,o,dmg){
   if(!atk||!o) return dmg;
+  if(atk.phaseWindowSec) atk.phaseOpen=atk.phaseWindowSec;
+  if(G.poisonMode==='h1' && atk.campaignPoison && typeof CampaignRuntime!=='undefined' && CampaignRuntime.applyPoison){
+    const hit=CampaignRuntime.applyPoison(atk, o, dmg||0);
+    if(hit && hit.fx && hit.fx.slow && !hit.fx.immune && !hit.fx.saved){
+      o.h1Slow=Math.max(o.h1Slow||0, hit.fx.slow.seconds||2);
+      o.h1MoveMul=hit.fx.slow.moveMul||0.5;
+    }
+    return hit ? hit.dmg : (dmg||0);
+  }
   const sa=atk.sa||'';
   if(atk.rust&&o.gear){ wear(o.gear,14,6); ftext(o.x,o.y+0.2,'Rust!','#ff8a3a'); }
   if(atk.poison||/Poison/i.test(sa)){
@@ -12708,6 +12783,8 @@ function meleeSwing(e,arc,reach,dmg,col){
   const rad=Math.max(0.4,(reach||e.range||1)+(0.2));
   const wedge=Math.min(arc||1.9, 2.5);
   for(const o of G.ents){ if(o.dead||o.team===e.team||o.npc||o.sleeping) continue;
+    if(o.ceiling>0 && !e.ranged) continue;
+    if(o.phased && !(o.phaseOpen>0)) continue;
     const d=dist(e,o); if(!(d<=rad+(o.r||0.35))) continue;
     if(typeof EnemyIntent!=='undefined' && EnemyIntent.meleeClear &&
        !EnemyIntent.meleeClear(e,o,{hasLOS:hasLOS,dist:dist,walk:walk})) continue;
@@ -13478,6 +13555,10 @@ function chapelFaceToothTaken(face){
     const f=G.lvl&&G.lvl.flags;
     return !!(f&&f.electrumTooth2);
   }
+  if(face.itemId==='grond_tooth_electrum_3'){
+    const f=G.lvl&&G.lvl.flags;
+    return !!(f&&f.electrumTooth3);
+  }
   const f=G.lvl&&G.lvl.flags;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
   if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
@@ -13498,7 +13579,7 @@ function bindPriedChapelTooth(){
   if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
   (G.props||[]).forEach(p=>{
     if(!p||p.gone||p.k!=='demonface') return;
-    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2') return;
+    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3') return;
     p.emptySocket=1;
   });
 }
@@ -14503,7 +14584,7 @@ function applyEnemyIntent(e, ir, dt){
   }
   if(ir.move){
     let vx=ir.move.dx-e.x, vy=ir.move.dy-e.y;
-    const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+    const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
     if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
     else {
       for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
@@ -15322,7 +15403,7 @@ function fire(key){
     if(p.atk<=0){
       p.atk=p.atkMax;
       p._attack={fdx:p.fdx,fdy:p.fdy};
-      if(p.ct<=0){ p.ct=p.cd; p.swung=0; }
+      if(p.ct<=0){ p.ct=heroSwingCd(p); p.swung=0; }
       else p.swung=1;
       armLivingMacarWindup(p);
       armLivingMacarStrike(p);
@@ -15610,7 +15691,8 @@ function update(dt){
     }
 
     let sp=p.sp;
-    if((p.slowT||0)>0){ p.slowT=Math.max(0,p.slowT-dt); sp*=0.4; }
+    if((p.slowT||0)>0) p.slowT=Math.max(0,p.slowT-dt);
+    sp*=moveSlowMul(p);
     if(G.searching) sp*=0.16;
     if(G.secretSearch) sp*=0.18;
     if(G.digging) sp*=0.14;
@@ -15640,7 +15722,7 @@ function update(dt){
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
         faceToward(p, t.x, t.y);
-        p.atkKind='melee'; p.atk=p.atkMax; p.ct=p.cd; p.swung=0; p.aim=t;
+        p.atkKind='melee'; p.atk=p.atkMax; p.ct=heroSwingCd(p); p.swung=0; p.aim=t;
         p._attack={fdx:p.fdx,fdy:p.fdy};
         if(typeof armLivingMacarWindup==='function') armLivingMacarWindup(p); }
       if(!t) p.aim=null;
@@ -15943,7 +16025,7 @@ function update(dt){
       const d=dist(e,tgt);
       if(d>want){
         let vx=tgt.x-e.x, vy=tgt.y-e.y;
-        const go=e.sp*((e.slowT||0)>0?0.4:1)*((e.webbed||0)>0?0:1);
+        const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
         for(const o of G.ents){ if(o===e||o.dead) continue; const dd=dist(e,o);
@@ -15989,7 +16071,16 @@ function update(dt){
     stepShot(s,dt);
     if(!walk(s.x,s.y)){ s.life=0; burst(s.x,s.y,s.col,8,2); tryRetrieveBolt(s); continue; }
     for(const o of G.ents){ if(o.dead||o.team===s.team||o.npc||o.sleeping) continue;
+      if(o.phased && !(o.phaseOpen>0)) continue;
       if(dist(s,o)<o.r+.45){
+        if(s.kind==='queenweb'){
+          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.resolveWeb) CampaignRuntime.resolveWeb(G, o, s);
+          s.life=0; burst(s.x,s.y,'#e8e0d0',14,2.4); break;
+        }
+        if(s.kind==='shard'){
+          if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.resolveShard) CampaignRuntime.resolveShard(G, o, s);
+          s.life=0; burst(s.x,s.y,s.col||'#ff334a',10,2.2); break;
+        }
         if(s.kind==='web'){
           applyWeb(o);
           s.life=0; burst(s.x,s.y,'#e8e0d0',14,2.4); break;
@@ -16031,7 +16122,7 @@ function update(dt){
      off the screen, so the first phone tap mid-fight never pried. */
   if(p && typeof nearestDemonFace==='function'){
     const toothFace=nearestDemonFace(p,2.05);
-    if(toothFace && toothFace.itemId==='grond_tooth_electrum_2' && !toothFace.emptySocket && !(L.flags&&L.flags.electrumTooth2)){
+    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
       interact('Take the electrum tooth',()=>{
         if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, toothFace);
       });
@@ -17417,7 +17508,12 @@ function demonFaceImg(p){
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
-  if(p && p.itemId==='grond_tooth_electrum_2') return SPR.demon_dwarfface||SPR.demonface||null;
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')){
+    if(typeof OPTIONAL_ART!=='undefined') OPTIONAL_ART.demon_dwarfface=1;
+    if(typeof loadSpriteKeyNow==='function' && !(SPR.demon_dwarfface&&SPR.demon_dwarfface.width)) loadSpriteKeyNow('demon_dwarfface');
+    const face=SPR.demon_dwarfface||SPR.demonface||null;
+    return (face&&face.width)?face:null;
+  }
   /* Empty v5 plate only. The fanged sheet used to win until the empty
      image had a width, so a reload drew the tooth back in the socket. */
   if(p && demonFaceShowsEmpty(p)) return SPR.demon_dwarfface_empty||null;
@@ -17504,6 +17600,8 @@ function drawDemonDwarfFace(g,p){
     return;
   }
   const img=demonFaceImg(p);
+  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
   g.save();
@@ -22063,13 +22161,57 @@ function drawBetween(g){
 }
 
 
+function punchCampaignCard(img){
+  if(!img||!img.width||img.__cardPunched) return img;
+  if(typeof document==='undefined'||typeof isMagentaMatte!=='function') return img;
+  try{
+    const c=document.createElement('canvas');
+    c.width=img.width; c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    const id=x.getImageData(0,0,c.width,c.height);
+    const d=id.data;
+    let hit=0;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3]&&isMagentaMatte(d[i],d[i+1],d[i+2])){
+        d[i]=d[i+1]=d[i+2]=d[i+3]=0;
+        hit=1;
+      }
+    }
+    if(!hit){ img.__cardPunched=1; return img; }
+    x.putImageData(id,0,0);
+    c.__cardPunched=1;
+    return c;
+  }catch(_){ return img; }
+}
 function campaignCardArt(card){
-  const key=(card&&card.key)||'';
+  const key=campaignSpriteKey((card&&card.key)||'');
+  if(key) OPTIONAL_ART[key]=1;
   if(key && SPRITE_GAVE_UP[key]) return null;
   if(key && typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
-  if(key && SPR[key] && SPR[key].width) return SPR[key];
+  if(key && SPR[key] && SPR[key].width) return punchCampaignCard(SPR[key]);
   const splash=chapterSplashImg(2);
-  return (splash&&splash.width)?splash:null;
+  return (splash&&splash.width)?punchCampaignCard(splash):null;
+}
+function fitCampaignTitle(g, title, maxW, size){
+  title=String(title||'');
+  size=size||22;
+  const floor=Math.max(11, size*0.55);
+  function linesAt(){
+    g.font='700 '+size+'px '+FONT_TITLE;
+    return wrapLines(g, title, maxW);
+  }
+  let lines=linesAt();
+  while(lines.length>2 && size>floor){ size-=1; lines=linesAt(); }
+  if(lines.length>2) lines.length=2;
+  let guard=0;
+  while(guard++<40 && lines.some(ln=>g.measureText(ln).width>maxW+0.5) && size>floor){
+    size-=1;
+    lines=linesAt();
+    if(lines.length>2) lines.length=2;
+  }
+  if(!lines.length) lines=[''];
+  return {lines:lines, size:size};
 }
 function drawCampaignCard(g){
   menuHits=[]; const s=UIS;
@@ -22086,12 +22228,17 @@ function drawCampaignCard(g){
   }
   drawArtFrame(g, 10*s, 10*s, VW-20*s, VH-20*s, 12);
   g.textAlign='center';
-  g.font='700 '+((PORT?22:32)*s)+'px '+FONT_TITLE;
+  const fit=fitCampaignTitle(g, card.title||'The elevator', VW-48*s, (PORT?22:32)*s);
+  g.font='700 '+fit.size+'px '+FONT_TITLE;
   g.fillStyle='#ffe8b6';
-  g.fillText(card.title||'The elevator', VW/2, VH*0.18);
+  let ty=VH*0.15;
+  for(let i=0;i<fit.lines.length;i++){
+    g.fillText(fit.lines[i], VW/2, ty);
+    ty+=fit.size*1.12;
+  }
   g.font='600 '+((PORT?16:20)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(220,196,150,0.96)';
-  g.fillText(card.line||'The elevator descends.', VW/2, VH*0.26);
+  g.fillText(card.line||'The elevator descends.', VW/2, ty+8*s);
   g.textAlign='left';
   menuBtn(g,'Descend',VW/2,VH-(PORT?52:48)*s,Math.min(240*s,VW*.65),50*s,()=>{
     if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.finishCard) CampaignRuntime.finishCard(G);

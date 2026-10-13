@@ -21,6 +21,7 @@
     'src/campaign/L8.js',
     'src/campaign/L9.js',
     'src/campaign/L10.js',
+    'src/combat/SpiderPoison.js',
     'src/campaign/CampaignRuntime.js'
   ];
 

@@ -6,7 +6,8 @@
 (function (root) {
   'use strict';
 
-  var LIVE = { 2: true };
+  var LIVE = { 2: true, 3: true };
+  var SPIDER_KEYS = { spider: 1, spiderHuge: 1, spiderGiant: 1, phasespider: 1, spiderQueen: 1 };
   var UNWIRED_QUESTS = { holy_hammer: true, holy_anvil: true };
   var PACK = 0.8;
 
@@ -87,12 +88,18 @@
     return load(nxt) ? nxt : null;
   }
 
+  function shellChapter(level) {
+    level = level | 0;
+    if (level === 3) return 2;
+    return level;
+  }
+
   function shouldInstall(G) {
     if (!G || !G.lvl) return false;
-    var n = G.lvl.n | 0;
-    if ((G.campaignLevel || 1) !== n) return false;
-    if (!LIVE[n]) return false;
-    return !!load(n);
+    var level = G.campaignLevel || 1;
+    if (!LIVE[level]) return false;
+    if (shellChapter(level) !== (G.lvl.n | 0)) return false;
+    return !!load(level);
   }
 
   function blocksWarren(G) {
@@ -196,13 +203,20 @@
 
   function campGoDeeper(G) {
     if (!G) return 'chapter';
-    var level = G.campaignLevel || 1;
+    var stored = G.campaignLevel || 1;
+    var level = stored;
     if (G.cleared && G.cleared[1] && level < 2) level = 2;
-    if (LIVE[level] && (G.ch | 0) < level) {
+    var shell = shellChapter(level);
+    if (LIVE[level] && (G.ch | 0) < shell) {
       G.campaignLevel = level;
       return 'enter';
     }
-    if (LIVE[level] && !LIVE[(level | 0) + 1] && (G.ch | 0) >= level) {
+    var next = (level | 0) + 1;
+    if (LIVE[level] && LIVE[next] && (G.ch | 0) >= shell) {
+      G.campaignLevel = stored >= level ? next : level;
+      return 'enter';
+    }
+    if (LIVE[level] && !LIVE[next] && (G.ch | 0) >= shell) {
       G.campaignLevel = level;
       return 'soon';
     }
@@ -216,7 +230,7 @@
       if (open[i] && open[i].note && open[i].note.indexOf('(open)') >= 0) out.push(open[i].id);
     }
     if (spec && spec.quest && UNWIRED_QUESTS[spec.quest.id]) out.push(spec.quest.id);
-    if (spec && spec.level === 2) out.push('elevator-returns-to-camp');
+    if (spec && LIVE[spec.level] && !LIVE[(spec.level | 0) + 1]) out.push('elevator-returns-to-camp');
     return out;
   }
 
@@ -305,8 +319,9 @@
 
   function pickFactory(foe, key) {
     foe = foe || {};
-    if (key === 'goblinShaman' || key === 'goblinLeader') return foe.goblin || null;
+    if (key === 'goblinShaman' || key === 'goblinLeader' || key === 'shaman' || key === 'leader') return foe.goblin || null;
     if (key === 'rubyGuardian') return foe.thinone || foe.statue || null;
+    if (SPIDER_KEYS[key]) return foe.spider || null;
     if (key === 'goblinBoss') return foe.goblinBoss || foe.goblin || null;
     if (key === 'goblinKing') return foe.goblinKing || foe.goblin || null;
     if (foe[key]) return foe[key];
@@ -332,10 +347,19 @@
     if (member && member.role === 'assistants' && spec.data && spec.data.MONSTERS && spec.data.MONSTERS.goblinLeader) {
       sheet = spec.data.MONSTERS.goblinLeader;
     }
-    var make = pickFactory(opts.foe, key);
-    var e = make ? make() : { team: 'foe', hp: 8, maxhp: 8, name: key, kind: key, sprite: key };
+    var neutral = !!(mon && mon.fights === false);
+    var make = neutral ? null : pickFactory(opts.foe, key);
+    var e = make ? make() : {
+      team: neutral ? 'neutral' : 'foe',
+      hp: 8, maxhp: 8, name: key, kind: key,
+      sprite: (mon && mon.art && mon.art.key) || key,
+      scale: 1, atk: 0, atkMax: 0.42, stun: 0, dead: false, r: 0.4
+    };
+    if (!(e.scale > 0)) e.scale = 1;
+    /* No pixie sheet. The grey stand-in is about 0.4 of Macar. */
+    if (key === 'pixie') e.scale = 0.4;
     var scale = opts.scale || 4;
-    e.team = 'foe';
+    if (!neutral) e.team = 'foe';
     e.boss = 0;
     e.chapterBoss = 0;
     e.campaignKey = key;
@@ -381,6 +405,18 @@
       if (e.name === 'Goblin Shaman' && mon && mon.name) e.name = mon.name;
     }
     if (group && group.id === 'camp') e.nozCamp = 1;
+    if (SPIDER_KEYS[key]) e.campaignPoison = 1;
+    if (mon && mon.phaseWindow && typeof mon.phaseWindow.sec === 'number') {
+      e.phased = 1;
+      e.phaseWindowSec = mon.phaseWindow.sec;
+    }
+    if (neutral) {
+      e.team = 'neutral';
+      e.npc = 1;
+      e.aggro = 0;
+      e.attacks = [];
+      e.campaignPoison = 0;
+    }
     e.boss = 0;
     e.chapterBoss = 0;
     return e;
@@ -519,7 +555,7 @@
         wall: (face && face.wall) || 'n',
         s: 1.12, seed: 774,
         toothKind: 'electrum', itemId: tooth.id || 'grond_tooth_electrum_2',
-        campaign: 1, emptySocket: flags.electrumTooth2 ? 1 : 0
+        campaign: 1, emptySocket: flags[toothTakenFlag(tooth.id)] ? 1 : 0
       });
     }
     var king = data.KING;
@@ -554,7 +590,7 @@
     var node = map.guardian;
     if (node && node.placement === 'fixed') {
       var make = pickFactory(opts.foe, node.key || 'rubyGuardian');
-      var g = make ? make() : { team: 'foe', hp: 8, maxhp: 8 };
+      var g = make ? make() : { team: 'foe', hp: 8, maxhp: 8, scale: 1 };
       stampGuardian(opts, spec, g);
       g.x = node.x;
       g.y = node.y;
@@ -571,6 +607,19 @@
         noz.y = nozAt.y;
         G.ents.push(noz);
       }
+    }
+    spawnRescue(G, opts, spec);
+  }
+
+  function spawnRescue(G, opts, spec) {
+    var pieces = (spec.map && spec.map.setPieces) || [];
+    for (var i = 0; i < pieces.length; i++) {
+      var piece = pieces[i];
+      if (!piece || piece.id !== 'trapped-pixie') continue;
+      var e = makeEnt(opts, spec, 'pixie', { role: 'rescue' }, null);
+      e.x = piece.x;
+      e.y = piece.y;
+      G.ents.push(e);
     }
   }
 
@@ -589,7 +638,8 @@
     if (!L || (L.tick && L.tick._campaign)) return;
     var inner = L.tick;
     var wrapped = function (dt) {
-      if (inner) inner.call(this, dt);
+      var spec = L.campaignSpec;
+      if (inner && (!spec || (spec.level | 0) === (L.n | 0))) inner.call(this, dt);
       api.tick(G, dt);
     };
     wrapped._campaign = 1;
@@ -598,9 +648,14 @@
 
   function install(G, opts) {
     opts = opts || {};
-    if (!shouldInstall(G)) return false;
-    var spec = load(G.lvl.n | 0);
+    clearDust(G);
+    if (!shouldInstall(G)) {
+      G.poisonMode = '';
+      return false;
+    }
+    var spec = load((G.campaignLevel || G.lvl.n) | 0);
     if (!spec) return false;
+    G.poisonMode = (spec.data && spec.data.POISON && spec.data.POISON.mode === 'h1') ? 'h1' : '';
     var L = G.lvl;
     L.campaignSpec = spec;
     L.flags = L.flags || {};
@@ -1216,18 +1271,25 @@
     return box;
   }
 
+  function toothTakenFlag(id) {
+    if (id === 'grond_tooth_electrum_3') return 'electrumTooth3';
+    return 'electrumTooth2';
+  }
+
   function pryTooth(G, face) {
     if (!G || !face || face.gone || face.emptySocket) return { ok: 0, reason: 'gone' };
     var flags = (G.lvl && G.lvl.flags) || {};
     if (G.lvl) G.lvl.flags = flags;
-    if (flags.electrumTooth2) return { ok: 0, reason: 'taken' };
     var spec = G.lvl && G.lvl.campaignSpec;
     var data = spec && spec.data;
     var mapTooth = (spec && spec.map && spec.map.tooth) || {};
     var tooth = (data && data.TOOTH) || {};
     var id = face.itemId || mapTooth.id || tooth.id || 'grond_tooth_electrum_2';
-    var name = mapTooth.name || tooth.name || 'Electrum Tooth 2';
-    if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
+    var flag = toothTakenFlag(id);
+    if (flags[flag]) return { ok: 0, reason: 'taken' };
+    var name = mapTooth.name || tooth.name || (id === 'grond_tooth_electrum_3' ? 'Electrum Tooth 3' : 'Electrum Tooth 2');
+    if (id === 'grond_tooth_electrum_3') name = 'Electrum Tooth 3';
+    else if (name === "Grond's Electrum Tooth") name = 'Electrum Tooth 2';
     var it = {
       id: id,
       n: name,
@@ -1241,24 +1303,362 @@
       d: 'A silvery-electrum fang. While Macar carries or wears it, every coin becomes electrum. It does not slow his movement.'
     };
     /* Tooth 1's curse is grondTooth electrum: coins convert, and the fang
-       can still be set aside. The map may say cursed. Tooth 2 follows that
-       rule and does not take the bind flag. */
+       can still be set aside. The map may say cursed. Teeth 2 and 3 carry
+       curse coin and bind false, and the pack item does not take cursed. */
+    it.curse = mapTooth.curse || tooth.curse || 'coin';
+    it.bind = false;
     if (eng('stowPackItem')) eng('stowPackItem')(it);
-    flags.electrumTooth2 = 1;
+    flags[flag] = 1;
     face.emptySocket = 1;
     if (eng('convertCoinsToElectrum')) eng('convertCoinsToElectrum')();
     if (eng('say')) eng('say')('Macar takes the electrum tooth. Coin turns while he carries it.', '#c8d4c0');
     return { ok: 1, item: it };
   }
 
+  function dustSpec() {
+    var data = root.L3;
+    return (data && data.PIXIE && data.PIXIE.dust) || null;
+  }
+
+  function dustMoveMul(e) {
+    if (!e || !e.pixieDust) return 1;
+    var dust = dustSpec();
+    return (dust && typeof dust.moveMul === 'number') ? dust.moveMul : 1;
+  }
+
+  function dustCdMul(e) {
+    if (!e || !e.pixieDust) return 1;
+    var dust = dustSpec();
+    return (dust && typeof dust.cdMul === 'number') ? dust.cdMul : 1;
+  }
+
+  function clearDust(G) {
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e) continue;
+      e.pixieDust = 0;
+      e.pixieCap = 0;
+      e.pixieCapOn = 0;
+    }
+  }
+
+  function armDust(G, e) {
+    if (!e) e = hero(G);
+    if (!e) return false;
+    e.pixieDust = 1;
+    e.pixieCap = 0;
+    e.pixieCapOn = 0;
+    return true;
+  }
+
+  function noteFight(G) {
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (e && e.pixieDust) {
+        e.pixieCapOn = 1;
+        e.pixieCap = 0;
+      }
+    }
+  }
+
+  function actorCon(target, opts) {
+    if (opts && typeof opts.con === 'number') return opts.con;
+    if (!target) return null;
+    if (typeof target.con === 'number') return target.con;
+    if (target.abil && typeof target.abil.con === 'number') return target.abil.con;
+    return null;
+  }
+
+  function actorLevel(target, opts) {
+    if (opts && typeof opts.level === 'number') return opts.level;
+    if (!target) return null;
+    if (typeof target.lvl === 'number') return target.lvl;
+    if (target.abil && typeof target.abil.lvl === 'number') return target.abil.lvl;
+    return null;
+  }
+
+  function poisonHit(atk, target, opts) {
+    var poison = root.SpiderPoison;
+    if (!poison || typeof poison.resolve !== 'function' || !atk || !target) return null;
+    var spider = atk.campaignKey || 'spider';
+    if (!poison.SPIDERS || !poison.SPIDERS[spider]) return null;
+    opts = opts || {};
+    var roll = opts.roll;
+    if (roll == null) roll = 1 + Math.floor(Math.random() * 20);
+    var level = actorLevel(target, opts);
+    if (typeof level !== 'number') level = 3;
+    var con = actorCon(target, opts);
+    if (typeof con !== 'number') con = 0;
+    return poison.resolve(
+      { hp: target.hp, ghost: !!target.ghost },
+      {
+        mode: 'h1',
+        spider: spider,
+        level: level,
+        con: con,
+        roll: roll,
+        antitoxin: !!opts.antitoxin
+      }
+    );
+  }
+
+  function applyPoison(atk, target, bite, opts) {
+    bite = bite || 0;
+    var fx = poisonHit(atk, target, opts);
+    if (!fx) return { dmg: bite, skipped: true, fx: null };
+    if (fx.immune || fx.saved) return { dmg: bite, skipped: false, fx: fx, poison: 0 };
+    var extra = fx.damage | 0;
+    var hp = target.hp || 0;
+    if (bite >= hp) extra = 0;
+    else extra = Math.min(extra, Math.max(0, hp - bite - 1));
+    return { dmg: bite + extra, skipped: false, fx: fx, poison: extra };
+  }
+
+  function tickTimers(G, dt) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var dust = spec && spec.data && spec.data.PIXIE && spec.data.PIXIE.dust;
+    var cap = dust && typeof dust.cap === 'number' ? dust.cap : 0;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e) continue;
+      if (e.h1Slow > 0) {
+        e.h1Slow -= dt;
+        if (e.h1Slow <= 0) { e.h1Slow = 0; e.h1MoveMul = 0; }
+      }
+      if (e.phaseOpen > 0) e.phaseOpen = Math.max(0, e.phaseOpen - dt);
+      if (e.ceiling > 0) e.ceiling = Math.max(0, e.ceiling - dt);
+      if (e.pixieDust && e.pixieCapOn && G.fightOn && cap > 0) {
+        e.pixieCap = (e.pixieCap || 0) + dt;
+        if (e.pixieCap >= cap) clearDust(G);
+      }
+      if (e.dead && e.pixieDust) clearDust(G);
+    }
+  }
+
+  function tickQueen(G) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var queen = spec && spec.data && spec.data.QUEEN;
+    var brood = (spec && spec.map && spec.map.brood) || (queen && queen.brood);
+    if (!brood) return;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead || e.campaignKey !== 'spiderQueen' || e.broodCalled) continue;
+      var max = e.maxhp || e.hp || 1;
+      var frac = typeof brood.belowHpFraction === 'number' ? brood.belowHpFraction : 0.5;
+      if (e.hp > max * frac) continue;
+      e.broodCalled = 1;
+      var seconds = queen && queen.ceiling && queen.ceiling.seconds;
+      if (typeof seconds === 'number') e.ceiling = seconds;
+      var tunnels = brood.tunnels || [];
+      var hugeN = rollCount(brood.huge || '1').main;
+      var giantN = brood.giant || 0;
+      var host = (G.lvl && G.lvl._campaignHost) || {};
+      var opts = { foe: G._campaignFoe || {}, scale: host.scale || 4, rng: host.rng || null };
+      var made = 0;
+      function spot(n) {
+        if (!tunnels.length) return { x: e.x, y: e.y };
+        var t = tunnels[n % tunnels.length];
+        return { x: t.x, y: t.y + n * 0.35 };
+      }
+      var h;
+      for (h = 0; h < hugeN; h++) {
+        var huge = makeEnt(opts, spec, 'spiderHuge', { role: 'brood' }, null);
+        var hs = spot(made);
+        huge.x = hs.x;
+        huge.y = hs.y;
+        huge.aggro = 99;
+        huge.fromBrood = 1;
+        G.ents.push(huge);
+        made++;
+      }
+      var g;
+      for (g = 0; g < giantN; g++) {
+        var giant = makeEnt(opts, spec, 'spiderGiant', { role: 'brood' }, null);
+        var gs = spot(made);
+        giant.x = gs.x;
+        giant.y = gs.y;
+        giant.aggro = 99;
+        giant.fromBrood = 1;
+        G.ents.push(giant);
+        made++;
+      }
+    }
+  }
+
+  function grantDust(pix) {
+    var gives = (pix && pix.gives) || {};
+    var item = {
+      id: gives.id,
+      n: gives.name,
+      name: gives.name,
+      k: gives.k,
+      count: gives.count || 1,
+      d: 'One battle. The step takes the highest haste. The swing comes twice as often.'
+    };
+    if (eng('giveMagic')) eng('giveMagic')(item, true);
+    return item;
+  }
+
+  function tickPixie(G, dt) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var pix = spec && spec.data && spec.data.PIXIE;
+    if (!pix || pix.fights !== false) return;
+    var p = hero(G);
+    if (!p) return;
+    var rounds = (pix.free && pix.free.rounds) || 1;
+    var round = eng('roundSec');
+    var need = round ? round(rounds) : rounds;
+    var webs = (G.props || []).filter(function (pr) { return pr && pr.k === 'web'; });
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead || e.vanished || e.campaignKey !== 'pixie') continue;
+      var onWeb = false;
+      for (var w = 0; w < webs.length; w++) if (near(e, webs[w], 1.25)) onWeb = true;
+      if (!onWeb || !near(p, e, 1.25)) { e._free = 0; continue; }
+      e._free = (e._free || 0) + (dt || 0);
+      if (e._free < need) continue;
+      var item = grantDust(pix);
+      G._dust = item;
+      e.dead = 1;
+      e.hidden = 1;
+      e.hp = 0;
+      e.vanished = 1;
+      if (eng('say')) eng('say')('The pixie presses dust into Macar\'s hand and is gone.', '#e0d2ff');
+    }
+  }
+
+  function inchesToTiles(range) {
+    var m = String(range || '').match(/(\d+(?:\.\d+)?)\s*"/);
+    if (!m) return 0;
+    return (+m[1]) * 2;
+  }
+
+  function cdReady(e, key, dt) {
+    if ((e[key] || 0) > 0) {
+      e[key] -= dt || 0;
+      if (e[key] < 0) e[key] = 0;
+    }
+    return (e[key] || 0) <= 0;
+  }
+
+  function launchShot(G, from, target, kind, extra) {
+    extra = extra || {};
+    var shoot = eng('shoot');
+    var shot = shoot ? shoot(from, target.x, target.y, 0, kind, extra.col || '#fff', extra.spd || 7) : null;
+    if (!shot) {
+      shot = { x: from.x, y: from.y, kind: kind, from: from, team: from.team, life: 2.2 };
+      G.shots = G.shots || [];
+      G.shots.push(shot);
+    }
+    if (extra.dice) shot.dice = extra.dice;
+    if (extra.stuckSec) shot.stuckSec = extra.stuckSec;
+    shot.campaign = 1;
+    return shot;
+  }
+
+  function tickRanged(G, dt) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var data = spec && spec.data;
+    if (!data) return;
+    var p = hero(G);
+    if (!p || p.dead) return;
+    var guard = data.MONSTERS && data.MONSTERS.rubyGuardian;
+    var queenSpec = data.QUEEN;
+    var ents = G.ents || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead) continue;
+      if (e.campaignRole === 'guardian' && guard && guard.shard && !e.sleeping) {
+        if (!cdReady(e, 'shardCd', dt)) continue;
+        var reach = inchesToTiles(guard.shard.range);
+        var min = typeof guard.shard.minTiles === 'number' ? guard.shard.minTiles : 0;
+        var d = tileDist(e, p);
+        if (d + 1e-6 >= min && d <= reach + 1e-6) {
+          launchShot(G, e, p, 'shard', { dice: guard.shard.damage || '1d6', col: '#ff334a', spd: 8 });
+          e.shardCd = guard.shard.everySec || 4;
+        }
+      }
+      if (e.campaignKey === 'spiderQueen' && queenSpec && queenSpec.web) {
+        if (!cdReady(e, 'webCd', dt)) continue;
+        if ((p.webbed || 0) > 0) continue;
+        if (tileDist(e, p) <= inchesToTiles(queenSpec.web.range) + 1e-6) {
+          launchShot(G, e, p, 'queenweb', { stuckSec: queenSpec.web.stuckSec || 2, col: '#e8e0d0', spd: 6.5 });
+          e.webCd = queenSpec.web.cooldownSec || 6;
+        }
+      }
+    }
+  }
+
+  function resolveWeb(G, target, shot) {
+    if (!target || target.dead) return { saved: false, stuck: 0 };
+    var stuck = (shot && shot.stuckSec) || 2;
+    var save = eng('savingThrow');
+    var ok = !!(save && save(target, 'spell'));
+    if (!ok) {
+      target.webbed = Math.max(target.webbed || 0, stuck);
+      target.dest = null;
+      target.moving = 0;
+      if (eng('ftext')) eng('ftext')(target.x, target.y, 'webbed', '#e8e0d0');
+    }
+    return { saved: ok, stuck: ok ? 0 : stuck };
+  }
+
+  function resolveShard(G, target, shot) {
+    if (!target || target.dead) return { dmg: 0 };
+    var dice = (shot && shot.dice) || '1d6';
+    var host = hostOf(G);
+    var roll = (typeof host.rollExpr === 'function') ? host.rollExpr(dice) : rollHpExpr(dice, Math.random, 1);
+    var scale = host.scale || 4;
+    var dmg = Math.max(1, Math.round((roll || 1) * scale));
+    if (eng('damage')) eng('damage')(target, dmg, '#ff334a', (shot && shot.from) || null);
+    else target.hp = Math.max(0, (target.hp || 0) - dmg);
+    return { dmg: dmg, roll: roll };
+  }
+
+  function markCampaignClear(G) {
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var cur = (spec && spec.level) || (G.campaignLevel | 0) || 1;
+    G.cleared = G.cleared || {};
+    G.cleared[cur] = 1;
+    var nxt = nextLevel(cur);
+    if (nxt) G.unlocked = Math.max(G.unlocked || 1, nxt);
+    return cur;
+  }
+
+  function enterNext(G) {
+    if (!G) return;
+    var cur = markCampaignClear(G);
+    var nxt = nextLevel(cur);
+    if (nxt && LIVE[nxt]) {
+      G.campaignLevel = nxt;
+      var shell = shellChapter(nxt);
+      if (eng('startChapter')) eng('startChapter')(shell);
+      return;
+    }
+    /* The next campaign level stays stored on unlocked. Camp gates it. */
+    G.campaignLevel = cur;
+    if (eng('endChapter')) eng('endChapter')();
+    else G.scene = 'camp';
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
+    dt = dt || 0;
     syncFever(G);
     syncGates(G);
-    tickKing(G, dt || 0);
-    tickCasters(G, dt || 0);
-    tickBarks(G, dt || 0);
+    tickKing(G, dt);
+    tickCasters(G, dt);
+    tickBarks(G, dt);
+    tickTimers(G, dt);
+    tickQueen(G);
+    tickPixie(G, dt);
+    tickRanged(G, dt);
     var p = hero(G);
     if (!p || !eng('interact')) return;
     var spec = L.campaignSpec;
@@ -1298,7 +1698,7 @@
         });
       } else {
         eng('interact')('Climb the stair', function () {
-          if (eng('endChapter')) eng('endChapter')();
+          enterNext(G);
         });
       }
       return;
@@ -1337,8 +1737,7 @@
   function finishCard(G) {
     if (!G) return;
     G.campaignCard = null;
-    if (eng('endChapter')) eng('endChapter')();
-    else G.scene = 'camp';
+    enterNext(G);
   }
 
   function spawnWander(G, p, foe) {
@@ -1381,10 +1780,18 @@
     UNWIRED_QUESTS: UNWIRED_QUESTS,
     load: load,
     nextLevel: nextLevel,
+    shellChapter: shellChapter,
     shouldInstall: shouldInstall,
     blocksWarren: blocksWarren,
     noteCleared: noteCleared,
     campGoDeeper: campGoDeeper,
+    poisonHit: poisonHit,
+    applyPoison: applyPoison,
+    dustMoveMul: dustMoveMul,
+    dustCdMul: dustCdMul,
+    armDust: armDust,
+    clearDust: clearDust,
+    noteFight: noteFight,
     printed: printed,
     beginRun: beginRun,
     kill: kill,
@@ -1412,6 +1819,9 @@
     kingTarget: kingTarget,
     cornerKing: cornerKing,
     pryTooth: pryTooth,
+    inchesToTiles: inchesToTiles,
+    resolveWeb: resolveWeb,
+    resolveShard: resolveShard,
     barkRect: barkRect,
     goblinLines: goblinLines,
     tickBarks: tickBarks

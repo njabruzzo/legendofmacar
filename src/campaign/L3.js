@@ -41,6 +41,8 @@
       name: 'Large spider',
       source: 'MM1 Spider p.90',
       hd: '1+1',
+      hpRoll: '1d8+1',
+      hpMin: 1,
       ac: 8,
       mv: '6"*15"',
       attacks: [{ n: 1, form: 'bite', damage: '1' }],
@@ -58,6 +60,8 @@
       name: 'Huge spider',
       source: 'MM1 Spider p.90',
       hd: '2+2',
+      hpRoll: '2d8+2',
+      hpMin: 1,
       ac: 6,
       mv: '18"',
       attacks: [{ n: 1, form: 'bite', damage: '1d6' }],
@@ -80,6 +84,8 @@
       name: 'Giant spider',
       source: 'MM1 Spider p.90',
       hd: '4+4',
+      hpRoll: '4d8+4',
+      hpMin: 1,
       ac: 4,
       mv: '3"*12"',
       attacks: [{ n: 1, form: 'bite', damage: '2d4' }],
@@ -103,6 +109,8 @@
       name: 'Phase spider',
       source: 'MM1 Phase Spider p.77',
       hd: '5+5',
+      hpRoll: '5d8+5',
+      hpMin: 1,
       ac: 7,
       mv: '6"*15"',
       attacks: [{ n: 1, form: 'bite', damage: '1d6' }],
@@ -411,7 +419,7 @@
     },
     {
       id: 'ghost-poison-gap',
-      note: 'Ghosts are immune to poison in this data. The live onHitFx still applies spider poison to ghosts. That page is unchanged here. (open)'
+      note: 'Resolved by §1.13. Ghosts are immune to poison. There is no gap.'
     },
     {
       id: 'queen-chest',

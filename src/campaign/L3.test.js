@@ -112,6 +112,7 @@ assert(L3.MONSTERS.spider.hd === '1+1' && L3.MONSTERS.spider.ac === 8 && L3.MONS
 assert(L3.MONSTERS.spiderHuge.hd === '2+2' && L3.MONSTERS.spiderHuge.ac === 6 && L3.MONSTERS.spiderHuge.poisonSave === 1, 'huge spider is 2+2, AC 6, save +1');
 assert(L3.MONSTERS.spiderGiant.hd === '4+4' && L3.MONSTERS.spiderGiant.ac === 4 && L3.MONSTERS.spiderGiant.attacks[0].damage === '2d4' && L3.MONSTERS.spiderGiant.poisonSave === 0, 'giant spider is 4+4, AC 4, bite 2d4, save unmodified');
 assert(L3.MONSTERS.phasespider.hd === '5+5' && L3.MONSTERS.phasespider.ac === 7 && L3.MONSTERS.phasespider.poisonSave === -2, 'phase spider is 5+5, AC 7, save -2');
+assert(L3.MONSTERS.spider.hpRoll === '1d8+1' && L3.MONSTERS.spiderHuge.hpRoll === '2d8+2' && L3.MONSTERS.spiderGiant.hpRoll === '4d8+4' && L3.MONSTERS.phasespider.hpRoll === '5d8+5', 'spider hit points use the printed hit dice');
 assert(L3.MONSTERS.spiderQueen.hd === '8+8' && L3.MONSTERS.spiderQueen.hp === 44 && L3.MONSTERS.spiderQueen.ac === 3 && L3.MONSTERS.spiderQueen.attacks[0].damage === '2d6', 'the Queen is 8+8 HD, 44 hp, AC 3, bite 2d6');
 assert(L3.MONSTERS.rubyGuardian.hd === 6 && L3.MONSTERS.rubyGuardian.hp === 36 && L3.MONSTERS.rubyGuardian.ac === 4 && L3.MONSTERS.rubyGuardian.attacks[0].damage === '2d6', 'Guardian III is 6 HD, 36 hp, AC 4, 2d6');
 assert(L3.MONSTERS.rubyGuardian.shard.damage === '1d6' && L3.MONSTERS.rubyGuardian.shard.range === '6"', 'the shard is 1d6 at 6 inches');
@@ -123,12 +124,12 @@ assert(L3.POISON.mods === T.poisonSave, 'L3.POISON.mods is CampaignTable.poisonS
   assert(L3.POISON.mods[size] === T.poisonSave[size], 'L3 poison mod for ' + size + ' is the shared table');
 });
 assert(P.POISON_MODE === 'h1' && P.SPIDERS.spiderQueen.size === 'queen', 'SpiderPoison is H1 and knows the Queen');
-assert(P.saveTarget({ spider: 'spiderQueen', level: 5, con: 16 }) === 9, 'F5 CON 16 versus the Queen needs 9');
-assert(P.saveTarget({ spider: 'spider', level: 5, con: 16 }) === 5, 'F5 versus a large spider needs 5');
-assert(P.saveTarget({ spider: 'spiderHuge', level: 5, con: 16 }) === 6, 'F5 versus a huge spider needs 6');
-assert(P.saveTarget({ spider: 'spiderGiant', level: 5, con: 16 }) === 7, 'F5 versus a giant spider needs 7');
-assert(P.saveTarget({ spider: 'phasespider', level: 5, con: 16 }) === 9, 'F5 versus a phase spider needs 9');
-assert(P.saveTarget({ spider: 'spiderQueen', level: 5, con: 16, antitoxin: true, periaptPlus: 5 }) === 2, 'antitoxin and a +5 periapt floor the Queen save at 2');
+assert(P.saveTarget({ spider: 'spiderQueen', level: 5, con: 16 }) === 13, 'F5 CON 16 versus the Queen needs 13');
+assert(P.saveTarget({ spider: 'spider', level: 5, con: 16 }) === 9, 'F5 versus a large spider needs 9');
+assert(P.saveTarget({ spider: 'spiderHuge', level: 5, con: 16 }) === 10, 'F5 versus a huge spider needs 10');
+assert(P.saveTarget({ spider: 'spiderGiant', level: 5, con: 16 }) === 11, 'F5 versus a giant spider needs 11');
+assert(P.saveTarget({ spider: 'phasespider', level: 5, con: 16 }) === 13, 'F5 versus a phase spider needs 13');
+assert(P.saveTarget({ spider: 'spiderQueen', level: 5, con: 16, antitoxin: true, periaptPlus: 5 }) === 4, 'antitoxin and a +5 periapt leave the Queen save at 4');
 assert(P.resolve({ hp: 40, ghost: true }, { spider: 'spiderQueen', level: 5, con: 16, roll: 1 }).immune === true, 'a ghost is immune to the Queen\'s poison');
 assert(L3.QUEEN.ghostsImmuneToPoison === true && L3.QUEEN.priority.length === 4, 'the Queen\'s four steps include ghost immunity');
 assert(L3.QUEEN.web.range === '3"' && L3.QUEEN.web.stuckSec === 2 && L3.QUEEN.web.cooldownSec === 6, 'the web shot is 3 inches, stuck 2 s, cooldown 6 s');
