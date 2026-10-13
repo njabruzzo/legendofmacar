@@ -1064,7 +1064,7 @@ SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
 SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
 /* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
 SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
-/* STAND-IN, needs Cel/Disney art. Bronze hourglass, glowing sand. Level 2 secret only. */
+/* STAND-IN, needs Cel/Disney art. Bronze hourglass, solid sand, hard alpha. Level 2 secret only. */
 SPRITE_FILES.hourglass='assets/props/prop_hourglass.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
@@ -2434,6 +2434,25 @@ function blitFacing(g,img,dx,dy,W,H,flip,crisp,punch){
     if(prevQ!=null && g.imageSmoothingQuality) g.imageSmoothingQuality=prevQ;
   }
 }
+/* Ruby guardians keep the Thin One frames. A source-atop wash tints the
+   body; the cache key is the anim frame so walk and strike stay separate. */
+const RUBY_FRAME_WASH={};
+function rubyWashedFrame(img, key){
+  if(!img||!img.width) return img;
+  const id=key||'frame';
+  const hit=RUBY_FRAME_WASH[id];
+  if(hit && hit.src===img && hit.w===img.width && hit.h===img.height) return hit.out;
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.drawImage(img,0,0);
+  x.globalCompositeOperation='source-atop';
+  x.globalAlpha=0.45;
+  x.fillStyle='#ff2438';
+  x.fillRect(0,0,c.width,c.height);
+  RUBY_FRAME_WASH[id]={src:img, w:img.width, h:img.height, out:c};
+  return c;
+}
 function drawEntBillboard(g,e,img,z,flip){
   if(!img||!img.width) return false;
   if(e.crushed||e.prone){
@@ -2458,6 +2477,7 @@ function drawEntBillboard(g,e,img,z,flip){
     if(!img||!img.width) return false;
   }
   const blitKey=liveKey&&typeof livingMacarBlitKey==='function'?livingMacarBlitKey(liveKey):liveKey;
+  if(e.rubyTint && !e.dead && !e.crushed) img=rubyWashedFrame(img, entAnimKey(e)||e.sprite||'ruby');
   const npc=typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(entAnimKey(e));
   const H=entSpriteH(e,z)*(npc?2:blitKey?livingMacarPlantFit(e,blitKey,img):frameFit(e,img));
   const shaft=(blitKey&&typeof MacarWeaponShaft!=='undefined')?MacarWeaponShaft.pose(blitKey):null;
@@ -18615,18 +18635,6 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke(); }
   if(e.buff>0){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
-  if(e.rubyTint && !e.dead){
-    g.save();
-    g.globalCompositeOperation='lighter';
-    g.globalAlpha=0.55;
-    g.fillStyle=e.glow||'#ff2438';
-    g.beginPath(); g.ellipse(0,-22*z,16*z,26*z,0,0,TAU); g.fill();
-    g.globalAlpha=0.9;
-    g.strokeStyle='#ff5a68';
-    g.lineWidth=2.4*ZOOM;
-    g.beginPath(); g.ellipse(0,-22*z,18*z,28*z,0,0,TAU); g.stroke();
-    g.restore();
-  }
   g.restore();
 
   /* No free-floating glow globes above foes / ghosts. Baked lantern light stays. */

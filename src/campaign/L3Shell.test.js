@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const zlib = require('zlib');
 const Shell = require('./L3Shell');
 const R = require('./CampaignRuntime');
 const L2 = require('./L2');
@@ -120,6 +121,54 @@ assert(html.indexOf('if(n===30) return makeCampaignL3();') >= 0, 'chapter 30 bui
 const shellFn = html.slice(html.indexOf('function makeCampaignL3'), html.indexOf('function makeChapter'));
 assert(shellFn.indexOf('hourglass') < 0 && shellFn.indexOf('L.n===2') < 0 && shellFn.indexOf('dressDungeon') < 0, 'the Level 3 builder does not dress Chapter II');
 assert(html.indexOf("SPRITE_FILES.hourglass='assets/props/prop_hourglass.png'") >= 0, 'the hourglass stand-in is bound');
+(function hourglassAlpha() {
+  function paeth(a, b, c) {
+    const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+    if (pa <= pb && pa <= pc) return a;
+    if (pb <= pc) return b;
+    return c;
+  }
+  const buf = fs.readFileSync(path.join(root, 'assets/props/prop_hourglass.png'));
+  assert(buf.readUInt32BE(16) === 160 && buf.readUInt32BE(20) === 280, 'the hourglass stand-in is 160x280');
+  let pos = 8, w = 0, h = 0, bit = 0, ctype = 0, idat = [];
+  while (pos < buf.length) {
+    const ln = buf.readUInt32BE(pos);
+    const typ = buf.slice(pos + 4, pos + 8).toString('ascii');
+    const chunk = buf.slice(pos + 8, pos + 8 + ln);
+    pos += 12 + ln;
+    if (typ === 'IHDR') { w = chunk.readUInt32BE(0); h = chunk.readUInt32BE(4); bit = chunk[8]; ctype = chunk[9]; }
+    else if (typ === 'IDAT') idat.push(chunk);
+    else if (typ === 'IEND') break;
+  }
+  assert(bit === 8 && ctype === 6, 'the hourglass is 8-bit RGBA');
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const bpp = 4, stride = w * bpp;
+  let i = 0, mid = 0;
+  const prev = Buffer.alloc(stride);
+  for (let y = 0; y < h; y++) {
+    const f = raw[i++];
+    const row = Buffer.from(raw.slice(i, i + stride));
+    i += stride;
+    if (f === 1) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (x >= bpp ? row[x - bpp] : 0)) & 255; }
+    else if (f === 2) { for (let x = 0; x < stride; x++) row[x] = (row[x] + prev[x]) & 255; }
+    else if (f === 3) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (((x >= bpp ? row[x - bpp] : 0) + prev[x]) >> 1)) & 255; }
+    else if (f === 4) {
+      for (let x = 0; x < stride; x++) {
+        const a = x >= bpp ? row[x - bpp] : 0, b = prev[x], c = x >= bpp ? prev[x - bpp] : 0;
+        row[x] = (row[x] + paeth(a, b, c)) & 255;
+      }
+    }
+    row.copy(prev);
+    for (let x = 3; x < stride; x += 4) if (row[x] !== 0 && row[x] !== 255) mid++;
+  }
+  assert(mid === 0, 'the hourglass alpha is binary (0 or 255), no halo');
+})();
+const wash = html.slice(html.indexOf('function rubyWashedFrame'), html.indexOf('function drawEntBillboard'));
+assert(wash.indexOf("globalCompositeOperation='source-atop'") >= 0 && wash.indexOf('globalAlpha=0.45') >= 0, 'the ruby wash is a 45% source-atop tint');
+assert(wash.indexOf('RUBY_FRAME_WASH[id]') >= 0, 'the ruby wash is cached per frame key');
+const billboard = html.slice(html.indexOf('function drawEntBillboard'), html.indexOf('const MACAR_PLAN'));
+assert(billboard.indexOf('rubyWashedFrame(img, entAnimKey(e)') >= 0, 'guardians II and III tint the Thin One frame');
+assert(html.indexOf('ellipse(0,-22*z,16*z,26*z') < 0, 'the ruby mark is not a blood-pool ellipse');
 const boot = fs.readFileSync(path.join(__dirname, 'CampaignBoot.js'), 'utf8');
 assert(boot.indexOf('src/campaign/L3Shell.js') > boot.indexOf('src/campaign/L3.js'), 'the boot loads the shell after the Level 3 data');
 
