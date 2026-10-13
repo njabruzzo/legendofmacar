@@ -92,7 +92,7 @@ assert(/bumpTopology\('openSecret/.test(html) && /bumpTopology\('breakRock'\)/.t
   'openSecret and breakRock invalidate nav topology');
 assert(/G\.topologyRev=0/.test(html) && /G\.seenRev=\(G\.seenRev\|\|0\)\+1/.test(html),
   'chapter reset clears topologyRev; breakRock still bumps seenRev separately');
-assert(/ASSET_VER='131'/.test(html), 'ASSET_VER is 117');
+assert(/ASSET_VER='132'/.test(html), 'ASSET_VER is 117');
 
 /* ---- real Macar canBe / walk / wallFaceClear ---- */
 function makeGrid(w, h, fill){
@@ -331,7 +331,7 @@ function assertFourTopology(plan, msg){
 
 /* host still preserves fleeTo before the party brain */
 {
-  const idxFlee=html.indexOf('if(e.fleeTo){');
+  const idxFlee=html.indexOf('if(!e.hero && e.fleeTo)');
   const idxPilot=html.indexOf('Navigation.tickFollower');
   assert(idxFlee>=0 && idxPilot>idxFlee, 'fleeTo is handled before the nav pilot');
 }

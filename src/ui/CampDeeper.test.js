@@ -37,9 +37,11 @@ assert(ctx.deeperChapter(5) === 0, 'after V the next id is not chapter 6');
 
 const camp = html.match(/function drawCamp\(g\)\{[\s\S]*?\nfunction drawDead/)[0];
 const between = html.match(/function drawBetween\(g\)\{[\s\S]*?\nfunction drawCamp/)[0];
-assert(/const nxt=deeperChapter\(G\.ch\)/.test(camp), 'camp Go deeper uses deeperChapter');
-assert(/const nxt=deeperChapter\(G\.ch\)/.test(between), 'between plate uses the same next chapter');
-assert(/if\(CH_META\[nxt\]&&!CH_META\[nxt\]\.locked\)/.test(camp), 'camp starts a chapter only when that chapter exists');
+assert(/pressGoDeeper\(/.test(camp), 'camp Go deeper asks where the campaign goes next');
+assert(/pressGoDeeper\(/.test(between), 'between plate uses the same descent');
+assert(/function pressGoDeeper\(\)/.test(html) && /const nxt=deeperChapter\(G\.ch\)/.test(html), 'the descent still names the next chapter');
+assert(/if\(CH_META\[nxt\]&&!CH_META\[nxt\]\.locked\)/.test(html), 'a chapter starts only when that chapter exists');
+assert(/More coming\./.test(html), 'a live floor with nothing after it stays at camp');
 assert(!/startChapter\(6\)/.test(html), 'nothing calls startChapter(6)');
 
 assert(/G\.unlocked=Math\.max\(G\.unlocked,G\.ch\+1\)/.test(html), 'clearing a chapter unlocks the next one');
