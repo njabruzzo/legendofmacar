@@ -39,7 +39,7 @@
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay',
     'campaignKey','campaignXp','campaignRole','caster','spellSet','insultsOnly','rubyGp','spellsSpent',
     'toHit','dice','ac','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines','artStandIn',
-    'homeX','homeY','leash','hallReserve','hallWave'
+    'homeX','homeY','leash','hallReserve','hallWave','hallJoin'
   ];
 
   var PROP_COPY = [

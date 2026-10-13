@@ -517,5 +517,42 @@ assert(EI.isMeleePursuer(gob)===true, 'a cave goblin is the melee pursuer');
   assert(crowded.length===3, 'four bodies in melee still leave only three slots');
 }
 
+/* A called hall guard already knows the fight. Darkness and a blocked sight line do not send him home. */
+{
+  const intentSrc=fs.readFileSync(path.join(__dirname,'EnemyIntent.js'),'utf8');
+  assert(!/\bZOOM\b/.test(intentSrc) && !/\bTW\b/.test(intentSrc) && !/innerWidth/.test(intentSrc),
+    'aggro, reach, and the frontage ring are tiles, not zoom or screen pixels');
+  function foeAt(x, y, extra){
+    return Object.assign({
+      team:'foe', dead:0, npc:0, ranged:0, web:0, hero:0, r:0.3, range:1,
+      aggro:8, leash:11, x:x, y:y, sp:2, atk:0, atkMax:0.42, ct:0, cd:1.05,
+      intent:'pursue', engaged:1, homeX:x, homeY:y, name:'Orc'
+    }, extra||{});
+  }
+  const mac={team:'party', hero:1, dead:0, hp:40, x:0, y:0};
+  const joiner=foeAt(8, 0.2, { hallJoin:1, aggro:11, leash:11, homeX:6, homeY:0, intent:null, engaged:0 });
+  const slotA=foeAt(0.6, 0.2);
+  const slotB=foeAt(-0.5, 0.4);
+  const slotC=foeAt(0.2, -0.7);
+  const ents=[joiner, slotA, slotB, slotC, mac];
+  const host={
+    ents:ents,
+    dist:(a,b)=>Math.hypot(a.x-b.x, a.y-b.y),
+    hasLOS:()=>false,
+    canBe:()=>true,
+    walk:()=>true,
+    inDarkZone:()=>true,
+    nearestAlly:()=>mac
+  };
+  const called=EI.decide(joiner, 1/60, host);
+  assert(called.handled && called.act==='pursue' && called.move && joiner.hallJoin===1,
+    'a called guard paths toward Macar through darkness with no sight line');
+  assert(called.frontage==='ring' && Math.abs(Math.hypot(called.move.dx-mac.x, called.move.dy-mac.y)-2)<1e-6,
+    'frontage still holds him on the 2-tile ring once three bodies are in');
+  joiner.x=0.5; joiner.y=0; joiner.intent=null; joiner.intentAge=0;
+  EI.decide(joiner, 1/60, host);
+  assert(joiner.hallJoin===0, 'the call ends once he is in melee');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nenemy-intent melee pursuer checks passed');

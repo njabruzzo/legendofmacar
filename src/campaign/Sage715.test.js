@@ -430,7 +430,8 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
 (function specialty() {
   const ctx = {};
   vm.createContext(ctx);
-  vm.runInContext(extractFn('armFoeSpecialty') + '\n' + extractFn('foeAttackCount'), ctx);
+  vm.runInContext(extractFn('armFoeSpecialty') + '\n' + extractFn('foeAttackCount') + '\n' + extractFn('beginSpecialtySwing'), ctx);
+  ctx.G = { elapsed: 0 };
   const chief = { team: 'foe', campaignRole: 'boss', campaignKey: 'orcChief', attackForm: 'battle axe', specialty: 0 };
   const mac = { team: 'party', held: 0 };
   assert(ctx.armFoeSpecialty(chief, mac) === 1 && chief.specialty === 1, 'the chief\'s axe uses the Specialty Attack');
@@ -442,6 +443,10 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
   assert(ctx.armFoeSpecialty(guard, { held: 0 }) === 0 && guard.specialty === 0, 'a ruby guardian never uses a Specialty Attack');
   const orc = { team: 'foe', campaignRole: 'resident', campaignKey: 'orc', attackForm: 'weapon', specialty: 0 };
   assert(ctx.armFoeSpecialty(orc, { held: 0 }) === 0, 'a plain monster does not roll a specialty');
+  const shaman = { team: 'foe', campaignRole: 'resident', campaignKey: 'orcShaman', attackForm: 'mace', specialty: 1 };
+  assert(ctx.armFoeSpecialty(shaman, { held: 0 }) === 0 && shaman.specialty === 0, 'the shaman\'s mace is not a Specialty Attack');
+  const leader = { team: 'foe', campaignRole: 'leader', campaignKey: 'orcLeader', attackForm: 'weapon', specialty: 1 };
+  assert(ctx.armFoeSpecialty(leader, { held: 0 }) === 0 && leader.specialty === 0, 'the hall leader does not keep a Specialty Attack');
 
   const g = boot();
   const a = actors(g);
@@ -454,7 +459,18 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
   a.hero.held = 2;
   R.kingStep(g, a.boss);
   assert(a.boss.specialty === 0, 'a held Macar is not a specialty target');
+  const mace = a.shaman;
+  assert(mace, 'the hall has a shaman');
+  mace.specialty = 1;
+  mace.attackForm = 'mace';
+  R.kingStep(g, mace);
+  assert(mace.specialty === 0, 'king step does not arm specialty on the shaman');
+  a.boss.specialty = 1;
+  a.boss.aim = a.hero;
+  a.hero.held = 2;
+  assert(ctx.beginSpecialtySwing(a.boss) === 0 && a.boss.specialty === 0, 'a swing already in the air does not specialty a held target');
   assert(/armFoeSpecialty\(e,/.test(html), 'foe swings arm specialty from the printed weapon rule');
+  assert(html.split('pickMonsterSpecialty(').length === 2, 'no other monster rolls a specialty');
 })();
 
 (function guardian() {

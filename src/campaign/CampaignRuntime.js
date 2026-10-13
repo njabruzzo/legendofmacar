@@ -942,6 +942,7 @@
         hidden: e.hidden ? 1 : 0,
         hallReserve: e.hallReserve ? 1 : 0,
         hallWave: e.hallWave || '',
+        hallJoin: e.hallJoin ? 1 : 0,
         engaged: e.engaged ? 1 : 0,
         aggro: e.aggro
       });
@@ -1005,9 +1006,11 @@
       if (e.hallWave === 'back' || best.hallWave === 'back') {
         e.hallWave = 'back';
         e.hallReserve = best.hallReserve ? 1 : 0;
+        e.hallJoin = best.hallJoin ? 1 : 0;
         if (e.hallReserve) {
           e.aggro = 0;
           e.engaged = 0;
+          e.hallJoin = 0;
         } else {
           e.aggro = typeof best.aggro === 'number' ? best.aggro : e.leash;
           e.engaged = best.engaged ? 1 : 0;
@@ -1800,7 +1803,10 @@
       }
     }
     var reach = (king.range || 0.8) + 0.4;
-    if (p && tileDist(king, p) <= reach && !((p.held || 0) > 0) && /axe|mace|sword|hammer|spear|dagger|flail/i.test(String(king.attackForm || ''))) king.specialty = 1;
+    var chiefWeapon = king.campaignKey === 'orcChief' && king.campaignRole === 'boss'
+      && /axe|mace|sword|hammer|spear|dagger|flail/i.test(String(king.attackForm || ''));
+    if (!chiefWeapon) king.specialty = 0;
+    else if (p && tileDist(king, p) <= reach && !((p.held || 0) > 0)) king.specialty = 1;
     else if (p && (p.held || 0) > 0) king.specialty = 0;
   }
 
@@ -2802,18 +2808,55 @@
     return (G.ents || []).filter(isHallMember);
   }
 
-  function releaseHallReserves(G, reserves) {
-    var leash = roomLeash(G.lvl.campaignSpec, 'hall-of-names');
-    reserves.forEach(function (e) {
-      e.hallReserve = 0;
-      e.aggro = leash;
-      e.leash = leash;
-      e.engaged = 1;
-    });
-    G.lvl.flags.hallWaveOut = 1;
+  /* The carved hall is an ellipse. Notice uses the short radius.
+     Joining the fight uses the long one, measured from the hall center,
+     so a guard who started in the back can cross to the door. */
+  function hallDisk(spec) {
+    var rooms = (spec && spec.map && spec.map.layout && spec.map.layout.rooms) || [];
+    var room = null;
+    var i;
+    for (i = 0; i < rooms.length; i++) if (rooms[i] && rooms[i].id === 'hall-of-names') room = rooms[i];
+    var rw = room ? (room.rw || (room.kind === 'rect' ? 11 : 4)) : 11;
+    var rh = room ? (room.rh || (room.kind === 'rect' ? 7.2 : 3)) : 7.2;
+    return {
+      x: room && room.x != null ? room.x : 46,
+      y: room && room.y != null ? room.y : 20,
+      notice: Math.min(rw, rh),
+      reach: Math.max(rw, rh)
+    };
   }
 
-  /* Back-room guards step in at 10 s of the hall fight, or on the first drop. */
+  function releaseHallReserves(G, reserves) {
+    var disk = hallDisk(G.lvl.campaignSpec);
+    reserves.forEach(function (e) {
+      e.hallReserve = 0;
+      e.hallJoin = 1;
+      e.homeX = disk.x;
+      e.homeY = disk.y;
+      e.leash = disk.reach;
+      e.aggro = disk.reach;
+      e.engaged = 1;
+      e.npc = 0;
+      e.sleeping = 0;
+      e.intent = null;
+      e.intentAge = 0;
+    });
+    G.lvl.flags.hallWaveOut = 1;
+    G.lvl.flags.hallWave = 2;
+  }
+
+  /* A starter is aggroing once the live AI has engaged him, or he is
+     inside his own aggro of Macar. Reserves do not start the clock. */
+  function hallAggroing(e, p) {
+    if (!e || e.hallReserve || e.dead || e.hp <= 0) return false;
+    if (e.engaged) return true;
+    if (!p) return false;
+    var reach = typeof e.aggro === 'number' ? e.aggro : 0;
+    return reach > 0 && tileDist(e, p) <= reach + 1e-6;
+  }
+
+  /* Back-room guards step in at 10 s after the first hall foe aggros,
+     or when the first foe drops, whichever comes first. */
   function tickHallWave(G, dt) {
     var L = G && G.lvl;
     var hall = hallData(G);
@@ -2823,25 +2866,21 @@
       if (reserves.length) releaseHallReserves(G, reserves);
       return;
     }
-    if (!reserves.length) { L.flags.hallWaveOut = 1; return; }
+    if (!reserves.length) { L.flags.hallWaveOut = 1; L.flags.hallWave = 2; return; }
     var starters = hallMembers(G).filter(function (e) { return !e.hallReserve; });
     var fighting = false;
     var dropped = false;
+    var p = hero(G);
     var i;
     for (i = 0; i < starters.length; i++) {
       if (starters[i].dead || starters[i].hp <= 0) dropped = true;
-      if (starters[i].engaged) fighting = true;
+      if (hallAggroing(starters[i], p)) fighting = true;
     }
-    var p = hero(G);
-    if (!fighting && p) {
-      for (i = 0; i < starters.length; i++) {
-        if (starters[i].dead || starters[i].hp <= 0) continue;
-        var reach = typeof starters[i].aggro === 'number' ? starters[i].aggro : 7.2;
-        if (reach > 0 && tileDist(starters[i], p) <= reach + 1e-6) fighting = true;
-      }
+    if (!L.flags.hallWaveOn) {
+      if (!fighting && !dropped) return;
+      L.flags.hallWaveOn = 1;
+      L.flags.hallWave = 1;
     }
-    if (!fighting && !dropped) return;
-    if (!L.flags.hallWaveOn) L.flags.hallWaveOn = 1;
     L.flags.hallWaveT = (L.flags.hallWaveT || 0) + (dt || 0);
     var sec = (hall.wave && hall.wave.sec) || 10;
     if (!(L.flags.hallWaveT >= sec - 1e-6 || dropped)) return;

@@ -126,10 +126,10 @@ return p.then(ok=>{
 
   /* host loop / title → play stay wired */
   const loop=html.match(/function loop\([\s\S]*?\n\}/)[0];
-  assert(/SystemsReady\.systemsHold\(\)/.test(loop),
+  const sim=html.match(/function advanceSim\([\s\S]*?\n\}/)[0];
+  assert(/SystemsReady\.systemsHold\(\)/.test(sim) && /advanceSim\(dt\)/.test(loop),
     'loop holds update() while systems are not ready');
-  assert(/if\(!holdingWorld && !holdingSystems\) update\(dt\)/.test(loop) ||
-    /else if\(!holdingWorld && !holdingSystems\) update\(dt\)/.test(loop),
+  assert(/else if\(!holdingWorld && !holdingSystems\) update\(SIM_STEP\)/.test(sim),
     'systems hold sits next to the existing world-art hold');
   assert(/tryEnterPlay\(\)/.test(loop) && /requestAnimationFrame\(loop\)/.test(loop),
     'play loop still rAF-ticks and tries to enter play');

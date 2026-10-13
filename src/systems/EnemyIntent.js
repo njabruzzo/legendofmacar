@@ -331,6 +331,13 @@
 
     var tgt = pickTarget(e, host);
     var seen = !!(tgt && canSee(e, tgt, host));
+    /* A hall reserve who has been called already knows where the fight is.
+       Darkness and a blocked sight line do not send him home. Frontage
+       still holds him on the ring once he arrives. */
+    if (e.hallJoin && tgt) {
+      if (inMeleeOf(e, tgt, host)) e.hallJoin = 0;
+      else seen = true;
+    }
     var dTgt = tgt ? distOf(host, e, tgt) : 1e9;
     var dHome = distOf(host, e, { x: e.homeX, y: e.homeY });
     var leash = leashOf(e);

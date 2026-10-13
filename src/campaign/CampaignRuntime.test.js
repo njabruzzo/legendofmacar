@@ -1219,7 +1219,21 @@ function bootL4(extra) {
   R.tick(timed, 9.9);
   assert(timedBack.every(function (e) { return e.hallReserve === 1; }), 'nine seconds of the fight leaves the back room closed');
   R.tick(timed, 0.2);
-  assert(timed.lvl.flags.hallWaveOut === 1 && timedBack.every(function (e) { return !e.hallReserve && e.engaged === 1 && e.aggro === 7.2; }), 'ten seconds brings the two back-room guards');
+  assert(timed.lvl.flags.hallWave === 2 && timed.lvl.flags.hallWaveOut === 1 && timedBack.every(function (e) { return !e.hallReserve && e.hallJoin === 1 && e.engaged === 1 && e.aggro === 11 && e.leash === 11 && e.homeX === 46 && e.homeY === 20; }), 'ten seconds brings the two back-room guards across the hall');
+
+  const latch = bootL4();
+  const latchChief = latch.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
+  const latchHero = latch.ents.filter(function (e) { return e.hero; })[0];
+  latchChief.engaged = 1;
+  R.tick(latch, 4);
+  latchChief.engaged = 0;
+  latch.ents.forEach(function (e) { if (e && e.room === 'hall-of-names') e.aggro = 0; });
+  latchHero.x = 1;
+  latchHero.y = 1;
+  R.tick(latch, 5.9);
+  assert(latch.lvl.flags.hallWave === 1 && latch.ents.some(function (e) { return e.hallReserve; }), 'the clock keeps the ten seconds once the first foe has aggroed');
+  R.tick(latch, 0.2);
+  assert(latch.lvl.flags.hallWave === 2 && !latch.ents.some(function (e) { return e.hallReserve; }), 'the back room still opens at ten seconds after that first aggro');
 
   const dropped = bootL4();
   const dropBack = dropped.ents.filter(function (e) { return e.hallReserve; });
