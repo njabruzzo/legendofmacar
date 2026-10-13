@@ -1196,12 +1196,12 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'goblin','goblin_w1','goblin_w2','rat','rat_w1','rat_w2','thinone','thinone_w1','thinone_w2',
-     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass','demon_dwarfface'],
+     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass'],
   30:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'thinone','thinone_w1','thinone_w2','spider','spider_huge','spider_giant','phasespider',
-     'demon_dwarfface','rubydoor'],
+     'rubydoor'],
   3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -5608,7 +5608,8 @@ function makeCampaignL3(){
     spawn:{x:128.2,y:73.4}, stair:{x:138.1,y:111.2},
     tick:null, guide:null, wallHP:{}};
   if(typeof L3Shell!=='undefined' && L3Shell.carve) L3Shell.carve(L.grid,{caveDisk:caveDisk,rect:rect,carvePath:carvePath});
-  sealOuter(L.grid);
+  const deepGrid=L.grid;
+  sealOuter(deepGrid);
   L.seen=newGrid(L.w,L.h,0);
   L.vis=newGrid(L.w,L.h,0);
   const dress=(typeof L3Shell!=='undefined' && L3Shell.dressing)||[];
@@ -7609,8 +7610,7 @@ function loadSavedGame(){
   noteQuietSave();
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
-function endChapter(){
-  if(CH_META[G.ch]){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked||1, G.ch+1); }
+function endChapter(){ G.cleared[G.ch]=1; if(CH_META[G.ch]) G.unlocked=Math.max(G.unlocked,G.ch+1); else delete G.cleared[G.ch];
   if(G.ch===1&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteCleared) CampaignRuntime.noteCleared(G);
   G.sang=false; G.campScroll=0; G.campTab='repair'; G.campSel=null; G.campSkills=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
