@@ -71,7 +71,7 @@ assert(!level.spawns.some(function (group) {
 const hall = level.spawns.filter(function (group) { return group.id === 'hall-of-names'; })[0];
 assert(hall.members.some(function (member) { return member.key === 'orcChief' && member.count === 1; }), 'the hall has the chief');
 assert(hall.members.some(function (member) { return member.key === 'orcGuard' && member.count === 2 && member.wave !== 'back'; }), 'two guards start in the hall');
-assert(hall.members.some(function (member) { return member.key === 'orcGuard' && member.count === 2 && member.wave === 'back'; }), 'two guards wait in the back room');
+assert(hall.members.some(function (member) { return member.key === 'orcGuard' && member.count === 1 && member.wave === 'back'; }), 'one guard waits in the back room');
 assert(hall.members.some(function (member) { return member.key === 'orcShaman' && member.count === 1 && member.decision === 'D15-A'; }), 'the 7th-level shaman stands in the hall');
 function countOf(key) {
   var n = 0;
@@ -123,7 +123,7 @@ assert(L4.MONSTERS.wolf.art.standIn === true && L4.MONSTERS.wolf.art.file === 'a
 assert(L4.MONSTERS.rubyGuardian.art.file === 'assets/creatures/mon_construct.png' && L4.MONSTERS.rubyGuardian.art.standIn === true, 'Guardian IV uses the Ruin Guard sheet');
 assert(L4.bossGuardianXp() === 1030 + 255 && L4.bossGuardianXp() === 1285, 'L4 boss-plus-guardian XP is the stat blocks, 1285');
 assert(L4.FORECAST_BOSS_GUARDIAN_XP === 1285 && T.level(4).pacing.bossPlusGuardianXp === 1285, 'the 1.12 column matches the stat blocks, 1285');
-assert(L4.forecastPackXp() === 3651 && L4.forecastPackXp() !== L4.FORECAST_BOSS_GUARDIAN_XP, 'the forecast pack is nine worgs, two wolves, four guards, and the rest of the floor, 3651');
+assert(L4.forecastPackXp() === 3571 && L4.forecastPackXp() !== L4.FORECAST_BOSS_GUARDIAN_XP, 'the forecast pack is nine worgs, two wolves, three guards, and the rest of the floor, 3571');
 assert(T.statBossGuardianXp(T.level(4)) === L4.bossGuardianXp(), 'the campaign table uses the same L4 stat-block total');
 assert(T.level(4).pacing.cumulativeXp === 51200 && T.level(4).pacing.macar === 'F6', 'the L4 clear stays at the 1.12 F6 row, 51200');
 assert(T.level(4).pacing.cumulativeXp >= T.FIGHTER_XP.F6 && T.level(4).pacing.cumulativeXp < T.FIGHTER_XP.F7, '51200 sits in the F6 band');
@@ -153,7 +153,7 @@ lockedFirst.forEach(function (name) {
 assert(lockedFirst.length === L4.SHAMAN.slots[1] && lockedFirst.length === 5, 'the five locked 1st-level spells fill the five 1st-level slots');
 assert(L4.SHAMAN.houseList.length === 7 && L4.SHAMAN.bless.range === '5"' && L4.SHAMAN.bless.rounds === 6 && L4.SHAMAN.spellEverySec === 2, 'the house list and Bless timing are the printed lines');
 assert(L4.CHIEF.priority.length === 4 && L4.CHIEF.moraleBelowHpFraction === 0.25 && L4.CHIEF.fallback === 'ogre-cave' && L4.CHIEF.helplessHitsLand === true, 'the chief has four steps and falls back to the cave below a quarter');
-assert(L4.HALL.guards === 4 && L4.HALL.total === 7 && L4.HALL.opening.guards === 2 && L4.HALL.wave.guards === 2 && L4.HALL.wave.sec === 10 && L4.HALL.wave.onFirstDrop === true, 'the hall is seven: two guards up front, two from the back room');
+assert(L4.HALL.guards === 3 && L4.HALL.total === 6 && L4.HALL.opening.guards === 2 && L4.HALL.wave.guards === 1 && L4.HALL.wave.sec === 10 && L4.HALL.wave.onFirstDrop === true, 'the hall is six: two guards up front, one from the back room');
 assert(L4.HALL.moraleOnChiefDeath.holdOnOrUnder === 50 && L4.HALL.moraleOnHalfFallen.holdOnOrUnder === 50 && L4.HALL.cadenceSec === 1.05 && L4.SHAMAN.fleeAtHpFraction === 0.5, 'guards and the leader hold on 50, the shaman flees at half, cadence stays 1.05 s');
 assert(L4.CHIEF.bossFlagOnIndividual === false && L4.CHIEF.separateFromGuardian === true, 'the chief stays separate from Guardian IV');
 

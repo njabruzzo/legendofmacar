@@ -2021,7 +2021,7 @@
             },
             {
               "key": "orcGuard",
-              "count": 2,
+              "count": 1,
               "x": 52,
               "y": 20,
               "role": "guard",

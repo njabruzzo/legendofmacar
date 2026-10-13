@@ -298,11 +298,11 @@ const WALK_CYCLES_PER_SECOND=1.675; // Two alternating steps per full stride.
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND; }
 function holdFollowWalk(e, lead){
   if(!e||!lead||!lead.moving) return;
-  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  const t=(typeof G!=='undefined'&&G&&G.elapsed)||0;
   e._followWalkHold=t+0.12;
 }
 function followWalkMoving(e){
-  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  const t=(typeof G!=='undefined'&&G&&G.elapsed)||0;
   return !!(e && (e.moving || ((e._followWalkHold||0)>t)));
 }
 /* Limner walk: planted boot swaps every half gait. w1 and w2 must be the
@@ -654,29 +654,130 @@ function heroFearStep(p, dt){
   steerWalk(p, dx, dy, run, dt||0);
   return true;
 }
+/* World sight, never the viewport. A foe past this, or behind rock, is out. */
+function fleeSightR(){
+  return (typeof SIGHT_R==='number' && SIGHT_R>0) ? SIGHT_R : 12;
+}
+function foeOutOfSight(e){
+  const p=(typeof player==='function') ? player() : null;
+  if(!p || p.dead) return true;
+  if(Math.hypot((e.x||0)-(p.x||0), (e.y||0)-(p.y||0)) > fleeSightR()) return true;
+  if(typeof hasLOS==='function' && !hasLOS(p.x, p.y, e.x, e.y)) return true;
+  const L=(typeof G!=='undefined' && G && G.lvl) ? G.lvl : null;
+  if(L && L.vis && typeof tileVisible==='function' && !tileVisible(e.x, e.y)) return true;
+  return false;
+}
+function fleeCanStand(e, x, y){
+  const r=e && e.r!=null ? e.r : 0.36;
+  if(typeof canBe==='function') return !!canBe(x, y, r, e);
+  if(typeof walk==='function') return !!walk(x, y, e);
+  return true;
+}
+function fleeSegmentClear(e, x, y){
+  const d=Math.hypot(x-(e.x||0), y-(e.y||0));
+  if(!(d>0)) return fleeCanStand(e, x, y);
+  const n=Math.max(1, Math.ceil(d/0.25));
+  for(let i=1;i<=n;i++){
+    const u=i/n;
+    if(!fleeCanStand(e, e.x+(x-e.x)*u, e.y+(y-e.y)*u)) return false;
+  }
+  return true;
+}
+function planFleePath(e, goal){
+  if(!goal || typeof Navigation==='undefined' || !Navigation.planRoute) return null;
+  let plan=null;
+  try{
+    plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {
+      canBe:function(x,y,r,a){ return fleeCanStand(a||e, x, y); },
+      maxExpand:8000
+    });
+  }catch(_){ return null; }
+  if(!plan || !plan.ok || !plan.path || plan.path.length<2) return null;
+  const out=[];
+  for(let i=1;i<plan.path.length;i++){
+    const c=plan.path[i];
+    if(!c) continue;
+    const prev=out.length ? out[out.length-1] : e;
+    const last=i===plan.path.length-1;
+    if(last || Math.hypot(c.x-prev.x, c.y-prev.y)>=0.7) out.push({x:c.x, y:c.y});
+  }
+  return out.length ? out : null;
+}
+function parkFledFoe(e){
+  e.hidden=1;
+  e.fledOut=1;
+  e.aggro=0;
+  e.engaged=0;
+  e.moving=0;
+  e.ix=0;
+  e.iy=0;
+}
+function arriveFleePoint(e){
+  if(e.fleePath && e.fleePath.length){
+    e.fleeTo=e.fleePath.shift();
+    e.fleeStuck=0;
+    return;
+  }
+  if(e.onArrive){
+    const fn=e.onArrive;
+    e.onArrive=null;
+    e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
+    fn();
+    return;
+  }
+  parkFledFoe(e);
+}
 function stepFoeFlee(e, dt){
   if(e.stun>0) e.stun=Math.max(0, e.stun-dt);
+  if(e.fledOut){ e.moving=0; e.ix=0; e.iy=0; return; }
+  if(!e._fleeSeen){
+    e._fleeSeen=1;
+    if((e.fleePath && e.fleePath.length) || e.onArrive) e._authoredFlee=1;
+  }
+  if(!e._authoredFlee && foeOutOfSight(e)){
+    parkFledFoe(e);
+    return;
+  }
+  if(!e._fleeGoal && e.fleeTo && e.fleeTo.x!=null) e._fleeGoal={x:e.fleeTo.x, y:e.fleeTo.y};
+  if(!(e.fleePath && e.fleePath.length) && !e._fleeRouted && !e._authoredFlee && e._fleeGoal){
+    const built=planFleePath(e, e._fleeGoal);
+    e._fleeRouted=1;
+    if(built && built.length){
+      e.fleePath=built;
+      e.fleeTo=e.fleePath.shift();
+    }
+  }
   const aim=foeMoveAim(e, null);
   if(!aim) return;
   if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
     PartyOrders.noteMoraleFlee(e);
   const t=aim, d=dist(e,t);
-  e.fleeStuck=(e.fleeStuck||0)+dt;
-    if(d>0.55 && e.fleeStuck<3.2){
-    const run=Math.max(e.sp||4, 5.8);
-    steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
-    /* A freed prisoner looks back toward the cave while she runs. */
-    if(e.glanceBack>0){
-      e.glanceBack=Math.max(0, e.glanceBack-dt);
-      e.fdx=-(e.fdx||0); e.fdy=-(e.fdy||0);
-    }
-  } else {
-    e.fleeStuck=0;
+  const run=Math.max(e.sp||4, 5.8);
+  const ox=e.x, oy=e.y;
+  const reach=run*(dt||0)+1e-4;
+  if(d<=reach && d<=1.25 && fleeSegmentClear(e, t.x, t.y)){
     e.x=t.x; e.y=t.y;
-    if(e.fleePath && e.fleePath.length) e.fleeTo=e.fleePath.shift();
-    else {
-      e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
-      if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
+    e.fleeStuck=0;
+    arriveFleePoint(e);
+    return;
+  }
+  steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
+  if(e.glanceBack>0){
+    e.glanceBack=Math.max(0, e.glanceBack-dt);
+    e.fdx=-(e.fdx||0); e.fdy=-(e.fdy||0);
+  }
+  const moved=Math.hypot(e.x-ox, e.y-oy);
+  if(moved<0.02) e.fleeStuck=(e.fleeStuck||0)+(dt||0);
+  else e.fleeStuck=0;
+  if((e.fleeStuck||0)>=0.45 && e._fleeGoal && !e._authoredFlee){
+    e.fleeStuck=0;
+    e.fleePath=null;
+    e._fleeRouted=0;
+    const again=planFleePath(e, e._fleeGoal);
+    e._fleeRouted=1;
+    if(again && again.length){
+      e.fleePath=again;
+      e.fleeTo=e.fleePath.shift();
     }
   }
 }
@@ -15720,7 +15821,7 @@ function update(dt){
   if(G.talk){
     if(talkWalkOffKey(G.talk.key) && IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy;
-      if(Math.hypot(ox,oy)>12*(UIS||1)) dismissTalkWalkOff();
+      if(Math.hypot(ox,oy)>12) dismissTalkWalkOff();
     }
     return;
   }
@@ -15749,11 +15850,12 @@ function update(dt){
     let dx=0,dy=0, analog=0, routeDest=false, routeRadius=.26;
     if(IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy, m=Math.hypot(ox,oy);
-      const dead=6*UIS;
+      const dead=8;
       if(m>dead){
-        const f=clamp((m-dead)/(46*UIS),0,1);
+        const f=clamp((m-dead)/46,0,1);
         const sx=ox/m, sy=oy/m;
-        let wx=sy/(TH/2)+sx/(TW/2), wy=sy/(TH/2)-sx/(TW/2);
+        /* Fixed 2:1 iso. Screen size must not change the world heading. */
+        let wx=sy+sx/2, wy=sy-sx/2;
         const wm=Math.hypot(wx,wy)||1; dx=wx/wm; dy=wy/wm; analog=f; p.dest=null;
       }
     }
@@ -16239,7 +16341,7 @@ function update(dt){
   for(const q of G.parts){ q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.vz-=11*dt;
     if(q.z<0){q.z=0;q.vz*=-.35;q.vx*=.6;q.vy*=.6;} q.life-=dt; }
   G.parts=G.parts.filter(q=>q.life>0);
-  const pcap=QUALITY?48:12;
+  const pcap=48;
   if(G.parts.length>pcap) G.parts.splice(0, G.parts.length-pcap);
   for(const t of G.texts){ t.y-=dt*.9; t.life-=dt; }
   G.texts=G.texts.filter(t=>t.life>0);
@@ -23792,12 +23894,16 @@ function advanceSim(frameDt){
   let guard=0;
   const holdingWorld=G.scene==='play' && !worldArtReady(G.ch);
   const holdingSystems=typeof SystemsReady!=='undefined' && SystemsReady.systemsHold();
-  while(simAcc+1e-8>=SIM_STEP && guard<30){
+  while(simAcc+1e-8>=SIM_STEP && guard<15){
     simAcc-=SIM_STEP;
     guard++;
+    G.t+=SIM_STEP;
+    if(typeof resolveTaps==='function') resolveTaps();
     if(G.hitstop>0) G.hitstop=Math.max(0, G.hitstop-SIM_STEP);
     else if(!holdingWorld && !holdingSystems) update(SIM_STEP);
   }
+  if(guard>=15) simAcc=0;
+  else if(simAcc<1e-6) simAcc=0;
 }
 function paintFrame(){
   const keep=Math.random;
@@ -23810,14 +23916,12 @@ function loop(now){
   let dt=(now-last)/1000; last=now;
   if(!(dt>=0)) dt=0;
   dt=Math.min(dt, 0.25);
-  G.t+=dt;
   tickGfx(dt);
   advanceSim(dt);
   tryEnterPlay();
   tickAutosave();
   syncMusic();
   paintFrame();
-  resolveTaps();
   requestAnimationFrame(loop);
 }
 resize();
@@ -23834,7 +23938,7 @@ try{
     document.title='KIN '+fallen.length+': '+fallen.join(', ');
   }
 }catch(e){ console.error(e); document.title='START ERR '+e; }
-render();
+paintFrame();
 requestAnimationFrame(loop);
 
 /* ===================== DIAGNOSTIC OVERLAY (pause / ?diag=1) ===============

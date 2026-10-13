@@ -294,7 +294,7 @@ function runFrames(ctx, frameDt, seconds) {
   const mac = heroOf(door.G);
   mac.x = 40; mac.y = 20;
   const before = starters(door.G);
-  assert(before.length >= 1 && before.every(function (e) { return !e.engaged; }) && backs(door.G).length === 2, 'the hall starts with the back room closed and nobody pre-engaged');
+  assert(before.length >= 1 && before.every(function (e) { return !e.engaged; }) && backs(door.G).length === 1, 'the hall starts with the back room closed and nobody pre-engaged');
   step(door, SIM_STEP);
   assert(before.some(function (e) { return e.engaged === 1; }), 'the first hall foe aggros inside update, without a harness flag');
   assert(door.G.lvl.flags.hallWave === 1 && door.G.lvl.flags.hallWaveOn === 1 && backs(door.G).every(function (e) { return e.hallReserve === 1; }), 'that aggro starts the wave counter at 1');
@@ -309,12 +309,12 @@ function runFrames(ctx, frameDt, seconds) {
   runFrames(phone, SIM_STEP, 12);
   function arrived(g, starts) {
     const now = backs(g);
-    return g.lvl.flags.hallWave === 2 && now.length === 2 && now.every(function (e, i) {
+    return g.lvl.flags.hallWave === 2 && now.length === 1 && now.every(function (e, i) {
       return !e.hallReserve && e.hallJoin === 1 && e.homeX === 46 && e.homeY === 20 && e.aggro === 11 && e.leash === 11 && e.x < starts[i] - 1;
     });
   }
-  assert(arrived(laptop.G, lapBack), 'ten seconds of the live loop brings both back-room guards across the hall');
-  assert(arrived(phone.G, phoneBack), 'the same ten seconds on phone frames brings both guards across');
+  assert(arrived(laptop.G, lapBack), 'ten seconds of the live loop brings the back-room guard across the hall');
+  assert(arrived(phone.G, phoneBack), 'the same ten seconds on phone frames brings that guard across');
   const lx = backs(laptop.G).map(function (e) { return e.x; });
   const px = backs(phone.G).map(function (e) { return e.x; });
   assert(lx.every(function (x, i) { return x === px[i]; }), 'laptop and phone leave the guards on the same tiles');

@@ -161,7 +161,7 @@
           "members": [
             { "key": "orcChief", "count": 1, "x": 46, "y": 20, "role": "boss" },
             { "key": "orcGuard", "count": 2, "x": 46, "y": 18, "role": "guard" },
-            { "key": "orcGuard", "count": 2, "x": 52, "y": 20, "role": "guard", "wave": "back" },
+            { "key": "orcGuard", "count": 1, "x": 52, "y": 20, "role": "guard", "wave": "back" },
             { "key": "orcShaman", "count": 1, "x": 44.2, "y": 18.4, "decision": "D15-A" },
             { "key": "orcLeader", "count": 1, "x": 48, "y": 16, "role": "leader" }
           ]

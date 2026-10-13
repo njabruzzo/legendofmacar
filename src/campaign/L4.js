@@ -268,15 +268,15 @@
     ]
   };
 
-  /* Sage §7.16. Four guards, two of them from the back room. */
+  /* Sage §7.16 fallback. Three guards, one of them from the back room. */
   var HALL = {
-    guards: 4,
+    guards: 3,
     leader: 1,
     shaman: 1,
     chief: 1,
-    total: 7,
+    total: 6,
     opening: { guards: 2, leader: 1, shaman: 1, chief: 1 },
-    wave: { guards: 2, from: 'back-room', sec: 10, onFirstDrop: true },
+    wave: { guards: 1, from: 'back-room', sec: 10, onFirstDrop: true },
     moraleOnChiefDeath: { who: ['guards', 'leader'], roll: 'd100', holdOnOrUnder: 50, once: true },
     moraleOnHalfFallen: { who: ['guards', 'leader'], roll: 'd100', holdOnOrUnder: 50, once: true },
     cadenceSec: 1.05
@@ -405,7 +405,7 @@
   var FORECAST_PACK = {
     chief: 1,
     shaman: 1,
-    guards: 4,
+    guards: 3,
     worgs: 9,
     wolves: 2,
     orcs: 8,
@@ -419,7 +419,7 @@
     },
     {
       id: 'guard-count',
-      note: 'Resolved by §7.16. Four chief guards: two start in the hall, two come from the back room.'
+      note: 'Resolved by §7.16 fallback. Three chief guards: two start in the hall, one comes from the back room.'
     },
     {
       id: 'assistant-count',

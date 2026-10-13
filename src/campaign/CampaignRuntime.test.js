@@ -539,11 +539,11 @@ assert(shaman4 && shaman4.sprite === 'orc' && shaman4.scale === 1.05 && shaman4.
 const chief = G4.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(chief && chief.campaignKey === 'orcChief' && chief.hp === 132 && chief.ac === 3 && chief.campaignXp === 255 && chief.boss === 0 && chief.dice === '1d8+3', 'the chief has printed hit points and wears no boss flag');
 const hallGuards = G4.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.campaignRole === 'guard'; });
-assert(hallGuards.length === 4 && chief.leash === 7.2 && chief.aggro === 7.2 && chief.homeX === 46 && chief.homeY === 20 && chief.boss === 0, 'the chief is leashed to the hall and wears no boss flag');
+assert(hallGuards.length === 3 && chief.leash === 7.2 && chief.aggro === 7.2 && chief.homeX === 46 && chief.homeY === 20 && chief.boss === 0, 'the chief is leashed to the hall and wears no boss flag');
 const hallFront = hallGuards.filter(function (e) { return !e.hallReserve; });
 const hallBack = hallGuards.filter(function (e) { return e.hallReserve; });
 assert(hallFront.length === 2 && hallFront.every(function (e) { return e.leash === 7.2 && e.aggro === 7.2 && Math.hypot(e.homeX - 46, e.homeY - 18) < 1.2 && e.boss === 0; }), 'the two hall guards share the hall leash');
-assert(hallBack.length === 2 && hallBack.every(function (e) { return e.hallWave === 'back' && e.aggro === 0 && e.leash === 7.2 && Math.hypot(e.homeX - 52, e.homeY - 20) < 1.2; }), 'two guards wait in the back of the hall');
+assert(hallBack.length === 1 && hallBack.every(function (e) { return e.hallWave === 'back' && e.aggro === 0 && e.leash === 7.2 && Math.hypot(e.homeX - 52, e.homeY - 20) < 1.2; }), 'one guard waits in the back of the hall');
 (function chiefStaysInTheHall() {
   require('../systems/SystemsReady.js');
   require('../systems/EnemyIntent.js');
@@ -697,7 +697,7 @@ const guards4 = G4.ents.filter(function (e) { return e.campaignKey === 'orcGuard
 const leaders4 = G4.ents.filter(function (e) { return e.campaignKey === 'orcLeader'; });
 const wargs4 = G4.ents.filter(function (e) { return e.campaignKey === 'warg'; });
 const wolves4 = G4.ents.filter(function (e) { return e.campaignKey === 'wolf'; });
-assert(guards4.length === 4 && guards4.every(function (e) { return e.sprite === 'orc' && e.hd === 3 && e.ac === 4 && e.hp === 60 && isFinite(e.scale); }), 'guards use the orc sheet, AC 4, attack as 3 HD, and 15 hp');
+assert(guards4.length === 3 && guards4.every(function (e) { return e.sprite === 'orc' && e.hd === 3 && e.ac === 4 && e.hp === 60 && isFinite(e.scale); }), 'guards use the orc sheet, AC 4, attack as 3 HD, and 15 hp');
 assert(chief.hd === 5 && chief.ac === 3 && chief.hp === 132 && chief.sprite === 'orc', 'the chief attacks as 5 HD at AC 3');
 assert(shaman4.hd === 7 && shaman4.ac === 5 && shaman4.sprite === 'orc', 'the shaman attacks as 7 HD at AC 5');
 assert(guard4.hd === 8 && guard4.ac === 3 && guard4.hp === 192, 'the guardian attacks as 8 HD at AC 3');
@@ -1111,7 +1111,7 @@ function bootL4(extra) {
   g2.lvl._campaignHost.d100 = function () { return 66; };
   R.kingStep(g2, boss2);
   const followed = g2.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.fleeTo && e.fleeTo.x === 32 && e.fleeTo.y === 50; });
-  assert(boss2.moraleHold === 0 && boss2.fleeTo && boss2.fleeTo.x === 32 && boss2.fleeTo.y === 50 && followed.length === 4, 'a morale roll of 66 sends the chief and his guards to the ogre cave');
+  assert(boss2.moraleHold === 0 && boss2.fleeTo && boss2.fleeTo.x === 32 && boss2.fleeTo.y === 50 && followed.length === 3, 'a morale roll of 66 sends the chief and his guards to the ogre cave');
 })();
 
 (function guardianCone() {
@@ -1210,7 +1210,7 @@ function bootL4(extra) {
   quiet.ents.filter(function (e) { return e.hero; })[0].x = 1;
   quiet.ents.filter(function (e) { return e.hero; })[0].y = 1;
   R.tick(quiet, 12);
-  assert(quietBack.length === 2 && quietBack.every(function (e) { return e.hallReserve === 1 && e.aggro === 0; }), 'the back room stays put until the hall fight starts');
+  assert(quietBack.length === 1 && quietBack.every(function (e) { return e.hallReserve === 1 && e.aggro === 0; }), 'the back room stays put until the hall fight starts');
 
   const timed = bootL4();
   const timedBack = timed.ents.filter(function (e) { return e.hallReserve; });
@@ -1219,7 +1219,7 @@ function bootL4(extra) {
   R.tick(timed, 9.9);
   assert(timedBack.every(function (e) { return e.hallReserve === 1; }), 'nine seconds of the fight leaves the back room closed');
   R.tick(timed, 0.2);
-  assert(timed.lvl.flags.hallWave === 2 && timed.lvl.flags.hallWaveOut === 1 && timedBack.every(function (e) { return !e.hallReserve && e.hallJoin === 1 && e.engaged === 1 && e.aggro === 11 && e.leash === 11 && e.homeX === 46 && e.homeY === 20; }), 'ten seconds brings the two back-room guards across the hall');
+  assert(timed.lvl.flags.hallWave === 2 && timed.lvl.flags.hallWaveOut === 1 && timedBack.every(function (e) { return !e.hallReserve && e.hallJoin === 1 && e.engaged === 1 && e.aggro === 11 && e.leash === 11 && e.homeX === 46 && e.homeY === 20; }), 'ten seconds brings the back-room guard across the hall');
 
   const latch = bootL4();
   const latchChief = latch.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
@@ -1253,14 +1253,14 @@ function bootL4(extra) {
   const deathChief = death.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
   deathChief.dead = 1;
   deathChief.hp = 0;
-  const deathRolls = [50, 51, 50, 51, 50];
+  const deathRolls = [50, 51, 50, 51];
   let deathAt = 0;
   death.lvl._campaignHost.d100 = function () { return deathRolls[deathAt++]; };
   const deathSubjects = subjectsOf(death);
-  assert(deathSubjects.length === 5, 'four guards and the leader roll when the chief dies');
+  assert(deathSubjects.length === 4, 'three guards and the leader roll when the chief dies');
   R.tick(death, 0.05);
   assert(death.lvl.flags.hallMoraleChief === 1 && !death.lvl.flags.hallMoraleHalf, 'the chief-death roll is once, before half the hall is down');
-  assert(deathAt === 5, 'each guard and the leader rolls once');
+  assert(deathAt === 4, 'each guard and the leader rolls once');
   assert(deathSubjects[0].hallMoraleHold === 1 && !deathSubjects[0].fleeTo, 'a roll of 50 holds');
   assert(deathSubjects[1].hallMoraleHold === 0 && deathSubjects[1].fleeTo && deathSubjects[1].fleeTo.x === 32 && deathSubjects[1].fleeTo.y === 50, 'a roll of 51 flees to the ogre cave');
   const deathShaman = death.ents.filter(function (e) { return e.campaignKey === 'orcShaman'; })[0];
@@ -1269,13 +1269,11 @@ function bootL4(extra) {
   deathSubjects[0].hp = 0;
   deathSubjects[2].dead = 1;
   deathSubjects[2].hp = 0;
-  deathSubjects[4].dead = 1;
-  deathSubjects[4].hp = 0;
   const halfRolls = [50, 51];
   let halfAt = 0;
   death.lvl._campaignHost.d100 = function () { return halfRolls[halfAt++]; };
   R.tick(death, 0.05);
-  assert(death.lvl.flags.hallMoraleHalf === 1 && halfAt === 2, 'half the hall, four of seven, rolls the survivors once more');
+  assert(death.lvl.flags.hallMoraleHalf === 1 && halfAt === 2, 'half the hall, three of six, rolls the survivors once more');
   assert(deathSubjects[1].hallMoraleHold === 1 && !deathSubjects[1].fleeTo, 'the second roll can hold a guard who had fled');
   assert(deathSubjects[3].hallMoraleHold === 0 && deathSubjects[3].fleeTo && deathSubjects[3].fleeTo.x === 32, 'the second roll can send the other survivor to the cave');
   const again = halfAt;
@@ -1300,7 +1298,7 @@ function bootL4(extra) {
   const pacedHall = paced.ents.filter(function (e) {
     return e.room === 'hall-of-names' && (e.campaignKey === 'orcGuard' || e.campaignKey === 'orcLeader' || e.campaignKey === 'orcChief');
   });
-  assert(pacedHall.length === 6 && pacedHall.every(function (e) { return e.cd === 1.05; }) && L4.HALL.cadenceSec === 1.05, 'the chief, the leader, and the guards keep a 1.05 s swing');
+  assert(pacedHall.length === 5 && pacedHall.every(function (e) { return e.cd === 1.05; }) && L4.HALL.cadenceSec === 1.05, 'the chief, the leader, and the guards keep a 1.05 s swing');
   assert(/orc:\(\)=>ent\(\{kind:'orc',sprite:'orc',hp:42,sp:2\.7,dmg:10,range:1\.0,cd:1\.05/.test(html), 'the orc factory swing stays 1.05 s');
   const pacedGuard = paced.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
   assert(pacedGuard.dice === '1d10' && pacedGuard.cd === 1.5, 'Guardian IV slams for 1d10 every 1.5 s');

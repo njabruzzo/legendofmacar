@@ -404,7 +404,7 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
   R.tick(g, 40);
   assert(!g._wanderLast, 'a 3-turn check stays on the dungeon-turn clock');
   g.lvl.campaignSpec.map.wander.check.every = book;
-  assert(L4.FORECAST_PACK.worgs === 9 && L4.FORECAST_PACK.wolves === 2 && L4.FORECAST_PACK.guards === 4 && L4.forecastPackXp() === 3651, 'the forecast column is 9 worgs, 2 wolves, and 4 guards');
+  assert(L4.FORECAST_PACK.worgs === 9 && L4.FORECAST_PACK.wolves === 2 && L4.FORECAST_PACK.guards === 3 && L4.forecastPackXp() === 3571, 'the forecast column is 9 worgs, 2 wolves, and 3 guards');
 })();
 
 (function magicCap() {
