@@ -505,6 +505,10 @@
     var bossKey = spec.map && spec.map.boss && spec.map.boss.key;
     if ((member && member.role === 'boss') || (bossKey && key === bossKey && member && member.role === 'boss')) e.campaignRole = 'boss';
     else e.campaignRole = (member && member.role) || 'resident';
+    if (member && member.wave === 'back') {
+      e.hallWave = 'back';
+      e.hallReserve = 1;
+    }
     if (key === 'goblinShaman' || (mon && mon.casterLevel)) {
       e.caster = 1;
       e.shaman = 0;
@@ -576,8 +580,11 @@
     var reach = roomLeash(spec, room);
     e.homeX = e.x;
     e.homeY = e.y;
-    e.aggro = reach;
     e.leash = reach;
+    if (e.hallReserve) {
+      e.aggro = 0;
+      e.engaged = 0;
+    } else e.aggro = reach;
   }
 
   function stampGuardian(opts, spec, e) {
@@ -932,7 +939,11 @@
         x: e.x,
         y: e.y,
         vanished: e.vanished ? 1 : 0,
-        hidden: e.hidden ? 1 : 0
+        hidden: e.hidden ? 1 : 0,
+        hallReserve: e.hallReserve ? 1 : 0,
+        hallWave: e.hallWave || '',
+        engaged: e.engaged ? 1 : 0,
+        aggro: e.aggro
       });
     });
     function marks(list, pred) {
@@ -990,6 +1001,17 @@
         e.dead = 1;
         e.hp = 0;
         if (best.vanished) { e.vanished = 1; e.hidden = 1; }
+      }
+      if (e.hallWave === 'back' || best.hallWave === 'back') {
+        e.hallWave = 'back';
+        e.hallReserve = best.hallReserve ? 1 : 0;
+        if (e.hallReserve) {
+          e.aggro = 0;
+          e.engaged = 0;
+        } else {
+          e.aggro = typeof best.aggro === 'number' ? best.aggro : e.leash;
+          e.engaged = best.engaged ? 1 : 0;
+        }
       }
     });
     restoreMarks(G.props, snap.seals || [], function (p) { return p && p.campaign === 'ogre-seal'; });
@@ -2763,6 +2785,127 @@
     return { ok: true, item: item };
   }
 
+  function hallData(G) {
+    var data = G && G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    return (data && data.HALL) || null;
+  }
+
+  function isHallMember(e) {
+    if (!e || e.room !== 'hall-of-names') return false;
+    if (e.campaignKey === 'orcChief' || e.campaignKey === 'orcShaman') return true;
+    if (e.campaignKey === 'orcLeader' && e.campaignRole === 'leader') return true;
+    if (e.campaignKey === 'orcGuard' && e.campaignRole === 'guard') return true;
+    return false;
+  }
+
+  function hallMembers(G) {
+    return (G.ents || []).filter(isHallMember);
+  }
+
+  function releaseHallReserves(G, reserves) {
+    var leash = roomLeash(G.lvl.campaignSpec, 'hall-of-names');
+    reserves.forEach(function (e) {
+      e.hallReserve = 0;
+      e.aggro = leash;
+      e.leash = leash;
+      e.engaged = 1;
+    });
+    G.lvl.flags.hallWaveOut = 1;
+  }
+
+  /* Back-room guards step in at 10 s of the hall fight, or on the first drop. */
+  function tickHallWave(G, dt) {
+    var L = G && G.lvl;
+    var hall = hallData(G);
+    if (!L || !L.flags || !hall || (L.campaignSpec.level | 0) !== 4) return;
+    var reserves = hallMembers(G).filter(function (e) { return e.hallReserve && !(e.dead || e.hp <= 0); });
+    if (L.flags.hallWaveOut) {
+      if (reserves.length) releaseHallReserves(G, reserves);
+      return;
+    }
+    if (!reserves.length) { L.flags.hallWaveOut = 1; return; }
+    var starters = hallMembers(G).filter(function (e) { return !e.hallReserve; });
+    var fighting = false;
+    var dropped = false;
+    var i;
+    for (i = 0; i < starters.length; i++) {
+      if (starters[i].dead || starters[i].hp <= 0) dropped = true;
+      if (starters[i].engaged) fighting = true;
+    }
+    var p = hero(G);
+    if (!fighting && p) {
+      for (i = 0; i < starters.length; i++) {
+        if (starters[i].dead || starters[i].hp <= 0) continue;
+        var reach = typeof starters[i].aggro === 'number' ? starters[i].aggro : 7.2;
+        if (reach > 0 && tileDist(starters[i], p) <= reach + 1e-6) fighting = true;
+      }
+    }
+    if (!fighting && !dropped) return;
+    if (!L.flags.hallWaveOn) L.flags.hallWaveOn = 1;
+    L.flags.hallWaveT = (L.flags.hallWaveT || 0) + (dt || 0);
+    var sec = (hall.wave && hall.wave.sec) || 10;
+    if (!(L.flags.hallWaveT >= sec - 1e-6 || dropped)) return;
+    releaseHallReserves(G, reserves);
+  }
+
+  function ogreDest(G) {
+    var cave = (G.lvl.campaignSpec.map && G.lvl.campaignSpec.map.ogreCave) || {};
+    return { x: cave.x != null ? cave.x : 32, y: cave.y != null ? cave.y : 50 };
+  }
+
+  function hallMoraleSubjects(G) {
+    return hallMembers(G).filter(function (e) {
+      if (e.dead || e.hp <= 0) return false;
+      return e.campaignKey === 'orcGuard' || e.campaignKey === 'orcLeader';
+    });
+  }
+
+  function applyHallMorale(G, holdOn) {
+    var dest = ogreDest(G);
+    hallMoraleSubjects(G).forEach(function (e) {
+      var roll = roll100(G);
+      e.hallMoraleRoll = roll;
+      if (roll <= holdOn) {
+        e.hallMoraleHold = 1;
+        e.fleeTo = null;
+        e.fleePath = null;
+      } else {
+        e.hallMoraleHold = 0;
+        e.fleeTo = { x: dest.x, y: dest.y };
+      }
+    });
+  }
+
+  /* Guards and the leader roll on the chief's death, and once more at half the hall. */
+  function tickHallMorale(G) {
+    var L = G && G.lvl;
+    var hall = hallData(G);
+    if (!L || !L.flags || !hall || (L.campaignSpec.level | 0) !== 4) return;
+    var members = hallMembers(G);
+    if (!members.length) return;
+    var chiefDead = false;
+    var deadN = 0;
+    var i;
+    for (i = 0; i < members.length; i++) {
+      if (!(members[i].dead || members[i].hp <= 0)) continue;
+      deadN++;
+      if (members[i].campaignKey === 'orcChief') chiefDead = true;
+    }
+    if (chiefDead && !L.flags.hallMoraleChief) {
+      L.flags.hallMoraleChief = 1;
+      var hold = (hall.moraleOnChiefDeath && hall.moraleOnChiefDeath.holdOnOrUnder);
+      if (typeof hold !== 'number') hold = 50;
+      applyHallMorale(G, hold);
+    }
+    var half = Math.ceil(members.length / 2);
+    if (deadN >= half && !L.flags.hallMoraleHalf) {
+      L.flags.hallMoraleHalf = 1;
+      var holdHalf = (hall.moraleOnHalfFallen && hall.moraleOnHalfFallen.holdOnOrUnder);
+      if (typeof holdHalf !== 'number') holdHalf = 50;
+      applyHallMorale(G, holdHalf);
+    }
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
@@ -2771,6 +2914,8 @@
     syncGates(G);
     if (tickOgreCave(G, dt)) return;
     tickKing(G, dt);
+    tickHallWave(G, dt);
+    tickHallMorale(G);
     tickCasters(G, dt);
     tickBarks(G, dt);
     tickTimers(G, dt);

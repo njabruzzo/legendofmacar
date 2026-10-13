@@ -16151,10 +16151,15 @@ function update(dt){
       }
       want=e.ranged?e.range*.75:e.range;
     }
+    let frontRing=null;
+    if(tgt && e.team==='foe' && typeof EnemyIntent!=='undefined' && EnemyIntent.frontageGoal)
+      frontRing=EnemyIntent.frontageGoal(e, tgt, intentHost());
     if(tgt){
-      const d=dist(e,tgt);
-      if(d>want){
-        let vx=tgt.x-e.x, vy=tgt.y-e.y;
+      const aim=frontRing||tgt;
+      const need=frontRing?0.22:want;
+      const d=dist(e,aim);
+      if(d>need){
+        let vx=aim.x-e.x, vy=aim.y-e.y;
         const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
@@ -16173,7 +16178,7 @@ function update(dt){
         if(form) e.followStuck=0;
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
-        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
+        if(!frontRing&&!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
           e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=tgt;
           if(e.team==='foe') armFoeSpecialty(e, tgt);
         }

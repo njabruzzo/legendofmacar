@@ -465,5 +465,57 @@ assert(EI.isMeleePursuer(gob)===true, 'a cave goblin is the melee pursuer');
   }
 }
 
+/* Frontage: three melee bodies on a target. Ranged attacks and spells stay outside the count. */
+{
+  assert(EI.FRONTAGE===3 && EI.FRONTAGE_RING===2 && typeof EI.frontageGoal==='function',
+    'frontage is three melee slots and a ring at 2 tiles');
+  assert(/EnemyIntent\.frontageGoal\(/.test(html), 'the legacy chase obeys the frontage cap');
+  function foeAt(x, y, extra){
+    return Object.assign({
+      team:'foe', dead:0, npc:0, ranged:0, web:0, hero:0, r:0.3, range:1,
+      aggro:8, leash:11, x:x, y:y, sp:2, atk:0, atkMax:0.42, ct:0, cd:1.05,
+      intent:'pursue', engaged:1, homeX:x, homeY:y, name:'Orc'
+    }, extra||{});
+  }
+  const mac={team:'party', hero:1, dead:0, hp:40, x:0, y:0};
+  const nearA=foeAt(0.6, 0.2);
+  const nearB=foeAt(-0.5, 0.4);
+  const nearC=foeAt(0.2, -0.7);
+  const fourth=foeAt(3.2, 0.4);
+  const bow=foeAt(0.3, 0.2, {ranged:1, range:8, name:'Bow'});
+  const caster=foeAt(1.6, 0, {caster:1, range:0.8, name:'Shaman'});
+  const ents=[nearA, nearB, nearC, fourth, bow, mac];
+  const host={
+    ents:ents,
+    dist:(a,b)=>Math.hypot(a.x-b.x, a.y-b.y),
+    hasLOS:()=>true,
+    canBe:()=>true,
+    walk:()=>true,
+    inDarkZone:()=>false,
+    nearestAlly:()=>mac
+  };
+  assert(EI.frontageGoal(nearA, mac, host)==null && EI.frontageGoal(nearB, mac, host)==null && EI.frontageGoal(nearC, mac, host)==null,
+    'the three closest melee foes keep the slots');
+  const ring=EI.frontageGoal(fourth, mac, host);
+  const ringD=ring?Math.hypot(ring.x-mac.x, ring.y-mac.y):0;
+  assert(ring && Math.abs(ringD-2)<1e-6, 'the fourth melee foe is sent to a ring 2 tiles out');
+  assert(EI.frontageGoal(bow, mac, host)==null, 'a ranged attacker does not take a slot and is not held');
+  const decided=EI.decide(fourth, 0.05, host);
+  assert(!decided.attack && decided.frontage==='ring' && decided.move && Math.abs(Math.hypot(decided.move.dx, decided.move.dy)-2)<1e-6,
+    'a foe outside the cap steps to the ring instead of swinging');
+  nearA.dead=1;
+  assert(EI.frontageGoal(fourth, mac, host)==null, 'an open slot lets the next foe step in');
+  nearA.dead=0;
+  ents.push(caster);
+  assert(EI.frontageGoal(nearA, mac, host)==null && EI.frontageGoal(nearB, mac, host)==null && EI.frontageGoal(nearC, mac, host)==null, 'three melee slots stay filled');
+  assert(EI.frontageGoal(caster, mac, host) && Math.hypot(caster.x, caster.y)>caster.range, 'a spell cast from outside melee does not take a slot');
+  const touch=foeAt(0.4, 0.1, {caster:1, range:0.8, name:'Touch'});
+  ents.push(touch);
+  const touchRing=EI.frontageGoal(touch, mac, host);
+  assert(touchRing==null || Math.hypot(touch.x, touch.y)<=touch.range, 'a caster who has stepped into melee counts as a body');
+  const crowded=[nearA, nearB, nearC, touch].filter(e=>!e.dead && EI.frontageGoal(e, mac, host)==null);
+  assert(crowded.length===3, 'four bodies in melee still leave only three slots');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nenemy-intent melee pursuer checks passed');

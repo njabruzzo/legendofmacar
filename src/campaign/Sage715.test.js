@@ -404,7 +404,7 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
   R.tick(g, 40);
   assert(!g._wanderLast, 'a 3-turn check stays on the dungeon-turn clock');
   g.lvl.campaignSpec.map.wander.check.every = book;
-  assert(L4.FORECAST_PACK.worgs === 9 && L4.FORECAST_PACK.wolves === 2 && L4.forecastPackXp() === 3811, 'the forecast column is 9 worgs and 2 wolves');
+  assert(L4.FORECAST_PACK.worgs === 9 && L4.FORECAST_PACK.wolves === 2 && L4.FORECAST_PACK.guards === 4 && L4.forecastPackXp() === 3651, 'the forecast column is 9 worgs, 2 wolves, and 4 guards');
 })();
 
 (function magicCap() {
@@ -460,7 +460,7 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
 (function guardian() {
   const g = boot();
   const guard = actors(g).guard;
-  assert(guard.hd === 8 && guard.ac === 3 && guard.dice === '1d8' && guard.cd === 1.5 && guard.attackForm === 'slam' && guard.printedAttacks === 1 && guard.noSpecialty === 1 && guard.specialty === 0, 'Guardian IV slams for 1d8 every 1.5 seconds at AC 3 and 8 HD');
+  assert(guard.hd === 8 && guard.ac === 3 && guard.dice === '1d10' && guard.cd === 1.5 && guard.attackForm === 'slam' && guard.printedAttacks === 1 && guard.noSpecialty === 1 && guard.specialty === 0, 'Guardian IV slams for 1d10 every 1.5 seconds at AC 3 and 8 HD');
   assert(guard.kind === 'construct' && L4.MONSTERS.rubyGuardian.cone.damage === '2d6' && L4.MONSTERS.rubyGuardian.cone.everySec === 4, 'the guardian stays a construct and keeps the shard cone');
   assert(!/PLACEHOLDER/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'no placeholder remains in the runtime');
 })();

@@ -180,7 +180,7 @@
       hp: 48,
       ac: 3,
       mv: '6"',
-      attacks: [{ n: 1, form: 'slam', damage: '1d8', everySec: 1.5 }],
+      attacks: [{ n: 1, form: 'slam', damage: '1d10', everySec: 1.5 }],
       specials: [
         'construct immunities: sleep, charm, hold, poison, fear',
         'never checks morale',
@@ -236,6 +236,7 @@
       centerOnMacarIfKinWithin: 3
     },
     spellEverySec: 2,
+    fleeAtHpFraction: 0.5,
     /* Casting time × 0.1 s. PHB cleric spells. */
     segments: {
       'Bless': 1.0,
@@ -265,6 +266,20 @@
       'When adjacent to Macar he uses the Specialty Attack, never on a held target. A held target is an ordinary hit for normal damage.',
       'Below 25% HP he rolls morale once. He holds on d100 of 65 or less. On a failure, he and his guards fall back to the boulder cave.'
     ]
+  };
+
+  /* Sage §7.16. Four guards, two of them from the back room. */
+  var HALL = {
+    guards: 4,
+    leader: 1,
+    shaman: 1,
+    chief: 1,
+    total: 7,
+    opening: { guards: 2, leader: 1, shaman: 1, chief: 1 },
+    wave: { guards: 2, from: 'back-room', sec: 10, onFirstDrop: true },
+    moraleOnChiefDeath: { who: ['guards', 'leader'], roll: 'd100', holdOnOrUnder: 50, once: true },
+    moraleOnHalfFallen: { who: ['guards', 'leader'], roll: 'd100', holdOnOrUnder: 50, once: true },
+    cadenceSec: 1.05
   };
 
   var EGGS = {
@@ -390,7 +405,7 @@
   var FORECAST_PACK = {
     chief: 1,
     shaman: 1,
-    guards: 6,
+    guards: 4,
     worgs: 9,
     wolves: 2,
     orcs: 8,
@@ -404,7 +419,7 @@
     },
     {
       id: 'guard-count',
-      note: 'Resolved by §7.2. Six chief bodyguards stay. MM1 lair prints 5-30.'
+      note: 'Resolved by §7.16. Four chief guards: two start in the hall, two come from the back room.'
     },
     {
       id: 'assistant-count',
@@ -526,6 +541,7 @@
     MONSTERS: MONSTERS,
     SHAMAN: SHAMAN,
     CHIEF: CHIEF,
+    HALL: HALL,
     CAVE: Cave.OGRE_CAVE,
     EGGS: EGGS,
     WANDER: WANDER,

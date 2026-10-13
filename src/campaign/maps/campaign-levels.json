@@ -2014,10 +2014,18 @@
             },
             {
               "key": "orcGuard",
-              "count": 6,
+              "count": 2,
               "x": 46,
               "y": 18,
               "role": "guard"
+            },
+            {
+              "key": "orcGuard",
+              "count": 2,
+              "x": 52,
+              "y": 20,
+              "role": "guard",
+              "wave": "back"
             },
             {
               "key": "orcShaman",
