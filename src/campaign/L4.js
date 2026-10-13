@@ -180,7 +180,7 @@
       hp: 48,
       ac: 3,
       mv: '6"',
-      attacks: [{ n: 1, form: 'slam', damage: '1d10', everySec: 1.5 }],
+      attacks: [{ n: 1, form: 'slam', damage: '1d8', everySec: 1.5 }],
       specials: [
         'construct immunities: sleep, charm, hold, poison, fear',
         'never checks morale',

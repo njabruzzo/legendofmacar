@@ -136,7 +136,7 @@ assert(L4.MONSTERS.wolf.hd === '2+2' && L4.MONSTERS.wolf.ac === 7 && L4.MONSTERS
 assert(L4.MONSTERS.orcShaman.hd === 7 && L4.MONSTERS.orcShaman.hp === 32 && L4.MONSTERS.orcShaman.ac === 5 && L4.MONSTERS.orcShaman.casterLevel === 7 && L4.MONSTERS.orcShaman.decision === 'D15-A', 'the shaman is 7 HD, 32 hp, AC 5, 7th level, D15-A');
 assert(L4.MONSTERS.orcChief.hd === 5 && L4.MONSTERS.orcChief.hp === 33 && L4.MONSTERS.orcChief.ac === 3 && L4.MONSTERS.orcChief.attacks[0].damage === '1d8+3' && L4.MONSTERS.orcChief.str === '18/50', 'the chief is 5 HD, 33 hp, AC 3, axe 1d8+3');
 assert(L4.MONSTERS.ogress.hd === '4+1' && L4.MONSTERS.ogress.ac === 5 && L4.MONSTERS.ogress.xp === 185, 'the ogress is 4+1, AC 5, 185 rescue XP');
-assert(L4.MONSTERS.rubyGuardian.hd === 8 && L4.MONSTERS.rubyGuardian.hp === 48 && L4.MONSTERS.rubyGuardian.ac === 3 && L4.MONSTERS.rubyGuardian.attacks[0].damage === '1d10' && L4.MONSTERS.rubyGuardian.attacks[0].everySec === 1.5, 'Guardian IV is 8 HD, 48 hp, AC 3, 1d10 every 1.5 s');
+assert(L4.MONSTERS.rubyGuardian.hd === 8 && L4.MONSTERS.rubyGuardian.hp === 48 && L4.MONSTERS.rubyGuardian.ac === 3 && L4.MONSTERS.rubyGuardian.attacks[0].damage === '1d8' && L4.MONSTERS.rubyGuardian.attacks[0].everySec === 1.5, 'Guardian IV is 8 HD, 48 hp, AC 3, 1d8 every 1.5 s');
 assert(L4.MONSTERS.rubyGuardian.cone.damage === '2d6' && L4.MONSTERS.rubyGuardian.cone.range === '3"' && L4.MONSTERS.rubyGuardian.cone.save === 'vs breath for half', 'the shard cone is 2d6 at 3 inches, save vs breath for half');
 assert(L4.MONSTERS.rubyGuardian.xp === T.level(4).rubyGuardian.formula.xp, 'Guardian IV XP matches the guardian line');
 

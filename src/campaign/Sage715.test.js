@@ -460,7 +460,7 @@ assert(L4.SHAMAN.holdPerson.save === 'vs spell' && L4.SHAMAN.holdPerson.dwarfBon
 (function guardian() {
   const g = boot();
   const guard = actors(g).guard;
-  assert(guard.hd === 8 && guard.ac === 3 && guard.dice === '1d10' && guard.cd === 1.5 && guard.attackForm === 'slam' && guard.printedAttacks === 1 && guard.noSpecialty === 1 && guard.specialty === 0, 'Guardian IV slams for 1d10 every 1.5 seconds at AC 3 and 8 HD');
+  assert(guard.hd === 8 && guard.ac === 3 && guard.dice === '1d8' && guard.cd === 1.5 && guard.attackForm === 'slam' && guard.printedAttacks === 1 && guard.noSpecialty === 1 && guard.specialty === 0, 'Guardian IV slams for 1d8 every 1.5 seconds at AC 3 and 8 HD');
   assert(guard.kind === 'construct' && L4.MONSTERS.rubyGuardian.cone.damage === '2d6' && L4.MONSTERS.rubyGuardian.cone.everySec === 4, 'the guardian stays a construct and keeps the shard cone');
   assert(!/PLACEHOLDER/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'no placeholder remains in the runtime');
 })();
