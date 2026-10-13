@@ -27,7 +27,7 @@ assert(campaign.ok, campaign.ok ? 'campaign book validates' : campaign.errors.jo
 const NON_KILL = {
   2: 4335,
   3: 8409,
-  4: 15335,
+  4: 15575,
   5: 18394,
   6: 28937,
   7: 41708,
@@ -81,7 +81,7 @@ for (let n = 2; n <= 10; n++) {
 
 const l4 = campaign.book.levels[3];
 const L4 = require('./L4');
-assert(countKey(l4, 'orcGuard') === 6 && L4.MONSTERS.orcGuard.xp === 80, 'six chief guards are 80 XP each');
+assert(countKey(l4, 'orcGuard') === 3 && L4.MONSTERS.orcGuard.xp === 80, 'three chief guards are 80 XP each');
 assert(countKey(l4, 'orcLeader') === 3 && L4.MONSTERS.orcLeader.xp === 18, 'three leaders and assistants are 18 XP each');
 assert(L4.MONSTERS.ogress.fights === false && L4.MONSTERS.ogress.xp === 185, 'the ogress rescue XP stays off the kill sum');
 

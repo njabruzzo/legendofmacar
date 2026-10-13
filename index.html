@@ -82,7 +82,7 @@
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
-<script src="src/campaign/CampaignBoot.js?v=132"></script>
+<script src="src/campaign/CampaignBoot.js?v=133"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -298,11 +298,11 @@ const WALK_CYCLES_PER_SECOND=1.675; // Two alternating steps per full stride.
 function gaitAdvance(e,dt){ e.gait=(e.gait||0)+Math.max(0,dt)*WALK_CYCLES_PER_SECOND; }
 function holdFollowWalk(e, lead){
   if(!e||!lead||!lead.moving) return;
-  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  const t=(typeof G!=='undefined'&&G&&G.elapsed)||0;
   e._followWalkHold=t+0.12;
 }
 function followWalkMoving(e){
-  const t=(typeof G!=='undefined'&&G&&G.t)||0;
+  const t=(typeof G!=='undefined'&&G&&G.elapsed)||0;
   return !!(e && (e.moving || ((e._followWalkHold||0)>t)));
 }
 /* Limner walk: planted boot swaps every half gait. w1 and w2 must be the
@@ -505,11 +505,14 @@ function constrainPartyStep(e, ox, oy){
 
 /* Command and other stuns set e.stun. Tap, stick, keys, and auto-path all stop. */
 function stunnedHold(p){
-  if(!p || !(p.stun>0)) return false;
+  if(!p || !((p.stun>0) || (p.held||0)>0)) return false;
   p.dest=null;
   p.moving=0;
   p.ix=0;
   p.iy=0;
+  p.atk=0;
+  p.swung=0;
+  p.aim=null;
   return true;
 }
 /* A flee point outranks the chase target. Movement reads it before intent. */
@@ -651,24 +654,130 @@ function heroFearStep(p, dt){
   steerWalk(p, dx, dy, run, dt||0);
   return true;
 }
+/* World sight, never the viewport. A foe past this, or behind rock, is out. */
+function fleeSightR(){
+  return (typeof SIGHT_R==='number' && SIGHT_R>0) ? SIGHT_R : 12;
+}
+function foeOutOfSight(e){
+  const p=(typeof player==='function') ? player() : null;
+  if(!p || p.dead) return true;
+  if(Math.hypot((e.x||0)-(p.x||0), (e.y||0)-(p.y||0)) > fleeSightR()) return true;
+  if(typeof hasLOS==='function' && !hasLOS(p.x, p.y, e.x, e.y)) return true;
+  const L=(typeof G!=='undefined' && G && G.lvl) ? G.lvl : null;
+  if(L && L.vis && typeof tileVisible==='function' && !tileVisible(e.x, e.y)) return true;
+  return false;
+}
+function fleeCanStand(e, x, y){
+  const r=e && e.r!=null ? e.r : 0.36;
+  if(typeof canBe==='function') return !!canBe(x, y, r, e);
+  if(typeof walk==='function') return !!walk(x, y, e);
+  return true;
+}
+function fleeSegmentClear(e, x, y){
+  const d=Math.hypot(x-(e.x||0), y-(e.y||0));
+  if(!(d>0)) return fleeCanStand(e, x, y);
+  const n=Math.max(1, Math.ceil(d/0.25));
+  for(let i=1;i<=n;i++){
+    const u=i/n;
+    if(!fleeCanStand(e, e.x+(x-e.x)*u, e.y+(y-e.y)*u)) return false;
+  }
+  return true;
+}
+function planFleePath(e, goal){
+  if(!goal || typeof Navigation==='undefined' || !Navigation.planRoute) return null;
+  let plan=null;
+  try{
+    plan=Navigation.planRoute({x:e.x,y:e.y}, goal, e, {
+      canBe:function(x,y,r,a){ return fleeCanStand(a||e, x, y); },
+      maxExpand:8000
+    });
+  }catch(_){ return null; }
+  if(!plan || !plan.ok || !plan.path || plan.path.length<2) return null;
+  const out=[];
+  for(let i=1;i<plan.path.length;i++){
+    const c=plan.path[i];
+    if(!c) continue;
+    const prev=out.length ? out[out.length-1] : e;
+    const last=i===plan.path.length-1;
+    if(last || Math.hypot(c.x-prev.x, c.y-prev.y)>=0.7) out.push({x:c.x, y:c.y});
+  }
+  return out.length ? out : null;
+}
+function parkFledFoe(e){
+  e.hidden=1;
+  e.fledOut=1;
+  e.aggro=0;
+  e.engaged=0;
+  e.moving=0;
+  e.ix=0;
+  e.iy=0;
+}
+function arriveFleePoint(e){
+  if(e.fleePath && e.fleePath.length){
+    e.fleeTo=e.fleePath.shift();
+    e.fleeStuck=0;
+    return;
+  }
+  if(e.onArrive){
+    const fn=e.onArrive;
+    e.onArrive=null;
+    e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
+    fn();
+    return;
+  }
+  parkFledFoe(e);
+}
 function stepFoeFlee(e, dt){
   if(e.stun>0) e.stun=Math.max(0, e.stun-dt);
+  if(e.fledOut){ e.moving=0; e.ix=0; e.iy=0; return; }
+  if(!e._fleeSeen){
+    e._fleeSeen=1;
+    if((e.fleePath && e.fleePath.length) || e.onArrive) e._authoredFlee=1;
+  }
+  if(!e._authoredFlee && foeOutOfSight(e)){
+    parkFledFoe(e);
+    return;
+  }
+  if(!e._fleeGoal && e.fleeTo && e.fleeTo.x!=null) e._fleeGoal={x:e.fleeTo.x, y:e.fleeTo.y};
+  if(!(e.fleePath && e.fleePath.length) && !e._fleeRouted && !e._authoredFlee && e._fleeGoal){
+    const built=planFleePath(e, e._fleeGoal);
+    e._fleeRouted=1;
+    if(built && built.length){
+      e.fleePath=built;
+      e.fleeTo=e.fleePath.shift();
+    }
+  }
   const aim=foeMoveAim(e, null);
   if(!aim) return;
   if(typeof PartyOrders!=='undefined' && PartyOrders.noteMoraleFlee)
     PartyOrders.noteMoraleFlee(e);
   const t=aim, d=dist(e,t);
-  e.fleeStuck=(e.fleeStuck||0)+dt;
-  if(d>0.55 && e.fleeStuck<3.2){
-    const run=Math.max(e.sp||4, 5.8);
-    steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
-  } else {
-    e.fleeStuck=0;
+  const run=Math.max(e.sp||4, 5.8);
+  const ox=e.x, oy=e.y;
+  const reach=run*(dt||0)+1e-4;
+  if(d<=reach && d<=1.25 && fleeSegmentClear(e, t.x, t.y)){
     e.x=t.x; e.y=t.y;
-    if(e.fleePath && e.fleePath.length) e.fleeTo=e.fleePath.shift();
-    else {
-      e.moving=0; e.ix=0; e.iy=0; e.fleeTo=null;
-      if(e.onArrive){ const fn=e.onArrive; e.onArrive=null; fn(); }
+    e.fleeStuck=0;
+    arriveFleePoint(e);
+    return;
+  }
+  steerWalk(e, t.x-e.x, t.y-e.y, run, dt);
+  if(e.glanceBack>0){
+    e.glanceBack=Math.max(0, e.glanceBack-dt);
+    e.fdx=-(e.fdx||0); e.fdy=-(e.fdy||0);
+  }
+  const moved=Math.hypot(e.x-ox, e.y-oy);
+  if(moved<0.02) e.fleeStuck=(e.fleeStuck||0)+(dt||0);
+  else e.fleeStuck=0;
+  if((e.fleeStuck||0)>=0.45 && e._fleeGoal && !e._authoredFlee){
+    e.fleeStuck=0;
+    e.fleePath=null;
+    e._fleeRouted=0;
+    const again=planFleePath(e, e._fleeGoal);
+    e._fleeRouted=1;
+    if(again && again.length){
+      e.fleePath=again;
+      e.fleeTo=e.fleePath.shift();
     }
   }
 }
@@ -720,7 +829,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='132';
+const ASSET_VER='133';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -825,6 +934,7 @@ const SPRITE_FILES={
   beetle:'assets/creatures/mon_beetle.png', myconid:'assets/creatures/mon_myconid.png', thinone:'assets/creatures/mon_thinone.png',
   crawler:'assets/creatures/mon_crawler.png', undead:'assets/creatures/mon_undead.png', elder:'assets/creatures/mon_elder.png',
   barrow:'assets/creatures/mon_barrow.png', troll:'assets/creatures/mon_troll.png', construct:'assets/creatures/mon_construct.png',
+  orc:'assets/creatures/mon_orc.png', mon_orc:'assets/creatures/mon_orc.png', warg:'assets/creatures/mon_warg.png',
   wraith:'assets/creatures/mon_wraith.png', burrower:'assets/creatures/mon_burrower.png', champion:'assets/creatures/mon_champion.png',
   warden:'assets/creatures/mon_warden.png', horror:'assets/creatures/mon_horror.png', drake:'assets/creatures/mon_drake.png', king:'assets/creatures/mon_king.png',
   golem_brass:'assets/creatures/mon_golem_brass.png', golem_silver:'assets/creatures/mon_golem_silver.png',
@@ -1198,7 +1308,7 @@ const WORLD_ART_KEYS={
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
   4:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se','orc','warg','construct'],
   5:['floor_hall','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se']
@@ -1207,6 +1317,7 @@ Object.keys(WORLD_ART_KEYS).forEach(n=>{ if(typeof MacarSharedAtlas!=='undefined
 function sprReady(k){ const im=SPR[k]; return !!(im&&im.width); }
 const SPRITE_LOADING={};
 const SPRITE_GAVE_UP={};
+const SPRITE_RETRY={};
 function campaignSpriteKey(key){
   if(!key) return '';
   if(SPRITE_FILES[key] || (SPR[key]&&SPR[key].width)) return key;
@@ -1265,8 +1376,22 @@ function loadSpriteKeyNow(k, cb){
     }
     /* Optional covers (campaign cards, faces, splashes) are asked again
        every frame. One retry, then stop. Required level art and Macar
-       sheets keep trying on the next request. intro_ch2 keeps that rule. */
+       sheets keep trying, with a longer wait after each miss, so two
+       failures do not leave the splash waiting on a loader that stopped.
+       intro_ch2 keeps the stop. */
     if(k==='intro_ch2' || optionalArt(k)) SPRITE_GAVE_UP[k]=1;
+    else if(typeof setTimeout==='function'){
+      const row=SPRITE_RETRY[k]||(SPRITE_RETRY[k]={n:0,wait:0});
+      if(!row.wait){
+        const wait=Math.min(8000, 400*Math.pow(2, row.n));
+        row.n+=1;
+        row.wait=1;
+        setTimeout(function(){
+          row.wait=0;
+          if(!SPRITE_GAVE_UP[k] && !sprReady(k)) loadSpriteKeyNow(k);
+        }, wait);
+      }
+    }
     fin(false);
   };
   img.src=assetUrl(SPRITE_FILES[k]);
@@ -4046,6 +4171,8 @@ function fadeMasonryCanvas(img){
   return c;
 }
 function entSpriteKey(e){
+  /* A stand-in with no file is drawn, never left waiting on a missing sheet. */
+  if(e && e.artStandIn && !(e.sprite && SPRITE_FILES[e.sprite])) return '';
   /* Spawn may run before the idle sheet finishes loading. Use it once it has. */
   if(e && e.name==='Skeletal Dwarf' && e.singlePose && !e.dead
      && typeof sprReady==='function' && sprReady('dwarf_skeleton_idle'))
@@ -7100,11 +7227,14 @@ function tickFloorTravel(){
 }
 function startChapter(n){
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
+  if(n===1 && !G._keepProgress && typeof CampaignRuntime!=='undefined' && CampaignRuntime.keepsBook && CampaignRuntime.keepsBook(G)) G._keepProgress=1;
   const keep=!!G._keepProgress;
   if(n===1&&!keep)G.floorWorlds={};
   const loadSnap=G._loadSnap||null;
   G._keepProgress=0; G._loadSnap=null;
-  G.ch=n;   G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
+  G.ch=n;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteChapter) CampaignRuntime.noteChapter(G, n);
+  G.ents=[];G.props=[];G.shots=[];G.parts=[];G.texts=[];G.log=[];
   G.seenRev=0; G.topologyRev=0; BX_KEY=''; TILEBLIT.key='';
   if(typeof Discovery!=='undefined' && Discovery.reset) Discovery.reset();
   if(typeof Navigation!=='undefined' && Navigation.invalidate)
@@ -8673,8 +8803,11 @@ function tickSpellZones(dt){
   G.silenceZones=(G.silenceZones||[]).filter(z=>z.t>0);
   (G.ents||[]).forEach(e=>{
     if(e.blessT>0){ e.blessT-=dt; if(e.blessT<=0) e.blessHit=0; }
-    if(e.held>0){ e.held-=dt; if(e.held<=0) e.prone=0; else { e.stun=Math.max(e.stun||0, 0.05); e.moving=0; } }
-    if(e.silenced>0) e.silenced-=dt;
+    if(e.held>0){
+      if(e.holdSrc==='campaign'){ e.stun=Math.max(e.stun||0, 0.05); e.moving=0; }
+      else { e.held-=dt; if(e.held<=0) e.prone=0; else { e.stun=Math.max(e.stun||0, 0.05); e.moving=0; } }
+    }
+    if(e.silenced>0 && e.silenceSrc!=='campaign') e.silenced-=dt;
     if(e.fearT>0) e.fearT-=dt;
     if(inSilenceZone(e) && e.col && e.col.key==='talpor') e.heals=0;
   });
@@ -10416,6 +10549,10 @@ function stowPackItem(it, opts){
   if(!G.packs.macar) G.packs.macar={magic:[]};
   const pk=G.packs.macar;
   pk.magic=pk.magic||[];
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.stackMagic){
+    const stacked=CampaignRuntime.stackMagic(pk.magic, it);
+    if(stacked){ if(typeof syncPackTotals==='function') syncPackTotals(); return stacked; }
+  }
   const i=packHasItem(pk, it);
   if(i>=0){
     const have=pk.magic[i];
@@ -10865,10 +11002,11 @@ function wornWeaponPlus(e, def){
   if(wep && typeof weaponVsPlus==='function') plus+=weaponVsPlus(wep, def);
   return plus;
 }
-function darkAttackMod(e){
+function darkAttackMod(e, def){
   if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.darkPenalty)
-    return CampaignRuntime.darkPenalty(e, G.darkZones, typeof isDwarf==='function' && isDwarf(e));
+    return CampaignRuntime.darkPenalty(e, G.darkZones, typeof isDwarf==='function' && isDwarf(e), def);
   if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) return -4;
+  if(def && typeof inDarkZone==='function' && inDarkZone(def)) return -4;
   return 0;
 }
 function hitBonus(e, def){
@@ -10890,7 +11028,7 @@ function hitBonus(e, def){
   }
   if(e.ratFever) b-=1;
   if(e.strMul>1) b+=2;
-  if(typeof darkAttackMod==='function') b+=darkAttackMod(e);
+  if(typeof darkAttackMod==='function') b+=darkAttackMod(e, def);
   else if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) b-=4;
   return b;
 }
@@ -10900,6 +11038,7 @@ function effectiveAC(e, atk){
   const missile=!!(atk&&atk.ranged);
   let ac=(typeof e.ac==='number')?e.ac:(e.team==='party'?partyAC(e):6);
   if(e.team==='party') ac=partyAC(e,{rear, helpless, missile});
+  if(typeof e.eggAc==='number') ac+=e.eggAc;
   if(e.stoneskin>0) ac-=2;
   return clamp(ac,-8,10);
 }
@@ -10941,6 +11080,8 @@ function armSpecialty(kind){
   return kind;
 }
 function beginSpecialtySwing(e){
+  const aim=e&&e.aim;
+  if(aim && (aim.held||0)>0){ if(e){ e.specialty=0; e._specialty=0; } return 0; }
   const kind=(e&&(e._specialty||e.specialty))||0;
   if(kind&&e){
     e._specialty=kind;
@@ -10960,6 +11101,24 @@ function pickMonsterSpecialty(){
   if(r<=90) return 3;
   return 4;
 }
+/* Specialty is a weapon swing. The chief uses it. Constructs never do.
+   A held target is not a specialty target. */
+function foeAttackCount(e){
+  if(!e || e.team!=='foe') return 1;
+  const n=e.printedAttacks|0;
+  return n>0?n:1;
+}
+function armFoeSpecialty(e, def){
+  if(!e || e.team!=='foe') return 0;
+  if((def && (def.held||0)>0) || e.noSpecialty || e.kind==='construct' || e.campaignRole==='guardian' || e.campaignKey==='rubyGuardian'){
+    e.specialty=0;
+    return 0;
+  }
+  if(!(e.campaignRole==='boss' && e.campaignKey==='orcChief')){ e.specialty=0; return 0; }
+  if(!/axe|mace|sword|hammer|spear|dagger|flail/i.test(String(e.attackForm||''))){ e.specialty=0; return 0; }
+  if(!e.specialty) e.specialty=1;
+  return e.specialty;
+}
 function addAttack(atk, def, opts){
   if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
   if(typeof consumeDisplacementMiss==='function' && consumeDisplacementMiss(def)){
@@ -10972,7 +11131,8 @@ function addAttack(atk, def, opts){
   const rear=isRearAttack(atk, def);
   const ac=effectiveAC(def, atk);
   const need=thacNeed(atk, ac);
-  const specKind=(opts&&opts.specialty)||atk._specialty||atk.specialty||0;
+  const heldTarget=!!(def && (def.held||0)>0);
+  const specKind=heldTarget?0:((opts&&opts.specialty)||atk._specialty||atk.specialty||0);
   const spec=specialtyBand(specKind);
   const roll=(opts&&opts.roll!=null)?(opts.roll|0):d20();
   let bonus=hitBonus(atk, def);
@@ -10991,7 +11151,9 @@ function addAttack(atk, def, opts){
   /* Band uses STR+magic only. Matrix still uses addAttack mods (rear/dex/buff). */
   const matrixHit=roll===20 || matrixTot>=need;
   const bandOk=spec?specialtyInBand(specKind, specTot):true;
-  const hit=spec?(bandOk&&matrixHit):matrixHit;
+  let hit=spec?(bandOk&&matrixHit):matrixHit;
+  /* Held: one ordinary hit. No specialty, no multiplier, no coup de grace. */
+  if(heldTarget) hit=true;
   const pct=hitChancePct(need, bonus);
   let tag='';
   if(spec){
@@ -11162,6 +11324,7 @@ function endFightIfClear(){
   const bossWin=!!G.fightBossDead;
   const won=!!(G.fightGotKill||bossWin);
   G.fightOn=0;
+  if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteFightEnd) CampaignRuntime.noteFightEnd(G);
   if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G);
   G.fightWasBoss=0;
   G.fightBossDead=0;
@@ -11722,7 +11885,30 @@ InventoryCategories.register([DMG_SCROLL,DMG_RING,DMG_WAND,DMG_ARMOR,DMG_SWORD,D
 function rollDmgScroll(){ const r=pickRange(DMG_SCROLL); return magItem({cat:'Scroll',n:r.n,d:r.d,k:r.k,cursed:r.cursed}); }
 function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed,charges:r.charges}); }
 function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
-function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed}); }
+function magicArmorCap(level){
+  level=level|0;
+  if(level<=4) return 2;
+  if(level<=7) return 3;
+  return 5;
+}
+function lootLevel(){
+  if(typeof G!=='undefined' && G){
+    if(G.campaignLevel) return G.campaignLevel|0;
+    if(G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.level) return G.lvl.campaignSpec.level|0;
+    if(G.lvl && G.lvl.n) return G.lvl.n|0;
+  }
+  return 1;
+}
+function stepMagicArmor(it){
+  if(!it || it.cursed || !(it.plus>0)) return it;
+  const cap=magicArmorCap(lootLevel());
+  if(it.plus<=cap) return it;
+  const from=it.plus;
+  it.plus=cap;
+  if(it.n) it.n=String(it.n).replace('+'+from, '+'+cap);
+  return it;
+}
+function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return stepMagicArmor(magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed})); }
 function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgMisc(){
@@ -12030,7 +12216,19 @@ function useWandByName(it, e){
   }
   return 'zap';
 }
+function voiceShut(e){
+  if(!e) return false;
+  if((e.silenced||0)>0) return true;
+  return typeof inSilenceZone==='function' && inSilenceZone(e);
+}
+function commandWordItem(it){
+  return !!(it && /command word/i.test(String(it.n||'')+' '+String(it.d||'')));
+}
 function useScrollByName(it, e){
+  if(e && ((e.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(e)))){
+    if(typeof say==='function') say('Silence. No spell, and the scroll stays shut.','#9a8a78');
+    return 'silenced';
+  }
   /* DMG Table III.B. Protection scrolls: any class (RAW). Spell scrolls: RAW
      class-locked and may fail; house lets the pack-reader cast once, then the
      ink is gone. Closest wired FX: flame (offensive) or heal. No MU list. */
@@ -12058,6 +12256,16 @@ function useScrollByName(it, e){
 function useMagicItem(it, e, activate){
   e=e||player();
   if(!it) return;
+  if(it.k==='egg' || it.id==='golden_egg'){
+    const pk=packOf(packOwner(e));
+    const bag=pk&&pk.magic?pk.magic:[];
+    const res=(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armEgg)?CampaignRuntime.armEgg(G, it, bag):null;
+    if(res&&res.ok){
+      if(typeof syncPackTotals==='function') syncPackTotals();
+      say('A golden egg. Armor holds for one battle.','#ffe08a');
+    } else if(res&&res.reason==='egg-blocked') say('One egg is already at work.','#c9b895');
+    return;
+  }
   if(it.id==='pixie_dust'){
     if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.armDust) CampaignRuntime.armDust(G, e);
     const pk=packOf(packOwner(e));
@@ -12065,6 +12273,10 @@ function useMagicItem(it, e, activate){
     if(typeof syncPackTotals==='function') syncPackTotals();
     say('Pixie dust. One battle, and the fastest step wins.','#e0d2ff');
     return;
+  }
+  if(/command word/i.test(String(it.n||'')+' '+String(it.d||'')) && (e && ((e.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(e))))){
+    say('Silence. The command word does not sound.','#9a8a78');
+    return 'silenced';
   }
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
@@ -12125,6 +12337,10 @@ function useMagicItem(it, e, activate){
     return;
   }
   if(it.k==='scroll'||it.k==='prot'){
+    if(e && (e.silenced||0)>0){
+      say('Silence. The scroll stays shut.','#9a8a78');
+      return 'silenced';
+    }
     if(typeof useScrollByName==='function') useScrollByName(it, e);
     else if(e){
       if(/heal|cure/i.test(String(it.n||'')+' '+String(it.d||''))){
@@ -12703,6 +12919,8 @@ function damage(e,amt,col,src){
   if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
+  if(amt>0 && e.hp>0 && (e.held||0)>0 && e.holdSrc==='campaign' && typeof CampaignRuntime!=='undefined' && CampaignRuntime.resaveHold)
+    CampaignRuntime.resaveHold(G, e);
   if(e.hp>0 && typeof CampaignRuntime!=='undefined' && CampaignRuntime.onHurt) CampaignRuntime.onHurt(G, e);
   if(amt>0 && sfx && sfx.hit) sfx.hit(src);
   if(e.hp>0) e.flash=.18;
@@ -12729,7 +12947,7 @@ function damage(e,amt,col,src){
       e.hp=0; e.ghostReturn=GHOST_RETURN; e.atk=0; e.moving=0; e.flash=0;
       burst(e.x,e.y,'#7ad8ff',20,3.4);
       say(e.name+' scatters into the dark. He will gather himself in ten minutes.','#80d0ff');
-    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
+    } else { say(e.name+' goes down!','#ff6a5a'); if(e.hero){ if(e.prot0){ e.prot0=0; e.dead=0; e.hp=Math.round(e.maxhp*.35); say('Protection from Wounds holds.','#ffe08a'); } else { G.scene='dead'; if(sfx&&sfx.stopBed) sfx.stopBed(); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteDeath) CampaignRuntime.noteDeath(G); if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.clearDust) CampaignRuntime.clearDust(G); } } } }
 }
 function onHitFx(atk,o,dmg){
   if(!atk||!o) return dmg;
@@ -13067,6 +13285,10 @@ function setThrallStay(on){
    PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
    no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
+  if(actor && ((actor.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(actor)))){
+    say('Silence. The spell does not leave his mouth.','#9a8a78');
+    return {ok:0, reason:'silenced'};
+  }
   if(!wearingBoneCrown()) return {ok:0, reason:'no-crown'};
   if(!body || !(body.dead||body.corpse)) return {ok:0, reason:'no-body'};
   if(body.col||body.hero||body.ghost) return {ok:0, reason:'kin'};
@@ -13559,6 +13781,10 @@ function chapelFaceToothTaken(face){
     const f=G.lvl&&G.lvl.flags;
     return !!(f&&f.electrumTooth3);
   }
+  if(face.itemId==='grond_tooth_electrum_4'){
+    const f=G.lvl&&G.lvl.flags;
+    return !!(f&&f.electrumTooth4);
+  }
   const f=G.lvl&&G.lvl.flags;
   const kind=face.toothKind==='copper'?'electrum':(face.toothKind||'electrum');
   if(kind==='bronze') return !!(f&&(f.bronzeSecured||f.bronzeTooth));
@@ -13579,7 +13805,7 @@ function bindPriedChapelTooth(){
   if(!(L.flags.electrumTooth||L.flags.copperTooth)) return;
   (G.props||[]).forEach(p=>{
     if(!p||p.gone||p.k!=='demonface') return;
-    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3') return;
+    if(p.wall==='e'||p.toothKind==='bronze'||p.itemId==='grond_tooth_electrum_2'||p.itemId==='grond_tooth_electrum_3'||p.itemId==='grond_tooth_electrum_4') return;
     p.emptySocket=1;
   });
 }
@@ -14359,7 +14585,9 @@ function partyOrderHost(){
       const kin=(G.ents||[]).filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
       return idx<0?1:idx+1;
-    }
+    },
+    voiceShut:function(){ return typeof voiceShut==='function' && voiceShut(p); },
+    inSilenceZone:function(e){ return typeof inSilenceZone==='function' && inSilenceZone(e); }
   };
 }
 /* Hold is melee reach only (1.5). A ranged kin does not loose while holding. */
@@ -14573,7 +14801,7 @@ function applyEnemyIntent(e, ir, dt){
     faceToward(e, ir.attack.x, ir.attack.y);
     e._attack={fdx:e.fdx, fdy:e.fdy};
     e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=ir.attack;
-    if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+    if(e.team==='foe') armFoeSpecialty(e, ir.attack);
     e.moving=0; e.ix=0; e.iy=0;
     return;
   }
@@ -15362,6 +15590,11 @@ function debugKillOnScreen(){
   else hint('No foes on screen.',1.6);
 }
 function refuseAttack(p){
+  if(p && (p.held||0)>0){
+    hint('Hold Person. Macar cannot attack.',2.2);
+    say('Macar is held. No attack.','#c07bff');
+    return true;
+  }
   if(!p||!p.defending) return false;
   hint('Defend is up. Lower the shield to attack.',2.6);
   say('Macar holds. No attacks while the shield is raised.','#cfe3ff');
@@ -15553,9 +15786,9 @@ function fire(key){
       learn('ale',3);
     } else {
       const heal=ri(1,10);
-      applyHeal(p, heal);
+      const got=applyHeal(p, heal);
       learn('ale',3);
-      say('A draught of beer. Heals '+heal+' (d10).','#d2bd63');
+      say('A draught of beer. Heals '+got+' (d10).','#d2bd63');
     }
   }
   if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
@@ -15588,7 +15821,7 @@ function update(dt){
   if(G.talk){
     if(talkWalkOffKey(G.talk.key) && IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy;
-      if(Math.hypot(ox,oy)>12*(UIS||1)) dismissTalkWalkOff();
+      if(Math.hypot(ox,oy)>12) dismissTalkWalkOff();
     }
     return;
   }
@@ -15617,11 +15850,12 @@ function update(dt){
     let dx=0,dy=0, analog=0, routeDest=false, routeRadius=.26;
     if(IN.stick && IN.stick.moved){
       const ox=IN.stick.x-IN.stick.ox, oy=IN.stick.y-IN.stick.oy, m=Math.hypot(ox,oy);
-      const dead=6*UIS;
+      const dead=8;
       if(m>dead){
-        const f=clamp((m-dead)/(46*UIS),0,1);
+        const f=clamp((m-dead)/46,0,1);
         const sx=ox/m, sy=oy/m;
-        let wx=sy/(TH/2)+sx/(TW/2), wy=sy/(TH/2)-sx/(TW/2);
+        /* Fixed 2:1 iso. Screen size must not change the world heading. */
+        let wx=sy+sx/2, wy=sy-sx/2;
         const wm=Math.hypot(wx,wy)||1; dx=wx/wm; dy=wy/wm; analog=f; p.dest=null;
       }
     }
@@ -15717,7 +15951,7 @@ function update(dt){
     if(stepped) takeLoot(stepped);
 
     // auto-attack while standing in reach (Baldur's Gate: never swing while walking)
-    if(!G.digging && !p.defending){
+    if(!G.digging && !p.defending && !((p.held||0)>0)){
       const t=nearestFoe(p,p.range+.75);
       if(t&&p.ct<=0&&!p.moving){
         ensureShadowCleaverWielded();
@@ -16021,10 +16255,15 @@ function update(dt){
       }
       want=e.ranged?e.range*.75:e.range;
     }
+    let frontRing=null;
+    if(tgt && e.team==='foe' && typeof EnemyIntent!=='undefined' && EnemyIntent.frontageGoal)
+      frontRing=EnemyIntent.frontageGoal(e, tgt, intentHost());
     if(tgt){
-      const d=dist(e,tgt);
-      if(d>want){
-        let vx=tgt.x-e.x, vy=tgt.y-e.y;
+      const aim=frontRing||tgt;
+      const need=frontRing?0.22:want;
+      const d=dist(e,aim);
+      if(d>need){
+        let vx=aim.x-e.x, vy=aim.y-e.y;
         const go=e.sp*moveSlowMul(e)*((e.webbed||0)>0?0:1);
         if(go<=0){ e.moving=0; e.ix=0; e.iy=0; }
         else {
@@ -16043,9 +16282,9 @@ function update(dt){
         if(form) e.followStuck=0;
         if(form&&p){ e.fdx=p.fdx; e.fdy=p.fdy; }
         else faceToward(e, tgt.x, tgt.y);
-        if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
+        if(!frontRing&&!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
           e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=tgt;
-          if(e.team==='foe' && !e.specialty && e.campaignRole!=='boss' && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+          if(e.team==='foe') armFoeSpecialty(e, tgt);
         }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
@@ -16102,7 +16341,7 @@ function update(dt){
   for(const q of G.parts){ q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt;q.vz-=11*dt;
     if(q.z<0){q.z=0;q.vz*=-.35;q.vx*=.6;q.vy*=.6;} q.life-=dt; }
   G.parts=G.parts.filter(q=>q.life>0);
-  const pcap=QUALITY?48:12;
+  const pcap=48;
   if(G.parts.length>pcap) G.parts.splice(0, G.parts.length-pcap);
   for(const t of G.texts){ t.y-=dt*.9; t.life-=dt; }
   G.texts=G.texts.filter(t=>t.life>0);
@@ -16122,7 +16361,7 @@ function update(dt){
      off the screen, so the first phone tap mid-fight never pried. */
   if(p && typeof nearestDemonFace==='function'){
     const toothFace=nearestDemonFace(p,2.05);
-    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
+    if(toothFace && (toothFace.itemId==='grond_tooth_electrum_2'||toothFace.itemId==='grond_tooth_electrum_3'||toothFace.itemId==='grond_tooth_electrum_4') && !toothFace.emptySocket && !chapelFaceToothTaken(toothFace)){
       interact('Take the electrum tooth',()=>{
         if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.pryTooth) CampaignRuntime.pryTooth(G, toothFace);
       });
@@ -17508,7 +17747,7 @@ function demonFaceImg(p){
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
-  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3')){
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3' || p.itemId==='grond_tooth_electrum_4')){
     if(typeof OPTIONAL_ART!=='undefined') OPTIONAL_ART.demon_dwarfface=1;
     if(typeof loadSpriteKeyNow==='function' && !(SPR.demon_dwarfface&&SPR.demon_dwarfface.width)) loadSpriteKeyNow('demon_dwarfface');
     const face=SPR.demon_dwarfface||SPR.demonface||null;
@@ -17601,7 +17840,7 @@ function drawDemonDwarfFace(g,p){
   }
   const img=demonFaceImg(p);
   /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
-  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
+  if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3' || p.itemId==='grond_tooth_electrum_4') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
   g.save();
@@ -19947,6 +20186,16 @@ function campActions(){
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ openPackMenu('camp'); }});
+  a.push({grp:'TAILOR',tab:'craft',name:'Hide armor',t:'Cure three worg pelts into hide armor',cost:{},
+    info:'Ten seconds at camp. AC 6, weight 30, body.',
+    fn:()=>{
+      if(typeof CampaignRuntime==='undefined' || !CampaignRuntime.beginHideCraft){
+        say('The pelts need a bench.','#c9b895'); return;
+      }
+      const r=CampaignRuntime.beginHideCraft(G);
+      if(!r.ok) say('Three worg pelts are needed.','#c9b895');
+      else say('The pelts go on the bench. Ten seconds.','#d2bd63');
+    }});
   ROSTER.slice(1).forEach(r=>{
     if(!(G.ghostAllies&&G.ghostAllies[r.key])) return;
     const talkKey='camp_'+talkKinKey(r.key);
@@ -21159,6 +21408,17 @@ function drawPromptBtn(g,s){
   g.fillStyle='#ffe9c0'; g.fillText(PROMPT.label,x+pw/2,y+h/2+fpx*0.33); g.textAlign='left';
 }
 
+/* Laptop camp keeps the toast under the gold title and the cleared line.
+   The top pin would sit on CAMP. Phone portrait still uses its own drop. */
+function campLaptopHintY(s){
+  const titleY=VH*0.048;
+  const titleSize=28*s;
+  return titleY+titleSize+30*s;
+}
+function campHintLane(s){
+  if(PORT || G.scene!=='camp' || !G.hint) return 0;
+  return 36*s;
+}
 function drawHint(g,s){
   if(!G.hint) return;
   const a=clamp(G.hint.life/Math.min(1,G.hint.max),0,1)*clamp((G.hint.max-G.hint.life)/.3,0,1);
@@ -21168,6 +21428,7 @@ function drawHint(g,s){
   const w=g.measureText(G.hint.t).width+30*s;
   let x=VW/2-w/2;
   let y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
+  if(G.scene==='camp' && !PORT) y=campLaptopHintY(s);
   /* Phone portrait only. The top pin covers the party name, the HP bar,
      and Pause for the whole hint. Landscape and laptop keep that pin. */
   if(PORT){
@@ -22254,7 +22515,11 @@ function drawCamp(g){
   goldTitleLine(g,'CAMP', titleY+titleSize*0.72, titleSize);
   g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(210,190,150,0.78)';
-  const cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  let cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.clearedName){
+    const named=CampaignRuntime.clearedName(G);
+    if(named) cleared=named;
+  }
   g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 
@@ -22270,7 +22535,7 @@ function drawCamp(g){
   if(G.campSel && !tabActs.some(a=>campActionId(a)===G.campSel)) G.campSel=null;
   const sel=tabActs.find(a=>campActionId(a)===G.campSel)||null;
 
-  const stockY=titleY+titleSize+34*s;
+  const stockY=titleY+titleSize+34*s+campHintLane(s);
   const stockH=drawStockStrip(g, 12*s, stockY, VW-24*s, sel&&sel.cost);
   const tabY=stockY+stockH+8*s, tabH=PORT?40*s:36*s;
   const skillW=Math.min(86*s, VW*0.18);
@@ -22365,11 +22630,21 @@ function drawCamp(g){
     g.fillText('The book is marked.', VW/2, footY-6*s);
     g.textAlign='left';
   }
+  const deeper=!!(CH_META[nxt]&&!CH_META[nxt].locked);
+  const footN=deeper?3:2;
+  const footGap=8*s;
+  const footBtnW=Math.min(btnW, (VW-20*s-(footN-1)*footGap)/footN);
+  const footSpan=footN*footBtnW+(footN-1)*footGap;
+  let footX=VW/2-footSpan/2+footBtnW/2;
+  const footCy=footY+btnH/2;
   const beforeFoot=menuHits.length;
-  menuBtn(g, saved?'Saved':'Save',VW/2-btnW/2-8*s,footY+btnH/2,btnW,btnH,()=>writeGameSave(), false, SPR.icon_save);
-  if(CH_META[nxt]&&!CH_META[nxt].locked)
-    menuBtn(g,'Go deeper',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>pressGoDeeper());
-  else menuBtn(g,'Chapters',VW/2+btnW/2+8*s,footY+btnH/2,btnW,btnH,()=>{openChapters();});
+  menuBtn(g, saved?'Saved':'Save', footX, footCy, footBtnW, btnH, ()=>writeGameSave(), false, SPR.icon_save);
+  footX+=footBtnW+footGap;
+  if(deeper){
+    menuBtn(g,'Go deeper', footX, footCy, footBtnW, btnH, ()=>pressGoDeeper());
+    footX+=footBtnW+footGap;
+  }
+  menuBtn(g,'Chapters', footX, footCy, footBtnW, btnH, ()=>{openChapters();});
   const footHits=menuHits.splice(beforeFoot);
   menuHits.unshift.apply(menuHits, footHits);
 }
@@ -22652,7 +22927,7 @@ function usePackRow(r){
     const consume=it.k==='scroll'||it.k==='prot'||it.k==='heal';
     if(inField){
       const spent=useMagicItem(it, who);
-      if(spent==='spent'||consume) bag.magic.splice(r.i,1);
+      if(spent!=='silenced' && (spent==='spent'||consume)) bag.magic.splice(r.i,1);
     } else if(consume){
       bag.magic.splice(r.i,1);
       G.carryEffects=G.carryEffects||[];
@@ -23278,8 +23553,11 @@ function drawTrade(g){
   g.font='700 '+(11.5*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(255,210,122,0.95)';
   g.fillText('NOZ  \u00b7  A VOICE BEHIND THE BRONZE', VW/2, VH*.07);
   g.font='600 '+(10*s)+'px "Trebuchet MS",sans-serif'; g.fillStyle='rgba(200,180,140,0.8)';
+  if(typeof convertCoinsToElectrum==='function') convertCoinsToElectrum();
   const c=G.coin||{};
-  g.fillText((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp', VW/2, VH*.115);
+  const tooth=typeof hasElectrumToothInPack==='function' && hasElectrumToothInPack();
+  const purse=tooth ? ((c.ep||0)+' ep') : ((c.cp||0)+' cp   '+(c.sp||0)+' sp   '+(c.ep||0)+' ep   '+(c.gp||0)+' gp   '+(c.pp||0)+' pp');
+  g.fillText(purse, VW/2, VH*.115);
   g.textAlign='left';
   const rows=gnomeWares();
   const top=VH*.18, bot=VH-58*s, h=Math.min(PORT?52*s:58*s, Math.max(36*s,(bot-top)/rows.length));
@@ -23300,6 +23578,17 @@ function drawTrade(g){
       spendGp(need); r.fn(); say('Bought: '+r.t+'.','#ffd27a');
     }});
   });
+  if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.eggPrice && CampaignRuntime.sellEgg){
+    const eggGp=CampaignRuntime.eggPrice(G);
+    const magic=(G.packs&&G.packs.macar&&G.packs.macar.magic)||[];
+    const egg=magic.find(it=>it&&(it.k==='egg'||it.id==='golden_egg')&&(it.qty||1)>0);
+    if(eggGp>0 && egg){
+      menuBtn(g,'Sell a golden egg ('+eggGp+' gp)',VW/2,VH-60*s,Math.min(280*s,VW*.72),32*s,()=>{
+        const res=CampaignRuntime.sellEgg(G);
+        if(res&&res.ok) say('Noz pays '+res.gp+' gp for the egg.','#ffd27a');
+      });
+    }
+  }
   menuBtn(g,'Back to the cavern',VW/2,VH-22*s,Math.min(240*s,VW*.62),34*s,()=>{G.scene='play';});
 }
 
@@ -23587,17 +23876,52 @@ function resolveTaps(){
 }
 
 /* ---------------------------- loop ---------------------------- */
-let last=performance.now();
-function loop(now){
-  let dt=(now-last)/1000; last=now; dt=Math.min(dt,.05); G.t+=dt;
-  tickGfx(dt);
+/* One sim step at every viewport and frame rate. Wall-clock frames only
+   fill the accumulator. Combat dice stay on Math.random; render draws
+   with a separate stream so a phone frame cannot change a laptop roll. */
+const SIM_STEP=1/60;
+let simAcc=0;
+let visualSeed=0xC0FFEE;
+function visualRand(){
+  visualSeed=(visualSeed+0x6D2B79F5)|0;
+  let t=Math.imul(visualSeed^(visualSeed>>>15), 1|visualSeed);
+  t=(t+Math.imul(t^(t>>>7), 61|t))^t;
+  return ((t^(t>>>14))>>>0)/4294967296;
+}
+function advanceSim(frameDt){
+  frameDt=Math.max(0, Math.min(+frameDt||0, 0.25));
+  simAcc+=frameDt;
+  let guard=0;
   const holdingWorld=G.scene==='play' && !worldArtReady(G.ch);
   const holdingSystems=typeof SystemsReady!=='undefined' && SystemsReady.systemsHold();
-  if(G.hitstop>0) G.hitstop-=dt; else if(!holdingWorld && !holdingSystems) update(dt);
+  while(simAcc+1e-8>=SIM_STEP && guard<15){
+    simAcc-=SIM_STEP;
+    guard++;
+    G.t+=SIM_STEP;
+    if(typeof resolveTaps==='function') resolveTaps();
+    if(G.hitstop>0) G.hitstop=Math.max(0, G.hitstop-SIM_STEP);
+    else if(!holdingWorld && !holdingSystems) update(SIM_STEP);
+  }
+  if(guard>=15) simAcc=0;
+  else if(simAcc<1e-6) simAcc=0;
+}
+function paintFrame(){
+  const keep=Math.random;
+  Math.random=visualRand;
+  try{ render(); }
+  finally{ Math.random=keep; }
+}
+let last=performance.now();
+function loop(now){
+  let dt=(now-last)/1000; last=now;
+  if(!(dt>=0)) dt=0;
+  dt=Math.min(dt, 0.25);
+  tickGfx(dt);
+  advanceSim(dt);
   tryEnterPlay();
   tickAutosave();
   syncMusic();
-  render(); resolveTaps();
+  paintFrame();
   requestAnimationFrame(loop);
 }
 resize();
@@ -23614,7 +23938,7 @@ try{
     document.title='KIN '+fallen.length+': '+fallen.join(', ');
   }
 }catch(e){ console.error(e); document.title='START ERR '+e; }
-render();
+paintFrame();
 requestAnimationFrame(loop);
 
 /* ===================== DIAGNOSTIC OVERLAY (pause / ?diag=1) ===============

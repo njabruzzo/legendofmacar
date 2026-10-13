@@ -42,6 +42,7 @@
     none: 10,
     padded: 8,
     leather: 8,
+    hide: 6,
     studded: 7,
     ring: 7,
     scale: 6,
@@ -85,6 +86,7 @@
     if (/ring\s*mail/.test(n)) return 'ring';
     if (/studded/.test(n)) return 'studded';
     if (/padded/.test(n)) return 'padded';
+    if (/hide armor/.test(n)) return 'hide';
     if (/leather/.test(n) || /hide/.test(n)) return 'leather';
     if (/shield/.test(n)) return null;
     if (/armor|mail/.test(n)) return 'chain';

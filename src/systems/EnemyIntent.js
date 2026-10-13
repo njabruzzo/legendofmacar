@@ -43,6 +43,9 @@
   var LAST_SEEN_R = 0.38;
   var IMPACT_FRAC = 0.55;
   var DEFAULT_ATK_MAX = 0.42;
+  /* At most three foes stand in melee on one body. The rest hold a ring. */
+  var FRONTAGE = 3;
+  var FRONTAGE_RING = 2;
 
   function use() {
     if (!FLAG) return false;
@@ -139,6 +142,7 @@
   }
 
   function leashOf(e) {
+    if (e && typeof e.leash === 'number' && isFinite(e.leash) && e.leash > 0) return e.leash;
     return e && e.boss ? LEASH_BOSS : LEASH;
   }
 
@@ -188,6 +192,110 @@
     return { dx: x, dy: y };
   }
 
+  function meleeReach(e) {
+    return e && e.range != null ? e.range : 0.95;
+  }
+
+  function inMeleeOf(e, tgt, host) {
+    return distOf(host, e, tgt) <= meleeReach(e) + 1e-6;
+  }
+
+  /* A body in the press: in melee, on the ring, inside aggro with sight, or already coming. */
+  function frontagePress(e, tgt, host) {
+    if (!isMeleePursuer(e) || !tgt) return false;
+    var d = distOf(host, e, tgt);
+    if (inMeleeOf(e, tgt, host)) return true;
+    if (d <= FRONTAGE_RING + 1e-6) return true;
+    var aggro = aggroOf(e);
+    if (aggro > 0 && d <= aggro + 1e-6 && canSee(e, tgt, host)) return true;
+    if ((e.engaged || e.intent === STATE_PURSUE || e.intent === STATE_ATTACK || e.intent === STATE_RECOVER) &&
+        d <= leashOf(e) + 0.5) return true;
+    return false;
+  }
+
+  function frontagePressers(tgt, host) {
+    var ents = (host && host.ents) || [];
+    var list = [];
+    var i, e;
+    for (i = 0; i < ents.length; i++) {
+      e = ents[i];
+      if (!frontagePress(e, tgt, host)) continue;
+      list.push({ e: e, d: distOf(host, e, tgt), i: i });
+    }
+    list.sort(function (a, b) {
+      if (a.d !== b.d) return a.d - b.d;
+      return a.i - b.i;
+    });
+    return list;
+  }
+
+  /**
+   * Closest three melee bodies may stand on the target.
+   * A ranged attacker never takes a slot. A spell cast from outside
+   * melee range does not take one either. A caster who has stepped
+   * into melee counts as a body.
+   */
+  function frontageAllows(e, tgt, host) {
+    if (!e || !tgt || !isMeleePursuer(e)) return true;
+    if (!frontagePress(e, tgt, host)) return true;
+    var pressers = frontagePressers(tgt, host);
+    var seen = false;
+    var i;
+    for (i = 0; i < pressers.length; i++) if (pressers[i].e === e) seen = true;
+    if (!seen) return true;
+    var inMelee = [];
+    var outside = [];
+    for (i = 0; i < pressers.length; i++) {
+      if (inMeleeOf(pressers[i].e, tgt, host)) inMelee.push(pressers[i]);
+      else outside.push(pressers[i]);
+    }
+    var occupied = Math.min(FRONTAGE, inMelee.length);
+    var open = FRONTAGE - occupied;
+    var cap, j;
+    if (inMeleeOf(e, tgt, host)) {
+      cap = Math.min(FRONTAGE, inMelee.length);
+      for (j = 0; j < cap; j++) if (inMelee[j].e === e) return true;
+      return false;
+    }
+    if (open <= 0) return false;
+    cap = Math.min(open, outside.length);
+    for (j = 0; j < cap; j++) if (outside[j].e === e) return true;
+    return false;
+  }
+
+  function ringPoint(tgt, e, ring) {
+    var dx = (e.x || 0) - (tgt.x || 0);
+    var dy = (e.y || 0) - (tgt.y || 0);
+    var d = Math.hypot(dx, dy);
+    if (!(d > 1e-4)) { dx = 1; dy = 0; d = 1; }
+    return { x: (tgt.x || 0) + (dx / d) * ring, y: (tgt.y || 0) + (dy / d) * ring };
+  }
+
+  /* Null when this foe may enter melee. Otherwise the point on the ring. */
+  function frontageGoal(e, tgt, host) {
+    if (frontageAllows(e, tgt, host)) return null;
+    return ringPoint(tgt, e, FRONTAGE_RING);
+  }
+
+  function frontageHold(e, tgt, host) {
+    var rp = ringPoint(tgt, e, FRONTAGE_RING);
+    var dd = distOf(host, e, rp);
+    if (e.intent === STATE_ATTACK) setState(e, STATE_PURSUE);
+    if (dd <= 0.22) {
+      return result(e, STATE_PURSUE, {
+        face: { x: tgt.x, y: tgt.y },
+        engaged: true,
+        frontage: 'ring'
+      });
+    }
+    return result(e, STATE_PURSUE, {
+      move: moveToward(rp.x, rp.y),
+      face: { x: tgt.x, y: tgt.y },
+      engaged: true,
+      frontage: 'ring'
+    });
+  }
+
   function result(e, act, extra) {
     var out = {
       handled: true,
@@ -223,6 +331,13 @@
 
     var tgt = pickTarget(e, host);
     var seen = !!(tgt && canSee(e, tgt, host));
+    /* A hall reserve who has been called already knows where the fight is.
+       Darkness and a blocked sight line do not send him home. Frontage
+       still holds him on the ring once he arrives. */
+    if (e.hallJoin && tgt) {
+      if (inMeleeOf(e, tgt, host)) e.hallJoin = 0;
+      else seen = true;
+    }
     var dTgt = tgt ? distOf(host, e, tgt) : 1e9;
     var dHome = distOf(host, e, { x: e.homeX, y: e.homeY });
     var leash = leashOf(e);
@@ -292,6 +407,7 @@
           setState(e, STATE_RETURN);
           continue;
         }
+        if (!frontageAllows(e, tgt, host)) return frontageHold(e, tgt, host);
         ready = inMeleeWant(e, tgt, host) && meleeClear(e, tgt, host) &&
           (e.ct || 0) <= 0 && (e.atk || 0) <= 0 && !e.defending;
         if (ready) {
@@ -310,6 +426,7 @@
       }
 
       if (e.intent === STATE_ATTACK) {
+        if (tgt && !frontageAllows(e, tgt, host)) return frontageHold(e, tgt, host);
         ready = tgt && inMeleeWant(e, tgt, host) && meleeClear(e, tgt, host) &&
           (e.ct || 0) <= 0 && (e.atk || 0) <= 0 && !e.defending;
         if (ready) {
@@ -360,6 +477,10 @@
     LEASH_BOSS: LEASH_BOSS,
     IMPACT_FRAC: IMPACT_FRAC,
     DEFAULT_ATK_MAX: DEFAULT_ATK_MAX,
+    FRONTAGE: FRONTAGE,
+    FRONTAGE_RING: FRONTAGE_RING,
+    frontageAllows: frontageAllows,
+    frontageGoal: frontageGoal,
     get FLAG() { return FLAG; },
     set FLAG(v) { FLAG = !!v; },
     use: use,

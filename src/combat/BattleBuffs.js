@@ -126,8 +126,12 @@
     return Math.min(KINDS.haste.cdMul, other);
   }
 
+  /* Armed or active: the egg is already 4 AC better for this next battle. */
   function acDelta(state) {
-    return active(state, 'egg').length ? KINDS.egg.acDelta : 0;
+    var on = state.battleBuffs.some(function (b) {
+      return b.k === 'egg' && (b.state === 'active' || b.state === 'armed');
+    });
+    return on ? KINDS.egg.acDelta : 0;
   }
 
   function effects(state) {

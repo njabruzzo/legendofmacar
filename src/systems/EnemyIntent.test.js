@@ -62,7 +62,7 @@ assert(/function applyEnemyIntent\(/.test(html) && /function intentHost\(/.test(
   'host applies intent through existing steerWalk / atk machinery');
 assert(/EnemyIntent\.decide\(e, dt, intentHost\(\)\)/.test(html),
   'only the foe decision branch consults EnemyIntent');
-assert(/ASSET_VER='132'/.test(html), 'ASSET_VER is 117');
+assert(/ASSET_VER='133'/.test(html), 'ASSET_VER is 117');
 
 const head=html.slice(0, html.indexOf('<script>\n"use strict";'));
 const navI=head.indexOf('src="src/systems/Navigation.js"');
@@ -352,6 +352,17 @@ function freshGob(x,y){
   assert(r.act==='return', 'beyond leash the pursuer returns (bounded)');
 }
 
+/* a room leash is shorter than the default and still returns home */
+{
+  const e=freshGob(2.5, 4.5);
+  e.leash=7.2; e.aggro=7.2; e.boss=0;
+  e.x=2.5; e.y=4.5+7.2+0.4; e.engaged=1; e.intent='pursue';
+  const p=Object.assign({}, mac, {x:e.x, y:e.y+1});
+  const host=openHost([e,p]);
+  const r=EI.decide(e, 0.016, host);
+  assert(r.act==='return' && r.move && r.move.dx===e.homeX && r.move.dy===e.homeY, 'a numeric room leash returns home inside the default 11');
+}
+
 /* flag off */
 {
   EI.FLAG=false;
@@ -452,6 +463,95 @@ assert(EI.isMeleePursuer(gob)===true, 'a cave goblin is the melee pursuer');
     assert(ctx.sting==='packWin' && ctx.horn==='pack',
       'killing a minion then leaving a living boss is a pack sting, not boss');
   }
+}
+
+/* Frontage: three melee bodies on a target. Ranged attacks and spells stay outside the count. */
+{
+  assert(EI.FRONTAGE===3 && EI.FRONTAGE_RING===2 && typeof EI.frontageGoal==='function',
+    'frontage is three melee slots and a ring at 2 tiles');
+  assert(/EnemyIntent\.frontageGoal\(/.test(html), 'the legacy chase obeys the frontage cap');
+  function foeAt(x, y, extra){
+    return Object.assign({
+      team:'foe', dead:0, npc:0, ranged:0, web:0, hero:0, r:0.3, range:1,
+      aggro:8, leash:11, x:x, y:y, sp:2, atk:0, atkMax:0.42, ct:0, cd:1.05,
+      intent:'pursue', engaged:1, homeX:x, homeY:y, name:'Orc'
+    }, extra||{});
+  }
+  const mac={team:'party', hero:1, dead:0, hp:40, x:0, y:0};
+  const nearA=foeAt(0.6, 0.2);
+  const nearB=foeAt(-0.5, 0.4);
+  const nearC=foeAt(0.2, -0.7);
+  const fourth=foeAt(3.2, 0.4);
+  const bow=foeAt(0.3, 0.2, {ranged:1, range:8, name:'Bow'});
+  const caster=foeAt(1.6, 0, {caster:1, range:0.8, name:'Shaman'});
+  const ents=[nearA, nearB, nearC, fourth, bow, mac];
+  const host={
+    ents:ents,
+    dist:(a,b)=>Math.hypot(a.x-b.x, a.y-b.y),
+    hasLOS:()=>true,
+    canBe:()=>true,
+    walk:()=>true,
+    inDarkZone:()=>false,
+    nearestAlly:()=>mac
+  };
+  assert(EI.frontageGoal(nearA, mac, host)==null && EI.frontageGoal(nearB, mac, host)==null && EI.frontageGoal(nearC, mac, host)==null,
+    'the three closest melee foes keep the slots');
+  const ring=EI.frontageGoal(fourth, mac, host);
+  const ringD=ring?Math.hypot(ring.x-mac.x, ring.y-mac.y):0;
+  assert(ring && Math.abs(ringD-2)<1e-6, 'the fourth melee foe is sent to a ring 2 tiles out');
+  assert(EI.frontageGoal(bow, mac, host)==null, 'a ranged attacker does not take a slot and is not held');
+  const decided=EI.decide(fourth, 0.05, host);
+  assert(!decided.attack && decided.frontage==='ring' && decided.move && Math.abs(Math.hypot(decided.move.dx, decided.move.dy)-2)<1e-6,
+    'a foe outside the cap steps to the ring instead of swinging');
+  nearA.dead=1;
+  assert(EI.frontageGoal(fourth, mac, host)==null, 'an open slot lets the next foe step in');
+  nearA.dead=0;
+  ents.push(caster);
+  assert(EI.frontageGoal(nearA, mac, host)==null && EI.frontageGoal(nearB, mac, host)==null && EI.frontageGoal(nearC, mac, host)==null, 'three melee slots stay filled');
+  assert(EI.frontageGoal(caster, mac, host) && Math.hypot(caster.x, caster.y)>caster.range, 'a spell cast from outside melee does not take a slot');
+  const touch=foeAt(0.4, 0.1, {caster:1, range:0.8, name:'Touch'});
+  ents.push(touch);
+  const touchRing=EI.frontageGoal(touch, mac, host);
+  assert(touchRing==null || Math.hypot(touch.x, touch.y)<=touch.range, 'a caster who has stepped into melee counts as a body');
+  const crowded=[nearA, nearB, nearC, touch].filter(e=>!e.dead && EI.frontageGoal(e, mac, host)==null);
+  assert(crowded.length===3, 'four bodies in melee still leave only three slots');
+}
+
+/* A called hall guard already knows the fight. Darkness and a blocked sight line do not send him home. */
+{
+  const intentSrc=fs.readFileSync(path.join(__dirname,'EnemyIntent.js'),'utf8');
+  assert(!/\bZOOM\b/.test(intentSrc) && !/\bTW\b/.test(intentSrc) && !/innerWidth/.test(intentSrc),
+    'aggro, reach, and the frontage ring are tiles, not zoom or screen pixels');
+  function foeAt(x, y, extra){
+    return Object.assign({
+      team:'foe', dead:0, npc:0, ranged:0, web:0, hero:0, r:0.3, range:1,
+      aggro:8, leash:11, x:x, y:y, sp:2, atk:0, atkMax:0.42, ct:0, cd:1.05,
+      intent:'pursue', engaged:1, homeX:x, homeY:y, name:'Orc'
+    }, extra||{});
+  }
+  const mac={team:'party', hero:1, dead:0, hp:40, x:0, y:0};
+  const joiner=foeAt(8, 0.2, { hallJoin:1, aggro:11, leash:11, homeX:6, homeY:0, intent:null, engaged:0 });
+  const slotA=foeAt(0.6, 0.2);
+  const slotB=foeAt(-0.5, 0.4);
+  const slotC=foeAt(0.2, -0.7);
+  const ents=[joiner, slotA, slotB, slotC, mac];
+  const host={
+    ents:ents,
+    dist:(a,b)=>Math.hypot(a.x-b.x, a.y-b.y),
+    hasLOS:()=>false,
+    canBe:()=>true,
+    walk:()=>true,
+    inDarkZone:()=>true,
+    nearestAlly:()=>mac
+  };
+  const called=EI.decide(joiner, 1/60, host);
+  assert(called.handled && called.act==='pursue' && called.move && joiner.hallJoin===1,
+    'a called guard paths toward Macar through darkness with no sight line');
+  assert(called.frontage==='ring' && Math.abs(Math.hypot(called.move.dx-mac.x, called.move.dy-mac.y)-2)<1e-6,
+    'frontage still holds him on the 2-tile ring once three bodies are in');
+  joiner.x=0.5; joiner.y=0; joiner.intent=null; joiner.intentAge=0;
+  EI.decide(joiner, 1/60, host);
+  assert(joiner.hallJoin===0, 'the call ends once he is in melee');
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }

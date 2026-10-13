@@ -16,7 +16,7 @@ const root = path.join(__dirname, '../..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const recipes = fs.readFileSync(path.join(root, 'src/crafting/recipes.json'), 'utf8');
 
-assert(/ASSET_VER='132'/.test(html), 'ASSET_VER stays 132');
+assert(/ASSET_VER='133'/.test(html), 'ASSET_VER stays 133');
 assert(/src\/campaign\/CampaignBoot\.js/.test(html), 'index.html loads the campaign boot');
 assert((html.match(/src\/campaign\//g) || []).length === 1, 'the campaign folder is named once');
 [
