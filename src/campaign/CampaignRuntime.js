@@ -7,6 +7,8 @@
   'use strict';
 
   var LIVE = { 2: true, 3: true };
+  /* Level 3 is its own floor. 30 is not a story chapter (those are 1–5). */
+  var L3_SHELL = 30;
   var SPIDER_KEYS = { spider: 1, spiderHuge: 1, spiderGiant: 1, phasespider: 1, spiderQueen: 1 };
   var UNWIRED_QUESTS = { holy_hammer: true, holy_anvil: true };
   var PACK = 0.8;
@@ -90,7 +92,7 @@
 
   function shellChapter(level) {
     level = level | 0;
-    if (level === 3) return 2;
+    if (level === 3) return L3_SHELL;
     return level;
   }
 
@@ -206,12 +208,18 @@
     var stored = G.campaignLevel || 1;
     var level = stored;
     if (G.cleared && G.cleared[1] && level < 2) level = 2;
+    var next = (level | 0) + 1;
+    /* A cleared live floor whose next level is not live stays at camp,
+       even when an old save still has the previous story chapter. */
+    if (LIVE[level] && !LIVE[next] && G.cleared && G.cleared[level]) {
+      G.campaignLevel = level;
+      return 'soon';
+    }
     var shell = shellChapter(level);
     if (LIVE[level] && (G.ch | 0) < shell) {
       G.campaignLevel = level;
       return 'enter';
     }
-    var next = (level | 0) + 1;
     if (LIVE[level] && LIVE[next] && (G.ch | 0) >= shell) {
       G.campaignLevel = stored >= level ? next : level;
       return 'enter';
@@ -446,10 +454,18 @@
       e.maxhp = e.hp;
     }
     if (mon && mon.ruby && typeof mon.ruby.gp === 'number') e.rubyGp = mon.ruby.gp;
+    e.rubyTint = 1;
+    e.glow = '#ff2438';
+    if (node && node.x != null && node.y != null) {
+      e.homeX = node.x;
+      e.homeY = node.y;
+      e.leash = 7.5;
+    }
     return e;
   }
 
   function carveMap(L, map) {
+    if (L && L.flags && L.flags.ownShell) return;
     if (!L || !L.grid || !eng('caveDisk')) return;
     var g = L.grid;
     var rooms = (map.layout && map.layout.rooms) || [];
@@ -552,7 +568,7 @@
       var flags = (G.lvl && G.lvl.flags) || {};
       placeProp(G, {
         x: tooth.x, y: tooth.y, k: 'demonface',
-        wall: (face && face.wall) || 'n',
+        wall: (tooth && tooth.wall) || (face && face.wall) || 'n',
         s: 1.12, seed: 774,
         toothKind: 'electrum', itemId: tooth.id || 'grond_tooth_electrum_2',
         campaign: 1, emptySocket: flags[toothTakenFlag(tooth.id)] ? 1 : 0
@@ -677,6 +693,7 @@
       carveMap(L, spec.map || {});
       placeLevel(G, spec);
       spawnPinned(G, opts, spec);
+      if (spec.map && spec.map.webCorpses && eng('placeSpiderWebCorpses')) eng('placeSpiderWebCorpses')();
     } else {
       stripTravelProps(G);
       placeLevel(G, spec);
@@ -1646,12 +1663,32 @@
     else G.scene = 'camp';
   }
 
+  function leashGuardians(G) {
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) {
+      var e = ents[i];
+      if (!e || e.dead || e.campaignRole !== 'guardian' || !(e.leash > 0)) continue;
+      if (e.homeX == null || e.homeY == null) continue;
+      var dx = e.x - e.homeX;
+      var dy = e.y - e.homeY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > e.leash) {
+        var k = e.leash / dist;
+        e.x = e.homeX + dx * k;
+        e.y = e.homeY + dy * k;
+        e.dest = null;
+        e.moving = 0;
+      }
+    }
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
     dt = dt || 0;
     syncFever(G);
     syncGates(G);
+    leashGuardians(G);
     tickKing(G, dt);
     tickCasters(G, dt);
     tickBarks(G, dt);
@@ -1780,6 +1817,7 @@
     UNWIRED_QUESTS: UNWIRED_QUESTS,
     load: load,
     nextLevel: nextLevel,
+    L3_SHELL: L3_SHELL,
     shellChapter: shellChapter,
     shouldInstall: shouldInstall,
     blocksWarren: blocksWarren,

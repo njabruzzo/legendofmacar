@@ -3,7 +3,7 @@
   "version": 1,
   "book": "campaign-levels",
   "affectsPlay": false,
-  "note": "Level 3 campaign map. Data only. The game does not load this file. The transition card is the existing giant-spider sheet.",
+  "note": "Level 3 campaign map. Data only. The game does not load this file. The transition card is the existing giant-spider sheet. The floor is the Level 3 shell, not the Chapter II room set.",
   "levels": [
     {
       "id": "L3",
@@ -11,33 +11,131 @@
       "level": 3,
       "wired": false,
       "stairsOpenOn": "bossKill",
-      "size": { "w": 144, "h": 118 },
-      "builtFrom": "Chapter II spider packs, web corpses, and spider art, moved off L2",
-      "spawn": { "x": 40.15, "y": 8.55, "role": "arrival-from-L2" },
-      "arrival": { "x": 40, "y": 7.55, "prop": "lift", "role": "from-L2" },
+      "size": {
+        "w": 144,
+        "h": 118
+      },
+      "builtFrom": "Level 3 shell. Own rooms in the Webbed Deep, not the Chapter II set.",
+      "spawn": {
+        "x": 128.2,
+        "y": 73.4,
+        "role": "arrival-from-L2"
+      },
+      "arrival": {
+        "x": 128.2,
+        "y": 73.4,
+        "role": "from-L2"
+      },
       "layout": {
-        "source": "Chapter II disks that held spiders, plus the ruby disk, the stair, and the landing",
+        "source": "The Webbed Deep, carved for Level 3. Not the Chapter II room set.",
         "rooms": [
-          { "id": "arrival", "kind": "disk", "x": 40, "y": 8, "rw": 5, "rh": 4 },
-          { "id": "stair-chamber", "kind": "disk", "x": 40, "y": 54, "rw": 4.8, "rh": 4 },
-          { "id": "north-web", "kind": "disk", "x": 26.2, "y": 15.2, "rw": 5.2, "rh": 4.2, "was": "spider x3" },
-          { "id": "ruby-den", "kind": "disk", "x": 16.4, "y": 16.4, "rw": 4.6, "rh": 3.8 },
-          { "id": "queen-hall", "kind": "disk", "x": 10, "y": 31, "rw": 6.5, "rh": 5.5, "was": "spider-lord-den" },
-          { "id": "phase-den", "kind": "disk", "x": 12.2, "y": 44.1, "rw": 4.5, "rh": 3.8 },
-          { "id": "east-web", "kind": "disk", "x": 90.2, "y": 50.1, "rw": 5.2, "rh": 4.4, "was": "spider x3" },
-          { "id": "giant-den", "kind": "disk", "x": 82.2, "y": 28.1, "rw": 5.5, "rh": 4.5 },
-          { "id": "south-huge", "kind": "disk", "x": 66.2, "y": 76.1, "rw": 4.8, "rh": 4, "was": "spiderHuge and spider x2" },
-          { "id": "far-silk", "kind": "disk", "x": 100.1, "y": 88.1, "rw": 4.8, "rh": 4, "was": "spider x3" },
-          { "id": "deep-huge", "kind": "disk", "x": 48.1, "y": 106.1, "rw": 4.6, "rh": 3.8, "was": "spiderHuge and spider x2" }
+          {
+            "id": "arrival",
+            "kind": "disk",
+            "x": 128,
+            "y": 74,
+            "rw": 4.6,
+            "rh": 3.6,
+            "tile": 3
+          },
+          {
+            "id": "ruby-chamber",
+            "kind": "rect",
+            "x": 123,
+            "y": 87,
+            "origin": {
+              "x": 112,
+              "y": 80
+            },
+            "w": 22,
+            "h": 14
+          },
+          {
+            "id": "far-silk",
+            "kind": "disk",
+            "x": 136,
+            "y": 92,
+            "rw": 4.4,
+            "rh": 3.4
+          },
+          {
+            "id": "deep-huge",
+            "kind": "disk",
+            "x": 100,
+            "y": 90,
+            "rw": 4.4,
+            "rh": 3.4
+          },
+          {
+            "id": "north-web",
+            "kind": "disk",
+            "x": 118,
+            "y": 98,
+            "rw": 5,
+            "rh": 3.8
+          },
+          {
+            "id": "queen-hall",
+            "kind": "rect",
+            "x": 85,
+            "y": 107,
+            "origin": {
+              "x": 70,
+              "y": 100
+            },
+            "w": 30,
+            "h": 14
+          },
+          {
+            "id": "phase-den",
+            "kind": "disk",
+            "x": 56,
+            "y": 106,
+            "rw": 4.4,
+            "rh": 3.4
+          },
+          {
+            "id": "giant-den",
+            "kind": "disk",
+            "x": 108,
+            "y": 112,
+            "rw": 4.6,
+            "rh": 3.2
+          },
+          {
+            "id": "east-web",
+            "kind": "disk",
+            "x": 132,
+            "y": 108,
+            "rw": 4.6,
+            "rh": 3.4
+          },
+          {
+            "id": "high-web",
+            "kind": "disk",
+            "x": 84,
+            "y": 90,
+            "rw": 4.2,
+            "rh": 3.2
+          },
+          {
+            "id": "stair-chamber",
+            "kind": "disk",
+            "x": 138,
+            "y": 112,
+            "rw": 4,
+            "rh": 3,
+            "tile": 3
+          }
         ]
       },
       "rubyDoor": {
         "placement": "fixed",
-        "x": 16.2,
-        "y": 14.8,
+        "x": 123,
+        "y": 79.15,
         "prop": "rubydoor",
         "touchWakes": "rubyGuardian",
-        "room": "ruby-den"
+        "room": "ruby-chamber"
       },
       "guardian": {
         "placement": "fixed",
@@ -45,13 +143,14 @@
         "name": "Ruby Guardian III",
         "tier": 3,
         "count": 1,
-        "x": 16.4,
-        "y": 16.4,
+        "x": 123,
+        "y": 87,
         "hp": 36,
         "ac": 4,
-        "room": "ruby-den",
+        "room": "ruby-chamber",
         "wakesOn": "rubyDoor",
         "leash": "ruby-room",
+        "leashTiles": 7.5,
         "bossFlagOnIndividual": false,
         "art": {
           "key": "thinone",
@@ -63,10 +162,10 @@
       },
       "lever": {
         "placement": "fixed",
-        "x": 15.0,
-        "y": 17.4,
+        "x": 116,
+        "y": 89,
         "prop": "floorlever",
-        "room": "ruby-den",
+        "room": "ruby-chamber",
         "enablesWhen": "rubyGuardianDead",
         "needsBoss": false,
         "opensStairs": false,
@@ -74,25 +173,27 @@
       },
       "elevator": {
         "placement": "fixed",
-        "x": 17.8,
-        "y": 17.2,
+        "x": 130,
+        "y": 89,
         "prop": "lift",
-        "room": "ruby-den",
+        "room": "ruby-chamber",
         "auto": true,
         "standIn": true,
         "newArt": false,
         "showsTransitionCard": true,
         "transitionCard": "assets/creatures/mon_spider_giant.png",
         "standInFor": "Giant spider art stands in for the Queen",
-        "requires": ["leverPulled"],
+        "requires": [
+          "leverPulled"
+        ],
         "gate": "guardian"
       },
       "boss": {
         "placement": "fixed",
         "key": "spiderQueen",
         "name": "Spider Queen",
-        "x": 10.1,
-        "y": 31,
+        "x": 85,
+        "y": 107,
         "hp": 44,
         "ac": 3,
         "room": "queen-hall",
@@ -112,8 +213,8 @@
       "stairs": {
         "id": "south-stair",
         "placement": "fixed",
-        "x": 40.1,
-        "y": 51.6,
+        "x": 138.1,
+        "y": 111.2,
         "prop": "stairs",
         "room": "stair-chamber",
         "opensOn": "bossKill",
@@ -122,8 +223,9 @@
       "tooth": {
         "id": "grond_tooth_electrum_3",
         "n": 3,
-        "x": 10.1,
-        "y": 26.8,
+        "x": 85,
+        "y": 99.15,
+        "wall": "n",
         "prop": "demonface",
         "room": "queen-hall",
         "cursed": true,
@@ -137,8 +239,8 @@
           "id": "trapped-pixie",
           "kind": "rescue",
           "placed": true,
-          "x": 26.2,
-          "y": 14.6,
+          "x": 118,
+          "y": 98,
           "room": "north-web",
           "fights": false,
           "freeRounds": 1,
@@ -152,87 +254,188 @@
         {
           "id": "north-web",
           "room": "north-web",
-          "anchor": { "x": 26.2, "y": 15.2 },
-          "movedFrom": "L2",
+          "anchor": {
+            "x": 118,
+            "y": 98
+          },
           "members": [
-            { "key": "spider", "count": 3, "x": 26.2, "y": 15.2 }
+            {
+              "key": "spider",
+              "count": 3,
+              "x": 118,
+              "y": 98
+            }
           ]
         },
         {
           "id": "queen-hall",
           "room": "queen-hall",
-          "anchor": { "x": 10.1, "y": 31 },
-          "was": "spiderLord and spider x3",
+          "anchor": {
+            "x": 85,
+            "y": 107
+          },
           "members": [
-            { "key": "spiderQueen", "count": 1, "x": 10.1, "y": 31, "role": "boss" },
-            { "key": "spider", "count": 3, "x": 11.6, "y": 32.2 }
+            {
+              "key": "spiderQueen",
+              "count": 1,
+              "x": 85,
+              "y": 107,
+              "role": "boss"
+            },
+            {
+              "key": "spider",
+              "count": 3,
+              "x": 87.2,
+              "y": 108.2
+            }
           ]
         },
         {
           "id": "east-web",
           "room": "east-web",
-          "anchor": { "x": 90.2, "y": 50.1 },
-          "movedFrom": "L2",
+          "anchor": {
+            "x": 132,
+            "y": 108
+          },
           "members": [
-            { "key": "spider", "count": 3, "x": 90.2, "y": 50.1 }
+            {
+              "key": "spider",
+              "count": 3,
+              "x": 132,
+              "y": 108
+            }
           ]
         },
         {
-          "id": "south-huge",
-          "room": "south-huge",
-          "anchor": { "x": 66.2, "y": 76.1 },
-          "movedFrom": "L2",
+          "id": "high-web",
+          "room": "high-web",
+          "anchor": {
+            "x": 84,
+            "y": 90
+          },
           "members": [
-            { "key": "spiderHuge", "count": 1, "x": 66.2, "y": 75.4 },
-            { "key": "spider", "count": 2, "x": 66.2, "y": 76.8 }
+            {
+              "key": "spiderHuge",
+              "count": 1,
+              "x": 84,
+              "y": 89.4
+            },
+            {
+              "key": "spider",
+              "count": 2,
+              "x": 84,
+              "y": 90.8
+            }
           ]
         },
         {
           "id": "far-silk",
           "room": "far-silk",
-          "anchor": { "x": 100.1, "y": 88.1 },
-          "movedFrom": "L2",
+          "anchor": {
+            "x": 136,
+            "y": 92
+          },
           "members": [
-            { "key": "spider", "count": 3, "x": 100.1, "y": 88.1 }
+            {
+              "key": "spider",
+              "count": 3,
+              "x": 136,
+              "y": 92
+            }
           ]
         },
         {
           "id": "deep-huge",
           "room": "deep-huge",
-          "anchor": { "x": 48.1, "y": 106.1 },
-          "movedFrom": "L2",
+          "anchor": {
+            "x": 100,
+            "y": 90
+          },
           "members": [
-            { "key": "spiderHuge", "count": 1, "x": 48.1, "y": 105.4 },
-            { "key": "spider", "count": 2, "x": 48.1, "y": 106.8 }
+            {
+              "key": "spiderHuge",
+              "count": 1,
+              "x": 100,
+              "y": 89.4
+            },
+            {
+              "key": "spider",
+              "count": 2,
+              "x": 100,
+              "y": 90.8
+            }
           ]
         },
         {
           "id": "giant-den",
           "room": "giant-den",
-          "anchor": { "x": 82.2, "y": 28.1 },
-          "open": "giant-count",
+          "anchor": {
+            "x": 108,
+            "y": 112
+          },
           "members": [
-            { "key": "spiderGiant", "count": 1, "x": 82.2, "y": 28.1 }
+            {
+              "key": "spiderGiant",
+              "count": 1,
+              "x": 108,
+              "y": 112
+            }
           ]
         },
         {
           "id": "phase-den",
           "room": "phase-den",
-          "anchor": { "x": 12.2, "y": 44.1 },
-          "open": "phase-count",
+          "anchor": {
+            "x": 56,
+            "y": 106
+          },
           "members": [
-            { "key": "phasespider", "count": 1, "x": 12.2, "y": 44.1 }
+            {
+              "key": "phasespider",
+              "count": 1,
+              "x": 56,
+              "y": 106
+            }
           ]
         }
       ],
-      "retired": ["spiderLord", "forceLordHoard"],
+      "retired": [
+        "spiderLord",
+        "forceLordHoard"
+      ],
       "webCorpses": {
         "keep": "rollWebCorpse",
         "count": "4-6",
         "room": "queen-hall",
         "spots": [
-          [11.5, 29.7], [8.7, 30.2], [12.6, 32.0], [9.1, 32.8],
-          [11.9, 33.5], [8.3, 28.9], [13.1, 30.6]
+          [
+            78,
+            104
+          ],
+          [
+            82,
+            108
+          ],
+          [
+            88,
+            103
+          ],
+          [
+            92,
+            110
+          ],
+          [
+            76,
+            110
+          ],
+          [
+            90,
+            106
+          ],
+          [
+            84,
+            111
+          ]
         ]
       },
       "brood": {
@@ -241,20 +444,53 @@
         "huge": "1d4",
         "giant": 1,
         "tunnels": [
-          { "x": 6.4, "y": 31 },
-          { "x": 14.2, "y": 31 }
+          {
+            "x": 64,
+            "y": 106
+          },
+          {
+            "x": 104,
+            "y": 106
+          }
         ]
       },
       "wander": {
-        "check": { "chance": "1 in 6", "every": "3 turns" },
+        "check": {
+          "chance": "1 in 6",
+          "every": "3 turns"
+        },
         "source": "RULES section 5",
         "slots": [
-          { "slot": 1, "key": "spider", "count": "1d4" },
-          { "slot": 2, "key": "spider", "count": "1d4" },
-          { "slot": 3, "key": "spiderHuge", "count": "1d2" },
-          { "slot": 4, "key": "spiderHuge", "count": "1d2" },
-          { "slot": 5, "key": "spiderGiant", "count": "1" },
-          { "slot": 6, "key": "phasespider", "count": "1" }
+          {
+            "slot": 1,
+            "key": "spider",
+            "count": "1d4"
+          },
+          {
+            "slot": 2,
+            "key": "spider",
+            "count": "1d4"
+          },
+          {
+            "slot": 3,
+            "key": "spiderHuge",
+            "count": "1d2"
+          },
+          {
+            "slot": 4,
+            "key": "spiderHuge",
+            "count": "1d2"
+          },
+          {
+            "slot": 5,
+            "key": "spiderGiant",
+            "count": "1"
+          },
+          {
+            "slot": 6,
+            "key": "phasespider",
+            "count": "1"
+          }
         ]
       },
       "loot": {
@@ -264,19 +500,103 @@
           "table": "DMG Appendix A Table V",
           "source": "DUNGEON_TREASURE level 3",
           "places": [
-            [82, 28], [96, 32], [90, 50], [12, 44],
-            [18, 64], [40, 70], [66, 76], [64, 46],
-            [122, 30], [40, 98], [100, 88], [8, 92],
-            [118, 10], [120, 62], [48, 106], [90, 6]
+            [
+              126,
+              75
+            ],
+            [
+              120,
+              84
+            ],
+            [
+              130,
+              86
+            ],
+            [
+              136,
+              93
+            ],
+            [
+              101,
+              91
+            ],
+            [
+              117,
+              99
+            ],
+            [
+              78,
+              105
+            ],
+            [
+              90,
+              111
+            ],
+            [
+              57,
+              107
+            ],
+            [
+              109,
+              113
+            ],
+            [
+              133,
+              109
+            ],
+            [
+              85,
+              91
+            ],
+            [
+              137,
+              113
+            ],
+            [
+              114,
+              88
+            ],
+            [
+              125,
+              91
+            ],
+            [
+              96,
+              104
+            ]
           ]
         },
-        "queenCorpse": { "letter": "U", "decision": "D1-A", "on": "spiderQueen" },
-        "queenChest": { "letter": "C", "decision": "D2-A", "x": 12.4, "y": 32.8, "onCorpse": false },
-        "guardianRuby": { "gp": 750, "x": 16.4, "y": 16.4 },
-        "tooth": { "id": "grond_tooth_electrum_3" },
-        "pixieDust": { "id": "pixie_dust", "count": 1 },
-        "venom": { "perSpider": 0.5, "queen": 1 },
-        "silk": { "how": "web harvest" },
+        "queenCorpse": {
+          "letter": "U",
+          "decision": "D1-A",
+          "on": "spiderQueen"
+        },
+        "queenChest": {
+          "letter": "C",
+          "decision": "D2-A",
+          "x": 90,
+          "y": 109,
+          "onCorpse": false
+        },
+        "guardianRuby": {
+          "gp": 750,
+          "x": 123,
+          "y": 87
+        },
+        "tooth": {
+          "id": "grond_tooth_electrum_3"
+        },
+        "pixieDust": {
+          "id": "pixie_dust",
+          "count": 1
+        },
+        "venom": {
+          "perSpider": 0.5,
+          "queen": 1
+        },
+        "silk": {
+          "how": "web harvest"
+        },
         "magicFilter": "2.2 usable by a dwarf fighter",
         "retired": "forceLordHoard"
       },
@@ -287,7 +607,9 @@
         "stairs": "bossKill",
         "stairsOpenOn": "bossKill",
         "livingBossBlocksElevator": false,
-        "leverRequires": ["rubyGuardianDead"]
+        "leverRequires": [
+          "rubyGuardianDead"
+        ]
       }
     }
   ]

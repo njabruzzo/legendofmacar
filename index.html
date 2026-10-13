@@ -81,8 +81,8 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
-<script src="src/campaign/CampaignBoot.js?v=132"></script>
+<script src="src/assets/asset-manifest.js?v=1d92bd1d0a65"></script>
+<script src="src/campaign/CampaignBoot.js?v=133"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -720,7 +720,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='132';
+const ASSET_VER='133';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1064,6 +1064,8 @@ SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
 SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
 /* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
 SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
+/* STAND-IN, needs Cel/Disney art. Bronze hourglass, glowing sand. Level 2 secret only. */
+SPRITE_FILES.hourglass='assets/props/prop_hourglass.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -1192,7 +1194,14 @@ const WORLD_ART_KEYS={
      'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
+     'goblin','goblin_w1','goblin_w2','rat','rat_w1','rat_w2','thinone','thinone_w1','thinone_w2',
+     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass','demon_dwarfface'],
+  30:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
+     'thinone','thinone_w1','thinone_w2','spider','spider_huge','spider_giant','phasespider',
+     'demon_dwarfface','rubydoor'],
   3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -3222,7 +3231,8 @@ function palFloorKey(pal){
   return 'floor_mine';
 }
 function palWallKey(L){
-  // Chapter II is living rock. The start and the built halls are worked stone.
+  // Chapter II and the Webbed Deep are living rock. The start and the built halls are worked stone.
+  if(L && L.wallKey) return L.wallKey;
   if(L && L.n===2) return 'wall_cave';
   return 'wall_worked';
 }
@@ -5591,7 +5601,25 @@ function positionNozDoor(L){
   for(let x=60;x<=65;x++){L.grid[10][x]=1;for(let y=11;y<=13;y++)L.grid[y][x]=0;}
   for(const p of G.props||[])if(p.k==='bronzedoor'||p.k==='bell')Object.assign(p,p.k==='bell'?L.bell:L.door);
 }
+function makeCampaignL3(){
+  const L={n:30,w:144,h:118,grid:newGrid(144,118,1),pal:PAL.mine,wallKey:'wall_cave',
+    title:'The Webbed Deep and the Spider Queen', sub:'The Webbed Deep',
+    objs:[], lights:[], flags:{ownShell:1, campaignWeb:1}, secrets:[],
+    spawn:{x:128.2,y:73.4}, stair:{x:138.1,y:111.2},
+    tick:null, guide:null, wallHP:{}};
+  if(typeof L3Shell!=='undefined' && L3Shell.carve) L3Shell.carve(L.grid,{caveDisk:caveDisk,rect:rect,carvePath:carvePath});
+  sealOuter(L.grid);
+  L.seen=newGrid(L.w,L.h,0);
+  L.vis=newGrid(L.w,L.h,0);
+  const dress=(typeof L3Shell!=='undefined' && L3Shell.dressing)||[];
+  G.props=dress.map(p=>Object.assign({s:1,seed:p.seed||1},p));
+  L.lights=((typeof L3Shell!=='undefined' && L3Shell.lights)||[]).map(light=>Object.assign({},light));
+  const caches=(typeof L3Shell!=='undefined' && L3Shell.caches)||[];
+  caches.forEach(pt=>placeDungeonCache(pt[0],pt[1],3));
+  return L;
+}
 function makeChapter(n){
+  if(n===30) return makeCampaignL3();
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
 
@@ -7099,6 +7127,10 @@ function tickFloorTravel(){
   else if(lever&&dist(p,lever)<1.8)interact('Use the floor lever',openFloorLever);
 }
 function startChapter(n){
+  if(n===2 && (G.campaignLevel|0)===3 && typeof CampaignRuntime!=='undefined' && CampaignRuntime.shellChapter){
+    const shell=CampaignRuntime.shellChapter(3);
+    if(shell && shell!==n) n=shell;
+  }
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
   const keep=!!G._keepProgress;
   if(n===1&&!keep)G.floorWorlds={};
@@ -7146,7 +7178,7 @@ function startChapter(n){
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     if(n===1){ e.fdx=hero?-1:1; e.fdy=0; }
-    if(n===2){ e.fdx=0; e.fdy=1; }
+    if(n===2 || n===30){ e.fdx=0; e.fdy=1; }
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
@@ -7577,7 +7609,8 @@ function loadSavedGame(){
   noteQuietSave();
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
-function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
+function endChapter(){
+  if(CH_META[G.ch]){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked||1, G.ch+1); }
   if(G.ch===1&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteCleared) CampaignRuntime.noteCleared(G);
   G.sang=false; G.campScroll=0; G.campTab='repair'; G.campSel=null; G.campSkills=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
@@ -18582,6 +18615,18 @@ function drawEnt(g,e){
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke(); }
   if(e.buff>0){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
+  if(e.rubyTint && !e.dead){
+    g.save();
+    g.globalCompositeOperation='lighter';
+    g.globalAlpha=0.55;
+    g.fillStyle=e.glow||'#ff2438';
+    g.beginPath(); g.ellipse(0,-22*z,16*z,26*z,0,0,TAU); g.fill();
+    g.globalAlpha=0.9;
+    g.strokeStyle='#ff5a68';
+    g.lineWidth=2.4*ZOOM;
+    g.beginPath(); g.ellipse(0,-22*z,18*z,28*z,0,0,TAU); g.stroke();
+    g.restore();
+  }
   g.restore();
 
   /* No free-floating glow globes above foes / ghosts. Baked lantern light stays. */
@@ -18603,6 +18648,13 @@ function drawEnt(g,e){
       ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
       ctx.strokeText(e.name,s.x,yy-7*ZOOM);
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
+  }
+  if(!e.dead && e.rubyTint && e.name){
+    const rubyY=s.y-(e.hp<e.maxhp?78:62)*ZOOM*(e.scale||1);
+    ctx.font='800 '+(12*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(40,0,8,0.88)';
+    ctx.strokeText(e.name,s.x,rubyY);
+    ctx.fillStyle='#ffb0b8'; ctx.fillText(e.name,s.x,rubyY); ctx.textAlign='left';
   }
   if(e.crushed){
     ctx.strokeStyle='rgba(255,214,140,0.9)'; ctx.lineWidth=2.2*ZOOM;
@@ -19456,9 +19508,18 @@ function rollWebCorpseHoard(){
 }
 function placeSpiderWebCorpses(){
   const n=ri(4,6);
-  const spots=(typeof SpiderLair!=='undefined'&&SpiderLair.pickSpots)
-    ? SpiderLair.pickSpots(n, ri)
-    : [[11.5,29.7],[8.7,30.2],[12.6,32.0],[9.1,32.8],[11.9,33.5],[8.3,28.9]].slice(0,n);
+  const spec=G.lvl&&G.lvl.campaignSpec;
+  const mapped=spec&&spec.map&&spec.map.webCorpses&&spec.map.webCorpses.spots;
+  let spots;
+  if(mapped&&mapped.length){
+    const pool=mapped.slice();
+    spots=[];
+    while(spots.length<n && pool.length) spots.push(pool.splice(ri(0,pool.length-1),1)[0]);
+  } else {
+    spots=(typeof SpiderLair!=='undefined'&&SpiderLair.pickSpots)
+      ? SpiderLair.pickSpots(n, ri)
+      : [[11.5,29.7],[8.7,30.2],[12.6,32.0],[9.1,32.8],[11.9,33.5],[8.3,28.9]].slice(0,n);
+  }
   spots.forEach(([x,y])=>{
     G.props=G.props||[];
     G.props.push({x:x+0.12,y:y-0.08,k:'web',s:0.92});
@@ -22254,7 +22315,8 @@ function drawCamp(g){
   goldTitleLine(g,'CAMP', titleY+titleSize*0.72, titleSize);
   g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(210,190,150,0.78)';
-  const cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  let cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  if((G.campaignLevel|0)===3) cleared='The Webbed Deep';
   g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 

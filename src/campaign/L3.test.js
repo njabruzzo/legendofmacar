@@ -34,17 +34,17 @@ const level = l3Book.book.levels[0];
 assert(level.id === 'L3' && level.wired === false, 'L3 is unwired');
 assert(level.stairsOpenOn === 'bossKill', 'L3 stairs open on the boss kill');
 assert(level.boss && level.boss.key === 'spiderQueen' && level.guardian && level.guardian.key === 'rubyGuardian', 'L3 has a boss and a guardian');
-assert(level.boss.placement === 'fixed' && level.boss.x === 10.1 && level.boss.y === 31 && level.boss.hp === 44, 'the Spider Queen is fixed in the old lord den');
+assert(level.boss.placement === 'fixed' && level.boss.x === 85 && level.boss.y === 107 && level.boss.hp === 44, 'the Spider Queen is fixed in the queen hall');
 assert(level.boss.bossFlagOnIndividual === false && level.boss.separateFromGuardian === true, 'the Queen is a separate fight and wears no boss flag');
 assert(level.boss.key !== level.guardian.key, 'the guardian and the boss are different creatures');
 assert(level.guardian.placement === 'fixed' && level.guardian.tier === 3 && level.guardian.count === 1 && level.guardian.hp === 36, 'guardian is Ruby Guardian III');
-assert(level.guardian.x === 16.4 && level.guardian.y === 16.4, 'guardian has a fixed point');
+assert(level.guardian.x === 123 && level.guardian.y === 87, 'guardian has a fixed point in the ruby chamber');
 assert(level.rubyDoor.placement === 'fixed' && level.lever.enablesWhen === 'rubyGuardianDead' && level.lever.needsBoss === false && level.lever.opensStairs === false, 'the lever needs the guardian and does not open the stairs');
 assert(level.elevator.auto === true && level.elevator.standIn === true && level.elevator.gate === 'guardian', 'the elevator is automatic and the guardian is its gate');
 assert(level.elevator.transitionCard === 'assets/creatures/mon_spider_giant.png', 'the transition card is the giant-spider sheet');
 assert(level.elevator.transitionCard === T.level(3).elevator.transitionCard, 'the card matches the campaign table');
 assert(fs.existsSync(path.join(root, level.elevator.transitionCard)), 'the stand-in art file exists');
-assert(level.stairs.opensOn === 'bossKill' && level.stairs.x === 40.1 && level.stairs.y === 51.6, 'the south stair opens when the Queen dies');
+assert(level.stairs.opensOn === 'bossKill' && level.stairs.x === 138.1 && level.stairs.y === 111.2, 'the stair opens when the Queen dies');
 assert(level.tooth.id === 'grond_tooth_electrum_3' && level.tooth.cursed === true && level.tooth.countsForRitual === true, 'electrum tooth 3 is cursed and counts toward the seven');
 const pixie = level.setPieces.filter(function (p) { return p.id === 'trapped-pixie'; })[0];
 assert(pixie && pixie.placed === true && pixie.fights === false && pixie.freeRounds === 1 && pixie.gives === 'pixie_dust' && pixie.vanishes === true, 'freeing the pixie takes one round and she gives dust, then vanishes');
@@ -56,9 +56,13 @@ assert(level.retired.indexOf('spiderLord') >= 0 && level.retired.indexOf('forceL
 assert(level.webCorpses.keep === 'rollWebCorpse' && level.webCorpses.count === '4-6', 'web corpses keep rollWebCorpse');
 const lairSrc = fs.readFileSync(path.join(root, 'src/loot/SpiderLair.js'), 'utf8');
 [[11.5, '29.7'], [8.7, '30.2'], [12.6, '32.0'], [9.1, '32.8'], [11.9, '33.5'], [8.3, '28.9'], [13.1, '30.6']].forEach(function (spot) {
-  assert(lairSrc.indexOf(spot[0] + ', ' + spot[1]) >= 0, 'web corpse spot ' + spot.join(',') + ' is a live silk-room spot');
+  assert(lairSrc.indexOf(spot[0] + ', ' + spot[1]) >= 0, 'Chapter II silk spot ' + spot.join(',') + ' stays in SpiderLair');
+  assert(!level.webCorpses.spots.some(function (row) { return row[0] === spot[0] && row[1] === Number(spot[1]); }), 'L3 does not reuse silk spot ' + spot.join(','));
 });
-assert(level.webCorpses.spots.length === 7, 'the map keeps all seven silk-room spots');
+assert(level.webCorpses.spots.length === 7, 'the queen hall keeps seven web-corpse spots');
+level.webCorpses.spots.forEach(function (spot) {
+  assert(spot[0] >= 70 && spot[0] <= 99 && spot[1] >= 100 && spot[1] <= 113, 'web corpse ' + spot.join(',') + ' sits in the queen hall');
+});
 assert(!level.spawns.some(function (group) {
   return group.members.some(function (member) { return member.key === 'spiderLord' || member.key === 'goblin'; });
 }), 'the lord and the goblins are not on L3');
