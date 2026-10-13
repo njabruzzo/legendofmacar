@@ -32,6 +32,9 @@ assert(/Math\.max\(PORT\?50:48/.test(camp), 'Save / Go deeper stay at least 50px
 assert(/menuHits\.unshift\.apply\(menuHits, footHits\)/.test(camp), 'Save hit is tested before camp rows');
 assert(/y\+h>footY-6\*s/.test(camp), 'action rows stay above the footer');
 assert(/campSaveFlash/.test(camp) && /The book is marked/.test(camp), 'Save shows a visible camp confirmation');
+assert(/campHintLane\(s\)/.test(camp), 'a laptop camp toast reserves a lane under the title');
+assert(/function campLaptopHintY/.test(html) && /G\.scene==='camp' && !PORT\) y=campLaptopHintY\(s\)/.test(html),
+  'the laptop More coming toast sits under CAMP');
 assert(!/Hammer T/.test(camp) && !/Bombs /.test(camp), 'footer does not repeat kit status');
 
 assert(/function campActionTab\(/.test(html) && /tab:'repair'/.test(html) && /tab:'improve'/.test(html),

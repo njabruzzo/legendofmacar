@@ -685,7 +685,8 @@ assert(L4.wired === false, 'the L4 data module stays unwired');
 
 const ch4Art = html.match(/4:\[[\s\S]*?\],\s*\n\s*5:/);
 assert(ch4Art && /'orc'/.test(ch4Art[0]) && /'warg'/.test(ch4Art[0]) && /'construct'/.test(ch4Art[0]), 'Level 4 preloads the orc, warg, and construct sheets');
-assert(/ASSET_VER='132'/.test(html), 'asset version stays 132');
+assert(/ASSET_VER='133'/.test(html), 'asset version stays 133');
+assert(/const got=applyHeal\(p, heal\)/.test(html) && /Heals '\+got\+' \(d10\)/.test(html), 'the beer log prints the scaled heal');
 assert(/if\(e && e\.artStandIn && !\(e\.sprite && SPRITE_FILES\[e\.sprite\]\)\) return ''/.test(html), 'a stand-in with no file is drawn');
 assert(!/ogress:'assets/.test(html) && !/ogress:"assets/.test(html), 'the page does not register an ogress sheet');
 

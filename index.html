@@ -82,7 +82,7 @@
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
 <script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
-<script src="src/campaign/CampaignBoot.js?v=132"></script>
+<script src="src/campaign/CampaignBoot.js?v=133"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -728,7 +728,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='132';
+const ASSET_VER='133';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -15626,9 +15626,9 @@ function fire(key){
       learn('ale',3);
     } else {
       const heal=ri(1,10);
-      applyHeal(p, heal);
+      const got=applyHeal(p, heal);
       learn('ale',3);
-      say('A draught of beer. Heals '+heal+' (d10).','#d2bd63');
+      say('A draught of beer. Heals '+got+' (d10).','#d2bd63');
     }
   }
   if(key==='throw'){ const t=nearestFoe(p,10); const tx=t?t.x:p.x+p.fdx*6, ty=t?t.y:p.y+p.fdy*6;
@@ -21232,6 +21232,17 @@ function drawPromptBtn(g,s){
   g.fillStyle='#ffe9c0'; g.fillText(PROMPT.label,x+pw/2,y+h/2+fpx*0.33); g.textAlign='left';
 }
 
+/* Laptop camp keeps the toast under the gold title and the cleared line.
+   The top pin would sit on CAMP. Phone portrait still uses its own drop. */
+function campLaptopHintY(s){
+  const titleY=VH*0.048;
+  const titleSize=28*s;
+  return titleY+titleSize+30*s;
+}
+function campHintLane(s){
+  if(PORT || G.scene!=='camp' || !G.hint) return 0;
+  return 36*s;
+}
 function drawHint(g,s){
   if(!G.hint) return;
   const a=clamp(G.hint.life/Math.min(1,G.hint.max),0,1)*clamp((G.hint.max-G.hint.life)/.3,0,1);
@@ -21241,6 +21252,7 @@ function drawHint(g,s){
   const w=g.measureText(G.hint.t).width+30*s;
   let x=VW/2-w/2;
   let y=Math.max(10*s, (UI.pad&&UI.pad.t||0)+10*s);
+  if(G.scene==='camp' && !PORT) y=campLaptopHintY(s);
   /* Phone portrait only. The top pin covers the party name, the HP bar,
      and Pause for the whole hint. Landscape and laptop keep that pin. */
   if(PORT){
@@ -22347,7 +22359,7 @@ function drawCamp(g){
   if(G.campSel && !tabActs.some(a=>campActionId(a)===G.campSel)) G.campSel=null;
   const sel=tabActs.find(a=>campActionId(a)===G.campSel)||null;
 
-  const stockY=titleY+titleSize+34*s;
+  const stockY=titleY+titleSize+34*s+campHintLane(s);
   const stockH=drawStockStrip(g, 12*s, stockY, VW-24*s, sel&&sel.cost);
   const tabY=stockY+stockH+8*s, tabH=PORT?40*s:36*s;
   const skillW=Math.min(86*s, VW*0.18);
