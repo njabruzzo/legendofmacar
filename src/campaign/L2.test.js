@@ -46,7 +46,7 @@ assert(level.boss.bossFlagOnIndividual === false && level.boss.separateFromGuard
 assert(level.boss.key !== level.guardian.key, 'the guardian and the boss are different creatures');
 assert(level.stairs.opensOn === 'bossKill' && level.stairs.x === 40.1 && level.stairs.y === 51.6, 'the south stair opens when the boss dies');
 assert(level.tooth.id === 'grond_tooth_electrum_2' && level.tooth.x === 74 && level.tooth.y === 59.2, 'electrum tooth 2 is on the king hall back wall');
-assert(level.tooth.countsForRitual === true && level.tooth.cursed === true, 'tooth 2 counts for the ritual and is cursed');
+assert(level.tooth.countsForRitual === true && level.tooth.cursed === true && level.tooth.curse === 'coin' && level.tooth.bind === false, 'tooth 2 counts for the ritual; cursed is the coin curse, not a bind');
 const hourglass = level.secrets.filter(function (s) { return s.id === 'bronze-hourglass'; })[0];
 assert(hourglass && hourglass.optional === true && hourglass.room.raidSeconds === 10, 'the bronze hourglass stays an optional 10-second secret');
 assert(hourglass.room.toothId === 'grond_tooth_bronze' && hourglass.room.face.x === 141.35, 'the bronze tooth stays in the hourglass face');
@@ -111,9 +111,25 @@ assert(L2.SHAMAN.memorized.map(function (s) { return s.name; }).join() === 'Comm
 assert(L2.SHAMAN.memorized[0].segments === 1 && L2.SHAMAN.memorized[0].windupSec === 0.1 && L2.SHAMAN.memorized[0].stunSec === 1, 'Command is 1 segment, 0.1 s, and stuns for 1 s');
 assert(L2.SHAMAN.memorized[1].segments === 5 && L2.SHAMAN.memorized[1].damage === '1d8', 'Cause Light Wounds is 5 segments and 1d8');
 assert(L2.SHAMAN.swap.map(function (s) { return s.name; }).join() === 'Darkness,Cause Fear', 'the swap set is Darkness and Cause Fear');
-assert(L2.SHAMAN.swap[0].attackPenalty === -4 && L2.SHAMAN.swap[1].flee === '1 round per level', 'Darkness is -4 and Cause Fear flees one round per level');
+assert(L2.SHAMAN.swap[0].attackPenalty === -4 && L2.SHAMAN.swap[0].durationSec === 80 && L2.SHAMAN.swap[1].flee === '2 s' && L2.SHAMAN.swap[1].durationSec === 2 && L2.SHAMAN.swap[1].touchHit === true, 'Darkness lasts 80 s at -4 and Cause Fear lasts 2 s');
+assert(L2.SHAMAN.memorized[0].rangeTiles === 2 && L2.SHAMAN.memorized[0].saveLevel === 6 && L2.SHAMAN.commandRangeTiles === 2, 'Command reaches 2 tiles and saves only at level 6');
+assert(L2.SHAMAN.memorized[1].save === false && L2.SHAMAN.memorized[1].touchHit === true, 'Cause Light Wounds needs a touch hit and no save');
 assert(L2.SHAMAN.cadence.length === 4 && L2.SHAMAN.spellEverySec === 2 && L2.SHAMAN.fleeAtHpFraction === 0.5, 'the shaman cadence is the four-step ruling');
-assert(L2.KING.priority.length === 5 && L2.KING.inventsSpawns === false, 'the king priority list has five steps and invents no spawns');
+assert(L2.KING.priority.length === 4 && L2.KING.inventsSpawns === false, 'the king priority list has four steps and invents no spawns');
+assert(L2.KING.morale.holdOnOrUnder === 55 && L2.KING.morale.once === true && L2.KING.call === '1d4', 'the king rolls morale once and holds on 55 or under');
+assert(L2.KING.throneDoor.x === 78 && L2.KING.throneDoor.y === 58 && L2.KING.corner.x === 78 && L2.KING.corner.y === 53, 'the throne door opens into the corner room');
+assert(L2.MONSTERS.goblin.hpRoll === '1d8-1' && L2.MONSTERS.goblinLeader.hpRoll === '1d8+1' && L2.MONSTERS.goblinBoss.hpRoll === '2d8' && L2.MONSTERS.rat.hpRoll === '1d4', 'goblins, leaders, bodyguards, and rats use Sage dice');
+assert(L2.MONSTERS.goblinKing.toHit === 1 && L2.MONSTERS.goblinKing.hitAsHd === 4.25 && L2.MONSTERS.goblinBoss.hitAsHd === 2, 'the king is +1 to hit and bodyguards hit as 2 HD');
+assert(L2.TOOTH.id === 'grond_tooth_electrum_2' && L2.TOOTH.tile.x === 74 && L2.TOOTH.tile.y === 59, 'electrum tooth 2 names tile (74, 59)');
+assert(L2.DIALOGUE.lines.length === 20 && L2.DIALOGUE.ghostFrom === 12 && L2.DIALOGUE.ghostTo === 15 && L2.DIALOGUE.barkEverySec === 6, 'Quill left 20 lines and holds the ghost lines');
+L2.DIALOGUE.lines.forEach(function (line, i) {
+  assert(line.length <= 40, 'bark ' + (i + 1) + ' stays within 40 characters');
+});
+assert(L2.DIALOGUE.king.taunt === 'Bow to the king, stubby!' && L2.DIALOGUE.king.death === 'Not... my... crown...', 'the king lines are Quill\'s');
+['goblin-hp', 'rat-hp', 'rat-disease', 'bodyguard-gnoll', 'king-to-hit', 'king-morale', 'throne-door', 'darkness-duration', 'command-range', 'cause-light-wounds-save', 'insults'].forEach(function (id) {
+  assert(!L2.OPEN.some(function (row) { return row.id === id; }), id + ' is no longer an open note');
+});
+assert(JSON.stringify(L2.LOOT).indexOf('Throne-Nail') < 0 && JSON.stringify(L2.LOOT).indexOf('Stolen Throne') < 0, 'L2 loot does not list the Stolen Throne-Nail');
 assert(L2.DIALOGUE.mode === 'insults-only' && L2.DIALOGUE.parley === false && L2.DIALOGUE.bargain === false, 'goblins only insult');
 assert(L2.DIALOGUE.retired.indexOf('maybeGoblinMercy') >= 0, 'the mercy beg is retired on L2');
 

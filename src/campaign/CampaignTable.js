@@ -60,6 +60,11 @@
       countsForTeethCarried: true,
       usableByMacar: 'Y'
     };
+    /* L2–L7: cursed is the coin curse, not a bind. Teeth stay free to set aside. */
+    if (n >= 2 && n <= 7) {
+      row.curse = 'coin';
+      row.bind = false;
+    }
     /* Tooth 7 is the last of the seven. The L7 map already says so. */
     if (n === 7) row.lastTooth = true;
     return row;

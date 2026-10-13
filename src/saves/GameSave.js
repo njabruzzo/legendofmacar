@@ -37,7 +37,8 @@
     'rubyDrop','nozCamp','shaman','webTalk','webTalkDone','webCorpse','tied','npc','ally','chapterBoss',
     'sleeping','lootBlocked','drop','kit','hero','role','cls','race','fdx','fdy',
     'id','sid','treasure','tt','hd','interactSleeper','thrall','animatedOnce','thrallStay',
-    'campaignKey','campaignXp','campaignRole','caster','spellSet','insultsOnly','rubyGp','spellsSpent'
+    'campaignKey','campaignXp','campaignRole','caster','spellSet','insultsOnly','rubyGp','spellsSpent',
+    'toHit','dice','moraleChecked','moraleHold','cornered','called','room','hp1e','diseaseBite','ratFever','kingLines'
   ];
 
   var PROP_COPY = [
@@ -45,14 +46,14 @@
     'dress','plant','craft','lairDen','station','stone',
     'trap','fallen','backwall','scatter',
     'interact','room','hinted','read',
-    'wall','teethAltar','emptySocket','toothKind','hourglass','campaign'
+    'wall','teethAltar','emptySocket','toothKind','hourglass','campaign','itemId','throneDoor'
   ];
 
   var ENT_BOOL = {
     ranged:1, dead:1, corpse:1, looted:1, crushed:1, ghost:1, prone:1, hidden:1,
     boss:1, rubyDrop:1, nozCamp:1, shaman:1, webTalk:1, webTalkDone:1, webCorpse:1,
     tied:1, npc:1, ally:1, sleeping:1, lootBlocked:1, hero:1, interactSleeper:1, chapterBoss:1,
-    caster:1, insultsOnly:1
+    caster:1, insultsOnly:1, moraleChecked:1, moraleHold:1, cornered:1, called:1, ratFever:1
   };
 
   function clone(v) {

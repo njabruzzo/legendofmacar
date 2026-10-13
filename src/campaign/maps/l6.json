@@ -127,6 +127,8 @@
         "prop": "demonface",
         "room": "ember-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },

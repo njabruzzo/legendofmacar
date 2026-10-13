@@ -37,7 +37,7 @@
   };
 
   function clueKey(e) {
-    if (!e) return '';
+    if (!e || e.campaignKey) return '';
     var name = e.name || '';
     if (name === 'Thin One' || e.kind === 'statue' || e.rubyDrop) return '';
     if (name === 'RUBY WARDEN' || e.kind === 'warden') return '';

@@ -124,6 +124,8 @@
         "prop": "demonface",
         "room": "matron-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "countsForRitual": true,
         "countsForTeethCarried": true
       },

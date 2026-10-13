@@ -66,7 +66,7 @@ assert(L10.RITUAL.xpOnce > sum && R.printed(l2, 'ritual') == null, 'ritual xp st
 const counted = R.spawnCount(l2);
 l2.open[0].note = 'changed open note';
 assert(R.spawnCount(l2) === counted && counted > 0, 'spawn counts come from the map, not an OPEN note');
-assert(R.gaps(l2).indexOf('insults') >= 0 && R.gaps(l2).indexOf('elevator-returns-to-camp') >= 0, 'open insult lines stay listed and the L2 elevator returns to camp');
+assert(R.gaps(l2).indexOf('insults') < 0 && R.gaps(l2).indexOf('goblin-hp') < 0 && R.gaps(l2).indexOf('elevator-returns-to-camp') >= 0, 'ruled gaps are gone and the L2 elevator still returns to camp');
 
 const l8 = R.load(8);
 const l9 = R.load(9);
@@ -91,15 +91,15 @@ assert(mix.main === 1 && mix.extraKey === 'goblin' && mix.extra === 1, 'a leader
 
 function foe(name, extra) {
   return function () {
-    return Object.assign({ team: 'foe', name: name, hp: 10, maxhp: 10, boss: 0, kind: name, sprite: name }, extra || {});
+    return Object.assign({ team: 'foe', name: name, hp: 10, maxhp: 10, boss: 0, kind: name, sprite: name, sa: '+1', strMul: 2 }, extra || {});
   };
 }
 const factories = {
-  goblin: foe('Goblin', { kind: 'goblin', sprite: 'goblin' }),
-  rat: foe('Cave Rat', { kind: 'rat', sprite: 'rat' }),
-  goblinBoss: foe('Goblin Boss', { kind: 'goblin', sprite: 'goblin' }),
-  goblinKing: foe('Goblin King', { kind: 'goblin', sprite: 'goblin_king', boss: 1 }),
-  goblinShaman: foe('Goblin Shaman', { kind: 'goblin', shaman: 1, npc: 1 }),
+  goblin: foe('Goblin', { kind: 'goblin', sprite: 'goblin', hp: 28, maxhp: 28 }),
+  rat: foe('Cave Rat', { kind: 'rat', sprite: 'rat', hp: 16, maxhp: 16, poison: 1, sa: 'Poison' }),
+  goblinBoss: foe('Goblin Boss', { kind: 'goblin', sprite: 'goblin', hp: 160, maxhp: 160 }),
+  goblinKing: foe('Goblin King', { kind: 'goblin', sprite: 'goblin_king', boss: 1, hp: 160, maxhp: 160, sa: '+1', strMul: 2 }),
+  goblinShaman: foe('Goblin Shaman', { kind: 'goblin', shaman: 1, npc: 1, hp: 28, maxhp: 28 }),
   thinone: foe('Thin One', { kind: 'statue', sprite: 'thinone', rubyDrop: 1 })
 };
 const G = {
@@ -116,16 +116,24 @@ const G = {
     tick: function () { this._inner = 1; }
   }
 };
-assert(R.install(G, { scale: 4, fresh: true, foe: factories, ally: { noz: function () { return { team: 'neutral', name: 'Noz', tied: 1 }; } }, rollExpr: function () { return 4; } }) === true, 'install accepts the chapter shell');
+assert(R.install(G, { scale: 4, fresh: true, foe: factories, ally: { noz: function () { return { team: 'neutral', name: 'Noz', tied: 1 }; } }, rollExpr: function () { return 4; }, rng: function () { return 0; } }) === true, 'install accepts the chapter shell');
 assert(G.lvl.flags.campaign === 1 && G.lvl.title === 'Noz and the Goblin King', 'the shell is marked as the campaign floor');
-const gob = G.ents.filter(function (e) { return e.campaignKey === 'goblin'; })[0];
-assert(gob && gob.campaignXp === 13 && gob.hp === 10 && gob.insultsOnly === 1 && gob.boss === 0, 'a goblin keeps stand-in hp, printed xp, and insults only');
+const gob = G.ents.filter(function (e) { return e.campaignKey === 'goblin' && e.campaignRole !== 'assistants'; })[0];
+assert(gob && gob.campaignXp === 13 && gob.hp === 4 && gob.hp !== 28 && gob.insultsOnly === 1 && gob.boss === 0, 'a goblin rolls 1d8-1, not the factory 28');
+const lead = G.ents.filter(function (e) { return e.campaignKey === 'goblinLeader'; })[0];
+assert(lead && lead.hp === 8 && lead.hp !== 28 && lead.hd === 1.25 && lead.dice === '1d8', 'a leader rolls 1d8+1 and hits as 1+1');
+const asst = G.ents.filter(function (e) { return e.campaignRole === 'assistants'; })[0];
+assert(asst && asst.hp === 8 && asst.hd === 1.25 && asst.dice === '1d8' && asst.name === 'Goblin assistant' && asst.campaignKey === 'goblin' && asst.campaignXp === 13, 'an assistant uses the leader sheet and keeps goblin xp');
+const rat = G.ents.filter(function (e) { return e.campaignKey === 'rat'; })[0];
+assert(rat && rat.hp === 4 && rat.hp !== 16 && rat.diseaseBite === 5 && !rat.poison && !rat.sa, 'a rat rolls 1d4 and keeps only the disease bite');
+const body = G.ents.filter(function (e) { return e.campaignKey === 'goblinBoss'; })[0];
+assert(body && body.hp === 8 && body.hp !== 160 && body.hd === 2 && body.dice === '2d4', 'a bodyguard rolls 2d8 and hits as 2 HD');
 const shaman = G.ents.filter(function (e) { return e.campaignKey === 'goblinShaman' && e.spellSet === 'memorized'; })[0];
 assert(shaman && shaman.caster === 1 && shaman.shaman === 0 && shaman.name !== 'Goblin Shaman' && shaman.hp === 36 && shaman.campaignXp === 83, 'the camp shaman is a caster stand-in with printed hp and xp');
 const warren = G.ents.filter(function (e) { return e.campaignKey === 'goblinShaman' && e.spellSet === 'swap'; })[0];
 assert(warren && warren.spellSet === 'swap', 'the warren shaman keeps the swap set from the map');
 const king = G.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
-assert(king && king.campaignXp === 260 && king.boss === 0 && king.chapterBoss === 0 && king.hp === 104, 'the king has printed xp and hp and wears no boss flag');
+assert(king && king.campaignXp === 260 && king.boss === 0 && king.chapterBoss === 0 && king.hp === 104 && king.toHit === 1 && king.dice === '1d8+2' && king.hd === 4.25 && !king.sa && !king.strMul, 'the king has printed xp and hp, one to-hit, and wears no boss flag');
 const guard = G.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
 assert(guard && guard.rubyGp === 500 && guard.kind !== 'statue' && guard.name !== 'Thin One' && guard.sprite === 'thinone' && guard.sleeping === 1 && guard.hp === 96, 'the guardian uses the Thin One sheet, sleeps, and drops 500 gp');
 assert(G.ents.some(function (e) { return e.name === 'Noz'; }), 'Noz is kept on the floor');
@@ -206,8 +214,16 @@ assert(ver && html.indexOf('CampaignBoot.js?v=' + ver) >= 0, 'the boot script ca
 assert(/function bust\(url\)/.test(boot) && /bust\(url\)/.test(boot) && /\+ 'v=' \+ ver/.test(boot), 'campaign data requests use that version');
 assert(/preloadCard\(spec\)/.test(fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8')), 'level setup preloads the elevator card');
 assert(/function campaignCardArt\(/.test(html) && /loadSpriteKeyNow\(key\)/.test(html), 'showing the card loads the jpg if it is still missing');
+const loader = html.slice(html.indexOf('function loadSpriteKeyNow'), html.indexOf('let MACAR_EQUIP_ART_SIG'));
+const retryAt = loader.indexOf('img.__retried');
+const giveAt = loader.indexOf('SPRITE_GAVE_UP[k]=1');
+assert(loader.indexOf('if(SPRITE_GAVE_UP[k])') > 0 && loader.indexOf('if(SPRITE_GAVE_UP[k])') < retryAt && giveAt > retryAt && /k==='intro_ch2'/.test(loader), 'intro_ch2 retries once, then the loader stops');
+const cardArt = html.slice(html.indexOf('function campaignCardArt'), html.indexOf('function drawCampaignCard'));
+assert(cardArt.indexOf('if(key && SPRITE_GAVE_UP[key]) return null;') >= 0, 'a failed intro_ch2 keeps the plain card fallback');
 const cardFn = html.slice(html.indexOf('function drawCampaignCard'));
-assert(cardFn.indexOf('if(!(art&&art.width)) return;') >= 0 && cardFn.indexOf('if(!(art&&art.width)) return;') < cardFn.indexOf("g.fillStyle='#050308'"), 'the card does not paint a black plate without art');
+assert(cardFn.indexOf('if(!(art&&art.width)) return;') < 0, 'the card does not wait on the jpg');
+assert(cardFn.indexOf("g.fillStyle='#1a140e'") >= 0 && cardFn.indexOf("g.fillStyle='#1a140e'") < cardFn.indexOf("card.title||'The elevator'"), 'a plain fallback paints before the title');
+assert(cardFn.indexOf("menuBtn(g,'Descend'") > cardFn.indexOf("g.fillStyle='#1a140e'"), 'Descend is drawn when the art is missing');
 
 if (failed) {
   console.error(failed + ' failed');

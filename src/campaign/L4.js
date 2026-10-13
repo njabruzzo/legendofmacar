@@ -347,7 +347,7 @@
       { id: 'worg_pelt', from: 'wolf', count: 1 }
     ],
     questItems: [
-      { id: 'grond_tooth_electrum_4', usableByMacar: 'Y', cursed: true, countsForRitual: true, countsForTeethCarried: true },
+      { id: 'grond_tooth_electrum_4', usableByMacar: 'Y', cursed: true, curse: 'coin', bind: false, countsForRitual: true, countsForTeethCarried: true },
       { id: 'golden_egg', usableByMacar: 'Y', kind: 'consumable', count: 3 }
     ]
   };

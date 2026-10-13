@@ -126,6 +126,8 @@
         "prop": "demonface",
         "room": "stone-hall",
         "cursed": true,
+        "curse": "coin",
+        "bind": false,
         "lastTooth": true,
         "countsForRitual": true,
         "countsForTeethCarried": true

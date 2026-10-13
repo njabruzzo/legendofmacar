@@ -291,7 +291,7 @@
       { name: 'Electrum Tooth 7', usableByMacar: 'Y' }
     ],
     questItems: [
-      { id: 'grond_tooth_electrum_7', usableByMacar: 'Y', cursed: true, countsForRitual: true, countsForTeethCarried: true, lastTooth: true }
+      { id: 'grond_tooth_electrum_7', usableByMacar: 'Y', cursed: true, curse: 'coin', bind: false, countsForRitual: true, countsForTeethCarried: true, lastTooth: true }
     ]
   };
 
