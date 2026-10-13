@@ -699,7 +699,7 @@ assert(chief.hd === 5 && chief.ac === 3 && chief.hp === 132 && chief.sprite === 
 assert(shaman4.hd === 7 && shaman4.ac === 5 && shaman4.sprite === 'orc', 'the shaman attacks as 7 HD at AC 5');
 assert(guard4.hd === 8 && guard4.ac === 3 && guard4.hp === 192, 'the guardian attacks as 8 HD at AC 3');
 assert(leaders4.length >= 1 && leaders4.every(function (e) { return e.sprite === 'orc' && e.ac === 6 && isFinite(e.scale); }), 'leaders bind the orc sheet');
-assert(wargs4.length === 9 && wolves4.length === 2 && L4.FORECAST_PACK.worgs === 4, 'the floor places nine worgs and two wolves; the forecast column is four worgs');
+assert(wargs4.length === 9 && wolves4.length === 2 && L4.FORECAST_PACK.worgs === 9 && L4.FORECAST_PACK.wolves === 2, 'the floor and the forecast column are nine worgs and two wolves');
 assert(wolves4.every(function (e) { return e.hd === 2 && e.ac === 7 && e.hp !== 144 && e.hp1e !== 36; }) && wargs4.every(function (e) { return e.hd === 3 && e.ac === 6 && e.hp !== 144; }), 'wolves roll 2+2 HD and worgs roll 3+3 HD, not the warg factory');
 assert(wolves4[0].hp1e === 4 && 2 * ((8 + 1) / 2) + 2 === 11, 'a minimum 2d8+2 wolf is 4, and the dice average 11');
 
@@ -880,14 +880,14 @@ function bootL4(extra) {
   const blessed = g.ents.filter(function (e) { return e.campaignKey === 'orcGuard' && e.blessHit === 1; });
   assert(boss.roared === 1 && blessed.length >= 1 && String(shaman.spellsSpent || '').indexOf('Bless') >= 0, 'the chief roars and the shaman blesses the orcs');
   let guard = 0;
-  while (guard < 8 && String(shaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+  while (guard < 16 && String(shaman.spellsSpent || '').indexOf('Hold Person') < 0) {
     R.tick(g, 1.1);
     guard++;
   }
   assert(String(shaman.spellsSpent || '').indexOf('Hold Person') >= 0 && g._save === 'spell', 'the shaman spends Hold Person and calls a save vs spell');
   assert(hero.held > 0 && hero.holdSrc === 'campaign', 'a failed Hold Person save holds Macar');
   guard = 0;
-  while (guard < 8 && String(shaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+  while (guard < 16 && String(shaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
     R.tick(g, 1.1);
     guard++;
   }
@@ -898,8 +898,8 @@ function bootL4(extra) {
 
 (function holdAndSilence() {
   const runtimeSrc = fs.readFileSync(path.join(__dirname, 'CampaignRuntime.js'), 'utf8');
-  assert(/PLACEHOLDER pending Sage §7\.15[\s\S]{0,80}holdPersonSec: 6[\s\S]{0,40}silenceSec: 8/.test(runtimeSrc), 'Hold 6 s and Silence 8 s share one placeholder block');
-  assert(R.PLACEHOLDER.holdPersonSec === 6 && R.PLACEHOLDER.silenceSec === 8, 'the placeholder durations are 6 s and 8 s');
+  assert(!/PLACEHOLDER/.test(runtimeSrc), 'Sage §7.15 replaces every placeholder');
+  assert(/capSec: hold\.capSec \|\| 3/.test(runtimeSrc) && /durationSec: silence\.durationSec \|\| 14/.test(runtimeSrc), 'Hold caps at 3 s and Silence lasts 14 s');
   const g = bootL4({ kin: 1 });
   const hero = g.ents.filter(function (e) { return e.hero; })[0];
   const boss = g.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
@@ -917,9 +917,9 @@ function bootL4(extra) {
   global.interact = function () {};
   global.hint = function () {};
   let steps = 0;
-  while (steps < 160 && !(hero.held > 0)) { R.tick(g, 0.05); steps++; }
-  assert(steps < 160 && hero.holdSrc === 'campaign' && g._save === 'spell' && g._saveHero, 'Hold Person fails Macar\'s save vs spell');
-  assert(hero.held <= 6 && hero.held > 6 - 0.051, 'the hold clock starts at 6 seconds');
+  while (steps < 400 && !(hero.held > 0)) { R.tick(g, 0.05); steps++; }
+  assert(steps < 400 && hero.holdSrc === 'campaign' && g._save === 'spell' && g._saveHero, 'Hold Person fails Macar\'s save vs spell');
+  assert(hero.held <= 3 && hero.held > 3 - 0.051, 'the hold clock starts at 3 seconds');
   const gate = { hint: function () {}, say: function () {} };
   vm.createContext(gate);
   vm.runInContext(extractFn('stunnedHold') + '\n' + extractFn('refuseAttack'), gate);
@@ -955,8 +955,13 @@ function bootL4(extra) {
   const heldMac = { name: 'Macar', team: 'party', held: hero.held, stun: 0, prone: 0, x: 1, y: 0 };
   const freeMac = { name: 'Macar', team: 'party', held: 0, stun: 0, prone: 0, x: 1, y: 0 };
   assert(atkCtx.addAttack(chiefAtk, freeMac) === 0, 'the chief still misses a save-or-miss when Macar is free');
-  assert(atkCtx.addAttack(chiefAtk, heldMac) > 0, 'the chief helpless-hits path lands while Macar is held');
-  assert(atkCtx.addAttack({ name: 'Orc', campaignRole: 'resident', team: 'foe', dice: '1d6', dmg: 6, x: 0, y: 0 }, heldMac) === 0, 'a held Macar is not an automatic hit for every orc');
+  assert(atkCtx.addAttack(chiefAtk, heldMac) > 0, 'a held Macar is an automatic hit');
+  const orcSwing = atkCtx.addAttack({ name: 'Orc', campaignRole: 'resident', team: 'foe', dice: '1d6', dmg: 6, x: 0, y: 0 }, heldMac);
+  assert(orcSwing > 0, 'any attacker auto-hits a held Macar');
+  atkCtx.specialtyBand = function (k) { return k ? { n: 'I', mult: 2 } : null; };
+  const specHeld = atkCtx.addAttack({ name: 'Chief', campaignRole: 'boss', team: 'foe', dice: '1d8', specialty: 2, x: 0, y: 0 }, heldMac);
+  const plainHeld = atkCtx.addAttack({ name: 'Chief', campaignRole: 'boss', team: 'foe', dice: '1d8', specialty: 0, x: 0, y: 0 }, heldMac);
+  assert(specHeld === plainHeld && specHeld > 0, 'a helpless hit is normal damage, with no specialty multiplier');
   const left = hero.held;
   R.tick(g, left);
   assert(!(hero.held > 0) && !hero.holdSrc, 'Hold Person expires');
@@ -965,9 +970,9 @@ function bootL4(extra) {
   assert(gate.refuseAttack({ held: 0, defending: 0 }) === false, 'Macar can attack again after Hold Person expires');
   g._saveHero = false;
   steps = 0;
-  while (steps < 200 && !(hero.silenced > 0)) { R.tick(g, 0.05); steps++; }
-  assert(steps < 200 && hero.silenceSrc === 'campaign' && g._saveHero, 'Silence fails Macar\'s save vs spell');
-  assert(hero.silenced <= 8 && hero.silenced > 8 - 0.051, 'the silence clock starts at 8 seconds');
+  while (steps < 400 && !(hero.silenced > 0)) { R.tick(g, 0.05); steps++; }
+  assert(steps < 400 && hero.silenceSrc === 'campaign' && g._saveHero, 'Silence fails Macar\'s save vs spell');
+  assert(hero.silenced <= 14 && hero.silenced > 14 - 0.051, 'the silence clock starts at 14 seconds');
   const cast = {
     said: 0,
     healed: 0,
@@ -1008,7 +1013,7 @@ function bootL4(extra) {
   if (savedKin) { savedKin.x = savedShaman.x; savedKin.y = savedShaman.y; }
   saved.lvl._campaignHost.save = function () { return true; };
   steps = 0;
-  while (steps < 12 && String(savedShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+  while (steps < 20 && String(savedShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
     R.tick(saved, 1.1);
     steps++;
   }
@@ -1024,7 +1029,7 @@ function bootL4(extra) {
   immune.lvl._campaignHost.save = function () { return false; };
   global.wearingFreeAction = function () { return true; };
   steps = 0;
-  while (steps < 12 && String(immuneShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+  while (steps < 20 && String(immuneShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
     R.tick(immune, 1.1);
     steps++;
   }
@@ -1044,11 +1049,11 @@ function bootL4(extra) {
   outside.lvl._campaignHost.save = function () { return false; };
   global.say = function () {};
   let steps = 0;
-  while (steps < 16 && String(outShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
+  while (steps < 24 && String(outShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0) {
     R.tick(outside, 1.1);
     steps++;
   }
-  assert(steps < 16 && outKin.silenced > 0 && outKin.silenceSrc === 'campaign', 'the kin inside the 15 foot radius is silenced');
+  assert(steps < 24 && outKin.silenced > 0 && outKin.silenceSrc === 'campaign', 'the kin inside the 15 foot radius is silenced');
   assert(!(outHero.silenced > 0) && !outHero.silenceSrc, 'Macar outside the radius is not silenced');
 
   const inside = bootL4({ kin: 1 });
@@ -1061,11 +1066,11 @@ function bootL4(extra) {
   inHero.y = inShaman.y;
   inside.lvl._campaignHost.save = function () { return false; };
   steps = 0;
-  while (steps < 16 && !(inKin.silenced > 0)) {
+  while (steps < 24 && !(inKin.silenced > 0)) {
     R.tick(inside, 1.1);
     steps++;
   }
-  assert(steps < 16 && inKin.silenced > 0 && inHero.silenced > 0 && inHero.silenceSrc === 'campaign', 'Macar inside the radius is silenced with the kin');
+  assert(steps < 24 && inKin.silenced > 0 && inHero.silenced > 0 && inHero.silenceSrc === 'campaign', 'Macar inside the radius is silenced with the kin');
 
   const solo = bootL4();
   const soloHero = solo.ents.filter(function (e) { return e.hero; })[0];
@@ -1074,11 +1079,11 @@ function bootL4(extra) {
   soloHero.y = soloShaman.y;
   solo.lvl._campaignHost.save = function () { return false; };
   steps = 0;
-  while (steps < 20 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
+  while (steps < 40 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') < 0) {
     R.tick(solo, 1.1);
     steps++;
   }
-  assert(steps < 20 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') >= 0, 'a solo Macar still draws Hold Person');
+  assert(steps < 40 && String(soloShaman.spellsSpent || '').indexOf('Hold Person') >= 0, 'a solo Macar still draws Hold Person');
   for (var extra = 0; extra < 8; extra++) R.tick(solo, 1.1);
   assert(String(soloShaman.spellsSpent || '').indexOf("Silence 15' r.") < 0, 'with no kin the shaman does not spend Silence');
 })();

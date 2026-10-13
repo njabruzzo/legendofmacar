@@ -180,7 +180,7 @@
       hp: 48,
       ac: 3,
       mv: '6"',
-      attacks: [{ n: 1, form: 'slam', damage: '2d8' }],
+      attacks: [{ n: 1, form: 'slam', damage: '1d10', everySec: 1.5 }],
       specials: [
         'construct immunities: sleep, charm, hold, poison, fear',
         'never checks morale',
@@ -212,8 +212,29 @@
       "Silence 15' r."
     ],
     bless: { range: '5"', bonus: 1, rounds: 6, targets: 'orcs' },
-    holdPerson: { target: 'Macar', save: 'vs spell', dwarfBonus: true, freeActionImmune: true },
-    silence: { range: "15'", target: 'kin', stops: 'voice abilities' },
+    holdPerson: {
+      target: 'Macar and kin',
+      rangeTiles: 12,
+      save: 'vs spell',
+      dwarfBonus: true,
+      freeActionImmune: true,
+      capSec: 3,
+      resaveOnDamage: true,
+      onePerFight: true
+    },
+    causeFear: { touch: true, save: 'vs spell', dwarfBonus: true, fleeSec: 7 },
+    darkness: { radiusTiles: 4, durationSec: 130, infravision: false, attackPenalty: -4 },
+    causeLightWounds: { damage: '1d8', save: false, touchHit: true, scale: 'weapon' },
+    silence: {
+      rangeTiles: 24,
+      radius: "15'",
+      durationSec: 14,
+      save: 'vs spell',
+      dwarfBonus: true,
+      recenterOnSave: 'floor',
+      stops: ['cast', 'partyOrders', 'command words'],
+      centerOnMacarIfKinWithin: 3
+    },
     spellEverySec: 2,
     /* Casting time × 0.1 s. PHB cleric spells. */
     segments: {
@@ -241,7 +262,7 @@
     priority: [
       'On the first round he roars, and the shaman casts Bless on all orcs within 5 inches: +1 to hit and morale for 6 rounds.',
       'While the shaman lives, the shaman tries Hold Person on Macar, then Silence 15\' r. on a kin. At most one spell per 2 s.',
-      'When adjacent to Macar he uses the Specialty Attack. If Macar is held, every hit lands.',
+      'When adjacent to Macar he uses the Specialty Attack, never on a held target. A held target is an ordinary hit for normal damage.',
       'Below 25% HP he rolls morale once. He holds on d100 of 65 or less. On a failure, he and his guards fall back to the boulder cave.'
     ]
   };
@@ -340,7 +361,7 @@
     magicFilter: '2.2 usable by a dwarf fighter',
     components: {
       worg_pelt: { perKill: 1, from: ['warg', 'wolf'] },
-      hide: { source: 'worg_pelt' }
+      hide: { source: 'worg_pelt', pelts: 3, sec: 10, ac: 6, weight: 30, slot: 'body' }
     },
     drops: [
       { id: 'worg_pelt', from: 'warg', count: 1 },
@@ -370,7 +391,8 @@
     chief: 1,
     shaman: 1,
     guards: 6,
-    worgs: 4,
+    worgs: 9,
+    wolves: 2,
     orcs: 8,
     guardian: 1
   };
@@ -488,7 +510,8 @@
 
   function forecastPackXp() {
     return XP.orcChief + XP.orcShaman + FORECAST_PACK.guards * XP.orcGuard +
-      FORECAST_PACK.worgs * XP.warg + FORECAST_PACK.orcs * XP.orc + XP.rubyGuardian;
+      FORECAST_PACK.worgs * XP.warg + (FORECAST_PACK.wolves || 0) * XP.wolf +
+      FORECAST_PACK.orcs * XP.orc + XP.rubyGuardian;
   }
 
   function ingredientIds() {

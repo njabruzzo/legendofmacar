@@ -406,6 +406,11 @@
     return dx * dx + dy * dy < d * d;
   }
 
+  /* Printed spell range includes the far tile. near() stays strict for touch. */
+  function inRange(a, b, d) {
+    return tileDist(a, b) <= (d || 0) + 1e-6;
+  }
+
   function pickFactory(foe, key) {
     foe = foe || {};
     if (key === 'goblinShaman' || key === 'goblinLeader' || key === 'shaman' || key === 'leader') return foe.goblin || null;
@@ -467,6 +472,11 @@
       else if (mon && mon.name) e.name = mon.name;
       if (typeof sheet.ac === 'number') e.ac = sheet.ac;
       if (sheet.attacks && sheet.attacks[0] && sheet.attacks[0].damage) e.dice = sheet.attacks[0].damage;
+      if (sheet.attacks && sheet.attacks[0]) {
+        e.attackForm = sheet.attacks[0].form || '';
+        e.printedAttacks = sheet.attacks[0].n || 1;
+        if (sheet.attacks[0].everySec) e.cd = sheet.attacks[0].everySec;
+      }
       stampHp(e, sheet, scale, function () { return unitRng(opts); });
       stampDiceHp(e, sheet, scale, function () { return unitRng(opts); });
       var hd = attackHd(sheet);
@@ -587,7 +597,14 @@
     var art = (node && node.art && node.art.key) || (mon && mon.art && mon.art.key);
     if (art) e.sprite = art;
     if (mon && typeof mon.ac === 'number') e.ac = mon.ac;
-    if (mon && mon.attacks && mon.attacks[0]) e.dice = mon.attacks[0].damage;
+    if (mon && mon.attacks && mon.attacks[0]) {
+      e.dice = mon.attacks[0].damage;
+      e.attackForm = mon.attacks[0].form || 'slam';
+      e.printedAttacks = mon.attacks[0].n || 1;
+      e.cd = mon.attacks[0].everySec || 1.5;
+    }
+    e.noSpecialty = 1;
+    e.specialty = 0;
     var ghd = attackHd(mon);
     if (ghd != null) e.hd = ghd;
     var hp1e = (mon && typeof mon.hp === 'number') ? mon.hp : (node && typeof node.hp === 'number' ? node.hp : null);
@@ -1106,39 +1123,84 @@
     return shaman.memorized || [];
   }
 
-  /* PLACEHOLDER pending Sage §7.15. L4 does not print these durations. */
-  var PLACEHOLDER = {
-    holdPersonSec: 6,
-    silenceSec: 8
-  };
+  /* Sage §7.15. The shaman is 7th level. 1 inch is 2 tiles. */
+  function copiesOf(shaman, name) {
+    var n = 0;
+    var house = (shaman && shaman.houseList) || [];
+    var i;
+    for (i = 0; i < house.length; i++) if (house[i] === name) n++;
+    return n || 1;
+  }
 
-  /* House rows with no printed duration or damage stay on the list and do not fire.
-     Hold Person and Silence use the placeholder seconds above. */
+  function spentCount(e, name) {
+    var parts = String((e && e.spellsSpent) || '').split(',');
+    var n = 0;
+    var i;
+    for (i = 0; i < parts.length; i++) if (parts[i] === name) n++;
+    return n;
+  }
+
+  /* House rows with no printed duration or damage stay on the list and do not fire. */
   function spellsFromHouse(shaman) {
     var seg = shaman.segments || {};
     var bless = shaman.bless || {};
     var silence = shaman.silence || {};
+    var hold = shaman.holdPerson || {};
+    var fear = shaman.causeFear || {};
+    var dark = shaman.darkness || {};
+    var clw = shaman.causeLightWounds || {};
     var blessRange = inchesToTiles(bless.range);
     var rows = [
       {
         name: 'Bless',
         bless: 1,
+        copies: copiesOf(shaman, 'Bless'),
         rangeTiles: blessRange,
         rounds: bless.rounds,
         bonus: bless.bonus,
         windupSec: seg.Bless || 0
       },
       {
+        name: 'Cause Fear',
+        touchHit: 1,
+        fleeSec: fear.fleeSec || 7,
+        copies: copiesOf(shaman, 'Cause Fear'),
+        windupSec: seg['Cause Fear'] || 0
+      },
+      {
+        name: 'Darkness',
+        area: 1,
+        darkness: 1,
+        radiusTiles: dark.radiusTiles || 4,
+        durationSec: dark.durationSec || 130,
+        infravision: false,
+        copies: copiesOf(shaman, 'Darkness'),
+        windupSec: seg.Darkness || 0
+      },
+      {
+        name: 'Cause Light Wounds',
+        touchHit: 1,
+        damage: clw.damage || '1d8',
+        scaleLikeWeapon: 1,
+        copies: copiesOf(shaman, 'Cause Light Wounds'),
+        windupSec: seg['Cause Light Wounds'] || 0
+      },
+      {
         name: 'Hold Person',
         holdPerson: 1,
-        /* Hold Person prints no range of its own. The cast uses Bless's 5". */
-        rangeTiles: blessRange,
+        copies: copiesOf(shaman, 'Hold Person'),
+        rangeTiles: hold.rangeTiles || 12,
+        capSec: hold.capSec || 3,
         windupSec: seg['Hold Person'] || 0
       },
       {
         name: "Silence 15' r.",
         silence: 1,
-        rangeTiles: rangeTiles(silence.range || "15'"),
+        copies: copiesOf(shaman, "Silence 15' r."),
+        rangeTiles: (typeof silence.rangeTiles === 'number') ? silence.rangeTiles : 24,
+        radiusTiles: rangeTiles(silence.radius || "15'"),
+        durationSec: silence.durationSec || 14,
+        kinTiles: silence.centerOnMacarIfKinWithin || 3,
         windupSec: seg["Silence 15' r."] || 0
       }
     ];
@@ -1183,7 +1245,14 @@
       showBark(G, 'SHAMAN', shamanLine(spec, spell));
     } else if (spell.area && spell.durationSec) {
       G.darkZones = G.darkZones || [];
-      G.darkZones.push({ x: p.x, y: p.y, r: 2, t: spell.durationSec, magical: 1 });
+      G.darkZones.push({
+        x: p.x,
+        y: p.y,
+        r: spell.radiusTiles || 2,
+        t: spell.durationSec,
+        magical: 1,
+        infravision: spell.infravision === false ? false : true
+      });
     } else if (spell.touchHit) {
       var landed = touchLands(G, e, p);
       if (landed && spell.damage) {
@@ -1205,20 +1274,42 @@
       var center = livingCaster(G, 'orcShaman') || e;
       blessOrcs(G, center, spell.rounds, spell.rangeTiles);
     } else if (spell.holdPerson) {
+      if (e.holdFight) return;
       var free = eng('wearingFreeAction');
-      var mac = hero(G) || p;
-      if (mac && !(free && free(mac)) && !saveVs(G, mac, 'spell')) applyHold(mac);
+      var reach = spell.rangeTiles || 12;
+      var cap = spell.capSec || 3;
+      var heldCrowd = G.ents || [];
+      for (var hi = 0; hi < heldCrowd.length; hi++) {
+        var who = heldCrowd[hi];
+        if (!who || who.dead || who.team !== 'party') continue;
+        if (tileDist(e, who) > reach + 1e-6) continue;
+        if (free && free(who)) continue;
+        if (!saveVs(G, who, 'spell')) applyHold(who, cap);
+      }
+      e.holdFight = 1;
       if (eng('say')) eng('say')('Hold Person.', '#d6e2a8');
     } else if (spell.silence) {
-      var radius = (typeof spell.rangeTiles === 'number') ? spell.rangeTiles : rangeTiles("15'");
-      var center = (p && !p.dead && !p.hero && p.team === 'party') ? p : nearestKin(G, e, radius);
+      var castRange = (typeof spell.rangeTiles === 'number') ? spell.rangeTiles : 24;
+      var radius = (typeof spell.radiusTiles === 'number') ? spell.radiusTiles : rangeTiles("15'");
+      var kinTiles = spell.kinTiles || 3;
+      var mac = hero(G);
+      var center = null;
+      if (mac && !mac.dead && nearestKin(G, mac, kinTiles) && tileDist(e, mac) <= castRange + 1e-6) center = mac;
+      if (!center) center = (p && !p.dead && !p.hero && p.team === 'party' && tileDist(e, p) <= castRange + 1e-6) ? p : nearestKin(G, e, castRange);
       if (!center) return;
-      var crowd = G.ents || [];
-      for (var si = 0; si < crowd.length; si++) {
-        var caught = crowd[si];
-        if (!caught || caught.dead) continue;
-        if (tileDist(center, caught) > radius + 1e-6) continue;
-        if (!saveVs(G, caught, 'spell')) applySilence(caught);
+      var saved = saveVs(G, center, 'spell');
+      var zone = { x: center.x, y: center.y, r: radius, t: spell.durationSec || 14 };
+      if (!saved) zone.follow = center;
+      G.silenceZones = G.silenceZones || [];
+      G.silenceZones.push(zone);
+      if (!saved) {
+        var crowd = G.ents || [];
+        for (var si = 0; si < crowd.length; si++) {
+          var caught = crowd[si];
+          if (!caught || caught.dead) continue;
+          if (tileDist(center, caught) > radius + 1e-6) continue;
+          applySilence(caught, spell.durationSec || 14);
+        }
       }
       if (eng('say')) eng('say')('Silence.', '#d6e2a8');
     } else if (spell.unprinted) {
@@ -1228,8 +1319,9 @@
     if (shaman && shaman.spellEverySec) e.spellCd = shaman.spellEverySec;
   }
 
-  function applyHold(p) {
-    p.held = Math.max(p.held || 0, PLACEHOLDER.holdPersonSec);
+  function applyHold(p, sec) {
+    var dur = (typeof sec === 'number') ? sec : 3;
+    p.held = Math.max(p.held || 0, dur);
     p.holdSrc = 'campaign';
     p.moving = 0;
     p.dest = null;
@@ -1240,9 +1332,21 @@
     p.aim = null;
   }
 
-  function applySilence(p) {
-    p.silenced = Math.max(p.silenced || 0, PLACEHOLDER.silenceSec);
+  function applySilence(p, sec) {
+    var dur = (typeof sec === 'number') ? sec : 14;
+    p.silenced = Math.max(p.silenced || 0, dur);
     p.silenceSrc = 'campaign';
+  }
+
+  function resaveHold(G, e) {
+    if (!e || !((e.held || 0) > 0) || e.holdSrc !== 'campaign') return false;
+    if (saveVs(G, e, 'spell')) {
+      e.held = 0;
+      e.holdSrc = 0;
+      e.prone = 0;
+      return true;
+    }
+    return false;
   }
 
   function commandLands(G, def, spell) {
@@ -1305,13 +1409,16 @@
       var aim = p;
       for (var s = 0; s < list.length; s++) {
         var row = list[s];
-        if (row.unprinted || spent(e, row.name)) continue;
-        if (row.stunSec && tiles != null && near(e, p, tiles) && !(p.stun > 0) && !(p.commandHeld > 0)) { next = row; break; }
-        if (row.area && near(e, p, closeTiles)) { next = row; break; }
+        if (row.unprinted || spentCount(e, row.name) >= (row.copies || 1)) continue;
+        if (row.holdPerson && e.holdFight) continue;
+        if (row.stunSec && tiles != null && inRange(e, p, tiles) && !(p.stun > 0) && !(p.commandHeld > 0)) { next = row; break; }
+        if (row.area && inRange(e, p, closeTiles)) { next = row; break; }
         if (row.touchHit && near(e, p, touch)) { next = row; break; }
-        if (row.bless && near(e, p, row.rangeTiles || 0)) { next = row; break; }
-        if (row.holdPerson && near(e, p, row.rangeTiles || 0)) { next = row; break; }
+        if (row.bless && inRange(e, p, row.rangeTiles || 0)) { next = row; break; }
+        if (row.holdPerson && inRange(e, p, row.rangeTiles || 0)) { next = row; break; }
         if (row.silence) {
+          var kinNearMac = nearestKin(G, p, row.kinTiles || 3);
+          if (kinNearMac && inRange(e, p, row.rangeTiles || 0)) { next = row; aim = p; break; }
           var kin = nearestKin(G, e, row.rangeTiles || 0);
           if (kin) { next = row; aim = kin; break; }
         }
@@ -1448,7 +1555,17 @@
     return (e && e.ratFever) ? -1 : 0;
   }
 
-  function darkPenalty(e, zones, dwarf) {
+  function inMagicalDark(who, zones) {
+    zones = zones || [];
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      if (!who || !z || !z.magical || (z.t || 0) <= 0) continue;
+      if (Math.hypot((who.x || 0) - z.x, (who.y || 0) - z.y) <= (z.r || 1)) return true;
+    }
+    return false;
+  }
+
+  function darkPenalty(e, zones, dwarf, def) {
     var magical = false;
     var plain = false;
     zones = zones || [];
@@ -1459,7 +1576,9 @@
       if (z.magical) magical = true;
       else plain = true;
     }
-    if (magical) return -4;
+    /* Magical darkness: infravision does not see through it.
+       An attack into or out of the zone is at -4. */
+    if (magical || inMagicalDark(def, zones)) return -4;
     if (plain && !dwarf) return -4;
     return 0;
   }
@@ -1659,7 +1778,8 @@
       }
     }
     var reach = (king.range || 0.8) + 0.4;
-    if (p && tileDist(king, p) <= reach) king.specialty = 1;
+    if (p && tileDist(king, p) <= reach && !((p.held || 0) > 0) && /axe|mace|sword|hammer|spear|dagger|flail/i.test(String(king.attackForm || ''))) king.specialty = 1;
+    else if (p && (p.held || 0) > 0) king.specialty = 0;
   }
 
   function tickKing(G, dt) {
@@ -2013,6 +2133,8 @@
     var B = root.BattleBuffs;
     var st = G && G._battleBuffs;
     if (B && st) B.endFightIfClear(st);
+    var ents = (G && G.ents) || [];
+    for (var i = 0; i < ents.length; i++) if (ents[i]) ents[i].holdFight = 0;
     syncEgg(G);
   }
 
@@ -2103,6 +2225,14 @@
         if (e.pixieCap >= cap) clearDust(G);
       }
       if (e.dead && e.pixieDust) clearDust(G);
+    }
+    var zones = (G && G.silenceZones) || [];
+    for (var z = 0; z < zones.length; z++) {
+      var zone = zones[z];
+      if (zone && zone.follow && !zone.follow.dead) {
+        zone.x = zone.follow.x;
+        zone.y = zone.follow.y;
+      }
     }
   }
 
@@ -2518,6 +2648,121 @@
     return false;
   }
 
+  function dieFace(G, n) {
+    var host = hostOf(G);
+    if (typeof host.ri === 'function') return host.ri(1, n) | 0;
+    return 1 + Math.floor(hostRng(G)() * n);
+  }
+
+  function wanderEverySec(spec) {
+    var check = spec && spec.map && spec.map.wander && spec.map.wander.check;
+    if (!check) return 0;
+    var m = String(check.every || '').match(/(\d+(?:\.\d+)?)\s*s\b/);
+    if (!m) return 0;
+    return +m[1];
+  }
+
+  function tickWander(G, dt) {
+    if (!G || G.scene !== 'play' || G.fightOn) return;
+    var spec = G.lvl && G.lvl.campaignSpec;
+    var every = wanderEverySec(spec);
+    if (!(every > 0)) return;
+    var p = hero(G);
+    if (!p || p.dead) return;
+    G._wanderT = (G._wanderT || 0) + (dt || 0);
+    if (G._wanderT + 1e-9 < every) return;
+    G._wanderT -= every;
+    var chk = { roll: dieFace(G, 6), hit: false };
+    if (eng('wearingElvenkind') && eng('wearingElvenkind')(p)) chk.silent = 1;
+    else chk.hit = chk.roll === 1;
+    G._wanderLast = chk;
+    if (!chk.hit) return;
+    var names = spawnWander(G, p, G._campaignFoe);
+    if (eng('logWanderCheck')) eng('logWanderCheck')(chk, names);
+  }
+
+  function hideSpec(G) {
+    var data = G && G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.data;
+    var hide = data && data.LOOT && data.LOOT.components && data.LOOT.components.hide;
+    if (hide && hide.pelts) return hide;
+    var l4 = levelData(4);
+    hide = l4 && l4.LOOT && l4.LOOT.components && l4.LOOT.components.hide;
+    return hide || { pelts: 3, sec: 10, ac: 6, weight: 30, slot: 'body' };
+  }
+
+  function peltCount(G) {
+    var magic = (G && G.packs && G.packs.macar && G.packs.macar.magic) || [];
+    var n = 0;
+    for (var i = 0; i < magic.length; i++) {
+      var it = magic[i];
+      if (it && (it.id === 'worg_pelt' || it.k === 'pelt')) n += it.qty || 1;
+    }
+    return n;
+  }
+
+  function consumePelts(G, n) {
+    var magic = G && G.packs && G.packs.macar && G.packs.macar.magic;
+    if (!magic) return false;
+    var left = n | 0;
+    for (var i = magic.length - 1; i >= 0 && left > 0; i--) {
+      var it = magic[i];
+      if (!it || (it.id !== 'worg_pelt' && it.k !== 'pelt')) continue;
+      var q = it.qty || 1;
+      if (q <= left) { magic.splice(i, 1); left -= q; }
+      else { it.qty = q - left; left = 0; }
+    }
+    return left === 0;
+  }
+
+  function hideArmorItem(spec) {
+    spec = spec || {};
+    return {
+      id: 'hide_armor',
+      n: 'Hide Armor',
+      k: 'armor',
+      cat: 'Armor/Shield',
+      slot: 'chest',
+      body: 1,
+      ac: spec.ac || 6,
+      weight: spec.weight || 30,
+      armorType: 'hide',
+      d: 'Worg hide. AC 6. Weight 30. Worn on the body.'
+    };
+  }
+
+  function beginHideCraft(G) {
+    var spec = hideSpec(G);
+    var need = spec.pelts || 3;
+    if (peltCount(G) < need) return { ok: false, reason: 'pelts', need: need };
+    if (G._hideCraft) return { ok: false, reason: 'working', sec: spec.sec || 10 };
+    G._hideCraft = { t: 0, need: spec.sec || 10, pelts: need };
+    return { ok: true, sec: G._hideCraft.need };
+  }
+
+  function tickHideCraft(G, dt) {
+    var job = G && G._hideCraft;
+    if (!job) return null;
+    if (G.scene && G.scene !== 'camp') return null;
+    job.t += dt || 0;
+    if (job.t + 1e-9 < job.need) return null;
+    var spec = hideSpec(G);
+    if (!consumePelts(G, job.pelts || spec.pelts || 3)) {
+      G._hideCraft = null;
+      return { ok: false, reason: 'pelts' };
+    }
+    var item = hideArmorItem(spec);
+    if (eng('giveMagic')) eng('giveMagic')(item, true);
+    else {
+      G.packs = G.packs || {};
+      G.packs.macar = G.packs.macar || { magic: [] };
+      G.packs.macar.magic = G.packs.macar.magic || [];
+      G.packs.macar.magic.push(item);
+    }
+    G._hideCraft = null;
+    if (eng('say')) eng('say')('Hide armor. AC 6, weight 30.', '#d2bd63');
+    return { ok: true, item: item };
+  }
+
   function tick(G, dt) {
     var L = G && G.lvl;
     if (!L || !L.flags || !L.flags.campaign || !L.campaignSpec) return;
@@ -2529,6 +2774,8 @@
     tickCasters(G, dt);
     tickBarks(G, dt);
     tickTimers(G, dt);
+    tickWander(G, dt);
+    tickHideCraft(G, dt);
     tickQueen(G);
     tickPixie(G, dt);
     tickRanged(G, dt);
@@ -2682,7 +2929,11 @@
     stackMagic: stackMagic,
     sellEgg: sellEgg,
     eggPrice: eggPrice,
-    PLACEHOLDER: PLACEHOLDER,
+    resaveHold: resaveHold,
+    beginHideCraft: beginHideCraft,
+    tickHideCraft: tickHideCraft,
+    peltCount: peltCount,
+    hideArmorItem: hideArmorItem,
     printed: printed,
     beginRun: beginRun,
     kill: kill,

@@ -89,7 +89,7 @@ assert(level.spawns.filter(function (group) { return group.movedFrom === 'L2'; }
 assert(level.wander.slots.length === 6, 'section 5 gives L4 six wander slots');
 assert(JSON.stringify(level.wander.slots) === JSON.stringify(L4.WANDER), 'the map wander table matches the encounter data');
 assert(JSON.stringify(L4.WANDER) === JSON.stringify(T.level(4).wander), 'the wander table matches the campaign table');
-assert(level.wander.check.chance === '1 in 6' && level.wander.check.every === '3 turns', 'wandering monsters check 1 in 6 every 3 turns');
+assert(level.wander.check.chance === '1 in 6' && level.wander.check.every === '30 s', 'wandering monsters check 1 in 6 every 30 seconds');
 assert(level.loot.caches.count === 16 && level.loot.caches.places.length === 16 && level.loot.caches.level === 4, 'sixteen level-4 caches');
 assert(level.loot.chiefCorpse.letter === 'U' && level.loot.chiefChest.onCorpse === false && level.loot.chiefChest.qTimes === 10, 'the chief corpse is U and the chest is the lair, not the corpse');
 assert(level.loot.chiefChest.letters.join() === 'C,O,Q,S', 'the chest names C, O, Q, and S');
@@ -122,7 +122,7 @@ assert(L4.MONSTERS.wolf.art.standIn === true && L4.MONSTERS.wolf.art.file === 'a
 assert(L4.MONSTERS.rubyGuardian.art.file === 'assets/creatures/mon_construct.png' && L4.MONSTERS.rubyGuardian.art.standIn === true, 'Guardian IV uses the Ruin Guard sheet');
 assert(L4.bossGuardianXp() === 1030 + 255 && L4.bossGuardianXp() === 1285, 'L4 boss-plus-guardian XP is the stat blocks, 1285');
 assert(L4.FORECAST_BOSS_GUARDIAN_XP === 1285 && T.level(4).pacing.bossPlusGuardianXp === 1285, 'the 1.12 column matches the stat blocks, 1285');
-assert(L4.forecastPackXp() === 3045 && L4.forecastPackXp() !== L4.FORECAST_BOSS_GUARDIAN_XP, 'the old annotation pack is not the 1,285 column');
+assert(L4.forecastPackXp() === 3811 && L4.forecastPackXp() !== L4.FORECAST_BOSS_GUARDIAN_XP, 'the forecast pack is nine worgs, two wolves, and the rest of the floor, 3811');
 assert(T.statBossGuardianXp(T.level(4)) === L4.bossGuardianXp(), 'the campaign table uses the same L4 stat-block total');
 assert(T.level(4).pacing.cumulativeXp === 51200 && T.level(4).pacing.macar === 'F6', 'the L4 clear stays at the 1.12 F6 row, 51200');
 assert(T.level(4).pacing.cumulativeXp >= T.FIGHTER_XP.F6 && T.level(4).pacing.cumulativeXp < T.FIGHTER_XP.F7, '51200 sits in the F6 band');
@@ -136,7 +136,7 @@ assert(L4.MONSTERS.wolf.hd === '2+2' && L4.MONSTERS.wolf.ac === 7 && L4.MONSTERS
 assert(L4.MONSTERS.orcShaman.hd === 7 && L4.MONSTERS.orcShaman.hp === 32 && L4.MONSTERS.orcShaman.ac === 5 && L4.MONSTERS.orcShaman.casterLevel === 7 && L4.MONSTERS.orcShaman.decision === 'D15-A', 'the shaman is 7 HD, 32 hp, AC 5, 7th level, D15-A');
 assert(L4.MONSTERS.orcChief.hd === 5 && L4.MONSTERS.orcChief.hp === 33 && L4.MONSTERS.orcChief.ac === 3 && L4.MONSTERS.orcChief.attacks[0].damage === '1d8+3' && L4.MONSTERS.orcChief.str === '18/50', 'the chief is 5 HD, 33 hp, AC 3, axe 1d8+3');
 assert(L4.MONSTERS.ogress.hd === '4+1' && L4.MONSTERS.ogress.ac === 5 && L4.MONSTERS.ogress.xp === 185, 'the ogress is 4+1, AC 5, 185 rescue XP');
-assert(L4.MONSTERS.rubyGuardian.hd === 8 && L4.MONSTERS.rubyGuardian.hp === 48 && L4.MONSTERS.rubyGuardian.ac === 3 && L4.MONSTERS.rubyGuardian.attacks[0].damage === '2d8', 'Guardian IV is 8 HD, 48 hp, AC 3, 2d8');
+assert(L4.MONSTERS.rubyGuardian.hd === 8 && L4.MONSTERS.rubyGuardian.hp === 48 && L4.MONSTERS.rubyGuardian.ac === 3 && L4.MONSTERS.rubyGuardian.attacks[0].damage === '1d10' && L4.MONSTERS.rubyGuardian.attacks[0].everySec === 1.5, 'Guardian IV is 8 HD, 48 hp, AC 3, 1d10 every 1.5 s');
 assert(L4.MONSTERS.rubyGuardian.cone.damage === '2d6' && L4.MONSTERS.rubyGuardian.cone.range === '3"' && L4.MONSTERS.rubyGuardian.cone.save === 'vs breath for half', 'the shard cone is 2d6 at 3 inches, save vs breath for half');
 assert(L4.MONSTERS.rubyGuardian.xp === T.level(4).rubyGuardian.formula.xp, 'Guardian IV XP matches the guardian line');
 

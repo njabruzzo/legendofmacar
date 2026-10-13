@@ -10901,10 +10901,11 @@ function wornWeaponPlus(e, def){
   if(wep && typeof weaponVsPlus==='function') plus+=weaponVsPlus(wep, def);
   return plus;
 }
-function darkAttackMod(e){
+function darkAttackMod(e, def){
   if(typeof CampaignRuntime!=='undefined' && CampaignRuntime.darkPenalty)
-    return CampaignRuntime.darkPenalty(e, G.darkZones, typeof isDwarf==='function' && isDwarf(e));
+    return CampaignRuntime.darkPenalty(e, G.darkZones, typeof isDwarf==='function' && isDwarf(e), def);
   if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) return -4;
+  if(def && typeof inDarkZone==='function' && inDarkZone(def)) return -4;
   return 0;
 }
 function hitBonus(e, def){
@@ -10926,7 +10927,7 @@ function hitBonus(e, def){
   }
   if(e.ratFever) b-=1;
   if(e.strMul>1) b+=2;
-  if(typeof darkAttackMod==='function') b+=darkAttackMod(e);
+  if(typeof darkAttackMod==='function') b+=darkAttackMod(e, def);
   else if(typeof inDarkZone==='function' && inDarkZone(e) && !isDwarf(e)) b-=4;
   return b;
 }
@@ -10997,6 +10998,24 @@ function pickMonsterSpecialty(){
   if(r<=90) return 3;
   return 4;
 }
+/* Specialty is a weapon swing. The chief uses it. Constructs never do.
+   A held target is not a specialty target. */
+function foeAttackCount(e){
+  if(!e || e.team!=='foe') return 1;
+  const n=e.printedAttacks|0;
+  return n>0?n:1;
+}
+function armFoeSpecialty(e, def){
+  if(!e || e.team!=='foe') return 0;
+  if((def && (def.held||0)>0) || e.noSpecialty || e.kind==='construct' || e.campaignRole==='guardian' || e.campaignKey==='rubyGuardian'){
+    e.specialty=0;
+    return 0;
+  }
+  if(!(e.campaignRole==='boss' && e.campaignKey==='orcChief')) return 0;
+  if(!/axe|mace|sword|hammer|spear|dagger|flail/i.test(String(e.attackForm||''))){ e.specialty=0; return 0; }
+  if(!e.specialty) e.specialty=1;
+  return e.specialty;
+}
 function addAttack(atk, def, opts){
   if(!G.fightOn) beginFight(def.team==='foe'?def:atk);
   if(typeof consumeDisplacementMiss==='function' && consumeDisplacementMiss(def)){
@@ -11009,7 +11028,8 @@ function addAttack(atk, def, opts){
   const rear=isRearAttack(atk, def);
   const ac=effectiveAC(def, atk);
   const need=thacNeed(atk, ac);
-  const specKind=(opts&&opts.specialty)||atk._specialty||atk.specialty||0;
+  const heldTarget=!!(def && (def.held||0)>0);
+  const specKind=heldTarget?0:((opts&&opts.specialty)||atk._specialty||atk.specialty||0);
   const spec=specialtyBand(specKind);
   const roll=(opts&&opts.roll!=null)?(opts.roll|0):d20();
   let bonus=hitBonus(atk, def);
@@ -11029,10 +11049,8 @@ function addAttack(atk, def, opts){
   const matrixHit=roll===20 || matrixTot>=need;
   const bandOk=spec?specialtyInBand(specKind, specTot):true;
   let hit=spec?(bandOk&&matrixHit):matrixHit;
-  if(!hit && (def.held||0)>0 && atk && atk.campaignRole==='boss'){
-    const chief=G.lvl&&G.lvl.campaignSpec&&G.lvl.campaignSpec.data&&G.lvl.campaignSpec.data.CHIEF;
-    if(chief&&chief.helplessHitsLand) hit=true;
-  }
+  /* Held: one ordinary hit. No specialty, no multiplier, no coup de grace. */
+  if(heldTarget) hit=true;
   const pct=hitChancePct(need, bonus);
   let tag='';
   if(spec){
@@ -11764,7 +11782,30 @@ InventoryCategories.register([DMG_SCROLL,DMG_RING,DMG_WAND,DMG_ARMOR,DMG_SWORD,D
 function rollDmgScroll(){ const r=pickRange(DMG_SCROLL); return magItem({cat:'Scroll',n:r.n,d:r.d,k:r.k,cursed:r.cursed}); }
 function rollDmgRing(){ const r=pickRange(DMG_RING); return magItem({cat:'Ring',n:r.n,d:r.d,k:r.k,plus:r.plus,cursed:r.cursed,charges:r.charges}); }
 function rollDmgWand(){ const r=pickRange(DMG_WAND); return magItem({cat:'Rod/Staff/Wand',n:r.n,d:r.d,k:r.k,plus:r.plus,charges:r.charges||20,cursed:r.cursed}); }
-function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed}); }
+function magicArmorCap(level){
+  level=level|0;
+  if(level<=4) return 2;
+  if(level<=7) return 3;
+  return 5;
+}
+function lootLevel(){
+  if(typeof G!=='undefined' && G){
+    if(G.campaignLevel) return G.campaignLevel|0;
+    if(G.lvl && G.lvl.campaignSpec && G.lvl.campaignSpec.level) return G.lvl.campaignSpec.level|0;
+    if(G.lvl && G.lvl.n) return G.lvl.n|0;
+  }
+  return 1;
+}
+function stepMagicArmor(it){
+  if(!it || it.cursed || !(it.plus>0)) return it;
+  const cap=magicArmorCap(lootLevel());
+  if(it.plus<=cap) return it;
+  const from=it.plus;
+  it.plus=cap;
+  if(it.n) it.n=String(it.n).replace('+'+from, '+'+cap);
+  return it;
+}
+function rollDmgArmor(){ const r=pickRange(DMG_ARMOR); return stepMagicArmor(magItem({cat:'Armor/Shield',n:r.n,d:r.d,k:r.k,plus:r.plus,missilePlus:r.missilePlus,cursed:r.cursed})); }
 function rollDmgSword(){ const r=pickRange(DMG_SWORD); return magItem({cat:'Sword',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgWeapon(){ const r=pickRange(DMG_WEAP); return magItem({cat:'Weapon',n:r.n,d:r.d,k:r.k,plus:r.plus,vs:r.vs,vsPlus:r.vsPlus,cursed:r.cursed}); }
 function rollDmgMisc(){
@@ -12072,8 +12113,16 @@ function useWandByName(it, e){
   }
   return 'zap';
 }
+function voiceShut(e){
+  if(!e) return false;
+  if((e.silenced||0)>0) return true;
+  return typeof inSilenceZone==='function' && inSilenceZone(e);
+}
+function commandWordItem(it){
+  return !!(it && /command word/i.test(String(it.n||'')+' '+String(it.d||'')));
+}
 function useScrollByName(it, e){
-  if(e && (e.silenced||0)>0){
+  if(e && ((e.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(e)))){
     if(typeof say==='function') say('Silence. No spell, and the scroll stays shut.','#9a8a78');
     return 'silenced';
   }
@@ -12121,6 +12170,10 @@ function useMagicItem(it, e, activate){
     if(typeof syncPackTotals==='function') syncPackTotals();
     say('Pixie dust. One battle, and the fastest step wins.','#e0d2ff');
     return;
+  }
+  if(/command word/i.test(String(it.n||'')+' '+String(it.d||'')) && (e && ((e.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(e))))){
+    say('Silence. The command word does not sound.','#9a8a78');
+    return 'silenced';
   }
   say(it.n+': '+it.d, '#ffd27a');
   if(it.cursed){
@@ -12763,6 +12816,8 @@ function damage(e,amt,col,src){
   if(e.ghost && !isMagicAttack(src)) amt=Math.max(1, Math.round(amt/3));
   if(e.team==='party'){ amt*=(1-armCut(e)); wear(e.gear,0,0.7); }
   amt=Math.round(amt); e.hp-=amt;
+  if(amt>0 && e.hp>0 && (e.held||0)>0 && e.holdSrc==='campaign' && typeof CampaignRuntime!=='undefined' && CampaignRuntime.resaveHold)
+    CampaignRuntime.resaveHold(G, e);
   if(e.hp>0 && typeof CampaignRuntime!=='undefined' && CampaignRuntime.onHurt) CampaignRuntime.onHurt(G, e);
   if(amt>0 && sfx && sfx.hit) sfx.hit(src);
   if(e.hp>0) e.flash=.18;
@@ -13127,7 +13182,7 @@ function setThrallStay(on){
    PHB shape, house cap (Sage): skeleton from bones or zombie from flesh;
    no spell slot / no XP. Nick numbers stand. */
 function tryAnimateDead(actor, body){
-  if(actor && (actor.silenced||0)>0){
+  if(actor && ((actor.silenced||0)>0 || (typeof inSilenceZone==='function' && inSilenceZone(actor)))){
     say('Silence. The spell does not leave his mouth.','#9a8a78');
     return {ok:0, reason:'silenced'};
   }
@@ -14427,7 +14482,9 @@ function partyOrderHost(){
       const kin=(G.ents||[]).filter(x=>x.team==='party'&&!x.dead&&!x.hero);
       const idx=kin.indexOf(e);
       return idx<0?1:idx+1;
-    }
+    },
+    voiceShut:function(){ return typeof voiceShut==='function' && voiceShut(p); },
+    inSilenceZone:function(e){ return typeof inSilenceZone==='function' && inSilenceZone(e); }
   };
 }
 /* Hold is melee reach only (1.5). A ranged kin does not loose while holding. */
@@ -14641,7 +14698,7 @@ function applyEnemyIntent(e, ir, dt){
     faceToward(e, ir.attack.x, ir.attack.y);
     e._attack={fdx:e.fdx, fdy:e.fdy};
     e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=ir.attack;
-    if(e.team==='foe' && !e.specialty && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+    if(e.team==='foe') armFoeSpecialty(e, ir.attack);
     e.moving=0; e.ix=0; e.iy=0;
     return;
   }
@@ -16118,7 +16175,7 @@ function update(dt){
         else faceToward(e, tgt.x, tgt.y);
         if(!form&&!e.defending&&e.ct<=0&&tgt.hp!==undefined){
           e.atk=e.atkMax; e.ct=(typeof wornAttackCd==='function'?wornAttackCd(e):e.cd); e.swung=0; e.aim=tgt;
-          if(e.team==='foe' && !e.specialty && e.campaignRole!=='boss' && chanceOk(18)) e.specialty=pickMonsterSpecialty();
+          if(e.team==='foe') armFoeSpecialty(e, tgt);
         }
       }
     } else { e.moving=0; e.ix=0; e.iy=0; }
@@ -20020,6 +20077,16 @@ function campActions(){
     info:ROSTER.map(r=>{ const p=packOf(r.key);
       return r.name[0]+' '+(p.bombs||0)+'b/'+(p.ales||0)+'a/'+(p.potions.length+(p.magic||[]).length); }).join('  '),
     fn:()=>{ openPackMenu('camp'); }});
+  a.push({grp:'TAILOR',tab:'craft',name:'Hide armor',t:'Cure three worg pelts into hide armor',cost:{},
+    info:'Ten seconds at camp. AC 6, weight 30, body.',
+    fn:()=>{
+      if(typeof CampaignRuntime==='undefined' || !CampaignRuntime.beginHideCraft){
+        say('The pelts need a bench.','#c9b895'); return;
+      }
+      const r=CampaignRuntime.beginHideCraft(G);
+      if(!r.ok) say('Three worg pelts are needed.','#c9b895');
+      else say('The pelts go on the bench. Ten seconds.','#d2bd63');
+    }});
   ROSTER.slice(1).forEach(r=>{
     if(!(G.ghostAllies&&G.ghostAllies[r.key])) return;
     const talkKey='camp_'+talkKinKey(r.key);

@@ -197,6 +197,9 @@
   function issue(verb, host) {
     var foe = null;
     verb = String(verb || '').toLowerCase();
+    if (host && typeof host.voiceShut === 'function' && host.voiceShut()) {
+      return { ok: false, reason: 'silenced', order: orderName };
+    }
     if (!use()) return { ok: false, reason: 'off', order: null };
     if (!VERBS[verb]) return { ok: false, reason: 'bad-verb', order: orderName };
     if (orderName === verb) {
@@ -224,6 +227,9 @@
   function decide(e, leader, host) {
     var foe, want, block, latchedId, latched, swinging, d;
     host = host || {};
+    if (host && typeof host.inSilenceZone === 'function' && host.inSilenceZone(e)) {
+      return { handled: false, order: null, silenced: true };
+    }
     if (!use() || !orderName || !commands(e)) return { handled: false, order: orderName };
     if (orderName === 'hold') {
       return { handled: true, verb: 'hold', advance: false, defensive: true, order: 'hold' };

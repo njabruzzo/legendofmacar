@@ -43,8 +43,8 @@ assert(/Specialty '\+spec\.n/.test(html) && /×'\+spec\.mult/.test(html),
   'combat log writes Specialty and the ×');
 assert(/e\.ct=Math\.max\(e\.ct\|\|0, 1\.15\)/.test(html),
   'a specialty swing consumes a full attack round');
-assert(/e\.team==='foe' && !e\.specialty && chanceOk\(18\)/.test(html),
-  'monsters may declare I–IV with no extra HUD');
+assert(!/chanceOk\(18\)/.test(html) && /function armFoeSpecialty\(/.test(html),
+  'foe specialty is armed by the weapon rule');
 assert(/beginSpecialtySwing\(e\)/.test(html), 'armed pick is spent on the next swing');
 
 ['i','ii','iii','iv'].forEach(n=>{
