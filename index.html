@@ -17723,12 +17723,11 @@ function drawToothProp(g,p,z){
   }
   drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
 }
-/* Chapel portrait, empty plate, and the bronze vault sheet are lazy.
-   Kick them when a descent starts so the face is not a tan slab while
-   the PNG decodes. */
+/* Chapel portrait and empty plate are lazy. Kick both when a descent
+   starts so the north face is not a tan slab while the PNG decodes. */
 function preloadChapelDemonFace(){
   if(typeof loadSpriteKeyNow!=='function') return;
-  ['demon_dwarfface','demon_dwarfface_empty','demon_dwarfface_vault'].forEach(k=>{
+  ['demon_dwarfface','demon_dwarfface_empty'].forEach(k=>{
     if(!(SPR[k]&&SPR[k].width)) loadSpriteKeyNow(k);
   });
 }
@@ -17747,14 +17746,7 @@ function vaultDemonFace(p){
 function demonFaceImg(p){
   /* Hourglass vault keeps main's wide plate. The v4 portrait and the
      empty-socket sheet are the chapter 1 chapel face only. */
-  if(p && vaultDemonFace(p)){
-    /* Full plate only. There is no vault-empty sheet, so an empty socket
-       keeps this image and the hole is drawn on top of it. */
-    const key='demon_dwarfface_vault';
-    if(typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
-    const vault=SPR.demon_dwarfface_vault||null;
-    return (vault&&vault.width)?vault:null;
-  }
+  if(p && vaultDemonFace(p)) return SPR.demon_dwarfface_vault||null;
   /* King-hall tooth 2 is not the chapel empty plate. That sheet is a
      tan masonry panel; this wall keeps the pre-pickup portrait and the
      socket ellipse stands in for the missing fang. */
