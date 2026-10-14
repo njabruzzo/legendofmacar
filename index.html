@@ -13957,6 +13957,9 @@ function cancelHourglassRaid(ok){
     hint('The bronze tooth is yours. The glass is inert.',4.0);
   } else {
     revertUnsecuredBronzeTooth();
+    /* Re-arm the full glass. t=0 here would draw hourglass_empty while the raid is off. */
+    G.hourglassT=HOURGLASS_RAID_S;
+    L.flags.hourglassT=G.hourglassT;
     say('The hourglass resets. The sand climbs back.','#c9b895');
   }
 }
