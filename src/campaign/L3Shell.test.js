@@ -120,7 +120,10 @@ assert(R.shellChapter(3) === 30 && R.shellChapter(2) === 2 && R.shellChapter(1) 
 assert(html.indexOf('if(n===30) return makeCampaignL3();') >= 0, 'chapter 30 builds the Level 3 floor');
 const shellFn = html.slice(html.indexOf('function makeCampaignL3'), html.indexOf('function makeChapter'));
 assert(shellFn.indexOf('hourglass') < 0 && shellFn.indexOf('L.n===2') < 0 && shellFn.indexOf('dressDungeon') < 0, 'the Level 3 builder does not dress Chapter II');
-assert(html.indexOf("SPRITE_FILES.hourglass='assets/props/prop_hourglass.png'") >= 0, 'the hourglass stand-in is bound');
+assert(html.indexOf("SPRITE_FILES.hourglass='assets/props/prop_hourglass.png'") >= 0, 'the full hourglass sheet is bound');
+assert(html.indexOf("SPRITE_FILES.hourglass_half='assets/props/prop_hourglass_half.png'") >= 0, 'the half hourglass sheet is bound');
+assert(html.indexOf("SPRITE_FILES.hourglass_empty='assets/props/prop_hourglass_empty.png'") >= 0, 'the empty hourglass sheet is bound');
+assert(html.indexOf('hourglass_flaming') < 0, 'an old flaming key does not override the painted sheets');
 (function hourglassAlpha() {
   function paeth(a, b, c) {
     const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
@@ -128,40 +131,76 @@ assert(html.indexOf("SPRITE_FILES.hourglass='assets/props/prop_hourglass.png'") 
     if (pb <= pc) return b;
     return c;
   }
-  const buf = fs.readFileSync(path.join(root, 'assets/props/prop_hourglass.png'));
-  assert(buf.readUInt32BE(16) === 160 && buf.readUInt32BE(20) === 280, 'the hourglass stand-in is 160x280');
-  let pos = 8, w = 0, h = 0, bit = 0, ctype = 0, idat = [];
-  while (pos < buf.length) {
-    const ln = buf.readUInt32BE(pos);
-    const typ = buf.slice(pos + 4, pos + 8).toString('ascii');
-    const chunk = buf.slice(pos + 8, pos + 8 + ln);
-    pos += 12 + ln;
-    if (typ === 'IHDR') { w = chunk.readUInt32BE(0); h = chunk.readUInt32BE(4); bit = chunk[8]; ctype = chunk[9]; }
-    else if (typ === 'IDAT') idat.push(chunk);
-    else if (typ === 'IEND') break;
-  }
-  assert(bit === 8 && ctype === 6, 'the hourglass is 8-bit RGBA');
-  const raw = zlib.inflateSync(Buffer.concat(idat));
-  const bpp = 4, stride = w * bpp;
-  let i = 0, mid = 0;
-  const prev = Buffer.alloc(stride);
-  for (let y = 0; y < h; y++) {
-    const f = raw[i++];
-    const row = Buffer.from(raw.slice(i, i + stride));
-    i += stride;
-    if (f === 1) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (x >= bpp ? row[x - bpp] : 0)) & 255; }
-    else if (f === 2) { for (let x = 0; x < stride; x++) row[x] = (row[x] + prev[x]) & 255; }
-    else if (f === 3) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (((x >= bpp ? row[x - bpp] : 0) + prev[x]) >> 1)) & 255; }
-    else if (f === 4) {
-      for (let x = 0; x < stride; x++) {
-        const a = x >= bpp ? row[x - bpp] : 0, b = prev[x], c = x >= bpp ? prev[x - bpp] : 0;
-        row[x] = (row[x] + paeth(a, b, c)) & 255;
-      }
+  ['prop_hourglass.png', 'prop_hourglass_half.png', 'prop_hourglass_empty.png'].forEach(function (name) {
+    const buf = fs.readFileSync(path.join(root, 'assets/props', name));
+    assert(buf.readUInt32BE(16) === 160 && buf.readUInt32BE(20) === 280, name + ' is 160x280');
+    let pos = 8, w = 0, h = 0, bit = 0, ctype = 0, idat = [];
+    while (pos < buf.length) {
+      const ln = buf.readUInt32BE(pos);
+      const typ = buf.slice(pos + 4, pos + 8).toString('ascii');
+      const chunk = buf.slice(pos + 8, pos + 8 + ln);
+      pos += 12 + ln;
+      if (typ === 'IHDR') { w = chunk.readUInt32BE(0); h = chunk.readUInt32BE(4); bit = chunk[8]; ctype = chunk[9]; }
+      else if (typ === 'IDAT') idat.push(chunk);
+      else if (typ === 'IEND') break;
     }
-    row.copy(prev);
-    for (let x = 3; x < stride; x += 4) if (row[x] !== 0 && row[x] !== 255) mid++;
-  }
-  assert(mid === 0, 'the hourglass alpha is binary (0 or 255), no halo');
+    assert(bit === 8 && ctype === 6, name + ' is 8-bit RGBA');
+    const raw = zlib.inflateSync(Buffer.concat(idat));
+    const bpp = 4, stride = w * bpp;
+    let i = 0, mid = 0;
+    const prev = Buffer.alloc(stride);
+    for (let y = 0; y < h; y++) {
+      const f = raw[i++];
+      const row = Buffer.from(raw.slice(i, i + stride));
+      i += stride;
+      if (f === 1) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (x >= bpp ? row[x - bpp] : 0)) & 255; }
+      else if (f === 2) { for (let x = 0; x < stride; x++) row[x] = (row[x] + prev[x]) & 255; }
+      else if (f === 3) { for (let x = 0; x < stride; x++) row[x] = (row[x] + (((x >= bpp ? row[x - bpp] : 0) + prev[x]) >> 1)) & 255; }
+      else if (f === 4) {
+        for (let x = 0; x < stride; x++) {
+          const a = x >= bpp ? row[x - bpp] : 0, b = prev[x], c = x >= bpp ? prev[x - bpp] : 0;
+          row[x] = (row[x] + paeth(a, b, c)) & 255;
+        }
+      }
+      row.copy(prev);
+      for (let x = 3; x < stride; x += 4) if (row[x] !== 0 && row[x] !== 255) mid++;
+    }
+    assert(mid === 0, name + ' alpha is binary (0 or 255), no halo');
+  });
+})();
+(function hourglassStates() {
+  const start = html.indexOf('function hourglassSheetKey');
+  const end = html.indexOf('function drawHourglassProp');
+  const ctx = { G: { hourglassT: 10, lvl: { n: 2, flags: {} } }, HOURGLASS_RAID_S: 10 };
+  vm.createContext(ctx);
+  vm.runInContext(html.slice(start, end), ctx);
+  assert(ctx.hourglassSheetKey() === 'hourglass', 'full before the raid starts');
+  ctx.G.lvl.flags.hourglassRaid = 1;
+  ctx.G.hourglassT = 9.5;
+  assert(ctx.hourglassSheetKey() === 'hourglass_half', 'half as soon as the timer is running');
+  ctx.G.hourglassT = 5;
+  assert(ctx.hourglassSheetKey() === 'hourglass_half', 'half through the middle of the timer');
+  ctx.G.hourglassT = 0.2;
+  assert(ctx.hourglassSheetKey() === 'hourglass_half', 'half until the sand hits zero');
+  ctx.G.hourglassT = 0;
+  ctx.G.lvl.flags.hourglassRaid = 0;
+  assert(ctx.hourglassSheetKey() === 'hourglass_empty', 'empty once the sand has expired');
+  ctx.G.hourglassT = 10;
+  ctx.G.lvl.flags.hourglassInert = 1;
+  assert(ctx.hourglassSheetKey() === 'hourglass_empty', 'empty once the glass is inert');
+  ctx.G.lvl.flags = {};
+  ctx.G.hourglassT = 10;
+  assert(ctx.hourglassSheetKey() === 'hourglass', 'leaving without the tooth restores the full glass');
+  const draw = html.slice(end, html.indexOf('function drawHourglassHud'));
+  assert(draw.indexOf('HOURGLASS_PY/HOURGLASS_PH') >= 0 && html.indexOf('HOURGLASS_PY=269') >= 0, 'the sheet is planted on pivot (80, 269)');
+  const faceH = html.slice(html.indexOf('function demonFaceDrawH'), html.indexOf('function drawDemonDwarfFace'));
+  assert(faceH.indexOf("p.itemId==='grond_tooth_electrum_2'") >= 0 && faceH.indexOf('hallWallH(G.lvl)') >= 0, 'Level 2 and Level 3 faces use the hall wall, not the chapel plate');
+  assert(/chapelFaceContentFrac\(\)/.test(faceH) && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(faceH), 'the chapel and vault heights stay on their own scales');
+  const drawEnt = html.slice(html.indexOf('function drawEnt('), html.indexOf('function drawBeard'));
+  assert(drawEnt.indexOf('!e.dead&&!e.rubyTint&&p&&p.aim===e') >= 0, 'a ruby guardian does not take the selection ring');
+  assert(drawEnt.indexOf('!e.dead && !e.rubyTint && e.team===\'foe\'') >= 0, 'a ruby guardian does not take the attack ring');
+  assert(drawEnt.indexOf('e.buff>0 && !e.rubyTint') >= 0, 'a ruby guardian does not take the buff ring');
+  assert(drawEnt.indexOf('softShadow(g,2.5*z,1*z,17*z,8*z,0.52)') >= 0, 'the contact shadow stays');
 })();
 const wash = html.slice(html.indexOf('function rubyWashedFrame'), html.indexOf('function drawEntBillboard'));
 assert(wash.indexOf("globalCompositeOperation='source-atop'") >= 0 && wash.indexOf('globalAlpha=0.45') >= 0, 'the ruby wash is a 45% source-atop tint');
@@ -174,6 +213,8 @@ assert(boot.indexOf('src/campaign/L3Shell.js') > boot.indexOf('src/campaign/L3.j
 
 const files = [
   'assets/props/prop_hourglass.png',
+  'assets/props/prop_hourglass_half.png',
+  'assets/props/prop_hourglass_empty.png',
   'assets/props/prop_demon_dwarfface.png',
   'assets/props/prop_throne.png',
   'assets/props/prop_rubydoor.png',

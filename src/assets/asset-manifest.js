@@ -939,6 +939,8 @@ var ASSET_FILES={
   "assets/props/prop_gate_w2.png":1,
   "assets/props/prop_glowcap.png":1,
   "assets/props/prop_hourglass.png":1,
+  "assets/props/prop_hourglass_empty.png":1,
+  "assets/props/prop_hourglass_half.png":1,
   "assets/props/prop_idol.png":1,
   "assets/props/prop_lantern.png":1,
   "assets/props/prop_lantern_atk.png":1,

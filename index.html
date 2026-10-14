@@ -81,7 +81,7 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=1d92bd1d0a65"></script>
+<script src="src/assets/asset-manifest.js?v=9938405cb0cb"></script>
 <script src="src/campaign/CampaignBoot.js?v=133"></script>
 <script>
 "use strict";
@@ -1064,8 +1064,10 @@ SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
 SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
 /* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
 SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
-/* STAND-IN, needs Cel/Disney art. Bronze hourglass, solid sand, hard alpha. Level 2 secret only. */
+/* Nick Good: bronze hourglass PAINT v1e. Full, half, empty. Level 2 secret only. */
 SPRITE_FILES.hourglass='assets/props/prop_hourglass.png';
+SPRITE_FILES.hourglass_half='assets/props/prop_hourglass_half.png';
+SPRITE_FILES.hourglass_empty='assets/props/prop_hourglass_empty.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -1196,7 +1198,7 @@ const WORLD_ART_KEYS={
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
      'goblin','goblin_w1','goblin_w2','rat','rat_w1','rat_w2','thinone','thinone_w1','thinone_w2',
-     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass'],
+     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass','hourglass_half','hourglass_empty'],
   30:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
@@ -4458,7 +4460,7 @@ function propSpriteKey(p){
   if(k==='demonface') return SPR.demon_dwarfface?'demon_dwarfface':(SPR.demonface?'demonface':null);
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
   if(k==='tooth') return (p.spr&&SPR[p.spr])?p.spr:(SPR.tooth?'tooth':(SPR.tooth_2?'tooth_2':(SPR.tooth_3?'tooth_3':null)));
-  if(k==='hourglass') return SPR.hourglass_flaming?'hourglass_flaming':(SPR.hourglass_signed?'hourglass_signed':(SPR.hourglass?'hourglass':null));
+  if(k==='hourglass') return hourglassSheetKey();
   if(k==='bronzedoor') return 'bronzedoor';
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
@@ -17451,14 +17453,32 @@ function drawBoneCrownProp(g,p,z){
   const seat=boneCrownAltarSeat(rect);
   drawBoneCrownAt(g, z, seat.x, seat.y, p.s||1);
 }
+/* Pivot of the 160×280 PAINT v1e sheets. The foot sits on the prop origin. */
+const HOURGLASS_PX=80, HOURGLASS_PY=269, HOURGLASS_PW=160, HOURGLASS_PH=280;
+/* CEL_NOTE names no sand-timer cut. Three sheets, three states of the
+   existing raid: full before it starts, half for the whole running timer
+   (mid-timer), empty once the glass is inert or the sand has hit zero. */
+function hourglassSheetKey(){
+  const L=G.lvl;
+  const flags=L&&L.flags;
+  const inert=!!(flags&&flags.hourglassInert);
+  const raid=!!(flags&&flags.hourglassRaid);
+  const cap=typeof HOURGLASS_RAID_S==='number'?HOURGLASS_RAID_S:10;
+  const t=(typeof G.hourglassT==='number')?G.hourglassT:cap;
+  if(inert || t<=0) return 'hourglass_empty';
+  if(raid && t>0) return 'hourglass_half';
+  return 'hourglass';
+}
 function drawHourglassProp(g,p,z){
-  const img=SPR.hourglass_flaming||SPR.hourglass_signed||SPR.hourglass||null;
+  const key=hourglassSheetKey();
+  if(typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
+  const img=(SPR[key]&&SPR[key].width)?SPR[key]:(SPR.hourglass||null);
   const sc=p.s||1;
   const s=w2s(p.x,p.y);
   if(img&&img.width){
     const H=118*z*sc;
     const W=H*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -W/2, -H*0.96, W, H);
+    g.drawImage(img, -W*(HOURGLASS_PX/HOURGLASS_PW), -H*(HOURGLASS_PY/HOURGLASS_PH), W, H);
   } else {
     const H=110*z*sc, W=38*z*sc;
     g.strokeStyle='#3a2418';
@@ -17502,7 +17522,8 @@ function drawHourglassProp(g,p,z){
       emit(s.x, s.y-H*0.55, 28*z*fl, '#ff3a20', 0.85);
     }
   }
-  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.hourglassInert)){
+  /* The painted sheets already carry the flame. This halo is the procedural stand-in only. */
+  if(!(img&&img.width) && !(G.lvl&&G.lvl.flags&&G.lvl.flags.hourglassInert)){
     const fl=1+Math.sin(G.elapsed*8+p.x)*0.2;
     emit(s.x, s.y-72*z, 46*z*fl, '#ff3a20', 0.7);
     ray(s.x, s.y-80*z, 54*z, '#ff6a3a', 0.4);
@@ -17605,6 +17626,14 @@ function chapelFaceContentFrac(){
 }
 function demonFaceDrawH(img, p){
   if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
+  /* King hall and the queen hall use hall walls (0.70×), not the chapel
+     plate. Opaque paint on the 392 plate runs y=16..375. Size the quad so
+     that top sits at 97% of the hall coping, and drawIsoPlaneImg shears
+     the plate on the same plane as the masonry. */
+  if(p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3'){
+    const paintTop=16/DEMON_FACE_PLATE.h;
+    return hallWallH(G.lvl)*0.97/(1-paintTop);
+  }
   return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
 }
 function drawDemonDwarfFace(g,p){
@@ -17653,7 +17682,9 @@ function drawDemonDwarfFace(g,p){
     return;
   }
   const img=demonFaceImg(p);
-  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
+  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel.
+     The loaded plate is the same iso quad as the hall masonry, short enough
+     that the horns stay under the coping. */
   if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
@@ -18109,7 +18140,7 @@ function drawProp(g,p,pal){
     emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;
   }
-  const img=(p.k==='stone')?null:propAnimImg(p);
+  const img=(p.k==='stone'||p.k==='hourglass')?null:propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
     const metric=tilesetPropMetric(p.k);
@@ -18547,14 +18578,14 @@ function drawEnt(g,e){
     g.translate(0,8); g.rotate(0.9);
   }
   const p=player();
-  if(!e.dead&&p&&p.aim===e){
+  if(!e.dead&&!e.rubyTint&&p&&p.aim===e){
     const b=.45+Math.sin(G.elapsed*7)*.2;
     g.strokeStyle='rgba(255,90,70,'+b+')'; g.lineWidth=2.6*ZOOM;
     g.beginPath(); g.ellipse(0,0,20*z,10*z,0,0,TAU); g.stroke();
     g.strokeStyle='rgba(255,140,110,'+(b*0.5)+')'; g.lineWidth=1.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
   }
-  if(!e.dead && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
+  if(!e.dead && !e.rubyTint && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
     const winding=e.atk>0?attackProgress(e)<0.55:true;
     const b=.50+Math.sin(G.elapsed*9)*.28;
     g.strokeStyle='rgba(255,72,48,'+(winding?b:b*0.42)+')';
@@ -18600,7 +18631,7 @@ function drawEnt(g,e){
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
-  if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){
+  if(e.flash>0 && !e.dead && !e.rubyTint && !(e.hero && !e.ghost)){
     if(e.ghost){
       /* Mid-alpha ghost + lighter + flash*3 reads as solid↔translucent.
          Keep a stable source-over rim so a hit is visible without a pop. */
@@ -18630,10 +18661,10 @@ function drawEnt(g,e){
       g.beginPath(); g.moveTo(Math.cos(a)*6*z,-18*z); g.lineTo(Math.cos(a)*22*z, Math.sin(a)*10*z-8*z); g.stroke();
     }
   }
-  if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
+  if(e.guard && !e.rubyTint){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke(); }
-  if(e.buff>0){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
+  if(e.buff>0 && !e.rubyTint){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
