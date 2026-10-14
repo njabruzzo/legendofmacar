@@ -13,6 +13,7 @@
     'src/campaign/LevelMap.js',
     'src/campaign/L2.js',
     'src/campaign/L3.js',
+    'src/campaign/L3Shell.js',
     'src/campaign/OgreCave.js',
     'src/campaign/L4.js',
     'src/campaign/L5.js',

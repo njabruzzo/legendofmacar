@@ -81,8 +81,8 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=191089e0e1cb"></script>
-<script src="src/campaign/CampaignBoot.js?v=132"></script>
+<script src="src/assets/asset-manifest.js?v=9938405cb0cb"></script>
+<script src="src/campaign/CampaignBoot.js?v=133"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -720,7 +720,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='132';
+const ASSET_VER='133';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1064,6 +1064,10 @@ SPRITE_FILES.dwarf_skeleton_idle='assets/creatures/dwarf_skeleton_idle.png';
 SPRITE_FILES.demon_dwarfface_empty='assets/props/prop_demon_dwarfface_empty.png';
 /* Main's 457×274 hourglass-vault plate. The chapel v4 sheet is not this face. */
 SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png';
+/* Nick Good: bronze hourglass PAINT v1e. Full, half, empty. Level 2 secret only. */
+SPRITE_FILES.hourglass='assets/props/prop_hourglass.png';
+SPRITE_FILES.hourglass_half='assets/props/prop_hourglass_half.png';
+SPRITE_FILES.hourglass_empty='assets/props/prop_hourglass_empty.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -1192,7 +1196,14 @@ const WORLD_ART_KEYS={
      'rubble','rubble2','boulder','boulder2','lantern','ch1_lift_lever','ch1_pillar_ruby','rubydoor_stairs','winduptoy','winduptoy_wound','loot_gear','loot_spring','loot_emerald','crown_bone_wall','wall_teeth_chapel','wall_teeth_chapel_opaque','craftstation','pordoom','fendur','orbo','talpor','pordoom_ghost','fendur_ghost','orbo_ghost','talpor_ghost'],
   2:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
-     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
+     'goblin','goblin_w1','goblin_w2','rat','rat_w1','rat_w2','thinone','thinone_w1','thinone_w2',
+     'goblin_king','goblin_king_w1','goblin_king_w2','throne','hourglass','hourglass_half','hourglass_empty'],
+  30:['floor_mine','wall_cave','wall_cave_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
+     'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
+     'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se',
+     'thinone','thinone_w1','thinone_w2','spider','spider_huge','spider_giant','phasespider',
+     'rubydoor'],
   3:['floor_ruin','wall_worked','wall_face','macar','macar_w1','macar_w2','macar_atk','macar_atk_contact',
      'macar_e_w1','macar_e_w2','macar_se_w1','macar_se_w2','macar_ne_w1','macar_ne_w2','macar_back_w1','macar_back_w2',
      'macar_atk_n','macar_atk_s','macar_atk_ne','macar_atk_se'],
@@ -2425,6 +2436,25 @@ function blitFacing(g,img,dx,dy,W,H,flip,crisp,punch){
     if(prevQ!=null && g.imageSmoothingQuality) g.imageSmoothingQuality=prevQ;
   }
 }
+/* Ruby guardians keep the Thin One frames. A source-atop wash tints the
+   body; the cache key is the anim frame so walk and strike stay separate. */
+const RUBY_FRAME_WASH={};
+function rubyWashedFrame(img, key){
+  if(!img||!img.width) return img;
+  const id=key||'frame';
+  const hit=RUBY_FRAME_WASH[id];
+  if(hit && hit.src===img && hit.w===img.width && hit.h===img.height) return hit.out;
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.drawImage(img,0,0);
+  x.globalCompositeOperation='source-atop';
+  x.globalAlpha=0.45;
+  x.fillStyle='#ff2438';
+  x.fillRect(0,0,c.width,c.height);
+  RUBY_FRAME_WASH[id]={src:img, w:img.width, h:img.height, out:c};
+  return c;
+}
 function drawEntBillboard(g,e,img,z,flip){
   if(!img||!img.width) return false;
   if(e.crushed||e.prone){
@@ -2449,6 +2479,7 @@ function drawEntBillboard(g,e,img,z,flip){
     if(!img||!img.width) return false;
   }
   const blitKey=liveKey&&typeof livingMacarBlitKey==='function'?livingMacarBlitKey(liveKey):liveKey;
+  if(e.rubyTint && !e.dead && !e.crushed) img=rubyWashedFrame(img, entAnimKey(e)||e.sprite||'ruby');
   const npc=typeof NpcDirectionalAtlas!=='undefined'&&NpcDirectionalAtlas.pose(entAnimKey(e));
   const H=entSpriteH(e,z)*(npc?2:blitKey?livingMacarPlantFit(e,blitKey,img):frameFit(e,img));
   const shaft=(blitKey&&typeof MacarWeaponShaft!=='undefined')?MacarWeaponShaft.pose(blitKey):null;
@@ -3222,7 +3253,8 @@ function palFloorKey(pal){
   return 'floor_mine';
 }
 function palWallKey(L){
-  // Chapter II is living rock. The start and the built halls are worked stone.
+  // Chapter II and the Webbed Deep are living rock. The start and the built halls are worked stone.
+  if(L && L.wallKey) return L.wallKey;
   if(L && L.n===2) return 'wall_cave';
   return 'wall_worked';
 }
@@ -3449,9 +3481,76 @@ function applyTeethFaceWallHeight(L){
   for(let x=105;x<=109;x++) L.wallH[x+',1']=WALL_TEETH_FACE_SCALE;
   for(let y=2;y<14;y++) L.wallH['100,'+y]=WALL_TEETH_FACE_SCALE;
 }
+/* Half-width of a north-wall demon face, in tiles. The vault plate is
+   457×274 and opaque to the top row, so its horns are the quad top.
+   The 298×392 portrait uses the plate aspect. */
+function demonFaceSpanHalf(p){
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  if(!p || vaultDemonFace(p)){
+    const img=(typeof SPR!=='undefined' && SPR.demon_dwarfface_vault) || null;
+    const aspect=(img&&img.width)?img.width/Math.max(1,img.height):(457/274);
+    const H=dwarfFaceH()*1.08;
+    return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  }
+  const H=demonFaceDrawH(null, p);
+  const aspect=DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h;
+  return clamp(H*aspect/(2*perTile), 0.70, 2.80);
+}
+/* Wall scale (× wallFaceH) that keeps the horn top under the coping.
+   Portrait faces use the chapel plate, so they take WALL_TEETH_FACE_SCALE.
+   The vault slab keeps its locked height and the wall grows past that quad
+   by the same margin the chapel wall has over its plate. */
+function demonFaceWallScale(p){
+  const quad=(!p || vaultDemonFace(p))
+    ? 0.72*1.08
+    : DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
+  const chapelQuad=DEMON_FACE_CONTENT_SCALE/(360/DEMON_FACE_PLATE.h);
+  const margin=WALL_TEETH_FACE_SCALE/chapelQuad;
+  const need=quad*margin;
+  if(!p || vaultDemonFace(p)) return need;
+  return Math.max(need, WALL_TEETH_FACE_SCALE);
+}
+/* Screen height of the highest opaque pixel (horns, or the vault slab top). */
+function demonFaceHornTop(p){
+  const H=(!p || vaultDemonFace(p)) ? dwarfFaceH()*1.08 : demonFaceDrawH(null, p);
+  const top=(!p || vaultDemonFace(p)) ? 0 : (DEMON_FACE_PLATE.pad/DEMON_FACE_PLATE.h);
+  return H*(1-top);
+}
+/* North-wall rock row and the cells the face actually covers. */
+function demonFaceWallSpan(p){
+  const half=demonFaceSpanHalf(p);
+  const L=(typeof G!=='undefined' && G && G.lvl) || null;
+  const ix=Math.round(p.x)|0;
+  const iy=Math.round(p.y)|0;
+  let wallY=iy-1;
+  if(L&&L.grid){
+    for(let y=iy+1; y>=iy-4; y--){
+      if(y<1||!L.grid[y]||!L.grid[y-1]) continue;
+      if(L.grid[y-1][ix]===1 && isWalkTile(L.grid[y][ix])){ wallY=y-1; break; }
+    }
+  }
+  return { y:wallY, x0:Math.floor(p.x-half), x1:Math.floor(p.x+half) };
+}
+function demonFaceWallH(L,x,y){
+  if(typeof G==='undefined'||!G||!G.props||!L) return 0;
+  let best=0;
+  for(let i=0;i<G.props.length;i++){
+    const p=G.props[i];
+    if(!p||p.gone||p.k!=='demonface'||p.wall!=='n') continue;
+    const span=demonFaceWallSpan(p);
+    if(y!==span.y||x<span.x0||x>span.x1) continue;
+    const h=wallFaceH(L)*demonFaceWallScale(p);
+    if(h>best) best=h;
+  }
+  return best;
+}
 function cellWallH(L,x,y){
   const over=wallHeightOverride(L,x,y);
   if(over) return over;
+  if(typeof demonFaceWallH==='function'){
+    const raised=demonFaceWallH(L,x,y);
+    if(raised) return raised;
+  }
   if(isTeethFaceWall(L,x,y)) return teethFaceWallH(L);
   if(isTeethAltarWestWall(L,x,y)) return teethFaceWallH(L);
   if(isRubyNorthWall(L,x,y)) return rubyNorthWallH(L);
@@ -4428,7 +4527,7 @@ function propSpriteKey(p){
   if(k==='demonface') return SPR.demon_dwarfface?'demon_dwarfface':(SPR.demonface?'demonface':null);
   if(k==='bonecrown') return SPR.bone_crown?'bone_crown':(SPR.bone_crown_signed?'bone_crown_signed':null);
   if(k==='tooth') return (p.spr&&SPR[p.spr])?p.spr:(SPR.tooth?'tooth':(SPR.tooth_2?'tooth_2':(SPR.tooth_3?'tooth_3':null)));
-  if(k==='hourglass') return SPR.hourglass_flaming?'hourglass_flaming':(SPR.hourglass_signed?'hourglass_signed':(SPR.hourglass?'hourglass':null));
+  if(k==='hourglass') return hourglassSheetKey();
   if(k==='bronzedoor') return 'bronzedoor';
   if(k==='bell') return 'bell';
   if(k==='trap') return p.trap||'trap_spikes';
@@ -5591,7 +5690,26 @@ function positionNozDoor(L){
   for(let x=60;x<=65;x++){L.grid[10][x]=1;for(let y=11;y<=13;y++)L.grid[y][x]=0;}
   for(const p of G.props||[])if(p.k==='bronzedoor'||p.k==='bell')Object.assign(p,p.k==='bell'?L.bell:L.door);
 }
+function makeCampaignL3(){
+  const L={n:30,w:144,h:118,grid:newGrid(144,118,1),pal:PAL.mine,wallKey:'wall_cave',
+    title:'The Webbed Deep and the Spider Queen', sub:'The Webbed Deep',
+    objs:[], lights:[], flags:{ownShell:1, campaignWeb:1}, secrets:[],
+    spawn:{x:128.2,y:73.4}, stair:{x:138.1,y:111.2},
+    tick:null, guide:null, wallHP:{}};
+  if(typeof L3Shell!=='undefined' && L3Shell.carve) L3Shell.carve(L.grid,{caveDisk:caveDisk,rect:rect,carvePath:carvePath});
+  const deepGrid=L.grid;
+  sealOuter(deepGrid);
+  L.seen=newGrid(L.w,L.h,0);
+  L.vis=newGrid(L.w,L.h,0);
+  const dress=(typeof L3Shell!=='undefined' && L3Shell.dressing)||[];
+  G.props=dress.map(p=>Object.assign({s:1,seed:p.seed||1},p));
+  L.lights=((typeof L3Shell!=='undefined' && L3Shell.lights)||[]).map(light=>Object.assign({},light));
+  const caches=(typeof L3Shell!=='undefined' && L3Shell.caches)||[];
+  caches.forEach(pt=>placeDungeonCache(pt[0],pt[1],3));
+  return L;
+}
 function makeChapter(n){
+  if(n===30) return makeCampaignL3();
   const L={n,w:0,h:0,grid:null,pal:PAL.mine,title:'',sub:'',objs:[],lights:[],flags:{},
     spawn:{x:0,y:0},seen:null,tick:null,guide:null,wallHP:{}};
 
@@ -7099,6 +7217,10 @@ function tickFloorTravel(){
   else if(lever&&dist(p,lever)<1.8)interact('Use the floor lever',openFloorLever);
 }
 function startChapter(n){
+  if(n===2 && (G.campaignLevel|0)===3 && typeof CampaignRuntime!=='undefined' && CampaignRuntime.shellChapter){
+    const shell=CampaignRuntime.shellChapter(3);
+    if(shell && shell!==n) n=shell;
+  }
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
   const keep=!!G._keepProgress;
   if(n===1&&!keep)G.floorWorlds={};
@@ -7118,6 +7240,7 @@ function startChapter(n){
   if(!keep && (!G.res||!G.res.ironstone&&G.res.ironstone!==0)) initEconomy();
   if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
+  if(typeof preloadChapelDemonFace==='function') preloadChapelDemonFace();
   G._forceSeeds=null;
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
@@ -7146,7 +7269,7 @@ function startChapter(n){
     if(r.role==='bolt'){e.ranged=1;e.range=6.5;}
     if(r.role==='faith'){e.range=1.05;e.heals=1;e.cls='c';}
     if(n===1){ e.fdx=hero?-1:1; e.fdy=0; }
-    if(n===2){ e.fdx=0; e.fdy=1; }
+    if(n===2 || n===30){ e.fdx=0; e.fdy=1; }
     if(hero){ e.atkMax=0.78; }
     if(crush){
       e.hp=0; e.dead=1; e.crushed=1; e.deadT=0.62; e.prone=1; e.moving=0;
@@ -7577,7 +7700,7 @@ function loadSavedGame(){
   noteQuietSave();
 }
 function player(){ return G.ents.find(e=>e.hero&&!e.dead); }
-function endChapter(){ G.cleared[G.ch]=1; G.unlocked=Math.max(G.unlocked,G.ch+1);
+function endChapter(){ G.cleared[G.ch]=1; if(CH_META[G.ch]) G.unlocked=Math.max(G.unlocked,G.ch+1); else delete G.cleared[G.ch];
   if(G.ch===1&&typeof CampaignRuntime!=='undefined'&&CampaignRuntime.noteCleared) CampaignRuntime.noteCleared(G);
   G.sang=false; G.campScroll=0; G.campTab='repair'; G.campSel=null; G.campSkills=0; G.songBuff=0;
   const returned=restoreBorrowedGear();
@@ -13543,7 +13666,7 @@ function chapelNorthFace(p, r){
   if(!p) return null;
   let best=null, bd=r==null?3.4:r;
   (G.props||[]).forEach(pr=>{
-    if(!pr||pr.gone||pr.k!=='demonface'||pr.wall!=='n') return;
+    if(!pr||pr.gone||pr.k!=='demonface'||pr.wall!=='n'||pr.toothKind==='bronze') return;
     const d=dist(p,pr);
     if(d<bd){ bd=d; best=pr; }
   });
@@ -13611,6 +13734,7 @@ function teethChapelLookHit(w){
     if(!pr||pr.gone||pr.taken) return;
     let key='', rad=0;
     if(pr.k==='bonecrown'){ key='teeth_chapel_crown'; rad=1.05; }
+    else if(pr.k==='demonface'&&pr.wall==='n'&&pr.toothKind==='bronze'){ key='bronze_tooth_face'; rad=1.35; }
     else if(pr.k==='demonface'&&pr.wall==='n'){ key='teeth_chapel_face'; rad=1.35; }
     else return;
     const d=Math.hypot((w.x||0)-pr.x,(w.y||0)-pr.y);
@@ -13619,11 +13743,11 @@ function teethChapelLookHit(w){
   return best;
 }
 function teethChapelLookReach(key){
-  return key==='teeth_chapel_face'?2.4:2.05;
+  return (key==='teeth_chapel_face'||key==='bronze_tooth_face')?2.4:2.05;
 }
 function teethChapelLookStand(hit){
   if(!hit) return null;
-  if(hit.key==='teeth_chapel_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
+  if(hit.key==='teeth_chapel_face'||hit.key==='bronze_tooth_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
   return {x:hit.x, y:hit.y+0.65, look:hit.key};
 }
 function crownWasDropped(){
@@ -13652,10 +13776,66 @@ function teethFaceChoices(){
   const choices=[];
   const taken=face?chapelFaceToothTaken(face):true;
   if(face && !taken){
-    choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+    if(face.toothKind==='bronze'){
+      choices.push({t:'Take the bronze tooth.', then:()=>{
+        const res=pryGrondTooth(face, 'bronze');
+        if(res&&res.ok) securePriedBronzeTooth();
+      }});
+    } else {
+      choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+    }
   }
   choices.push({t:'Leave it.'});
   return choices;
+}
+/* The bronze vault face used to fall through the chapel examine, which
+   pries Grond's Electrum Tooth and leaves the hourglass running.
+   This talk is the button's dialog: bronze wording, bronze pry, then
+   the tooth is secured and the glass goes empty. */
+function securePriedBronzeTooth(){
+  const L=G.lvl;
+  if(!L) return;
+  L.flags=L.flags||{};
+  L.flags.bronzeSecured=1;
+  L.flags.hourglassInert=1;
+  L.flags.hourglassRaid=0;
+  L.flags.hourglassT=0;
+  G.hourglassT=0;
+}
+function bronzeFaceChoices(face){
+  const choices=[];
+  if(face && !chapelFaceToothTaken(face)){
+    choices.push({t:'Take the bronze tooth.', then:()=>{
+      const res=pryGrondTooth(face, 'bronze');
+      if(res&&res.ok) securePriedBronzeTooth();
+    }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
+function openBronzeToothLook(face){
+  face=face||(typeof nearestDemonFace==='function'?nearestDemonFace(player(), 6):null);
+  if(!face||face.gone||face.toothKind!=='bronze'||G.talk) return false;
+  startTalkObj({
+    key:'bronze_tooth_face',
+    who:'DEMON FACE',
+    line:'A demon dwarf face is set into the north wall. A bronze tooth sits in the jaw, dull and heavy.',
+    choices:bronzeFaceChoices(face)
+  });
+  return !!G.talk;
+}
+function offerNearestDemonFacePrompt(p){
+  if(!p||PROMPT||G.talk) return false;
+  if(typeof nearestDemonFace!=='function'||typeof pryGrondTooth!=='function') return false;
+  const face=nearestDemonFace(p, 2.05);
+  if(!face||chapelFaceToothTaken(face)) return false;
+  if(face.toothKind==='bronze'){
+    interact('Pry the bronze tooth',()=>openBronzeToothLook(face));
+    return true;
+  }
+  if(face.itemId==='grond_tooth_electrum_2'||face.itemId==='grond_tooth_electrum_3') return false;
+  interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
+  return true;
 }
 /* Seated when the dropped flag is clear, or the prop is back on the altar
    seat. A near drop clears crownDropped and snaps the prop, so that look
@@ -13676,6 +13856,10 @@ function teethCrownLookLine(){
   return '';
 }
 function openTeethChapelLook(key){
+  if(key==='teeth_chapel_face'){
+    const near=typeof nearestDemonFace==='function'?nearestDemonFace(typeof player==='function'?player():null, 6):null;
+    if(near&&near.toothKind==='bronze'&&typeof openBronzeToothLook==='function') return openBronzeToothLook(near);
+  }
   if(!key||G.talk||!NPC_TALK[key]) return false;
   startTalk(key);
   if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function'){
@@ -13902,6 +14086,9 @@ function cancelHourglassRaid(ok){
     hint('The bronze tooth is yours. The glass is inert.',4.0);
   } else {
     revertUnsecuredBronzeTooth();
+    /* Re-arm the full glass. t=0 here would draw hourglass_empty while the raid is off. */
+    G.hourglassT=HOURGLASS_RAID_S;
+    L.flags.hourglassT=G.hourglassT;
     say('The hourglass resets. The sand climbs back.','#c9b895');
   }
 }
@@ -13934,6 +14121,31 @@ function tickHourglassRaid(dt){
     killMacarHourglass();
   }
 }
+/* North of the vault (y>=24) the bronze face's prompt still reaches.
+   A walkable cell there cancels the raid while Pry stays on screen.
+   The face footprint is about x136–140, so that alcove has to be wall. */
+function sealBronzeFaceAlcove(L, face){
+  const g=L&&L.grid;
+  const b=L&&(L.hourglassBounds||(L.flags&&L.flags.hourglassBounds));
+  if(!g||!b||!face) return;
+  const R=2.05;
+  const xLo=Math.max(0, Math.floor(face.x-R-1));
+  const yLo=Math.max(0, Math.floor(face.y-R-1));
+  const xHi=Math.min((g[0]?g[0].length:1)-1, Math.ceil(face.x+R+1));
+  const yHi=Math.min(g.length-1, Math.ceil(face.y+R+1));
+  for(let y=yLo;y<=yHi;y++){
+    if(!g[y]) continue;
+    for(let x=xLo;x<=xHi;x++){
+      const t=g[y][x];
+      if(!(t===0||t===3||t===4)) continue;
+      const inside=x>=b.x0 && x+1<=b.x1 && y>=b.y0 && y+1<=b.y1;
+      if(inside) continue;
+      const cx=Math.max(x, Math.min(face.x, x+1));
+      const cy=Math.max(y, Math.min(face.y, y+1));
+      if(Math.hypot(cx-face.x, cy-face.y)<=R) g[y][x]=1;
+    }
+  }
+}
 function buildHourglassRoom(L, sec){
   if(!L||!sec) return;
   const already=!!(L.flags&&L.flags.hourglassRoom);
@@ -13948,14 +14160,17 @@ function buildHourglassRoom(L, sec){
   L.flags.hourglassRoom=1;
   L.flags.hourglassBounds=L.hourglassBounds;
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
+  const glass={x:138.2,y:30.1};
+  /* North wall of this vault (floor starts at y=24). Same x as the glass
+     so the tooth stays in the room, on the back wall the camera faces. */
+  const face={x:138.2,y:24.48};
+  if(typeof sealBronzeFaceAlcove==='function') sealBronzeFaceAlcove(L, face);
   const haveGlass=(G.props||[]).some(p=>p&&p.k==='hourglass'&&!p.gone);
   if(already && haveGlass) return;
   G.props=G.props||[];
   L.lights=L.lights||[];
-  const glass={x:138.2,y:30.1};
-  const face={x:141.35,y:30.15};
   G.props.push({x:glass.x,y:glass.y,k:'hourglass',s:1.35,seed:990});
-  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:991,
+  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:991,
     toothKind:'bronze', emptySocket:!!L.flags.bronzeSecured});
   L.lights.push({x:glass.x,y:glass.y,c:'#ff3a20',r:6.4,f:1.15});
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
@@ -15666,6 +15881,7 @@ function update(dt){
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
         if(p.dest.look){
           if(p.dest.ch1) openCh1QuillLook(p.dest.look);
+          else if(p.dest.look==='bronze_tooth_face' && typeof openBronzeToothLook==='function') openBronzeToothLook();
           else if(typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
         }
         if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look &&
@@ -15802,12 +16018,7 @@ function update(dt){
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     /* Crown plates used to float here. Animate is the bar button. */
-    if(!PROMPT && typeof nearestDemonFace==='function'){
-      const face=nearestDemonFace(p,2.05);
-      if(face && face.itemId!=='grond_tooth_electrum_2' && typeof pryGrondTooth==='function' && !chapelFaceToothTaken(face)){
-        interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
-      }
-    }
+    if(!PROMPT && typeof offerNearestDemonFacePrompt==='function') offerNearestDemonFacePrompt(p);
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
     if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
       const t=livingThrall();
@@ -16848,6 +17059,10 @@ function drawBeyondMask(g,L){
           const faceOver=wallHeightOverride(L,x,y);
           if(faceOver) tall=faceOver;
           else if(isTeethFaceWall(L,x,y)) tall=teethFaceWallH(L);
+          if(typeof cellWallH==='function'){
+            const drawn=cellWallH(L,x,y);
+            if(drawn>tall) tall=drawn;
+          }
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -17398,14 +17613,32 @@ function drawBoneCrownProp(g,p,z){
   const seat=boneCrownAltarSeat(rect);
   drawBoneCrownAt(g, z, seat.x, seat.y, p.s||1);
 }
+/* Pivot of the 160×280 PAINT v1e sheets. The foot sits on the prop origin. */
+const HOURGLASS_PX=80, HOURGLASS_PY=269, HOURGLASS_PW=160, HOURGLASS_PH=280;
+/* CEL_NOTE names no sand-timer cut. Three sheets, three states of the
+   existing raid: full before it starts, half for the whole running timer
+   (mid-timer), empty once the glass is inert or the sand has hit zero. */
+function hourglassSheetKey(){
+  const L=G.lvl;
+  const flags=L&&L.flags;
+  const inert=!!(flags&&flags.hourglassInert);
+  const raid=!!(flags&&flags.hourglassRaid);
+  const cap=typeof HOURGLASS_RAID_S==='number'?HOURGLASS_RAID_S:10;
+  const t=(typeof G.hourglassT==='number')?G.hourglassT:cap;
+  if(inert || t<=0) return 'hourglass_empty';
+  if(raid && t>0) return 'hourglass_half';
+  return 'hourglass';
+}
 function drawHourglassProp(g,p,z){
-  const img=SPR.hourglass_flaming||SPR.hourglass_signed||SPR.hourglass||null;
+  const key=hourglassSheetKey();
+  if(typeof loadSpriteKeyNow==='function' && !(SPR[key]&&SPR[key].width)) loadSpriteKeyNow(key);
+  const img=(SPR[key]&&SPR[key].width)?SPR[key]:(SPR.hourglass||null);
   const sc=p.s||1;
   const s=w2s(p.x,p.y);
   if(img&&img.width){
     const H=118*z*sc;
     const W=H*(img.width/Math.max(1,img.height));
-    g.drawImage(img, -W/2, -H*0.96, W, H);
+    g.drawImage(img, -W*(HOURGLASS_PX/HOURGLASS_PW), -H*(HOURGLASS_PY/HOURGLASS_PH), W, H);
   } else {
     const H=110*z*sc, W=38*z*sc;
     g.strokeStyle='#3a2418';
@@ -17449,7 +17682,8 @@ function drawHourglassProp(g,p,z){
       emit(s.x, s.y-H*0.55, 28*z*fl, '#ff3a20', 0.85);
     }
   }
-  if(!(G.lvl&&G.lvl.flags&&G.lvl.flags.hourglassInert)){
+  /* The painted sheets already carry the flame. This halo is the procedural stand-in only. */
+  if(!(img&&img.width) && !(G.lvl&&G.lvl.flags&&G.lvl.flags.hourglassInert)){
     const fl=1+Math.sin(G.elapsed*8+p.x)*0.2;
     emit(s.x, s.y-72*z, 46*z*fl, '#ff3a20', 0.7);
     ray(s.x, s.y-80*z, 54*z, '#ff6a3a', 0.4);
@@ -17488,6 +17722,14 @@ function drawToothProp(g,p,z){
     return;
   }
   drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
+}
+/* Chapel portrait and empty plate are lazy. Kick both when a descent
+   starts so the north face is not a tan slab while the PNG decodes. */
+function preloadChapelDemonFace(){
+  if(typeof loadSpriteKeyNow!=='function') return;
+  ['demon_dwarfface','demon_dwarfface_empty'].forEach(k=>{
+    if(!(SPR[k]&&SPR[k].width)) loadSpriteKeyNow(k);
+  });
 }
 function demonFaceShowsEmpty(p){
   if(!p) return false;
@@ -17552,6 +17794,9 @@ function chapelFaceContentFrac(){
 }
 function demonFaceDrawH(img, p){
   if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
+  /* Chapel, king hall, and queen hall share this plate. The wall behind
+     each face is raised (demonFaceWallH) so the horns stay under the coping.
+     Do not shrink the portrait down to a hall wall. */
   return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
 }
 function drawDemonDwarfFace(g,p){
@@ -17600,7 +17845,9 @@ function drawDemonDwarfFace(g,p){
     return;
   }
   const img=demonFaceImg(p);
-  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel. */
+  /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel.
+     The loaded plate is the chapel-sized iso quad. demonFaceWallH raises the
+     north-wall cells under it so the horns stay inside the coping. */
   if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);
@@ -18056,7 +18303,7 @@ function drawProp(g,p,pal){
     emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;
   }
-  const img=(p.k==='stone')?null:propAnimImg(p);
+  const img=(p.k==='stone'||p.k==='hourglass')?null:propAnimImg(p);
   if(img){
     softShadow(g,2*z,1*z,18*z,8*z,.45);
     const metric=tilesetPropMetric(p.k);
@@ -18494,14 +18741,14 @@ function drawEnt(g,e){
     g.translate(0,8); g.rotate(0.9);
   }
   const p=player();
-  if(!e.dead&&p&&p.aim===e){
+  if(!e.dead&&!e.rubyTint&&p&&p.aim===e){
     const b=.45+Math.sin(G.elapsed*7)*.2;
     g.strokeStyle='rgba(255,90,70,'+b+')'; g.lineWidth=2.6*ZOOM;
     g.beginPath(); g.ellipse(0,0,20*z,10*z,0,0,TAU); g.stroke();
     g.strokeStyle='rgba(255,140,110,'+(b*0.5)+')'; g.lineWidth=1.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,24*z,12*z,0,0,TAU); g.stroke();
   }
-  if(!e.dead && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
+  if(!e.dead && !e.rubyTint && e.team==='foe' && (e.atk>0 || (e.engaged && e.ct>0 && e.ct<0.4))){
     const winding=e.atk>0?attackProgress(e)<0.55:true;
     const b=.50+Math.sin(G.elapsed*9)*.28;
     g.strokeStyle='rgba(255,72,48,'+(winding?b:b*0.42)+')';
@@ -18547,7 +18794,7 @@ function drawEnt(g,e){
   g.restore();
   if(e.ghost) g.globalAlpha=1;
 
-  if(e.flash>0 && !e.dead && !(e.hero && !e.ghost)){
+  if(e.flash>0 && !e.dead && !e.rubyTint && !(e.hero && !e.ghost)){
     if(e.ghost){
       /* Mid-alpha ghost + lighter + flash*3 reads as solid↔translucent.
          Keep a stable source-over rim so a hit is visible without a pop. */
@@ -18577,10 +18824,10 @@ function drawEnt(g,e){
       g.beginPath(); g.moveTo(Math.cos(a)*6*z,-18*z); g.lineTo(Math.cos(a)*22*z, Math.sin(a)*10*z-8*z); g.stroke();
     }
   }
-  if(e.guard){ const b=.4+Math.sin(G.elapsed*8)*.2;
+  if(e.guard && !e.rubyTint){ const b=.4+Math.sin(G.elapsed*8)*.2;
     g.strokeStyle='rgba(180,215,255,'+b+')'; g.lineWidth=2.8*ZOOM;
     g.beginPath(); g.ellipse(0,-27*z,24*z,32*z,0,0,TAU); g.stroke(); }
-  if(e.buff>0){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
+  if(e.buff>0 && !e.rubyTint){ g.strokeStyle='rgba(255,205,110,0.6)'; g.lineWidth=2.4*ZOOM;
     g.beginPath(); g.ellipse(0,0,19*z,9*z,0,0,TAU); g.stroke(); }
   g.restore();
 
@@ -18603,6 +18850,13 @@ function drawEnt(g,e){
       ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(0,0,0,0.8)';
       ctx.strokeText(e.name,s.x,yy-7*ZOOM);
       ctx.fillStyle='#f6e2b6'; ctx.fillText(e.name,s.x,yy-7*ZOOM); ctx.textAlign='left'; }
+  }
+  if(!e.dead && e.rubyTint && e.name){
+    const rubyY=s.y-(e.hp<e.maxhp?78:62)*ZOOM*(e.scale||1);
+    ctx.font='800 '+(12*ZOOM)+'px "Trebuchet MS",sans-serif'; ctx.textAlign='center';
+    ctx.lineWidth=3*ZOOM; ctx.strokeStyle='rgba(40,0,8,0.88)';
+    ctx.strokeText(e.name,s.x,rubyY);
+    ctx.fillStyle='#ffb0b8'; ctx.fillText(e.name,s.x,rubyY); ctx.textAlign='left';
   }
   if(e.crushed){
     ctx.strokeStyle='rgba(255,214,140,0.9)'; ctx.lineWidth=2.2*ZOOM;
@@ -19456,9 +19710,18 @@ function rollWebCorpseHoard(){
 }
 function placeSpiderWebCorpses(){
   const n=ri(4,6);
-  const spots=(typeof SpiderLair!=='undefined'&&SpiderLair.pickSpots)
-    ? SpiderLair.pickSpots(n, ri)
-    : [[11.5,29.7],[8.7,30.2],[12.6,32.0],[9.1,32.8],[11.9,33.5],[8.3,28.9]].slice(0,n);
+  const spec=G.lvl&&G.lvl.campaignSpec;
+  const mapped=spec&&spec.map&&spec.map.webCorpses&&spec.map.webCorpses.spots;
+  let spots;
+  if(mapped&&mapped.length){
+    const pool=mapped.slice();
+    spots=[];
+    while(spots.length<n && pool.length) spots.push(pool.splice(ri(0,pool.length-1),1)[0]);
+  } else {
+    spots=(typeof SpiderLair!=='undefined'&&SpiderLair.pickSpots)
+      ? SpiderLair.pickSpots(n, ri)
+      : [[11.5,29.7],[8.7,30.2],[12.6,32.0],[9.1,32.8],[11.9,33.5],[8.3,28.9]].slice(0,n);
+  }
   spots.forEach(([x,y])=>{
     G.props=G.props||[];
     G.props.push({x:x+0.12,y:y-0.08,k:'web',s:0.92});
@@ -22254,7 +22517,8 @@ function drawCamp(g){
   goldTitleLine(g,'CAMP', titleY+titleSize*0.72, titleSize);
   g.font='italic 600 '+((PORT?12:14)*s)+'px '+FONT_UI;
   g.fillStyle='rgba(210,190,150,0.78)';
-  const cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  let cleared=(CH_META[G.ch]&&CH_META[G.ch].t)||'The Beginning';
+  if((G.campaignLevel|0)===3) cleared='The Webbed Deep';
   g.fillText(cleared+' cleared', VW/2, titleY+titleSize+22*s);
   g.textAlign='left';
 
@@ -23559,7 +23823,8 @@ function resolveTaps(){
         const chapel=lookPick===lookHit;
         const reach=chapel?teethChapelLookReach(lookPick.key):ch1QuillLookReach(lookPick.key);
         if(dist(p,lookPick)<=reach){
-          if(chapel) openTeethChapelLook(lookPick.key);
+          if(lookPick.key==='bronze_tooth_face' && typeof openBronzeToothLook==='function'){ p.dest=null; openBronzeToothLook(); }
+          else if(chapel) openTeethChapelLook(lookPick.key);
           else {p.dest=null;openCh1QuillLook(lookPick.key);}
         } else {
           p.dest=chapel?teethChapelLookStand(lookPick):Object.assign(ch1QuillLookStand(lookPick),{ch1:1});

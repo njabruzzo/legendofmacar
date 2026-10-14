@@ -364,5 +364,109 @@ assert(!ctx.G.lvl.flags.hourglassRaid && ctx.G.hourglassT===10,
     'a second pry after load does not duplicate the tooth');
 }
 
+/* The play-field button is the use key: it runs PROMPT.fn, and that
+   dialog's first choice is what pickTalk commits. Do not call
+   pryGrondTooth from the test. */
+ctx.PROMPT=null;
+ctx.kickToyScamper=function(){};
+[
+  'interact','startTalkObj','isToyTalkKey','settleToyTalk','closeTalk','pickTalk',
+  'chapelFaceToothTaken','securePriedBronzeTooth','bronzeFaceChoices','openBronzeToothLook',
+  'offerNearestDemonFacePrompt','hourglassSheetKey','sealBronzeFaceAlcove'
+].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+assert(/offerNearestDemonFacePrompt\(p\)/.test(html), 'the play loop arms the face prompt through the shared handler');
+assert(/pryGrondTooth\(face,\s*'bronze'\)/.test(extractFn('bronzeFaceChoices')),
+  'the bronze dialog handler pries with the bronze kind');
+assert(!/packed with electrum/.test(extractFn('openBronzeToothLook')),
+  'the bronze dialog does not use the chapel electrum line');
+
+{
+  const bronzeFace={x:138.2,y:24.48,k:'demonface',wall:'n',toothKind:'bronze',emptySocket:0,gone:0};
+  ctx.G.lvl={n:2, flags:{
+    hourglassRoom:1, hourglassRaid:1, hourglassT:6,
+    hourglassBounds:{x0:130,y0:24,x1:142,y1:36},
+    electrumTooth:0, copperTooth:0, electrumTooth2:0, electrumTooth3:0
+  }, w:144, h:118};
+  ctx.G.hourglassT=6;
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:138.2, y:26.0, hp:80, maxhp:80, dead:0}];
+  ctx.G.props=[bronzeFace, {x:138.2,y:30.1,k:'hourglass'}];
+  ctx.G.packs.macar.magic=[];
+  ctx.G.talk=null;
+  ctx.PROMPT=null;
+  ctx.lines=[];
+  assert(ctx.offerNearestDemonFacePrompt(ctx.player())===true, 'standing at the bronze face arms a prompt');
+  assert(ctx.PROMPT && ctx.PROMPT.label==='Pry the bronze tooth', 'the bronze face prompt uses bronze wording');
+  assert(!/electrum/i.test(ctx.PROMPT.label), 'the bronze prompt does not say electrum');
+  const press=ctx.PROMPT.fn;
+  ctx.PROMPT=null;
+  press();
+  assert(ctx.G.talk && ctx.G.talk.key==='bronze_tooth_face', 'the prompt button opens the bronze dialog');
+  assert(!/electrum/i.test(ctx.G.talk.line) && /bronze tooth/i.test(ctx.G.talk.line),
+    'the dialog line is the bronze jaw, not the electrum chapel');
+  assert(ctx.G.talk.choices[0].t==='Take the bronze tooth.', 'the dialog offers the bronze tooth');
+  assert(!ctx.G.talk.choices.some(c=>/electrum/i.test(c.t)), 'the dialog does not offer the electrum tooth');
+  ctx.pickTalk(0);
+  assert(ctx.G.talk==null, 'picking the bronze choice closes the dialog');
+  assert(bronzeFace.emptySocket===1, 'the bronze pry empties the socket');
+  assert(ctx.G.lvl.flags.bronzeTooth===1 && ctx.G.lvl.flags.bronzeSecured===1,
+    'the prompt path gives the bronze tooth and secures it');
+  assert(ctx.G.packs.macar.magic.some(it=>it&&it.id==='grond_tooth_bronze'),
+    'the prompt path stows Grond\'s Bronze Tooth');
+  assert(!ctx.G.packs.macar.magic.some(it=>it&&(it.id==='grond_tooth_electrum'||it.grondTooth==='electrum')),
+    'the prompt path does not stow the electrum tooth');
+  assert(ctx.G.lvl.flags.electrumTooth!==1 && ctx.G.lvl.flags.copperTooth!==1
+    && ctx.G.lvl.flags.electrumTooth2!==1 && ctx.G.lvl.flags.electrumTooth3!==1,
+    'the electrum flags stay unset');
+  assert(ctx.G.lvl.flags.hourglassInert===1 && ctx.G.lvl.flags.hourglassRaid!==1
+    && ctx.G.hourglassT===0 && ctx.G.lvl.flags.hourglassT===0,
+    'the bronze pry stills the raid and marks the glass inert');
+  assert(ctx.hourglassSheetKey()==='hourglass_empty', 'the inert glass draws empty');
+  ctx.PROMPT=null;
+  ctx.G.talk=null;
+  assert(ctx.offerNearestDemonFacePrompt(ctx.player())===false, 'a secured bronze face offers no second pry');
+}
+
+{
+  const gridCtx={
+    G:{props:[], ents:[], lvl:null},
+    Math, Uint8Array,
+    say(){}, hint(){}
+  };
+  vm.createContext(gridCtx);
+  ['h2','h3','newGrid','isWalkTile','rect','corridor','caveDisk','carvePath',
+    'sealBronzeFaceAlcove','buildHourglassRoom'].forEach(n=>vm.runInContext(extractFn(n)+';', gridCtx));
+  gridCtx.resetUnsecuredHourglass=function(){};
+  const g2=gridCtx.newGrid(144, 118, 1);
+  const carves=`
+caveDisk(g,40,8,5.0,4.0,3);
+caveDisk(g,122,30,5.2,4.4,0);
+carvePath(g,[[96,32],[110,28],[122,30]],3.0,0);
+`;
+  vm.runInContext('const g=newGrid(144,118,1);'+carves+'g[23][136]=0; g[23][137]=0; g[23][138]=0; g[23][139]=0; this.g=g;', gridCtx);
+  const L={n:2, grid:gridCtx.g, flags:{}, w:144, h:118, lights:[]};
+  gridCtx.G.lvl=L;
+  gridCtx.G.props=[];
+  gridCtx.buildHourglassRoom(L, {x:126.85,y:30.05,i:127,j:28,w:1,h:3,kind:'hourglass',face:'w'});
+  const face=gridCtx.G.props.find(p=>p&&p.k==='demonface'&&p.toothKind==='bronze');
+  assert(face && face.wall==='n' && face.x===138.2 && face.y===24.48,
+    'the bronze face stays on the north wall in line with the glass');
+  const b=L.hourglassBounds;
+  const outside=[];
+  for(let y=0;y<L.h;y++){
+    for(let x=0;x<L.w;x++){
+      const t=L.grid[y][x];
+      if(!(t===0||t===3||t===4)) continue;
+      const inside=x>=b.x0 && x+1<=b.x1 && y>=b.y0 && y+1<=b.y1;
+      if(inside) continue;
+      const cx=Math.max(x, Math.min(face.x, x+1));
+      const cy=Math.max(y, Math.min(face.y, y+1));
+      if(Math.hypot(cx-face.x, cy-face.y)<=2.05) outside.push(x+','+y);
+    }
+  }
+  assert(L.grid[23][136]===1 && L.grid[23][137]===1, 'the north alcove cells x136–137 at y=23 are wall');
+  assert(outside.length===0, 'no walkable cell within prompt range of the bronze face lies outside the raid room');
+  assert(L.grid[24][138]===0 && L.grid[30][136]===0, 'the vault floor inside the raid stays open');
+}
+
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
 console.log('\nSage tooth-hunt / hourglass checks passed');
