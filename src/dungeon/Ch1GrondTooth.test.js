@@ -466,7 +466,6 @@ carvePath(g,[[96,32],[110,28],[122,30]],3.0,0);
   assert(L.grid[23][136]===1 && L.grid[23][137]===1, 'the north alcove cells x136–137 at y=23 are wall');
   assert(outside.length===0, 'no walkable cell within prompt range of the bronze face lies outside the raid room');
   assert(L.grid[24][138]===0 && L.grid[30][136]===0, 'the vault floor inside the raid stays open');
-  void g;
 }
 
 if(failed){ console.error('\n'+failed+' failed'); process.exit(1); }
