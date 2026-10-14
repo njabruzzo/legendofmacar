@@ -411,10 +411,11 @@
               "newArt": false
             },
             "face": {
-              "x": 141.35,
-              "y": 30.15,
+              "x": 138.2,
+              "y": 24.48,
               "prop": "demonface",
-              "toothKind": "bronze"
+              "toothKind": "bronze",
+              "wall": "n"
             },
             "raidSeconds": 10,
             "toothId": "grond_tooth_bronze"

@@ -3481,9 +3481,76 @@ function applyTeethFaceWallHeight(L){
   for(let x=105;x<=109;x++) L.wallH[x+',1']=WALL_TEETH_FACE_SCALE;
   for(let y=2;y<14;y++) L.wallH['100,'+y]=WALL_TEETH_FACE_SCALE;
 }
+/* Half-width of a north-wall demon face, in tiles. The vault plate is
+   457×274 and opaque to the top row, so its horns are the quad top.
+   The 298×392 portrait uses the plate aspect. */
+function demonFaceSpanHalf(p){
+  const perTile=Math.max(8, Math.hypot(TW*0.5, TH*0.5));
+  if(!p || vaultDemonFace(p)){
+    const img=(typeof SPR!=='undefined' && SPR.demon_dwarfface_vault) || null;
+    const aspect=(img&&img.width)?img.width/Math.max(1,img.height):(457/274);
+    const H=dwarfFaceH()*1.08;
+    return clamp(H*aspect/(2*perTile), 0.70, 1.90);
+  }
+  const H=demonFaceDrawH(null, p);
+  const aspect=DEMON_FACE_PLATE.w/DEMON_FACE_PLATE.h;
+  return clamp(H*aspect/(2*perTile), 0.70, 2.80);
+}
+/* Wall scale (× wallFaceH) that keeps the horn top under the coping.
+   Portrait faces use the chapel plate, so they take WALL_TEETH_FACE_SCALE.
+   The vault slab keeps its locked height and the wall grows past that quad
+   by the same margin the chapel wall has over its plate. */
+function demonFaceWallScale(p){
+  const quad=(!p || vaultDemonFace(p))
+    ? 0.72*1.08
+    : DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
+  const chapelQuad=DEMON_FACE_CONTENT_SCALE/(360/DEMON_FACE_PLATE.h);
+  const margin=WALL_TEETH_FACE_SCALE/chapelQuad;
+  const need=quad*margin;
+  if(!p || vaultDemonFace(p)) return need;
+  return Math.max(need, WALL_TEETH_FACE_SCALE);
+}
+/* Screen height of the highest opaque pixel (horns, or the vault slab top). */
+function demonFaceHornTop(p){
+  const H=(!p || vaultDemonFace(p)) ? dwarfFaceH()*1.08 : demonFaceDrawH(null, p);
+  const top=(!p || vaultDemonFace(p)) ? 0 : (DEMON_FACE_PLATE.pad/DEMON_FACE_PLATE.h);
+  return H*(1-top);
+}
+/* North-wall rock row and the cells the face actually covers. */
+function demonFaceWallSpan(p){
+  const half=demonFaceSpanHalf(p);
+  const L=(typeof G!=='undefined' && G && G.lvl) || null;
+  const ix=Math.round(p.x)|0;
+  const iy=Math.round(p.y)|0;
+  let wallY=iy-1;
+  if(L&&L.grid){
+    for(let y=iy+1; y>=iy-4; y--){
+      if(y<1||!L.grid[y]||!L.grid[y-1]) continue;
+      if(L.grid[y-1][ix]===1 && isWalkTile(L.grid[y][ix])){ wallY=y-1; break; }
+    }
+  }
+  return { y:wallY, x0:Math.floor(p.x-half), x1:Math.floor(p.x+half) };
+}
+function demonFaceWallH(L,x,y){
+  if(typeof G==='undefined'||!G||!G.props||!L) return 0;
+  let best=0;
+  for(let i=0;i<G.props.length;i++){
+    const p=G.props[i];
+    if(!p||p.gone||p.k!=='demonface'||p.wall!=='n') continue;
+    const span=demonFaceWallSpan(p);
+    if(y!==span.y||x<span.x0||x>span.x1) continue;
+    const h=wallFaceH(L)*demonFaceWallScale(p);
+    if(h>best) best=h;
+  }
+  return best;
+}
 function cellWallH(L,x,y){
   const over=wallHeightOverride(L,x,y);
   if(over) return over;
+  if(typeof demonFaceWallH==='function'){
+    const raised=demonFaceWallH(L,x,y);
+    if(raised) return raised;
+  }
   if(isTeethFaceWall(L,x,y)) return teethFaceWallH(L);
   if(isTeethAltarWestWall(L,x,y)) return teethFaceWallH(L);
   if(isRubyNorthWall(L,x,y)) return rubyNorthWallH(L);
@@ -14011,9 +14078,11 @@ function buildHourglassRoom(L, sec){
   G.props=G.props||[];
   L.lights=L.lights||[];
   const glass={x:138.2,y:30.1};
-  const face={x:141.35,y:30.15};
+  /* North wall of this vault (floor starts at y=24). Same x as the glass
+     so the tooth stays in the room, on the back wall the camera faces. */
+  const face={x:138.2,y:24.48};
   G.props.push({x:glass.x,y:glass.y,k:'hourglass',s:1.35,seed:990});
-  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'e',s:1.12,seed:991,
+  G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:991,
     toothKind:'bronze', emptySocket:!!L.flags.bronzeSecured});
   L.lights.push({x:glass.x,y:glass.y,c:'#ff3a20',r:6.4,f:1.15});
   say('A hidden vault. A massive hourglass of red flaming sand.','#ff8a5a');
@@ -16906,6 +16975,10 @@ function drawBeyondMask(g,L){
           const faceOver=wallHeightOverride(L,x,y);
           if(faceOver) tall=faceOver;
           else if(isTeethFaceWall(L,x,y)) tall=teethFaceWallH(L);
+          if(typeof cellWallH==='function'){
+            const drawn=cellWallH(L,x,y);
+            if(drawn>tall) tall=drawn;
+          }
           punchMasonryCoping(mg, x, y, tall, oN, oE, oS, oW);
           mg.beginPath();
           mg.ellipse(Math.round(s.x), Math.round(s.y-tall*0.48), TW*1.15*pad, TH*0.85*pad+tall*0.62, 0, 0, TAU);
@@ -17629,14 +17702,9 @@ function chapelFaceContentFrac(){
 }
 function demonFaceDrawH(img, p){
   if(!p || vaultDemonFace(p)) return dwarfFaceH()*1.08;
-  /* King hall and the queen hall use hall walls (0.70×), not the chapel
-     plate. Opaque paint on the 392 plate runs y=16..375. Size the quad so
-     that top sits at 97% of the hall coping, and drawIsoPlaneImg shears
-     the plate on the same plane as the masonry. */
-  if(p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3'){
-    const paintTop=16/DEMON_FACE_PLATE.h;
-    return hallWallH(G.lvl)*0.97/(1-paintTop);
-  }
+  /* Chapel, king hall, and queen hall share this plate. The wall behind
+     each face is raised (demonFaceWallH) so the horns stay under the coping.
+     Do not shrink the portrait down to a hall wall. */
   return wallFaceH(G.lvl)*DEMON_FACE_CONTENT_SCALE/Math.max(0.25, chapelFaceContentFrac());
 }
 function drawDemonDwarfFace(g,p){
@@ -17686,8 +17754,8 @@ function drawDemonDwarfFace(g,p){
   }
   const img=demonFaceImg(p);
   /* Tooth 2 and Tooth 3: an unloaded portrait is nothing, never the tan panel.
-     The loaded plate is the same iso quad as the hall masonry, short enough
-     that the horns stay under the coping. */
+     The loaded plate is the chapel-sized iso quad. demonFaceWallH raises the
+     north-wall cells under it so the horns stay inside the coping. */
   if(p && (p.itemId==='grond_tooth_electrum_2' || p.itemId==='grond_tooth_electrum_3') && !(img&&img.width)) return;
   const H=demonFaceDrawH(img, p);
   const half=demonFaceHalf(p);

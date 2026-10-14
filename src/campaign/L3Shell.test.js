@@ -207,13 +207,74 @@ assert(html.indexOf('hourglass_flaming') < 0, 'an old flaming key does not overr
   const draw = html.slice(end, html.indexOf('function drawHourglassHud'));
   assert(draw.indexOf('HOURGLASS_PY/HOURGLASS_PH') >= 0 && html.indexOf('HOURGLASS_PY=269') >= 0, 'the sheet is planted on pivot (80, 269)');
   const faceH = html.slice(html.indexOf('function demonFaceDrawH'), html.indexOf('function drawDemonDwarfFace'));
-  assert(faceH.indexOf("p.itemId==='grond_tooth_electrum_2'") >= 0 && faceH.indexOf('hallWallH(G.lvl)') >= 0, 'Level 2 and Level 3 faces use the hall wall, not the chapel plate');
-  assert(/chapelFaceContentFrac\(\)/.test(faceH) && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(faceH), 'the chapel and vault heights stay on their own scales');
+  assert(/chapelFaceContentFrac\(\)/.test(faceH) && /if\(!p \|\| vaultDemonFace\(p\)\) return dwarfFaceH\(\)\*1\.08/.test(faceH), 'the chapel plate and the vault height stay on their own scales');
+  assert(faceH.indexOf('hallWallH(G.lvl)') < 0, 'portrait faces are not shrunk to the hall wall');
   const drawEnt = html.slice(html.indexOf('function drawEnt('), html.indexOf('function drawBeard'));
   assert(drawEnt.indexOf('!e.dead&&!e.rubyTint&&p&&p.aim===e') >= 0, 'a ruby guardian does not take the selection ring');
   assert(drawEnt.indexOf('!e.dead && !e.rubyTint && e.team===\'foe\'') >= 0, 'a ruby guardian does not take the attack ring');
   assert(drawEnt.indexOf('e.buff>0 && !e.rubyTint') >= 0, 'a ruby guardian does not take the buff ring');
   assert(drawEnt.indexOf('softShadow(g,2.5*z,1*z,17*z,8*z,0.52)') >= 0, 'the contact shadow stays');
+})();
+(function demonFaceWalls() {
+  assert(!/k:'demonface',wall:'e'/.test(html), 'no demon face is spawned on an east wall');
+  assert(/k:'demonface',wall:'n'/.test(grab('buildHourglassRoom')), 'the bronze hourglass face is on the north wall');
+  assert(/const face=\{x:138\.2,y:24\.48\}/.test(grab('buildHourglassRoom')), 'the bronze face shares the glass x on the vault north wall');
+  assert(/wall:'n'/.test(grab('buildTeethCrownRoom')), 'the chapel face stays on the north wall');
+  assert(L2.TOOTH.wall === 'n' && L3.TOOTH.wall === 'n' && Shell.points.tooth.wall === 'n', 'king hall and queen hall teeth stay on north walls');
+  const box = {
+    G: { props: [], lvl: null },
+    TH: 58, TW: 116, SPR: { demon_dwarfface_vault: { width: 457, height: 274 } },
+    TILESET: { srcH: 96 },
+    DEMON_FACE_PLATE: { w: 298, h: 392, pad: 16 },
+    DEMON_FACE_CONTENT_SCALE: 1.94,
+    WALL_TEETH_FACE_SCALE: 2.25,
+    WALL_HALL_SCALE: 0.70,
+    WALL_RUBY_NORTH_SCALE: 1.58,
+    WALL_TEETH_NORTH_SCALE: 2.25,
+    clamp: function (v, a, b) { return v < a ? a : v > b ? b : v; },
+    tilesetPack: function () { return { wall: { oy: 287 } }; }
+  };
+  vm.createContext(box);
+  [
+    'isWalkTile', 'wallFaceH', 'hallWallH', 'dwarfFaceH', 'vaultDemonFace', 'chapelFaceContentFrac',
+    'demonFaceDrawH', 'isTeethNorthWall', 'isTeethFaceWall', 'isTeethAltarWestWall', 'isRubyNorthWall',
+    'teethFaceWallH', 'teethNorthWallH', 'rubyNorthWallH', 'wallHeightOverride',
+    'demonFaceSpanHalf', 'demonFaceWallScale', 'demonFaceHornTop', 'demonFaceWallSpan', 'demonFaceWallH', 'cellWallH'
+  ].forEach(function (name) { vm.runInContext(grab(name) + '\nthis.' + name + '=' + name + ';', box); });
+  function gridAround(wallY, x0, x1) {
+    const g = [];
+    for (let y = 0; y <= wallY + 6; y++) {
+      g[y] = [];
+      for (let x = 0; x <= x1 + 4; x++) g[y][x] = 1;
+    }
+    for (let y = wallY + 1; y <= wallY + 5; y++) {
+      for (let x = x0 - 2; x <= x1 + 2; x++) if (g[y]) g[y][x] = 0;
+    }
+    return g;
+  }
+  const spawned = [
+    { name: 'chapel', p: { k: 'demonface', wall: 'n', x: 107.10, y: 2.48, toothKind: 'electrum' }, wallY: 1 },
+    { name: 'king', p: { k: 'demonface', wall: 'n', x: 74, y: 59.2, toothKind: 'electrum', itemId: 'grond_tooth_electrum_2' }, wallY: 57 },
+    { name: 'queen', p: { k: 'demonface', wall: 'n', x: 85, y: 99.15, toothKind: 'electrum', itemId: 'grond_tooth_electrum_3' }, wallY: 99 },
+    { name: 'bronze', p: { k: 'demonface', wall: 'n', x: 138.2, y: 24.48, toothKind: 'bronze' }, wallY: 23 }
+  ];
+  [ { th: 58, tw: 116 }, { th: 34, tw: 66 } ].forEach(function (view) {
+    box.TH = view.th;
+    box.TW = view.tw;
+    spawned.forEach(function (row) {
+      assert(row.p.wall === 'n', row.name + ' is spawned on a north wall');
+      const spanGuess = box.demonFaceSpanHalf(row.p);
+      box.G.lvl = { n: row.name === 'chapel' ? 1 : 2, grid: gridAround(row.wallY, Math.floor(row.p.x - spanGuess), Math.floor(row.p.x + spanGuess)), wallH: {} };
+      box.G.props = [row.p];
+      const span = box.demonFaceWallSpan(row.p);
+      const horn = box.demonFaceHornTop(row.p);
+      assert(span.y === row.wallY, row.name + ' sits on its north-wall row at TH ' + view.th);
+      for (let x = span.x0; x <= span.x1; x++) {
+        const wall = box.cellWallH(box.G.lvl, x, span.y);
+        assert(horn <= wall + 1e-6, row.name + ' horns stay at or under the wall at TH ' + view.th + ' cell ' + x + ' (' + horn.toFixed(2) + ' <= ' + wall.toFixed(2) + ')');
+      }
+    });
+  });
 })();
 const wash = html.slice(html.indexOf('function rubyWashedFrame'), html.indexOf('function drawEntBillboard'));
 assert(wash.indexOf("globalCompositeOperation='source-atop'") >= 0 && wash.indexOf('globalAlpha=0.45') >= 0, 'the ruby wash is a 45% source-atop tint');
