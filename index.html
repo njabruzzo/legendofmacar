@@ -7240,6 +7240,7 @@ function startChapter(n){
   if(!keep && (!G.res||!G.res.ironstone&&G.res.ironstone!==0)) initEconomy();
   if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
+  if(typeof preloadChapelDemonFace==='function') preloadChapelDemonFace();
   G._forceSeeds=null;
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
@@ -13665,7 +13666,7 @@ function chapelNorthFace(p, r){
   if(!p) return null;
   let best=null, bd=r==null?3.4:r;
   (G.props||[]).forEach(pr=>{
-    if(!pr||pr.gone||pr.k!=='demonface'||pr.wall!=='n') return;
+    if(!pr||pr.gone||pr.k!=='demonface'||pr.wall!=='n'||pr.toothKind==='bronze') return;
     const d=dist(p,pr);
     if(d<bd){ bd=d; best=pr; }
   });
@@ -13733,6 +13734,7 @@ function teethChapelLookHit(w){
     if(!pr||pr.gone||pr.taken) return;
     let key='', rad=0;
     if(pr.k==='bonecrown'){ key='teeth_chapel_crown'; rad=1.05; }
+    else if(pr.k==='demonface'&&pr.wall==='n'&&pr.toothKind==='bronze'){ key='bronze_tooth_face'; rad=1.35; }
     else if(pr.k==='demonface'&&pr.wall==='n'){ key='teeth_chapel_face'; rad=1.35; }
     else return;
     const d=Math.hypot((w.x||0)-pr.x,(w.y||0)-pr.y);
@@ -13741,11 +13743,11 @@ function teethChapelLookHit(w){
   return best;
 }
 function teethChapelLookReach(key){
-  return key==='teeth_chapel_face'?2.4:2.05;
+  return (key==='teeth_chapel_face'||key==='bronze_tooth_face')?2.4:2.05;
 }
 function teethChapelLookStand(hit){
   if(!hit) return null;
-  if(hit.key==='teeth_chapel_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
+  if(hit.key==='teeth_chapel_face'||hit.key==='bronze_tooth_face') return {x:hit.x, y:hit.y+1.15, look:hit.key};
   return {x:hit.x, y:hit.y+0.65, look:hit.key};
 }
 function crownWasDropped(){
@@ -13774,10 +13776,66 @@ function teethFaceChoices(){
   const choices=[];
   const taken=face?chapelFaceToothTaken(face):true;
   if(face && !taken){
-    choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+    if(face.toothKind==='bronze'){
+      choices.push({t:'Take the bronze tooth.', then:()=>{
+        const res=pryGrondTooth(face, 'bronze');
+        if(res&&res.ok) securePriedBronzeTooth();
+      }});
+    } else {
+      choices.push({t:'Take the electrum tooth.', then:()=>{ pryGrondTooth(face, 'electrum'); }});
+    }
   }
   choices.push({t:'Leave it.'});
   return choices;
+}
+/* The bronze vault face used to fall through the chapel examine, which
+   pries Grond's Electrum Tooth and leaves the hourglass running.
+   This talk is the button's dialog: bronze wording, bronze pry, then
+   the tooth is secured and the glass goes empty. */
+function securePriedBronzeTooth(){
+  const L=G.lvl;
+  if(!L) return;
+  L.flags=L.flags||{};
+  L.flags.bronzeSecured=1;
+  L.flags.hourglassInert=1;
+  L.flags.hourglassRaid=0;
+  L.flags.hourglassT=0;
+  G.hourglassT=0;
+}
+function bronzeFaceChoices(face){
+  const choices=[];
+  if(face && !chapelFaceToothTaken(face)){
+    choices.push({t:'Take the bronze tooth.', then:()=>{
+      const res=pryGrondTooth(face, 'bronze');
+      if(res&&res.ok) securePriedBronzeTooth();
+    }});
+  }
+  choices.push({t:'Leave it.'});
+  return choices;
+}
+function openBronzeToothLook(face){
+  face=face||(typeof nearestDemonFace==='function'?nearestDemonFace(player(), 6):null);
+  if(!face||face.gone||face.toothKind!=='bronze'||G.talk) return false;
+  startTalkObj({
+    key:'bronze_tooth_face',
+    who:'DEMON FACE',
+    line:'A demon dwarf face is set into the north wall. A bronze tooth sits in the jaw, dull and heavy.',
+    choices:bronzeFaceChoices(face)
+  });
+  return !!G.talk;
+}
+function offerNearestDemonFacePrompt(p){
+  if(!p||PROMPT||G.talk) return false;
+  if(typeof nearestDemonFace!=='function'||typeof pryGrondTooth!=='function') return false;
+  const face=nearestDemonFace(p, 2.05);
+  if(!face||chapelFaceToothTaken(face)) return false;
+  if(face.toothKind==='bronze'){
+    interact('Pry the bronze tooth',()=>openBronzeToothLook(face));
+    return true;
+  }
+  if(face.itemId==='grond_tooth_electrum_2'||face.itemId==='grond_tooth_electrum_3') return false;
+  interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
+  return true;
 }
 /* Seated when the dropped flag is clear, or the prop is back on the altar
    seat. A near drop clears crownDropped and snaps the prop, so that look
@@ -13798,6 +13856,10 @@ function teethCrownLookLine(){
   return '';
 }
 function openTeethChapelLook(key){
+  if(key==='teeth_chapel_face'){
+    const near=typeof nearestDemonFace==='function'?nearestDemonFace(typeof player==='function'?player():null, 6):null;
+    if(near&&near.toothKind==='bronze'&&typeof openBronzeToothLook==='function') return openBronzeToothLook(near);
+  }
   if(!key||G.talk||!NPC_TALK[key]) return false;
   startTalk(key);
   if(G.talk && key==='teeth_chapel_crown' && typeof teethCrownChoices==='function'){
@@ -14059,6 +14121,31 @@ function tickHourglassRaid(dt){
     killMacarHourglass();
   }
 }
+/* North of the vault (y>=24) the bronze face's prompt still reaches.
+   A walkable cell there cancels the raid while Pry stays on screen.
+   The face footprint is about x136–140, so that alcove has to be wall. */
+function sealBronzeFaceAlcove(L, face){
+  const g=L&&L.grid;
+  const b=L&&(L.hourglassBounds||(L.flags&&L.flags.hourglassBounds));
+  if(!g||!b||!face) return;
+  const R=2.05;
+  const xLo=Math.max(0, Math.floor(face.x-R-1));
+  const yLo=Math.max(0, Math.floor(face.y-R-1));
+  const xHi=Math.min((g[0]?g[0].length:1)-1, Math.ceil(face.x+R+1));
+  const yHi=Math.min(g.length-1, Math.ceil(face.y+R+1));
+  for(let y=yLo;y<=yHi;y++){
+    if(!g[y]) continue;
+    for(let x=xLo;x<=xHi;x++){
+      const t=g[y][x];
+      if(!(t===0||t===3||t===4)) continue;
+      const inside=x>=b.x0 && x+1<=b.x1 && y>=b.y0 && y+1<=b.y1;
+      if(inside) continue;
+      const cx=Math.max(x, Math.min(face.x, x+1));
+      const cy=Math.max(y, Math.min(face.y, y+1));
+      if(Math.hypot(cx-face.x, cy-face.y)<=R) g[y][x]=1;
+    }
+  }
+}
 function buildHourglassRoom(L, sec){
   if(!L||!sec) return;
   const already=!!(L.flags&&L.flags.hourglassRoom);
@@ -14073,14 +14160,15 @@ function buildHourglassRoom(L, sec){
   L.flags.hourglassRoom=1;
   L.flags.hourglassBounds=L.hourglassBounds;
   if(typeof resetUnsecuredHourglass==='function') resetUnsecuredHourglass();
-  const haveGlass=(G.props||[]).some(p=>p&&p.k==='hourglass'&&!p.gone);
-  if(already && haveGlass) return;
-  G.props=G.props||[];
-  L.lights=L.lights||[];
   const glass={x:138.2,y:30.1};
   /* North wall of this vault (floor starts at y=24). Same x as the glass
      so the tooth stays in the room, on the back wall the camera faces. */
   const face={x:138.2,y:24.48};
+  if(typeof sealBronzeFaceAlcove==='function') sealBronzeFaceAlcove(L, face);
+  const haveGlass=(G.props||[]).some(p=>p&&p.k==='hourglass'&&!p.gone);
+  if(already && haveGlass) return;
+  G.props=G.props||[];
+  L.lights=L.lights||[];
   G.props.push({x:glass.x,y:glass.y,k:'hourglass',s:1.35,seed:990});
   G.props.push({x:face.x,y:face.y,k:'demonface',wall:'n',s:1.12,seed:991,
     toothKind:'bronze', emptySocket:!!L.flags.bronzeSecured});
@@ -15793,6 +15881,7 @@ function update(dt){
         if(p.dest.corpse){ const body=G.ents.find(z=>z.id===p.dest.corpse&&isLootableBody(z)); if(body) lootNearbyCorpses(p,1.85); }
         if(p.dest.look){
           if(p.dest.ch1) openCh1QuillLook(p.dest.look);
+          else if(p.dest.look==='bronze_tooth_face' && typeof openBronzeToothLook==='function') openBronzeToothLook();
           else if(typeof openTeethChapelLook==='function') openTeethChapelLook(p.dest.look);
         }
         if(!p.dest.foe && !p.dest.loot && !p.dest.corpse && !p.dest.look &&
@@ -15929,12 +16018,7 @@ function update(dt){
       if(crown) interact('Take the bone crown',()=>openTeethChapelLook('teeth_chapel_crown'));
     }
     /* Crown plates used to float here. Animate is the bar button. */
-    if(!PROMPT && typeof nearestDemonFace==='function'){
-      const face=nearestDemonFace(p,2.05);
-      if(face && face.itemId!=='grond_tooth_electrum_2' && typeof pryGrondTooth==='function' && !chapelFaceToothTaken(face)){
-        interact('Pry the tooth',()=>openTeethChapelLook('teeth_chapel_face'));
-      }
-    }
+    if(!PROMPT && typeof offerNearestDemonFacePrompt==='function') offerNearestDemonFacePrompt(p);
     if(!PROMPT && typeof maybeTeethChapelLooks==='function') maybeTeethChapelLooks(p);
     if(!PROMPT && typeof tryTalporTurnThrall==='function' && typeof livingThrall==='function'){
       const t=livingThrall();
@@ -17638,6 +17722,14 @@ function drawToothProp(g,p,z){
     return;
   }
   drawProceduralFang(g, 0, 0, 9*z*sc, p.seed||0, 0);
+}
+/* Chapel portrait and empty plate are lazy. Kick both when a descent
+   starts so the north face is not a tan slab while the PNG decodes. */
+function preloadChapelDemonFace(){
+  if(typeof loadSpriteKeyNow!=='function') return;
+  ['demon_dwarfface','demon_dwarfface_empty'].forEach(k=>{
+    if(!(SPR[k]&&SPR[k].width)) loadSpriteKeyNow(k);
+  });
 }
 function demonFaceShowsEmpty(p){
   if(!p) return false;
@@ -23731,7 +23823,8 @@ function resolveTaps(){
         const chapel=lookPick===lookHit;
         const reach=chapel?teethChapelLookReach(lookPick.key):ch1QuillLookReach(lookPick.key);
         if(dist(p,lookPick)<=reach){
-          if(chapel) openTeethChapelLook(lookPick.key);
+          if(lookPick.key==='bronze_tooth_face' && typeof openBronzeToothLook==='function'){ p.dest=null; openBronzeToothLook(); }
+          else if(chapel) openTeethChapelLook(lookPick.key);
           else {p.dest=null;openCh1QuillLook(lookPick.key);}
         } else {
           p.dest=chapel?teethChapelLookStand(lookPick):Object.assign(ch1QuillLookStand(lookPick),{ch1:1});
