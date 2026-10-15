@@ -13,8 +13,9 @@
         "floor": "floor_mine",
         "wall": "wall_cave",
         "pal": "warren",
-        "tint": "#b7c48a",
-        "interim": true
+        "tint": "#e4e8cc",
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "goblin_throne",
       "landmark": {

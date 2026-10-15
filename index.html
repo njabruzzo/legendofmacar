@@ -3262,10 +3262,76 @@ function floorVariantKey(baseKey, level, x, y){
   if(i===2) return baseKey+'_w2';
   return baseKey;
 }
+/* Opaque diamond of a floor sheet. A variant is usable only when this box
+   matches the base sheet: same aspect, and the diamond reaches the bitmap
+   edges the same way. The 288-wide _w1/_w2 sheets do not. */
+function floorSheetBox(img){
+  if(!img||!img.width||!img.height) return null;
+  if(img.__floorBox) return img.__floorBox;
+  if(typeof document==='undefined') return null;
+  let frame, w, h;
+  try{
+    const c=document.createElement('canvas');
+    w=c.width=img.width; h=c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    frame=x.getImageData(0,0,w,h);
+  }catch(e){ return null; }
+  const d=frame.data;
+  let x0=w, y0=h, x1=0, y1=0, n=0;
+  for(let y=0;y<h;y++){
+    const row=y*w*4;
+    for(let i=0;i<w;i++){
+      if(d[row+i*4+3]<128) continue;
+      n++;
+      if(i<x0) x0=i;
+      if(i+1>x1) x1=i+1;
+      if(y<y0) y0=y;
+      if(y+1>y1) y1=y+1;
+    }
+  }
+  if(!n) return null;
+  const box={x0:x0,y0:y0,x1:x1,y1:y1,w:x1-x0,h:y1-y0};
+  img.__floorBox=box;
+  return box;
+}
+function floorDiamondMatches(baseImg, varImg){
+  const a=floorSheetBox(baseImg), b=floorSheetBox(varImg);
+  if(!a||!b||!baseImg.width||!baseImg.height||!varImg.width||!varImg.height) return false;
+  const aspectA=a.w/a.h, aspectB=b.w/b.h;
+  if(Math.abs(aspectA-aspectB)>0.06) return false;
+  const edge=function(box, img){
+    return {
+      l:box.x0/img.width,
+      r:(img.width-box.x1)/img.width,
+      t:box.y0/img.height,
+      b:(img.height-box.y1)/img.height
+    };
+  };
+  const ea=edge(a, baseImg), eb=edge(b, varImg);
+  return Math.abs(ea.l-eb.l)<0.04 && Math.abs(ea.r-eb.r)<0.04
+    && Math.abs(ea.t-eb.t)<0.05 && Math.abs(ea.b-eb.b)<0.05;
+}
+/* Size a sheet from its own pixel grid so the opaque diamond fills the
+   pack cell. A bitmap that already fills its frame stays on that cell. */
+function floorBlitBox(img, m, sx, sy){
+  const dw=Math.max(1,(m.w*sx)|0), dh=Math.max(1,(m.h*sy)|0);
+  const ox=m.ox*sx, oy=m.oy*sy;
+  const box=img&&floorSheetBox(img);
+  if(!box||!img.width||!img.height) return {w:dw,h:dh,ox:ox,oy:oy};
+  const destW=dw*(img.width/box.w);
+  const destH=dh*(img.height/box.h);
+  return {
+    w:destW,
+    h:destH,
+    ox:((box.x0+box.w*0.5)/img.width)*destW,
+    oy:((box.y0+box.h*0.5)/img.height)*destH
+  };
+}
 function floorPickKey(baseKey, level, x, y, vary){
   if(!vary) return baseKey;
   const variant=floorVariantKey(baseKey, level, x, y);
-  if(variant!==baseKey && sprReady(variant)) return variant;
+  if(variant!==baseKey && sprReady(variant) && floorDiamondMatches(SPR[baseKey], SPR[variant])) return variant;
   return baseKey;
 }
 /* Pre-sized diamonds: tile_floor_<name>_116.png at the laptop tile (TW 116)
@@ -16495,7 +16561,7 @@ function drawWorld(g,L){
 
   const WH=RWH*(TW/RTW);
   const p=player();
-  const wallBlit=TILEBLIT.wall, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
+  const wallBlit=TILEBLIT.wall, floorBlit=TILEBLIT.floor, wallAtk=SPR[palWallKey(L)+'_atk']||SPR.wall_cave_atk;
   const pack=tilesetPack(L);
   const {sx,sy}=tilesetScale();
   if(p&&p.dest) push((p.dest.x+p.dest.y)|0,()=>drawMoveMark(g,p.dest));
@@ -16507,20 +16573,28 @@ function drawWorld(g,L){
     }
     const m=pack.floor;
     const key=palFloorKey(pal, L);
-    /* A campaign tileset mixes _w1/_w2. Chapter I has no tileset, so it
-       stays on the base mine sheet. Neither path locks to TILEBLIT.floor. */
-    const vary=!!(L&&L.tileset);
-    const src=floorDrawSource(key, floorLevelSeed(L), x, y, vary);
+    /* No campaign tileset: the old baked floor, and the hashed sheet only
+       when that blit is missing. Chapter I stays on this path. */
+    if(!(L&&L.tileset)){
+      const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
+      const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
+      if(fl){
+        g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+      }
+      if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
+      return;
+    }
+    const src=floorDrawSource(key, floorLevelSeed(L), x, y, true);
     if(src&&src.img){
-      const dw=Math.max(1,(m.w*sx)|0), dh=Math.max(1,(m.h*sy)|0);
-      const tint=L&&L.tileset&&L.tileset.tint;
+      const tint=L.tileset&&L.tileset.tint;
       g.imageSmoothingEnabled=false;
       if(src.native){
         const img=nativeFloor(src.img, tint);
         g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, img.width, img.height);
       } else {
-        const img=hardFloor(src.img, dw, dh, tint);
-        if(img) g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, dw, dh);
+        const box=floorBlitBox(src.img, m, sx, sy);
+        const img=hardFloor(src.img, Math.max(1,Math.round(box.w)), Math.max(1,Math.round(box.h)), tint);
+        if(img) g.drawImage(img, s.x-box.ox, s.y-box.oy, box.w, box.h);
       }
     }
     if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);

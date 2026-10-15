@@ -13,7 +13,8 @@
         "floor": "floor_drow",
         "wall": "wall_drow",
         "pal": "drow",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "drow_matron_seat",
       "landmark": {

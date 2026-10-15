@@ -13,7 +13,8 @@
         "floor": "floor_eye",
         "wall": "wall_eye",
         "pal": "eye",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "beholder_eye",
       "landmark": {

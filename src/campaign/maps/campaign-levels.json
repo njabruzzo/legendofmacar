@@ -41,8 +41,9 @@
         "floor": "floor_mine",
         "wall": "wall_cave",
         "pal": "warren",
-        "tint": "#b7c48a",
-        "interim": true
+        "tint": "#e4e8cc",
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "goblin_throne",
       "landmark": {
@@ -1139,7 +1140,8 @@
         "floor": "floor_fungi",
         "wall": "wall_cave",
         "pal": "fungi",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "queen_web",
       "landmark": {
@@ -1762,8 +1764,9 @@
         "floor": "floor_ruin",
         "wall": "wall_worked",
         "pal": "hold",
-        "tint": "#8aa0b8",
-        "interim": true
+        "tint": "#d5dee8",
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ogre_cave",
       "landmark": {
@@ -2514,7 +2517,8 @@
         "floor": "floor_drow",
         "wall": "wall_drow",
         "pal": "drow",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "drow_matron_seat",
       "landmark": {
@@ -3005,7 +3009,8 @@
         "floor": "floor_ember",
         "wall": "wall_ember",
         "pal": "ember",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ember_seat",
       "landmark": {
@@ -3564,7 +3569,8 @@
         "floor": "floor_geode",
         "wall": "wall_bore",
         "pal": "geode",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "geode_heart",
       "landmark": {
@@ -4057,7 +4063,8 @@
         "floor": "floor_eye",
         "wall": "wall_eye",
         "pal": "eye",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "beholder_eye",
       "landmark": {
@@ -4467,7 +4474,8 @@
         "floor": "floor_hoard",
         "wall": "wall_hoard",
         "pal": "hoard",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "dragon_hoard",
       "landmark": {
@@ -4846,7 +4854,8 @@
         "floor": "floor_ritual",
         "wall": "wall_ritual",
         "pal": "ritual",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ritual_circle",
       "landmark": {

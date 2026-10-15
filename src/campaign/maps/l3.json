@@ -13,7 +13,8 @@
         "floor": "floor_fungi",
         "wall": "wall_cave",
         "pal": "fungi",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "queen_web",
       "landmark": {

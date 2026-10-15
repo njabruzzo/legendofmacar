@@ -13,7 +13,8 @@
         "floor": "floor_ember",
         "wall": "wall_ember",
         "pal": "ember",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ember_seat",
       "landmark": {

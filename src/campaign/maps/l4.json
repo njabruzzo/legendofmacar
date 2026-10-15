@@ -13,8 +13,9 @@
         "floor": "floor_ruin",
         "wall": "wall_worked",
         "pal": "hold",
-        "tint": "#8aa0b8",
-        "interim": true
+        "tint": "#d5dee8",
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ogre_cave",
       "landmark": {

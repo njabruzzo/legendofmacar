@@ -13,7 +13,8 @@
         "floor": "floor_hoard",
         "wall": "wall_hoard",
         "pal": "hoard",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "dragon_hoard",
       "landmark": {

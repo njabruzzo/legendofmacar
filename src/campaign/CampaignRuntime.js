@@ -1820,6 +1820,8 @@
     parseCount: parseCount,
     rollCount: rollCount,
     install: install,
+    carveMap: carveMap,
+    placeLevel: placeLevel,
     tick: tick,
     showCard: showCard,
     finishCard: finishCard,

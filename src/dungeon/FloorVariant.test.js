@@ -34,13 +34,18 @@ function grab(name) {
 const caps = html.match(/const WALL_CAP_BAKE=\[[^\]]+\];\nconst WALL_CAP_FILL=\[[^\]]+\];/);
 if (!caps) throw new Error('wall cap defaults missing');
 const src = caps[0] + '\n' + [
-  'floorVariantIndex', 'floorLevelSeed', 'floorVariantKey', 'floorPickKey',
+  'floorVariantIndex', 'floorLevelSeed', 'floorVariantKey', 'floorSheetBox',
+  'floorDiamondMatches', 'floorBlitBox', 'floorPickKey',
   'floorNativeKey', 'floorDrawSource', 'wallCapStops', 'thresholdAlpha'
 ].map(grab).join('\n');
 
+function fullBox(w, h) {
+  return { x0: 0, y0: 0, x1: w, y1: h, w: w, h: h };
+}
 const SPR = {
-  floor_mine: { width: 512, height: 256 },
-  floor_mine_w1: { width: 512, height: 256 },
+  floor_mine: { width: 512, height: 256, __floorBox: fullBox(512, 256) },
+  floor_mine_w1: { width: 512, height: 256, __floorBox: fullBox(512, 256) },
+  floor_mine_w2: { width: 288, height: 250, __floorBox: { x0: 3, y0: 4, x1: 285, y1: 249, w: 282, h: 245 } },
   floor_fungi: { width: 512, height: 256 },
   floor_fungi_116: { width: 116, height: 58 },
   floor_mine_66: { width: 66, height: 34 }
@@ -67,7 +72,16 @@ for (let y = 0; y < 8 && !varied; y++) {
     if (key === 'floor_mine_w1') varied = true;
   }
 }
-assert(varied, 'a tileset floor picks _w1 when that sheet exists');
+assert(varied, 'a tileset floor picks _w1 when that sheet matches the base diamond');
+let mismatched = false;
+for (let y = 0; y < 16 && !mismatched; y++) {
+  for (let x = 0; x < 16; x++) {
+    if (ctx.floorVariantIndex(2, x, y) !== 2) continue;
+    assert(ctx.floorPickKey('floor_mine', 2, x, y, true) === 'floor_mine', 'a variant whose diamond does not match stays on the base sheet');
+    mismatched = true;
+  }
+}
+assert(mismatched, 'the hash still visits the mismatched _w2 slot');
 assert(ctx.floorPickKey('floor_fungi', 3, 1, 2, true) === 'floor_fungi', 'a missing _w1/_w2 falls back to the base sheet');
 
 ctx.TW = 116;
@@ -88,10 +102,12 @@ const data = new Uint8ClampedArray([10, 20, 30, 40, 1, 2, 3, 200, 4, 5, 6, 127])
 ctx.thresholdAlpha(data, 128);
 assert(data[3] === 0 && data[7] === 255 && data[11] === 0, 'alpha below 128 drops and the rest stays solid');
 
-assert(/function drawFloorCell\(/.test(html) && html.indexOf('floorBlit||') < 0, 'floors are not locked to one baked image');
-assert(/floorDrawSource\(key, floorLevelSeed\(L\), x, y, vary\)/.test(html), 'each tile asks for its hashed sheet');
-assert(/const vary=!!\(L&&L\.tileset\)/.test(html), 'Chapter I, which has no tileset, keeps the base floor');
-assert(/hardFloor\(src\.img, dw, dh, tint\)/.test(html), 'scaled floors are drawn after the alpha cut');
+const floorCell = grab('drawFloorCell');
+assert(/if\(!\(L&&L\.tileset\)\)[\s\S]*floorBlit\|\|/.test(floorCell), 'a level with no tileset still draws TILEBLIT.floor');
+assert(/floorDrawSource\(key, floorLevelSeed\(L\), x, y, true\)/.test(floorCell), 'a campaign tileset asks for its hashed sheet');
+assert(/floorBlitBox\(src\.img, m, sx, sy\)/.test(floorCell), 'a variant is sized from its own sheet');
+assert(/hardFloor\(src\.img, Math\.max\(1,Math\.round\(box\.w\)\), Math\.max\(1,Math\.round\(box\.h\)\), tint\)/.test(floorCell), 'scaled floors are drawn after the alpha cut');
+assert(/floorDiamondMatches\(SPR\[baseKey\], SPR\[variant\]\)/.test(html), 'a variant is used only when its diamond matches the base');
 assert(/SPRITE_FILES\[k\+'_116'\]/.test(html) && /SPRITE_FILES\[k\+'_66'\]/.test(html), 'game-size floor keys are registered when the file exists');
 
 assert(/wall_'\+stem\+'_face'/.test(html) || /'wall_'\+stem\+'_face'/.test(html), 'a wall key looks up tile_wall_<key>_face');

@@ -13,7 +13,8 @@
         "floor": "floor_ritual",
         "wall": "wall_ritual",
         "pal": "ritual",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "ritual_circle",
       "landmark": {

@@ -198,6 +198,9 @@
     if (tileset.interim != null && typeof tileset.interim !== 'boolean') {
       errors.push(id + ' tileset.interim must be boolean');
     }
+    if (tileset.interim === true && (typeof tileset.interimDue !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tileset.interimDue))) {
+      errors.push(id + ' interim tileset needs interimDue as YYYY-MM-DD');
+    }
     if (typeof level.landmarkId !== 'string' || !level.landmarkId) {
       errors.push(id + ' landmarkId must be a string');
     }

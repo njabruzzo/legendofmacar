@@ -13,7 +13,8 @@
         "floor": "floor_geode",
         "wall": "wall_bore",
         "pal": "geode",
-        "interim": true
+        "interim": true,
+        "interimDue": "2026-12-31"
       },
       "landmarkId": "geode_heart",
       "landmark": {
