@@ -104,10 +104,12 @@ assert(data[3] === 0 && data[7] === 255 && data[11] === 0, 'alpha below 128 drop
 
 const floorCell = grab('drawFloorCell');
 assert(/if\(!\(L&&L\.tileset\)\)[\s\S]*floorBlit\|\|/.test(floorCell), 'a level with no tileset still draws TILEBLIT.floor');
-assert(/floorDrawSource\(key, floorLevelSeed\(L\), x, y, true\)/.test(floorCell), 'a campaign tileset asks for its hashed sheet');
-assert(/floorBlitBox\(src\.img, m, sx, sy\)/.test(floorCell), 'a variant is sized from its own sheet');
-assert(/hardFloor\(src\.img, Math\.max\(1,Math\.round\(box\.w\)\), Math\.max\(1,Math\.round\(box\.h\)\), tint\)/.test(floorCell), 'scaled floors are drawn after the alpha cut');
-assert(/floorDiamondMatches\(SPR\[baseKey\], SPR\[variant\]\)/.test(html), 'a variant is used only when its diamond matches the base');
+assert(/tintedFloorBlit\(floorBlit, L\.tileset\.tint\)/.test(floorCell), 'a tinted level draws TILEBLIT.floor with only a tint');
+assert(/h2\(x,y\)\*variants\.length/.test(floorCell), 'an untinted floor hashes variants the way main does');
+assert(/variantFloorBlit\(pick, m, sx, sy\)/.test(floorCell), 'a fungi variant uses the main floor rect');
+assert(!/floorBlitBox\(/.test(floorCell) && !/hardFloor\(/.test(floorCell), 'the base sheet is not resized or alpha-cut');
+assert(!/floorPickKey\(/.test(floorCell), 'fungi variants are not dropped by the diamond gate');
+assert(/floorNativeKey\(key\)/.test(floorCell) && /sprReady\(nativeKey\)/.test(floorCell), 'a real _116 or _66 sheet still draws 1:1');
 assert(/SPRITE_FILES\[k\+'_116'\]/.test(html) && /SPRITE_FILES\[k\+'_66'\]/.test(html), 'game-size floor keys are registered when the file exists');
 
 assert(/wall_'\+stem\+'_face'/.test(html) || /'wall_'\+stem\+'_face'/.test(html), 'a wall key looks up tile_wall_<key>_face');

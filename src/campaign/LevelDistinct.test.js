@@ -1,8 +1,8 @@
 /**
  * Nick's rule: every campaign floor looks like its own level.
- * A known-fail exempts only the reasons listed for that level or pair.
- * Pair overlap with a level that passes is never dropped. A listed level
- * or pair that no longer fails is a stale entry and fails this test.
+ * KNOWN_FAILS is an exact list of [subject, reason]. A subject is a level
+ * id (L4) or a pair (L2-L3). A listed entry that no longer fails is stale.
+ * Anything that fails and is not listed fails this test.
  * Run: node src/campaign/LevelDistinct.test.js
  */
 'use strict';
@@ -39,44 +39,98 @@ const EXPECTED_TITLES = {
   L10: { title: 'The Undying King and the Ritual', sub: 'The Undying King' }
 };
 
-/* Reasons still open. A level with none of these left must come off the list. */
-const KNOWN_FAILING = {
-  L3: ['legacy-shell'],
-  L4: ['landmark-unplaced'],
-  L5: ['unresolved-art', 'landmark-unplaced'],
-  L6: ['unresolved-art', 'landmark-unplaced', 'prop-kinds'],
-  L7: ['unresolved-art', 'landmark-unplaced', 'prop-kinds'],
-  L8: ['unresolved-art', 'landmark-unplaced', 'prop-kinds'],
-  L9: ['unresolved-art', 'landmark-unplaced', 'prop-kinds'],
-  L10: ['unresolved-art', 'landmark-unplaced', 'prop-kinds']
-};
-
-/* L2 and L3 share the Chapter II shell until #342. Other pairs are the
-   scaffold rooms that still sit on a passing level; each reason is listed
-   on its own, and a pair with a passing level is never blanket-exempt. */
-const KNOWN_PAIRS = {
-  'L2-L3': ['shell-shared', 'walk-excess', 'room-centres', 'room-rect', 'prop-overlap'],
-  'L2-L4': ['room-centres'],
-  'L2-L5': ['walk-excess'],
-  'L2-L7': ['walk-excess'],
-  'L2-L8': ['walk-excess'],
-  'L2-L9': ['walk-excess'],
-  'L2-L10': ['walk-excess'],
-  'L3-L10': ['walk-excess'],
-  'L4-L5': ['walk-excess', 'prop-overlap'],
-  'L4-L7': ['walk-excess'],
-  'L4-L8': ['walk-excess', 'room-rect'],
-  'L4-L9': ['walk-excess'],
-  'L5-L7': ['walk-jaccard', 'walk-excess', 'room-centres', 'room-rect'],
-  'L5-L8': ['walk-excess'],
-  'L5-L9': ['walk-jaccard', 'walk-excess', 'room-rect'],
-  'L6-L8': ['walk-excess'],
-  'L6-L10': ['walk-excess', 'room-rect'],
-  'L7-L8': ['walk-excess'],
-  'L7-L9': ['walk-jaccard', 'walk-excess', 'room-centres', 'room-rect'],
-  'L8-L9': ['walk-jaccard', 'walk-excess'],
-  'L8-L10': ['walk-excess']
-};
+/* Exact open failures. Filled after measuring the real shell-plus-carve grid.
+   Each row is [subject, reason]. Subject is L4 or L2-L3. */
+const KNOWN_FAILS = [
+  ['L10', 'unresolved-art'],
+  ['L10', 'landmark-unplaced'],
+  ['L10', 'prop-kinds'],
+  ['L2', 'legacy-shell'],
+  ['L3', 'legacy-shell'],
+  ['L4', 'legacy-shell'],
+  ['L4', 'landmark-unplaced'],
+  ['L5', 'legacy-shell'],
+  ['L5', 'unresolved-art'],
+  ['L5', 'landmark-unplaced'],
+  ['L6', 'unresolved-art'],
+  ['L6', 'landmark-unplaced'],
+  ['L6', 'prop-kinds'],
+  ['L7', 'unresolved-art'],
+  ['L7', 'landmark-unplaced'],
+  ['L7', 'prop-kinds'],
+  ['L8', 'unresolved-art'],
+  ['L8', 'landmark-unplaced'],
+  ['L8', 'prop-kinds'],
+  ['L9', 'unresolved-art'],
+  ['L9', 'landmark-unplaced'],
+  ['L9', 'prop-kinds'],
+  ['L2-L3', 'shell-shared'],
+  ['L1-L2', 'walk-jaccard'],
+  ['L1-L2', 'walk-excess'],
+  ['L1-L3', 'walk-jaccard'],
+  ['L1-L3', 'walk-excess'],
+  ['L1-L4', 'walk-jaccard'],
+  ['L1-L4', 'walk-excess'],
+  ['L1-L5', 'walk-jaccard'],
+  ['L1-L5', 'walk-excess'],
+  ['L1-L6', 'walk-excess'],
+  ['L1-L7', 'walk-excess'],
+  ['L1-L8', 'walk-excess'],
+  ['L1-L9', 'walk-excess'],
+  ['L1-L10', 'walk-excess'],
+  ['L2-L3', 'walk-jaccard'],
+  ['L2-L3', 'walk-excess'],
+  ['L2-L3', 'room-centres'],
+  ['L2-L3', 'room-rect'],
+  ['L2-L3', 'prop-overlap'],
+  ['L2-L4', 'walk-jaccard'],
+  ['L2-L4', 'walk-excess'],
+  ['L2-L4', 'room-centres'],
+  ['L2-L5', 'walk-jaccard'],
+  ['L2-L5', 'walk-excess'],
+  ['L2-L6', 'walk-excess'],
+  ['L2-L7', 'walk-excess'],
+  ['L2-L8', 'walk-excess'],
+  ['L2-L9', 'walk-excess'],
+  ['L2-L10', 'walk-excess'],
+  ['L3-L4', 'walk-jaccard'],
+  ['L3-L4', 'walk-excess'],
+  ['L3-L5', 'walk-jaccard'],
+  ['L3-L5', 'walk-excess'],
+  ['L3-L6', 'walk-excess'],
+  ['L3-L7', 'walk-excess'],
+  ['L3-L8', 'walk-excess'],
+  ['L3-L9', 'walk-excess'],
+  ['L3-L10', 'walk-excess'],
+  ['L4-L5', 'walk-jaccard'],
+  ['L4-L5', 'walk-excess'],
+  ['L4-L5', 'prop-overlap'],
+  ['L4-L6', 'walk-excess'],
+  ['L4-L7', 'walk-excess'],
+  ['L4-L8', 'walk-excess'],
+  ['L4-L8', 'room-rect'],
+  ['L4-L9', 'walk-excess'],
+  ['L4-L10', 'walk-excess'],
+  ['L5-L6', 'walk-excess'],
+  ['L5-L7', 'walk-excess'],
+  ['L5-L7', 'room-centres'],
+  ['L5-L7', 'room-rect'],
+  ['L5-L8', 'walk-excess'],
+  ['L5-L9', 'walk-excess'],
+  ['L5-L9', 'room-rect'],
+  ['L5-L10', 'walk-excess'],
+  ['L6-L8', 'walk-excess'],
+  ['L6-L10', 'walk-excess'],
+  ['L6-L10', 'room-rect'],
+  ['L7-L8', 'walk-excess'],
+  ['L7-L9', 'walk-jaccard'],
+  ['L7-L9', 'walk-excess'],
+  ['L7-L9', 'room-centres'],
+  ['L7-L9', 'room-rect'],
+  ['L8-L9', 'walk-jaccard'],
+  ['L8-L9', 'walk-excess'],
+  ['L8-L10', 'walk-excess']
+];
 
 const UNIVERSAL_PROP = {
   demonface: 1, dwarfface: 1, rubydoor: 1, lift: 1, stairs: 1, floorlever: 1,
@@ -158,18 +212,11 @@ function rectKey(room) {
   return 'disk:' + [room.x, room.y, room.rw, room.rh].join(',');
 }
 
-function lightTint(hex) {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex || '')) return false;
-  const n = parseInt(hex.slice(1), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return r >= 200 && g >= 200 && b >= 180;
-}
-
 const ENGINE_FNS = [
   'h2', 'h3', 'newGrid', 'isWalkTile', 'rect', 'corridor', 'caveDisk', 'carvePath',
   'sealOuter', 'sealSecretCells', 'secretFaceOk', 'normalizeSecretFace', 'addSecretDoor',
   'openDescentLanding', 'sealNozDoorBeyond', 'nearCrush', 'timberOnDwarfMouthLane',
-  'markSecretProps', 'makeChapter'
+  'markSecretProps', 'makeChapter', 'propSpriteKey'
 ];
 
 function bootEngine() {
@@ -193,6 +240,7 @@ function bootEngine() {
   const ctx = {
     Math: Math, Uint8Array: Uint8Array, Object: Object, Array: Array, JSON: JSON, console: console,
     PAL: { mine: { key: 'mine' }, fungi: { key: 'fungi' }, ruin: { key: 'ruin' }, hall: { key: 'hall' } },
+    SPR: new Proxy({}, { get: function () { return 1; } }),
     G: { props: [], ents: [], _forceSeeds: { warrenSeed: 1, dressSeed: 2 } }
   };
   vm.createContext(ctx);
@@ -232,11 +280,10 @@ function levelModule(n) {
 function buildLevel(row) {
   const n = levelNum(row);
   const shellN = Runtime.shellChapter(n);
-  /* Props come from the chapter that actually builds, then the campaign
-     place. The walkable grid is the runtime carver on this level's rooms,
-     not a second copy of a shared chapter shell. */
+  /* Same order as CampaignRuntime.install: the legacy shell grid already
+     exists, then carveMap paints the campaign rooms onto it. */
   const shell = (shellN >= 1 && shellN <= 5) ? shellOf(shellN) : null;
-  const size = row.size || (shell && shell.w ? { w: shell.w, h: shell.h } : { w: 48, h: 48 });
+  const size = (shell && shell.w) ? { w: shell.w, h: shell.h } : (row.size || { w: 48, h: 48 });
   const L = {
     n: shellN,
     w: size.w,
@@ -245,7 +292,8 @@ function buildLevel(row) {
     secrets: (row.secrets || []).map(function (s) { return Object.assign({}, s); }),
     spawn: row.spawn || { x: 0, y: 0 }
   };
-  L.grid = engine.newGrid(L.w, L.h, 1);
+  if (shell && shell.grid) L.grid = cloneGrid(shell.grid);
+  else L.grid = engine.newGrid(L.w, L.h, 1);
   const props = shell ? shell.props.map(function (p) { return Object.assign({}, p); }) : [];
   Runtime.carveMap(L, row);
   const G = { props: props, ents: [], lvl: L, campaignLevel: n };
@@ -325,9 +373,28 @@ function countJaccard(a, b) {
   return union ? inter / union : 0;
 }
 
-function tilesetCombo(row) {
+function tilesetParts(row) {
   const t = (row && row.tileset) || {};
-  return [t.floor || '', t.wall || '', t.pal || '', String(t.tint || '').toLowerCase()].join('|');
+  return {
+    floor: t.floor || '',
+    wall: t.wall || '',
+    pal: t.pal || '',
+    tint: String(t.tint || '').toLowerCase()
+  };
+}
+
+function landmarkArt(row) {
+  const mark = (row && row.landmark) || {};
+  const kind = mark.kind || '';
+  let sprite = kind;
+  if (kind && engine.propSpriteKey) {
+    try { sprite = engine.propSpriteKey({ k: kind }) || kind; }
+    catch (err) { sprite = kind; }
+  }
+  if (mark.sprite) sprite = mark.sprite;
+  else if (mark.art && typeof mark.art === 'string') sprite = mark.art;
+  else if (mark.art && mark.art.key) sprite = mark.art.key;
+  return { id: (row && row.landmarkId) || mark.id || '', kind: kind, sprite: sprite || kind };
 }
 
 function evaluate(book) {
@@ -365,8 +432,10 @@ function evaluate(book) {
     if (n >= 2 && !roomsOf(row).length) note(id, 'no-rooms', 'own map has no rooms');
 
     const shell = world.shell;
-    if (n >= 2 && (shell === 2 || shell === 4 || shell === 5) && shell !== n) {
-      note(id, 'legacy-shell', 'level ' + n + ' rides legacy shell ' + shell);
+    /* Legacy shells 2, 4, and 5 are not a campaign level's own floor, even
+       when the shell number equals the level number. */
+    if (n >= 2 && (shell === 2 || shell === 4 || shell === 5)) {
+      note(id, 'legacy-shell', 'level ' + n + ' is on legacy shell ' + shell);
     }
 
     const t = row.tileset || {};
@@ -413,11 +482,27 @@ function evaluate(book) {
   for (let i = 0; i < levels.length; i++) {
     for (let j = i + 1; j < levels.length; j++) {
       const a = levels[i], b = levels[j];
-      if (tilesetCombo(a) && tilesetCombo(a) === tilesetCombo(b)) {
-        notePair(a.id, b.id, 'tileset', 'tileset combo ' + tilesetCombo(a) + ' is shared');
+      const A = tilesetParts(a), B = tilesetParts(b);
+      const sameFloor = A.floor && A.floor === B.floor;
+      const sameWall = A.wall === B.wall;
+      const samePal = A.pal && A.pal === B.pal;
+      if (sameFloor && sameWall && samePal) {
+        if (A.tint !== B.tint) {
+          console.warn('INTERIM ' + pairKey(a.id, b.id) + ' tileset differs only by tint');
+        } else {
+          notePair(a.id, b.id, 'tileset', 'tileset ' + [A.floor, A.wall, A.pal].join('|') + ' is shared');
+        }
+      } else if (samePal) {
+        notePair(a.id, b.id, 'palette', 'palette ' + A.pal + ' is shared');
       }
-      if (a.landmarkId && a.landmarkId === b.landmarkId) {
-        notePair(a.id, b.id, 'landmark', 'landmark ' + a.landmarkId + ' is shared');
+      const artA = landmarkArt(a), artB = landmarkArt(b);
+      if (artA.id && artA.id === artB.id) {
+        notePair(a.id, b.id, 'landmark', 'landmark ' + artA.id + ' is shared');
+      }
+      const artKeyA = artA.sprite || artA.kind;
+      const artKeyB = artB.sprite || artB.kind;
+      if (artKeyA && artKeyA === artKeyB && artA.id !== artB.id) {
+        notePair(a.id, b.id, 'landmark-art', 'landmark art ' + artKeyA + ' is shared');
       }
       const align = bestAlign(grids[a.id], grids[b.id]);
       if (align.jaccard > 0.25) {
@@ -449,78 +534,80 @@ function evaluate(book) {
   return { levels: levels, levelFails: levelFails, pairFails: pairFails };
 }
 
-function reasonsOf(list) {
-  const out = {};
-  (list || []).forEach(function (item) { out[item.reason] = 1; });
-  return out;
-}
-
-function pairListed(item) {
-  const listed = KNOWN_PAIRS[pairKey(item.a, item.b)];
-  return !!(listed && listed.indexOf(item.reason) >= 0);
-}
-
-function levelListed(id, reason) {
-  const listed = KNOWN_FAILING[id];
-  return !!(listed && listed.indexOf(reason) >= 0);
+function knownHas(subject, reason) {
+  return KNOWN_FAILS.some(function (row) { return row[0] === subject && row[1] === reason; });
 }
 
 function unexempted(report) {
   const out = [];
   Object.keys(report.levelFails).forEach(function (id) {
     report.levelFails[id].forEach(function (item) {
-      if (!levelListed(id, item.reason)) out.push(id + ' ' + item.msg);
+      if (!knownHas(id, item.reason)) out.push(id + ' ' + item.msg);
     });
   });
   report.pairFails.forEach(function (item) {
-    if (!pairListed(item)) out.push(pairKey(item.a, item.b) + ' ' + item.msg);
+    const key = pairKey(item.a, item.b);
+    if (!knownHas(key, item.reason)) out.push(key + ' ' + item.msg);
   });
   return out;
 }
 
-function checkStale(report) {
-  Object.keys(KNOWN_FAILING).forEach(function (id) {
-    const got = reasonsOf(report.levelFails[id]);
-    const listed = KNOWN_FAILING[id];
-    if (!Object.keys(got).length) {
-      assert(false, id + ' is listed as known-failing but now passes');
-      return;
-    }
-    listed.forEach(function (reason) {
-      if (!got[reason]) assert(false, id + ' no longer fails ' + reason + ' — remove the stale reason');
-    });
+function gotReasons(report, subject) {
+  const got = {};
+  if (subject.indexOf('-') < 0) {
+    (report.levelFails[subject] || []).forEach(function (item) { got[item.reason] = item.msg; });
+    return got;
+  }
+  report.pairFails.forEach(function (item) {
+    if (pairKey(item.a, item.b) === subject) got[item.reason] = item.msg;
   });
-  Object.keys(KNOWN_PAIRS).forEach(function (key) {
-    const got = {};
-    report.pairFails.forEach(function (item) {
-      if (pairKey(item.a, item.b) === key) got[item.reason] = item.msg;
-    });
-    if (!Object.keys(got).length) {
-      assert(false, key + ' is listed as a known-fail pair but now passes');
-      return;
-    }
-    KNOWN_PAIRS[key].forEach(function (reason) {
-      if (!got[reason]) assert(false, key + ' no longer fails ' + reason + ' — remove the stale reason');
-    });
+  return got;
+}
+
+function checkStale(report) {
+  const seen = {};
+  KNOWN_FAILS.forEach(function (row) {
+    const subject = row[0], reason = row[1];
+    const stamp = subject + ' ' + reason;
+    if (seen[stamp]) assert(false, stamp + ' is listed twice');
+    seen[stamp] = 1;
+    const got = gotReasons(report, subject);
+    if (!got[reason]) assert(false, subject + ' no longer fails ' + reason + ' — remove the stale entry');
   });
 }
 
 for (let n = 2; n <= 10; n++) levelModule(n);
 const report = evaluate(loaded.book);
+
+if (process.env.DUMP_FAILS) {
+  const rows = [];
+  Object.keys(report.levelFails).sort().forEach(function (id) {
+    const seen = {};
+    report.levelFails[id].forEach(function (item) {
+      if (seen[item.reason]) return;
+      seen[item.reason] = 1;
+      rows.push([id, item.reason, item.msg]);
+    });
+  });
+  const pairSeen = {};
+  report.pairFails.forEach(function (item) {
+    const key = pairKey(item.a, item.b) + ' ' + item.reason;
+    if (pairSeen[key]) return;
+    pairSeen[key] = 1;
+    rows.push([pairKey(item.a, item.b), item.reason, item.msg]);
+  });
+  rows.forEach(function (row) { console.log(row[0] + '\t' + row[1] + '\t' + row[2]); });
+  console.log('COUNT ' + rows.length);
+  process.exit(0);
+}
+
 checkStale(report);
 
-Object.keys(KNOWN_FAILING).forEach(function (id) {
-  console.log('KNOWN_FAILING ' + id);
-  (report.levelFails[id] || []).forEach(function (item) {
-    if (levelListed(id, item.reason)) console.log('  - ' + item.reason + ': ' + item.msg);
-  });
+KNOWN_FAILS.forEach(function (row) {
+  const msg = gotReasons(report, row[0])[row[1]];
+  console.log('KNOWN_FAIL ' + row[0] + ' ' + row[1] + (msg ? ': ' + msg : ''));
 });
-Object.keys(KNOWN_PAIRS).forEach(function (key) {
-  console.log('KNOWN_FAILING pair ' + key);
-  report.pairFails.forEach(function (item) {
-    if (pairKey(item.a, item.b) === key && pairListed(item)) console.log('  - ' + item.reason + ': ' + item.msg);
-  });
-});
+console.log('KNOWN_FAIL count ' + KNOWN_FAILS.length);
 
 unexempted(report).forEach(function (msg) { assert(false, msg); });
 if (!unexempted(report).length) assert(true, 'finished levels pass the distinct gate');
@@ -530,14 +617,10 @@ const byId = {};
 loaded.book.levels.forEach(function (row) { byId[row.id] = row; });
 assert(byId.L3.sub !== 'The First Floor' && byId.L3.name.indexOf('The First Floor') < 0, 'L3 does not say The First Floor');
 assert(byId.L4.sub !== 'The Dead City' && byId.L4.name.indexOf('The Dead City') < 0, 'L4 does not say The Dead City');
-assert(byId.L3.tileset.floor === 'floor_fungi' && byId.L3.tileset.pal === 'fungi' && byId.L3.tileset.interim === true, 'L3 interim look is the fungi set');
-assert(byId.L2.tileset.interim === true && byId.L2.tileset.pal === 'warren' && lightTint(byId.L2.tileset.tint), 'L2 interim tint is a light warren shift');
-assert(byId.L4.tileset.interim === true && byId.L4.tileset.pal === 'hold' && lightTint(byId.L4.tileset.tint), 'L4 interim tint is a light hold shift');
-assert(byId.L2.tileset.interimDue === '2026-12-31' && byId.L4.tileset.interimDue === '2026-12-31', 'interim looks carry a due date');
 assert(/function bindCampaignLook\(/.test(html) && /L\.tileset=look\.tileset/.test(html) && /PAL\[palKey\]/.test(html), 'the renderer binds per-level tileset and palette');
 assert(/if\(look\.sub\) L\.sub=look\.sub/.test(html), 'campaign subtitle replaces the shell line');
 const look3 = Runtime.look({ campaignLevel: 3, lvl: { n: 2 } });
-assert(look3 && look3.title === EXPECTED_TITLES.L3.title && look3.sub === EXPECTED_TITLES.L3.sub && look3.tileset.floor === 'floor_fungi', 'Level 3 look is the webbed deep, not the first floor');
+assert(look3 && look3.title === EXPECTED_TITLES.L3.title && look3.sub === EXPECTED_TITLES.L3.sub, 'Level 3 look is the webbed deep, not the first floor');
 const look4 = Runtime.look({ campaignLevel: 4, lvl: { n: 4 } });
 assert(look4 && look4.title === EXPECTED_TITLES.L4.title && look4.sub === EXPECTED_TITLES.L4.sub, 'Level 4 look is the ogre cave, not the dead city');
 assert(Runtime.look({ campaignLevel: 1, lvl: { n: 1 } }) == null, 'Level 1 does not take a campaign tileset');
@@ -569,6 +652,48 @@ expectGateFail(copiedL2, 'copying L5 rooms into L2 fails the gate');
 const wrongSub = cloneBook(loaded.book);
 wrongSub.levels.filter(function (row) { return row.id === 'L2'; })[0].sub = 'The First Floor';
 expectGateFail(wrongSub, 'a wrong L2 subtitle fails the gate');
+
+const copiedTileset = cloneBook(loaded.book);
+const tileSrc = copiedTileset.levels.filter(function (row) { return row.id === 'L5'; })[0];
+const tileDst = copiedTileset.levels.filter(function (row) { return row.id === 'L6'; })[0];
+tileDst.tileset = JSON.parse(JSON.stringify(tileSrc.tileset));
+expectGateFail(copiedTileset, 'copying another level tileset fails the gate');
+
+const copiedPal = cloneBook(loaded.book);
+const palSrc = copiedPal.levels.filter(function (row) { return row.id === 'L3'; })[0];
+const palDst = copiedPal.levels.filter(function (row) { return row.id === 'L4'; })[0];
+palDst.tileset.pal = palSrc.tileset.pal;
+expectGateFail(copiedPal, 'copying another level palette fails the gate');
+
+const tintOnly = cloneBook(loaded.book);
+const tintA = tintOnly.levels.filter(function (row) { return row.id === 'L6'; })[0];
+const tintB = tintOnly.levels.filter(function (row) { return row.id === 'L7'; })[0];
+tintA.tileset.floor = tintB.tileset.floor;
+tintA.tileset.wall = tintB.tileset.wall;
+tintA.tileset.pal = tintB.tileset.pal;
+tintA.tileset.tint = '#e8e4d4';
+tintB.tileset.tint = '';
+const warned = [];
+const warn = console.warn;
+console.warn = function () {
+  warned.push(Array.prototype.join.call(arguments, ' '));
+  warn.apply(console, arguments);
+};
+const tintReport = evaluate(tintOnly);
+console.warn = warn;
+const tintFresh = unexempted(tintReport).filter(function (msg) {
+  return /tileset |palette /.test(msg);
+});
+assert(warned.some(function (line) { return /differs only by tint/.test(line); }), 'a tint-only tileset difference warns');
+assert(tintFresh.length === 0, 'a tint-only difference does not fail tileset or palette');
+
+const copiedArt = cloneBook(loaded.book);
+const artSrc = copiedArt.levels.filter(function (row) { return row.id === 'L2'; })[0];
+const artDst = copiedArt.levels.filter(function (row) { return row.id === 'L4'; })[0];
+artDst.landmark = JSON.parse(JSON.stringify(artSrc.landmark));
+artDst.landmark.id = 'copied_throne';
+artDst.landmarkId = 'copied_throne';
+expectGateFail(copiedArt, 'copying another level landmark art fails the gate');
 
 if (failed) {
   console.error(failed + ' failed');

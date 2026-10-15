@@ -3335,8 +3335,8 @@ function floorPickKey(baseKey, level, x, y, vary){
   return baseKey;
 }
 /* Pre-sized diamonds: tile_floor_<name>_116.png at the laptop tile (TW 116)
-   and tile_floor_<name>_66.png at the phone tile (TW 66). Anything else is
-   the 512 source, scaled, then alpha-thresholded so the diamond stays hard. */
+   and tile_floor_<name>_66.png at the phone tile (TW 66), and only when that
+   file actually loaded. A missing game-size sheet is not invented. */
 function floorNativeKey(key){
   if(!key) return '';
   if((TW|0)===116) return key+'_116';
@@ -4170,6 +4170,33 @@ function applyFloorTint(c, tint){
   x.fillRect(0,0,c.width,c.height);
   x.restore();
   return c;
+}
+/* Same pixels as TILEBLIT.floor, with a multiply tint. The canvas size does
+   not change, so the draw rect stays the main floor rect. */
+function tintedFloorBlit(img, tint){
+  if(!img||!img.width||!tint) return img;
+  const id='tint|'+(tint||'')+'|'+img.width+'x'+img.height;
+  img.__tintBlit=img.__tintBlit||{};
+  if(img.__tintBlit[id]) return img.__tintBlit[id];
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=true;
+  x.drawImage(img,0,0);
+  applyFloorTint(c, tint);
+  img.__tintBlit[id]=c;
+  return c;
+}
+/* A fungi variant, scaled the same way ensureTileBlit scales the base sheet.
+   No alpha cut and no destination resize. */
+function variantFloorBlit(img, m, sx, sy){
+  if(!img||!img.width) return null;
+  const w=Math.max(1,(m.w*sx)|0), h=Math.max(1,(m.h*sy)|0);
+  const id=w+'x'+h;
+  img.__sheetBlit=img.__sheetBlit||{};
+  if(img.__sheetBlit[id]) return img.__sheetBlit[id];
+  img.__sheetBlit[id]=scaleBlit(img, w, h);
+  return img.__sheetBlit[id];
 }
 /* Scaled 512 floors get a hard diamond. Game-size _116/_66 sheets skip this. */
 function hardFloor(img, w, h, tint){
@@ -16573,10 +16600,10 @@ function drawWorld(g,L){
     }
     const m=pack.floor;
     const key=palFloorKey(pal, L);
-    /* No campaign tileset: the old baked floor, and the hashed sheet only
-       when that blit is missing. Chapter I stays on this path. */
+    const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
+    /* No campaign tileset: the baked floor, and the hashed sheet only when
+       that blit is missing. Chapter I stays on this path. */
     if(!(L&&L.tileset)){
-      const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
       const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
       if(fl){
         g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
@@ -16584,18 +16611,19 @@ function drawWorld(g,L){
       if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
       return;
     }
-    const src=floorDrawSource(key, floorLevelSeed(L), x, y, true);
-    if(src&&src.img){
-      const tint=L.tileset&&L.tileset.tint;
-      g.imageSmoothingEnabled=false;
-      if(src.native){
-        const img=nativeFloor(src.img, tint);
-        g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, img.width, img.height);
-      } else {
-        const box=floorBlitBox(src.img, m, sx, sy);
-        const img=hardFloor(src.img, Math.max(1,Math.round(box.w)), Math.max(1,Math.round(box.h)), tint);
-        if(img) g.drawImage(img, s.x-box.ox, s.y-box.oy, box.w, box.h);
-      }
+    const nativeKey=floorNativeKey(key);
+    if(nativeKey && sprReady(nativeKey) && SPR[nativeKey] && SPR[nativeKey].width===(TW|0)){
+      const img=L.tileset.tint?nativeFloor(SPR[nativeKey], L.tileset.tint):SPR[nativeKey];
+      g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, img.width, img.height);
+    } else if(L.tileset.tint){
+      /* Interim color on the base sheet: main's TILEBLIT.floor rect, tint only. */
+      const fl=floorBlit?tintedFloorBlit(floorBlit, L.tileset.tint):(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
+      if(fl) g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else {
+      /* Fungi, and any untinted sheet: main's hash, drawn into the same rect. */
+      const pick=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
+      const fl=pick?variantFloorBlit(pick, m, sx, sy):floorBlit;
+      if(fl) g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
     }
     if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
   }
