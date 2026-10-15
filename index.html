@@ -1163,6 +1163,16 @@ if(typeof NpcDirectionalAtlas!=='undefined')NpcDirectionalAtlas.register(SPRITE_
    at macar-body-v1.png. vB is bare-head. vA2 is the bone crown. */
 SPRITE_FILES.restCardMacar='assets/ui/rest_card_macar_vB.png';
 SPRITE_FILES.restCardMacarCrown='assets/ui/rest_card_macar_vA2.png';
+/* Game-size floor diamonds. Missing files are dropped with the manifest
+   filter below, and the draw falls back to the 512 sheet. */
+Object.keys(SPRITE_FILES).slice().forEach(k=>{
+  const src=SPRITE_FILES[k];
+  if(!src || !/\/tile_floor_/.test(src)) return;
+  if(/_(116|66)\.png$/.test(src)) return;
+  const stem=src.replace(/\.png$/,'');
+  if(!SPRITE_FILES[k+'_116']) SPRITE_FILES[k+'_116']=stem+'_116.png';
+  if(!SPRITE_FILES[k+'_66']) SPRITE_FILES[k+'_66']=stem+'_66.png';
+});
 if(typeof ASSET_FILES!=='undefined' && ASSET_FILES){
   Object.keys(SPRITE_FILES).forEach(k=>{
     const src=SPRITE_FILES[k];
@@ -1296,7 +1306,13 @@ function requestMacarEquipmentArt(){
 }
 function worldArtReady(n){
   n=n||(G&&G.ch)||1;
-  const keys=WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1];
+  const t=G&&G.lvl&&G.lvl.tileset;
+  const extra=[];
+  if(t){
+    if(t.floor) extra.push(t.floor, t.floor+'_w1', t.floor+'_w2', t.floor+'_116', t.floor+'_66');
+    if(t.wall) extra.push(t.wall);
+  }
+  const keys=(WORLD_ART_KEYS[n]||WORLD_ART_KEYS[1]).concat(extra.filter(k=>SPRITE_FILES[k]));
   for(let i=0;i<keys.length;i++){
     const k=keys[i];
     /* A given-up optional image is done. The frame draws its fallback. */
@@ -3215,16 +3231,129 @@ function drawDeadBillboard(g,e,img,z){
   g.drawImage(img, sx, sy, sw, sh, dx, dy, W, H);
   return true;
 }
-function palFloorKey(pal){
+function palFloorKey(pal, L){
+  const named=L&&L.tileset&&L.tileset.floor;
+  if(named) return named;
   if(pal===PAL.fungi) return 'floor_fungi';
   if(pal===PAL.ruin) return 'floor_ruin';
   if(pal===PAL.hall) return 'floor_hall';
   return 'floor_mine';
 }
 function palWallKey(L){
+  const named=L&&L.tileset&&L.tileset.wall;
+  if(named) return named;
   // Chapter II is living rock. The start and the built halls are worked stone.
   if(L && L.n===2) return 'wall_cave';
   return 'wall_worked';
+}
+/* Stable 0..2 pick of base / _w1 / _w2. Level is part of the seed so two
+   floors that share a sheet do not repeat the same crack on the same tile. */
+function floorVariantIndex(level, x, y){
+  let n=Math.imul(level|0, 2246822519) ^ Math.imul(x|0, 374761393) ^ Math.imul(y|0, 668265263);
+  n=Math.imul(n ^ (n>>>13), 1274126177);
+  return ((n ^ (n>>>16))>>>0) % 3;
+}
+function floorLevelSeed(L){
+  return (L && (L.campaignLevel || L.n) || 0) | 0;
+}
+function floorVariantKey(baseKey, level, x, y){
+  const i=floorVariantIndex(level, x, y);
+  if(i===1) return baseKey+'_w1';
+  if(i===2) return baseKey+'_w2';
+  return baseKey;
+}
+/* Opaque diamond of a floor sheet. A variant is usable only when this box
+   matches the base sheet: same aspect, and the diamond reaches the bitmap
+   edges the same way. The 288-wide _w1/_w2 sheets do not. */
+function floorSheetBox(img){
+  if(!img||!img.width||!img.height) return null;
+  if(img.__floorBox) return img.__floorBox;
+  if(typeof document==='undefined') return null;
+  let frame, w, h;
+  try{
+    const c=document.createElement('canvas');
+    w=c.width=img.width; h=c.height=img.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(img,0,0);
+    frame=x.getImageData(0,0,w,h);
+  }catch(e){ return null; }
+  const d=frame.data;
+  let x0=w, y0=h, x1=0, y1=0, n=0;
+  for(let y=0;y<h;y++){
+    const row=y*w*4;
+    for(let i=0;i<w;i++){
+      if(d[row+i*4+3]<128) continue;
+      n++;
+      if(i<x0) x0=i;
+      if(i+1>x1) x1=i+1;
+      if(y<y0) y0=y;
+      if(y+1>y1) y1=y+1;
+    }
+  }
+  if(!n) return null;
+  const box={x0:x0,y0:y0,x1:x1,y1:y1,w:x1-x0,h:y1-y0};
+  img.__floorBox=box;
+  return box;
+}
+function floorDiamondMatches(baseImg, varImg){
+  const a=floorSheetBox(baseImg), b=floorSheetBox(varImg);
+  if(!a||!b||!baseImg.width||!baseImg.height||!varImg.width||!varImg.height) return false;
+  const aspectA=a.w/a.h, aspectB=b.w/b.h;
+  if(Math.abs(aspectA-aspectB)>0.06) return false;
+  const edge=function(box, img){
+    return {
+      l:box.x0/img.width,
+      r:(img.width-box.x1)/img.width,
+      t:box.y0/img.height,
+      b:(img.height-box.y1)/img.height
+    };
+  };
+  const ea=edge(a, baseImg), eb=edge(b, varImg);
+  return Math.abs(ea.l-eb.l)<0.04 && Math.abs(ea.r-eb.r)<0.04
+    && Math.abs(ea.t-eb.t)<0.05 && Math.abs(ea.b-eb.b)<0.05;
+}
+/* Size a sheet from its own pixel grid so the opaque diamond fills the
+   pack cell. A bitmap that already fills its frame stays on that cell. */
+function floorBlitBox(img, m, sx, sy){
+  const dw=Math.max(1,(m.w*sx)|0), dh=Math.max(1,(m.h*sy)|0);
+  const ox=m.ox*sx, oy=m.oy*sy;
+  const box=img&&floorSheetBox(img);
+  if(!box||!img.width||!img.height) return {w:dw,h:dh,ox:ox,oy:oy};
+  const destW=dw*(img.width/box.w);
+  const destH=dh*(img.height/box.h);
+  return {
+    w:destW,
+    h:destH,
+    ox:((box.x0+box.w*0.5)/img.width)*destW,
+    oy:((box.y0+box.h*0.5)/img.height)*destH
+  };
+}
+function floorPickKey(baseKey, level, x, y, vary){
+  if(!vary) return baseKey;
+  const variant=floorVariantKey(baseKey, level, x, y);
+  if(variant!==baseKey && sprReady(variant) && floorDiamondMatches(SPR[baseKey], SPR[variant])) return variant;
+  return baseKey;
+}
+/* Pre-sized diamonds: tile_floor_<name>_116.png at the laptop tile (TW 116)
+   and tile_floor_<name>_66.png at the phone tile (TW 66), and only when that
+   file actually loaded. A missing game-size sheet is not invented. */
+function floorNativeKey(key){
+  if(!key) return '';
+  if((TW|0)===116) return key+'_116';
+  if((TW|0)===66) return key+'_66';
+  return '';
+}
+function floorDrawSource(baseKey, level, x, y, vary){
+  const picked=floorPickKey(baseKey, level, x, y, vary);
+  const nativeKey=floorNativeKey(picked);
+  const native=nativeKey && sprReady(nativeKey) ? SPR[nativeKey] : null;
+  if(native && native.width===(TW|0)) return {img:native, native:true, key:nativeKey};
+  const baseNativeKey=picked!==baseKey ? floorNativeKey(baseKey) : '';
+  const baseNative=baseNativeKey && sprReady(baseNativeKey) ? SPR[baseNativeKey] : null;
+  if(baseNative && baseNative.width===(TW|0)) return {img:baseNative, native:true, key:baseNativeKey};
+  if(sprReady(picked)) return {img:SPR[picked], native:false, key:picked};
+  if(picked!==baseKey && sprReady(baseKey)) return {img:SPR[baseKey], native:false, key:baseKey};
+  return null;
 }
 
 /* Flare fantasycore HD isometric tileset (tile_size=192,96).
@@ -3302,22 +3431,48 @@ function tilesetPropMetric(k, L){
   if(k==='gate'||k==='bronzedoor'||k==='altar'||k==='throne') return pack.arch;
   return null;
 }
+function wallStem(L){
+  const key=palWallKey(L)||'wall_worked';
+  return key.indexOf('wall_')===0 ? key.slice(5) : key;
+}
 function wallFaceSprite(L, lit){
-  const cave=palWallKey(L)==='wall_cave';
-  if(cave){
+  const stem=wallStem(L);
+  if(stem==='cave'){
     return lit
       ? (SPR.wall_cave_face||SPR.wall_cave_face_shade)
       : (SPR.wall_cave_face_shade||SPR.wall_cave_face);
   }
-  return lit
-    ? (SPR.wall_face||SPR.wall_face_shade)
-    : (SPR.wall_face_shade||SPR.wall_face);
+  /* Chapter I worked stone keeps the painted face sheets. */
+  if(stem==='worked' || stem==='face'){
+    return lit
+      ? (SPR.wall_face||SPR.wall_face_shade)
+      : (SPR.wall_face_shade||SPR.wall_face);
+  }
+  const face=SPR['wall_'+stem+'_face'];
+  const shade=SPR['wall_'+stem+'_face_shade'];
+  if(lit) return (face&&face.width) ? face : ((shade&&shade.width) ? shade : null);
+  if(shade&&shade.width) return shade;
+  return (face&&face.width) ? face : null;
 }
 function useWallFaces(L){
-  const img=palWallKey(L)==='wall_cave'
-    ? (SPR.wall_cave_face||SPR.wall_cave_face_shade)
-    : (SPR.wall_face||SPR.wall_face_shade);
+  const stem=wallStem(L);
+  /* A named face such as wall_silk_face. Missing art falls through
+     makeWorkedFace into drawMasonryFace, not the Chapter I sheet. */
+  if(stem && stem!=='cave' && stem!=='worked' && stem!=='face') return true;
+  const img=wallFaceSprite(L,1)||wallFaceSprite(L,0);
   return !!(img&&img.width);
+}
+function ensureWallFaceFiles(L){
+  const stem=wallStem(L);
+  if(!stem || stem==='cave' || stem==='worked' || stem==='face') return;
+  ['face','face_shade'].forEach(tail=>{
+    const key='wall_'+stem+'_'+tail;
+    if(SPRITE_FILES[key] || sprReady(key)) return;
+    const file='assets/tiles/tile_'+key+'.png';
+    if(typeof ASSET_FILES!=='undefined' && ASSET_FILES && !ASSET_FILES[file]) return;
+    SPRITE_FILES[key]=file;
+    if(typeof loadSpriteKeyNow==='function' && !sprReady(key)) loadSpriteKeyNow(key);
+  });
 }
 function wallFaceH(L){
   const oy=tilesetPack(L||G.lvl).wall.oy;
@@ -3846,8 +4001,17 @@ function makeWorkedFace(L, lit, w, h){
   }
   return c;
 }
-function makeWorkedCap(w,h){
+/* Chapter I coping. A level palette may override with pal.wallTop[4]. */
+const WALL_CAP_BAKE=['#e2c59a','#b89468','#8a6848','#4a3424'];
+const WALL_CAP_FILL=['#e2c49a','#b08958','#7a5638','#3a2818'];
+function wallCapStops(pal, baked){
+  const top=pal&&pal.wallTop;
+  if(Array.isArray(top)&&top.length>=4) return top;
+  return baked?WALL_CAP_BAKE:WALL_CAP_FILL;
+}
+function makeWorkedCap(w,h,pal){
   w=Math.max(24,w|0); h=Math.max(24,h|0);
+  const stops=wallCapStops(pal, true);
   const c=document.createElement('canvas');
   c.width=w; c.height=h;
   const x=c.getContext('2d');
@@ -3860,10 +4024,10 @@ function makeWorkedCap(w,h){
     for(let col=-1;col<=cols;col++){
       const bx=col*bw+off+1.6, by=r*bh+1.6, rw=bw-3.2, rh=bh-3.2;
       const gr=x.createLinearGradient(bx,by,bx+rw,by+rh);
-      gr.addColorStop(0,'#e2c59a');
-      gr.addColorStop(0.28,'#b89468');
-      gr.addColorStop(0.62,'#8a6848');
-      gr.addColorStop(1,'#4a3424');
+      gr.addColorStop(0,stops[0]);
+      gr.addColorStop(0.28,stops[1]);
+      gr.addColorStop(0.62,stops[2]);
+      gr.addColorStop(1,stops[3]);
       x.fillStyle=gr; x.fillRect(bx,by,rw,rh);
       x.strokeStyle='rgba(255,236,210,0.32)'; x.lineWidth=1.2;
       x.strokeRect(bx+1,by+1,rw-2,rh-2);
@@ -3884,11 +4048,12 @@ function fillIsoCap(g, x0, y0, x1, y1, x2, y2, x3, y3, H, punch){
   g.moveTo(a.x, a.y-H); g.lineTo(b.x, b.y-H); g.lineTo(c.x, c.y-H); g.lineTo(d.x, d.y-H);
   g.closePath();
   if(punch){ g.fill(); return; }
+  const stops=wallCapStops(G.lvl&&G.lvl.pal, false);
   const gr=g.createLinearGradient(d.x, d.y-H, b.x, b.y-H);
-  gr.addColorStop(0,'#e2c49a');
-  gr.addColorStop(0.28,'#b08958');
-  gr.addColorStop(0.62,'#7a5638');
-  gr.addColorStop(1,'#3a2818');
+  gr.addColorStop(0,stops[0]);
+  gr.addColorStop(0.28,stops[1]);
+  gr.addColorStop(0.62,stops[2]);
+  gr.addColorStop(1,stops[3]);
   g.fillStyle=gr; g.fill();
   g.strokeStyle='rgba(22,14,8,0.55)'; g.lineWidth=1.25*ZOOM; g.stroke();
   g.strokeStyle='rgba(24,14,8,0.42)'; g.lineWidth=1.05*ZOOM;
@@ -3991,15 +4156,112 @@ function scaleBlit(img,w,h){
   x.drawImage(img,0,0,w,h);
   return c;
 }
+function thresholdAlpha(data, cutoff){
+  const cut=cutoff==null?128:cutoff;
+  for(let i=3;i<data.length;i+=4) data[i]=data[i]>=cut?255:0;
+  return data;
+}
+function applyFloorTint(c, tint){
+  if(!c||!tint) return c;
+  const w=c.width|0, h=c.height|0;
+  if(!w||!h) return c;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  const src=document.createElement('canvas');
+  src.width=w; src.height=h;
+  const sg=src.getContext('2d',{willReadFrequently:true});
+  sg.drawImage(c,0,0);
+  x.save();
+  x.globalCompositeOperation='multiply';
+  x.fillStyle=tint;
+  x.fillRect(0,0,w,h);
+  /* Multiply paints the tint into transparent corners. destination-in
+     puts the original alpha back so those corners stay clear. */
+  x.globalCompositeOperation='destination-in';
+  x.drawImage(src,0,0);
+  x.restore();
+  try{
+    const orig=sg.getImageData(0,0,w,h);
+    const out=x.getImageData(0,0,w,h);
+    const s=orig.data, d=out.data;
+    for(let i=0;i<d.length;i+=4){
+      d[i+3]=s[i+3];
+      if(!s[i+3]){ d[i]=0; d[i+1]=0; d[i+2]=0; }
+    }
+    x.putImageData(out,0,0);
+  }catch(e){}
+  return c;
+}
+/* Same pixels as TILEBLIT.floor, with a multiply tint. The canvas size does
+   not change, so the draw rect stays the main floor rect. */
+function tintedFloorBlit(img, tint){
+  if(!img||!img.width||!tint) return img;
+  const id='tint|'+(tint||'')+'|'+img.width+'x'+img.height;
+  img.__tintBlit=img.__tintBlit||{};
+  if(img.__tintBlit[id]) return img.__tintBlit[id];
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=true;
+  x.drawImage(img,0,0);
+  applyFloorTint(c, tint);
+  img.__tintBlit[id]=c;
+  return c;
+}
+/* A fungi variant, scaled the same way ensureTileBlit scales the base sheet.
+   No alpha cut and no destination resize. */
+function variantFloorBlit(img, m, sx, sy){
+  if(!img||!img.width) return null;
+  const w=Math.max(1,(m.w*sx)|0), h=Math.max(1,(m.h*sy)|0);
+  const id=w+'x'+h;
+  img.__sheetBlit=img.__sheetBlit||{};
+  if(img.__sheetBlit[id]) return img.__sheetBlit[id];
+  img.__sheetBlit[id]=scaleBlit(img, w, h);
+  return img.__sheetBlit[id];
+}
+/* Scaled 512 floors get a hard diamond. Game-size _116/_66 sheets skip this. */
+function hardFloor(img, w, h, tint){
+  if(!img||!img.width) return null;
+  const id=(w|0)+'x'+(h|0)+'|'+(tint||'');
+  img.__hardFloor=img.__hardFloor||{};
+  if(img.__hardFloor[id]) return img.__hardFloor[id];
+  const c=scaleBlit(img, w, h);
+  if(!c) return null;
+  try{
+    const x=c.getContext('2d',{willReadFrequently:true});
+    const frame=x.getImageData(0,0,c.width,c.height);
+    thresholdAlpha(frame.data, 128);
+    x.putImageData(frame,0,0);
+  }catch(e){}
+  if(tint) applyFloorTint(c, tint);
+  img.__hardFloor[id]=c;
+  return c;
+}
+function nativeFloor(img, tint){
+  if(!img||!tint) return img;
+  const id='native|'+(tint||'');
+  img.__hardFloor=img.__hardFloor||{};
+  if(img.__hardFloor[id]) return img.__hardFloor[id];
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=false;
+  x.drawImage(img,0,0);
+  applyFloorTint(c, tint);
+  img.__hardFloor[id]=c;
+  return c;
+}
 function ensureTileBlit(L){
-  const palKey=L?palFloorKey(L.pal):'floor_mine';
+  const palKey=L?palFloorKey(L.pal, L):'floor_mine';
   const wallKey=L?palWallKey(L):'wall_worked';
+  ensureWallFaceFiles(L);
   const floorSrc=SPR[palKey], wallSrc=SPR[wallKey];
   const srcL=wallFaceSprite(L,1), srcR=wallFaceSprite(L,0);
   const faceId=(srcL&&srcL.width||0)+':'+(srcR&&srcR.width||0);
   const pack=tilesetPack(L);
   const srcId=(floorSrc&&floorSrc.width||0)+'x'+(wallSrc&&wallSrc.width||0);
-  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+pack.wall.oy+'|'+faceId+'|'+srcId;
+  const tint=(L&&L.tileset&&L.tileset.tint)||'';
+  const capId=wallCapStops(L&&L.pal, true).join(',');
+  const k=TW+'|'+TH+'|'+palKey+'|'+wallKey+'|'+pack.wall.oy+'|'+faceId+'|'+srcId+'|'+tint+'|'+capId;
   if(TILEBLIT.key===k && TILEBLIT.floor && TILEBLIT.wall) return;
   /* Never lock a blit on wall_cave-as-worked or empty images. That first-frame
      fallback was the old-tile flash: generated / wrong sheet, then the real one. */
@@ -4013,7 +4275,7 @@ function ensureTileBlit(L){
   const floor=scaleBlit(floorSrc, Math.max(1,(pack.floor.w*sx)|0), Math.max(1,(pack.floor.h*sy)|0));
   const faceL=makeWorkedFace(L, 1, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
   const faceR=makeWorkedFace(L, 0, Math.max(160,(TW*4)|0), Math.max(220,(wallFaceH(L)*3)|0));
-  const cap=makeWorkedCap(Math.max(96,(TW*3)|0), Math.max(96,(TH*6)|0));
+  const cap=makeWorkedCap(Math.max(96,(TW*3)|0), Math.max(96,(TH*6)|0), L&&L.pal);
   const fadeL=fadeMasonryCanvas(faceL), fadeR=fadeMasonryCanvas(faceR);
   if(wall&&floor){ TILEBLIT.key=k; TILEBLIT.wall=wall; TILEBLIT.floor=floor; TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; TILEBLIT.pack=pack; }
   else { TILEBLIT.face=faceL; TILEBLIT.faceL=faceL; TILEBLIT.faceR=faceR; TILEBLIT.faceFadeL=fadeL; TILEBLIT.faceFadeR=fadeR; TILEBLIT.cap=cap; }
@@ -4523,11 +4785,37 @@ const PAL={
   mine :{fA:'#8a6d4e',fB:'#6f563d',rock:'#b59a72',wT:'#7a6244',wL:'#5a4632',wR:'#3e3124',
          crack:'#1c140e', amb:'#0a0b12', key:'#ffcf8a', dust:'#e8c08a', fogTop:'#07060c'},
   fungi:{fA:'#5a4e78',fB:'#4a4066',rock:'#7d6eae',wT:'#5c5084',wL:'#403862',wR:'#2c2648',
-         crack:'#160f28', amb:'#080614', key:'#c084ff', dust:'#c9a6ff', fogTop:'#060510'},
+         crack:'#160f28', amb:'#080614', key:'#c084ff', dust:'#c9a6ff', fogTop:'#060510',
+         wallTop:['#cbb6ea','#7d68a8','#4a3c72','#241830']},
   ruin :{fA:'#7a7064',fB:'#655c52',rock:'#9a9084',wT:'#6e6254',wL:'#4e453c',wR:'#3a342c',
          crack:'#1c1814', amb:'#0c0a0a', key:'#ff6a4c', dust:'#f0a184', fogTop:'#090706'},
   hall :{fA:'#8a6254',fB:'#734e42',rock:'#b0846e',wT:'#825848',wL:'#5e4034',wR:'#442e26',
          crack:'#201410', amb:'#10080c', key:'#ffd07a', dust:'#ffc189', fogTop:'#0c0606'},
+  /* Interim campaign looks. Chapter I stays on mine, with no wallTop override. */
+  warren:{fA:'#7d8a58',fB:'#5e6a40',rock:'#a3b07a',wT:'#6e7a4c',wL:'#4e5834',wR:'#343c22',
+          crack:'#161c0e', amb:'#0a0e08', key:'#d6e27a', dust:'#d2e0a0', fogTop:'#070a06',
+          wallTop:['#d7d2a4','#8e9460','#5c6240','#2a3018']},
+  hold:{fA:'#6a7a88',fB:'#526270',rock:'#8aa0b4',wT:'#5c6c7c',wL:'#425060',wR:'#2e3a46',
+        crack:'#121820', amb:'#080c12', key:'#9ec4e0', dust:'#b7c8d6', fogTop:'#06080c',
+        wallTop:['#c5d0da','#7e92a4','#4e6274','#24303c']},
+  drow:{fA:'#3a3050',fB:'#2a223c',rock:'#6a5a88',wT:'#4a4068',wL:'#322848',wR:'#221830',
+        crack:'#100818', amb:'#07040e', key:'#c080ff', dust:'#b89ad4', fogTop:'#05030a',
+        wallTop:['#b7a6d8','#6e5a90','#3e3058','#1c1428']},
+  ember:{fA:'#8a4030',fB:'#6e3024',rock:'#c06040',wT:'#7a3828',wL:'#582418',wR:'#3a160e',
+         crack:'#1a0a06', amb:'#120806', key:'#ffb060', dust:'#f0a070', fogTop:'#100604',
+         wallTop:['#f0c090','#c07040','#7a3818','#3a1808']},
+  geode:{fA:'#4a6870',fB:'#385058',rock:'#7aa0a8',wT:'#4a7078',wL:'#345058',wR:'#243840',
+         crack:'#101820', amb:'#061014', key:'#80e0e8', dust:'#a8d0d4', fogTop:'#040c10',
+         wallTop:['#d0e8ea','#78a8b0','#3c6870','#183038']},
+  eye:{fA:'#6a5a48',fB:'#524438',rock:'#a09078',wT:'#6a5844',wL:'#4a3c2c',wR:'#342818',
+       crack:'#1a140c', amb:'#100c08', key:'#ffd090', dust:'#e8c8a0', fogTop:'#0c0806',
+       wallTop:['#f0e0c0','#b09060','#6a5030','#2c2010']},
+  hoard:{fA:'#8a6840',fB:'#6e5030',rock:'#d0a060',wT:'#8a6038',wL:'#644428',wR:'#442c18',
+         crack:'#201408', amb:'#140c06', key:'#ffd060', dust:'#f0c080', fogTop:'#100804',
+         wallTop:['#f8e0a0','#c89848','#7a5820','#3a280c']},
+  ritual:{fA:'#5a4848',fB:'#463838',rock:'#8a7070',wT:'#5a4444',wL:'#403030',wR:'#2c2020',
+          crack:'#180e0e', amb:'#100808', key:'#ff9090', dust:'#e0b0b0', fogTop:'#0c0606',
+          wallTop:['#e8d0d0','#a07878','#604040','#301818']}
 };
 
 /* ---------------------------- grid helpers ---------------------------- */
@@ -7098,6 +7386,22 @@ function tickFloorTravel(){
   if(door&&dist(p,door)<1.8&&!L.flags.floorRubyActivated){interact('Activate the ruby door',openFloorRuby);}
   else if(lever&&dist(p,lever)<1.8)interact('Use the floor lever',openFloorLever);
 }
+/* Campaign floors carry their own sheet, palette, subtitle, and landmark.
+   Chapter I never has a campaign tileset, so its mine floor and tan coping stay. */
+function bindCampaignLook(){
+  if(typeof CampaignRuntime==='undefined'||!CampaignRuntime.look||!G.lvl) return false;
+  const look=CampaignRuntime.look(G);
+  if(!look) return false;
+  const L=G.lvl;
+  if(look.title) L.title=look.title;
+  if(look.sub) L.sub=look.sub;
+  L.tileset=look.tileset||null;
+  L.landmarkId=look.landmarkId||'';
+  L.campaignLevel=look.level;
+  const palKey=look.tileset&&look.tileset.pal;
+  if(palKey&&PAL[palKey]) L.pal=PAL[palKey];
+  return true;
+}
 function startChapter(n){
   if(G.lvl&&G.lvl.n!==n&&!G._loadSnap&&player()){G.floorWorlds=G.floorWorlds||{};G.floorWorlds[G.lvl.n]=capturePlaySave();}
   const keep=!!G._keepProgress;
@@ -7119,6 +7423,7 @@ function startChapter(n){
   if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
   G._forceSeeds=null;
+  bindCampaignLook();
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
   ensurePartySheets();
@@ -7196,6 +7501,7 @@ function startChapter(n){
   ensureChapterDescents();
   ensureFloorTravelProps();
   if(typeof CampaignRuntime!=='undefined'&&CampaignRuntime.install) CampaignRuntime.install(G,{scale:ADD_SCALE,fresh:!(keep&&loadSnap),foe:FOE,ally:ALLY,rollExpr:rollExpr});
+  if(bindCampaignLook()){ bakeTextures(G.lvl.pal); TILEBLIT.key=''; }
   tidyFloorItems();
   if(n===5&&G.lvl.flags.done){G.cleared[5]=1;G.scene='win';}
   if(G.lvl&&G.lvl.flags&&G.lvl.flags.campaign) say((G.lvl.title||'The floor')+'.','#c9b895');
@@ -16313,11 +16619,31 @@ function drawWorld(g,L){
       g.fillStyle='#000';g.beginPath();g.moveTo(s.x,s.y-TH/2);g.lineTo(s.x+TW/2,s.y);g.lineTo(s.x,s.y+TH/2);g.lineTo(s.x-TW/2,s.y);g.closePath();g.fill();return;
     }
     const m=pack.floor;
-    const key=palFloorKey(pal);
+    const key=palFloorKey(pal, L);
     const variants=[SPR[key], SPR[key+'_w1'], SPR[key+'_w2'], SPR[key+'_atk']].filter(Boolean);
-    const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
-    if(fl){
-      g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    /* No campaign tileset: the baked floor, and the hashed sheet only when
+       that blit is missing. Chapter I stays on this path. */
+    if(!(L&&L.tileset)){
+      const fl=floorBlit||(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
+      if(fl){
+        g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+      }
+      if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
+      return;
+    }
+    const nativeKey=floorNativeKey(key);
+    if(nativeKey && sprReady(nativeKey) && SPR[nativeKey] && SPR[nativeKey].width===(TW|0)){
+      const img=L.tileset.tint?nativeFloor(SPR[nativeKey], L.tileset.tint):SPR[nativeKey];
+      g.drawImage(img, s.x-m.ox*sx, s.y-m.oy*sy, img.width, img.height);
+    } else if(L.tileset.tint){
+      /* Interim color on the base sheet: main's TILEBLIT.floor rect, tint only. */
+      const fl=floorBlit?tintedFloorBlit(floorBlit, L.tileset.tint):(variants.length?variants[(h2(x,y)*variants.length)|0]:null);
+      if(fl) g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
+    } else {
+      /* Fungi, and any untinted sheet: main's hash, drawn into the same rect. */
+      const pick=variants.length?variants[(h2(x,y)*variants.length)|0]:null;
+      const fl=pick?variantFloorBlit(pick, m, sx, sy):floorBlit;
+      if(fl) g.drawImage(fl, s.x-m.ox*sx, s.y-m.oy*sy, m.w*sx, m.h*sy);
     }
     if(isTeethFloor(L,x,y)) drawTeethTile(g,x,y);
   }

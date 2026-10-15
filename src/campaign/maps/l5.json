@@ -8,6 +8,20 @@
     {
       "id": "L5",
       "name": "The Drow Deep",
+      "sub": "The Drow Deep",
+      "tileset": {
+        "floor": "floor_drow",
+        "wall": "wall_drow",
+        "pal": "drow",
+        "interim": true,
+        "interimDue": "2026-12-31"
+      },
+      "landmarkId": "drow_matron_seat",
+      "landmark": {
+        "id": "drow_matron_seat",
+        "placed": false,
+        "kind": "matron-seat"
+      },
       "level": 5,
       "wired": false,
       "stairsOpenOn": "bossKill",

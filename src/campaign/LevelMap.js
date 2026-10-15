@@ -175,6 +175,36 @@
       errors.push(id + ' guardian count must be 1');
     }
     if (!level.exit || level.exit.ref !== 'campaign') errors.push(id + ' campaign exit.ref must be campaign');
+    errors = errors.concat(validateTileset(level));
+    return errors;
+  }
+
+  function validateTileset(level) {
+    var errors = [];
+    var id = level.id;
+    var tileset = level.tileset;
+    if (!tileset || typeof tileset !== 'object') {
+      errors.push(id + ' tileset needs floor, wall, and pal');
+      return errors;
+    }
+    ['floor', 'wall', 'pal'].forEach(function (key) {
+      if (typeof tileset[key] !== 'string' || !tileset[key]) {
+        errors.push(id + ' tileset.' + key + ' must be a string');
+      }
+    });
+    if (tileset.tint != null && !/^#[0-9a-fA-F]{6}$/.test(tileset.tint)) {
+      errors.push(id + ' tileset.tint must be a hex color');
+    }
+    if (tileset.interim != null && typeof tileset.interim !== 'boolean') {
+      errors.push(id + ' tileset.interim must be boolean');
+    }
+    if (tileset.interim === true && (typeof tileset.interimDue !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tileset.interimDue))) {
+      errors.push(id + ' interim tileset needs interimDue as YYYY-MM-DD');
+    }
+    if (typeof level.landmarkId !== 'string' || !level.landmarkId) {
+      errors.push(id + ' landmarkId must be a string');
+    }
+    if (typeof level.sub !== 'string' || !level.sub) errors.push(id + ' sub must be a string');
     return errors;
   }
 

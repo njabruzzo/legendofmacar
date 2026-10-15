@@ -8,6 +8,20 @@
     {
       "id": "L9",
       "name": "The Red Dragon and the Holy Anvil",
+      "sub": "The Red Dragon",
+      "tileset": {
+        "floor": "floor_hoard",
+        "wall": "wall_hoard",
+        "pal": "hoard",
+        "interim": true,
+        "interimDue": "2026-12-31"
+      },
+      "landmarkId": "dragon_hoard",
+      "landmark": {
+        "id": "dragon_hoard",
+        "placed": false,
+        "kind": "hoard"
+      },
       "level": 9,
       "wired": false,
       "stairsOpenOn": "bossKill",

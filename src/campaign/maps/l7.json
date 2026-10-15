@@ -8,6 +8,20 @@
     {
       "id": "L7",
       "name": "The Deep Stone",
+      "sub": "The Deep Stone",
+      "tileset": {
+        "floor": "floor_geode",
+        "wall": "wall_bore",
+        "pal": "geode",
+        "interim": true,
+        "interimDue": "2026-12-31"
+      },
+      "landmarkId": "geode_heart",
+      "landmark": {
+        "id": "geode_heart",
+        "placed": false,
+        "kind": "geode"
+      },
       "level": 7,
       "wired": false,
       "stairsOpenOn": "bossKill",
