@@ -94,6 +94,24 @@
     return level;
   }
 
+  /* Per-level sheet, palette, subtitle, and landmark. Not a full install.
+     Level 1 and an old chapter save (campaignLevel < 2) stay on chapter defaults. */
+  function look(G) {
+    if (!G || !G.lvl) return null;
+    var level = (G.campaignLevel || 0) | 0;
+    if (level < 2 || level > 10) return null;
+    if (shellChapter(level) !== (G.lvl.n | 0)) return null;
+    var map = mapRow(level);
+    if (!map) return null;
+    return {
+      level: level,
+      title: map.name || '',
+      sub: map.sub || '',
+      tileset: map.tileset || null,
+      landmarkId: map.landmarkId || ''
+    };
+  }
+
   function shouldInstall(G) {
     if (!G || !G.lvl) return false;
     var level = G.campaignLevel || 1;
@@ -1781,6 +1799,7 @@
     load: load,
     nextLevel: nextLevel,
     shellChapter: shellChapter,
+    look: look,
     shouldInstall: shouldInstall,
     blocksWarren: blocksWarren,
     noteCleared: noteCleared,

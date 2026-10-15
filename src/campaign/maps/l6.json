@@ -8,6 +8,19 @@
     {
       "id": "L6",
       "name": "The Burning Halls",
+      "sub": "The Burning Halls",
+      "tileset": {
+        "floor": "floor_ember",
+        "wall": "wall_ember",
+        "pal": "ember",
+        "interim": true
+      },
+      "landmarkId": "ember_seat",
+      "landmark": {
+        "id": "ember_seat",
+        "placed": false,
+        "kind": "ember-seat"
+      },
       "level": 6,
       "wired": false,
       "stairsOpenOn": "bossKill",

@@ -8,6 +8,19 @@
     {
       "id": "L3",
       "name": "The Webbed Deep and the Spider Queen",
+      "sub": "Silk and the Spider Queen",
+      "tileset": {
+        "floor": "floor_fungi",
+        "wall": "wall_cave",
+        "pal": "fungi",
+        "interim": true
+      },
+      "landmarkId": "queen_web",
+      "landmark": {
+        "id": "queen_web",
+        "placed": false,
+        "kind": "web"
+      },
       "level": 3,
       "wired": false,
       "stairsOpenOn": "bossKill",

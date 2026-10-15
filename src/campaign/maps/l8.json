@@ -8,6 +8,19 @@
     {
       "id": "L8",
       "name": "The Eye Tyrant and the Holy Hammer",
+      "sub": "The Eye Tyrant",
+      "tileset": {
+        "floor": "floor_eye",
+        "wall": "wall_eye",
+        "pal": "eye",
+        "interim": true
+      },
+      "landmarkId": "beholder_eye",
+      "landmark": {
+        "id": "beholder_eye",
+        "placed": false,
+        "kind": "eye"
+      },
       "level": 8,
       "wired": false,
       "stairsOpenOn": "bossKill",

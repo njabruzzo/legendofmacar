@@ -8,6 +8,19 @@
     {
       "id": "L10",
       "name": "The Undying King and the Ritual",
+      "sub": "The Undying King",
+      "tileset": {
+        "floor": "floor_ritual",
+        "wall": "wall_ritual",
+        "pal": "ritual",
+        "interim": true
+      },
+      "landmarkId": "ritual_circle",
+      "landmark": {
+        "id": "ritual_circle",
+        "placed": false,
+        "kind": "ritual"
+      },
       "level": 10,
       "wired": false,
       "stairsOpenOn": "bossKill",

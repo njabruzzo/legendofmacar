@@ -8,6 +8,19 @@
     {
       "id": "L1",
       "name": "The Rubble and the Ruby",
+      "sub": "The Rubble and the Ruby",
+      "tileset": {
+        "floor": "floor_mine",
+        "wall": "wall_worked",
+        "pal": "mine",
+        "interim": false
+      },
+      "landmarkId": "dwarf_face",
+      "landmark": {
+        "id": "dwarf_face",
+        "placed": true,
+        "kind": "dwarfface"
+      },
       "rubyDoor": { "placement": "unbuilt", "x": null, "y": null, "prop": "rubydoor" },
       "guardian": { "placement": "unbuilt", "key": "thinOne", "tier": 1, "count": 6, "bossFlagOnIndividual": false },
       "lever": { "placement": "unbuilt", "x": null, "y": null },
@@ -23,6 +36,20 @@
     {
       "id": "L2",
       "name": "Noz and the Goblin King",
+      "sub": "The Goblin Warren",
+      "tileset": {
+        "floor": "floor_mine",
+        "wall": "wall_cave",
+        "pal": "warren",
+        "tint": "#b7c48a",
+        "interim": true
+      },
+      "landmarkId": "goblin_throne",
+      "landmark": {
+        "id": "goblin_throne",
+        "placed": true,
+        "kind": "throne"
+      },
       "level": 2,
       "wired": false,
       "size": {
@@ -1107,6 +1134,19 @@
     {
       "id": "L3",
       "name": "The Webbed Deep and the Spider Queen",
+      "sub": "Silk and the Spider Queen",
+      "tileset": {
+        "floor": "floor_fungi",
+        "wall": "wall_cave",
+        "pal": "fungi",
+        "interim": true
+      },
+      "landmarkId": "queen_web",
+      "landmark": {
+        "id": "queen_web",
+        "placed": false,
+        "kind": "web"
+      },
       "level": 3,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -1717,6 +1757,20 @@
     {
       "id": "L4",
       "name": "Orc Hold and the Ogre Cave",
+      "sub": "The Ogre Cave",
+      "tileset": {
+        "floor": "floor_ruin",
+        "wall": "wall_worked",
+        "pal": "hold",
+        "tint": "#8aa0b8",
+        "interim": true
+      },
+      "landmarkId": "ogre_cave",
+      "landmark": {
+        "id": "ogre_cave",
+        "placed": false,
+        "kind": "ogre-cave"
+      },
       "level": 4,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -2455,6 +2509,19 @@
     {
       "id": "L5",
       "name": "The Drow Deep",
+      "sub": "The Drow Deep",
+      "tileset": {
+        "floor": "floor_drow",
+        "wall": "wall_drow",
+        "pal": "drow",
+        "interim": true
+      },
+      "landmarkId": "drow_matron_seat",
+      "landmark": {
+        "id": "drow_matron_seat",
+        "placed": false,
+        "kind": "matron-seat"
+      },
       "level": 5,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -2933,6 +3000,19 @@
     {
       "id": "L6",
       "name": "The Burning Halls",
+      "sub": "The Burning Halls",
+      "tileset": {
+        "floor": "floor_ember",
+        "wall": "wall_ember",
+        "pal": "ember",
+        "interim": true
+      },
+      "landmarkId": "ember_seat",
+      "landmark": {
+        "id": "ember_seat",
+        "placed": false,
+        "kind": "ember-seat"
+      },
       "level": 6,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -3479,6 +3559,19 @@
     {
       "id": "L7",
       "name": "The Deep Stone",
+      "sub": "The Deep Stone",
+      "tileset": {
+        "floor": "floor_geode",
+        "wall": "wall_bore",
+        "pal": "geode",
+        "interim": true
+      },
+      "landmarkId": "geode_heart",
+      "landmark": {
+        "id": "geode_heart",
+        "placed": false,
+        "kind": "geode"
+      },
       "level": 7,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -3959,6 +4052,19 @@
     {
       "id": "L8",
       "name": "The Eye Tyrant and the Holy Hammer",
+      "sub": "The Eye Tyrant",
+      "tileset": {
+        "floor": "floor_eye",
+        "wall": "wall_eye",
+        "pal": "eye",
+        "interim": true
+      },
+      "landmarkId": "beholder_eye",
+      "landmark": {
+        "id": "beholder_eye",
+        "placed": false,
+        "kind": "eye"
+      },
       "level": 8,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -4356,6 +4462,19 @@
     {
       "id": "L9",
       "name": "The Red Dragon and the Holy Anvil",
+      "sub": "The Red Dragon",
+      "tileset": {
+        "floor": "floor_hoard",
+        "wall": "wall_hoard",
+        "pal": "hoard",
+        "interim": true
+      },
+      "landmarkId": "dragon_hoard",
+      "landmark": {
+        "id": "dragon_hoard",
+        "placed": false,
+        "kind": "hoard"
+      },
       "level": 9,
       "wired": false,
       "stairsOpenOn": "bossKill",
@@ -4722,6 +4841,19 @@
     {
       "id": "L10",
       "name": "The Undying King and the Ritual",
+      "sub": "The Undying King",
+      "tileset": {
+        "floor": "floor_ritual",
+        "wall": "wall_ritual",
+        "pal": "ritual",
+        "interim": true
+      },
+      "landmarkId": "ritual_circle",
+      "landmark": {
+        "id": "ritual_circle",
+        "placed": false,
+        "kind": "ritual"
+      },
       "level": 10,
       "wired": false,
       "stairsOpenOn": "bossKill",
