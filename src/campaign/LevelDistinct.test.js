@@ -46,9 +46,11 @@ const KNOWN_FAILS = [
   ['L10', 'landmark-unplaced'],
   ['L10', 'prop-kinds'],
   ['L2', 'legacy-shell'],
+  ['L2', 'tint-only-interim', '2026-12-31'],
   ['L3', 'legacy-shell'],
   ['L4', 'legacy-shell'],
   ['L4', 'landmark-unplaced'],
+  ['L4', 'tint-only-interim', '2026-12-31'],
   ['L5', 'legacy-shell'],
   ['L5', 'unresolved-art'],
   ['L5', 'landmark-unplaced'],
@@ -432,9 +434,9 @@ function evaluate(book) {
     if (n >= 2 && !roomsOf(row).length) note(id, 'no-rooms', 'own map has no rooms');
 
     const shell = world.shell;
-    /* Legacy shells 2, 4, and 5 are not a campaign level's own floor, even
-       when the shell number equals the level number. */
-    if (n >= 2 && (shell === 2 || shell === 4 || shell === 5)) {
+    /* Every legacy chapter shell, 1 through 5. A level whose shell number
+       is its own number still fails, including a guest on shell 3. */
+    if (legacyHost(n, shell)) {
       note(id, 'legacy-shell', 'level ' + n + ' is on legacy shell ' + shell);
     }
 
@@ -444,6 +446,10 @@ function evaluate(book) {
       console.warn('INTERIM ' + id + ' look is due ' + (due || '(missing)'));
       if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) note(id, 'interim-due', 'interim look has no due date');
       else if (due < todayStamp()) note(id, 'interim-overdue', 'interim look is past ' + due);
+    }
+    if (t.tint && t.interim === true) {
+      const due = t.interimDue || '';
+      note(id, 'tint-only-interim', 'tint-only interim due ' + (due || '(missing)'));
     }
     ['floor', 'wall'].forEach(function (part) {
       const key = t[part];
@@ -488,7 +494,8 @@ function evaluate(book) {
       const samePal = A.pal && A.pal === B.pal;
       if (sameFloor && sameWall && samePal) {
         if (A.tint !== B.tint) {
-          console.warn('INTERIM ' + pairKey(a.id, b.id) + ' tileset differs only by tint');
+          const due = (a.tileset && a.tileset.interimDue) || (b.tileset && b.tileset.interimDue) || '';
+          notePair(a.id, b.id, 'tint-only-interim', 'tileset ' + [A.floor, A.wall, A.pal].join('|') + ' differs only by tint' + (due ? ' due ' + due : ''));
         } else {
           notePair(a.id, b.id, 'tileset', 'tileset ' + [A.floor, A.wall, A.pal].join('|') + ' is shared');
         }
@@ -573,7 +580,14 @@ function checkStale(report) {
     seen[stamp] = 1;
     const got = gotReasons(report, subject);
     if (!got[reason]) assert(false, subject + ' no longer fails ' + reason + ' — remove the stale entry');
+    if (row[2] && String(got[reason]).indexOf(row[2]) < 0) {
+      assert(false, subject + ' ' + reason + ' does not carry due date ' + row[2]);
+    }
   });
+}
+
+function legacyHost(n, shell) {
+  return n >= 2 && shell >= 1 && shell <= 5;
 }
 
 for (let n = 2; n <= 10; n++) levelModule(n);
@@ -629,11 +643,12 @@ function cloneBook(book) {
   return JSON.parse(JSON.stringify(book));
 }
 
-function expectGateFail(book, label) {
+function expectGateFail(book, label, match) {
   const baseline = {};
   unexempted(report).forEach(function (msg) { baseline[msg] = 1; });
   const fresh = unexempted(evaluate(book)).filter(function (msg) { return !baseline[msg]; });
   assert(fresh.length > 0, label);
+  if (match) assert(fresh.some(function (msg) { return match.test(msg); }), label);
   fresh.slice(0, 6).forEach(function (msg) { console.log('  mutation ' + msg); });
 }
 
@@ -665,27 +680,17 @@ const palDst = copiedPal.levels.filter(function (row) { return row.id === 'L4'; 
 palDst.tileset.pal = palSrc.tileset.pal;
 expectGateFail(copiedPal, 'copying another level palette fails the gate');
 
-const tintOnly = cloneBook(loaded.book);
-const tintA = tintOnly.levels.filter(function (row) { return row.id === 'L6'; })[0];
-const tintB = tintOnly.levels.filter(function (row) { return row.id === 'L7'; })[0];
-tintA.tileset.floor = tintB.tileset.floor;
-tintA.tileset.wall = tintB.tileset.wall;
-tintA.tileset.pal = tintB.tileset.pal;
-tintA.tileset.tint = '#e8e4d4';
-tintB.tileset.tint = '';
-const warned = [];
-const warn = console.warn;
-console.warn = function () {
-  warned.push(Array.prototype.join.call(arguments, ' '));
-  warn.apply(console, arguments);
-};
-const tintReport = evaluate(tintOnly);
-console.warn = warn;
-const tintFresh = unexempted(tintReport).filter(function (msg) {
-  return /tileset |palette /.test(msg);
-});
-assert(warned.some(function (line) { return /differs only by tint/.test(line); }), 'a tint-only tileset difference warns');
-assert(tintFresh.length === 0, 'a tint-only difference does not fail tileset or palette');
+const tintCopy = cloneBook(loaded.book);
+const tintSrc = tintCopy.levels.filter(function (row) { return row.id === 'L5'; })[0];
+const tintDst = tintCopy.levels.filter(function (row) { return row.id === 'L6'; })[0];
+tintDst.tileset = JSON.parse(JSON.stringify(tintSrc.tileset));
+tintDst.tileset.tint = '#d5dee8';
+expectGateFail(tintCopy, 'an L6 copy of L5\'s tileset with a different tint fails', /differs only by tint/);
+
+assert(legacyHost(3, 3), 'L3 on legacy shell 3 fails the shell rule');
+assert(legacyHost(2, 1) && legacyHost(4, 4) && legacyHost(5, 5), 'legacy shells 1 through 5 all fail');
+assert(!legacyHost(1, 1), 'chapter I on its own shell is not a campaign guest');
+assert(!legacyHost(8, 8), 'a shell past chapter V is not legacy');
 
 const copiedArt = cloneBook(loaded.book);
 const artSrc = copiedArt.levels.filter(function (row) { return row.id === 'L2'; })[0];

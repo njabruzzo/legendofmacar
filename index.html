@@ -4163,12 +4163,32 @@ function thresholdAlpha(data, cutoff){
 }
 function applyFloorTint(c, tint){
   if(!c||!tint) return c;
-  const x=c.getContext('2d');
+  const w=c.width|0, h=c.height|0;
+  if(!w||!h) return c;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  const src=document.createElement('canvas');
+  src.width=w; src.height=h;
+  const sg=src.getContext('2d',{willReadFrequently:true});
+  sg.drawImage(c,0,0);
   x.save();
   x.globalCompositeOperation='multiply';
   x.fillStyle=tint;
-  x.fillRect(0,0,c.width,c.height);
+  x.fillRect(0,0,w,h);
+  /* Multiply paints the tint into transparent corners. destination-in
+     puts the original alpha back so those corners stay clear. */
+  x.globalCompositeOperation='destination-in';
+  x.drawImage(src,0,0);
   x.restore();
+  try{
+    const orig=sg.getImageData(0,0,w,h);
+    const out=x.getImageData(0,0,w,h);
+    const s=orig.data, d=out.data;
+    for(let i=0;i<d.length;i+=4){
+      d[i+3]=s[i+3];
+      if(!s[i+3]){ d[i]=0; d[i+1]=0; d[i+2]=0; }
+    }
+    x.putImageData(out,0,0);
+  }catch(e){}
   return c;
 }
 /* Same pixels as TILEBLIT.floor, with a multiply tint. The canvas size does
