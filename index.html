@@ -81,8 +81,8 @@
 <script src="src/loot/LoreClues.js"></script>
 <script src="src/loot/FloorItemPlacement.js?v=1"></script>
 <script src="src/ui/MajorTalk.js"></script>
-<script src="src/assets/asset-manifest.js?v=9938405cb0cb"></script>
-<script src="src/campaign/CampaignBoot.js?v=133"></script>
+<script src="src/assets/asset-manifest.js?v=607132a92726"></script>
+<script src="src/campaign/CampaignBoot.js?v=134"></script>
 <script>
 "use strict";
 /* ==========================================================================
@@ -720,7 +720,7 @@ const FONT_QUOTE='"Cormorant Garamond",Palatino,Georgia,serif';
 
 /* ---------------------------- painted sprites (Baldur's Gate isometric) ---------------------------- */
 const SPR={};
-const ASSET_VER='133';
+const ASSET_VER='134';
 let SPLASH_STATE='loading';
 function assetUrl(src){
   const u=src+(src.indexOf('?')>=0?'&':'?')+'v='+ASSET_VER;
@@ -1068,6 +1068,46 @@ SPRITE_FILES.demon_dwarfface_vault='assets/props/prop_demon_dwarfface_vault.png'
 SPRITE_FILES.hourglass='assets/props/prop_hourglass.png';
 SPRITE_FILES.hourglass_half='assets/props/prop_hourglass_half.png';
 SPRITE_FILES.hourglass_empty='assets/props/prop_hourglass_empty.png';
+/* Nick Good: L3 web kit v3c. After the walk derivation so these sheets
+   do not grow _atk frames. Cage paint v2c is not registered. */
+SPRITE_FILES.web_corner_a_R='assets/props/l3/web_corner_a_R.png';
+SPRITE_FILES.web_corner_a_L='assets/props/l3/web_corner_a_L.png';
+SPRITE_FILES.web_corner_b_R='assets/props/l3/web_corner_b_R.png';
+SPRITE_FILES.web_corner_b_L='assets/props/l3/web_corner_b_L.png';
+SPRITE_FILES.web_drape_a_N='assets/props/l3/web_drape_a_N.png';
+SPRITE_FILES.web_drape_a_W='assets/props/l3/web_drape_a_W.png';
+SPRITE_FILES.web_drape_b_N='assets/props/l3/web_drape_b_N.png';
+SPRITE_FILES.web_drape_b_W='assets/props/l3/web_drape_b_W.png';
+SPRITE_FILES.web_over_a_N='assets/props/l3/web_over_a_N.png';
+SPRITE_FILES.web_over_a_W='assets/props/l3/web_over_a_W.png';
+SPRITE_FILES.web_over_b_N='assets/props/l3/web_over_b_N.png';
+SPRITE_FILES.web_over_b_W='assets/props/l3/web_over_b_W.png';
+SPRITE_FILES.web_bridge_a_N='assets/props/l3/web_bridge_a_N.png';
+SPRITE_FILES.web_bridge_a_W='assets/props/l3/web_bridge_a_W.png';
+SPRITE_FILES.web_sheet_corner='assets/props/l3/web_sheet_corner.png';
+SPRITE_FILES.web_sheet_corner_b='assets/props/l3/web_sheet_corner_b.png';
+SPRITE_FILES.web_sheet_high_N='assets/props/l3/web_sheet_high_N.png';
+SPRITE_FILES.web_sheet_high_W='assets/props/l3/web_sheet_high_W.png';
+SPRITE_FILES.l3_queen_web='assets/props/l3/l3_queen_web.png';
+SPRITE_FILES.web_sheet_span_a='assets/props/l3/web_sheet_span_a.png';
+SPRITE_FILES.web_sheet_span_b='assets/props/l3/web_sheet_span_b.png';
+SPRITE_FILES.web_tangle_a='assets/props/l3/web_tangle_a.png';
+SPRITE_FILES.web_tangle_b='assets/props/l3/web_tangle_b.png';
+SPRITE_FILES.web_tangle_c='assets/props/l3/web_tangle_c.png';
+SPRITE_FILES.web_tangle_d='assets/props/l3/web_tangle_d.png';
+SPRITE_FILES.web_floor_corner_back='assets/props/l3/web_floor_corner_back.png';
+SPRITE_FILES.web_floor_base_a_N='assets/props/l3/web_floor_base_a_N.png';
+SPRITE_FILES.web_floor_base_a_W='assets/props/l3/web_floor_base_a_W.png';
+SPRITE_FILES.web_floor_base_b_N='assets/props/l3/web_floor_base_b_N.png';
+SPRITE_FILES.web_floor_base_b_W='assets/props/l3/web_floor_base_b_W.png';
+SPRITE_FILES.web_floor_corner_S='assets/props/l3/web_floor_corner_S.png';
+SPRITE_FILES.web_floor_corner_E='assets/props/l3/web_floor_corner_E.png';
+SPRITE_FILES.web_floor_corner_W='assets/props/l3/web_floor_corner_W.png';
+SPRITE_FILES.web_cage_base_tangle='assets/props/l3/web_cage_base_tangle.png';
+SPRITE_FILES.web_cocoon_hang='assets/props/l3/web_cocoon_hang.png';
+SPRITE_FILES.web_cocoon_lying='assets/props/l3/web_cocoon_lying.png';
+SPRITE_FILES.web_cocoon_lying_b='assets/props/l3/web_cocoon_lying_b.png';
+SPRITE_FILES.web_cocoon_hang_b='assets/props/l3/web_cocoon_hang_b.png';
 /* Title-law Macar: maul idle/w1/w2/atk + Shadow Cleaver carry/atk
    + Limner SIGNED crossbow carry/atk. Drop helmeted combat / sleep /
    title / front-w3 leftovers. Compass walk sheets are registered after
@@ -7241,6 +7281,7 @@ function startChapter(n){
   if(loadSnap&&loadSnap.play) G._forceSeeds={warrenSeed:loadSnap.play.warrenSeed, dressSeed:loadSnap.play.dressSeed};
   G.lvl=makeChapter(n);
   if(typeof preloadChapelDemonFace==='function') preloadChapelDemonFace();
+  if(n===30 && typeof preloadL3Webs==='function') preloadL3Webs();
   G._forceSeeds=null;
   bakeTextures(G.lvl.pal);
   const sp=G.lvl.spawn;
@@ -16432,6 +16473,7 @@ function render(){
       g.globalAlpha=1; g.globalCompositeOperation='source-over';
       drawEnt(g,e);
     }
+    if(G.lvl && G.lvl.n===30) drawL3WebOverhead(g);
   }
   if(DIAG.hud && G.scene==='play' && worldArtReady(G.ch)) drawHUD(g);
   if(G.scene==='play' && worldArtReady(G.ch)) drawCampaignBark(g);
@@ -16510,6 +16552,13 @@ function drawWorld(g,L){
   for(const b of G.thrown) if(near(b)) push((b.x+b.y)|0,()=>drawThrown(g,b));
   if(G.aim) push(((G.aim.x+G.aim.y)|0)-1,()=>drawAim(g));
   if(L.plug&&!L.flags.broke) push((L.plug.x+L.plug.y)|0,()=>drawPlug(g,L));
+  if(L.n===30){
+    for(const piece of ensureL3WebPieces(L)){
+      if(piece.layer!=='wall' && piece.layer!=='floor-prop') continue;
+      if(!near(piece)||!seenAt(piece)) continue;
+      push(l3WebDepth(piece),()=>drawL3WebPiece(g,piece));
+    }
+  }
 
   const WH=RWH*(TW/RTW);
   const p=player();
@@ -16586,6 +16635,13 @@ function drawWorld(g,L){
       continue;
     }
     drawFloorCell(x,y,t);
+  }
+  if(L.n===30){
+    for(const piece of ensureL3WebPieces(L)){
+      if(piece.layer!=='floor') continue;
+      if(!near(piece)||!seenAt(piece)) continue;
+      drawL3WebPiece(g,piece);
+    }
   }
 
   // Flare object layer: masonry / cavern walls interleaved with actors.
@@ -17730,6 +17786,82 @@ function preloadChapelDemonFace(){
   ['demon_dwarfface','demon_dwarfface_empty'].forEach(k=>{
     if(!(SPR[k]&&SPR[k].width)) loadSpriteKeyNow(k);
   });
+}
+/* L3 web kit loads with the descent, not with the title splash. */
+function preloadL3Webs(){
+  if(typeof loadSpriteKeyNow!=='function' || typeof L3Webs==='undefined') return;
+  L3Webs.keys.forEach(k=>{
+    if(!(SPR[k]&&SPR[k].width)) loadSpriteKeyNow(k);
+  });
+}
+function ensureL3WebPieces(L){
+  if(!L || L.n!==30 || typeof L3Webs==='undefined') return [];
+  if(L._l3webs) return L._l3webs;
+  const pixie=typeof L3Shell!=='undefined' && L3Shell.points && L3Shell.points.pixie;
+  const rooms=typeof L3Shell!=='undefined' && L3Shell.rooms;
+  L._l3webs=L3Webs.build(L.grid, pixie, rooms)||[];
+  return L._l3webs;
+}
+function l3WebOnScreen(o){
+  const isoX=G.cam.x-G.cam.y, isoY=G.cam.x+G.cam.y;
+  const limX=(VW*0.5+TW*2)/(TW*0.5), limY=(VH*0.5+TH*5)/(TH*0.5);
+  const dx=(o.x-o.y)-isoX, dy=(o.x+o.y)-isoY;
+  if(!(dx>-limX&&dx<limX&&dy>-limY&&dy<limY)) return false;
+  return tileExplored(o.x, o.y);
+}
+function l3WebDepth(piece){
+  if(piece.layer==='floor-prop') return (piece.x+piece.y)|0;
+  if(/_W$/.test(piece.key)) return (Math.floor(piece.x-1)+Math.floor(piece.y))|0;
+  return (Math.floor(piece.x)+Math.floor(piece.y-1))|0;
+}
+function l3WebUp(piece){
+  if(piece.layer==='floor' || piece.layer==='floor-prop') return 0;
+  return hallWallH(G.lvl)-(piece.upSub||0);
+}
+/* Binary alpha sheet. Source fringes stay off the canvas. */
+function l3WebSheet(key){
+  const img=SPR[key];
+  if(!img || !img.width) return null;
+  if(img._l3hard && img._l3hard.width) return img._l3hard;
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=false;
+  x.drawImage(img,0,0);
+  try{
+    const id=x.getImageData(0,0,c.width,c.height);
+    const d=id.data;
+    for(let i=3;i<d.length;i+=4) d[i]=d[i]>=128?255:0;
+    x.putImageData(id,0,0);
+  }catch(_){}
+  img._l3hard=c;
+  return c;
+}
+function drawL3WebPiece(g, piece){
+  const img=l3WebSheet(piece.key);
+  if(!img || typeof L3Webs==='undefined') return;
+  let wx=piece.x, wy=piece.y;
+  if(piece.bridge){
+    const sol=L3Webs.solveBridge(TW, TH, hallWallH(G.lvl), {x:piece.cageX, y:piece.cageY});
+    wx=sol.x; wy=sol.y;
+  }
+  const pv=L3Webs.pivot(piece.key)||[0,0];
+  const k=TW/116;
+  const s=w2s(wx, wy);
+  const dw=Math.round(img.width*k), dh=Math.round(img.height*k);
+  const prev=g.imageSmoothingEnabled;
+  g.imageSmoothingEnabled=false;
+  g.drawImage(img, s.x-pv[0]*k, s.y-l3WebUp(piece)-pv[1]*k, dw, dh);
+  g.imageSmoothingEnabled=prev;
+}
+function drawL3WebOverhead(g){
+  if(!G.lvl || G.lvl.n!==30) return;
+  g.globalAlpha=1; g.globalCompositeOperation='source-over';
+  for(const piece of ensureL3WebPieces(G.lvl)){
+    if(piece.layer!=='overhead') continue;
+    if(!l3WebOnScreen(piece)) continue;
+    drawL3WebPiece(g, piece);
+  }
 }
 function demonFaceShowsEmpty(p){
   if(!p) return false;
