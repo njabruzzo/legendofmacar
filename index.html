@@ -17849,9 +17849,10 @@ function drawL3WebPiece(g, piece){
   const k=TW/116;
   const s=w2s(wx, wy);
   const dw=Math.round(img.width*k), dh=Math.round(img.height*k);
+  const dx=Math.round(s.x-pv[0]*k), dy=Math.round(s.y-l3WebUp(piece)-pv[1]*k);
   const prev=g.imageSmoothingEnabled;
   g.imageSmoothingEnabled=false;
-  g.drawImage(img, s.x-pv[0]*k, s.y-l3WebUp(piece)-pv[1]*k, dw, dh);
+  g.drawImage(img, dx, dy, dw, dh);
   g.imageSmoothingEnabled=prev;
 }
 function drawL3WebOverhead(g){
