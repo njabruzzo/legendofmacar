@@ -78,9 +78,11 @@
     ['web_cocoon_hang_b', 3.0, -0.05, 0],
     ['web_bridge_a_N', 3.3, -0.05, 0],
     ['web_sheet_corner', -0.02, 1.29, 0],
-    ['web_sheet_corner_b', -0.02, 2.0, 0],
-    ['web_sheet_span_a', -0.02, 2.59, 0],
-    ['web_sheet_span_b', -0.02, 3.21, 0],
+    /* These three cross the west wall over the mock stand. rise is extra
+       screen pixels at TW 116, scaled by TW/116, so the sheet clears Macar. */
+    ['web_sheet_corner_b', -0.02, 2.0, 0, 48],
+    ['web_sheet_span_a', -0.02, 2.59, 0, 48],
+    ['web_sheet_span_b', -0.02, 3.21, 0, 48],
     ['web_tangle_c', 2.7, -0.05, 8],
     ['web_tangle_d', -0.05, 1.0, 10],
     ['web_sheet_high_N', 3.6, -0.05, 0],
@@ -140,6 +142,7 @@
         lx: row[1],
         ly: row[2],
         upSub: row[3] || 0,
+        rise: row[4] || 0,
         room: roomId
       };
       out.push(piece);

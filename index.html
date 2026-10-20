@@ -17816,7 +17816,45 @@ function l3WebDepth(piece){
 }
 function l3WebUp(piece){
   if(piece.layer==='floor' || piece.layer==='floor-prop') return 0;
-  return hallWallH(G.lvl)-(piece.upSub||0);
+  return hallWallH(G.lvl)-(piece.upSub||0) + (piece.rise||0)*(TW/116);
+}
+/* Floor sheets are clipped to walkable cells so a strand cannot paint the wall.
+   The cell is the one the rounded blit actually covers (same dx/dy as draw). */
+function l3WebFloorCanvas(piece, img, dw, dh){
+  const sig=TW+'|'+TH+'|'+dw+'|'+dh+'|'+piece.x+'|'+piece.y;
+  if(piece._floorSig===sig && piece._floorCanvas) return piece._floorCanvas;
+  const c=document.createElement('canvas');
+  c.width=dw; c.height=dh;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=false;
+  x.drawImage(img,0,0,dw,dh);
+  const L=G.lvl;
+  try{
+    const id=x.getImageData(0,0,dw,dh);
+    const d=id.data;
+    const pv=L3Webs.pivot(piece.key)||[0,0];
+    const k=TW/116;
+    const up=l3WebUp(piece);
+    const wsx=(piece.x-piece.y)*(TW/2)-pv[0]*k;
+    const wsy=(piece.x+piece.y)*(TH/2)-up-pv[1]*k;
+    const dx0=Math.round(wsx), dy0=Math.round(wsy);
+    const hx=TW/2, hy=TH/2;
+    for(let py=0;py<dh;py++){
+      for(let px=0;px<dw;px++){
+        const i=(py*dw+px)*4;
+        if(d[i+3]<128){ d[i+3]=0; continue; }
+        const ix=dx0+px+0.5, iy=dy0+py+0.5;
+        const wx=(iy/hy+ix/hx)/2, wy=(iy/hy-ix/hx)/2;
+        const ti=Math.floor(wx), tj=Math.floor(wy);
+        const t=L&&L.grid[tj]?L.grid[tj][ti]:1;
+        d[i+3]=(t===0||t===3||t===4)?255:0;
+      }
+    }
+    x.putImageData(id,0,0);
+  }catch(_){}
+  piece._floorSig=sig;
+  piece._floorCanvas=c;
+  return c;
 }
 /* Binary alpha sheet. Source fringes stay off the canvas. */
 function l3WebSheet(key){
@@ -17850,9 +17888,10 @@ function drawL3WebPiece(g, piece){
   const s=w2s(wx, wy);
   const dw=Math.round(img.width*k), dh=Math.round(img.height*k);
   const dx=Math.round(s.x-pv[0]*k), dy=Math.round(s.y-l3WebUp(piece)-pv[1]*k);
+  const src=piece.layer==='floor'?l3WebFloorCanvas(piece, img, dw, dh):img;
   const prev=g.imageSmoothingEnabled;
   g.imageSmoothingEnabled=false;
-  g.drawImage(img, dx, dy, dw, dh);
+  g.drawImage(src, dx, dy, src===img?dw:src.width, src===img?dh:src.height);
   g.imageSmoothingEnabled=prev;
 }
 function drawL3WebOverhead(g){
