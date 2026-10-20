@@ -82,12 +82,16 @@
        the stand is deleted as whole strands (trim.runs), not lifted off the cap. */
     ['web_sheet_corner_b', -0.02, 2.0, 0],
     ['web_sheet_span_a', -0.02, 2.59, 0],
-    ['web_sheet_span_b', -0.02, 3.21, 0],
     ['web_tangle_c', 2.7, -0.05, 8],
     ['web_tangle_d', -0.05, 1.0, 10],
     ['web_sheet_high_N', 3.6, -0.05, 0],
     ['web_tangle_a', -0.05, 2.9, 6],
     ['web_tangle_b', 1.2, -0.05, 4]
+  ];
+  /* Span B is withheld until a shorter sheet is painted. The key, pivot,
+     file, and trim stay registered. This anchor is not placed or drawn. */
+  var HELD = [
+    ['web_sheet_span_b', -0.02, 3.21, 0]
   ];
 
   /* Door → cage → Macar, 0.6 tile wide in the mock. Half-width is 0.30. */
@@ -319,6 +323,7 @@
     wall: WALL,
     lie: LIE,
     over: OVER,
+    held: HELD,
     lane: LANE,
     macar: MACAR,
     cage: CAGE,

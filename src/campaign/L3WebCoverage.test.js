@@ -21,7 +21,7 @@ function assert(cond, msg) {
 
 const root = path.join(__dirname, '../..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const SHEETS = ['web_sheet_corner_b', 'web_sheet_span_a', 'web_sheet_span_b'];
+const SHEETS = ['web_sheet_corner_b', 'web_sheet_span_a'];
 const SIZE = 896, FEET = 650, BODY_H = 400, MAUL = 0.53;
 const LENGTH = BODY_H * MAUL;
 const FIT = MAUL * SIZE / LENGTH;
@@ -493,12 +493,21 @@ Shell.carve(grid, { caveDisk: caveDisk, rect: rect, carvePath: carvePath });
 sealOuter(grid);
 const pieces = Webs.build(grid, Shell.points.pixie, Shell.rooms);
 const west = pieces.filter(function (p) { return p.room === 'north-web' && SHEETS.indexOf(p.key) >= 0; });
-assert(west.length === 3, 'the cage room has the three west sheets');
+assert(west.length === 2, 'the cage room hangs corner B and span A');
 assert(west.every(function (p) { return p.rise === 0 && p.lx === -0.02; }), 'west sheets stay on the inner face with no rise');
 const anchors = {};
 west.forEach(function (p) { anchors[p.key] = p.ly; });
-assert(anchors.web_sheet_corner_b === 2.0 && anchors.web_sheet_span_a === 2.59 && anchors.web_sheet_span_b === 3.21,
-  'west sheet anchors are unchanged');
+assert(anchors.web_sheet_corner_b === 2.0 && anchors.web_sheet_span_a === 2.59,
+  'placed west sheet anchors are unchanged');
+const heldB = Webs.held.filter(function (row) { return row[0] === 'web_sheet_span_b'; })[0];
+assert(heldB && heldB[1] === -0.02 && heldB[2] === 3.21 && !heldB[4],
+  'span B keeps its anchor on record');
+assert(!Webs.over.some(function (row) { return row[0] === 'web_sheet_span_b'; }),
+  'span B is omitted from overhead placement');
+assert(!pieces.some(function (p) { return p.key === 'web_sheet_span_b'; }),
+  'span B is not drawn in any room');
+assert(Webs.keys.indexOf('web_sheet_span_b') >= 0 && Webs.pivot('web_sheet_span_b') && fs.existsSync(path.join(root, Webs.file('web_sheet_span_b'))),
+  'span B stays registered with its file');
 SHEETS.forEach(function (key) {
   const trim = Webs.trim(key), img = pngs[key], cut = masks[key];
   assert(trim && trim.runs && trim.runs.length > 0, key + ' trim is strand runs');
@@ -560,11 +569,11 @@ const results = {};
   const floor = floorBleed(v, grid);
   results[name] = { raw: raw, cut: cut, floor: floor };
   console.log('RESULT ' + name + ' untrimmed ' + raw.spotSe.uOp +
-    ' span_a ' + raw.spotSe.per.web_sheet_span_a + ' span_b ' + raw.spotSe.per.web_sheet_span_b +
+    ' span_a ' + raw.spotSe.per.web_sheet_span_a +
     ' box ' + raw.maxBox + ' trimmed ' + cut.maxOp + ' trimmedBox ' + cut.maxBox + ' above ' + cut.above +
     ' floor117 ' + floor.clip117 + '/' + floor.raw117);
-  assert(raw.spotSe.per.web_sheet_span_a > 0 && raw.spotSe.per.web_sheet_span_b > 0,
-    name + ' still sees the untrimmed sag (span_a ' + raw.spotSe.per.web_sheet_span_a + ', span_b ' + raw.spotSe.per.web_sheet_span_b + ')');
+  assert(raw.spotSe.per.web_sheet_span_a > 0,
+    name + ' still sees the untrimmed sag (span_a ' + raw.spotSe.per.web_sheet_span_a + ')');
   assert(raw.maxBox > 0, name + ' untrimmed sheet still crosses Macar\'s box (' + raw.maxBox + ')');
   assert(cut.maxOp === 0, name + ' trimmed coverage along the cage-to-mock walk is 0 px (' + cut.maxOp + ' at ' + cut.worst.tag + ')');
   assert(cut.maxBox === 0, name + ' trimmed sheet misses Macar\'s box (' + cut.maxBox + ' at ' + cut.worst.boxTag + ')');
