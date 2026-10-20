@@ -194,10 +194,41 @@ function samplesFor(v) {
   return out;
 }
 
+function trimMask(key) {
+  const img = pngs[key];
+  const m = new Uint8Array(img.w * img.h);
+  const trim = Webs.trim(key);
+  if (!trim || !trim.runs) return m;
+  for (const run of trim.runs) {
+    const y = run[0], x0 = run[1], x1 = run[2];
+    for (let x = x0; x < x1; x++) if (y >= 0 && y < img.h && x >= 0 && x < img.w) m[y * img.w + x] = 1;
+  }
+  return m;
+}
+const masks = {};
+SHEETS.forEach(function (key) { masks[key] = trimMask(key); });
+
+function spriteBox(mask, destX, destY, W, H, flip) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, n = 0;
+  const pw = W / SIZE, ph = H / SIZE;
+  for (let i = 0; i < mask.length; i++) if (mask[i]) {
+    let mx = i % SIZE;
+    const my = (i / SIZE) | 0;
+    if (flip) mx = SIZE - 1 - mx;
+    const x0 = destX + mx * pw, y0 = destY + my * ph;
+    if (x0 < minX) minX = x0;
+    if (y0 < minY) minY = y0;
+    if (x0 + pw > maxX) maxX = x0 + pw;
+    if (y0 + ph > maxY) maxY = y0 + ph;
+    n++;
+  }
+  return n ? { minX: minX, minY: minY, maxX: maxX, maxY: maxY } : null;
+}
+
 function cover(v, useTrim) {
   const FH = hall(v), k = v.TW / 116, H = 78 * v.ZOOM * FIT, W = H;
-  let maxOp = 0, above = 0;
-  const worst = { tag: '', per: {}, uOp: 0 };
+  let maxOp = 0, maxBox = 0, above = 0;
+  const worst = { tag: 'none', boxTag: 'none', per: {}, uOp: 0, uBox: 0 };
   const spotSe = {};
   for (const s of samplesFor(v)) {
     const oct = octant(v, s.fdx, s.fdy);
@@ -207,12 +238,14 @@ function cover(v, useTrim) {
     const bob = s.moving ? Math.sin(s.gait * Math.PI * 2) * 1.6 * v.ZOOM : 0;
     const destX = (s.x - s.y) * (v.TW / 2) - W * 0.5;
     const destY = (s.x + s.y) * (v.TH / 2) - bob - H * FOOT_Y;
+    const box = spriteBox(mask, destX, destY, W, H, flip);
     const per = {};
-    let uOp = 0;
+    let uOp = 0, uBox = 0;
     for (let r = 0; r < Webs.over.length; r++) {
       const row = Webs.over[r];
       if (SHEETS.indexOf(row[0]) < 0) continue;
-      const key = row[0], img = pngs[key], trim = useTrim ? Webs.trim(key) : null, pv = Webs.pivot(key);
+      const key = row[0], img = pngs[key], pv = Webs.pivot(key);
+      const cut = useTrim ? masks[key] : null;
       const wx = ORIGIN.x + row[1], wy = ORIGIN.y + row[2];
       const up = FH - (row[3] || 0) + (row[4] || 0) * k;
       const sx = (wx - wy) * (v.TW / 2), sy = (wx + wy) * (v.TH / 2);
@@ -224,10 +257,14 @@ function cover(v, useTrim) {
         const isy = Math.min(img.h - 1, Math.floor((py + 0.5) * img.h / dh));
         for (let px = 0; px < dw; px++) {
           const isx = Math.min(img.w - 1, Math.floor((px + 0.5) * img.w / dw));
-          if (trim && isy >= trim.y0 && isx >= trim.x0 && isx < trim.x1) continue;
-          if (img.data[(isy * img.w + isx) * 4 + 3] < 128) continue;
+          const si = isy * img.w + isx;
+          if (cut && cut[si]) continue;
+          if (img.data[si * 4 + 3] < 128) continue;
           if (dy + py + 0.5 < capY - 2) above++;
-          const u = ((dx + px + 0.5) - destX) / W, vv = ((dy + py + 0.5) - destY) / H;
+          const cx = dx + px + 0.5, cy = dy + py + 0.5;
+          const u = (cx - destX) / W, vv = (cy - destY) / H;
+          const inBox = box && cx >= box.minX && cx < box.maxX && cy >= box.minY && cy < box.maxY;
+          if (inBox) uBox++;
           if (u < 0 || vv < 0 || u >= 1 || vv >= 1) continue;
           let mx = Math.min(SIZE - 1, Math.floor(u * SIZE));
           const my = Math.min(SIZE - 1, Math.floor(vv * SIZE));
@@ -237,10 +274,11 @@ function cover(v, useTrim) {
       }
       per[key] = n;
     }
-    if (s.tag === 'spot-se') { spotSe.per = per; spotSe.uOp = uOp; }
+    if (s.tag === 'spot-se') { spotSe.per = per; spotSe.uOp = uOp; spotSe.uBox = uBox; }
     if (uOp > maxOp) { maxOp = uOp; worst.tag = s.tag; worst.per = per; worst.uOp = uOp; }
+    if (uBox > maxBox) { maxBox = uBox; if (!worst.boxTag || uBox === maxBox) worst.boxTag = s.tag; worst.uBox = uBox; }
   }
-  return { maxOp: maxOp, above: above, worst: worst, spotSe: spotSe };
+  return { maxOp: maxOp, maxBox: maxBox, above: above, worst: worst, spotSe: spotSe };
 }
 
 function h2(x, y) {
@@ -330,12 +368,36 @@ const anchors = {};
 west.forEach(function (p) { anchors[p.key] = p.ly; });
 assert(anchors.web_sheet_corner_b === 2.0 && anchors.web_sheet_span_a === 2.59 && anchors.web_sheet_span_b === 3.21,
   'west sheet anchors are unchanged');
-assert(Webs.trim('web_sheet_corner_b') == null, 'corner_b is not trimmed');
-['web_sheet_span_a', 'web_sheet_span_b'].forEach(function (key) {
-  const trim = Webs.trim(key), img = pngs[key];
-  let cap = 0;
-  for (let y = 0; y < trim.y0; y++) for (let x = 0; x < img.w; x++) if (img.data[(y * img.w + x) * 4 + 3] >= 128) cap++;
-  assert(trim.y0 > 0 && cap > 0, key + ' keeps an opaque cap strand (' + cap + ' px above y ' + trim.y0 + ')');
+SHEETS.forEach(function (key) {
+  const trim = Webs.trim(key), img = pngs[key], cut = masks[key];
+  assert(trim && trim.runs && trim.runs.length > 0, key + ' trim is strand runs');
+  let cap = 0, keptBelow = 0, flat = 0, run = 0, prev = -2, minY = img.h, painted = 0;
+  for (const row of trim.runs) {
+    if (row[0] < minY) minY = row[0];
+    for (let x = row[1]; x < row[2]; x++) if (img.data[(row[0] * img.w + x) * 4 + 3] < 128) painted++;
+  }
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    const i = y * img.w + x;
+    if (img.data[i * 4 + 3] < 128) continue;
+    if (!cut[i] && y < minY + 4) cap++;
+    if (!cut[i] && y > minY) keptBelow++;
+  }
+  for (let x = 0; x < img.w; x++) {
+    let bot = -1;
+    for (let y = img.h - 1; y >= 0; y--) {
+      const i = y * img.w + x;
+      if (img.data[i * 4 + 3] >= 128 && !cut[i]) { bot = y; break; }
+    }
+    const cutHere = bot >= 0 && bot + 1 < img.h && cut[(bot + 1) * img.w + x];
+    if (cutHere && bot === prev) run++;
+    else { if (run > flat) flat = run; run = cutHere ? 1 : 0; }
+    prev = cutHere ? bot : -2;
+  }
+  if (run > flat) flat = run;
+  assert(painted === 0, key + ' deletes only existing strand pixels (' + painted + ' empty)');
+  assert(cap > 0, key + ' keeps the cap strand (' + cap + ' px in the rows above the first delete)');
+  assert(keptBelow > 0, key + ' keeps strand pixels below the first delete, so the edge is not a horizontal crop');
+  assert(flat <= 1, key + ' trimmed edge is not a straight horizontal cut (flat run ' + flat + ')');
 });
 
 const results = {};
@@ -347,11 +409,13 @@ const results = {};
   results[name] = { raw: raw, cut: cut, floor: floor };
   console.log('RESULT ' + name + ' untrimmed ' + raw.spotSe.uOp +
     ' span_a ' + raw.spotSe.per.web_sheet_span_a + ' span_b ' + raw.spotSe.per.web_sheet_span_b +
-    ' trimmed ' + cut.maxOp + ' above ' + cut.above +
+    ' box ' + raw.maxBox + ' trimmed ' + cut.maxOp + ' trimmedBox ' + cut.maxBox + ' above ' + cut.above +
     ' floor117 ' + floor.clip117 + '/' + floor.raw117);
   assert(raw.spotSe.per.web_sheet_span_a > 0 && raw.spotSe.per.web_sheet_span_b > 0,
     name + ' still sees the untrimmed sag (span_a ' + raw.spotSe.per.web_sheet_span_a + ', span_b ' + raw.spotSe.per.web_sheet_span_b + ')');
+  assert(raw.maxBox > 0, name + ' untrimmed sheet still crosses Macar\'s box (' + raw.maxBox + ')');
   assert(cut.maxOp === 0, name + ' trimmed coverage along the cage-to-mock walk is 0 px (' + cut.maxOp + ' at ' + cut.worst.tag + ')');
+  assert(cut.maxBox === 0, name + ' trimmed sheet misses Macar\'s box (' + cut.maxBox + ' at ' + cut.worst.boxTag + ')');
   assert(cut.above === 0, name + ' no trimmed sheet pixel sits above the cap (' + cut.above + ')');
   assert(floor.raw117 > 0, name + ' had north-wall floor bleed at 117,94 before the clip (' + floor.raw117 + ')');
   assert(floor.clip117 === 0 && floor.clipBad === 0 && floor.clipPx > 0,

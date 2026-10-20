@@ -17871,11 +17871,13 @@ function l3WebSheet(key){
     const d=id.data;
     for(let i=3;i<d.length;i+=4) d[i]=d[i]>=128?255:0;
     const trim=L3Webs.trim&&L3Webs.trim(key);
-    if(trim){
-      const x0=trim.x0|0, x1=trim.x1|0, y0=trim.y0|0;
-      for(let y=y0;y<c.height;y++){
+    const runs=trim&&trim.runs;
+    if(runs){
+      for(let r=0;r<runs.length;r++){
+        const run=runs[r], y=run[0]|0, x0=run[1]|0, x1=run[2]|0;
+        if(y<0||y>=c.height) continue;
         const row=y*c.width;
-        for(let px=x0;px<x1 && px<c.width;px++) d[(row+px)*4+3]=0;
+        for(let px=x0;px<x1&&px<c.width;px++) if(px>=0) d[(row+px)*4+3]=0;
       }
     }
     x.putImageData(id,0,0);
