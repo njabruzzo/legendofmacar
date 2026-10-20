@@ -78,11 +78,11 @@
     ['web_cocoon_hang_b', 3.0, -0.05, 0],
     ['web_bridge_a_N', 3.3, -0.05, 0],
     ['web_sheet_corner', -0.02, 1.29, 0],
-    /* These three cross the west wall over the mock stand. rise is extra
-       screen pixels at TW 116, scaled by TW/116, so the sheet clears Macar. */
-    ['web_sheet_corner_b', -0.02, 2.0, 0, 48],
-    ['web_sheet_span_a', -0.02, 2.59, 0, 48],
-    ['web_sheet_span_b', -0.02, 3.21, 0, 48],
+    /* Hung on the west wall cap, same anchors as the mock. The sag over
+       the stand is trimmed in source pixels (trim), not lifted off the cap. */
+    ['web_sheet_corner_b', -0.02, 2.0, 0],
+    ['web_sheet_span_a', -0.02, 2.59, 0],
+    ['web_sheet_span_b', -0.02, 3.21, 0],
     ['web_tangle_c', 2.7, -0.05, 8],
     ['web_tangle_d', -0.05, 1.0, 10],
     ['web_sheet_high_N', 3.6, -0.05, 0],
@@ -96,6 +96,12 @@
     [[2.0, 3.2], [1.3, 2.6]],
     [[2.0, 3.2], [3.3, 3.2]]
   ];
+  /* Lower drape over the mock stand, in source pixels. The top rows stay
+     on the cap edge. x1 is exclusive. */
+  var TRIM = {
+    web_sheet_span_a: { x0: 45, x1: 110, y0: 8 },
+    web_sheet_span_b: { x0: 45, x1: 185, y0: 6 }
+  };
   var MACAR = [1.3, 2.6];
   var CAGE = [3.9, 3.4];
   var BRIDGE_PIVOT = [3.3, -0.05];
@@ -261,6 +267,7 @@
     walk: walk,
     bestOrigin: bestOrigin,
     build: build,
+    trim: function (key) { return TRIM[key] || null; },
     solveBridge: solveBridge,
     endScreen: endScreen,
     laneDist: laneDist,
