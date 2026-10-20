@@ -398,6 +398,27 @@ SHEETS.forEach(function (key) {
   assert(cap > 0, key + ' keeps the cap strand (' + cap + ' px in the rows above the first delete)');
   assert(keptBelow > 0, key + ' keeps strand pixels below the first delete, so the edge is not a horizontal crop');
   assert(flat <= 1, key + ' trimmed edge is not a straight horizontal cut (flat run ' + flat + ')');
+  const seen = new Uint8Array(img.w * img.h);
+  let orphans = 0;
+  for (let i = 0; i < seen.length; i++) {
+    if (seen[i] || img.data[i * 4 + 3] < 128 || cut[i]) continue;
+    const comp = [i];
+    seen[i] = 1;
+    for (let q = 0; q < comp.length; q++) {
+      const at = comp[q], x = at % img.w, y = (at / img.w) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= img.w || ny >= img.h) continue;
+        const n = ny * img.w + nx;
+        if (seen[n] || img.data[n * 4 + 3] < 128 || cut[n]) continue;
+        seen[n] = 1;
+        comp.push(n);
+      }
+    }
+    if (comp.length <= 6) orphans += comp.length;
+  }
+  assert(orphans === 0, key + ' has no orphan speck of 6 px or fewer (' + orphans + ')');
 });
 
 const results = {};
