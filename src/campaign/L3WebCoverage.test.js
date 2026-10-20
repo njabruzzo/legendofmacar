@@ -35,6 +35,7 @@ assert(/t===0\|\|t===3\|\|t===4/.test(html.slice(html.indexOf('function l3WebFlo
 assert(/tileExplored\(o\.x, o\.y\)/.test(html), 'overhead webs still wait until the tile is explored');
 
 const bodyPng = readRgba(path.join(root, 'assets/creatures/shared/macar-body-v1.png'));
+const combatPng = readRgba(path.join(root, 'assets/creatures/shared/macar-combat-v2.png'));
 const weapPng = readRgba(path.join(root, 'assets/creatures/shared/macar-weapons-v1.png'));
 const pngs = {};
 for (const key of Webs.keys) pngs[key] = readRgba(path.join(root, Webs.file(key)));
@@ -106,7 +107,8 @@ function stampNearest(mask, src, sw, sh, dx, dy, dw, dh) {
     }
   }
 }
-function stampWeapon(mask, ax, ay, angle) {
+function stampWeapon(mask, ax, ay, angle, bit) {
+  bit = bit || 1;
   const scale = LENGTH / (941 - 80);
   const dw = 1254 * scale, dh = 627 * scale;
   const dx = -80 * scale, dy = -348 * scale;
@@ -129,9 +131,67 @@ function stampWeapon(mask, ax, ay, angle) {
       if (u < 0 || v < 0 || u >= 1 || v >= 1) continue;
       const sx = Math.min(1253, Math.floor(u * 1254));
       const sy = Math.min(626, Math.floor(v * 627));
-      if (weapPng.data[(sy * weapPng.w + sx) * 4 + 3] >= 128) mask[y * SIZE + x] = 1;
+      if (weapPng.data[(sy * weapPng.w + sx) * 4 + 3] >= 128) mask[y * SIZE + x] = bit;
     }
   }
+}
+function sheetCell(png, row, col, cols) {
+  const sw = png.w / cols, sh = png.h / 5;
+  const w = Math.ceil(sw), h = Math.ceil(sh);
+  const data = Buffer.alloc(w * h * 4);
+  const xBase = col * sw, yBase = row * sh;
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(png.h - 1, Math.floor(yBase + (y * sh) / h));
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(png.w - 1, Math.floor(xBase + (x * sw) / w));
+      const si = (sy * png.w + sx) * 4, di = (y * w + x) * 4;
+      data[di] = png.data[si]; data[di + 1] = png.data[si + 1];
+      data[di + 2] = png.data[si + 2]; data[di + 3] = png.data[si + 3];
+    }
+  }
+  const visited = new Uint8Array(w * h);
+  const components = [];
+  for (let n = 0; n < w * h; n++) {
+    if (visited[n] || data[n * 4 + 3] <= 40) continue;
+    const component = [n];
+    visited[n] = 1;
+    for (let q = 0; q < component.length; q++) {
+      const at = component[q], x = at % w, y = (at / w) | 0;
+      const nexts = [x > 0 ? at - 1 : -1, x + 1 < w ? at + 1 : -1, y > 0 ? at - w : -1, y + 1 < h ? at + w : -1];
+      for (const next of nexts) {
+        if (next >= 0 && !visited[next] && data[next * 4 + 3] > 40) { visited[next] = 1; component.push(next); }
+      }
+    }
+    components.push(component);
+  }
+  let largest = 0;
+  for (const c of components) if (c.length > largest) largest = c.length;
+  const minimum = Math.max(100, largest * 0.025);
+  for (const component of components) if (component.length < minimum) for (const at of component) data[at * 4 + 3] = 0;
+  let top = h, bot = 0, left = w, right = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (data[(y * w + x) * 4 + 3] > 80) {
+      if (y < top) top = y; if (y > bot) bot = y;
+      if (x < left) left = x; if (x > right) right = x;
+    }
+  }
+  return { w, h, data, top, bot, left, right };
+}
+const sheetCache = new Map();
+function sheetBounds(png, row, col, cols) {
+  const k = (png === combatPng ? 'c' : 'b') + ':' + row + ':' + col;
+  if (!sheetCache.has(k)) sheetCache.set(k, sheetCell(png, row, col, cols));
+  return sheetCache.get(k);
+}
+const WINDUP = { grip: [[132, 46], [145, 47], [172, 45], [157, 47], [147, 40]], angle: [-1.05, -1.0, -0.95, -2.0, -2.1] };
+const ATTACK = { grip: [[166, 252], [236, 254], [271, 258], [288, 224], [246, 204]], angle: [0.45, 0.3, 0.2, -0.6, -1.3] };
+const RECOVER = { grip: [[181, 182], [230, 177], [230, 164], [267, 165], [227, 158]], angle: [0.15, 0.1, 0, -0.25, -0.5] };
+function stageLayout(stage, row) {
+  if (stage === 'windup') return { grip: WINDUP.grip[row], angle: WINDUP.angle[row] };
+  if (stage === 'attack') return { grip: ATTACK.grip[row], angle: ATTACK.angle[row] };
+  if (stage === 'recover' || stage === 'ranged') return { grip: RECOVER.grip[row], angle: RECOVER.angle[row] };
+  const col = stage === 'idle' ? 0 : 1 + Number(stage.slice(4));
+  return { grip: CARRIES[row][col], angle: ANGLES[row] };
 }
 const poseCache = new Map();
 function poseMask(dir, stage) {
@@ -152,6 +212,77 @@ function poseMask(dir, stage) {
   stampNearest(mask, b.data, b.w, b.h, bx, by, b.w * sc, b.h * sc);
   poseCache.set(key, mask);
   return mask;
+}
+const FACINGS = [['s', 0], ['se', 0], ['e', 0], ['ne', 0], ['n', 0], ['sw', 1], ['w', 1], ['nw', 1]];
+const STAGES = ['idle', 'walk0', 'walk1', 'walk2', 'walk3', 'windup', 'attack', 'recover', 'ranged'];
+const atlasCache = new Map();
+function atlasMask(dir, stage) {
+  const key = dir + ':' + stage;
+  if (atlasCache.has(key)) return atlasCache.get(key);
+  const row = DIRS.indexOf(dir);
+  const combat = stage === 'windup' || stage === 'attack' || stage === 'recover' || stage === 'ranged';
+  const png = combat ? combatPng : bodyPng;
+  const cols = combat ? 3 : 6;
+  const col = combat ? { windup: 0, attack: 1, recover: 2, ranged: 2 }[stage] : (stage === 'idle' ? 0 : 1 + Number(stage.slice(4)));
+  const idle = sheetBounds(png, row, 0, cols);
+  const b = sheetBounds(png, row, col, cols);
+  const sc = BODY_H / (idle.bot - idle.top);
+  const bx = SIZE / 2 - (idle.left + idle.right) / 2 * sc;
+  const by = FEET - b.bot * sc;
+  const mask = new Uint8Array(SIZE * SIZE);
+  const l = stageLayout(stage, row);
+  const ux = Math.cos(l.angle), uy = Math.sin(l.angle);
+  const gx = bx + l.grip[0] * sc, gy = by + l.grip[1] * sc;
+  stampWeapon(mask, gx - LENGTH * 0.16 * ux, gy - LENGTH * 0.16 * uy, l.angle, combat ? 2 : 1);
+  stampNearest(mask, b.data, b.w, b.h, bx, by, b.w * sc, b.h * sc);
+  if (combat) {
+    stampWeapon(mask, gx - LENGTH * 0.16 * ux, gy - LENGTH * 0.16 * uy, l.angle, 2);
+    const x0 = Math.max(0, Math.floor(gx - 20)), y0 = Math.max(0, Math.floor(gy - 22));
+    const x1 = Math.min(SIZE, Math.ceil(gx + 20)), y1 = Math.min(SIZE, Math.ceil(gy + 22));
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      if (mask[y * SIZE + x] !== 2) continue;
+      const u = ((x + 0.5) - bx) / (b.w * sc), v = ((y + 0.5) - by) / (b.h * sc);
+      if (u < 0 || v < 0 || u >= 1 || v >= 1) { mask[y * SIZE + x] = 0; continue; }
+      const sx = Math.min(b.w - 1, Math.floor(u * b.w));
+      const sy = Math.min(b.h - 1, Math.floor(v * b.h));
+      mask[y * SIZE + x] = b.data[(sy * b.w + sx) * 4 + 3] >= 128 ? 1 : 0;
+    }
+  }
+  atlasCache.set(key, mask);
+  return mask;
+}
+function opaqueAt(v, mask, wx, wy, flip, useTrim) {
+  const FH = hall(v), k = v.TW / 116, H = 78 * v.ZOOM * FIT, W = H;
+  const destX = (wx - wy) * (v.TW / 2) - W * 0.5;
+  const destY = (wx + wy) * (v.TH / 2) - H * FOOT_Y;
+  let n = 0;
+  for (let r = 0; r < Webs.over.length; r++) {
+    const row = Webs.over[r];
+    if (SHEETS.indexOf(row[0]) < 0) continue;
+    const key = row[0], img = pngs[key], pv = Webs.pivot(key);
+    const cut = useTrim ? masks[key] : null;
+    const sx = (ORIGIN.x + row[1] - (ORIGIN.y + row[2])) * (v.TW / 2);
+    const sy = (ORIGIN.x + row[1] + ORIGIN.y + row[2]) * (v.TH / 2);
+    const up = FH - (row[3] || 0) + (row[4] || 0) * k;
+    const dw = Math.round(img.w * k), dh = Math.round(img.h * k);
+    const dx = Math.round(sx - pv[0] * k), dy = Math.round(sy - up - pv[1] * k);
+    for (let py = 0; py < dh; py++) {
+      const isy = Math.min(img.h - 1, Math.floor((py + 0.5) * img.h / dh));
+      for (let px = 0; px < dw; px++) {
+        const isx = Math.min(img.w - 1, Math.floor((px + 0.5) * img.w / dw));
+        const si = isy * img.w + isx;
+        if (cut && cut[si]) continue;
+        if (img.data[si * 4 + 3] < 128) continue;
+        const u = (dx + px + 0.5 - destX) / W, vv = (dy + py + 0.5 - destY) / H;
+        if (u < 0 || vv < 0 || u >= 1 || vv >= 1) continue;
+        let mx = Math.min(SIZE - 1, Math.floor(u * SIZE));
+        const my = Math.min(SIZE - 1, Math.floor(vv * SIZE));
+        if (flip) mx = SIZE - 1 - mx;
+        if (mask[my * SIZE + mx]) n++;
+      }
+    }
+  }
+  return n;
 }
 
 function viewOf(name) {
@@ -442,6 +573,33 @@ const results = {};
   assert(floor.clip117 === 0 && floor.clipBad === 0 && floor.clipPx > 0,
     name + ' floor clip clears unwalkable tiles and still paints the floor (' + floor.clipPx + ')');
 });
+
+const POSE_POINTS = [
+  { tag: 'spot', x: ORIGIN.x + Webs.macar[0], y: ORIGIN.y + Webs.macar[1] },
+  { tag: 'shift', x: 115.57, y: 97.35 }
+];
+const poseN = FACINGS.length * STAGES.length;
+let poseWorst = 0, poseWhere = 'none', poseSamples = 0, rawWind = 0;
+['laptop', 'phone'].forEach(function (name) {
+  const v = viewOf(name);
+  FACINGS.forEach(function (face) {
+    const dir = { sw: 'se', w: 'e', nw: 'ne' }[face[0]] || face[0];
+    STAGES.forEach(function (stage) {
+      const mask = atlasMask(dir, stage);
+      POSE_POINTS.forEach(function (pt) {
+        const n = opaqueAt(v, mask, pt.x, pt.y, face[1], true);
+        poseSamples++;
+        if (n > poseWorst) { poseWorst = n; poseWhere = name + ' ' + face[0] + '_' + stage + ' @' + pt.tag; }
+        if (name === 'laptop' && stage === 'windup' && pt.tag === 'spot') rawWind += opaqueAt(v, mask, pt.x, pt.y, face[1], false);
+      });
+    });
+  });
+});
+console.log('POSES ' + poseN + ' samples ' + poseSamples + ' worst ' + poseWorst + ' rawWindup ' + rawWind);
+assert(poseN === 72, 'every loaded maul pose and facing is in the sweep (' + poseN + ')');
+assert(poseSamples === poseN * 4, 'each pose is measured on laptop and phone at the spot and at 115.57,97.35 (' + poseSamples + ')');
+assert(poseWorst === 0, 'every pose is 0 px on laptop and phone (' + poseWorst + ' at ' + poseWhere + ')');
+assert(rawWind > 0, 'untrimmed windup still crosses a west sheet (' + rawWind + ')');
 
 if (failed) { console.error(failed + ' failed'); process.exit(1); }
 console.log('coverage ok');
