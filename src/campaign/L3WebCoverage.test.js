@@ -21,7 +21,8 @@ function assert(cond, msg) {
 
 const root = path.join(__dirname, '../..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const SHEETS = ['web_sheet_corner_b', 'web_sheet_span_a'];
+const SHEETS = ['web_sheet_corner_b', 'web_sheet_span_a', 'web_sheet_span_b'];
+const TRIMMED = ['web_sheet_corner_b', 'web_sheet_span_a'];
 const SIZE = 896, FEET = 650, BODY_H = 400, MAUL = 0.53;
 const LENGTH = BODY_H * MAUL;
 const FIT = MAUL * SIZE / LENGTH;
@@ -493,22 +494,21 @@ Shell.carve(grid, { caveDisk: caveDisk, rect: rect, carvePath: carvePath });
 sealOuter(grid);
 const pieces = Webs.build(grid, Shell.points.pixie, Shell.rooms);
 const west = pieces.filter(function (p) { return p.room === 'north-web' && SHEETS.indexOf(p.key) >= 0; });
-assert(west.length === 2, 'the cage room hangs corner B and span A');
+assert(west.length === 3, 'the cage room hangs corner B, span A, and span B');
 assert(west.every(function (p) { return p.rise === 0 && p.lx === -0.02; }), 'west sheets stay on the inner face with no rise');
 const anchors = {};
 west.forEach(function (p) { anchors[p.key] = p.ly; });
-assert(anchors.web_sheet_corner_b === 2.0 && anchors.web_sheet_span_a === 2.59,
+assert(anchors.web_sheet_corner_b === 2.0 && anchors.web_sheet_span_a === 2.59 && anchors.web_sheet_span_b === 3.21,
   'placed west sheet anchors are unchanged');
-const heldB = Webs.held.filter(function (row) { return row[0] === 'web_sheet_span_b'; })[0];
-assert(heldB && heldB[1] === -0.02 && heldB[2] === 3.21 && !heldB[4],
-  'span B keeps its anchor on record');
-assert(!Webs.over.some(function (row) { return row[0] === 'web_sheet_span_b'; }),
-  'span B is omitted from overhead placement');
-assert(!pieces.some(function (p) { return p.key === 'web_sheet_span_b'; }),
-  'span B is not drawn in any room');
-assert(Webs.keys.indexOf('web_sheet_span_b') >= 0 && Webs.pivot('web_sheet_span_b') && fs.existsSync(path.join(root, Webs.file('web_sheet_span_b'))),
-  'span B stays registered with its file');
-SHEETS.forEach(function (key) {
+const spanB = west.filter(function (p) { return p.key === 'web_sheet_span_b'; })[0];
+const spanPv = Webs.pivot('web_sheet_span_b');
+assert(spanB && spanB.upSub === 0 && spanB.rise === 0 && spanB.layer === 'overhead',
+  'span B is overhead with rise 0 and upSub 0');
+assert(spanPv && spanPv[0] === 2 && spanPv[1] === 4, 'span B pivot stays (2, 4)');
+assert(!Webs.trim('web_sheet_span_b'), 'span B has no runtime trim');
+assert(pngs.web_sheet_span_b.w === 372 && pngs.web_sheet_span_b.h === 58,
+  'span B canvas is 372x58, grown down from 34 (' + pngs.web_sheet_span_b.w + 'x' + pngs.web_sheet_span_b.h + ')');
+TRIMMED.forEach(function (key) {
   const trim = Webs.trim(key), img = pngs[key], cut = masks[key];
   assert(trim && trim.runs && trim.runs.length > 0, key + ' trim is strand runs');
   let cap = 0, keptBelow = 0, flat = 0, run = 0, prev = -2, minY = img.h, painted = 0;
