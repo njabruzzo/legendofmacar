@@ -184,7 +184,7 @@
           "room": {
             "bounds": { "x0": 130, "y0": 24, "x1": 142, "y1": 36 },
             "glass": { "x": 138.2, "y": 30.1, "prop": "hourglass", "artKey": "hourglass", "standIn": true, "newArt": false },
-            "face": { "x": 141.35, "y": 30.15, "prop": "demonface", "toothKind": "bronze" },
+            "face": { "x": 138.2, "y": 24.48, "prop": "demonface", "toothKind": "bronze", "wall": "n" },
             "raidSeconds": 10,
             "toothId": "grond_tooth_bronze"
           }

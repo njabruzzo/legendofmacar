@@ -339,6 +339,20 @@
     ]
   };
 
+  /* North wall of the queen hall. The hall floor starts at y=100, so
+     (85, 99) is rock and (85, 100) is the first interior row. */
+  var TOOTH = {
+    id: 'grond_tooth_electrum_3',
+    tile: { x: 85, y: 99 },
+    wall: 'n',
+    prop: { x: 85, y: 99.15 },
+    asset: 'demon_dwarfface',
+    file: 'assets/props/prop_demon_dwarfface.png',
+    cursed: true,
+    curse: 'coin',
+    bind: false
+  };
+
   var XP = {
     spider: 76,
     spiderHuge: 138,
@@ -355,19 +369,19 @@
   var OPEN = [
     {
       id: 'ruby-room',
-      note: 'Resolved by §7.1. The ruby room stays in the west disk at (16.4, 16.4).'
+      note: 'Resolved. The ruby room is the Level 3 chamber at (123, 87), with the door on its north wall.'
     },
     {
       id: 'arrival-stair',
-      note: 'Resolved by §7.1. Arrival stays at (40, 7.55) and the south stair at (40.1, 51.6) opens on the boss kill.'
+      note: 'Resolved. Arrival is the landing at (128.2, 73.4). The stair at (138.1, 111.2) opens on the boss kill.'
     },
     {
       id: 'pixie-tile',
-      note: 'Resolved by §7.1. The pixie stays on the north web at (26.2, 14.6).'
+      note: 'Resolved. The pixie stays on the north web at (118, 98).'
     },
     {
       id: 'tooth-face',
-      note: 'Resolved by §7.1. Electrum tooth 3 stays at (10.1, 26.8).'
+      note: 'Resolved. Electrum tooth 3 sits in the demon face on the queen hall north wall at (85, 99.15).'
     },
     {
       id: 'giant-count',
@@ -379,7 +393,7 @@
     },
     {
       id: 'brood-tunnels',
-      note: 'Resolved by §7.1. The brood tunnels stay at (6.4, 31) and (14.2, 31).'
+      note: 'Resolved. The brood tunnels stay at (64, 106) and (104, 106).'
     },
     {
       id: 'lair-letters-on-corpses',
@@ -395,7 +409,7 @@
     },
     {
       id: 'guardian-art',
-      note: 'Resolved by §7.1. Ruby Guardian III uses the Thin One sheet.'
+      note: 'Resolved. Ruby Guardian III uses the Thin One sheet, with a ruby tint and its own name.'
     },
     {
       id: 'pixie-art',
@@ -403,7 +417,7 @@
     },
     {
       id: 'cache-places',
-      note: 'Resolved by §7.1. Sixteen caches stay on the Chapter II lattice, level-3 row.'
+      note: 'Resolved. Sixteen caches sit on the Webbed Deep, level-3 row. They are not the Chapter II lattice.'
     },
     {
       id: 'lair-c-copper',
@@ -423,7 +437,7 @@
     },
     {
       id: 'queen-chest',
-      note: 'Resolved by §7.1. The lair C chest stays at (12.4, 32.8), off the corpse.'
+      note: 'Resolved. The lair C chest stays at (90, 109), off the corpse.'
     }
   ];
 
@@ -453,6 +467,7 @@
     XP: XP,
     FORECAST_BOSS_GUARDIAN_XP: FORECAST_BOSS_GUARDIAN_XP,
     OPEN: OPEN,
+    TOOTH: TOOTH,
     printedXp: printedXp,
     bossGuardianXp: bossGuardianXp,
     ingredientIds: ingredientIds,

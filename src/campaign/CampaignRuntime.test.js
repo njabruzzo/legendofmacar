@@ -31,7 +31,7 @@ assert(l2.map.guardian.x === 10.1 && l2.map.guardian.y === 31 && l2.map.guardian
 assert(l2.map.boss.x === 74 && l2.map.boss.y === 67.6 && l2.map.boss.bossFlagOnIndividual === false, 'L2 boss point comes from the map and wears no flag');
 assert(l1 && l1.enter === false && l1.stairsOpenOn === 'lever' && l1.boss == null, 'L1 is the lever exception and is not installed');
 assert(l1.guardian && l1.guardian.key === 'thinOne' && l1.guardian.count === 6, 'L1 guardian is the six Thin Ones');
-assert(l3 && l3.enter === true && l3.map.rubyDoor.x === 16.2 && l3.map.rubyDoor.y === 14.8, 'L3 loads from its map and is entered');
+assert(l3 && l3.enter === true && l3.map.rubyDoor.x === 123 && l3.map.rubyDoor.y === 79.15, 'L3 loads from its map and is entered');
 assert(l3.map.rubyDoor.x !== l2.map.rubyDoor.x, 'the loader keeps each level\'s own ruby door');
 
 const run = R.beginRun(l2);
@@ -81,7 +81,8 @@ const later = { ch: 2, campaignLevel: 2 };
 assert(R.noteCleared(later) == null && later.campaignLevel === 2, 'leaving Level 2 does not advance into Level 3');
 assert(R.shouldInstall({ campaignLevel: 1, lvl: { n: 2 } }) === false, 'an old chapter 2 save is not the campaign floor');
 assert(R.shouldInstall({ campaignLevel: 2, lvl: { n: 2 } }) === true, 'campaign Level 2 installs onto chapter 2');
-assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 2 } }) === true, 'campaign Level 3 installs onto the chapter 2 shell');
+assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 2 } }) === false, 'campaign Level 3 does not install onto the chapter 2 shell');
+assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 30 } }) === true, 'campaign Level 3 installs onto its own shell');
 assert(R.shouldInstall({ campaignLevel: 3, lvl: { n: 3 } }) === false, 'campaign Level 3 does not install onto the old ruin');
 assert(R.shouldInstall({ lvl: { n: 2 } }) === false, 'a missing campaign level stays on the old chapter');
 
@@ -137,7 +138,7 @@ assert(warren && warren.spellSet === 'swap', 'the warren shaman keeps the swap s
 const king = G.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(king && king.campaignXp === 260 && king.boss === 0 && king.chapterBoss === 0 && king.hp === 104 && king.toHit === 1 && king.dice === '1d8+2' && king.hd === 4.25 && !king.sa && !king.strMul, 'the king has printed xp and hp, one to-hit, and wears no boss flag');
 const guard = G.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
-assert(guard && guard.rubyGp === 500 && guard.kind !== 'statue' && guard.name !== 'Thin One' && guard.sprite === 'thinone' && guard.sleeping === 1 && guard.hp === 96, 'the guardian uses the Thin One sheet, sleeps, and drops 500 gp');
+assert(guard && guard.rubyGp === 500 && guard.kind !== 'statue' && guard.name === 'Ruby Guardian II' && guard.rubyTint === 1 && guard.sprite === 'thinone' && guard.sleeping === 1 && guard.hp === 96, 'the guardian uses the Thin One sheet, sleeps, and drops 500 gp');
 assert(G.ents.some(function (e) { return e.name === 'Noz'; }), 'Noz is kept on the floor');
 assert(!G.props.some(function (p) { return p.k === 'floorRubyDoor' || p.k === 'web'; }), 'the procedural ruby door and spider webs are not left on the floor');
 assert(G.props.some(function (p) { return p.k === 'floorlever' && p.campaign && p.x === 8.2 && p.y === 33.6; }), 'the lever is the map lever');
@@ -165,7 +166,7 @@ global.startChapter = function (n) { started = n; };
 G.cleared = { 1: 1 };
 G.unlocked = 2;
 R.finishCard(G);
-assert(ended === 0 && started === 2 && G.campaignLevel === 3 && G.campaignCard == null, 'Descend from Level 2 enters Level 3 on the chapter 2 shell');
+assert(ended === 0 && started === 30 && G.campaignLevel === 3 && G.campaignCard == null, 'Descend from Level 2 enters Level 3 on its own shell');
 assert(G.cleared[1] === 1 && G.cleared[2] === 1 && G.unlocked === 3, 'Descend from Level 2 clears 1 and 2 and unlocks 3');
 
 const stairG = {
@@ -183,7 +184,7 @@ global.interact = function (label, fn) { global._stairPrompt = { label: label, f
 R.tick(stairG, 0.1);
 assert(global._stairPrompt && global._stairPrompt.label === 'Climb the stair', 'an open Level 2 stair offers the climb');
 global._stairPrompt.fn();
-assert(stairStarted === 2 && stairG.campaignLevel === 3 && stairG.cleared[1] === 1 && stairG.cleared[2] === 1 && stairG.unlocked === 3, 'the Level 2 stair clears 1 and 2 and unlocks 3');
+assert(stairStarted === 30 && stairG.campaignLevel === 3 && stairG.cleared[1] === 1 && stairG.cleared[2] === 1 && stairG.unlocked === 3, 'the Level 2 stair clears 1 and 2 and unlocks 3');
 
 const snap = GS.snapshot({ campaignLevel: 2, ch: 2, scene: 'play' });
 assert(snap.campaignLevel === 2, 'a save records the current level');
@@ -294,16 +295,16 @@ const G3 = {
   campaignLevel: 3,
   ch: 2,
   ents: [{ team: 'party', hero: 1, x: 40.15, y: 8.55, hp: 168, maxhp: 168, con: 18, lvl: 3, dead: 0 }],
-  props: [{ k: 'web', x: 26.2, y: 14.6 }, { k: 'stairs', x: 40.1, y: 54.15 }, { k: 'floorRubyDoor', x: 1, y: 1 }],
+  props: [{ k: 'web', x: 118, y: 98 }, { k: 'stairs', x: 138.1, y: 111.2 }, { k: 'floorRubyDoor', x: 1, y: 1 }],
   lvl: {
-    n: 2, w: 144, h: 118, grid: null, secrets: [],
+    n: 30, w: 144, h: 118, grid: null, secrets: [],
     flags: {},
     spawn: { x: 40.15, y: 8.55 },
     tick: function () { this._inner = (this._inner || 0) + 1; }
   }
 };
 const spiderFactory = foe('Cave Spider', { kind: 'spider', sprite: 'spider', hp: 36, maxhp: 36, poison: 1 });
-assert(R.install(G3, { scale: 4, fresh: true, foe: { spider: spiderFactory, thinone: factories.thinone }, rng: function () { return 0; }, rollExpr: function () { return 4; } }) === true, 'Level 3 installs onto the chapter 2 shell');
+assert(R.install(G3, { scale: 4, fresh: true, foe: { spider: spiderFactory, thinone: factories.thinone }, rng: function () { return 0; }, rollExpr: function () { return 4; } }) === true, 'Level 3 installs onto its own shell');
 assert(G3.poisonMode === 'h1', 'Level 3 uses the H1 poison mode');
 assert(G3.lvl.title === 'The Webbed Deep and the Spider Queen', 'Level 3 keeps its own name on the shell');
 G3.lvl.tick(0.05);
@@ -319,7 +320,7 @@ assert(pix && pix.team === 'neutral' && pix.npc === 1 && pix.campaignXp === 0 &&
 const queen = G3.ents.filter(function (e) { return e.campaignRole === 'boss'; })[0];
 assert(queen && queen.campaignXp === 1828 && queen.hp === 176 && queen.boss === 0 && queen.sprite === 'spider_giant', 'the queen has printed xp and hp and wears no boss flag');
 const guard3 = G3.ents.filter(function (e) { return e.campaignRole === 'guardian'; })[0];
-assert(guard3 && guard3.rubyGp === 750 && guard3.hp === 144 && guard3.sprite === 'thinone' && guard3.sleeping === 1 && guard3.name !== 'Thin One', 'the Level 3 guardian sleeps on the Thin One sheet and drops 750 gp');
+assert(guard3 && guard3.rubyGp === 750 && guard3.hp === 144 && guard3.sprite === 'thinone' && guard3.rubyTint === 1 && guard3.name === 'Ruby Guardian III' && guard3.sleeping === 1, 'the Level 3 guardian sleeps on the Thin One sheet and drops 750 gp');
 let l3sum = 0;
 Object.keys(L3.XP).forEach(function (key) { l3sum += R.kill(R.beginRun(l3), key); });
 assert(l3sum === L3.XP.spider + L3.XP.spiderHuge + L3.XP.spiderGiant + L3.XP.phasespider + L3.XP.pixie + L3.XP.spiderQueen + L3.XP.rubyGuardian, 'one of each L3 printed xp sums without the ritual');
@@ -403,7 +404,7 @@ const shardTarget = { hp: 40, dead: 0 };
 assert(R.resolveShard(G3, shardTarget, { dice: '1d6', from: guard3 }).dmg === 4 && shardTarget.hp === 36, 'the ruby shard is 1d6, scaled');
 assert(/s\.kind==='queenweb'/.test(html) && /s\.kind==='shard'/.test(html), 'the page resolves the queen web and the ruby shard');
 const face3 = G3.props.filter(function (p) { return p && p.itemId === 'grond_tooth_electrum_3'; })[0];
-assert(face3 && face3.k === 'demonface' && face3.x === 10.1 && face3.y === 26.8 && !face3.emptySocket, 'Electrum Tooth 3 is in the demon face');
+assert(face3 && face3.k === 'demonface' && face3.x === 85 && face3.y === 99.15 && face3.wall === 'n' && !face3.emptySocket, 'Electrum Tooth 3 is in the demon face on the north wall');
 let stowedTooth = null;
 let convertedCoins = 0;
 global.stowPackItem = function (it) { stowedTooth = it; G3.packs = { macar: { magic: [it] } }; };

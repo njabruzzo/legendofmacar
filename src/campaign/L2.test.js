@@ -49,7 +49,7 @@ assert(level.tooth.id === 'grond_tooth_electrum_2' && level.tooth.x === 74 && le
 assert(level.tooth.countsForRitual === true && level.tooth.cursed === true && level.tooth.curse === 'coin' && level.tooth.bind === false, 'tooth 2 counts for the ritual; cursed is the coin curse, not a bind');
 const hourglass = level.secrets.filter(function (s) { return s.id === 'bronze-hourglass'; })[0];
 assert(hourglass && hourglass.optional === true && hourglass.room.raidSeconds === 10, 'the bronze hourglass stays an optional 10-second secret');
-assert(hourglass.room.toothId === 'grond_tooth_bronze' && hourglass.room.face.x === 141.35, 'the bronze tooth stays in the hourglass face');
+assert(hourglass.room.toothId === 'grond_tooth_bronze' && hourglass.room.face.wall === 'n' && hourglass.room.face.x === 138.2 && hourglass.room.face.y === 24.48, 'the bronze tooth face is on the hourglass room north wall');
 assert(level.loot.caches.count === 16 && level.loot.caches.places.length === 16, 'sixteen level-2 caches');
 assert(level.loot.kingCorpse.letter === 'U' && level.loot.kingChest.letter === 'C' && level.loot.kingChest.onCorpse === false, 'the king corpse is U and the chest is lair C');
 assert(level.loot.guardianRuby.id === 'ruby_guardian_2' && level.loot.guardianRuby.gp === 500, 'Guardian II drops the 500 gp ruby');
