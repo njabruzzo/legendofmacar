@@ -73,7 +73,7 @@ const ctx={
 };
 vm.createContext(ctx);
 [
-  'wearingBoneCrown','nearestBoneCrown','nearestDemonFace','chapelFaceToothTaken',
+  'wearingBoneCrown','boneCrownOffered','nearestBoneCrown','nearestDemonFace','chapelFaceToothTaken',
   'makeGrondTooth','crownWasDropped','teethCrownChoices','teethFaceChoices',
   'teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
   'dropBoneCrown','pryGrondTooth','livingThrall','isAnimateDeadEligible',

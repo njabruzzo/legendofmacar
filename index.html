@@ -3549,7 +3549,7 @@ function actorDrawDepth(o){
   /* Seated chapel crown. Its own x+y is the altar foot, so the back wall
      and the portrait paint over the slab. Sort it after those, the face,
      and the altar. */
-  if(o.k==='bonecrown' && teethCrownStillSeated()) return boneCrownDrawDepth(o);
+  if(o.k==='bonecrown' && boneCrownOffered(o) && teethCrownOnAltarSeat()) return boneCrownDrawDepth(o);
   const d=(o.x+o.y);
   if(!wallHidesFloor(G.lvl,o.x,o.y)) return d|0;
   /* Hall faces are ~4 iso-depth tall. +1 left the dwarf in the south
@@ -13000,11 +13000,18 @@ function makeBoneCrownItem(){
     d:'A crown of fused teeth. Wear it to command one dead. No Armor Class.'
   };
 }
+/* Look, Take, and the altar paint all ask this. A crown still in the
+   world is offered. crownTouched / crownTaken / crownDestroyed hide it
+   only once the prop is gone, taken, or destroyed. A save that kept the
+   prop and set a flag must not show an empty altar under a live prompt. */
+function boneCrownOffered(pr){
+  return !!(pr && pr.k==='bonecrown' && !pr.gone && !pr.taken && !pr.destroyed);
+}
 function nearestBoneCrown(p, r){
   if(!p) return null;
   let best=null, bd=r==null?1.75:r;
   (G.props||[]).forEach(pr=>{
-    if(!pr||pr.gone||pr.taken||pr.k!=='bonecrown') return;
+    if(!boneCrownOffered(pr)) return;
     const d=dist(p,pr);
     if(d<bd){ bd=d; best=pr; }
   });
@@ -13756,6 +13763,8 @@ function dropBoneCrown(){
     L.flags.crownTaken=0;
     /* Back on the slab it is seated again, so a melee swing beside the
        altar does not treat it as a dropped prop. */
+    /* Back on the slab the prop is offered again. The paint follows
+       boneCrownOffered, not crownTouched, so a stale flag cannot hide it. */
     if(atAltar){ L.flags.crownTouched=0; L.flags.crownDropped=0; if(p) p.crownDropGuard=0; }
     else {
       L.flags.crownDropped=1;
@@ -17366,18 +17375,17 @@ function drawBoneCrownAt(g, z, seatX, seatY, scale){
   drawBoneCrownShape(g, z, scale||1);
   g.restore();
 }
-/* Far from the altar, crownTouched stays set so the slab billboard hides.
-   The prop is still on the floor and has to draw there. */
+/* Far from the altar, crownTouched stays set. The floor prop is still
+   offered, so it draws here. The flag does not hide an offered prop. */
 function boneCrownDroppedOnFloor(p){
-  if(teethCrownStillSeated()) return false;
-  const f=G.lvl&&G.lvl.flags;
-  if(!f||!f.crownDropped||f.crownTaken||f.crownDestroyed) return false;
-  if(!p||p.gone||p.destroyed||p.taken) return false;
+  if(!boneCrownOffered(p)) return false;
+  const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+  if(altar && Math.abs(p.x-altar.x)<0.2 && Math.abs(p.y-altar.y)<0.2) return false;
   return true;
 }
 function drawBoneCrownProp(g,p,z){
+  if(!boneCrownOffered(p)) return;
   const onFloor=boneCrownDroppedOnFloor(p);
-  if(!teethCrownStillSeated() && !onFloor) return;
   if(onFloor){
     const img=sceneCrownSprite();
     const seat=boneCrownFloorSeatY(z);
@@ -17998,11 +18006,20 @@ function drawProp(g,p,pal){
     return;
   }
   if(p.k==='bonecrown'){
-    /* Seated crown is painted in the altar pass, on that sheet's rect. */
-    if(teethCrownStillSeated()) return;
-    if(!boneCrownDroppedOnFloor(p)) return;
+    /* Same predicate as Look / Take. Drawn on this prop, not inside the
+       altar sheet, so a missing altar decode cannot skip it. The seated
+       call is drawBoneCrownAt so the paint and the depth sort stay on
+       the prop even when the altar sheet has not decoded. */
+    if(!boneCrownOffered(p)) return;
     g.save(); g.translate(s.x,s.y);
-    drawBoneCrownProp(g,p,z);
+    if(boneCrownDroppedOnFloor(p)){
+      drawBoneCrownProp(g,p,z);
+    } else {
+      const altar=(G.props||[]).find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+      const rect=teethAltarBillboardRect(altar||p, z, teethAltarSheetImg());
+      const seat=boneCrownAltarSeat(rect);
+      drawBoneCrownAt(g, z, seat.x, seat.y, p.s||1);
+    }
     g.restore();
     return;
   }
@@ -18045,13 +18062,9 @@ function drawProp(g,p,pal){
     const sheetW=H*(sheet.width/Math.max(1,sheet.height));
     const altarRect={x:-sheetW/2, y:-H, w:sheetW, h:H};
     drawBillboard(g, sheet, altarRect.h);
-    if(teethCrownStillSeated()){
-      const crown=(G.props||[]).find(pr=>pr&&pr.k==='bonecrown'&&!pr.gone&&!pr.taken);
-      if(crown){
-        const seat=boneCrownAltarSeat(altarRect);
-        drawBoneCrownAt(g, z, seat.x, seat.y, crown.s||1);
-      }
-    }
+    /* The crown is the bonecrown prop, via boneCrownOffered. Painting it
+       here too put it under the west wall and skipped it when this sheet
+       had not decoded. */
     const b=.4+Math.sin(G.elapsed*1.8)*.2;
     emit(s.x,s.y-14*z*sca,46*z*sca,'#c81824',0.5*b+0.3);
     g.restore(); return;
