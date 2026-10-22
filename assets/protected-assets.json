@@ -59,6 +59,26 @@
           "drawDemonDwarfFace"
         ]
       ]
+    },
+    {
+      "key": "restCardMacarCrown",
+      "path": "assets/ui/rest_card_macar_vA2.png",
+      "sha256": "9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6",
+      "usedIn": [
+        "restCardMacarImage"
+      ],
+      "draws": "Crowned camp rest card (vA2) while the bone crown is worn; bare card is vB",
+      "approvedBy": "Nick Good 2026-10-09 (rest cards vB + vA2), #325",
+      "callChain": [
+        [
+          "restCardMacarImage",
+          "restCardMacarCrown"
+        ],
+        [
+          "drawSleepRest",
+          "restCardMacarImage"
+        ]
+      ]
     }
   ],
   "candidates": [
@@ -73,12 +93,6 @@
       "path": "assets/tiles/crown_bone_wall_v1.png",
       "reason": "Crown entrance bone wall (7bc87c9, 2026-10-07). No Good on record.",
       "sha256": "e2a6dd43e9f8fbf78d47880cd0c6deb01a03da153d80dbc56088c669a8d808eb"
-    },
-    {
-      "key": "restCardMacarCrown",
-      "path": "assets/ui/rest_card_macar_vA2.png",
-      "reason": "Crowned rest card (#325, 2026-10-08). No Good on record.",
-      "sha256": "9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6"
     }
   ],
   "bound": [

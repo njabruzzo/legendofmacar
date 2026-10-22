@@ -57,7 +57,7 @@ These hashes differ from the approval commit. The current file is bound, in the 
 | Four ghost dwarves (`#248` idle, `#249` walk) | 3582 | hiding every loaded ghost key changes the frame |
 | Macar (idle + front `w1`/`w2` + attack) | 869 | current sheets paint. The `#246` bytes are the replaced rows above |
 | Rest card `#325` bare `vB` | 1402 | `drawSleepRest` |
-| Rest card `#325` crowned `vA2` | 1402 | same path with the crown helm. Still a candidate, no Good on record |
+| Rest card `#325` crowned `vA2` | 1402 | Nick Good 2026-10-09. Protected as `restCardMacarCrown` |
 | Animate Dead party strip `#253` | 6046 | with the crown worn, `partyPortraitList` leads with Macar, then Pordoom, Fendur, Orbo, Talpor |
 | Party-orders HUD | 0 | no draw function |
 
@@ -73,9 +73,7 @@ These hashes differ from the approval commit. The current file is bound, in the 
 
 ## `assets/protected-assets.json`
 
-219 entries: 3 protected, 3 candidates, 213 bound. For every entry the recorded sha256 matches the file on `HEAD`, the sprite key is bound (candidates included), the path is in the preload manifest, live is HTTP 200 with that hash, and both open tips have the same blob. None of the 219 files is blank.
-
-The three candidates stay unprotected on purpose: altar v13, `crown_bone_wall_v1`, `rest_card_macar_vA2`. They are on disk, bound, and live. They are not losses.
+220 protected, 2 unprotected (altar v13, crown_bone_wall_v1). The crowned rest card moved out of the candidate list into `protected`. `bound` still holds the other hashed sprites, including bare rest card vB (`restCardMacar`), which Nick approved the same day. For every entry the recorded sha256 matches the file on `HEAD`, the sprite key is bound, the path is in the preload manifest, live is HTTP 200 with that hash, and both open tips have the same blob. None of the files is blank.
 
 Protected:
 
@@ -84,6 +82,7 @@ Protected:
 | `bone_crown` | `5826539d44b7e2a7c8743be127af7b724fd31c61c07b900a6b0d9a597a040692` | `#247` | worn / take sheet; scene crown is the altar paint |
 | `bone_crown_scene` | `8b3950d3807e7947480a0a9d73d82cb86a85b07dbaac0c355f4784143c9c60f3` | `#263` (seat `#257`) | 1050 |
 | `demon_dwarfface` | `6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39` | `#257` | 52695 |
+| `restCardMacarCrown` | `9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6` | Nick Good 2026-10-09 (rest cards vB + vA2), `#325` | 1402 |
 
 ## Full catalog
 
@@ -96,7 +95,7 @@ Protected:
 | `demon_dwarfface` | protected | `6204175dc88f` | 200 same | same | same | yes | yes |
 | `altar_teeth` | candidates | `3045eb1ed30b` | 200 same | same | same | yes | yes |
 | `crown_bone_wall` | candidates | `e2a6dd43e9f8` | 200 same | same | same | yes | yes |
-| `restCardMacarCrown` | candidates | `9b6333bcc8b2` | 200 same | same | same | yes | yes |
+| `restCardMacarCrown` | protected | `9b6333bcc8b2` | 200 same | same | same | yes | yes |
 | `altar` | bound | `a1c9a92a2569` | 200 same | same | same | yes | yes |
 | `banner` | bound | `97f1ac7d0e8d` | 200 same | same | same | yes | yes |
 | `barrel` | bound | `36e48c869c1c` | 200 same | same | same | yes | yes |
