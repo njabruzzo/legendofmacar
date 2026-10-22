@@ -954,8 +954,7 @@
     {
       "key": "rubydoor_stairs",
       "path": "assets/props/prop_rubydoor_stairs_v2.png",
-      "sha256": "b5ffa904207ebb954ec9d4be71cb609d30fd1d06d66a584247de90d8f4e0e189",
-      "approvedBy": "b66212b (ruby door stairs)"
+      "sha256": "b5ffa904207ebb954ec9d4be71cb609d30fd1d06d66a584247de90d8f4e0e189"
     },
     {
       "key": "rubypillar",
