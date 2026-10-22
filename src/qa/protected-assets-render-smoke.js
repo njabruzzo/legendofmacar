@@ -12,7 +12,7 @@ const puppeteer=require(process.env.PUPPETEER_CORE||'puppeteer-core');
 const root=path.join(__dirname,'../..');
 const W=ms=>new Promise(r=>setTimeout(r,ms));
 const VP={laptop:{width:1280,height:800},phone:{width:390,height:844,deviceScaleFactor:3,isMobile:true,hasTouch:true}};
-const MIN={altarCrown:150,chapelFace:500};
+const MIN={altarCrown:150,altarCrownTouched:150,chapelFace:500,restCard:150,restCardCrown:150};
 const shotDir=process.env.SHOT_DIR||'';
 function serve(){ return new Promise(res=>{ const types={'.html':'text/html','.js':'text/javascript','.png':'image/png','.jpg':'image/jpeg','.json':'application/json','.webp':'image/webp','.mp3':'audio/mpeg','.ogg':'audio/ogg'};
   const s=http.createServer((q,r)=>{ let u=decodeURIComponent(q.url.split('?')[0]); if(u==='/')u='/index.html'; const f=path.join(root,u); if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end();} r.writeHead(200,{'content-type':types[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(r); });
@@ -26,7 +26,7 @@ async function run(base,vp,browser){
     if(sec){ sec.open=1; if(typeof applyCrownEntranceFrame==='function') applyCrownEntranceFrame(L); }
     buildTeethCrownRoom(L,sec); for(const r of L.seen) r.fill(1); L.flags.teethIntro=1;
     const h=G.ents.find(e=>e.hero); h.x=103.2; h.y=5.6; G.ents=G.ents.filter(e=>e.hero); G.cam={x:h.x,y:h.y};
-    ['bone_crown','bone_crown_scene','altar_teeth','demon_dwarfface'].forEach(k=>loadSpriteKeyNow(k)); });
+    ['bone_crown','bone_crown_scene','altar_teeth','demon_dwarfface','restCardMacar','restCardMacarCrown'].forEach(k=>loadSpriteKeyNow(k)); });
   await W(2500); await p.evaluate(()=>{G.talk=null;}); await W(500);
   const r=await p.evaluate(()=>{
     const cv=document.createElement('canvas'); cv.width=VW; cv.height=VH; const g=cv.getContext('2d');
@@ -35,8 +35,39 @@ async function run(base,vp,browser){
       let n=0,inSpot=0; const s=tgt?w2s(tgt.x,tgt.y):null; const R=Math.max(VW,VH)*0.35;
       for(let i=0;i<base.length;i+=4){ if(Math.abs(base[i]-off[i])+Math.abs(base[i+1]-off[i+1])+Math.abs(base[i+2]-off[i+2])>24){ n++; const x=(i/4)%VW,y=(i/4/VW)|0; if(!s||Math.hypot(x-s.x,y-s.y)<R) inSpot++; } }
       return {props:hit.length,px:n,inSpot}; }
-    return {altarCrown:diff('bonecrown',null), chapelFace:diff('demonface',null),
-      sprites:['bone_crown','bone_crown_scene','demon_dwarfface'].map(k=>k+':'+(SPR[k]&&SPR[k].width?SPR[k].width+'x'+SPR[k].height:'MISSING'))}; });
+    const altarCrown=diff('bonecrown',null);
+    const chapelFace=diff('demonface',null);
+    const altar=G.props.find(a=>a&&a.k==='altar'&&a.teethAltar&&!a.gone);
+    const crown=G.props.find(q=>q&&q.k==='bonecrown');
+    G.lvl.flags=G.lvl.flags||{};
+    G.lvl.flags.crownTouched=1;
+    G.lvl.flags.crownTaken=0;
+    G.lvl.flags.crownDestroyed=0;
+    if(crown){ crown.gone=0; crown.taken=0; crown.destroyed=0; }
+    const seated=!!(altar&&crown&&Math.abs(crown.x-altar.x)<0.2&&Math.abs(crown.y-altar.y)<0.2&&!crown.gone&&!crown.taken);
+    const altarCrownTouched=diff('bonecrown',null);
+    altarCrownTouched.seated=seated?1:0;
+    if(!seated) altarCrownTouched.props=0;
+    function cardPx(crowned){
+      G.equipped=G.equipped||{};
+      const prev=G.equipped.helmet;
+      G.equipped.helmet=crowned?{boneCrown:1,n:'Bone Crown',slot:'helmet'}:null;
+      G.sleepShow={t:2,dur:5};
+      const cv=document.createElement('canvas'); cv.width=VW; cv.height=VH; const g=cv.getContext('2d');
+      const frame=()=>{ g.setTransform(1,0,0,1,0,0); g.globalAlpha=1; g.globalCompositeOperation='source-over'; g.fillStyle='#000'; g.fillRect(0,0,VW,VH); drawSleepRest(g); return g.getImageData(0,0,VW,VH).data; };
+      const base=frame();
+      const keepB=SPR.restCardMacar, keepC=SPR.restCardMacarCrown, keepBlit=blitLivingMacar;
+      SPR.restCardMacar=null; SPR.restCardMacarCrown=null; blitLivingMacar=function(){return null;};
+      const off=frame();
+      SPR.restCardMacar=keepB; SPR.restCardMacarCrown=keepC; blitLivingMacar=keepBlit;
+      G.equipped.helmet=prev; G.sleepShow=null;
+      let n=0; for(let i=0;i<base.length;i+=4){ if(Math.abs(base[i]-off[i])+Math.abs(base[i+1]-off[i+1])+Math.abs(base[i+2]-off[i+2])>24) n++; }
+      const im=crowned?keepC:keepB;
+      return {props:im&&im.width?1:0, px:n, inSpot:n};
+    }
+    return {altarCrown, altarCrownTouched, chapelFace,
+      restCard:cardPx(false), restCardCrown:cardPx(true),
+      sprites:['bone_crown','bone_crown_scene','demon_dwarfface','restCardMacar','restCardMacarCrown'].map(k=>k+':'+(SPR[k]&&SPR[k].width?SPR[k].width+'x'+SPR[k].height:'MISSING'))}; });
   if(shotDir) await p.screenshot({path:path.join(shotDir,'smoke-'+vp+'.png')});
   await ctx.close(); return {vp,r,errs};
 }
@@ -50,7 +81,8 @@ async function run(base,vp,browser){
       const {r,errs}=await run(base,vp,browser);
       console.log(vp+' sprites '+r.sprites.join(' '));
       for(const k of Object.keys(MIN)){ const v=r[k]; const pass=v.props>0&&v.inSpot>=MIN[k];
-        console.log((pass?'ok    ':'FAIL  ')+vp+' '+k+' props='+v.props+' px='+v.px+' atSpot='+v.inSpot+' (min '+MIN[k]+')'); if(!pass) failed++; }
+        const seat=k==='altarCrownTouched'?(v.seated?' seated':' NOT-SEATED'):'';
+        console.log((pass?'ok    ':'FAIL  ')+vp+' '+k+' props='+v.props+' px='+v.px+' atSpot='+v.inSpot+seat+' (min '+MIN[k]+')'); if(!pass) failed++; }
       if(errs.length){ console.log('FAIL  '+vp+' page errors: '+errs.slice(0,3).join(' | ')); failed++; }
     }
   } finally { await browser.close(); if(srv) srv.close(); }

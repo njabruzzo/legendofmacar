@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "law": "An approved LoM asset is never removed, renamed, re-hashed or unbound without Nick's OK through Eva. Changing a protected entry needs a version bump and a new approvedBy.",
+  "version": 2,
+  "law": "An approved LoM asset is never removed, renamed, re-hashed or unbound without Nick's OK through Eva. Protected and bound entries are enforced: the file must exist, the sha256 must match, the sprite key must stay bound in SPRITE_FILES, and the path must stay in the preload. A byte change against main is allowed only with an approvedBy update in the same PR. Changing a protected entry needs a version bump and a new approvedBy. Candidates are recorded, not enforced.",
   "protected": [
     {
       "key": "bone_crown",
@@ -68,7 +68,7 @@
         "restCardMacarImage"
       ],
       "draws": "Crowned camp rest card (vA2) while the bone crown is worn; bare card is vB",
-      "approvedBy": "Nick Good 2026-10-09 (rest cards vB + vA2), #325",
+      "approvedBy": "Nick Good via Eva Review Desk chat, 2026-10-08 CT",
       "callChain": [
         [
           "restCardMacarImage",
@@ -99,7 +99,8 @@
     {
       "key": "altar",
       "path": "assets/props/prop_altar.png",
-      "sha256": "a1c9a92a256936c4fc369cedabd5f2affd3821e006f3b14732e29eb0e540a891"
+      "sha256": "a1c9a92a256936c4fc369cedabd5f2affd3821e006f3b14732e29eb0e540a891",
+      "approvedBy": "PR #247 (Nick Good crown-fit), 2026-09-22"
     },
     {
       "key": "banner",
@@ -184,17 +185,20 @@
     {
       "key": "ch1_lift_lever",
       "path": "assets/props/prop_ch1_lift_lever.png",
-      "sha256": "9fe322138544bd2fe926132edb7b90882e13058ec44461f9e4dd6b01c103692c"
+      "sha256": "9fe322138544bd2fe926132edb7b90882e13058ec44461f9e4dd6b01c103692c",
+      "approvedBy": "347d721 (signed Chapter I lever and pillar ruby), 2026-09-21"
     },
     {
       "key": "ch1_lift_lever_thrown",
       "path": "assets/props/prop_ch1_lift_lever_thrown.png",
-      "sha256": "fd6dc4082ed53244d9fa45b705b5803d824f67332def0f0baba57e93afad7a09"
+      "sha256": "fd6dc4082ed53244d9fa45b705b5803d824f67332def0f0baba57e93afad7a09",
+      "approvedBy": "347d721 (signed Chapter I lever and pillar ruby), 2026-09-21"
     },
     {
       "key": "ch1_pillar_ruby",
       "path": "assets/props/prop_ch1_pillar_ruby.png",
-      "sha256": "b40ad69fe07460121486e779701dee37c005a9da7d2a8779254eaed66a72bf06"
+      "sha256": "b40ad69fe07460121486e779701dee37c005a9da7d2a8779254eaed66a72bf06",
+      "approvedBy": "347d721 (signed Chapter I lever and pillar ruby), 2026-09-21"
     },
     {
       "key": "chain",
@@ -239,7 +243,8 @@
     {
       "key": "demon_dwarfface_empty",
       "path": "assets/props/prop_demon_dwarfface_empty.png",
-      "sha256": "2ee12bb9b79439461863fcbb085604da0c8c5a8250111d91f2ed8bdd8970fb9f"
+      "sha256": "2ee12bb9b79439461863fcbb085604da0c8c5a8250111d91f2ed8bdd8970fb9f",
+      "approvedBy": "PR #257 (2a86792 v5 chapel face plates), 2026-09-27"
     },
     {
       "key": "demon_dwarfface_vault",
@@ -249,7 +254,8 @@
     {
       "key": "demonface",
       "path": "assets/props/prop_demon_dwarfface.png",
-      "sha256": "6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39"
+      "sha256": "6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39",
+      "approvedBy": "PR #257 (bind the v5 chapel face), 2026-09-27"
     },
     {
       "key": "drake",
@@ -314,12 +320,25 @@
     {
       "key": "fendur_ghost",
       "path": "assets/creatures/dwarf_fendur_ghost.png",
-      "sha256": "efbc262377be09e1b7cc657e5720a62d37c31d6a47d8131beb5c2aa9b80f8507"
+      "sha256": "efbc262377be09e1b7cc657e5720a62d37c31d6a47d8131beb5c2aa9b80f8507",
+      "approvedBy": "PR #248 (Nick Good ghost idle), 2026-09-22"
     },
     {
       "key": "fendur_ghost_back",
       "path": "assets/creatures/dwarf_fendur_ghost_back.png",
       "sha256": "a9abb6d10a95297a72886a445f690121008472f4a6187c2bbb8e7f60dd64215c"
+    },
+    {
+      "key": "fendur_ghost_w1",
+      "path": "assets/creatures/dwarf_fendur_ghost_w1.png",
+      "sha256": "4e7b7e257046a30ced5f8c8174fbdc4ee60951b3160200ccb4e2b08eddbf806e",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
+    },
+    {
+      "key": "fendur_ghost_w2",
+      "path": "assets/creatures/dwarf_fendur_ghost_w2.png",
+      "sha256": "74fee9634ab4bf56be90caef7e34a335f09faaf625b9a2bcb5f6417fddca14a2",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
     },
     {
       "key": "floor_fungi",
@@ -599,12 +618,14 @@
     {
       "key": "intro_cavein",
       "path": "assets/ui/intro_cavein.jpg",
-      "sha256": "51034bb4d232667575fc6ed9ace3e078e31605fe9e7de18269df9fc35cad4a45"
+      "sha256": "51034bb4d232667575fc6ed9ace3e078e31605fe9e7de18269df9fc35cad4a45",
+      "approvedBy": "PR #229 (Chapter I splash), 2026-09-21"
     },
     {
       "key": "intro_ch1",
       "path": "assets/ui/intro_ch1.jpg",
-      "sha256": "0a55def985efe92ceaf86805e4f0188c91aa26915f2c6245bf3d2ad09923878c"
+      "sha256": "0a55def985efe92ceaf86805e4f0188c91aa26915f2c6245bf3d2ad09923878c",
+      "approvedBy": "PR #229 (Chapter I splash), 2026-09-21"
     },
     {
       "key": "intro_ch2",
@@ -654,7 +675,8 @@
     {
       "key": "loot_coins",
       "path": "assets/props/loot_coins.png",
-      "sha256": "81ca34432b7a6656c1b4977ae7881e21bd2b1adc480a5b16624169828f4cc252"
+      "sha256": "81ca34432b7a6656c1b4977ae7881e21bd2b1adc480a5b16624169828f4cc252",
+      "approvedBy": "b303ea8 (approved coin pile), #257, 2026-09-26"
     },
     {
       "key": "loot_gems",
@@ -824,12 +846,25 @@
     {
       "key": "orbo_ghost",
       "path": "assets/creatures/dwarf_orbo_ghost.png",
-      "sha256": "a077fef6e8020ce6c868a7750714211c3ed9d35db340875c171537364fe14c61"
+      "sha256": "a077fef6e8020ce6c868a7750714211c3ed9d35db340875c171537364fe14c61",
+      "approvedBy": "PR #248 (Nick Good ghost idle), 2026-09-22"
     },
     {
       "key": "orbo_ghost_back",
       "path": "assets/creatures/dwarf_orbo_ghost_back.png",
       "sha256": "ab5d037dc2488c540f935cda34602c9e3cad96307dcc8ede28512a0ef53bd240"
+    },
+    {
+      "key": "orbo_ghost_w1",
+      "path": "assets/creatures/dwarf_orbo_ghost_w1.png",
+      "sha256": "2a5d1c8b1802750d21fdc3197ba8ed64ce36a6e887be18a67dc176c8296ba36a",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
+    },
+    {
+      "key": "orbo_ghost_w2",
+      "path": "assets/creatures/dwarf_orbo_ghost_w2.png",
+      "sha256": "db0716eadfa29b2b8622c6224ae49e47f74b58b3e716a381a7d11658fca2eb61",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
     },
     {
       "key": "orepile",
@@ -859,12 +894,25 @@
     {
       "key": "pordoom_ghost",
       "path": "assets/creatures/dwarf_pordoom_ghost.png",
-      "sha256": "6ef58ed61618ed9fc3841e2999e088e55e908cd8c5c34fbb85725450d60a334d"
+      "sha256": "6ef58ed61618ed9fc3841e2999e088e55e908cd8c5c34fbb85725450d60a334d",
+      "approvedBy": "PR #248 (Nick Good ghost idle), 2026-09-22"
     },
     {
       "key": "pordoom_ghost_back",
       "path": "assets/creatures/dwarf_pordoom_ghost_back.png",
       "sha256": "1f0ee2d72b83bed3d814123af74fc708f3ac087808d1460da5c9b2655c24778a"
+    },
+    {
+      "key": "pordoom_ghost_w1",
+      "path": "assets/creatures/dwarf_pordoom_ghost_w1.png",
+      "sha256": "e66b2a1002381c8d2c6ee8dc5b2c5468bf7044017f67dde50dc38ff536a0d0e4",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
+    },
+    {
+      "key": "pordoom_ghost_w2",
+      "path": "assets/creatures/dwarf_pordoom_ghost_w2.png",
+      "sha256": "a243e0404733d624693ef84745c6371e12f841561efc37083d706969131c424f",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
     },
     {
       "key": "rat",
@@ -874,7 +922,8 @@
     {
       "key": "restCardMacar",
       "path": "assets/ui/rest_card_macar_vB.png",
-      "sha256": "cc9bb737bcbfedcb61d99f210c714d4b5a6e7f4702010e8c8954e78e498e7ff4"
+      "sha256": "cc9bb737bcbfedcb61d99f210c714d4b5a6e7f4702010e8c8954e78e498e7ff4",
+      "approvedBy": "Nick Good via Eva Review Desk chat, 2026-10-08 CT"
     },
     {
       "key": "roots",
@@ -894,7 +943,8 @@
     {
       "key": "rubydoor",
       "path": "assets/props/prop_rubydoor.png",
-      "sha256": "6abd669ddf790d701481b61abfbc205b3487fbdf2c2986d97b1ff2811a8d3436"
+      "sha256": "6abd669ddf790d701481b61abfbc205b3487fbdf2c2986d97b1ff2811a8d3436",
+      "approvedBy": "PR #229 (ruby door); #243 changed the draw only, 2026-09-21"
     },
     {
       "key": "rubydoor_face",
@@ -904,7 +954,8 @@
     {
       "key": "rubydoor_stairs",
       "path": "assets/props/prop_rubydoor_stairs_v2.png",
-      "sha256": "b5ffa904207ebb954ec9d4be71cb609d30fd1d06d66a584247de90d8f4e0e189"
+      "sha256": "b5ffa904207ebb954ec9d4be71cb609d30fd1d06d66a584247de90d8f4e0e189",
+      "approvedBy": "b66212b (ruby door stairs)"
     },
     {
       "key": "rubypillar",
@@ -914,7 +965,8 @@
     {
       "key": "rubywall",
       "path": "assets/props/prop_rubywall.png",
-      "sha256": "d68572d9e791e03f6fa6e98e71f86b92cbcb83403400b022bad9d33c00d395ba"
+      "sha256": "d68572d9e791e03f6fa6e98e71f86b92cbcb83403400b022bad9d33c00d395ba",
+      "approvedBy": "PR #243 tree (20e66002), bytes unchanged, 2026-09-21"
     },
     {
       "key": "ruin_house",
@@ -999,7 +1051,8 @@
     {
       "key": "talpor_ghost",
       "path": "assets/creatures/dwarf_talpor_ghost.png",
-      "sha256": "c519730f04e3021b4fc70994163e9a7a3d0e5fd8b549093390e8e5cf45430d07"
+      "sha256": "c519730f04e3021b4fc70994163e9a7a3d0e5fd8b549093390e8e5cf45430d07",
+      "approvedBy": "b303ea8 (approved Talpor idle), #257, 2026-09-26"
     },
     {
       "key": "talpor_ghost_back",
@@ -1007,14 +1060,28 @@
       "sha256": "3d36c50f74c2b9d85d88cc16a42696df08658ab184ab17cb280139bb7e08fd7b"
     },
     {
+      "key": "talpor_ghost_w1",
+      "path": "assets/creatures/dwarf_talpor_ghost_w1.png",
+      "sha256": "20180a390e3d7427ff7ae2c51bce15607bfa2470005163db12901f0b20692fff",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
+    },
+    {
+      "key": "talpor_ghost_w2",
+      "path": "assets/creatures/dwarf_talpor_ghost_w2.png",
+      "sha256": "a901092acf2d7c4e4aa69ffee6f56db0a421d0a36d6dd06d501de51a8958c09f",
+      "approvedBy": "PR #249 (Nick Good ghost walk), 2026-09-22"
+    },
+    {
       "key": "teeth_floor",
       "path": "assets/tiles/teeth_floor.png",
-      "sha256": "fab3cda0d6c5c7f9513b2e5a8c0a69565039018cd688af960bdc6f635b054abc"
+      "sha256": "fab3cda0d6c5c7f9513b2e5a8c0a69565039018cd688af960bdc6f635b054abc",
+      "approvedBy": "ea2baeb, merged as #234 (teeth chapel v3), 2026-09-21"
     },
     {
       "key": "teeth_floor_atlas",
       "path": "assets/tiles/teeth_floor_atlas_8x8.png",
-      "sha256": "07c952f9db739812e04f7a1b0c8209432454a4f53854fed1a4232b45f5725b31"
+      "sha256": "07c952f9db739812e04f7a1b0c8209432454a4f53854fed1a4232b45f5725b31",
+      "approvedBy": "f5bf310 (approved teeth-room floor atlas), #257, 2026-09-26"
     },
     {
       "key": "thinone",
@@ -1039,12 +1106,14 @@
     {
       "key": "title_menu",
       "path": "assets/ui/title_menu.jpg",
-      "sha256": "bf6f14a4f4a40069aaf2663b0504dac6d0cc317a9209159a37fb3e249377cde7"
+      "sha256": "bf6f14a4f4a40069aaf2663b0504dac6d0cc317a9209159a37fb3e249377cde7",
+      "approvedBy": "PR #239 (55fbfe6 title full-bleed), 2026-09-22"
     },
     {
       "key": "title_splash",
       "path": "assets/ui/title_splash.jpg",
-      "sha256": "6944babd0fa4e1d0a3b3cabba2a9960e6724cf05752f8eb6ef618d08d3867273"
+      "sha256": "6944babd0fa4e1d0a3b3cabba2a9960e6724cf05752f8eb6ef618d08d3867273",
+      "approvedBy": "PR #229 (title splash), 2026-09-21"
     },
     {
       "key": "tooth",
@@ -1129,12 +1198,14 @@
     {
       "key": "wall_teeth_chapel",
       "path": "assets/tiles/tile_wall_teeth_chapel.png",
-      "sha256": "226f5b26e333fd695b458d5dc0ceaefadccad243be64c05443f00c11f5395b5d"
+      "sha256": "226f5b26e333fd695b458d5dc0ceaefadccad243be64c05443f00c11f5395b5d",
+      "approvedBy": "ea2baeb, merged as #234 (teeth chapel v3), 2026-09-21"
     },
     {
       "key": "wall_teeth_chapel_opaque",
       "path": "assets/tiles/tile_wall_teeth_chapel_opaque.png",
-      "sha256": "2a1c563bd435bdec63e27bda110669b8cb3d0a266bac6f3200699447d5180311"
+      "sha256": "2a1c563bd435bdec63e27bda110669b8cb3d0a266bac6f3200699447d5180311",
+      "approvedBy": "ea2baeb, merged as #234 (teeth chapel v3), 2026-09-21"
     },
     {
       "key": "wall_worked",

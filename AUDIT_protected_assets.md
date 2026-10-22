@@ -57,7 +57,7 @@ These hashes differ from the approval commit. The current file is bound, in the 
 | Four ghost dwarves (`#248` idle, `#249` walk) | 3582 | hiding every loaded ghost key changes the frame |
 | Macar (idle + front `w1`/`w2` + attack) | 869 | current sheets paint. The `#246` bytes are the replaced rows above |
 | Rest card `#325` bare `vB` | 1402 | `drawSleepRest` |
-| Rest card `#325` crowned `vA2` | 1402 | Nick Good 2026-10-09. Protected as `restCardMacarCrown` |
+| Rest card `#325` crowned `vA2` | 1402 | Nick Good via Eva Review Desk chat, 2026-10-08 CT. Protected as `restCardMacarCrown` |
 | Animate Dead party strip `#253` | 6046 | with the crown worn, `partyPortraitList` leads with Macar, then Pordoom, Fendur, Orbo, Talpor |
 | Party-orders HUD | 0 | no draw function |
 
@@ -73,7 +73,11 @@ These hashes differ from the approval commit. The current file is bound, in the 
 
 ## `assets/protected-assets.json`
 
-220 protected, 2 unprotected (altar v13, crown_bone_wall_v1). The crowned rest card moved out of the candidate list into `protected`. `bound` still holds the other hashed sprites, including bare rest card vB (`restCardMacar`), which Nick approved the same day. For every entry the recorded sha256 matches the file on `HEAD`, the sprite key is bound, the path is in the preload manifest, live is HTTP 200 with that hash, and both open tips have the same blob. None of the files is blank.
+Recorded 227. Enforced 225. Unenforced candidates 2: altar v13 (`altar_teeth`, `assets/props/prop_altar_teeth_no_walls_v13.png`) and `crown_bone_wall_v1` (`crown_bone_wall`, `assets/tiles/crown_bone_wall_v1.png`).
+
+The enforced set is the 4 `protected` entries plus the 221 `bound` entries. The gate fails if any of those files is deleted or renamed, if its sha256 drifts, if `SPRITE_FILES` no longer binds it, or if the preload registry drops it. A byte change against `main` is allowed only when the same change sets a new `approvedBy`. The two candidates stay recorded and unenforced: v13 has no Good (the `#247` sheet is the separate `altar` key), and the crown bone wall has no Good.
+
+35 entries carry `approvedBy` (the 4 protected ones, plus 31 bound ones whose bytes still match a cited PR, commit, or date, including the `#249` ghost walks `fendur_ghost_w1` / `w2` and the same pair for Pordoom, Orbo, and Talpor). The other 190 bound entries are enforced without a cited approval. Bare rest card vB (`restCardMacar`) carries the same Eva citation as the crowned card. For every entry the recorded sha256 matches the file on `HEAD`, the sprite key is bound, the path is in the preload manifest, live is HTTP 200 with that hash, and both open tips have the same blob. None of the files is blank.
 
 Protected:
 
@@ -82,7 +86,7 @@ Protected:
 | `bone_crown` | `5826539d44b7e2a7c8743be127af7b724fd31c61c07b900a6b0d9a597a040692` | `#247` | worn / take sheet; scene crown is the altar paint |
 | `bone_crown_scene` | `8b3950d3807e7947480a0a9d73d82cb86a85b07dbaac0c355f4784143c9c60f3` | `#263` (seat `#257`) | 1050 |
 | `demon_dwarfface` | `6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39` | `#257` | 52695 |
-| `restCardMacarCrown` | `9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6` | Nick Good 2026-10-09 (rest cards vB + vA2), `#325` | 1402 |
+| `restCardMacarCrown` | `9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6` | Nick Good via Eva Review Desk chat, 2026-10-08 CT | 1402 |
 
 ## Full catalog
 
@@ -141,6 +145,8 @@ Protected:
 | `fendur_dead` | bound | `e4479f195f61` | 200 same | same | same | yes | yes |
 | `fendur_ghost` | bound | `efbc262377be` | 200 same | same | same | yes | yes |
 | `fendur_ghost_back` | bound | `a9abb6d10a95` | 200 same | same | same | yes | yes |
+| `fendur_ghost_w1` | bound | `4e7b7e257046` | 200 same | same | same | yes | yes |
+| `fendur_ghost_w2` | bound | `74fee9634ab4` | 200 same | same | same | yes | yes |
 | `floor_fungi` | bound | `e354c985df90` | 200 same | same | same | yes | yes |
 | `floor_hall` | bound | `eedf9fd47b0a` | 200 same | same | same | yes | yes |
 | `floor_mine` | bound | `654bf11901c7` | 200 same | same | same | yes | yes |
@@ -243,6 +249,8 @@ Protected:
 | `orbo_dead` | bound | `d45f3db3c43c` | 200 same | same | same | yes | yes |
 | `orbo_ghost` | bound | `a077fef6e802` | 200 same | same | same | yes | yes |
 | `orbo_ghost_back` | bound | `ab5d037dc248` | 200 same | same | same | yes | yes |
+| `orbo_ghost_w1` | bound | `2a5d1c8b1802` | 200 same | same | same | yes | yes |
+| `orbo_ghost_w2` | bound | `db0716eadfa2` | 200 same | same | same | yes | yes |
 | `orepile` | bound | `3756a9a4beb9` | 200 same | same | same | yes | yes |
 | `pickpile` | bound | `4fbdeda11885` | 200 same | same | same | yes | yes |
 | `pillar` | bound | `9e1472242a14` | 200 same | same | same | yes | yes |
@@ -250,6 +258,8 @@ Protected:
 | `pordoom_dead` | bound | `a1b66a08980a` | 200 same | same | same | yes | yes |
 | `pordoom_ghost` | bound | `6ef58ed61618` | 200 same | same | same | yes | yes |
 | `pordoom_ghost_back` | bound | `1f0ee2d72b83` | 200 same | same | same | yes | yes |
+| `pordoom_ghost_w1` | bound | `e66b2a100238` | 200 same | same | same | yes | yes |
+| `pordoom_ghost_w2` | bound | `a243e0404733` | 200 same | same | same | yes | yes |
 | `rat` | bound | `0df30799ce18` | 200 same | same | same | yes | yes |
 | `restCardMacar` | bound | `cc9bb737bcbf` | 200 same | same | same | yes | yes |
 | `roots` | bound | `facb0fe28d5a` | 200 same | same | same | yes | yes |
@@ -278,6 +288,8 @@ Protected:
 | `talpor_dead` | bound | `dd79311c68d3` | 200 same | same | same | yes | yes |
 | `talpor_ghost` | bound | `c519730f04e3` | 200 same | same | same | yes | yes |
 | `talpor_ghost_back` | bound | `3d36c50f74c2` | 200 same | same | same | yes | yes |
+| `talpor_ghost_w1` | bound | `20180a390e3d` | 200 same | same | same | yes | yes |
+| `talpor_ghost_w2` | bound | `a901092acf2d` | 200 same | same | same | yes | yes |
 | `teeth_floor` | bound | `fab3cda0d6c5` | 200 same | same | same | yes | yes |
 | `teeth_floor_atlas` | bound | `07c952f9db73` | 200 same | same | same | yes | yes |
 | `thinone` | bound | `de1874d8095b` | 200 same | same | same | yes | yes |
