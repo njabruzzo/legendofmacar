@@ -1,0 +1,1151 @@
+{
+  "version": 1,
+  "law": "An approved LoM asset is never removed, renamed, re-hashed or unbound without Nick's OK through Eva. Changing a protected entry needs a version bump and a new approvedBy.",
+  "protected": [
+    {
+      "key": "bone_crown",
+      "path": "assets/props/prop_bone_crown.png",
+      "sha256": "5826539d44b7e2a7c8743be127af7b724fd31c61c07b900a6b0d9a597a040692",
+      "usedIn": [
+        "crownSprite",
+        "propSpriteKey",
+        "requestMacarEquipmentArt"
+      ],
+      "draws": "TAKE/worn Bone Crown; altar fallback via sceneCrownSprite",
+      "approvedBy": "PR #247 (Nick Good crown-fit), 2026-09-22"
+    },
+    {
+      "key": "bone_crown_scene",
+      "path": "assets/props/prop_bone_crown_scene.png",
+      "sha256": "8b3950d3807e7947480a0a9d73d82cb86a85b07dbaac0c355f4784143c9c60f3",
+      "usedIn": [
+        "sceneCrownSprite"
+      ],
+      "draws": "Bone Crown seated on the teeth-chapel altar (seat from PR #257)",
+      "approvedBy": "PR #263 (open crown middle), 2026-09-27; altar seat PR #257",
+      "render": "altarCrown",
+      "callChain": [
+        [
+          "drawBoneCrownAt",
+          "sceneCrownSprite"
+        ],
+        [
+          "drawProp",
+          "drawBoneCrownAt"
+        ],
+        [
+          "buildTeethCrownRoom",
+          "bonecrown"
+        ]
+      ]
+    },
+    {
+      "key": "demon_dwarfface",
+      "path": "assets/props/prop_demon_dwarfface.png",
+      "sha256": "6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39",
+      "usedIn": [
+        "demonFaceImg",
+        "propSpriteKey"
+      ],
+      "draws": "v5 chapel demon face plate",
+      "approvedBy": "PR #257 (bind the v5 chapel face), 2026-09-27",
+      "callChain": [
+        [
+          "drawDemonDwarfFace",
+          "demonFaceImg"
+        ],
+        [
+          "drawProp",
+          "drawDemonDwarfFace"
+        ]
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "key": "altar_teeth",
+      "path": "assets/props/prop_altar_teeth_no_walls_v13.png",
+      "reason": "Altar the crown sits on. v11 had Nick Good (#247); v13 (6c460fb, 2026-10-07) has no Good on record. Confirm with Nick via Eva.",
+      "sha256": "3045eb1ed30b8aa1b8d9701d8697ec4f7b597f8b06550b5bb844039393d3e1e1"
+    },
+    {
+      "key": "crown_bone_wall",
+      "path": "assets/tiles/crown_bone_wall_v1.png",
+      "reason": "Crown entrance bone wall (7bc87c9, 2026-10-07). No Good on record.",
+      "sha256": "e2a6dd43e9f8fbf78d47880cd0c6deb01a03da153d80dbc56088c669a8d808eb"
+    },
+    {
+      "key": "restCardMacarCrown",
+      "path": "assets/ui/rest_card_macar_vA2.png",
+      "reason": "Crowned rest card (#325, 2026-10-08). No Good on record.",
+      "sha256": "9b6333bcc8b2e506587aa912673943042edbd38d5f3e36366caeb2ae3936faa6"
+    }
+  ],
+  "bound": [
+    {
+      "key": "altar",
+      "path": "assets/props/prop_altar.png",
+      "sha256": "a1c9a92a256936c4fc369cedabd5f2affd3821e006f3b14732e29eb0e540a891"
+    },
+    {
+      "key": "banner",
+      "path": "assets/props/prop_banner.png",
+      "sha256": "97f1ac7d0e8dfd2b90b507a873bf34af9909d0b9acc4bd8a02eb7499845aaa6f"
+    },
+    {
+      "key": "barrel",
+      "path": "assets/props/prop_barrel.png",
+      "sha256": "36e48c869c1c2b6aa4685b76ce92139f7ad1db0da440fb5cd52d118bfe05a43b"
+    },
+    {
+      "key": "barrow",
+      "path": "assets/creatures/mon_barrow.png",
+      "sha256": "f64002ebce8a12fc76798669cdb5321325a0bdcb3b48f50129bde50c6e2628f0"
+    },
+    {
+      "key": "bat",
+      "path": "assets/creatures/mon_bat.png",
+      "sha256": "7f9addfb851a54376597509eff8dd64241fcadf61ee673dfb3ea0b1f73c29d80"
+    },
+    {
+      "key": "beetle",
+      "path": "assets/creatures/mon_beetle.png",
+      "sha256": "a5337ad20e6ddd6d1436b331484ad7f82ffe3481332d9dbf0bd5b4b182da4bf8"
+    },
+    {
+      "key": "beholder",
+      "path": "assets/creatures/mon_beholder.png",
+      "sha256": "29c008643f31800013d73ee58e2bec84a7400966051a77ce565b733f705971b8"
+    },
+    {
+      "key": "bell",
+      "path": "assets/props/prop_bell.png",
+      "sha256": "6003dd805093a1c6d5d7c35d81436401faf5308fcd393b07e3a2095eb88b1e9d"
+    },
+    {
+      "key": "bones",
+      "path": "assets/props/prop_bones.png",
+      "sha256": "db3fdca64f85c9b1150d3360e21d54b3f1bc27db01ea906b9d85a8d6f920b90b"
+    },
+    {
+      "key": "boulder",
+      "path": "assets/props/prop_boulder.png",
+      "sha256": "78c3b1fd3b227971790c22ef4cdb5ce13e286402a01a7b7c54a5187a8b8d4105"
+    },
+    {
+      "key": "boulder2",
+      "path": "assets/props/prop_boulder2.png",
+      "sha256": "637b022bc29867f8f2b63af761b93881d899b80be63bc5a1206d70e54facd2eb"
+    },
+    {
+      "key": "brazier",
+      "path": "assets/props/prop_brazier.png",
+      "sha256": "a5b23f8e5d1579bc32778147a7d05e8addfb09b6617496d42225d214c142826e"
+    },
+    {
+      "key": "bronzedoor",
+      "path": "assets/props/prop_bronzedoor.png",
+      "sha256": "159621586051e054e09e61a1fbb3f9f25d398f219a0915a24cd6b3e0ff0101bf"
+    },
+    {
+      "key": "burrower",
+      "path": "assets/creatures/mon_burrower.png",
+      "sha256": "3024089e5cd16dac84737a07f71bd8f650b335a0065816853f7452fb8f335b51"
+    },
+    {
+      "key": "cart",
+      "path": "assets/props/prop_cart.png",
+      "sha256": "c0369669383e0eea065df3e2532e62c88d76d580c32f1fa093bb87294fbc335b"
+    },
+    {
+      "key": "cavefern",
+      "path": "assets/props/prop_cavefern.png",
+      "sha256": "68f1c166c6443315ffb64c26f653963dff746b1459638c8081717776f5d0e970"
+    },
+    {
+      "key": "cavein",
+      "path": "assets/props/prop_cavein.png",
+      "sha256": "53059dd14e8d05eb048deef54523bccce2480743ca33263c58da1d82ccb6eb5d"
+    },
+    {
+      "key": "ch1_lift_lever",
+      "path": "assets/props/prop_ch1_lift_lever.png",
+      "sha256": "9fe322138544bd2fe926132edb7b90882e13058ec44461f9e4dd6b01c103692c"
+    },
+    {
+      "key": "ch1_lift_lever_thrown",
+      "path": "assets/props/prop_ch1_lift_lever_thrown.png",
+      "sha256": "fd6dc4082ed53244d9fa45b705b5803d824f67332def0f0baba57e93afad7a09"
+    },
+    {
+      "key": "ch1_pillar_ruby",
+      "path": "assets/props/prop_ch1_pillar_ruby.png",
+      "sha256": "b40ad69fe07460121486e779701dee37c005a9da7d2a8779254eaed66a72bf06"
+    },
+    {
+      "key": "chain",
+      "path": "assets/props/prop_chain.png",
+      "sha256": "e30432aa04bc7c2818fda276b89e7a33795fb4322e1b4125a69851174f1843fd"
+    },
+    {
+      "key": "champion",
+      "path": "assets/creatures/mon_champion.png",
+      "sha256": "44c3ddbce39935253ac4cf3f3b783b773e4dc90984cf56c046e9dce755b5c13c"
+    },
+    {
+      "key": "chapters_plate",
+      "path": "assets/ui/chapters_plate.jpg",
+      "sha256": "09f22b0afb2d868de28699783a0d93e32217614ea884f28d3cd9bad05cfd1427"
+    },
+    {
+      "key": "construct",
+      "path": "assets/creatures/mon_construct.png",
+      "sha256": "34b683521e53506f3aa670cb2b8afb675d13a6de565817408386242a4e703493"
+    },
+    {
+      "key": "craftstation",
+      "path": "assets/props/prop_craftstation.png",
+      "sha256": "57c3158d37fea05ad1328e9270a5a77160bf2222918cae51b57200e8753249bd"
+    },
+    {
+      "key": "crate",
+      "path": "assets/props/prop_crate.png",
+      "sha256": "ac1c2ecf671fdd20ce97f48c1671409fa3e9b08882b515e31a86423255880156"
+    },
+    {
+      "key": "crawler",
+      "path": "assets/creatures/mon_crawler.png",
+      "sha256": "304164df1e8a48a6082623fc3a1f680b796d083fc87d274f840417cff234a960"
+    },
+    {
+      "key": "crystal",
+      "path": "assets/props/prop_crystal.png",
+      "sha256": "53dbcd10524d43851afbc998bb6a12d2ca84ef055b49b3dbdf81190fc1f5256d"
+    },
+    {
+      "key": "demon_dwarfface_empty",
+      "path": "assets/props/prop_demon_dwarfface_empty.png",
+      "sha256": "2ee12bb9b79439461863fcbb085604da0c8c5a8250111d91f2ed8bdd8970fb9f"
+    },
+    {
+      "key": "demon_dwarfface_vault",
+      "path": "assets/props/prop_demon_dwarfface_vault.png",
+      "sha256": "b3396abe313b595d3d6312d2cf1f631cf3d9b1f497fb4cbf0847a2812b4627b9"
+    },
+    {
+      "key": "demonface",
+      "path": "assets/props/prop_demon_dwarfface.png",
+      "sha256": "6204175dc88fe15450c514361a24585bb5d08e882e06253ec7c497234302fa39"
+    },
+    {
+      "key": "drake",
+      "path": "assets/creatures/mon_drake.png",
+      "sha256": "8bce40f3cdca238a7b4fb79646e653a5e43843602cdbaaad99aed00b5aa92869"
+    },
+    {
+      "key": "drow",
+      "path": "assets/creatures/mon_drow.png",
+      "sha256": "4e3e1d12cc81493c2c9ed281fe7e1e4349ff6535e494cabd6069144fd98f16d4"
+    },
+    {
+      "key": "drow_mage",
+      "path": "assets/creatures/mon_drow_mage.png",
+      "sha256": "7fc62600f1c8219e4accd802b0ec50bcb3119fa223546abb1e2aaa74e92492bd"
+    },
+    {
+      "key": "duergar",
+      "path": "assets/creatures/mon_duergar.png",
+      "sha256": "b8f724436542bd8ba11e2ab64ed8b0c788f794e1f4877f3e3ae00919ae3fc30d"
+    },
+    {
+      "key": "duergar_overseer",
+      "path": "assets/creatures/mon_duergar_overseer.png",
+      "sha256": "21413f26fc1b8b288dfd2db69369e8134d24c248df823d2cc563cab4f360c5a1"
+    },
+    {
+      "key": "dwarf_skeleton_idle",
+      "path": "assets/creatures/dwarf_skeleton_idle.png",
+      "sha256": "98cee784262aedf20a701d2c05cfea5f7e795c9144a27656a672c55fec4d4cf9"
+    },
+    {
+      "key": "dwarfface",
+      "path": "assets/props/prop_dwarfface.png",
+      "sha256": "f3b58cfa5b017a23feb1d7557a2c121c84da18e2bf10b6ff5d8b816192b51d00"
+    },
+    {
+      "key": "dwarfkey",
+      "path": "assets/props/loot_dwarfkey.png",
+      "sha256": "15314429d1c389ce5275d16cdb0b1adc35ce5afa854f6205703f8c4b6c12a65f"
+    },
+    {
+      "key": "eggs",
+      "path": "assets/props/prop_eggs.png",
+      "sha256": "19a3592c359a4e3ac6924cf24edb2e7f0ddac787b4cfb0b42a5193c11883bd39"
+    },
+    {
+      "key": "elder",
+      "path": "assets/creatures/mon_elder.png",
+      "sha256": "5cd61007a4eac381a90d475456bfa80d2723d7237f1a177604d7c2116528d52e"
+    },
+    {
+      "key": "fendur",
+      "path": "assets/creatures/dwarf_fendur.png",
+      "sha256": "ec758c71d84c18a3fe1d9837b90e98c7b7cb319ae88e77d70c281b72e595fcaa"
+    },
+    {
+      "key": "fendur_dead",
+      "path": "assets/creatures/dwarf_fendur_dead.png",
+      "sha256": "e4479f195f619118e36bbad91c97de921bd03c93c7ca087d8cc34110ce76d42e"
+    },
+    {
+      "key": "fendur_ghost",
+      "path": "assets/creatures/dwarf_fendur_ghost.png",
+      "sha256": "efbc262377be09e1b7cc657e5720a62d37c31d6a47d8131beb5c2aa9b80f8507"
+    },
+    {
+      "key": "fendur_ghost_back",
+      "path": "assets/creatures/dwarf_fendur_ghost_back.png",
+      "sha256": "a9abb6d10a95297a72886a445f690121008472f4a6187c2bbb8e7f60dd64215c"
+    },
+    {
+      "key": "floor_fungi",
+      "path": "assets/tiles/tile_floor_fungi.png",
+      "sha256": "e354c985df901abb4bd9e073489a806d9b40c1457f25afe50c68aea88ed386a8"
+    },
+    {
+      "key": "floor_hall",
+      "path": "assets/tiles/tile_floor_hall.png",
+      "sha256": "eedf9fd47b0a8b36cd7dcae84e2a544907ffc62c6a9e534a4dce7a7be4673909"
+    },
+    {
+      "key": "floor_mine",
+      "path": "assets/tiles/tile_floor_mine.png",
+      "sha256": "654bf11901c7c42d8e00e00d0ebb8bc07887d868b9c245389655bc121b299fc9"
+    },
+    {
+      "key": "floor_ruin",
+      "path": "assets/tiles/tile_floor_ruin.png",
+      "sha256": "ae0504f23bdce35d31009110b421033739628b9579a604213bf0a8c91c4ef988"
+    },
+    {
+      "key": "fx_bolt",
+      "path": "assets/fx/fx_bolt.png",
+      "sha256": "fa37aab4e905c7b027d7843023396f92de4b5fef6af814ac34a41fc7e81f2971"
+    },
+    {
+      "key": "fx_bomb",
+      "path": "assets/fx/fx_bomb.png",
+      "sha256": "5f26e986a7ceea742ba1560a4f20edc748f35bdd920e82537ffb27fd8265d8ba"
+    },
+    {
+      "key": "fx_flame",
+      "path": "assets/fx/fx_flame.png",
+      "sha256": "7af66319506a087193f726cc0933a3d14fb381337137fde8cb623e6846a3e4b5"
+    },
+    {
+      "key": "fx_heal",
+      "path": "assets/fx/fx_heal.png",
+      "sha256": "b3ae50ae7ca1067027f319ccf1906d3bac3610abb36d83e6e9abfa0885407bf5"
+    },
+    {
+      "key": "fx_hex",
+      "path": "assets/fx/fx_hex.png",
+      "sha256": "854d59af9c4dd158751760ff649648d7df3ad26bc6b04a153145e6ba696d104d"
+    },
+    {
+      "key": "fx_spit",
+      "path": "assets/fx/fx_spit.png",
+      "sha256": "b2c78286513bdacb92103408fc790878c37c924d14ed78532565d3a9ad45100c"
+    },
+    {
+      "key": "fx_wisp",
+      "path": "assets/fx/fx_wisp.png",
+      "sha256": "140502db04c4c338889af5b1af110879874ceaef24594bd270770acc16227ca5"
+    },
+    {
+      "key": "gate",
+      "path": "assets/props/prop_gate.png",
+      "sha256": "d45b65903fdfa09fc45dfcbce114e9a32dc96a2277dee4ada1017161662ba798"
+    },
+    {
+      "key": "glowcap",
+      "path": "assets/props/prop_glowcap.png",
+      "sha256": "3f9f543afa6acc621cc9909a03b3fea7808164fb3c86a5376d531a11942f0ed2"
+    },
+    {
+      "key": "gnome",
+      "path": "assets/creatures/mon_gnome.png",
+      "sha256": "ac14a9c6854ccecfda2beff3004ce115d60331ab9e96e7b77cc763b21dd6f3cb"
+    },
+    {
+      "key": "gnome_good",
+      "path": "assets/creatures/mon_gnome_good.png",
+      "sha256": "6b361755e92332ad7a02896ca5c268d498330336fa25c69faf0054cdde15536d"
+    },
+    {
+      "key": "gnome_sapper",
+      "path": "assets/creatures/mon_gnome_sapper.png",
+      "sha256": "acb4d659aa24435661749c10107012f942170e777027ae4bddb366616ac63b57"
+    },
+    {
+      "key": "gnome_tinker",
+      "path": "assets/creatures/mon_gnome_tinker.png",
+      "sha256": "08a7a5104ea230e375afce1efec7e3bce54ef7d9d946de218bec5915d1e0ef40"
+    },
+    {
+      "key": "golem_brass",
+      "path": "assets/creatures/mon_golem_brass.png",
+      "sha256": "0038318fe2671a5b6c5fbe704e63fe425d44ab4127f94fc2958d381bc9b23e94"
+    },
+    {
+      "key": "golem_gold",
+      "path": "assets/creatures/mon_golem_gold.png",
+      "sha256": "045f2fdd710f18cd737ee584124c8d4d2d2766e04db904a9ed33b8da2919b430"
+    },
+    {
+      "key": "golem_platinum",
+      "path": "assets/creatures/mon_golem_platinum.png",
+      "sha256": "d2db50167567d99bfbcf0446f0dbeb28a4a9c654303ce374485c11d79207ea75"
+    },
+    {
+      "key": "golem_silver",
+      "path": "assets/creatures/mon_golem_silver.png",
+      "sha256": "a0a3c51f726f8863ad27adf83ea438db5d17de0369b1c655257ed573284cdbd4"
+    },
+    {
+      "key": "hidepile",
+      "path": "assets/props/prop_sack.png",
+      "sha256": "b92c4021f2d786fe29dc9c3f603ae8ac5f528d116cd11081b403f2a8aec39f45"
+    },
+    {
+      "key": "hookedhorror",
+      "path": "assets/creatures/mon_hookedhorror.png",
+      "sha256": "25977ef7a76f4a99fd4c794f408f16721602fe8b5171a85e99a8b69d97de77e9"
+    },
+    {
+      "key": "horror",
+      "path": "assets/creatures/mon_horror.png",
+      "sha256": "eebb86ad405cd4b3e4f600212d1c749f9b55d4b12051360adfc367182d476580"
+    },
+    {
+      "key": "icon_attack",
+      "path": "assets/ui/icon_attack.png",
+      "sha256": "b75211f22af00b53c36b02699e0218eb50b8a84883c9ff1bdc872b926901a50a"
+    },
+    {
+      "key": "icon_attack_long",
+      "path": "assets/ui/icon_attack_long.png",
+      "sha256": "824e9b4fc55d12dfc22dcd302ad88646b0c413144c6fc3e61556047c662896a6"
+    },
+    {
+      "key": "icon_attack_wide",
+      "path": "assets/ui/icon_attack_wide.png",
+      "sha256": "0312fbfe040c7f185cee84e7c3bdec414c4d6db9804919b283391bb9e846a978"
+    },
+    {
+      "key": "icon_bomb",
+      "path": "assets/ui/icon_bomb.png",
+      "sha256": "3a79a64861d215178173c731dd5867bd22627fca06de03c0b432735f189666fc"
+    },
+    {
+      "key": "icon_boots",
+      "path": "assets/ui/icon_boots.png",
+      "sha256": "2bfd62e0a8a3c8a0e2104585233b95de60eed4bf7a0ba6d0b4d68fa4edb925ee"
+    },
+    {
+      "key": "icon_bracers",
+      "path": "assets/ui/icon_bracers.png",
+      "sha256": "5a66408f12109664927d312f5e824938414f29a76c74db60db07dc8bbafaf9df"
+    },
+    {
+      "key": "icon_campfire",
+      "path": "assets/ui/icon_campfire.png",
+      "sha256": "069ceae89b445714fd58183277e8d6517578eee2e166b8a9eb9e9175d4310fd3"
+    },
+    {
+      "key": "icon_chest",
+      "path": "assets/ui/icon_chest.png",
+      "sha256": "b0fe9096fa357aab83116d4cc10f4e1b0513dfd713b115e5609cd3a384f7998a"
+    },
+    {
+      "key": "icon_climb",
+      "path": "assets/ui/icon_climb.png",
+      "sha256": "4c82f10012291fc6a644547c79fcfc4640ff363c60445e7ee23508e86a272972"
+    },
+    {
+      "key": "icon_craft",
+      "path": "assets/ui/icon_craft.png",
+      "sha256": "b6b49a904d9d7daec7b1b05bc22b63c8e7e88f15dd7ddd6777029cb73024e363"
+    },
+    {
+      "key": "icon_cross",
+      "path": "assets/ui/icon_cross.png",
+      "sha256": "b1233016f0bb5f7813414b538fec8a245cec85cbdc1ef6f2370bb7ae2fd2da3e"
+    },
+    {
+      "key": "icon_crossbow",
+      "path": "assets/ui/icon_crossbow.png",
+      "sha256": "de3bc7e7acb9595c2b2b1a54a0577fb1026837a086e1f4c25786450c2993b0fe"
+    },
+    {
+      "key": "icon_defend",
+      "path": "assets/ui/icon_defend.png",
+      "sha256": "21ba89209d3aeebe7c5cfb24bf14d6459a55a2ed115320ce5f3d14c90953b28c"
+    },
+    {
+      "key": "icon_flask",
+      "path": "assets/ui/icon_flask.png",
+      "sha256": "95bb1f0d28b878b51785391c4aa6097c5b2f048bf9a107beea056d2da97e1dec"
+    },
+    {
+      "key": "icon_gloves",
+      "path": "assets/ui/icon_gloves.png",
+      "sha256": "346520043c0890e7a493b6a5b05649adf102d9fcf2fa5057a7124fcb49ae576a"
+    },
+    {
+      "key": "icon_helm",
+      "path": "assets/ui/icon_helm.png",
+      "sha256": "349d0f3afec852962a585da84a0d691a5b84e61673ec51ad86d80d79c900768d"
+    },
+    {
+      "key": "icon_necklace",
+      "path": "assets/ui/icon_necklace.png",
+      "sha256": "b601fe55fd4de3a79f059bfa46be7fd8c8c385e6bcdf5c3c4ab04d239620dd10"
+    },
+    {
+      "key": "icon_pack",
+      "path": "assets/ui/icon_pack.png",
+      "sha256": "5fe9750ffbaea02e8283d5d909f4a459190c4548164f7347059cb2f727ccdc4c"
+    },
+    {
+      "key": "icon_pants",
+      "path": "assets/ui/icon_pants.png",
+      "sha256": "0d99486db9420c4e9821f74da598cdff3280435346ac30859b23ac114c55e1bb"
+    },
+    {
+      "key": "icon_plant",
+      "path": "assets/ui/icon_plant.png",
+      "sha256": "11f326614f55ed86a4b46d5e1b2d83708067a0c5c2168315a6a36623da1c1f13"
+    },
+    {
+      "key": "icon_quiver",
+      "path": "assets/ui/icon_quiver.png",
+      "sha256": "fab61e698f9ebd19622a6a27f1811239b538f32e9b221d5973fabd8868629fd4"
+    },
+    {
+      "key": "icon_save",
+      "path": "assets/ui/icon_save.png",
+      "sha256": "f44fc5d455dee7208d8c0f3b074c9952f695805d5c5549fc9717b7e2362c554c"
+    },
+    {
+      "key": "icon_secret",
+      "path": "assets/ui/icon_secret.png",
+      "sha256": "cc044eab79da498b601896c1228157e37eaf9000ba7c5e4a00823d7e61e4fc06"
+    },
+    {
+      "key": "icon_shield",
+      "path": "assets/ui/icon_shield.png",
+      "sha256": "21ba89209d3aeebe7c5cfb24bf14d6459a55a2ed115320ce5f3d14c90953b28c"
+    },
+    {
+      "key": "icon_shovel",
+      "path": "assets/ui/icon_shovel.png",
+      "sha256": "7c66e477d00c251d60ee40b0ae2d83fc90bf613720ad6473e01e66df36d32a9e"
+    },
+    {
+      "key": "icon_specialty_i",
+      "path": "assets/ui/icon_specialty_i.png",
+      "sha256": "2ddd27c222a143527cdce1c2176a4401d4663c6bc7dc8c38c34b011ba79846ee"
+    },
+    {
+      "key": "icon_specialty_ii",
+      "path": "assets/ui/icon_specialty_ii.png",
+      "sha256": "6794b99845713c022f086466c8363bf8d6c2a7ba2fbfff68c7fdd5c9ead066a4"
+    },
+    {
+      "key": "icon_specialty_iii",
+      "path": "assets/ui/icon_specialty_iii.png",
+      "sha256": "e827952b2d0cc9d2caaff881da6e84936095037b327f551370ed3f290e3b17f6"
+    },
+    {
+      "key": "icon_specialty_iv",
+      "path": "assets/ui/icon_specialty_iv.png",
+      "sha256": "3d8aebab64e27e7e83f6a701ab21343b73a6b4eb0456cdfe78bdf26f80d029a4"
+    },
+    {
+      "key": "icon_sword",
+      "path": "assets/ui/icon_sword.png",
+      "sha256": "904938e93de93d3e4fed76e8b027a5bee3e521b327d49190f700351de1633034"
+    },
+    {
+      "key": "idol",
+      "path": "assets/props/prop_idol.png",
+      "sha256": "8bbbe38bc50c1f3e4f8a98064fab83c794fe7c9f6c96da3c1f834fa02b37bd42"
+    },
+    {
+      "key": "intro_cavein",
+      "path": "assets/ui/intro_cavein.jpg",
+      "sha256": "51034bb4d232667575fc6ed9ace3e078e31605fe9e7de18269df9fc35cad4a45"
+    },
+    {
+      "key": "intro_ch1",
+      "path": "assets/ui/intro_ch1.jpg",
+      "sha256": "0a55def985efe92ceaf86805e4f0188c91aa26915f2c6245bf3d2ad09923878c"
+    },
+    {
+      "key": "intro_ch2",
+      "path": "assets/ui/intro_ch2.jpg",
+      "sha256": "21f18694ea49c9599752887b38f1a66e8f681cc3754db520080d3ae9955bc56b"
+    },
+    {
+      "key": "intro_ch3",
+      "path": "assets/ui/intro_ch3.jpg",
+      "sha256": "48afd1432d4446bb433ffc5e2cf2eb93bd7165a2863a8f1fbff72198a5777634"
+    },
+    {
+      "key": "intro_ch4",
+      "path": "assets/ui/intro_ch4.jpg",
+      "sha256": "03c7bc7a567073295dc7907c2ad7fb9075e03de8d5e7e5043fb9049776fea339"
+    },
+    {
+      "key": "intro_ch5",
+      "path": "assets/ui/intro_ch5.jpg",
+      "sha256": "9776a342a0d808da71bc82461daa8940a28d4a6f98e9aa326e2152b48e752936"
+    },
+    {
+      "key": "king",
+      "path": "assets/creatures/mon_king.png",
+      "sha256": "2e7ff80faabfe18c34dc084220576f017cd2cb7013e759d58bf2b2175f1e60a7"
+    },
+    {
+      "key": "lantern",
+      "path": "assets/props/prop_lantern.png",
+      "sha256": "41dd40ecf48c015b15e96afb9c2319a175adb1b4cead2a7bf927b9144c4459bb"
+    },
+    {
+      "key": "lichen",
+      "path": "assets/props/prop_lichen.png",
+      "sha256": "6d0684ec1c300c38b92a5a08fcf22f056dbd69e0c9510edd25f96fcd2b347346"
+    },
+    {
+      "key": "lift",
+      "path": "assets/props/prop_lift.png",
+      "sha256": "32f311b7ded4d40b9ad281a2e499e71b0fbf2dea4363daef6c7d5a882e77652a"
+    },
+    {
+      "key": "loot_chest",
+      "path": "assets/props/loot_chest.png",
+      "sha256": "1a46a969c0f6ecf19b309fe6060a69cd9cd3f0eb402845574934174a0b017671"
+    },
+    {
+      "key": "loot_coins",
+      "path": "assets/props/loot_coins.png",
+      "sha256": "81ca34432b7a6656c1b4977ae7881e21bd2b1adc480a5b16624169828f4cc252"
+    },
+    {
+      "key": "loot_gems",
+      "path": "assets/props/loot_gems.png",
+      "sha256": "c1100342e67ef348a0abb6bc17eb693cbcc4063b99ef53a2b07e0bd1f175089b"
+    },
+    {
+      "key": "loot_herbs",
+      "path": "assets/props/loot_herbs.png",
+      "sha256": "5911a53055c166289a7d343d410750e7dcd0c2432e1d5176f59851682a6d7ccd"
+    },
+    {
+      "key": "loot_jewelry",
+      "path": "assets/props/loot_jewelry.png",
+      "sha256": "4fed435a99dad574c7a42537cca6f11bce27d8bb5856d4d7ef60fff98bb2c96e"
+    },
+    {
+      "key": "loot_ore",
+      "path": "assets/props/loot_ore.png",
+      "sha256": "677e7f05234b638fcd8ef735f2fb5620913fc01b0741db0b872221fbf05f6a83"
+    },
+    {
+      "key": "loot_potion",
+      "path": "assets/props/loot_potion.png",
+      "sha256": "839116dbd8d7c40ef4b90bc19c1e4e0f77dfbb8ae7b79c5727ed1d677b0cf1f1"
+    },
+    {
+      "key": "loot_ruby",
+      "path": "assets/props/loot_ruby.png",
+      "sha256": "f579fb93be29f6b87e1f91bf2b69e925a0e7ba0cad9a2300f2869d45bdb5f188"
+    },
+    {
+      "key": "loot_ruby_shard",
+      "path": "assets/props/loot_ruby_shard.png",
+      "sha256": "1725be07d6c4224ff1d9f009cc84d002472ab7d801e05305f90c42e708de0406"
+    },
+    {
+      "key": "macar",
+      "path": "assets/creatures/dwarf_macar.png",
+      "sha256": "08a88353af7ae60a27de31eecd0a15b19e0b41b686c74cfe68c63e5c93e1fbe4"
+    },
+    {
+      "key": "macar_atk_contact",
+      "path": "assets/creatures/dwarf_macar_atk_contact.png",
+      "sha256": "54f072cde62726aa6575de6b15887b2b4f286cdb11045de17cfe02ca27fcbb7c"
+    },
+    {
+      "key": "macar_atk_n",
+      "path": "assets/creatures/dwarf_macar_atk_n.png",
+      "sha256": "c6aa96e19bf5e04e9a2696980bb807afa61e3c00dad04fbddaa1d25ae204717c"
+    },
+    {
+      "key": "macar_atk_ne",
+      "path": "assets/creatures/dwarf_macar_atk_ne.png",
+      "sha256": "edce85439bfb8c85b20349c7664e3bd8283dbc9bada54c10ae24b9c6875cd6cd"
+    },
+    {
+      "key": "macar_atk_s",
+      "path": "assets/creatures/dwarf_macar_atk_s.png",
+      "sha256": "90cbd314522c3fcc1d1d5128aee27762cd5971aaf85d0712d57f8424d263ee0a"
+    },
+    {
+      "key": "macar_atk_se",
+      "path": "assets/creatures/dwarf_macar_atk_se.png",
+      "sha256": "6220591132e787dc36bbe9fab34915b0ab21d283780281b7e32d6c9d80e05961"
+    },
+    {
+      "key": "macar_axe",
+      "path": "assets/creatures/dwarf_macar_axe.png",
+      "sha256": "eaed5bbc3cedf89c6e38c40a338c50fccba5a03ce91cc4663d07b4e65229b26b"
+    },
+    {
+      "key": "macar_axe_atk",
+      "path": "assets/creatures/dwarf_macar_axe_atk_v2.png",
+      "sha256": "8ffda9a2e004cb011f24a1b6d318e1bcd67cf1331c685572c5266e2b3d8f422a"
+    },
+    {
+      "key": "macar_axe_w1",
+      "path": "assets/creatures/dwarf_macar_axe_w1.png",
+      "sha256": "40284dffb585bdf5669bc69b95e7bf003a55209b5de5e679805abe1acd33b980"
+    },
+    {
+      "key": "macar_axe_w2",
+      "path": "assets/creatures/dwarf_macar_axe_w2.png",
+      "sha256": "26f6fc2a7c4ad949352b2d4152002a5c7fbf73809ef76ea7f0974461d988efe8"
+    },
+    {
+      "key": "macar_back_w1",
+      "path": "assets/creatures/dwarf_macar_back_w1.png",
+      "sha256": "66973b2e4ed9679fa91f641310386fb4d82b4cbe8d57c340ade1bcb33c3f94e0"
+    },
+    {
+      "key": "macar_back_w2",
+      "path": "assets/creatures/dwarf_macar_back_w2.png",
+      "sha256": "23adb464d65105efeeacc8c23eb5e6a233d05773bfa6187e00f179c96e8ebe56"
+    },
+    {
+      "key": "macar_e_w1",
+      "path": "assets/creatures/dwarf_macar_e_w1.png",
+      "sha256": "24cd742dc876e14f68ab8f97657c3b3630ae6d9d968bc64337c6116666a6f609"
+    },
+    {
+      "key": "macar_e_w2",
+      "path": "assets/creatures/dwarf_macar_e_w2.png",
+      "sha256": "8fd94baf140aa5b16960ff718920f6890afe5a197de847cb63a9c308da8db0d4"
+    },
+    {
+      "key": "macar_w1",
+      "path": "assets/creatures/dwarf_macar_w1.png",
+      "sha256": "571b6abb17064aafdce8b3305d004b4c3ee54b4d1ad29c45ee9461b7ac48efa1"
+    },
+    {
+      "key": "macar_w2",
+      "path": "assets/creatures/dwarf_macar_w2.png",
+      "sha256": "bae79c43dd425d10f884aeda1eac79e0140b65ac0e26b6036479a5564e54b69e"
+    },
+    {
+      "key": "macar_xbow",
+      "path": "assets/creatures/dwarf_macar_xbow.png",
+      "sha256": "b1492e0b118cf5793ed51ca129b639debbc7afdfad81f5c99113deb2253a05ed"
+    },
+    {
+      "key": "macar_xbow_atk",
+      "path": "assets/creatures/dwarf_macar_xbow_atk.png",
+      "sha256": "a93734c1b58a210ae5d3ce9e4e01a2f3af8dc25fac1777045be0da8a88fc32b6"
+    },
+    {
+      "key": "macar_xbow_w1",
+      "path": "assets/creatures/dwarf_macar_xbow_w1.png",
+      "sha256": "6360113f90b4388d6692d55dba711aaccef1e1f5b8696d52ad1438572102dc3b"
+    },
+    {
+      "key": "macar_xbow_w2",
+      "path": "assets/creatures/dwarf_macar_xbow_w2.png",
+      "sha256": "561a4f808c1bd558fa4b2b191eaa0acacb2338a0c926edf6bcbdc5ab70566416"
+    },
+    {
+      "key": "moss",
+      "path": "assets/props/prop_moss.png",
+      "sha256": "56bf5f695ff23282b111b0f84bc22da694e494beb0077244d6a72fcae1dccb0a"
+    },
+    {
+      "key": "myconid",
+      "path": "assets/creatures/mon_myconid.png",
+      "sha256": "44205eb273a73e90294708c466c43fa414351d2d9ad98ee243032139951b844b"
+    },
+    {
+      "key": "names",
+      "path": "assets/props/prop_names.png",
+      "sha256": "5e5a8b3207af1ed8297bb6d62ebd9db093ca8049ab55953e4e3310504e90bf91"
+    },
+    {
+      "key": "nightbloom",
+      "path": "assets/props/prop_nightbloom.png",
+      "sha256": "34c3aa07a9484da6b788b116211b6210d1e536ce6bc7ef406604e8d18365f15b"
+    },
+    {
+      "key": "orbo",
+      "path": "assets/creatures/dwarf_orbo.png",
+      "sha256": "0c823017096463341eba3e77e6ad85d67ed31362305d563d38f0048b60b3cb20"
+    },
+    {
+      "key": "orbo_dead",
+      "path": "assets/creatures/dwarf_orbo_dead.png",
+      "sha256": "d45f3db3c43c13915a3fad769a58ea23ae3b74de9f98244f41515722c56d71b0"
+    },
+    {
+      "key": "orbo_ghost",
+      "path": "assets/creatures/dwarf_orbo_ghost.png",
+      "sha256": "a077fef6e8020ce6c868a7750714211c3ed9d35db340875c171537364fe14c61"
+    },
+    {
+      "key": "orbo_ghost_back",
+      "path": "assets/creatures/dwarf_orbo_ghost_back.png",
+      "sha256": "ab5d037dc2488c540f935cda34602c9e3cad96307dcc8ede28512a0ef53bd240"
+    },
+    {
+      "key": "orepile",
+      "path": "assets/props/prop_orepile.png",
+      "sha256": "3756a9a4beb92deca32973b489c760b35e6d94182ccf63c78c58c9f939e805b2"
+    },
+    {
+      "key": "pickpile",
+      "path": "assets/props/prop_pickpile.png",
+      "sha256": "4fbdeda11885e17f6674d957b4d50421f7c0ae7015c5a3d5c7ae6a5bea8af957"
+    },
+    {
+      "key": "pillar",
+      "path": "assets/props/prop_pillar.png",
+      "sha256": "9e1472242a140324b73c1dc02e826f54d269119f2b214d88c158ec67952bdf8e"
+    },
+    {
+      "key": "pordoom",
+      "path": "assets/creatures/dwarf_pordoom.png",
+      "sha256": "5b416f3e300eb757e089ded68da9587e3ec384c85caa33326d332c533efe7126"
+    },
+    {
+      "key": "pordoom_dead",
+      "path": "assets/creatures/dwarf_pordoom_dead.png",
+      "sha256": "a1b66a08980ac851c890833f09a5e261c5ba78f3b288443efe73865b9758dc3f"
+    },
+    {
+      "key": "pordoom_ghost",
+      "path": "assets/creatures/dwarf_pordoom_ghost.png",
+      "sha256": "6ef58ed61618ed9fc3841e2999e088e55e908cd8c5c34fbb85725450d60a334d"
+    },
+    {
+      "key": "pordoom_ghost_back",
+      "path": "assets/creatures/dwarf_pordoom_ghost_back.png",
+      "sha256": "1f0ee2d72b83bed3d814123af74fc708f3ac087808d1460da5c9b2655c24778a"
+    },
+    {
+      "key": "rat",
+      "path": "assets/creatures/mon_rat.png",
+      "sha256": "0df30799ce187874f6661850efe2fa4327f840331ac2df09e8dbfa326aa878d8"
+    },
+    {
+      "key": "restCardMacar",
+      "path": "assets/ui/rest_card_macar_vB.png",
+      "sha256": "cc9bb737bcbfedcb61d99f210c714d4b5a6e7f4702010e8c8954e78e498e7ff4"
+    },
+    {
+      "key": "roots",
+      "path": "assets/props/prop_roots.png",
+      "sha256": "facb0fe28d5a23568b8fb9fcf2d7b3c1cc724a73cb94904eeaa2d201a8527a5b"
+    },
+    {
+      "key": "rubble",
+      "path": "assets/props/prop_rubble.png",
+      "sha256": "dcc7148ef0d807894a8d4c414422ab8f44f28080a6a8e7dc35d12ea80f7b55a7"
+    },
+    {
+      "key": "rubble2",
+      "path": "assets/props/prop_rubble2.png",
+      "sha256": "5c879f49e788b1dc0c8f0c5d38b9c0d5ee4c4651636aceaae51c00f23aba6d9b"
+    },
+    {
+      "key": "rubydoor",
+      "path": "assets/props/prop_rubydoor.png",
+      "sha256": "6abd669ddf790d701481b61abfbc205b3487fbdf2c2986d97b1ff2811a8d3436"
+    },
+    {
+      "key": "rubydoor_face",
+      "path": "assets/props/prop_rubydoor_face.png",
+      "sha256": "98fb953704784682bf2218928a66324db90fe81f995d1527e3d4027221776dc9"
+    },
+    {
+      "key": "rubydoor_stairs",
+      "path": "assets/props/prop_rubydoor_stairs_v2.png",
+      "sha256": "b5ffa904207ebb954ec9d4be71cb609d30fd1d06d66a584247de90d8f4e0e189"
+    },
+    {
+      "key": "rubypillar",
+      "path": "assets/props/prop_rubypillar.png",
+      "sha256": "432686c041bc992954c437101c3de3c2ae6081d431285458710fcd43af3008f7"
+    },
+    {
+      "key": "rubywall",
+      "path": "assets/props/prop_rubywall.png",
+      "sha256": "d68572d9e791e03f6fa6e98e71f86b92cbcb83403400b022bad9d33c00d395ba"
+    },
+    {
+      "key": "ruin_house",
+      "path": "assets/props/prop_ruin_house.png",
+      "sha256": "6184cfae78c455ca15a0ba132c82d8b079738e9f84e576ac34c5f2c5de33f6ba"
+    },
+    {
+      "key": "sack",
+      "path": "assets/props/prop_sack.png",
+      "sha256": "b92c4021f2d786fe29dc9c3f603ae8ac5f528d116cd11081b403f2a8aec39f45"
+    },
+    {
+      "key": "secret_door",
+      "path": "assets/props/prop_secret_door.png",
+      "sha256": "33d653fa9f4afea6c27ec1699de3a25537aa7c57fbd56edbc6b40019ac2c2665"
+    },
+    {
+      "key": "secret_wall_e",
+      "path": "assets/tiles/secret_wall_e.png",
+      "sha256": "ba6f5466aa04457f6292bf10a5db02e770a17188baa4275a11bb87fc34f23f02"
+    },
+    {
+      "key": "secret_wall_n",
+      "path": "assets/tiles/secret_wall_n.png",
+      "sha256": "c490d09ccdbd9d3cdb0113813d36fa52c407ec77f3bbe1a323d20092d1f7ed6a"
+    },
+    {
+      "key": "secret_wall_w",
+      "path": "assets/tiles/secret_wall_w.png",
+      "sha256": "4621b98c25ccb96287c118b764d7d6df715969188eadb809cc88e12185c63199"
+    },
+    {
+      "key": "shadowcleaver",
+      "path": "assets/props/loot_shadowcleaver.png",
+      "sha256": "bf42ed8b0addfeab04397d1a799fe83063e5766c902179dc2b4b36a96e7d5671"
+    },
+    {
+      "key": "shroom",
+      "path": "assets/props/prop_shroom.png",
+      "sha256": "f910770755ae1558a4514b9be25e83c256c210234a0428ba0f35dcdbcd9bbd2a"
+    },
+    {
+      "key": "slime",
+      "path": "assets/props/prop_slime.png",
+      "sha256": "b48d948f46259b88cfcceba7620b9bbb1604de559a861e5b2e52aeb7ee046f1d"
+    },
+    {
+      "key": "spider",
+      "path": "assets/creatures/mon_spider.png",
+      "sha256": "1c911c5cee0babe62db0a0cad472e3990de80e4e663c7a12be74e6b42d8b0322"
+    },
+    {
+      "key": "spitter",
+      "path": "assets/creatures/mon_spitter.png",
+      "sha256": "e1fa3599900e9701e45c4ce17c647e42a79f96b39b0343cafcb238ec0fb03e23"
+    },
+    {
+      "key": "sporepuff",
+      "path": "assets/props/prop_sporepuff.png",
+      "sha256": "ecd741ab154f1814549b6e4beb75c295d2f25084e4a2b6ea346eac16e958a6f5"
+    },
+    {
+      "key": "stairs",
+      "path": "assets/props/prop_stairs.png",
+      "sha256": "ef29c9e5efe0559ef9fe13423a6b064c162e8d6a05fd4b40457722d08ad0119c"
+    },
+    {
+      "key": "stalagmite",
+      "path": "assets/props/prop_stalagmite.png",
+      "sha256": "f4cc7af680d6b0120134553a65529f9c139a2c17fb0d83cbc8e178fcc3afd8a2"
+    },
+    {
+      "key": "talpor",
+      "path": "assets/creatures/dwarf_talpor.png",
+      "sha256": "3106ea98fad4be53e29840e1f5cbc32db5690b2280e462b58bbe03b70888d1c4"
+    },
+    {
+      "key": "talpor_dead",
+      "path": "assets/creatures/dwarf_talpor_dead.png",
+      "sha256": "dd79311c68d30241d29ec660eb95294414ab99369b8164fa8c80796cd6e91ad3"
+    },
+    {
+      "key": "talpor_ghost",
+      "path": "assets/creatures/dwarf_talpor_ghost.png",
+      "sha256": "c519730f04e3021b4fc70994163e9a7a3d0e5fd8b549093390e8e5cf45430d07"
+    },
+    {
+      "key": "talpor_ghost_back",
+      "path": "assets/creatures/dwarf_talpor_ghost_back.png",
+      "sha256": "3d36c50f74c2b9d85d88cc16a42696df08658ab184ab17cb280139bb7e08fd7b"
+    },
+    {
+      "key": "teeth_floor",
+      "path": "assets/tiles/teeth_floor.png",
+      "sha256": "fab3cda0d6c5c7f9513b2e5a8c0a69565039018cd688af960bdc6f635b054abc"
+    },
+    {
+      "key": "teeth_floor_atlas",
+      "path": "assets/tiles/teeth_floor_atlas_8x8.png",
+      "sha256": "07c952f9db739812e04f7a1b0c8209432454a4f53854fed1a4232b45f5725b31"
+    },
+    {
+      "key": "thinone",
+      "path": "assets/creatures/mon_thinone.png",
+      "sha256": "de1874d8095bda1fef2d937eb57c24720cd46ac6ed3f65144bd7ea5c60325dc7"
+    },
+    {
+      "key": "throne",
+      "path": "assets/props/prop_throne.png",
+      "sha256": "8473a433e258673a078a800c126c784a7b27d1d89f63ee8bf977702fb0198a8e"
+    },
+    {
+      "key": "timber",
+      "path": "assets/props/prop_timber.png",
+      "sha256": "d1088ff5002bcb9106923bdf63dd67aae1495cd7888d0456848179b1d3ea6297"
+    },
+    {
+      "key": "title_logo",
+      "path": "assets/ui/title_logo.png",
+      "sha256": "11cb79a2256e1ad15fcdb4f8e2782612b6036ee8244a36ffd5b1826a2fae3b68"
+    },
+    {
+      "key": "title_menu",
+      "path": "assets/ui/title_menu.jpg",
+      "sha256": "bf6f14a4f4a40069aaf2663b0504dac6d0cc317a9209159a37fb3e249377cde7"
+    },
+    {
+      "key": "title_splash",
+      "path": "assets/ui/title_splash.jpg",
+      "sha256": "6944babd0fa4e1d0a3b3cabba2a9960e6724cf05752f8eb6ef618d08d3867273"
+    },
+    {
+      "key": "tooth",
+      "path": "assets/props/prop_tooth.png",
+      "sha256": "4ee0a1975ba33aaa8c7488e0e28e0e6be1c86b89345e8be8cc4e9c1976735e74"
+    },
+    {
+      "key": "tooth_2",
+      "path": "assets/props/prop_tooth_2.png",
+      "sha256": "75526373dbbfbdea15dda0e3aa0fddedef1b63550b662040695d7355b0deaa6a"
+    },
+    {
+      "key": "tooth_3",
+      "path": "assets/props/prop_tooth_3.png",
+      "sha256": "a08696f728f2ae3aced94ed16848a2950fb6fa08ec6e5ec000654903b207512f"
+    },
+    {
+      "key": "trap_pit",
+      "path": "assets/props/prop_trap_pit.png",
+      "sha256": "1c542b1c25d9555e9b79fb5533bb8d65bafddb5fc50bfdb8e0489f7886520ce9"
+    },
+    {
+      "key": "trap_runes",
+      "path": "assets/props/prop_trap_runes.png",
+      "sha256": "c4d0f9796eb45c401f6b0cd71d259b0c58afe35f0552c49d6550200f93536412"
+    },
+    {
+      "key": "trap_spikes",
+      "path": "assets/props/prop_trap_spikes.png",
+      "sha256": "54baced09cc9b0af73265eb687838bc23b44ddf48ab4a947971534dc5ea1336a"
+    },
+    {
+      "key": "troll",
+      "path": "assets/creatures/mon_troll.png",
+      "sha256": "f9517e8e6b30fe3445cae30031e8fe2e362b287652adf953ca92ab5bc5b7388f"
+    },
+    {
+      "key": "tunnel",
+      "path": "assets/props/prop_tunnel.png",
+      "sha256": "5c296be947cc0462b09a6a8547d67fe85f43f93314bfe32ff3fb4f6c002474d2"
+    },
+    {
+      "key": "umberhulk",
+      "path": "assets/creatures/mon_umberhulk.png",
+      "sha256": "c2e9262db26aca365fbc7a69fcc746092b38c09f70082eb17bf5dd83529c8cec"
+    },
+    {
+      "key": "undead",
+      "path": "assets/creatures/mon_undead.png",
+      "sha256": "dff2b2223379a939d9831b95fb66c52c075c966c05920b16c602eff7df3942ca"
+    },
+    {
+      "key": "urn",
+      "path": "assets/props/prop_urn.png",
+      "sha256": "2e0a942ff55d4d3f3ca06a582bac95454d7bf09bd142bea10bf4462448b36536"
+    },
+    {
+      "key": "wall_cave",
+      "path": "assets/tiles/tile_wall_cave.png",
+      "sha256": "64dc010636de12ee2b748a0c0a03973a9e85372dca23f0c6fbd9d667e4333fe8"
+    },
+    {
+      "key": "wall_cave_face",
+      "path": "assets/tiles/tile_wall_cave_face.png",
+      "sha256": "00a5ae7314c6f76e6e4d16ff2d9ba496c6b0300768503c69621556fd5c497972"
+    },
+    {
+      "key": "wall_cave_face_shade",
+      "path": "assets/tiles/tile_wall_cave_face_shade.png",
+      "sha256": "850d6d0ea378666a89748855bc0c9f589ba97ef42a7be340076509c5b049ea03"
+    },
+    {
+      "key": "wall_face",
+      "path": "assets/tiles/tile_wall_face.png",
+      "sha256": "e7bb64fa0dc9dd647c0f0b5b5da54a4a9b25f7126235ec895ab5097fddce3426"
+    },
+    {
+      "key": "wall_face_shade",
+      "path": "assets/tiles/tile_wall_face_shade.png",
+      "sha256": "48396b7203eafc9f212b932576d28772c0e430ad543c6c54fce8f0e00a858be1"
+    },
+    {
+      "key": "wall_teeth_chapel",
+      "path": "assets/tiles/tile_wall_teeth_chapel.png",
+      "sha256": "226f5b26e333fd695b458d5dc0ceaefadccad243be64c05443f00c11f5395b5d"
+    },
+    {
+      "key": "wall_teeth_chapel_opaque",
+      "path": "assets/tiles/tile_wall_teeth_chapel_opaque.png",
+      "sha256": "2a1c563bd435bdec63e27bda110669b8cb3d0a266bac6f3200699447d5180311"
+    },
+    {
+      "key": "wall_worked",
+      "path": "assets/tiles/tile_wall_worked.png",
+      "sha256": "e8b01f67ee611e48b8015fe14b815fc79012e1389b0c4acf51a0b5535f82cead"
+    },
+    {
+      "key": "warden",
+      "path": "assets/creatures/mon_warden.png",
+      "sha256": "41bb927ada7be6bd4394af5b05307b8645573d54e2222b3d1547e3094a26cf8a"
+    },
+    {
+      "key": "winduptoy",
+      "path": "assets/props/prop_winduptoy.png",
+      "sha256": "37b78eef95222c8f795827dc689a66af1ad3579d7996f9ea706b3e709c36275a"
+    },
+    {
+      "key": "winduptoy_wound",
+      "path": "assets/props/prop_winduptoy_wound.png",
+      "sha256": "38111c95728722e16fce1b732c679ea9bf7fe1f9f01fb0dc15862879efbf00bf"
+    },
+    {
+      "key": "wraith",
+      "path": "assets/creatures/mon_wraith.png",
+      "sha256": "1854e6bf417f7a392d4e4166bdb132c3228da13b242f415fdea5b0a4fe8d5b63"
+    }
+  ]
+}
