@@ -8,7 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch main for the protected-asset byte check
+        run: git fetch --no-tags origin main
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - run: npm test
+      - name: Install Chrome
+        run: |
+          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y /tmp/chrome.deb
+          google-chrome --version
+      - run: npm install --no-save puppeteer-core@24.15.0
+      - name: Protected asset render smoke
+        run: node src/qa/protected-assets-render-smoke.js
+        env:
+          CHROME: /usr/bin/google-chrome

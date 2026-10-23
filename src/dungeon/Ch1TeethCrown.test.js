@@ -255,17 +255,36 @@ assert(/function boneCrownAltarSeat\(rect\)/.test(html)
   && /rect\.y\+TEETH_ALTAR_SLAB_FY\*rect\.h/.test(extractFn('boneCrownAltarSeat')),
   'seat is a fraction of the altar drawn rect');
 assert(/const altarRect=\{x:-sheetW\/2, y:-H, w:sheetW, h:H\}/.test(extractFn('drawProp'))
-  && /drawBillboard\(g, sheet, altarRect\.h\)[\s\S]*boneCrownAltarSeat\(altarRect\)/.test(extractFn('drawProp'))
-  && /drawBoneCrownAt\(g, z, seat\.x, seat\.y, crown\.s\|\|1\)/.test(extractFn('drawProp')),
-  'seated crown is painted on the altar sheet rect after that sheet');
-assert(/if\(teethCrownStillSeated\(\)\) return;/.test(extractFn('drawProp')),
-  'the seated crown is not drawn again as its own prop');
+  && /drawBillboard\(g, sheet, altarRect\.h\)/.test(extractFn('drawProp')),
+  'the altar sheet still draws its own billboard');
+{
+  const propFn=extractFn('drawProp');
+  const crownAt=propFn.indexOf("p.k==='bonecrown'");
+  const altarAt=propFn.indexOf("p.k==='altar' && p.teethAltar");
+  const paintAt=propFn.indexOf('drawBoneCrownAt', crownAt);
+  assert(crownAt>=0 && altarAt>crownAt, 'the crown prop is drawn on its own pass, before the altar sheet');
+  assert(paintAt>crownAt && paintAt<altarAt, 'drawProp reaches drawBoneCrownAt on the crown prop');
+  assert(!/drawBoneCrownAt/.test(propFn.slice(altarAt)), 'the altar sheet pass does not paint the crown');
+}
+assert(/if\(!boneCrownOffered\(p\)\) return;/.test(extractFn('drawProp'))
+  && /boneCrownAltarSeat\(rect\)/.test(extractFn('drawProp'))
+  && /drawBoneCrownAt\(g, z, seat\.x, seat\.y, p\.s\|\|1\)/.test(extractFn('drawProp')),
+  'an offered crown is painted from the prop, on the altar sheet seat');
+assert(!/if\(teethCrownStillSeated\(\)\) return;/.test(extractFn('drawProp')),
+  'a seated flag does not skip the crown while Look can still see it');
+assert(/!pr\.gone && !pr\.taken && !pr\.destroyed/.test(extractFn('boneCrownOffered'))
+  && !/crownTouched/.test(extractFn('boneCrownOffered')),
+  'Look, Take, and paint share a live prop, not a clear crownTouched flag');
+assert(/boneCrownOffered\(pr\)/.test(extractFn('nearestBoneCrown'))
+  && /nearestBoneCrown\(p, 3\.25\)/.test(extractFn('maybeTeethChapelLooks'))
+  && /nearestBoneCrown\(p,1\.75\)/.test(html),
+  'the Look prompt and the Take prompt both ask nearestBoneCrown');
 assert(/g\.translate\(seatX, seatY\)/.test(extractFn('drawBoneCrownAt'))
   && /drawBoneCrownShape\(g, z, scale\|\|1\)/.test(extractFn('drawBoneCrownAt')),
   'fallback crown shape uses the same slab seat');
-assert(/o\.k==='bonecrown' && teethCrownStillSeated\(\)\) return boneCrownDrawDepth\(o\)/.test(extractFn('actorDrawDepth'))
+assert(/o\.k==='bonecrown' && boneCrownOffered\(o\) && teethCrownOnAltarSeat\(\)\) return boneCrownDrawDepth\(o\)/.test(extractFn('actorDrawDepth'))
   && /demonFaceDrawDepth\(face\)\+1/.test(extractFn('boneCrownDrawDepth')),
-  'a seated crown prop still sorts after the wall and the face');
+  'an offered seated crown sorts after the wall and the face');
 assert(/\(8\.2\+h2\(i,x\)\*3\.4\)\*z\*sc/.test(extractFn('drawTeethTile'))
   && /\(risen\?4\.0:6\.4\+h2\(i,x\+y\)\*2\.8\)\*z\*sc/.test(extractFn('drawTeethTile')),
   'floor tile fangs are scaled down to a carpet');
@@ -333,7 +352,7 @@ vm.createContext(ctx);
 ctx.beginFight=function(){};
 vm.runInContext('const TEETH_ALTAR_STEP_FY=475/718;', ctx);
 [
-  'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','nearestBoneCrown',
+  'teethBounds','isTeethFloor','makeBoneCrownItem','wearingBoneCrown','boneCrownOffered','nearestBoneCrown',
   'livingThrall','releaseThrall','isAnimateDeadEligible','corpseIsBones','nearestAnimatableCorpse',
   'collapseCrownThrall','setThrallStay','tryAnimateDead',
   'teethHordeBox','teethHordeWalkable','teethHordeSpots','teethAltarLipHalf','teethAltarStepDepth','teethChapelAltar','teethAltarBlocksTile','skeletalDwarfClearOfWalls','skeletalDwarfOpen','skeletalDwarfSpots','riseTeethHorde','riseSkeletalDwarves','takeBoneCrown','awardCrownDestroyXp',
@@ -835,7 +854,7 @@ const box={
 };
 vm.createContext(box);
 [
-  'teethBounds','isTeethFloor','maybeTeethChapelEnter','nearestBoneCrown',
+  'teethBounds','isTeethFloor','maybeTeethChapelEnter','boneCrownOffered','nearestBoneCrown',
   'chapelNorthFace','chapelFaceToothTaken','maybeTeethChapelLooks',
   'teethChapelLookHit','teethChapelLookReach','teethChapelLookStand','openTeethChapelLook'
 ].forEach(n=>vm.runInContext(extractFn(n)+';', box));
@@ -954,7 +973,7 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
 {
   [
     'wearingBoneCrown','teethAltarLipHalf','teethAltarFootTiles','crownAltarTileDist','crownDropAtAltar',
-    'dropBoneCrown','teethCrownStillSeated','crownSprite','sceneCrownSprite',
+    'dropBoneCrown','teethCrownStillSeated','boneCrownOffered','crownSprite','sceneCrownSprite',
     'teethAltarSheetImg','teethAltarSheetH','teethAltarBillboardRect','boneCrownAltarSeat',
     'boneCrownHeadH','boneCrownFloorSeatY','boneCrownSeatY','boneCrownSeatX',
     'drawBoneCrownAt','boneCrownDroppedOnFloor','drawBoneCrownProp'
@@ -1264,6 +1283,121 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     'shots, bombs, and swings do not destroy the crown');
 }
 
+/* Look and the altar paint share boneCrownOffered. A flag with a live prop
+   still draws. Take and destroy retire the prop, so both the prompt and the
+   paint stop. Ghosts, a thrall, a missing altar sheet, and keepReachedChapters
+   do not hide an offered crown. */
+{
+  [
+    'chapelNorthFace','chapelFaceToothTaken','maybeTeethChapelLooks'
+  ].forEach(n=>vm.runInContext(extractFn(n)+';', ctx));
+  ctx.PROMPT=null;
+  ctx.G.talk=null;
+  ctx.interact=function(label, fn){ ctx.PROMPT={label, fn}; };
+  const altar={x:102.25,y:4.35,k:'altar',teethAltar:1,s:1.55,gone:0};
+  const crown={x:altar.x,y:altar.y,k:'bonecrown',s:1.70,gone:0,taken:0,destroyed:0};
+  const lookAt={x:104.4,y:4.35};
+  ctx.G.props=[altar, crown];
+  ctx.G.ents=[{id:1, hero:1, name:'Macar', team:'party', col:{key:'macar'}, x:lookAt.x, y:lookAt.y, hp:80, maxhp:80}];
+  ctx.G.equipped={};
+  ctx.G.lvl.n=1;
+  ctx.G.lvl.flags={};
+  ctx.SPR=ctx.SPR||{};
+  ctx.SPR.bone_crown_scene={width:109,height:66};
+  ctx.SPR.altar_teeth=null;
+  function resetLive(){
+    crown.x=altar.x; crown.y=altar.y; crown.gone=0; crown.taken=0; crown.destroyed=0;
+    ctx.G.props=[altar, crown];
+    ctx.G.equipped={};
+    ctx.G.talk=null;
+    ctx.PROMPT=null;
+  }
+  function paintOf(pr){
+    const calls=[];
+    ctx.drawBoneCrownProp({drawImage(img,x,y,w,h){ calls.push({img,x,y,w,h}); }}, pr, 1);
+    return calls;
+  }
+  function look(){
+    ctx.PROMPT=null; ctx.G.talk=null;
+    return ctx.maybeTeethChapelLooks(lookAt) && ctx.PROMPT && ctx.PROMPT.label;
+  }
+  resetLive();
+  assert(ctx.boneCrownOffered(crown) && look()==='Look at the bone crown' && paintOf(crown).length===1,
+    'a fresh seated crown shows Look and paints, with no altar sheet decoded');
+  resetLive();
+  ctx.takeBoneCrown(crown);
+  assert(!ctx.boneCrownOffered(crown) && look()!=='Look at the bone crown' && paintOf(crown).length===0,
+    'take retires the prop, so Look and the paint both stop');
+  resetLive();
+  ctx.destroyBoneCrown(crown);
+  assert(!ctx.boneCrownOffered(crown) && look()!=='Look at the bone crown' && paintOf(crown).length===0,
+    'destroy retires the prop, so Look and the paint both stop');
+  ['crownTouched','crownTaken','crownDestroyed'].forEach(flag=>{
+    resetLive();
+    ctx.G.lvl.flags={[flag]:1};
+    assert(ctx.boneCrownOffered(crown) && look()==='Look at the bone crown' && paintOf(crown).length===1,
+      flag+' with a live altar prop still offers Look and paints the crown');
+  });
+  resetLive();
+  ctx.G.ents[0].x=altar.x+6; ctx.G.ents[0].y=altar.y+1;
+  ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+  ctx.G.lvl.flags={crownTaken:1, crownTouched:1};
+  crown.gone=1; crown.taken=1;
+  assert(ctx.dropBoneCrown().ok===1 && ctx.boneCrownDroppedOnFloor(crown) && paintOf(crown).length===1,
+    'a far drop paints the floor crown');
+  const floorStand={x:crown.x+2.1, y:crown.y};
+  ctx.PROMPT=null; ctx.G.talk=null; ctx.G.equipped={};
+  assert(ctx.maybeTeethChapelLooks(floorStand) && ctx.PROMPT.label==='Look at the bone crown',
+    'a far drop still offers Look at the bone crown');
+  resetLive();
+  ctx.G.ents[0].x=altar.x; ctx.G.ents[0].y=altar.y+0.8;
+  ctx.G.equipped.helmet={id:'bone_crown', n:'Bone Crown', boneCrown:1};
+  ctx.G.lvl.flags={crownTaken:1, crownTouched:1, crownDropped:0};
+  crown.gone=1; crown.taken=1;
+  assert(ctx.dropBoneCrown().ok===1 && ctx.teethCrownStillSeated() && paintOf(crown).length===1
+    && look()==='Look at the bone crown',
+    'an altar drop clears the flags, reseats the prop, and Look and the paint agree');
+  resetLive();
+  ctx.G.lvl.flags={crownTouched:1, crownTaken:0, crownDestroyed:0, crownDropped:0};
+  const world=ctx.GameSave.captureWorld(ctx.G);
+  crown.gone=1; ctx.G.props=[]; ctx.G.lvl.flags={};
+  ctx.G.lvl.flags=Object.assign({}, world.flags);
+  ctx.GameSave.applyWorld(ctx.G, world);
+  const loaded=ctx.G.props.find(p=>p&&p.k==='bonecrown');
+  ctx.G.talk=null; ctx.PROMPT=null;
+  assert(loaded && ctx.boneCrownOffered(loaded) && ctx.G.lvl.flags.crownTouched===1
+    && paintOf(loaded).length===1
+    && ctx.maybeTeethChapelLooks(lookAt) && ctx.PROMPT.label==='Look at the bone crown',
+    'a save that kept the prop and crownTouched still offers Look and paints');
+  resetLive();
+  ctx.G.ents.push(
+    {id:2, ghost:1, name:'Ghost Dwarf', team:'party', kind:'dwarf', dead:0, hp:12, maxhp:12, x:103.2, y:4.8, glow:'#7ad8ff'},
+    {id:3, ghost:1, name:'Ghost Dwarf', team:'party', kind:'dwarf', dead:0, hp:12, maxhp:12, x:103.8, y:3.6, glow:'#7ad8ff'},
+    {id:4, thrall:1, name:'Risen Dwarf', team:'party', dead:0, hp:10, maxhp:10, x:104.2, y:5.1}
+  );
+  ctx.G.thrallId=4;
+  assert(ctx.boneCrownOffered(crown) && look()==='Look at the bone crown' && paintOf(crown).length===1,
+    'two ghost dwarves and a thrall do not hide an offered crown');
+  const gs=fs.readFileSync(path.join(__dirname,'../saves/GameSave.js'),'utf8');
+  const ks=gs.indexOf('function keepReachedChapters');
+  let ki=gs.indexOf('{', ks), kd=0, keepFn='';
+  for(;ki<gs.length;ki++){
+    if(gs[ki]==='{') kd++;
+    else if(gs[ki]==='}'){ kd--; if(kd===0){ keepFn=gs.slice(ks, ki+1); break; } }
+  }
+  assert(keepFn && !/props|bonecrown|crownTouched/.test(keepFn),
+    'keepReachedChapters does not read or write the crown');
+  vm.runInContext(keepFn+'; this.keepReachedChapters=keepReachedChapters;', ctx);
+  const snap={
+    unlocked:1, ch:3, cleared:{2:1},
+    floorWorlds:{1:{props:[{k:'bonecrown', gone:0, taken:0}], flags:{crownTouched:1}}}
+  };
+  ctx.keepReachedChapters(snap);
+  assert(snap.unlocked===3 && snap.floorWorlds[1].props[0].gone===0
+    && snap.floorWorlds[1].flags.crownTouched===1,
+    'keepReachedChapters raises unlocked and leaves the crown prop alone');
+}
+
 /* Ten seconds of the real update loop: a live skeleton beside a floor crown,
    the four ghosts engaged, Macar swinging while that foe is outside his reach. */
 {
@@ -1336,7 +1470,7 @@ assert(box.openTeethChapelLook(crownTap.key)===true && box.G.talk.line===CROWN_L
     interact(label,fn){ sandbox.PROMPT={label,fn}; }
   });
   [
-    'wearingBoneCrown','nearestBoneCrown','awardCrownDestroyXp','destroyBoneCrown',
+    'wearingBoneCrown','boneCrownOffered','nearestBoneCrown','awardCrownDestroyXp','destroyBoneCrown',
     'liveFoeBlocksCrown','playerDestroyBoneCrown',
     'nearestFoe','nearestAlly','kinCanAutoFight','foeInTheFight','faceToward','shoot','explode','updateBombs',
     'ghostSapperBomb','fire'

@@ -1013,6 +1013,7 @@ var ASSET_FILES={
   "assets/props/prop_urn.png":1,
   "assets/props/prop_winduptoy.png":1,
   "assets/props/prop_winduptoy_wound.png":1,
+  "assets/protected-assets.json":1,
   "assets/sfx/CREDITS.txt":1,
   "assets/sfx/clash_bed.mp3":1,
   "assets/sfx/hit_heavy_1.mp3":1,
