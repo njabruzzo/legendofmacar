@@ -8,6 +8,21 @@
     {
       "id": "L4",
       "name": "Orc Hold and the Ogre Cave",
+      "sub": "The Ogre Cave",
+      "tileset": {
+        "floor": "floor_ruin",
+        "wall": "wall_worked",
+        "pal": "hold",
+        "tint": "#d5dee8",
+        "interim": true,
+        "interimDue": "2026-12-31"
+      },
+      "landmarkId": "ogre_cave",
+      "landmark": {
+        "id": "ogre_cave",
+        "placed": false,
+        "kind": "ogre-cave"
+      },
       "level": 4,
       "wired": false,
       "stairsOpenOn": "bossKill",

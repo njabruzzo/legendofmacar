@@ -8,6 +8,21 @@
     {
       "id": "L2",
       "name": "Noz and the Goblin King",
+      "sub": "The Goblin Warren",
+      "tileset": {
+        "floor": "floor_mine",
+        "wall": "wall_cave",
+        "pal": "warren",
+        "tint": "#e4e8cc",
+        "interim": true,
+        "interimDue": "2026-12-31"
+      },
+      "landmarkId": "goblin_throne",
+      "landmark": {
+        "id": "goblin_throne",
+        "placed": true,
+        "kind": "throne"
+      },
       "level": 2,
       "wired": false,
       "size": { "w": 144, "h": 118 },
