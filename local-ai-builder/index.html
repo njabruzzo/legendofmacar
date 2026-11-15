@@ -35,7 +35,7 @@
 <div class="bottom">Local AI Builder · A shareable independent guide · Built for informed decisions, not sales</div><div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
-const DEFAULT={goal:'agents',workloads:['code','documents'],modelTier:'auto',latency:'balanced',parallel:'1',training:'none',budget:'5000',flex:'soft',platform:'any',use:'desk',tech:'standard',storage:'2',monitor:'yes',ups:'no',privacy:'hybrid',tax:'0',kwh:'0.18',hours:'5',notes:''};
+const DEFAULT={goal:['agents'],workloads:['code','documents'],modelTier:'auto',latency:'balanced',parallel:'1',training:'none',budget:'5000',flex:'soft',platform:'any',use:'desk',tech:'standard',storage:'2',monitor:'yes',ups:'no',privacy:'hybrid',tax:'0',kwh:'0.18',hours:'5',notes:''};
 let state={...DEFAULT},step=0,chosen=null,alternatives=[];
 const fmt=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Math.round(n));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -89,55 +89,203 @@ const MODELS=[
 {id:'embed',name:'Qwen3-Embedding 0.6B',role:'Document retrieval',mem:3,params:'0.6B',license:'Apache 2.0',url:'https://huggingface.co/Qwen/Qwen3-Embedding-0.6B',why:'Create embeddings for local documents and semantic search.',tags:['documents'],kind:'embedding'}
 ];
 const STEPS=[
- {title:'What are you building?',intro:'Start with your actual use case—not with a computer brand.',items:[{key:'goal',question:'1. What is the single most important thing you want to do?',hint:'Choose your primary goal.',type:'single'},{key:'workloads',question:'2. What else should your setup support?',hint:'Select as many secondary workloads as you like.',type:'multi'},{key:'privacy',question:'3. How private does this need to be?',hint:'Local AI can also be combined with cloud services if you want.',type:'single'}]},
+ {title:'What are you building?',intro:'Start with your actual use case—not with a computer brand.',items:[{key:'goal',question:'1. What do you want to accomplish with local AI?',hint:'Select all that apply (at least one). Each goal affects your recommendation.',type:'multi'},{key:'workloads',question:'2. What specific capabilities do you need?',hint:'Select every workload that matters. These are weighed along with your goals.',type:'multi'},{key:'privacy',question:'3. How private does this need to be?',hint:'Local AI can also be combined with cloud services if you want.',type:'single'}]},
  {title:'How powerful does it need to be?',intro:'This is where we separate a responsive coding assistant from a very large research model.',items:[{key:'modelTier',question:'4. What size models are you aiming for?',hint:'“Choose for me” is a good option if you are unsure.',type:'single'},{key:'latency',question:'5. How much do you value speed versus capability?',hint:'Very large models can respond slowly even when they technically fit.',type:'single'},{key:'parallel',question:'6. How many tasks or people will use it at the same time?',hint:'Concurrency increases practical memory and throughput demands.',type:'single'},{key:'training',question:'7. Will you train or fine-tune models?',hint:'CUDA becomes substantially more important if the answer is yes.',type:'single'}]},
  {title:'Set your constraints',intro:'Your budget and platform preferences guide the tradeoffs.',items:[{key:'budget',question:'8. What is your approximate all-in budget?',hint:'USD, including common extras; taxes are estimated separately.',type:'single'},{key:'flex',question:'9. Is that a hard spending limit?',hint:'A flexible budget allows one clearly labeled stretch recommendation.',type:'single'},{key:'platform',question:'10. Any platform preference?',hint:'This is treated as a constraint, not just a loose preference.',type:'single'},{key:'use',question:'11. Is this a desktop or an always-on AI server?',hint:'A server can run models for several phones or computers.',type:'single'}]},
  {title:'Finish your build profile',intro:'Just a few practical details before your hardware and model recommendations.',items:[{key:'tech',question:'12. How technical do you want setup to be?',hint:'This influences the software stack and machine choice.',type:'single'},{key:'storage',question:'13. How much local storage will you need?',hint:'Model weights, fine-tuning checkpoints, and datasets add up.',type:'single'},{key:'monitor',question:'14. Do you already have a suitable monitor and peripherals?',hint:'A simple monitor allowance is included if needed.',type:'single'},{key:'ups',question:'15. Add a battery-backup UPS?',hint:'Especially helpful for machines that run unattended.',type:'single'}]}
 ];
 function getChoiceHTML(key,kind){return `<div class="choice-grid" role="group" aria-label="${esc(key)}">${O[key].map(o=>{let checked=(kind==='multi'?state[key].includes(o.v):state[key]===o.v);return `<label class="choice ${checked?'selected':''}"><input type="${kind==='multi'?'checkbox':'radio'}" name="${key}" value="${esc(o.v)}" ${checked?'checked':''} /><span><strong>${esc(o.t)}</strong><small>${esc(o.d)}</small></span></label>`}).join('')}</div>`}
-function renderStep(){document.querySelector('#questions').style.display='block';document.querySelector('#results').style.display='none';document.querySelector('#progressBars').innerHTML=STEPS.map((_,i)=>`<div class="step-line ${i<=step?'done':''}"></div>`).join('');const s=STEPS[step];document.querySelector('#stepContent').innerHTML=`<div class="step-number">Step ${step+1} of ${STEPS.length}</div><h2 class="step-title">${s.title}</h2><p class="step-intro">${s.intro}</p>${s.items.map(i=>`<section class="question"><h3 class="question-title">${esc(i.question)}</h3><div class="question-hint">${esc(i.hint)}</div>${getChoiceHTML(i.key,i.type)}</section>`).join('')}`;document.querySelector('#backBtn').disabled=step===0;document.querySelector('#nextBtn').textContent=step===STEPS.length-1?'See my recommendation →':'Continue →';document.querySelector('#navNote').textContent=`${STEPS.slice(0,step+1).reduce((a,s)=>a+s.items.length,0)} / 15 answered`;document.querySelectorAll('.choice input').forEach(input=>input.addEventListener('change',e=>{const key=e.currentTarget.name;let val=e.currentTarget.value;if(e.currentTarget.type==='checkbox'){if(e.currentTarget.checked&&!state[key].includes(val))state[key].push(val);if(!e.currentTarget.checked)state[key]=state[key].filter(x=>x!==val)}else{state[key]=val}renderStep();const focusTarget=[...document.querySelectorAll(`input[name="${key}"]`)].find(x=>x.value===val);if(focusTarget)focusTarget.focus({preventScroll:true})}));}
+function renderStep(){document.querySelector('#questions').style.display='block';document.querySelector('#results').style.display='none';document.querySelector('#progressBars').innerHTML=STEPS.map((_,i)=>`<div class="step-line ${i<=step?'done':''}"></div>`).join('');const s=STEPS[step];document.querySelector('#stepContent').innerHTML=`<div class="step-number">Step ${step+1} of ${STEPS.length}</div><h2 class="step-title">${s.title}</h2><p class="step-intro">${s.intro}</p>${s.items.map(i=>`<section class="question"><h3 class="question-title">${esc(i.question)}</h3><div class="question-hint">${esc(i.hint)}</div>${getChoiceHTML(i.key,i.type)}</section>`).join('')}`;document.querySelector('#backBtn').disabled=step===0;document.querySelector('#nextBtn').textContent=step===STEPS.length-1?'See my recommendation →':'Continue →';document.querySelector('#navNote').textContent=`${STEPS.slice(0,step+1).reduce((a,s)=>a+s.items.length,0)} / 15 answered`;document.querySelectorAll('.choice input').forEach(input=>input.addEventListener('change',e=>{const key=e.currentTarget.name;let val=e.currentTarget.value;if(e.currentTarget.type==='checkbox'){if(e.currentTarget.checked&&!state[key].includes(val))state[key].push(val);if(!e.currentTarget.checked){if(key==='goal'&&state.goal.length===1){toast('Choose at least one goal');renderStep();return}state[key]=state[key].filter(x=>x!==val)}}else{state[key]=val}renderStep();const focusTarget=[...document.querySelectorAll(`input[name="${key}"]`)].find(x=>x.value===val);if(focusTarget)focusTarget.focus({preventScroll:true})}));}
 function effectiveMemory(h){return h.kind==='nvidia'&&h.vram?Math.floor(h.vram*.88):Math.floor(h.mem*(h.kind==='amd'?.72:h.id==='spark'?.74:.75))}
 function fitModel(h,m){let eff=effectiveMemory(h);if(m.kind==='image'&&h.kind!=='nvidia')return eff>=m.mem?'edge':'no';if(eff>=m.mem*1.18)return 'good';if(eff>=m.mem)return 'edge';return 'no'}
-function desiredMem(){if(state.modelTier==='small')return 8;if(state.modelTier==='mid')return 23;if(state.modelTier==='large')return 82;if(state.modelTier==='giant')return 205; if(state.goal==='media'||state.goal==='training')return 15; if(Number(state.budget)>=8000&&state.goal==='chat')return 35; return 19}
+function desiredMem(){
+ if(state.modelTier==='small')return 8;
+ if(state.modelTier==='mid')return 23;
+ if(state.modelTier==='large')return 82;
+ if(state.modelTier==='giant')return 205;
+ const b=Number(state.budget),w=state.workloads;
+ const creative=hasGoal('media')||w.includes('images')||w.includes('video'),train=hasGoal('training')||state.training!=='none',complex=hasGoal('agents')||hasGoal('server')||w.includes('reasoning'),code=hasGoal('code')||w.includes('code');
+ let target=creative||train?17:complex||code?23:12;
+ if((complex||hasGoal('chat'))&&b>=8000&&state.latency!=='fast')target=Math.max(target,55);
+ if((complex||hasGoal('chat'))&&b>=12000&&state.latency==='quality')target=Math.max(target,82);
+ if(state.parallel==='2')target=Math.ceil(target*1.25);
+ if(state.parallel==='5')target=Math.ceil(target*1.6);
+ return target;
+}
 function getAddOns(h){let extraStorage=Math.max(0,Number(state.storage)-h.storage);let storageCost=Math.round(extraStorage*145);let monitorCost=state.monitor==='no'?320:0;let upsCost=state.ups==='yes'?195:0;let homeNetworking=state.use==='server'?120:0;return {storageCost,monitorCost,upsCost,homeNetworking,base:h.price,subtotal:h.price+storageCost+monitorCost+upsCost+homeNetworking,extraStorage}}
-function score(h){let allowed=state.platform==='any'||(state.platform==='mac'&&h.kind==='mac')||(state.platform==='amd'&&h.kind==='amd')||(state.platform==='nvidia'&&h.kind==='nvidia');if(!allowed)return -999999;let cost=getAddOns(h).subtotal,limit=Number(state.budget),m=desiredMem(),e=effectiveMemory(h),s=65;
- // Practical headroom is a strong criterion for explicitly requested large models.
- if(e>=m*1.18)s+=31;else if(e>=m)s+=17;else s-=Math.min(90,24+52*(m-e)/m);
- if(state.modelTier==='auto'){if(e>=22)s+=9;if(e>=50&&Number(state.budget)>=4500)s+=4}
- if(state.goal==='media'||state.workloads.includes('images')||state.workloads.includes('video')){s+=h.kind==='nvidia'?(h.vram?22+h.speed*1.5:8):h.kind==='mac'?0:-3;if(h.vram<16&&h.kind==='nvidia')s-=7}
- if(state.goal==='training'||state.training!=='none'){s+=h.kind==='nvidia'&&h.vram?24+h.speed: h.kind==='nvidia'?9:-12;if(state.training==='serious'&&h.vram<24)s-=15}
- if(state.goal==='code'||state.workloads.includes('code'))s+=h.kind==='nvidia'&&h.vram?8:h.id.startsWith('studio')?7:3;
- if(state.goal==='agents'||state.workloads.includes('reasoning')||state.goal==='chat')s+=e>=70?9:e>=25?6:0;
- if(state.goal==='server'||state.use==='server'){s+=(h.id==='spark'?8:h.kind==='mac'?5:3);s-=h.power/150}
- if(state.privacy==='offline'&&h.kind==='mac')s+=2;
- if(state.tech==='easy'){s+=h.kind==='mac'?10:h.kind==='amd'?0:h.vram?4:-2;if(h.id==='twogpu')s-=25;if(h.id==='spark')s-=6}
+function hasGoal(id){return Array.isArray(state.goal)&&state.goal.includes(id)}
+function score(h){
+ const allowed=state.platform==='any'||(state.platform==='mac'&&h.kind==='mac')||(state.platform==='amd'&&h.kind==='amd')||(state.platform==='nvidia'&&h.kind==='nvidia');
+ if(!allowed)return -999999;
+ const w=state.workloads,cap=Number(state.budget),mem=effectiveMemory(h),need=desiredMem(),cost=getAddOns(h).subtotal*(1+(Number(state.tax)||0)/100);
+ const cudaGPU=h.kind==='nvidia'&&h.vram>0;
+ const media=hasGoal('media')||w.includes('images')||w.includes('video');
+ const training=hasGoal('training')||state.training!=='none';
+ const coding=hasGoal('code')||w.includes('code');
+ const agents=hasGoal('agents');
+ const reasoning=w.includes('reasoning');
+ const docs=w.includes('documents');
+ const hosting=hasGoal('server')||state.use!=='desk';
+ let s=64;
+ if(mem>=need*1.2)s+=29;else if(mem>=need)s+=18;else s-=Math.min(95,18+65*(need-mem)/need);
+ if(state.modelTier!=='auto'&&mem<need)s-=16;
+ if(state.modelTier==='auto'&&mem>=23)s+=4;
+ if(media){
+   s+=cudaGPU?23+h.speed*1.3:h.id==='spark'?4:h.kind==='mac'?2:-1;
+   if(w.includes('video'))s+=cudaGPU&&h.vram>=24?12:cudaGPU&&h.vram>=16?6:-10;
+   if(cudaGPU&&h.vram<16)s-=6;
+ }
+ if(training){
+   s+=cudaGPU?23+h.speed*1.1:h.id==='spark'?7:-13;
+   if(state.training==='lora'&&cudaGPU&&h.vram>=24)s+=6;
+   if((state.training==='serious'||hasGoal('training'))&&!cudaGPU)s-=14;
+   if(state.training==='serious'&&h.vram<24)s-=22;
+ }
+ if(coding){s+=cudaGPU?12:h.kind==='mac'&&h.speed>=6?10:h.kind==='mac'?8:5;if(mem>=22)s+=5;}
+ if(agents){s+=mem>=65?13:mem>=23?8:0;if(h.speed>=6)s+=4;}
+ if(reasoning)s+=mem>=75?16:mem>=25?9:0;
+ if(hasGoal('chat')){s+=mem>=20?8:4;if(state.tech==='easy'&&h.kind==='mac')s+=4;}
+ if(docs){s+=mem>=20?7:2;if(h.storage>=2)s+=3;}
+ if(w.includes('voice')){s+=h.speed>=6?6:3;if(cudaGPU)s+=4;}
+ if(hosting){s+=h.id==='spark'?11:h.kind==='mac'?7:4;s+=mem>=60?7:0;s-=h.power/145;}
+ if(state.privacy==='offline'){s+=mem>=need?5:-6;if(h.kind==='mac')s+=2;}
+ if(state.tech==='easy'){s+=h.kind==='mac'?12:cudaGPU?5:h.kind==='amd'?2:0;if(h.id==='twogpu')s-=27;if(h.id==='spark')s-=6;}
+ if(state.tech==='standard'&&h.id==='twogpu')s-=7;
  if(state.tech==='advanced'&&h.kind==='nvidia')s+=8;
- if(state.latency==='fast')s+=(h.speed-3)*2.1;else if(state.latency==='quality')s+=e/17;
- if(state.parallel==='2'){s+=e>=35?6:-8;s+=h.speed>=6?3:0}else if(state.parallel==='5'){s+=e>=70?8:-15;s+=h.speed>=8?6:-8}
- if(cost>limit){if(state.flex==='hard')s-=350;else if(cost>limit*1.15)s-=300;else s-=50+20*(cost/limit-1)}
- s-=cost/650; // affordability still matters among comparable capable builds
- if(h.id==='twogpu'&&state.modelTier!=='giant'&&state.training==='none')s-=22;
- if(h.id==='ultra256'&&state.modelTier!=='giant'&&state.modelTier!=='large')s-=13;
- return s}
+ if(state.use==='desk'&&h.power>500)s-=5;
+ if(state.use==='shared'){s+=mem>=65?7:-5;s+=h.speed>=6?6:0;}
+ if(state.latency==='fast')s+=(h.speed-3)*3.0;else if(state.latency==='quality')s+=mem/20;else s+=(h.speed-3)*0.7;
+ if(state.parallel==='2'){s+=mem>=35?8:-11;s+=h.speed>=6?4:0;}
+ if(state.parallel==='5'){s+=mem>=70?10:-20;s+=h.speed>=8?9:-9;}
+ if(cost>cap){if(state.flex==='hard')s-=400;else if(cost>cap*1.15)s-=320;else s-=65+40*(cost/cap-1);}
+ s-=cost/580;
+ if(h.id==='twogpu'&&state.modelTier!=='giant'&&!training)s-=25;
+ if(h.id==='ultra256'&&state.modelTier!=='giant'&&state.modelTier!=='large'&&state.parallel!=='5')s-=15;
+ if(hosting&&Number(state.hours)>=16)s-=h.power/110;
+ return s;
+}
 function determine(){const ranked=HW.map(h=>({...h,score:score(h)})).filter(h=>h.score>-999998).sort((a,b)=>b.score-a.score);chosen=ranked[0]||HW[0];const chooseAlt=(filter)=>ranked.find(h=>h.id!==chosen.id&&!alternatives.some(x=>x.id===h.id)&&filter(h));alternatives=[];let cheaper=chooseAlt(h=>h.price<chosen.price&&h.price>=chosen.price*.45);if(!cheaper)cheaper=chooseAlt(h=>h.price<chosen.price);if(cheaper)alternatives.push(cheaper);let stretch=chooseAlt(h=>h.price>chosen.price&&h.price<=chosen.price*2.5);if(!stretch)stretch=chooseAlt(()=>true);if(stretch)alternatives.push(stretch);return ranked}
 const mainGoalMap={chat:'private assistant',code:'local coding',agents:'agent workflows',media:'generative media',training:'model fine-tuning',server:'AI service hosting'};
-function why(h){let bits=[];if(h.kind==='mac')bits.push('macOS simplicity and strong unified-memory support');if(h.kind==='nvidia'&&h.vram)bits.push('fast CUDA-compatible GPU inference');if(h.id==='spark')bits.push('128GB NVIDIA unified memory for a Linux AI stack');if(h.kind==='amd')bits.push('large memory capacity per dollar');if(effectiveMemory(h)>=desiredMem())bits.push('enough estimated memory for your chosen model tier');else bits.push('a compromise on the model size you requested');if(state.goal==='media'&&h.kind==='nvidia'&&h.vram)bits.push('image-generation workflows');return bits.slice(0,3).join('; ')+'.'}
+function why(h){
+ let reasons=[];
+ if(h.kind==='mac')reasons.push('macOS simplicity and large unified-memory options');
+ if(h.kind==='nvidia'&&h.vram)reasons.push('CUDA GPU performance for coding, images and fine-tuning');
+ if(h.id==='spark')reasons.push('128GB NVIDIA unified memory for Linux model serving');
+ if(h.kind==='amd')reasons.push('large memory capacity for the price');
+ reasons.push(effectiveMemory(h)>=desiredMem()?'capacity for your planned model tier':'a compromise on your target model size');
+ if(hasGoal('media')||state.workloads.includes('images'))reasons.push(h.vram?'GPU-accelerated image workflows':'image accelerator compatibility requires checking');
+ if(hasGoal('agents')||hasGoal('server'))reasons.push('agent and serving requirements considered');
+ if(hasGoal('code'))reasons.push('software development needs considered');
+ return reasons.slice(0,4).join('; ')+'.';
+}
 function priceInfo(h){let a=getAddOns(h);const tax=Number(state.tax)||0;return {a,tax,full:a.subtotal*(1+tax/100)}}
 function hardwareCard(h,tag){let a=priceInfo(h);return `<article class="mini-card ${tag==='Recommended'?'best':''}"><div class="overline">${esc(tag)}</div><h4>${esc(h.name)}</h4><div class="mini-price">${fmt(a.full)}</div><div class="label-line">Estimated all-in · ${esc(h.merchant)}</div><p class="why">${esc(why(h))}</p><p><strong>Model memory budget:</strong> ~${effectiveMemory(h)}GB for inference. ${esc(h.limitation)}</p><div class="flex-stretch"></div><a href="${h.source}" target="_blank" rel="noopener">View price / specs ↗</a></article>`}
-function renderHero(){let a=priceInfo(chosen);document.querySelector('#resultHeadline').textContent=`A ${chosen.kind==='mac'?'Mac':chosen.kind==='amd'?'AMD PC':'NVIDIA system'} built for ${mainGoalMap[state.goal]}.`;document.querySelector('#resultIntro').textContent=`Based on your ${fmt(Number(state.budget))} budget, ${label(O.goal,state.goal).toLowerCase()} focus, requested model tier, and setup preferences, this is your best-fit reference machine—not the most expensive option.`;document.querySelector('#summaryHero').innerHTML=`<div class="rec-hero"><div><div class="eyebrow">BEST MATCH · ${esc(chosen.merchant)}</div><h2>${esc(chosen.name)}</h2><p>${esc(why(chosen))}</p><div class="spec-tags"><span class="spec-tag">${chosen.mem}GB ${chosen.vram?'dedicated VRAM':'unified memory'}</span><span class="spec-tag">${chosen.storage}TB built-in SSD</span><span class="spec-tag">~${effectiveMemory(chosen)}GB practical model budget</span><span class="spec-tag">${chosen.kind==='mac'?'macOS + MLX':chosen.kind==='amd'?'AMD Radeon + ROCm':chosen.id==='spark'?'NVIDIA + CUDA (ARM64)':'NVIDIA + CUDA'}</span></div></div><div class="price-block"><div class="cap">Estimated all-in cost</div><div class="price">${fmt(a.full)}</div><div class="small">Includes chosen extras and ${a.tax}% estimated sales tax</div><div class="rec-actions"><a href="${chosen.source}" target="_blank" rel="noopener">Check actual retailer price ↗</a></div></div></div>`}
+function renderHero(){
+ let a=priceInfo(chosen),goals=state.goal.map(x=>label(O.goal,x)),workloads=state.workloads.map(x=>label(O.workloads,x));
+ document.querySelector('#resultHeadline').textContent=`Your best-fit ${chosen.kind==='mac'?'Mac':chosen.kind==='amd'?'AMD PC':'NVIDIA system'} for ${goals.length>1?'multiple AI goals':goals[0].toLowerCase()}.`;
+ document.querySelector('#resultIntro').textContent=`We weighed all 15 answers: ${goals.join(', ')}${workloads.length?'; workloads including '+workloads.join(', '):''}; your ${fmt(Number(state.budget))} budget; model size, speed, training, privacy, concurrency and setup preferences.`;
+ document.querySelector('#summaryHero').innerHTML=`<div class="rec-hero"><div><div class="eyebrow">BEST MATCH · ${esc(chosen.merchant)}</div><h2>${esc(chosen.name)}</h2><p>${esc(why(chosen))}</p><div class="spec-tags"><span class="spec-tag">${chosen.mem}GB ${chosen.vram?'dedicated VRAM':'unified memory'}</span><span class="spec-tag">${chosen.storage}TB built-in SSD</span><span class="spec-tag">~${effectiveMemory(chosen)}GB practical model budget</span><span class="spec-tag">${chosen.kind==='mac'?'macOS + MLX':chosen.kind==='amd'?'AMD Radeon + ROCm':chosen.id==='spark'?'NVIDIA + CUDA (ARM64)':'NVIDIA + CUDA'}</span></div></div><div class="price-block"><div class="cap">Estimated all-in cost</div><div class="price">${fmt(a.full)}</div><div class="small">Includes chosen extras and ${a.tax}% estimated sales tax</div><div class="rec-actions"><a href="${chosen.source}" target="_blank" rel="noopener">Check actual retailer price ↗</a></div></div></div>`;
+}
 function renderAlternatives(){document.querySelector('#alternatives').innerHTML=[hardwareCard(chosen,'Recommended'),...(alternatives.map((h,i)=>hardwareCard(h,i===0?'Lower-cost alternative':'Alternative / more headroom')))].join('')}
 function renderCost(){let h=chosen,p=priceInfo(h),a=p.a;const rows=[['Reference computer · '+h.name,a.base],['Additional storage · '+a.extraStorage.toFixed(1)+'TB',a.storageCost],['Monitor / keyboard allowance',a.monitorCost],['UPS backup',a.upsCost],['Home-network extras',a.homeNetworking],['Subtotal',a.subtotal],['Estimated sales tax · '+p.tax+'%',p.full-a.subtotal],['Estimated upfront total',p.full]];document.querySelector('#costRows').innerHTML=rows.filter((r,i)=>i===0||i>=5||r[1]>0).map((r,i)=>`<tr class="${r[0].startsWith('Estimated upfront')?'total':r[0]==='Subtotal'?'muted':''}"><td>${esc(r[0])}</td><td>${fmt(r[1])}</td></tr>`).join('');let hours=Math.min(24,Math.max(0.5,Number(state.hours)||5)),rate=Math.max(0,Number(state.kwh)||0),monthly=h.power*hours*30.4*rate/1000;document.querySelector('#powerEstimate').innerHTML=`<div style="font-size:12px;color:#5f766b">Illustrative electricity at <strong>${h.power} W</strong> average during active use:</div><div style="font-weight:850;font-size:25px;color:#164d39;margin-top:4px">${fmt(monthly)} <span style="font-size:12px;font-weight:600;color:#789085">/ month</span></div><p style="font-size:11px;margin:5px 0 0">Actual idle power, utilization, cooling, and utility rates will change this estimate. It is not included in the upfront total.</p>`}
 function budgetWarning(){let total=priceInfo(chosen).full,budget=Number(state.budget),msg='';if(total>budget){msg=`Your selected hardware and extras estimate is <strong>${fmt(total-budget)} above</strong> the selected ${fmt(budget)} budget. ${state.flex==='hard'?'No candidate fully met your platform, model size, and cost constraints; consider smaller models or changing your platform.':'This is a labeled stretch choice; the lower-cost alternative may fit better.'}`}if(state.modelTier==='giant'&&effectiveMemory(chosen)<205){msg+=` <strong>200B+ caution:</strong> no affordable single-box choice in this guide guarantees your requested model will fit at practical speeds. A server-grade multi-GPU configuration may be needed.`}if(state.training==='serious'&&chosen.vram===0){msg+=` <strong>Training caution:</strong> a dedicated CUDA GPU or rented compute is likely a better fit for frequent training.`}if(state.parallel==='5'){msg+=` <strong>Concurrency caution:</strong> benchmark real simultaneous sessions before hosting a service.`}if(msg)document.querySelector('#budgetWarning').innerHTML=`<div class="warning-strip">${msg}</div>`;else document.querySelector('#budgetWarning').innerHTML=''}
-function modelCards(){const desired=(state.goal==='media'?['flux','qwen9','gpt20']:state.goal==='training'?['devstral','qwen27','gpt20']:state.goal==='code'?['devstral','qwen27','coderNext']:state.goal==='chat'?['qwen27','gemma31','gpt120']:state.goal==='server'?['gpt20','qwen27','gpt120']:['qwen27','gpt20','coderNext']);if(state.modelTier==='small')desired.splice(0,3,'qwen9','gemma12','gpt20');if(state.modelTier==='large')desired.splice(0,3,'gpt120','coderNext','qwen27');if(state.modelTier==='giant')desired.splice(0,3,'glmFlash','gpt120','coderNext');if(state.modelTier==='mid')desired.splice(0,3,'qwen27','gemma31','devstral');let ids=[...desired];for(const w of state.workloads){if(w==='documents')ids.push('embed');if(w==='images'||w==='video')ids.push('flux');if(w==='voice')ids.push('whisper','tts');if(w==='reasoning')ids.push('gpt120')};ids=[...new Set(ids)].slice(0,7);let goodCount=0;document.querySelector('#modelGrid').innerHTML=ids.map(id=>{let m=MODELS.find(x=>x.id===id),fit=fitModel(chosen,m);if(fit==='good')goodCount++;let status=fit==='good'?'Likely fits':fit==='edge'?'Borderline / verify':'Does not fit fully';let warning=(fit==='no'?'Try a smaller model or CPU offload, which can be much slower.':fit==='edge'?'Short contexts and compatible quantization may be necessary.':'Test real token speed and context length.');if(m.kind==='image'&&chosen.kind!=='nvidia')warning+=' Verify accelerated backend support on this OS.';return `<article class="model-card"><div class="model-head"><div><h4>${esc(m.name)}</h4><div class="model-meta">${esc(m.params)} · ${esc(m.license)} · ~${m.mem}GB planning footprint</div></div><span class="fit ${fit}">${status}</span></div><span class="model-kind">${esc(m.role)}</span><p>${esc(m.why)} <strong>${esc(warning)}</strong></p><a href="${m.url}" target="_blank" rel="noopener">Official model card ↗</a></article>`}).join('');document.querySelector('#modelCaveat').textContent=`The memory figures include approximate room for runtime overhead at modest context. These are NOT hardware benchmarks or guarantees. “Does not fit fully” may still run with CPU offloading or distributed setups, often slowly. This machine's planning budget is ~${effectiveMemory(chosen)}GB.`}
-function roadmap(){let platform=chosen.kind,backend=platform==='mac'?'<a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a> or <a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a>; test <a href="https://github.com/ml-explore/mlx" target="_blank" rel="noopener">MLX</a> for Apple-specific performance.':platform==='amd'?'<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> or <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a>; verify ROCm and Vulkan support for each runtime.':chosen.id==='spark'?'<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> and vendor-supported CUDA frameworks; verify ARM64 compatibility.':'<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> or <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a>; use <a href="https://docs.vllm.ai/" target="_blank" rel="noopener">vLLM</a> if you need multi-user serving.';let sections=[['Install a local model runner',`Start with ${backend}`],['Download one small model first','Benchmark Qwen3.5 9B or GPT-OSS 20B. Record first-token delay, tokens/second, memory use, and accuracy on your real tasks.'],['Add a web interface','Use <a href="https://docs.openwebui.com/" target="_blank" rel="noopener">Open WebUI</a> for a multi-device chat interface on your own network.'],['Add your specialist stack',state.goal==='media'||state.workloads.includes('images')?`For images, evaluate <a href="https://www.comfy.org/" target="_blank" rel="noopener">ComfyUI</a> with FLUX.2 Klein and confirm platform compatibility.`:state.goal==='code'||state.workloads.includes('code')?`Connect a coding tool such as <a href="https://aider.chat/" target="_blank" rel="noopener">Aider</a> and benchmark tasks in a copy of a repository.`:`For private documents, evaluate local embeddings with <a href="https://qdrant.tech/" target="_blank" rel="noopener">Qdrant</a> or your preferred local vector store.`],['Measure before expanding','Test long contexts, parallel sessions, heat and energy. Only then download 70B–120B models or invest in more hardware.']];document.querySelector('#roadmap').innerHTML=sections.map((a,i)=>`<div class="road-step"><div class="n">${i+1}</div><div><strong>${a[0]}</strong><p>${a[1]}</p></div></div>`).join('')}
+function modelCards(){
+ let boosts={};
+ const add=(ids,pts)=>ids.forEach(id=>boosts[id]=(boosts[id]||0)+pts);
+ const w=state.workloads;
+ if(hasGoal('chat'))add(['qwen27','gemma31','gpt20','gpt120','qwen9'],5);
+ if(hasGoal('code'))add(['devstral','coderNext','qwen27','gpt20'],7);
+ if(hasGoal('agents'))add(['qwen27','coderNext','gpt20','gpt120'],7);
+ if(hasGoal('media'))add(['flux','qwen9','qwen27'],9);
+ if(hasGoal('training'))add(['devstral','gpt20','qwen9','qwen27'],6);
+ if(hasGoal('server'))add(['gpt20','qwen27','gpt120','qwen9'],6);
+ if(w.includes('documents'))add(['embed','qwen27','gemma31'],8);
+ if(w.includes('code'))add(['devstral','coderNext','qwen27'],5);
+ if(w.includes('reasoning'))add(['gpt120','qwen27','gemma31'],7);
+ if(w.includes('images')||w.includes('video'))add(['flux'],14);
+ if(w.includes('voice'))add(['whisper','tts'],14);
+ if(state.training!=='none')add(['devstral','gpt20','qwen9'],4);
+ if(state.modelTier==='small')add(['qwen9','gemma12','gpt20'],9);
+ if(state.modelTier==='mid')add(['qwen27','gemma31','devstral'],9);
+ if(state.modelTier==='large')add(['gpt120','coderNext'],11);
+ if(state.modelTier==='giant')add(['glmFlash','gpt120'],12);
+ const scored=MODELS.map(m=>{
+   const fit=fitModel(chosen,m);let pts=boosts[m.id]||0;
+   pts+=fit==='good'?10:fit==='edge'?4:-10;
+   if(state.modelTier==='auto'&&m.kind==='llm'&&m.mem>desiredMem()*1.75)pts-=12;
+   return {m,pts};
+ }).filter(x=>x.pts>0).sort((a,b)=>b.pts-a.pts||a.m.mem-b.m.mem);
+ const mandatory=[];
+ if(hasGoal('media')||w.includes('images')||w.includes('video'))mandatory.push('flux');
+ if(w.includes('voice'))mandatory.push('whisper','tts');
+ if(w.includes('documents'))mandatory.push('embed');
+ if(hasGoal('code')||w.includes('code'))mandatory.push('devstral');
+ if(state.modelTier==='large')mandatory.push('gpt120');
+ if(state.modelTier==='giant')mandatory.push('glmFlash');
+ const ids=[...new Set([...mandatory,...scored.map(x=>x.m.id)])].slice(0,9);
+ document.querySelector('#modelGrid').innerHTML=ids.map(id=>{
+   const m=MODELS.find(x=>x.id===id),fit=fitModel(chosen,m);
+   const status=fit==='good'?'Likely fits':fit==='edge'?'Borderline / verify':'Does not fit fully';
+   let warning=fit==='no'?'Choose smaller quantization/model or offload, which can be much slower.':fit==='edge'?'Shorter contexts and careful quantization may be needed.':'Benchmark actual token speed and context length.';
+   if(m.kind==='image'&&chosen.kind!=='nvidia')warning+=' Verify an accelerated backend for this OS.';
+   return `<article class="model-card"><div class="model-head"><div><h4>${esc(m.name)}</h4><div class="model-meta">${esc(m.params)} · ${esc(m.license)} · ~${m.mem}GB planning footprint</div></div><span class="fit ${fit}">${status}</span></div><span class="model-kind">${esc(m.role)}</span><p>${esc(m.why)} <strong>${esc(warning)}</strong></p><a href="${m.url}" target="_blank" rel="noopener">Official model card ↗</a></article>`;
+ }).join('');
+ document.querySelector('#modelCaveat').textContent=`Models reflect your combined goals, specific workloads, model tier, and hardware fit. These are estimates, not performance benchmarks. Practical model-memory budget: ~${effectiveMemory(chosen)}GB; models marked as not fitting may need offloading or different hardware.`;
+}
+function roadmap(){
+ let platform=chosen.kind;
+ let backend=platform==='mac'?'<a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a> or <a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a>; try <a href="https://github.com/ml-explore/mlx" target="_blank" rel="noopener">MLX</a>.':
+ platform==='amd'?'<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> or <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a>; check ROCm/Vulkan support.':
+ chosen.id==='spark'?'<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> and supported NVIDIA tools; check ARM64 support.':
+ '<a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a> or <a href="https://lmstudio.ai/" target="_blank" rel="noopener">LM Studio</a>; consider <a href="https://docs.vllm.ai/" target="_blank" rel="noopener">vLLM</a> for serving.';
+ const w=state.workloads;
+ const tasks=[['Install a local model runner','Start with '+backend],['Benchmark one small model','Try Qwen3.5 9B or GPT-OSS 20B; record tokens/second, accuracy, latency, and memory use.']];
+ if(hasGoal('code')||w.includes('code'))tasks.push(['Build a coding workflow','Connect <a href="https://aider.chat/" target="_blank" rel="noopener">Aider</a> or a compatible editor to a local model.']);
+ if(hasGoal('agents'))tasks.push(['Build agents with guardrails','Use limited tool permissions and manual approval for any external side effects.']);
+ if(hasGoal('media')||w.includes('images')||w.includes('video'))tasks.push(['Set up creative models','Evaluate <a href="https://www.comfy.org/" target="_blank" rel="noopener">ComfyUI</a> and FLUX.2 Klein. Video has higher GPU requirements.']);
+ if(w.includes('documents'))tasks.push(['Add private document search','Test Qwen3 embeddings with <a href="https://qdrant.tech/" target="_blank" rel="noopener">Qdrant</a> or a local vector store.']);
+ if(w.includes('voice'))tasks.push(['Add speech','Benchmark Whisper transcription and Qwen3-TTS synthesis.']);
+ if(hasGoal('training')||state.training!=='none')tasks.push(['Test lightweight fine-tuning','Try LoRA on a small model and validate tooling for your platform.']);
+ if(hasGoal('server')||state.use!=='desk'||state.parallel!=='1')tasks.push(['Serve your models','Add <a href="https://docs.openwebui.com/" target="_blank" rel="noopener">Open WebUI</a> and test concurrent sessions securely.']);
+ tasks.push(['Evaluate before upgrading','Test large contexts, noise, power draw, concurrency and stability before committing to more hardware.']);
+ document.querySelector('#roadmap').innerHTML=tasks.map((t,i)=>`<div class="road-step"><div class="n">${i+1}</div><div><strong>${t[0]}</strong><p>${t[1]}</p></div></div>`).join('');
+}
 function sources(){const data=[['Apple Mac mini M6 / M5 Pro announcement',SOURCE.appleMini],['Apple Mac Studio M5 technical specifications',SOURCE.appleStudio],['Apple Mac mini M6 24GB retail reference',SOURCE.mini24],['Mac mini M5 Pro 64GB retail price',SOURCE.mini64],['Mac Studio M5 Max 64GB retailer listing',SOURCE.studio64],['Mac Studio M5 Max 128GB retailer listing',SOURCE.studio128],['Mac Studio M5 Ultra 256GB retailer catalog',SOURCE.ultra],['Mac Studio M5 Ultra 512GB pricing report',SOURCE.ultra512],['PowerSpec RTX 5070 Ti listing',SOURCE.gpu5070],['PowerSpec RTX 5080 listing',SOURCE.gpu5080],['MSI RTX 5090 listing',SOURCE.gpu5090],['MINISFORUM MS-S1 MAX manufacturer listing',SOURCE.amd],['NVIDIA DGX Spark retailer listing',SOURCE.spark],['NVIDIA DGX Spark official specifications/pricing',SOURCE.sparkOfficial]];document.querySelector('#sourceGrid').innerHTML=data.map(([name,url])=>`<a href="${url}" target="_blank" rel="noopener">${esc(name)} ↗</a>`).join('')}
 function updateAll(){renderHero();renderAlternatives();renderCost();budgetWarning();modelCards();roadmap();sources()}
 function showResults(){step=STEPS.length-1;determine();document.querySelector('#questions').style.display='none';document.querySelector('#results').style.display='block';updateAll();document.querySelector('#taxInput').value=state.tax;document.querySelector('#kwhInput').value=state.kwh;document.querySelector('#hoursInput').value=state.hours;document.querySelector('#shareBtn').style.display=location.protocol.startsWith('http')?'inline-flex':'none';document.querySelector('#results').scrollIntoView({behavior:'smooth',block:'start'})}
-function summaryText(){let p=priceInfo(chosen);return `LOCAL AI WORKSTATION PLAN — November 14, 2026\n\nPrimary goal: ${label(O.goal,state.goal)}\nBudget: ${fmt(Number(state.budget))}\nRecommended: ${chosen.name}\nSpecifications: ${chosen.detail}\nModel planning memory: ~${effectiveMemory(chosen)}GB\nWhy: ${why(chosen)}\nEstimated computer: ${fmt(chosen.price)}\nEstimated accessories/storage: ${fmt(p.a.subtotal-chosen.price)}\nEstimated taxes: ${fmt(p.full-p.a.subtotal)}\nEstimated upfront total: ${fmt(p.full)}\n\nModels to evaluate:\n${[...document.querySelectorAll('#modelGrid h4')].map(x=>'- '+x.textContent).join('\n')}\n\nRetailer/price reference: ${chosen.source}\n\nEstimates are not current purchase quotes. Fit depends on model quantization, context, runtime and available memory.\nCreated using the offline Local AI Builder guide.`}
+function summaryText(){
+ const p=priceInfo(chosen);
+ const answers=[
+  ['Goals',state.goal.map(x=>label(O.goal,x)).join(', ')],['Workloads',state.workloads.map(x=>label(O.workloads,x)).join(', ')],
+  ['Model size',label(O.modelTier,state.modelTier)],['Speed',label(O.latency,state.latency)],['Concurrency',label(O.parallel,state.parallel)],
+  ['Fine-tuning',label(O.training,state.training)],['Privacy',label(O.privacy,state.privacy)],
+  ['Budget',fmt(Number(state.budget))+' ('+label(O.flex,state.flex)+')'],['Platform',label(O.platform,state.platform)],
+  ['Machine role',label(O.use,state.use)],['Setup experience',label(O.tech,state.tech)],['Storage',label(O.storage,state.storage)],
+  ['Monitor',label(O.monitor,state.monitor)],['UPS',label(O.ups,state.ups)]
+ ];
+ return 'LOCAL AI WORKSTATION PLAN — November 14, 2026\n\n'+answers.map(([k,v])=>k+': '+v).join('\n')+
+  '\n\nRecommended: '+chosen.name+'\nSpecs: '+chosen.detail+'\nModel memory: ~'+effectiveMemory(chosen)+'GB\nWhy: '+why(chosen)+
+  '\nComputer: '+fmt(chosen.price)+'\nAccessories/storage: '+fmt(p.a.subtotal-chosen.price)+'\nTax: '+fmt(p.full-p.a.subtotal)+
+  '\nEstimated upfront cost: '+fmt(p.full)+'\n\nModels to evaluate:\n'+[...document.querySelectorAll('#modelGrid h4')].map(x=>'- '+x.textContent).join('\n')+
+  '\n\nPrice reference: '+chosen.source+'\nEstimates are not purchase quotes; verify model, runtime, context, and quantization compatibility.';
+}
 function toast(t){let el=document.querySelector('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2400)}
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied to clipboard')}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();try{document.execCommand('copy');toast('Copied to clipboard')}catch(err){toast('Copy not available; use print instead')}x.remove()}}
 function reportDownload(){let content=`<!doctype html><html lang="en"><meta charset="utf-8"><title>My local AI workstation plan</title><style>body{font:15px/1.55 system-ui,sans-serif;max-width:760px;margin:40px auto;padding:20px;color:#17362e}h1{font-size:30px}pre{white-space:pre-wrap;font:14px/1.7 system-ui,sans-serif}a{color:#11764e}</style><h1>My local AI workstation plan</h1><pre>${esc(summaryText())}</pre><p><a href="${chosen.source}">Check the hardware price reference</a></p></html>`;let blob=new Blob([content],{type:'text/html'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='my-local-ai-plan.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function getSharedState(){const hash=location.hash||'';if(!hash.startsWith('#plan='))return null;try{let o=JSON.parse(decodeURIComponent(hash.slice(6)));if(o&&typeof o==='object'&&O.goal.some(x=>x.v===o.goal)&&O.budget.some(x=>x.v===o.budget))return Object.assign({},DEFAULT,o)}catch(e){}return null}
+function getSharedState(){
+ const hash=location.hash||'';
+ if(!hash.startsWith('#plan='))return null;
+ try{
+   const o=JSON.parse(decodeURIComponent(hash.slice(6)));
+   if(!o||typeof o!=='object'||!O.budget.some(x=>x.v===o.budget))return null;
+   const oldGoals=Array.isArray(o.goal)?o.goal:typeof o.goal==='string'?[o.goal]:[];
+   o.goal=oldGoals.filter(v=>O.goal.some(x=>x.v===v));
+   if(!o.goal.length)return null;
+   o.workloads=Array.isArray(o.workloads)?o.workloads.filter(v=>O.workloads.some(x=>x.v===v)):[];
+   return Object.assign({},DEFAULT,o);
+ }catch(e){}
+ return null;
+}
 const prior=getSharedState();if(prior){state=prior;showResults()}else renderStep();
 document.querySelector('#nextBtn').addEventListener('click',()=>{if(step<STEPS.length-1){step++;renderStep();document.querySelector('#questions').scrollIntoView({behavior:'smooth',block:'start'})}else showResults()});
 document.querySelector('#backBtn').addEventListener('click',()=>{if(step>0){step--;renderStep();document.querySelector('#questions').scrollIntoView({behavior:'smooth',block:'start'})}});
@@ -146,6 +294,6 @@ document.querySelector('#copyBtn').addEventListener('click',()=>copyText(summary
 document.querySelector('#printBtn').addEventListener('click',()=>window.print());
 document.querySelector('#shareBtn').addEventListener('click',()=>{let url=location.origin+location.pathname+location.search+'#plan='+encodeURIComponent(JSON.stringify(state));copyText(url)});
 document.querySelector('#downloadPlanBtn').addEventListener('click',reportDownload);
-for(const [id,key] of [['taxInput','tax'],['kwhInput','kwh'],['hoursInput','hours']])document.querySelector('#'+id).addEventListener('input',e=>{state[key]=e.target.value;renderCost();renderHero();renderAlternatives();budgetWarning()});
+for(const [id,key] of [['taxInput','tax'],['kwhInput','kwh'],['hoursInput','hours']])document.querySelector('#'+id).addEventListener('input',e=>{state[key]=e.target.value;determine();updateAll()});
 </script>
 </body></html>
