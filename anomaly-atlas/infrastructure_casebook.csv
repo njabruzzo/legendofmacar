@@ -1,0 +1,12 @@
+id,date,sector,scope,title,metric,cause_status,source
+"southwest-2022","2022-12-26","Aviation","United States","Southwest holiday network collapse","16,900 flights canceled","documented","https://www.transportation.gov/briefing-room/dot-penalizes-southwest-airlines-140-million-2022-holiday-meltdown"
+"faa-2023","2023-01-11","Aviation","United States","FAA NOTAM system failure and ground stop","Nationwide ground stop","documented","https://www.transportation.gov/federal-aviation-administrations-notam-system-failure-and-its-impacts-resilient-national-airspace"
+"att-2024","2024-02-22","Telecom","United States","AT&T national wireless disruption","92 million blocked calls","documented","https://docs.fcc.gov/public/attachments/DOC-404154A1.pdf"
+"change-healthcare-2024","2024-02-21","Healthcare","United States","Change Healthcare payment-system cyberattack","Nationwide billing disruption","documented","https://www.govinfo.gov/content/pkg/CHRG-118shrg63595/html/CHRG-118shrg63595.htm"
+"crowdstrike-2024","2024-07-19","Technology","Global","CrowdStrike faulty-update disruption","8.5 million Windows devices","documented","https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/"
+"iberia-2025","2025-04-28","Power","Iberian Peninsula","Spain–Portugal power system blackout","Two national power systems","documented","https://www.entsoe.eu/publications/blackout/28-april-2025-iberian-blackout/"
+"aws-2025","2025-10-20","Cloud","US-EAST-1 and dependent services","AWS Northern Virginia regional incident","Multi-service cloud disruption","documented","https://aws.amazon.com/message/101925/"
+"cloudflare-2025","2025-11-18","Network","Global","Cloudflare network disruption","Core traffic delivery affected","documented","https://blog.cloudflare.com/18-november-2025-outage/"
+"m365-2026","2026-11-12","Cloud","Multiregional","Microsoft 365 service disruption","Multiple workplace services","preliminary","https://www.bleepingcomputer.com/news/microsoft/microsoft-says-months-old-bug-caused-global-microsoft-365-outage/"
+"faa-2026","2026-11-13","Aviation","United States","FAA communications failure and national ground stop","12,462 flight cancellations","preliminary","https://www.faa.gov/newsroom/nationwide-ground-stop-questions-and-answers"
+"united-2026","2026-11-16","Aviation","United States","United Airlines internal system interruption","About 90 minutes","preliminary","https://apnews.com/article/5a5e5f75bb07f11ffb8750901f0076ff"
