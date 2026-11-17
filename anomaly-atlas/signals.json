@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "built_at": null,
+  "last_complete_month": null,
+  "all_current": false,
+  "coverage": 0,
+  "errors": {},
+  "indicators": [],
+  "cautions": [
+    "Automated indicators have not completed a successful source refresh. The curated event ledger is not an incident-rate sample."
+  ]
+}
