@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - 'anomaly-atlas/update_signals.py'
+      - 'anomaly-atlas/update_uap_sources.py'
       - '.github/workflows/observatory-refresh.yml'
 permissions:
   contents: write
@@ -25,13 +26,15 @@ jobs:
           python-version: '3.12'
       - name: Refresh primary-source indicators
         run: python anomaly-atlas/update_signals.py
-      - name: Commit only refreshed signal data
+      - name: Refresh public MUFON newsroom links (not protected case records)
+        run: python anomaly-atlas/update_uap_sources.py
+      - name: Commit refreshed public-source data
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add anomaly-atlas/signals.json
+          git add anomaly-atlas/signals.json anomaly-atlas/uap_sources.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Daily update of independent observatory indicators'
+            git commit -m 'Refresh Observatory indicators and public MUFON news links'
             for attempt in 1 2 3; do
               git pull --rebase origin main
               if git push origin HEAD:main; then exit 0; fi
