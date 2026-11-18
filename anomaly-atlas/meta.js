@@ -14,7 +14,7 @@
   section.id="evidence-pulse";
   section.setAttribute("aria-labelledby","meta-title");
   section.innerHTML=[
-    '<div class="meta-eyebrow">The anomaly observatory / Daily evidence / November 2022 onward</div>',
+    '<div class="meta-eyebrow">The anomaly observatory / <span id="meta-updated-label">Updated as of latest verified refresh</span> / November 2022 onward</div>',
     '<div class="meta-head"><div><h1 id="meta-title">Are unusual events becoming more widespread?</h1>',
     '<p class="meta-lead" id="meta-lead">Comparing complete months against the same six-month period a year earlier. The evidence is evaluated every day; monthly observations change only after new data are available.</p></div>',
     '<aside class="meta-result" aria-live="polite"><span class="meta-small">Evidence-based assessment</span>',
@@ -122,6 +122,11 @@
     const built=new Date(payload.built_at);
     const refreshed=Number.isFinite(built.getTime())?built.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}):"unknown";
     const age=Number.isFinite(built.getTime())?(Date.now()-built.getTime())/86400000:Infinity;
+    // A day on the page is only an "updated" day if a source refresh actually succeeded.
+    const freshDate=Number.isFinite(built.getTime())?built.toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric",timeZone:"America/Chicago"}):"date unavailable";
+    $("meta-updated-label").textContent="Updated as of "+freshDate;
+    const foot=document.getElementById("lastEvidenceRefresh");
+    if(foot)foot.textContent=freshDate+(age>3?" (out of date)":"");
     $("meta-asof").textContent="Last complete data month: "+current+" · Source check: "+refreshed+(age>3?" · Refresh may be stale":"");
     if(age>3)$("meta-verdict").textContent="Last verified: "+higher+" of 3 higher";
     renderSvg(common,refs);
@@ -132,6 +137,9 @@
       if(!res.ok)throw Error("Indicator service unavailable");
       render(await res.json());
     }catch{
+      $("meta-updated-label").textContent="Latest refresh could not be verified";
+      const foot=document.getElementById("lastEvidenceRefresh");
+      if(foot)foot.textContent="unavailable";
       $("meta-verdict").textContent="Current evidence unavailable";
       $("meta-asof").textContent="Daily data could not be verified; no new conclusion is displayed.";
       $("meta-count").textContent="Sources: CISA, USGS and FRED";
