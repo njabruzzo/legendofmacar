@@ -1,13 +1,176 @@
 {
   "schema": 1,
-  "status": "pending",
-  "checked_at": null,
-  "last_success_at": null,
+  "checked_at": "2026-11-18T22:25:34+00:00",
+  "status": "ok",
+  "last_success_at": "2026-11-18T22:25:34+00:00",
   "data_as_of": "2026-09-08",
   "source": "https://metr.org/time-horizons/",
   "raw_source": "https://metr.org/assets/benchmark_results_1_1.yaml",
-  "license": "METR data / plot CC BY 4.0; attributed to METR",
-  "note": "Model task-horizon measurements have uncertainty and are not a measure of all work. Data source no longer actively updated after September 2026.",
-  "from_2023_doubling_days": null,
-  "models": []
+  "license": "METR dataset/plot CC BY 4.0; attributed to METR",
+  "note": "Benchmarked 50% software-task completion horizon in minutes of expert task time; measurements above 16 hours are not reliable. METR announced September 2026 that its page is no longer actively updated.",
+  "from_2023_doubling_days": 128.7,
+  "models": [
+    {
+      "model": "gpt 4",
+      "date": "2023-03-14",
+      "minutes": 3.987,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 4 1106",
+      "date": "2023-11-06",
+      "minutes": 4.045,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 3 opus",
+      "date": "2024-03-04",
+      "minutes": 3.952,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 4 turbo",
+      "date": "2024-04-09",
+      "minutes": 3.733,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 4o",
+      "date": "2024-05-13",
+      "minutes": 6.991,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 3 5 sonnet 20240620",
+      "date": "2024-06-20",
+      "minutes": 11.395,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "o1 preview",
+      "date": "2024-09-12",
+      "minutes": 20.327,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 3 5 sonnet 20241022",
+      "date": "2024-10-22",
+      "minutes": 20.523,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "o1",
+      "date": "2024-12-05",
+      "minutes": 38.832,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 3 7 sonnet",
+      "date": "2025-02-24",
+      "minutes": 60.389,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "o3",
+      "date": "2025-04-16",
+      "minutes": 119.733,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 4 opus",
+      "date": "2025-05-22",
+      "minutes": 100.366,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "claude 4 1 opus",
+      "date": "2025-08-05",
+      "minutes": 100.472,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 5 2025 08 07",
+      "date": "2025-08-07",
+      "minutes": 203.013,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "gemini 3 pro",
+      "date": "2025-11-18",
+      "minutes": 224.326,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 5 1 codex max",
+      "date": "2025-11-19",
+      "minutes": 223.715,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "claude opus 4 5",
+      "date": "2025-11-24",
+      "minutes": 292.995,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 5 2",
+      "date": "2025-12-11",
+      "minutes": 352.249,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "claude opus 4 6",
+      "date": "2026-02-05",
+      "minutes": 718.807,
+      "sota_at_evaluation": true,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 5 3 codex",
+      "date": "2026-02-05",
+      "minutes": 349.531,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "gemini 3 1 pro",
+      "date": "2026-02-19",
+      "minutes": 384.147,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "gpt 5 4",
+      "date": "2026-03-05",
+      "minutes": 341.735,
+      "sota_at_evaluation": false,
+      "reliable_range": true
+    },
+    {
+      "model": "claude mythos preview early",
+      "date": "2026-04-07",
+      "minutes": 1044.78,
+      "sota_at_evaluation": true,
+      "reliable_range": false
+    }
+  ],
+  "model_count": 23
 }
