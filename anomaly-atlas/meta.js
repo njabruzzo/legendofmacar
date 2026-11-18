@@ -139,4 +139,6 @@
     }
   }
   refresh();
+  // Refresh the conclusion in tabs kept open across the daily data publication.
+  window.setInterval(refresh, 60*60*1000);
 })();
