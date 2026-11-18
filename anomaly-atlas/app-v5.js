@@ -8,6 +8,7 @@ const TAB_SPEC={
 const COLORS={observation:'#b66736',official:'#2d7690',hearing:'#8c68a0',release:'#a28a36',editorial:'#a16a75',paranormal:'#677e82',attack:'#c65043',outage:'#4a789e',kev:'#138c75',advisory:'#b9a063','ai-release':'#875fad','ai-benchmark':'#644b93',earthquakes:'#b46f3b',severeStorms:'#486eab',wildfires:'#c85b40',floods:'#438eac',volcanoes:'#8967a4',other:'#7c9270'};
 const SOURCES={
  uap:[
+  {"name":"Associated Press (AP News)","tag":"Professional reporting · public links checked daily","url":"https://apnews.com/","description":"Independent reporting and corroboration; GDELT finds article headlines and links only. AP's official Media API requires licensed access. Multiple articles about one incident are NOT separate events."},
   {name:'AARO (U.S. DoD)',tag:'Official · periodic reports',url:'https://www.aaro.mil/',description:'Government case evaluations and published records. Reporting dates and sighting dates differ; a reporting increase is not proof of unusual physical activity.'},
   {name:'NASA UAP',tag:'Primary research · published reports',url:'https://science.nasa.gov/uap/',description:'Research methods, data-quality guidance and official study. No daily worldwide sightings feed.'},
   {name:'National Archives / UAP',tag:'Official · document releases',url:'https://www.archives.gov/research/topics/uaps',description:'Government records, historical disclosures and archives. Document release dates are not event incidence.'},
@@ -25,6 +26,7 @@ const SOURCES={
   {"name":"UFOSINT dedup research","tag":"Research implementation · provenance and rights audit pending","url":"https://github.com/UFOSINT/ufo-dedup","description":"Explore candidate matching and cross-catalogue duplicates as methodology. Do not copy combined source databases unless upstream redistribution rights are confirmed."}
  ],
  cyber:[
+  {"name":"Associated Press (AP News)","tag":"Professional reporting · public links checked daily","url":"https://apnews.com/","description":"Independent reporting and corroboration; GDELT finds article headlines and links only. AP's official Media API requires licensed access. Multiple articles about one incident are NOT separate events."},
   {name:'CISA KEV',tag:'Official JSON · daily',url:'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',description:'Government catalog of vulnerabilities with evidence of active exploitation. Count of new catalog entries, not attacks or victims.'},
   {name:'CISA cybersecurity advisories',tag:'Government advisories · official',url:'https://www.cisa.gov/news-events/cybersecurity-advisories',description:'Threat advisories and incident guidance; not a comprehensive day-by-day attack log.'},
   {name:'METR time horizons',tag:'Scientific benchmark · historical',url:'https://metr.org/time-horizons/',description:'Benchmark measures model ability to perform longer software tasks. The public benchmark snapshot is historical, not a daily model evaluation feed.'},
@@ -44,6 +46,7 @@ const SOURCES={
   {"name":"Ransomware.live","tag":"Threat actor claims · access/rights review","url":"https://www.ransomware.live/","description":"Leak-site monitoring and alleged victims; accusations are not independently verified breaches. Check permission before API ingestion or republication."}
  ],
  natural:[
+  {"name":"Associated Press (AP News)","tag":"Professional reporting · public links checked daily","url":"https://apnews.com/","description":"Independent reporting and corroboration; GDELT finds article headlines and links only. AP's official Media API requires licensed access. Multiple articles about one incident are NOT separate events."},
   {name:'USGS FDSN earthquake catalog',tag:'Official API · daily',url:'https://earthquake.usgs.gov/fdsnws/event/1/',description:'Consistently defined earthquake measurements; this chart uses global M≥5.5 and may be revised after initial publication.'},
   {name:'NASA EONET v3',tag:'NASA API · daily',url:'https://eonet.gsfc.nasa.gov/',description:'Curated global wildfires, severe storms, floods, volcanoes and related monitored events. Not an exhaustive disaster census.'},
   {name:'NOAA NCEI Storm Events',tag:'Validated archive · delayed',url:'https://www.ncei.noaa.gov/access/storm-events-database/',description:'U.S. severe-weather impact data; validation and publication generally lag by about 75–90 days.'},
