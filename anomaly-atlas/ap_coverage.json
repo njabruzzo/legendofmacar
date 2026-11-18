@@ -1,23 +1,29 @@
 {
   "schema": 1,
-  "checked_at": null,
+  "checked_at": "2026-11-18T23:34:01+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "publisher": "The Associated Press (linked, not republished)",
-  "rights": "Headlines, links and index dates only. No licensed AP content.",
-  "integrity_note": "Articles are coverage references, not distinct incidents.",
+  "rights": "Only public headline/link and indexing date; no AP article bodies/media.",
+  "integrity_note": "AP coverage is NOT a count of independent incidents. Link source publications to an underlying event ID only after review. GDELT is not an official AP API.",
   "feeds": {
     "uap": {
-      "status": "pending",
-      "items": []
+      "status": "error",
+      "items": [],
+      "checked_at": "2026-11-18T23:34:01+00:00",
+      "error": "HTTPError: HTTP Error 429: Too Many Requests"
     },
     "cyber": {
-      "status": "pending",
-      "items": []
+      "status": "error",
+      "items": [],
+      "checked_at": "2026-11-18T23:34:01+00:00",
+      "error": "ValueError: GDELT returned no article list (response incomplete or blocked)"
     },
     "natural": {
-      "status": "pending",
-      "items": []
+      "status": "error",
+      "items": [],
+      "checked_at": "2026-11-18T23:34:01+00:00",
+      "error": "HTTPError: HTTP Error 429: Too Many Requests"
     }
   }
 }

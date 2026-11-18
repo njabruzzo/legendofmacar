@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-18T23:07:08+00:00",
+  "checked_at": "2026-11-18T23:33:43+00:00",
   "status": "ok",
-  "last_success_at": "2026-11-18T23:07:08+00:00",
+  "last_success_at": "2026-11-18T23:33:43+00:00",
   "data_as_of": "2026-09-08",
   "source": "https://metr.org/time-horizons/",
   "raw_source": "https://metr.org/assets/benchmark_results_1_1.yaml",
