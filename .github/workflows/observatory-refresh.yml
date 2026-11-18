@@ -9,6 +9,7 @@ on:
       - 'anomaly-atlas/update_uap_sources.py'
       - 'anomaly-atlas/update_ai_horizons.py'
       - 'anomaly-atlas/update_live_events.py'
+      - 'anomaly-atlas/update_ap_coverage.py'
       - '.github/workflows/observatory-refresh.yml'
 permissions:
   contents: write
@@ -32,13 +33,15 @@ jobs:
         run: python anomaly-atlas/update_ai_horizons.py
       - name: Refresh public USGS, EONET and CISA advisory events
         run: python anomaly-atlas/update_live_events.py
+      - name: Discover AP News story links by topic (metadata only)
+        run: python anomaly-atlas/update_ap_coverage.py
       - name: Refresh public MUFON newsroom links (not protected case records)
         run: python anomaly-atlas/update_uap_sources.py
       - name: Commit refreshed public-source data
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add anomaly-atlas/signals.json anomaly-atlas/uap_sources.json anomaly-atlas/ai_horizons.json anomaly-atlas/events_live.json
+          git add anomaly-atlas/signals.json anomaly-atlas/uap_sources.json anomaly-atlas/ai_horizons.json anomaly-atlas/events_live.json anomaly-atlas/ap_coverage.json
           if ! git diff --cached --quiet; then
             git commit -m 'Refresh Observatory AI, cyber and UAP public-source data'
             for attempt in 1 2 3; do
