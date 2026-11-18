@@ -2,10 +2,51 @@
   "schema": 1,
   "feed": "MUFON public newsroom RSS (editorial posts, not case reports)",
   "url": "https://mufon.com/feed/",
-  "checked_at": null,
-  "last_success_at": null,
-  "status": "pending",
-  "items": [],
+  "checked_at": "2026-11-18T22:18:50+00:00",
+  "last_success_at": "2026-11-18T22:18:50+00:00",
+  "status": "ok",
+  "items": [
+    {
+      "title": "The Official MUFON Podcast with Richard Beckwith – Why the Pentagon can’t Hide NHI with Guest Alan Steinfeld!",
+      "url": "https://mufon.com/2026/11/03/the-official-mufon-podcast-with-richard-beckwith-why-the-pentagon-cant-hide-nhi-with-guest-alan-steinfeld/",
+      "published": "2026-11-03"
+    },
+    {
+      "title": "Watch the 2026 MUFON Symposium NOW on MUFON Television!",
+      "url": "https://mufon.com/2026/11/02/watch-the-2026-mufon-symposium-now-on-mufon-television/",
+      "published": "2026-11-02"
+    },
+    {
+      "title": "REAL ALIEN SPECIES EXPOSED – THE BRIEFING ROOM WITH HOST RICHARD BECKWITH",
+      "url": "https://mufon.com/2026/10/23/real-alien-species-exposed-the-briefing-room-with-host-richard-beckwith/",
+      "published": "2026-10-23"
+    },
+    {
+      "title": "Department of War Publishes Seventh Release of Unidentified Anomalous Phenomena Files on WAR.GOV/UFO",
+      "url": "https://mufon.com/2026/10/23/war-gov-ufo-disclosure-roswell-alien/",
+      "published": "2026-10-23"
+    },
+    {
+      "title": "JOIN US AT THE MUFON WORLD SYMPOSIUM July 22-25, 2027 – KANSAS CITY, KANSAS",
+      "url": "https://mufon.com/2026/10/15/join-us-at-the-mufon-world-symposium-july-22-25-2027-kansas-city-kansas/",
+      "published": "2026-10-15"
+    },
+    {
+      "title": "UFOs Breach Nuclear Airspace – The Briefing Room with Richard Beckwith",
+      "url": "https://mufon.com/2026/10/08/ufos-breach-nuclear-airspace-the-briefing-room-with-richard-beckwith/",
+      "published": "2026-10-08"
+    },
+    {
+      "title": "A Mysterious Briefcase Comes MUFON’s Way! By Bob Spearing",
+      "url": "https://mufon.com/2026/10/04/a-mysterious-briefcase-comes-mufons-way-by-bob-spearing/",
+      "published": "2026-10-04"
+    },
+    {
+      "title": "TsIG – The TechnoSignature Intercept Grid Real Time Alert System Coming Soon to The MUFON Store! By Steve Foss",
+      "url": "https://mufon.com/2026/10/04/tsig-the-technosignature-intercept-grid-real-time-alert-system/",
+      "published": "2026-10-04"
+    }
+  ],
   "description": "Public MUFON news links; does not measure sightings, investigation outcomes or validated anomalies.",
   "rights": "No MUFON Case Management System content is reproduced; obtaining CMS data for reuse requires written MUFON permission."
 }
