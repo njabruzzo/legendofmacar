@@ -45,10 +45,11 @@
 @media(max-width:700px){.signal-row{grid-template-columns:1fr;gap:4px;padding:16px 0}.signal-row h3{margin:0 0 2px}.signal-row .chart-host svg{height:auto;max-height:115px}.signal-summary{border:0;border-top:1px dotted #ccd5d3;padding:9px 0 0}.signal-summary .delta{font-size:24px}.trend-chart-title{display:block}.trend-stage{padding:22px 0}.trend-head h1{font-size:42px}.trend-annotation{gap:12px}}
 
 </style>
+<link rel="stylesheet" href="patterns.css" />
 </head>
 <body>
 <div class="barline"></div>
-<header class="wrap"><div class="mast"><div class="identity">The Anomaly Observatory <span style="color:#8ba0a5">/</span> Unusual Events &amp; Synchronicities</div><div class="edition">A selected evidence record · Nov 2022–Nov 2026 · v4.1</div></div></header>
+<header class="wrap"><div class="mast"><div class="identity">The Anomaly Observatory <span style="color:#8ba0a5">/</span> Unusual Events &amp; Synchronicities</div><div class="edition">A selected evidence record · Nov 2022–Nov 2026 · v4.2</div></div></header>
 <main class="wrap">
 <section class="trend-stage" aria-labelledby="accel-title" id="trends">
   <div class="trend-head">
@@ -124,7 +125,14 @@ for(let year=2023;year<=2026;year++){const xx=x(`${year}-01-01`);svgEl('line',{x
 const sx=x('2026-11-01');svgEl('rect',{x:sx,y:top-7,width:1127-sx,height:height+8,fill:'#fbeee4',opacity:.75},plot);
 const events=orderedEvents();const overlaps={};
 for(const e of events){const i=THEMES.indexOf(domainName(e));if(i<0)continue;const xx=x(e.date), base=top+29+i*row;const key=`${e.date}-${i}`;let n=overlaps[key]||0;overlaps[key]=n+1;const yy=base+(n?((n%2?1:-1)*Math.ceil(n/2)*8):0);const clr=COLOR[domainName(e)]||'#5d747f';let mark;
-if(domainName(e)==='UAP'&&!genuineUapSighting(e)){mark=svgEl('rect',{x:xx-4.5,y:yy-4.5,width:9,height:9,fill:clr,class:'mark'+(selected===e.id?' selected':'')},plot)}else{mark=svgEl('circle',{cx:xx,cy:yy,r:4.6,fill:clr,class:'mark'+(selected===e.id?' selected':'')},plot)}
+if(domainName(e)==='UAP'){
+  const type=/airspace-incident|sighting|encounter|observation/.test(e.eventKind||'')?'observation':/congressional-hearing|legislation|oversight/.test(e.eventKind||'')?'hearing':e.eventKind==='records-release'?'release':'report';
+  const col={observation:'#b86636',hearing:'#7864a8',release:'#9a762c',report:'#1d7995'}[type];
+  if(type==='observation'){mark=svgEl('circle',{cx:xx,cy:yy,r:5,fill:col,class:'mark'+(selected===e.id?' selected':'')},plot)}
+  else if(type==='hearing'){mark=svgEl('path',{d:'M'+xx+' '+(yy-6)+' L'+(xx+6)+' '+yy+' L'+xx+' '+(yy+6)+' L'+(xx-6)+' '+yy+'Z',fill:col,class:'mark'+(selected===e.id?' selected':'')},plot)}
+  else if(type==='release'){mark=svgEl('path',{d:'M'+xx+' '+(yy-6)+' L'+(xx+6)+' '+(yy+5)+' L'+(xx-6)+' '+(yy+5)+'Z',fill:col,class:'mark'+(selected===e.id?' selected':'')},plot)}
+  else{mark=svgEl('rect',{x:xx-5,y:yy-5,width:10,height:10,fill:col,class:'mark'+(selected===e.id?' selected':'')},plot)}
+}else{mark=svgEl('circle',{cx:xx,cy:yy,r:4.6,fill:clr,class:'mark'+(selected===e.id?' selected':'')},plot)}
 svgEl('title',{},mark,`${short(e.date)} · ${e.title}`);mark.setAttribute('tabindex','0');mark.setAttribute('role','button');mark.setAttribute('aria-label',`${short(e.date)} ${e.title}`);mark.addEventListener('click',()=>pick(e.id,false));mark.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();pick(e.id,false)}});
 }
 svgEl('text',{x:left,y:top+height+26,'text-anchor':'start',class:'axis-label'},plot,'Nov 2022');svgEl('text',{x:1127,y:top+height+26,'text-anchor':'end',class:'axis-label'},plot,'Nov 2026');
@@ -222,4 +230,5 @@ if(!findEvent(selected))selected=data.events[0]?.id;populate();render();
 })();
 </script>
 
+<script src="patterns.js"></script>
 </body></html>
