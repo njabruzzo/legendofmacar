@@ -11,18 +11,23 @@
     '<h2>Related AP reporting</h2><p>Recent article references are discovered through GDELT public news-index metadata and link to AP News. They are <strong>not</strong> counted as additional sightings, attacks or disasters.</p></div>',
     '<div class="ap-check" id="apCoverageCheck">Checking article index…</div></div>',
     '<div id="apCoverageList" class="ap-coverage-list" aria-live="polite"><p>Checking recent AP links…</p></div>',
-    '<p class="ap-coverage-foot">Source: <a href="https://apnews.com/" target="_blank" rel="noopener noreferrer">Associated Press</a>. Discovery metadata: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">GDELT</a>. This is a non-exhaustive article index, not AP official licensed Media API. Coverage is supporting evidence, not additional incidents.</p>'
+    '<p class="ap-coverage-foot">Source: <a href="https://apnews.com/" target="_blank" rel="noopener noreferrer">Associated Press</a>. Discovery metadata: <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">GDELT</a> or Google News RSS when rate-limited. This is a non-exhaustive article index, not AP official licensed Media API. Coverage is supporting evidence, not additional incidents.</p>'
   ].join("");
   anchor.before(section);
   const label = document.getElementById("apCoverageCheck");
   const list = document.getElementById("apCoverageList");
 
-  function safe(url) {
+  function safe(item) {
     try {
-      const parsed = new URL(url);
-      return parsed.protocol === "https:" &&
-        ["apnews.com", "www.apnews.com"].includes(parsed.hostname) &&
-        parsed.pathname.startsWith("/article/");
+      const parsed = new URL(item.url);
+      if (parsed.protocol !== "https:") return false;
+      if (["apnews.com", "www.apnews.com"].includes(parsed.hostname))
+        return parsed.pathname.startsWith("/article/");
+      // Google News RSS articles redirect to the indexed Associated Press publisher.
+      return parsed.hostname === "news.google.com" &&
+        /^\/(rss\/)?articles\//.test(parsed.pathname) &&
+        item.discovered_via === "Google News RSS publisher index (AP story link)" &&
+        String(item.id).startsWith("ap-google-");
     } catch { return false; }
   }
   let payload = null;
@@ -48,7 +53,7 @@
     }
     const checked = feed.checked_at || payload.checked_at;
     label.textContent = (feed.status === "ok" ? "Index checked " : "Last attempted ") + format(checked);
-    const valid = (feed.items || []).filter(x => x && safe(x.url) && x.title);
+    const valid = (feed.items || []).filter(x => x && safe(x) && x.title);
     if (!valid.length) {
       list.textContent = feed.status === "ok"
         ? "No qualifying AP links were returned in this search period; this is not evidence that no relevant events occurred."
@@ -60,7 +65,7 @@
       const a = document.createElement("a");
       a.href = item.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = item.title;
       const stamp = document.createElement("span");
-      stamp.textContent = "AP News · indexed " + String(item.indexed_date || "date unavailable");
+      stamp.textContent = "AP News · indexed " + String(item.indexed_date || "date unavailable") + (item.discovered_via && item.discovered_via.startsWith("Google") ? " · via Google News" : "");
       row.append(a, stamp); list.appendChild(row);
     }
     if (feed.status !== "ok") {
