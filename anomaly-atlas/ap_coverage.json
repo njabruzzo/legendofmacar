@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "checked_at": null,
+  "kind": "news_discovery_only",
+  "source": "https://api.gdeltproject.org/api/v2/doc/doc",
+  "publisher": "The Associated Press (linked, not republished)",
+  "rights": "Headlines, links and index dates only. No licensed AP content.",
+  "integrity_note": "Articles are coverage references, not distinct incidents.",
+  "feeds": {
+    "uap": {
+      "status": "pending",
+      "items": []
+    },
+    "cyber": {
+      "status": "pending",
+      "items": []
+    },
+    "natural": {
+      "status": "pending",
+      "items": []
+    }
+  }
+}
