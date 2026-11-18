@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import re
 import email.utils
 import xml.etree.ElementTree as ET
 import json
@@ -29,6 +30,19 @@ CATEGORY_QUERIES = {
     "cyber": '(cyberattack OR ransomware OR "data breach" OR hacking OR "internet outage") domainis:apnews.com',
     "natural": '(earthquake OR wildfire OR hurricane OR flood OR tornado OR volcano) domainis:apnews.com',
 }
+
+
+# Apply local title-level quality filters because news search OR operators can return
+# unrelated AP coverage. This intentionally favors precision over completeness.
+KEYWORDS = {
+    "uap": re.compile(r"\b(?:ufo|ufos|uap|unidentified anomalous|flying saucer|alien sighting|aaro|mufon)\b", re.I),
+    "cyber": re.compile(r"\b(?:cyber(?:attack|crime|security)?|ransomware|hacker|hacking|data breach|malware|phishing|data theft|cybercriminal)\b", re.I),
+    "natural": re.compile(r"\b(?:earthquake|aftershock|wildfire|hurricane|tornado|tsunami|volcanic|volcano|flooding|floods|cyclone|typhoon|landslide|mudslide|blizzard|drought|heat wave|monsoon)\b", re.I),
+}
+
+
+def relevant(title: str, category: str) -> bool:
+    return bool(KEYWORDS[category].search(str(title or "")))
 
 
 def canonical(url: str) -> str | None:
@@ -82,7 +96,7 @@ def fetch_category(category: str, expression: str):
             continue
         title = str(item.get("title") or "").strip()
         indexed = parse_seen(item.get("seendate", ""))
-        if not title or not indexed:
+        if not title or not indexed or not relevant(title, category):
             continue
         if len(title) > 250:
             title = title[:249] + "…"
@@ -119,8 +133,8 @@ def fetch_google_news(category: str):
         raise ValueError("Google News RSS response over safe size limit")
     root = ET.fromstring(data)
     items = root.findall(".//item")
-    if not items:
-        raise ValueError("Google News RSS returned no indexed items")
+    if root.find("channel") is None:
+        raise ValueError("Google News response did not contain an RSS channel")
     found = []
     seen = set()
     for item in items:
@@ -134,7 +148,7 @@ def fetch_google_news(category: str):
             continue
         if not link.startswith("https://news.google.com/"):
             continue
-        if not title:
+        if not title or not relevant(title, category):
             continue
         try:
             published = email.utils.parsedate_to_datetime(item.findtext("pubDate") or "")
@@ -185,6 +199,7 @@ def main():
             merged = {
                 x["id"]: x for x in old_items if isinstance(x, dict) and x.get("id")
                 and str(x.get("indexed_date", "")) >= cutoff
+                and relevant(x.get("title", ""), key)
             }
             merged.update({x["id"]: x for x in fresh})
             items = sorted(merged.values(), key=lambda r: (r["indexed_date"], r["id"]), reverse=True)[:300]
@@ -201,7 +216,8 @@ def main():
                 **old, "status": "error", "checked_at": NOW_ISO,
                 "error": type(exc).__name__ + ": " + str(exc)[:180],
                 "items": [x for x in old_items if isinstance(x, dict)
-                          and str(x.get("indexed_date", "")) >= cutoff],
+                          and str(x.get("indexed_date", "")) >= cutoff
+                          and relevant(x.get("title", ""), key)],
             }
             print(key + ": source unavailable: " + str(exc), flush=True)
 
