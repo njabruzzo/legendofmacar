@@ -42,7 +42,12 @@ KEYWORDS = {
 
 
 def relevant(title: str, category: str) -> bool:
-    return bool(KEYWORDS[category].search(str(title or "")))
+    title = str(title or "")
+    if category == "natural" and re.search(r"\\b(?:golden hurricane|carolina hurricanes)\\b", title, re.I):
+        return False  # athletic team names are not natural-disaster events
+    if category == "natural" and re.search(r"\\b(?:non-conference play|basketball|football season|game preview)\\b", title, re.I):
+        return False
+    return bool(KEYWORDS[category].search(title))
 
 
 def canonical(url: str) -> str | None:
