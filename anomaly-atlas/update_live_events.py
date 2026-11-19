@@ -23,7 +23,8 @@ OUT = ROOT / 'events_live.json'
 TODAY = dt.datetime.now(dt.timezone.utc)
 TODAY_ISO = TODAY.isoformat(timespec='seconds')
 START = (TODAY - dt.timedelta(days=120)).date().isoformat()
-EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=all&days=120&limit=2500'
+EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events'
+CLOUDFLARE_STATUS = 'https://www.cloudflarestatus.com/api/v2/incidents.json'
 CISA_RSS = 'https://www.cisa.gov/cybersecurity-advisories/all.xml'
 USGS = 'https://earthquake.usgs.gov/fdsnws/event/1/query?' + urllib.parse.urlencode({
     'format':'geojson', 'starttime':START, 'endtime':(TODAY+dt.timedelta(days=1)).date().isoformat(),
@@ -49,6 +50,77 @@ def iso_day(value):
         except Exception:return None
     return str(value)[:10] if str(value)[:4].isdigit() else None
 
+
+
+def eonet_paged_events():
+    """Split date windows when NASA EONET's response reaches its hard item cap.
+
+    Counting a capped response as a census would silently undercount natural events.
+    Date-window queries use documented start/end parameters; stable EONET IDs are
+    merged across windows. Failed slices invalidate the source check instead of
+    returning an apparently complete subset.
+    """
+    start = TODAY.date() - dt.timedelta(days=120)
+    end = TODAY.date()
+    counts = {"requests": 0, "splits": 0}
+    unique = {}
+
+    def visit(day_start, day_end, depth=0):
+        url = EONET + '?' + urllib.parse.urlencode({
+            "status": "all", "start": day_start.isoformat(),
+            "end": day_end.isoformat(), "limit": "2500"
+        })
+        payload = get_json(url)
+        events = payload.get("events")
+        counts["requests"] += 1
+        if not isinstance(events, list):
+            raise ValueError("EONET events not returned for " + day_start.isoformat())
+        if len(events) >= 2500:
+            if day_start >= day_end or depth >= 12:
+                raise ValueError("NASA EONET response remains capped on " + day_start.isoformat())
+            middle = day_start + dt.timedelta(days=(day_end-day_start).days//2)
+            counts["splits"] += 1
+            visit(day_start, middle, depth+1)
+            visit(middle+dt.timedelta(days=1), day_end, depth+1)
+            return
+        for record in eonet_events(payload):
+            rid = record["id"]
+            earlier = unique.get(rid)
+            if earlier is None or record["date"] < earlier["date"]:
+                unique[rid] = record
+
+    visit(start, end)
+    return list(unique.values()), counts
+
+
+def cloudflare_status_events(payload):
+    """Cloudflare service-status incidents; NOT global outages or cyberattacks."""
+    raw = payload.get("incidents")
+    if not isinstance(raw, list):
+        raise ValueError("Cloudflare official status incident array unavailable")
+    rows = []
+    for item in raw:
+        sid = str(item.get("id") or "").strip()
+        name = str(item.get("name") or "").strip()
+        when = iso_day(item.get("started_at") or item.get("created_at"))
+        if not sid or not name or not when or when > TODAY.date().isoformat():
+            continue
+        if item.get("status") in ("scheduled", "in_progress") and item.get("scheduled_for"):
+            continue
+        rows.append({
+            "id": "cloudflare-status-" + sid,
+            "date": when,
+            "title": "Cloudflare service incident: " + name[:175],
+            "domain": "cyber", "lane": "outage",
+            "kind": "provider-service-incident",
+            "source": "Cloudflare Status",
+            "sourceUrl": "https://www.cloudflarestatus.com/incidents/" + urllib.parse.quote(sid),
+            "magnitude": None, "magnitudeUnit": "",
+            "sourceStatus": str(item.get("status") or "unknown"),
+            "impact": str(item.get("impact") or "unknown"),
+            "coverage": "Cloudflare's own operational status records; not all internet disruptions and not proof of a cyberattack",
+        })
+    return rows
 
 def eonet_events(payload):
     items=payload.get('events')
@@ -137,25 +209,45 @@ def main():
     last_status=old.get('sources') or {}
     existing={x.get('id'):x for x in old.get('events',[]) if isinstance(x,dict) and x.get('id')}
     errors={}
-    jobs=[('nasa-eonet',EONET,eonet_events),('usgs',USGS,usgs_events),('cisa-advisories',CISA_RSS,cisa_advisory_events)]
+    jobs=[
+        ('nasa-eonet', EONET, None),
+        ('usgs', USGS, usgs_events),
+        ('cisa-advisories', CISA_RSS, cisa_advisory_events),
+        ('cloudflare-status', CLOUDFLARE_STATUS, cloudflare_status_events)
+    ]
     for sid,url,fn in jobs:
         try:
-            records=fn(get_body(url) if sid=='cisa-advisories' else get_json(url))
+            paging = {}
+            if sid == 'nasa-eonet':
+                records,paging = eonet_paged_events()
+            else:
+                records = fn(get_body(url) if sid=='cisa-advisories' else get_json(url))
             for x in records: existing[x['id']]=x
-            last_status[sid]={'status':'ok','checkedAt':TODAY_ISO,'lastSuccessAt':TODAY_ISO,'feedWindowStart':START,'recordsInLatestQuery':len(records),'sourceUrl':url,'caveat':('Curated NASA events; do not infer a complete global disaster rate' if sid=='nasa-eonet' else ('USGS M5.5+ catalog; captures geophysical frequency but not damage' if sid=='usgs' else 'Government advisories are publication activity; not an incident census'))}
-            print(sid+': '+str(len(records))+' events')
+            caveats = {
+                'nasa-eonet':'NASA curated event metadata. All 120-day date windows retrieved without hitting result caps; still NOT a global disaster census.',
+                'usgs':'USGS global M5.5+ earthquakes; not the number of damaging disasters.',
+                'cisa-advisories':'Government advisories by publication date; not a confirmed attack census.',
+                'cloudflare-status':'Cloudflare service-status incidents only. Excludes other providers, and no malicious cause is assumed.'
+            }
+            last_status[sid]={
+                'status':'ok','checkedAt':TODAY_ISO,'lastSuccessAt':TODAY_ISO,
+                'feedWindowStart':START,'recordsInLatestQuery':len(records),
+                'sourceUrl':url,'caveat':caveats[sid], **paging
+            }
+            print(sid+': '+str(len(records))+' records',flush=True)
         except Exception as e:
             errors[sid]=str(e)[:240]
             prior=last_status.get(sid,{})
-            last_status[sid]={**prior,'status':'error','checkedAt':TODAY_ISO,'error':str(e)[:200], 'sourceUrl':url}
-            print(sid+' ERROR: '+str(e),file=sys.stderr)
+            last_status[sid]={**prior,'status':'error','checkedAt':TODAY_ISO,
+                'error':str(e)[:200], 'sourceUrl':url}
+            print(sid+' ERROR: '+str(e),file=sys.stderr,flush=True)
     # Dedup across refreshes, retain stable historic records up to 2022-11.
     all_events=sorted((x for x in existing.values() if x.get('date','')>='2022-11-01'),key=lambda e:(e['date'],e['id']))
     # Prevent sudden unbounded growth; high thresholds fail instead of pretending completeness.
     if len(all_events)>25000:raise RuntimeError('Archive exceeds safe size; review ingestion strategy')
     result={
         'schema':1,'checkedAt':TODAY_ISO,'lastSuccessfulRefreshAt':(TODAY_ISO if not errors else old.get('lastSuccessfulRefreshAt')),
-        'sourceWindowDays':120,'scope':'NASA EONET curated natural events, USGS global M5.5+ earthquakes and CISA published advisories; not all disasters or cyber attacks',
+        'sourceWindowDays':120,'scope':'NASA EONET curated natural events (date-paged), USGS M5.5+ earthquakes, CISA published advisories, and Cloudflare provider-status incidents; NOT all disasters or cyberattacks',
         'partial':bool(errors),'sources':last_status,'events':all_events,
     }
     tmp=OUT.with_suffix('.tmp');tmp.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':'))+'\n','utf-8');tmp.replace(OUT)
