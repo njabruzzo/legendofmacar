@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-18T23:41:06+00:00",
+  "checked_at": "2026-11-19T18:50:30+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-18T23:41:06+00:00",
-      "last_success_at": "2026-11-18T23:41:06+00:00",
+      "checked_at": "2026-11-19T18:50:30+00:00",
+      "last_success_at": "2026-11-19T18:50:30+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,10 +20,18 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-18T23:41:06+00:00",
-      "last_success_at": "2026-11-18T23:41:06+00:00",
+      "checked_at": "2026-11-19T18:50:30+00:00",
+      "last_success_at": "2026-11-19T18:50:30+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-9610a49b424c91fde756",
+          "category": "cyber",
+          "title": "A cyberattack using artificial intelligence targeted the EU in October, official says",
+          "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQNjFWMWRqdEZvSG5jaEYzNW9NSHd1c2VTUHQzU2FVUXY0cmFKT3BlblZfcHlGM19DZVJiMkpQTXVEeU1URFRwczEyZl8wM0NQZmJ5NTE1VGh6blRlc1lZdWdTSFV0NkhTVVh3cHBaa1Fvc2p5V0lQNlV3TTRzMFNXd2pVYnVzckU0bGZmNkRqQjFxcE1uU2lFSGdsVTlHdzZQaXUyX3BkQkt1V0ZCQXJ1bUlyZw?oc=5",
+          "indexed_date": "2026-11-19",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-2b80d14173e64e6f2bd7",
           "category": "cyber",
@@ -42,15 +50,31 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 2,
+      "returned_this_check": 3,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-18T23:41:06+00:00",
-      "last_success_at": "2026-11-18T23:41:06+00:00",
+      "checked_at": "2026-11-19T18:50:30+00:00",
+      "last_success_at": "2026-11-19T18:50:30+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-e6c8ebe85bc5bede9429",
+          "category": "natural",
+          "title": "Rainfall supercharged by El Niño floods roads and collapses a south Florida synagogue's roof",
+          "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxOY2hjT213Zm5QNUU1QkJIX1pEUWNsR1lCbUhOVm1IR3VWNmpoMVczbjBTVkFkbGUyWEQ2elJpT1BYUkNpLVZja3kwbzZHbXdLUGs1dGc5OFI2bVpQbEhqSS1WcUprOTZsTzU2Y2hxcm12UUdRTTdqektyNWZ2UTVpNWpoOEhqLXJBUHpPXzhxZFdFYzJ3ZVJfZzZuSThhRXB4Q0FWTURB?oc=5",
+          "indexed_date": "2026-11-19",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-eaab7c9877b951006b8b",
+          "category": "natural",
+          "title": "Heavy rain floods parts of Florida’s east coast, causing roof collapse",
+          "url": "https://news.google.com/rss/articles/CBMixAFBVV95cUxObEoxeGpwVy02M2VNX3FBNm1XWXJiZFdfcjZRdVhjX180VWJROXE5aXBZUHR2akRoSVBJQXl0Q0JMNHFtMXhsNXNnSjhvUkgxR3NfdXVWYnk0TWVEZUpUdms2NEVzcFU2NEtNZnNSXzM5SnVTN2NsS2htWjlISF8wNjdraVV1NncxTG96d2Y4cjdzRUhJVlNPSTd6UWxSd2p1NV9tb2owUGJZT0kxby1pSGpzbUJERnYwVmV6cFNQSVRwX2hU?oc=5",
+          "indexed_date": "2026-11-18",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-69829a6d721c8247fb9c",
           "category": "natural",
@@ -73,14 +97,6 @@
           "title": "Displaced families in Gaza endure a difficult night as heavy rain floods tents and shelters",
           "url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxQMTR0aVMxZVlMVng2bkYweTltU3c5SlZFbXVoMEZaRzlDdW1Bang2Tl81QnBla3ZyTDBtTDZJTURWTXdBLTAyYThKUURRdHBsaVJ5UlZKM1NVV3FmZDVWd3dQbndyTm9HOHhJMXh1UV93dVdIZFZqQmxIRlh3ZlFvTnRROHFXbXgyYkppbjBrNXU2MVMzTEExVkpkSU81ejVlZThzSFRfU0NLYk90MDFOUmFiUTdJNXJ1MDFRaUZseDhZUmtRR3NLaTgyWGR3LXAyWnc3ZW10eGo2Z1BOQUYySDZMOA?oc=5",
           "indexed_date": "2026-11-07",
-          "discovered_via": "Google News RSS publisher index (AP story link)"
-        },
-        {
-          "id": "ap-google-659cf7cb3b4d41926493",
-          "category": "natural",
-          "title": "Tulsa Golden Hurricane take on the Northern Illinois Huskies in non-conference play",
-          "url": "https://news.google.com/rss/articles/CBMi8gFBVV95cUxPNVpwV1pGTEhQZzJhRlptV0ZYVFY2Y3N3bWo4dC1yWG9Qak5ORVdtRVhqZFh0VC1WM3lEYWhNV29oRllTT25NQ2ZsTmViQkJJLUJyMW05elJPVk9pRHRwRG9jLWZDZnI2ejFyaFFoOVpoU3lGT2ptUWVRTTA0R05oM0QzTWtZbGxHampyYWczdE56bnFUQk16WEZDb3lSZzNwM2piVVhkS3dmTWNNN1d5bFVwYTktWm1LQlViZXRWN015NzdjSVdiV19ONVl6UzdLMy1id3E2bkJoNXJUei1FeXBzaGdveUpZSXJOdjhFVTZYZw?oc=5",
-          "indexed_date": "2026-11-05",
           "discovered_via": "Google News RSS publisher index (AP story link)"
         }
       ],
