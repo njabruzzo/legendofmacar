@@ -25,6 +25,13 @@ TODAY_ISO = TODAY.isoformat(timespec='seconds')
 START = (TODAY - dt.timedelta(days=120)).date().isoformat()
 EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events'
 CLOUDFLARE_STATUS = 'https://www.cloudflarestatus.com/api/v2/incidents.json'
+PROVIDER_STATUS = {
+    'github-status': ('GitHub', 'https://www.githubstatus.com/api/v2/incidents.json', 'https://www.githubstatus.com/incidents/'),
+    'anthropic-status': ('Anthropic', 'https://status.claude.com/api/v2/incidents.json', 'https://status.claude.com/incidents/'),
+    'openai-status': ('OpenAI', 'https://status.openai.com/api/v2/incidents.json', 'https://status.openai.com/incidents/'),
+    'vercel-status': ('Vercel', 'https://www.vercel-status.com/api/v2/incidents.json', 'https://www.vercel-status.com/incidents/'),
+    'npm-status': ('npm', 'https://status.npmjs.org/api/v2/incidents.json', 'https://status.npmjs.org/incidents/'),
+}
 CISA_RSS = 'https://www.cisa.gov/cybersecurity-advisories/all.xml'
 USGS = 'https://earthquake.usgs.gov/fdsnws/event/1/query?' + urllib.parse.urlencode({
     'format':'geojson', 'starttime':START, 'endtime':(TODAY+dt.timedelta(days=1)).date().isoformat(),
@@ -93,7 +100,7 @@ def eonet_paged_events():
     return list(unique.values()), counts
 
 
-def cloudflare_status_events(payload):
+def cloudflare_status_events(payload, provider='Cloudflare', prefix='https://www.cloudflarestatus.com/incidents/'):
     """Cloudflare service-status incidents; NOT global outages or cyberattacks."""
     raw = payload.get("incidents")
     if not isinstance(raw, list):
@@ -108,17 +115,17 @@ def cloudflare_status_events(payload):
         if item.get("status") in ("scheduled", "in_progress") and item.get("scheduled_for"):
             continue
         rows.append({
-            "id": "cloudflare-status-" + sid,
+            "id": ("cloudflare-status-" if provider=="Cloudflare" else "status-" + provider.lower().replace(" ", "-") + "-") + sid,
             "date": when,
-            "title": "Cloudflare service incident: " + name[:175],
+            "title": provider + " service incident: " + name[:175],
             "domain": "cyber", "lane": "outage",
             "kind": "provider-service-incident",
-            "source": "Cloudflare Status",
-            "sourceUrl": "https://www.cloudflarestatus.com/incidents/" + urllib.parse.quote(sid),
+            "source": provider + " Status",
+            "sourceUrl": (item.get("shortlink") if str(item.get("shortlink") or "").startswith("https://") else prefix + urllib.parse.quote(sid)),
             "magnitude": None, "magnitudeUnit": "",
             "sourceStatus": str(item.get("status") or "unknown"),
             "impact": str(item.get("impact") or "unknown"),
-            "coverage": "Cloudflare's own operational status records; not all internet disruptions and not proof of a cyberattack",
+            "coverage": provider + " official status-page incident. API lists at most 50 recent incidents; not global outage counts and not proof of attack",
         })
     return rows
 
@@ -215,6 +222,8 @@ def main():
         ('cisa-advisories', CISA_RSS, cisa_advisory_events),
         ('cloudflare-status', CLOUDFLARE_STATUS, cloudflare_status_events)
     ]
+    for sid,(provider,endpoint,prefix) in PROVIDER_STATUS.items():
+        jobs.append((sid, endpoint, lambda payload, provider=provider, prefix=prefix: cloudflare_status_events(payload, provider, prefix)))
     for sid,url,fn in jobs:
         try:
             paging = {}
@@ -227,7 +236,8 @@ def main():
                 'nasa-eonet':'NASA curated event metadata. All 120-day date windows retrieved without hitting result caps; still NOT a global disaster census.',
                 'usgs':'USGS global M5.5+ earthquakes; not the number of damaging disasters.',
                 'cisa-advisories':'Government advisories by publication date; not a confirmed attack census.',
-                'cloudflare-status':'Cloudflare service-status incidents only. Excludes other providers, and no malicious cause is assumed.'
+                'cloudflare-status':'Cloudflare service-status incidents only. Excludes other providers, and no malicious cause is assumed.',
+                **{key: info[0]+' official status incidents; latest 50 only, not all world disruptions.' for key,info in PROVIDER_STATUS.items()}
             }
             last_status[sid]={
                 'status':'ok','checkedAt':TODAY_ISO,'lastSuccessAt':TODAY_ISO,
@@ -247,7 +257,7 @@ def main():
     if len(all_events)>25000:raise RuntimeError('Archive exceeds safe size; review ingestion strategy')
     result={
         'schema':1,'checkedAt':TODAY_ISO,'lastSuccessfulRefreshAt':(TODAY_ISO if not errors else old.get('lastSuccessfulRefreshAt')),
-        'sourceWindowDays':120,'scope':'NASA EONET curated natural events (date-paged), USGS M5.5+ earthquakes, CISA published advisories, and Cloudflare provider-status incidents; NOT all disasters or cyberattacks',
+        'sourceWindowDays':120,'scope':'NASA EONET curated natural events (date-paged), USGS M5.5+ earthquakes, CISA published advisories, and platform provider-status incidents, each from their own documented feed where available; NOT all disasters or cyberattacks',
         'partial':bool(errors),'sources':last_status,'events':all_events,
     }
     tmp=OUT.with_suffix('.tmp');tmp.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':'))+'\n','utf-8');tmp.replace(OUT)
