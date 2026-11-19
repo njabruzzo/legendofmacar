@@ -56,7 +56,7 @@ const SOURCES={
   {name:'NOAA National Hurricane Center',tag:'Official advisories · active storms',url:'https://www.nhc.noaa.gov/',description:'Hurricane advisories and post-season storm reports; a separate source of intensity and impact records.'}
  ]
 };
-const state={tab:'uap',ranges:{uap:'all',cyber:'365',natural:'365'},source:{uap:'all',cyber:'all',natural:'all'},curated:null,signals:null,ai:null,uap:null,live:null,infra:null,records:[],visible:[],selected:null,initTime:new Date()};
+const state={tab:'uap',ranges:{uap:'all',cyber:'365',natural:'120'},source:{uap:'all',cyber:'all',natural:'all'},curated:null,signals:null,ai:null,uap:null,live:null,infra:null,records:[],visible:[],selected:null,initTime:new Date()};
 const $=id=>document.getElementById(id);
 const dateTxt=s=>{if(!s||!/^\d{4}-\d\d-\d\d/.test(s))return 'Date unavailable';const d=new Date(s.slice(0,10)+'T12:00:00Z');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})};
 const fullDate=s=>{if(!s)return 'Unavailable';let d=new Date(s);return Number.isFinite(d.getTime())?d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/Chicago'}):'Unavailable'};
@@ -76,7 +76,7 @@ function transform(){const list=[];
  for(const row of (state.curated?.events||[])){
   if(row.theme==='UAP')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:laneForUap(row),domain:'uap',source:'Government / curated',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected official milestone; not complete sighting database'}));
   else if(row.theme==='Cybersecurity')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'attack',domain:'cyber',source:'Documented incident',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected historical example, not all attacks'}));
-  else if(row.theme==='Infrastructure')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'outage',domain:'cyber',source:'Documented incident',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Outage does not establish a cyberattack'}));
+  else if(row.theme==='Infrastructure'&&row.id!=='baltimore-key-bridge-2024-03-26')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'outage',domain:'cyber',source:'Documented incident',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Outage does not establish a cyberattack'}));
   else if(row.theme==='Technology'&&row.eventKind==='technology-release')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'ai-release',domain:'cyber',source:'Documented model launch',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected milestone, not complete release count'}));
   else if(row.theme==='Disasters')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'other',domain:'natural',source:'Curated historical case',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected historical case, not a natural-event population'}));
  }
@@ -220,7 +220,7 @@ function plot(tab){const svg=$('chart-'+tab);svg.replaceChildren();const spec=TA
   }
  }
  const limitInfo=points.length!==raw.length?' Dense lanes grouped into weekly bubbles; grouped bubble area represents record count.':'';
- const defaultNote={uap:'Symbols distinguish evidence type. Sighting frequency is not inferred from hearings, records releases or media posts.',cyber:'KEV monthly bubble area encodes catalog entry counts. An outage does not imply a malicious attack; AI is a separate track.',natural:'Earthquake circles encode magnitude; NASA EONET events are curated metadata, not all disasters worldwide.'};
+ const defaultNote={uap:'Symbols distinguish evidence type. Sighting frequency is not inferred from hearings, records releases or media posts.',cyber:'Data sources have different start dates: Cloudflare provides its 50 latest provider incidents, not a global outage census. CISA monthly KEV marks are not attacks, and AI is a separate track.',natural:'Earthquake circles encode magnitude. NASA records are a curated 120-day source window, not a worldwide disaster census. Months without source coverage must NOT be read as zero events.'};
  $(tab+'ChartFoot').textContent=fmt(raw.length)+' indexed records, not a complete worldwide incident census · '+defaultNote[tab]+limitInfo+(window.matchMedia('(max-width:680px)').matches?' Swipe the chart horizontally to explore earlier and later dates.':'');
 }
 function aiLine(){const svg=$('aiLine');svg.replaceChildren();const rows=(state.ai?.models||[]).filter(m=>m.reliable_range&&m.date>=BASE_DATE&&Number.isFinite(m.minutes)&&m.minutes>0&&m.minutes<=960).sort((a,b)=>a.date.localeCompare(b.date));if(!rows.length){e('text',{x:25,y:95,class:'axis-txt'},svg,'Validated benchmark data unavailable');return}
