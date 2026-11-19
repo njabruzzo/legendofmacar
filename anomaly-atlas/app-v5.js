@@ -80,7 +80,18 @@ function transform(){const list=[];
   else if(row.theme==='Technology'&&row.eventKind==='technology-release')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'ai-release',domain:'cyber',source:'Documented model launch',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected milestone, not complete release count'}));
   else if(row.theme==='Disasters')list.push(tag({id:'curated-'+row.id,date:row.date,title:row.title,lane:'other',domain:'natural',source:'Curated historical case',sourceUrl:row.sources?.[0]?.url,detail:row.description,kind:row.eventKind,editorial:true,coverage:'Selected historical case, not a natural-event population'}));
  }
+ // Known casebook references to already-curated incidents are corroboration,
+ // not additional disruptions. Preserve one dot per event across these sources.
+ const canonicalInfraToCurated={
+  'change-healthcare-2024':'change-healthcare-2024-02-21',
+  'crowdstrike-2024':'crowdstrike-global-2024-07-19',
+  'm365-2026':'microsoft-365-2026-11-12',
+  'faa-2026':'faa-ground-stop-2026-11-13',
+  'united-2026':'united-outage-2026-11-16'
+ };
+ const curatedIDs=new Set((state.curated?.events||[]).map(x=>x.id));
  for(const row of (state.infra?.events||[])){
+  if(curatedIDs.has(canonicalInfraToCurated[row.id]))continue;
   let lane=row.id==='change-healthcare-2024'?'attack':'outage';
   list.push(tag({id:'case-'+row.id,date:row.date,title:row.title,lane,domain:'cyber',source:'Infrastructure casebook',sourceUrl:row.source,detail:row.note||row.metric,kind:'historical-case',editorial:true,cause:row.cause,coverage:'Selected historical comparator; not a full incident census'}));
  }
