@@ -26,6 +26,8 @@ const SOURCES={
   {"name":"UFOSINT dedup research","tag":"Research implementation · provenance and rights audit pending","url":"https://github.com/UFOSINT/ufo-dedup","description":"Explore candidate matching and cross-catalogue duplicates as methodology. Do not copy combined source databases unless upstream redistribution rights are confirmed."}
  ],
  cyber:[
+  {name:'Cloudflare Status incidents',tag:'Official provider outage API · daily',url:'https://www.cloudflarestatus.com/api',description:'Provider-confirmed operational incidents from Cloudflare’s own status service. Only Cloudflare; these are not necessarily malicious attacks and are not global disruption totals.'},
+  {name:'IODA Internet Outage Detection and Analysis',tag:'Georgia Tech measured network outages · integration pending',url:'https://ioda.inetintel.cc.gatech.edu/',description:'Measured country, network and regional connectivity drops. API and redistribution terms need validation before ingesting and counting.'},
   {"name":"Associated Press (AP News)","tag":"Professional reporting · public links checked daily","url":"https://apnews.com/","description":"Independent reporting and corroboration; GDELT finds article headlines and links only. AP's official Media API requires licensed access. Multiple articles about one incident are NOT separate events."},
   {name:'CISA KEV',tag:'Official JSON · daily',url:'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',description:'Government catalog of vulnerabilities with evidence of active exploitation. Count of new catalog entries, not attacks or victims.'},
   {name:'CISA cybersecurity advisories',tag:'Government advisories · official',url:'https://www.cisa.gov/news-events/cybersecurity-advisories',description:'Threat advisories and incident guidance; not a comprehensive day-by-day attack log.'},
@@ -54,7 +56,7 @@ const SOURCES={
   {name:'NOAA National Hurricane Center',tag:'Official advisories · active storms',url:'https://www.nhc.noaa.gov/',description:'Hurricane advisories and post-season storm reports; a separate source of intensity and impact records.'}
  ]
 };
-const state={tab:'uap',ranges:{uap:'all',cyber:'365',natural:'90'},source:{uap:'all',cyber:'all',natural:'all'},curated:null,signals:null,ai:null,uap:null,live:null,infra:null,records:[],visible:[],selected:null,initTime:new Date()};
+const state={tab:'uap',ranges:{uap:'all',cyber:'365',natural:'365'},source:{uap:'all',cyber:'all',natural:'all'},curated:null,signals:null,ai:null,uap:null,live:null,infra:null,records:[],visible:[],selected:null,initTime:new Date()};
 const $=id=>document.getElementById(id);
 const dateTxt=s=>{if(!s||!/^\d{4}-\d\d-\d\d/.test(s))return 'Date unavailable';const d=new Date(s.slice(0,10)+'T12:00:00Z');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})};
 const fullDate=s=>{if(!s)return 'Unavailable';let d=new Date(s);return Number.isFinite(d.getTime())?d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'America/Chicago'}):'Unavailable'};
@@ -88,7 +90,7 @@ function transform(){const list=[];
   list.push(tag({id:'mufon-'+hash(item.url),date:day,title:item.title,lane:'editorial',domain:'uap',source:'MUFON newsroom',sourceUrl:item.url,kind:'public-editorial-post',coverage:'Editorial material only; not reported sighting counts',editorial:true}));
  }
  for(const row of (state.live?.events||[])){
-  if(row.domain==='cyber'){list.push(tag({id:row.id,date:row.date,title:row.title,lane:'advisory',domain:'cyber',source:row.source,sourceUrl:row.sourceUrl,detail:row.coverage,kind:row.kind,coverage:row.coverage}));continue;}
+  if(row.domain==='cyber'){list.push(tag({id:row.id,date:row.date,title:row.title,lane:row.lane==='outage'?'outage':'advisory',domain:'cyber',source:row.source,sourceUrl:row.sourceUrl,detail:row.coverage,kind:row.kind,coverage:row.coverage,cause:row.cause||null}));continue;}
   if(row.domain!=='natural')continue;
   list.push(tag({id:row.id,date:row.date,title:row.title,lane:laneForNatural(row.lane),domain:'natural',source:row.source,sourceUrl:row.sourceUrl,detail:row.coverage,magnitude:row.magnitude,unit:row.magnitudeUnit||'',kind:row.kind,coverage:row.coverage}));
  }
@@ -103,7 +105,16 @@ function transform(){const list=[];
  }
  const seen=new Set();state.records=list.filter(x=>{if(seen.has(x.id))return false;seen.add(x.id);return x.date>=BASE_DATE}).sort((a,b)=>a.date.localeCompare(b.date));
 }
-function renderTop(){const s=state.signals,rows=s?.indicators||[];const c=rows.find(x=>x.id==='cisa'),u=rows.find(x=>x.id==='usgs'),ai=state.ai;
+function renderTop(){
+ const coverage=$('coverageAudit');
+ if(coverage){
+   const sources=state.live?.sources||{};
+   const healthy=Object.values(sources).filter(x=>x.status==='ok').length;
+   const failed=Object.entries(sources).filter(([,x])=>x.status!=='ok').map(([k])=>k);
+   const counts=state.live?.events?.length||0;
+   coverage.textContent='Coverage audit: '+fmt(counts)+' machine-indexed records; '+healthy+' live source streams healthy'+(failed.length?', missing or incomplete: '+failed.join(', '):'')+'. Selected historic cases, monthly vulnerability totals, AI milestones and advisories are not a census of disruptions. Data window and reporting criteria differ by source.';
+ }
+const s=state.signals,rows=s?.indicators||[];const c=rows.find(x=>x.id==='cisa'),u=rows.find(x=>x.id==='usgs'),ai=state.ai;
  const asOf=s?.all_current&&s?.built_at?s.built_at:null;
  $('asOfDate').textContent=asOf?fullDate(asOf):'Source refresh unavailable';
  $('dataCoverage').textContent='Latest complete monthly data: '+(s?.last_complete_month||'not verified')+' · event feeds have individual dates';
@@ -118,13 +129,20 @@ function renderTop(){const s=state.signals,rows=s?.indicators||[];const c=rows.f
  const ucount=state.records.filter(x=>x.domain==='uap'&&x.lane!=='editorial').length;
  const mufon=state.records.filter(x=>x.source==='MUFON newsroom').length;
  $('uapInsight').innerHTML='<b>'+ucount+' curated UAP milestones</b> plus '+mufon+' MUFON editorial posts shown. No valid denominator for changes in physical UAP incidence. More hearings are not more sightings.';
- $('cyberInsight').innerHTML='<b>CISA additions: '+p(c?.change_pct)+' year over year.</b> Exploited-vulnerability catalog activity is not attack frequency. The METR benchmark is a separate historical AI capability measure.';
- $('naturalInsight').innerHTML='<b>USGS M5+ counts: '+p(u?.change_pct)+' year over year.</b> NASA EONET provides a separate rolling, curated event stream; comparing raw EONET row totals against USGS earthquake counts would be invalid.';
+ const attacks=state.records.filter(x=>x.domain==='cyber'&&x.lane==='attack').length;
+ const provider=state.live?.sources?.['cloudflare-status'];
+ const outages=state.records.filter(x=>x.domain==='cyber'&&x.lane==='outage').length;
+ const advisory=state.records.filter(x=>x.domain==='cyber'&&x.lane==='advisory').length;
+ $('cyberInsight').innerHTML='<b>'+attacks+' selected attack records; '+outages+' selected/provider outage records; '+advisory+' advisories.</b> These are heterogeneous source records, NOT the number of global cyber disruptions. Cloudflare status: '+(provider?.status==='ok'?'feed checked':'feed unavailable')+'. CISA additions: '+p(c?.change_pct)+' YoY; NOT attack frequency.';
+ const eonet=state.live?.sources?.['nasa-eonet'];
+ const quakeCount=state.records.filter(x=>x.domain==='natural'&&x.source==='USGS').length;
+ const nasaCount=state.records.filter(x=>x.domain==='natural'&&x.source==='NASA EONET').length;
+ $('naturalInsight').innerHTML='<b>'+fmt(quakeCount)+' USGS M5.5+ earthquakes; '+fmt(nasaCount)+' NASA curated event records.</b> NASA source: '+(eonet?.status==='ok'?'date-sliced import verified':'INCOMPLETE / unavailable')+'. These counts use different criteria and are not a global disaster census. USGS monthly M5+ YoY: '+p(u?.change_pct)+'.';
  $('aiBenchmarkNote').textContent='METR reported a frontier doubling period near '+aiV+' since 2023. This benchmark is historical ('+(ai?.data_as_of||'last published date unavailable')+') and is not continuously remeasured each day.';
 }
 function renderSources(){const container=$('sourceDirectory');container.innerHTML='';$('sourceRegistryTitle').textContent='Data sources for '+TAB_SPEC[state.tab].name;for(const src of SOURCES[state.tab]){const card=document.createElement('article');card.className='source-card';card.innerHTML='<p class="source-type">'+escape(src.tag)+'</p><strong>'+escape(src.name)+'</strong><p>'+escape(src.description)+'</p><a href="'+escape(src.url)+'" target="_blank" rel="noopener noreferrer">Official source / information ↗</a>';container.appendChild(card)}
  const health=$('sourceHealth');health.innerHTML='';
- const states=[['CISA / USGS / FRED',state.signals?.all_current?'ok':'unavailable',state.signals?.built_at],['CISA advisories',state.live?.sources?.['cisa-advisories']?.status||'pending',state.live?.sources?.['cisa-advisories']?.lastSuccessAt],['NASA EONET',state.live?.sources?.['nasa-eonet']?.status||'pending',state.live?.sources?.['nasa-eonet']?.lastSuccessAt],['USGS live earthquakes',state.live?.sources?.usgs?.status||'pending',state.live?.sources?.usgs?.lastSuccessAt],['MUFON newsroom links',state.uap?.status||'pending',state.uap?.last_success_at],['METR historic benchmark',state.ai?.status||'pending',state.ai?.last_success_at]];
+ const states=[['CISA / USGS / FRED',state.signals?.all_current?'ok':'unavailable',state.signals?.built_at],['CISA advisories',state.live?.sources?.['cisa-advisories']?.status||'pending',state.live?.sources?.['cisa-advisories']?.lastSuccessAt],['NASA EONET',state.live?.sources?.['nasa-eonet']?.status||'pending',state.live?.sources?.['nasa-eonet']?.lastSuccessAt],['Cloudflare service incidents',state.live?.sources?.['cloudflare-status']?.status||'pending',state.live?.sources?.['cloudflare-status']?.lastSuccessAt],['USGS live earthquakes',state.live?.sources?.usgs?.status||'pending',state.live?.sources?.usgs?.lastSuccessAt],['MUFON newsroom links',state.uap?.status||'pending',state.uap?.last_success_at],['METR historic benchmark',state.ai?.status||'pending',state.ai?.last_success_at]];
  for(const [name,status,when] of states){const row=document.createElement('div');row.className='source-state';const good=status==='ok';row.innerHTML='<span>'+escape(name)+'</span><span class="'+(good?'state-ok':status==='error'?'state-error':'state-weak')+'">'+(good?'Checked '+escape(when?dateTxt(when):'—'):(status==='pending'?'Pending':'Unavailable'))+'</span>';health.appendChild(row)}
 }
 function populateSource(tab){const el=$(tab+'Source'),val=state.source[tab];const sources=[...new Set(state.records.filter(x=>x.domain===tab).map(x=>x.source))].sort();el.replaceChildren();const all=document.createElement('option');all.value='all';all.textContent='All accessible sources';el.appendChild(all);for(const src of sources){const o=document.createElement('option');o.value=src;o.textContent=src;el.appendChild(o)}el.value=sources.includes(val)?val:'all'}
@@ -172,7 +190,7 @@ function plot(tab){const svg=$('chart-'+tab);svg.replaceChildren();const spec=TA
   e('line',{x1:x,x2:x,y1:TOP-14,y2:AXIS_BOTTOM-8,class:'time-rule'},svg);
   e('text',{x,y:AXIS_BOTTOM+13,'text-anchor':'middle',class:'axis-txt'},svg,tick.text)
  }
- e('text',{x:LEFT,y:32,class:'axis-end'},svg,fmt(raw.length)+' source-linked records in view');
+ e('text',{x:LEFT,y:32,class:'axis-end'},svg,fmt(raw.length)+' indexed items in selected time range (not total disruptions)');
  e('text',{x:W-RIGHT,y:32,'text-anchor':'end',class:'axis-end'},svg,'Time →');
  const byLane=new Map(spec.lanes.map(([name])=>[name,[]]));
  for(const row of points){if(!byLane.has(row.lane))continue;byLane.get(row.lane).push(row)}
@@ -192,7 +210,7 @@ function plot(tab){const svg=$('chart-'+tab);svg.replaceChildren();const spec=TA
  }
  const limitInfo=points.length!==raw.length?' Dense lanes grouped into weekly bubbles; grouped bubble area represents record count.':'';
  const defaultNote={uap:'Symbols distinguish evidence type. Sighting frequency is not inferred from hearings, records releases or media posts.',cyber:'KEV monthly bubble area encodes catalog entry counts. An outage does not imply a malicious attack; AI is a separate track.',natural:'Earthquake circles encode magnitude; NASA EONET events are curated metadata, not all disasters worldwide.'};
- $(tab+'ChartFoot').textContent=fmt(raw.length)+' records displayed · '+defaultNote[tab]+limitInfo+(window.matchMedia('(max-width:680px)').matches?' Swipe the chart horizontally to explore earlier and later dates.':'');
+ $(tab+'ChartFoot').textContent=fmt(raw.length)+' indexed records, not a complete worldwide incident census · '+defaultNote[tab]+limitInfo+(window.matchMedia('(max-width:680px)').matches?' Swipe the chart horizontally to explore earlier and later dates.':'');
 }
 function aiLine(){const svg=$('aiLine');svg.replaceChildren();const rows=(state.ai?.models||[]).filter(m=>m.reliable_range&&m.date>=BASE_DATE&&Number.isFinite(m.minutes)&&m.minutes>0&&m.minutes<=960).sort((a,b)=>a.date.localeCompare(b.date));if(!rows.length){e('text',{x:25,y:95,class:'axis-txt'},svg,'Validated benchmark data unavailable');return}
  const X=v=>75+(parseTime(v)-parseTime(BASE_DATE))/(Date.now()-parseTime(BASE_DATE))*790,Y=v=>156-((Math.log10(Math.max(v,1))-0)/(Math.log10(960)))*130;
