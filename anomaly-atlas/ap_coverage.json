@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-19T20:48:49+00:00",
+  "checked_at": "2026-11-20T20:33:06+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-19T20:48:49+00:00",
-      "last_success_at": "2026-11-19T20:48:49+00:00",
+      "checked_at": "2026-11-20T20:33:06+00:00",
+      "last_success_at": "2026-11-20T20:33:06+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,10 +20,18 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-19T20:48:49+00:00",
-      "last_success_at": "2026-11-19T20:48:49+00:00",
+      "checked_at": "2026-11-20T20:33:06+00:00",
+      "last_success_at": "2026-11-20T20:33:06+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-0d9b69a74d11e0e55ad3",
+          "category": "cyber",
+          "title": "White House taps Kirsten Davies as cyber chief after outages rattle Americans",
+          "url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxOR1gxYnBpX3A3aDBXNVlpS3dkeUVsZHdQYTdYMjFCMDc5R21mYnhvdEVUNWZxS0poMlAxSm5TbnRMeUg3dmQ4S1M0NnNwN25ocms4VzhqQnhKYnhYcFlod2doeGdTSHdTc1B5cmZTbmY5UTdZRzhHdEU0bTRlbkF2Z0NlMUR3UEpBaTRzTlpRVUVHT3BkWEZMcjFrLXAxdV93MERLdXNwVlI?oc=5",
+          "indexed_date": "2026-11-20",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-9610a49b424c91fde756",
           "category": "cyber",
@@ -58,13 +66,13 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 4,
+      "returned_this_check": 3,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-19T20:48:49+00:00",
-      "last_success_at": "2026-11-19T20:48:49+00:00",
+      "checked_at": "2026-11-20T20:33:06+00:00",
+      "last_success_at": "2026-11-20T20:33:06+00:00",
       "search_window": "14 days",
       "items": [
         {
@@ -97,6 +105,14 @@
           "title": "Strong earthquake shakes central Japan, shattering store windows and injuring at least 22",
           "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxOWUdHZWFQdzh4U25aT0hXNC16czN1X1NmMzFMYXZleGZ6SWU1bWswdzktZ0pFbXRXQTBTajJTRGg3MFhMMzE5Q1NzMHIwU1dKMW1vUE5LTGdBU2dZa2NqN2J4TjN2aVU0ZDZaLWRaVjhqTjFqMXl3M0dRNUJrY3NSNnhB?oc=5",
           "indexed_date": "2026-11-08",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-c5f4fa9fddda9c0928e6",
+          "category": "natural",
+          "title": "Earthquake hits central Japan, shattering windows and injuring at least 22",
+          "url": "https://news.google.com/rss/articles/CBMiywFBVV95cUxOd1ZzNEtyM0RKeGYwd0dUUjRQWkhCOERlc1NMMURnYXZUcm0wYklvNDFmTG9EVTZ6SzRmVkRuYjQxY0pwcXlURkh2ZUlvdkZQcTZoNDRkd1Z3NzRQV2dINkcwQ0VnYXJrMGN1bmVmc3NaRHdNSmtyNk9rR1djOE5xNUxDVHRTUWM2SmFmUFF2RWszT2tncEg2ZUlLOExvY2dPX3c3eVFXaXNnWWE5X29PSDN1eXFEQnl1S1g4NkV1dXVJVkhZczRtODJkOA?oc=5",
+          "indexed_date": "2026-11-07",
           "discovered_via": "Google News RSS publisher index (AP story link)"
         },
         {
