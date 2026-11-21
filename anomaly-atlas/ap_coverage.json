@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-20T20:33:06+00:00",
+  "checked_at": "2026-11-21T19:29:18+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-20T20:33:06+00:00",
-      "last_success_at": "2026-11-20T20:33:06+00:00",
+      "checked_at": "2026-11-21T19:29:18+00:00",
+      "last_success_at": "2026-11-21T19:29:18+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,8 +20,8 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-20T20:33:06+00:00",
-      "last_success_at": "2026-11-20T20:33:06+00:00",
+      "checked_at": "2026-11-21T19:29:18+00:00",
+      "last_success_at": "2026-11-21T19:29:18+00:00",
       "search_window": "14 days",
       "items": [
         {
@@ -66,15 +66,31 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 3,
+      "returned_this_check": 4,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-20T20:33:06+00:00",
-      "last_success_at": "2026-11-20T20:33:06+00:00",
+      "checked_at": "2026-11-21T19:29:18+00:00",
+      "last_success_at": "2026-11-21T19:29:18+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-d9e92a5e2bb4f9f288ec",
+          "category": "natural",
+          "title": "Magnitude 6.7 earthquake shakes Peru’s Andes, with no damage or casualties immediately reported",
+          "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNRW9STTNuU3hmcFRRN1h2T2J2WUUzWXdiSGxiVnpaWnJRV25RZ2Y3YmF4TW1HY25aeC03NnhUSkhGQUpfamt2dDFjR2Y5R3oxNUxGUEtjelBSaXNXLXdBemlHbGJaVXVIWU9ialBGYkw1cklQWUZIbkh1VEE0SDNmRnAxWkVCZEJFcGd5TmJmOTEzUktwODZldHhn?oc=5",
+          "indexed_date": "2026-11-21",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-0c7f2b32944fc9af4cbc",
+          "category": "natural",
+          "title": "Storms deluging Florida with historic flooding shift further north",
+          "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQWFNhbEJ3VFNtSnVwUUZoYnppU2gtMzF4OGNudXYwaUdKLXlRZ3VadTE5LTdwMDY4UmtsSEY2a2xPRG96cHY5LU5xNzdORUFJRmxYUlZ1QVRTTkFmeTlSZ1pjSHNkajNFUWpiX090RFhYYkpvVDBwMXpEeHNJZ0dRU0xrcGtGTkJJMTJJQm1fNkp5a0hveGk4dVozb2Nlbi15R2JHNWNsM2VNYUpjb0JF?oc=5",
+          "indexed_date": "2026-11-21",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-e6c8ebe85bc5bede9429",
           "category": "natural",
@@ -125,7 +141,7 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 4,
+      "returned_this_check": 3,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     }
   }
