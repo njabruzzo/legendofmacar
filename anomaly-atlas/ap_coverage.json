@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-21T19:29:18+00:00",
+  "checked_at": "2026-11-22T19:51:12+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-21T19:29:18+00:00",
-      "last_success_at": "2026-11-21T19:29:18+00:00",
+      "checked_at": "2026-11-22T19:51:12+00:00",
+      "last_success_at": "2026-11-22T19:51:12+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,8 +20,8 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-21T19:29:18+00:00",
-      "last_success_at": "2026-11-21T19:29:18+00:00",
+      "checked_at": "2026-11-22T19:51:12+00:00",
+      "last_success_at": "2026-11-22T19:51:12+00:00",
       "search_window": "14 days",
       "items": [
         {
@@ -66,13 +66,13 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 4,
+      "returned_this_check": 3,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-21T19:29:18+00:00",
-      "last_success_at": "2026-11-21T19:29:18+00:00",
+      "checked_at": "2026-11-22T19:51:12+00:00",
+      "last_success_at": "2026-11-22T19:51:12+00:00",
       "search_window": "14 days",
       "items": [
         {
