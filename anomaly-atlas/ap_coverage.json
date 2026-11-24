@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-22T19:51:12+00:00",
+  "checked_at": "2026-11-24T00:04:03+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-22T19:51:12+00:00",
-      "last_success_at": "2026-11-22T19:51:12+00:00",
+      "checked_at": "2026-11-24T00:04:03+00:00",
+      "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,10 +20,26 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-22T19:51:12+00:00",
-      "last_success_at": "2026-11-22T19:51:12+00:00",
+      "checked_at": "2026-11-24T00:04:03+00:00",
+      "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-8d509704e4595668fe5e",
+          "category": "cyber",
+          "title": "CrowdStrike to acquire Zscaler in a $44 billion deal that would create a cybersecurity giant",
+          "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxQekFodWNTV2dTaVZ6VDJScmUybjJ3QXRURFJjeVNtQVBmOEJkYUZTNnFlMnNKalRWdFdXOWVwTjg1TFU3THJIOU9hSXNtSXZCczVaT0xDYnNKUEJUYXFXbVpTUkhTNWRFb3VIa1RDcHdOMzB4ZVV4cTZ6STBQZ2RWLWNPT2U1RGRHYjIxNEZ1QlFXQXZJMDhJeHdDLUFUc2tSUjJoejc1dGhzTWtkUS1Hb3V1V1hKbXplV3J2Zw?oc=5",
+          "indexed_date": "2026-11-23",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-2b38655b55603f6d9dfe",
+          "category": "cyber",
+          "title": "European Commission warns EU Academy users of data leak after AI-driven cyberattack",
+          "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPSjNGakREcTJSN1N6bHM5aVhFY2lGVTY4aENmNU5PWHdvQ2JLV0tLZmFweTF1Zk1hQmNFRGFDa25MNkNlQ3dYbEFjNXNfbi16em85LXFkaFhHelB6Y2R0RDJ3TlJJX3dleDE2S0tSZWs4dVgyRU1sYzF4NWZ6a0hxWkxLTEkxUmJVWlR6eDE3djJ4U1MyczI1Mnh5VFNJSGtQRnpJTUNZQXExLXlJ?oc=5",
+          "indexed_date": "2026-11-23",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-0d9b69a74d11e0e55ad3",
           "category": "cyber",
@@ -49,6 +65,14 @@
           "discovered_via": "Google News RSS publisher index (AP story link)"
         },
         {
+          "id": "ap-google-9c7861148b1922611cc1",
+          "category": "cyber",
+          "title": "Takeaways from Mullin's House testimony on cyber outages, the Texas-LSU flight and immigration",
+          "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxPRDEtcVdMZnJyYmFnRzhTLVJHcHZNYXZuTzZPM1JlQW5HTVVJSWdMZk54ajE1NjF2V0laVjhScWh3LURPNlBmTnVBd0VvTERPeFU4ZXNKN1UwZVVDcEN6MnU5VVBDTEluVUFrUWt6VHlCSHJHUjBWQ29GYm50ZUpWUmRGY3cycHp0d042YmtBV0Y3amFOaTdJX3VUSzhoalA2djJDMDczTWppaHYxVm5vYUliSQ?oc=5",
+          "indexed_date": "2026-11-18",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
           "id": "ap-google-2b80d14173e64e6f2bd7",
           "category": "cyber",
           "title": "France blames Iran for a cyberattack that heated supermarket refrigerators",
@@ -66,15 +90,23 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 3,
+      "returned_this_check": 5,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-22T19:51:12+00:00",
-      "last_success_at": "2026-11-22T19:51:12+00:00",
+      "checked_at": "2026-11-24T00:04:03+00:00",
+      "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-19b839f598cfc3d7037d",
+          "category": "natural",
+          "title": "Taliban forest patrols crack down on illegal logging to protect against flooding in Afghanistan",
+          "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxQTk8xdlIwSGwtdVBBUzg1YXZ5Wko5QUltemdIWmZ1LUJUa2ZMbkpNbFdnVTBtTGxXWkRZRWlFTkw1MEx3QTlOZmJScUQ2SDFTSVBlS1Z2OFJ2NTRlTWxHNlhxbHc0QTkzVFZMbU9aMmJwYmo4RVZVUWhneFEzLUw3bXoyRWpzSVdBblR2dFpiMHE5dnFMWTE0WVRLV2pxX3IyWGR6U1J3Qm0xSFVITGxpSkFEWllzdw?oc=5",
+          "indexed_date": "2026-11-23",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-d9e92a5e2bb4f9f288ec",
           "category": "natural",
@@ -141,7 +173,7 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 3,
+      "returned_this_check": 4,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     }
   }
