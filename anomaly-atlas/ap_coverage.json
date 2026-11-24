@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-24T00:04:03+00:00",
+  "checked_at": "2026-11-24T22:36:57+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -9,18 +9,19 @@
   "integrity_note": "AP coverage is NOT a count of independent incidents. Link source publications to an underlying event ID only after review. GDELT is not an official AP API.",
   "feeds": {
     "uap": {
-      "status": "ok",
-      "checked_at": "2026-11-24T00:04:03+00:00",
+      "status": "error",
+      "checked_at": "2026-11-24T22:36:57+00:00",
       "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 0,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
+      "error": "HTTPError: HTTP Error 503: Service Unavailable"
     },
     "cyber": {
-      "status": "ok",
-      "checked_at": "2026-11-24T00:04:03+00:00",
+      "status": "error",
+      "checked_at": "2026-11-24T22:36:57+00:00",
       "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [
@@ -91,11 +92,12 @@
       ],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 5,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
+      "error": "HTTPError: HTTP Error 503: Service Unavailable"
     },
     "natural": {
-      "status": "ok",
-      "checked_at": "2026-11-24T00:04:03+00:00",
+      "status": "error",
+      "checked_at": "2026-11-24T22:36:57+00:00",
       "last_success_at": "2026-11-24T00:04:03+00:00",
       "search_window": "14 days",
       "items": [
@@ -174,7 +176,8 @@
       ],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 4,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
+      "error": "HTTPError: HTTP Error 503: Service Unavailable"
     }
   }
 }
