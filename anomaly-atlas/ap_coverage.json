@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-24T22:36:57+00:00",
+  "checked_at": "2026-11-25T21:51:02+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -9,22 +9,37 @@
   "integrity_note": "AP coverage is NOT a count of independent incidents. Link source publications to an underlying event ID only after review. GDELT is not an official AP API.",
   "feeds": {
     "uap": {
-      "status": "error",
-      "checked_at": "2026-11-24T22:36:57+00:00",
-      "last_success_at": "2026-11-24T00:04:03+00:00",
+      "status": "ok",
+      "checked_at": "2026-11-25T21:51:02+00:00",
+      "last_success_at": "2026-11-25T21:51:02+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 0,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
-      "error": "HTTPError: HTTP Error 503: Service Unavailable"
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "cyber": {
-      "status": "error",
-      "checked_at": "2026-11-24T22:36:57+00:00",
-      "last_success_at": "2026-11-24T00:04:03+00:00",
+      "status": "ok",
+      "checked_at": "2026-11-25T21:51:02+00:00",
+      "last_success_at": "2026-11-25T21:51:02+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-1f68bedfb7ec875e1a27",
+          "category": "cyber",
+          "title": "An unclassified CIA system was breached in a cyberattack, AP source says",
+          "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxORFJXS0ZrRlpQVzZydVYtcFMzeVpIYU1UeThIZzFsZkt0Y2dSeEszT3g5eWpqSk9UTnhFb0RYbFlrX1hDczI5cmk5XzRIdzZ5eDI1d0J2M2hwV2lnSG5xUjdBYk03V3k4Y1plVkpuTU41V21ZRGxHYkt0VlhvUjlKNlh4QnpRWWcxOFFQb1gwSmFTNkFheHFFWFdTRQ?oc=5",
+          "indexed_date": "2026-11-24",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-06a6a40627b2baaa2f53",
+          "category": "cyber",
+          "title": "European Commission warns EU Academy users of data leak after AI-driven cyberattack",
+          "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPSjNGakREcTJSN1N6bHM5aVhFY2lGVTY4aENmNU5PWHdvQ2JLV0tLZmFweTF1Zk1hQmNFRGFDa25MNkNlQ3dYbEFjNXNfbi16em85LXFkaFhHelB6Y2R0RDJ3TlJJX3dleDE2S0tSZWs4dVgyRU1sYzF4NWZ6a0hxWkxLTEkxUmJVWlR6eDE3djJ4U1MyczI1Mnh5VFNJSGtQRnpJTUNZQXExLXlJ?oc=5",
+          "indexed_date": "2026-11-24",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-8d509704e4595668fe5e",
           "category": "cyber",
@@ -92,15 +107,22 @@
       ],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 5,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
-      "error": "HTTPError: HTTP Error 503: Service Unavailable"
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
-      "status": "error",
-      "checked_at": "2026-11-24T22:36:57+00:00",
-      "last_success_at": "2026-11-24T00:04:03+00:00",
+      "status": "ok",
+      "checked_at": "2026-11-25T21:51:02+00:00",
+      "last_success_at": "2026-11-25T21:51:02+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-e5f22d3a27b9fe418f7a",
+          "category": "natural",
+          "title": "What are king tides? These exceptionally high tides are increasingly flooding coastal communities",
+          "url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxQb1RFOVgzWGcyaEI4Y1lLd2FZandJMS1naHVqQURsWGpUZmlUcC1zLTNHOUZydXlMY1dlZGF1ZGtYelNjRjdMRlJEcVFYbUZQd1VIZW1HWUJvSjRnNFlvS25JS2RCMmhYNF9YVkk4RkNxX2Y5Q0lsdVJDUDM3dUNIXzZmdWl5SkRWZVUzNkE3amtxX2ttaFNIYW0wam40cUxrZWFLNS15RDMxeG9JeWc?oc=5",
+          "indexed_date": "2026-11-25",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-19b839f598cfc3d7037d",
           "category": "natural",
@@ -176,8 +198,7 @@
       ],
       "discovery_source": "Google News RSS AP publisher index",
       "returned_this_check": 4,
-      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts.",
-      "error": "HTTPError: HTTP Error 503: Service Unavailable"
+      "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     }
   }
 }

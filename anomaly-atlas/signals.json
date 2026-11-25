@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "built_at": "2026-11-24T22:36:21+00:00",
+  "built_at": "2026-11-25T21:50:17+00:00",
   "last_complete_month": "2026-10",
   "all_current": true,
   "coverage": 3,
@@ -215,7 +215,7 @@
       "change_pct": 42.9,
       "direction": "higher",
       "source_note": "2026.11.24",
-      "last_success": "2026-11-24T22:36:21+00:00"
+      "last_success": "2026-11-25T21:50:17+00:00"
     },
     {
       "id": "usgs",
@@ -416,17 +416,17 @@
         },
         {
           "month": "2026-10",
-          "value": 224
+          "value": 225
         }
       ],
       "period_months": 6,
       "latest_month": "2026-10",
-      "latest_avg": 184.17,
+      "latest_avg": 184.33,
       "previous_avg": 211.17,
-      "change_pct": -12.8,
+      "change_pct": -12.7,
       "direction": "similar",
-      "source_note": "7443 catalog entries checked",
-      "last_success": "2026-11-24T22:36:21+00:00"
+      "source_note": "7444 catalog entries checked",
+      "last_success": "2026-11-25T21:50:17+00:00"
     },
     {
       "id": "vix",
@@ -637,7 +637,7 @@
       "change_pct": -4.5,
       "direction": "similar",
       "source_note": "Daily close aggregated to calendar-month average",
-      "last_success": "2026-11-24T22:36:21+00:00"
+      "last_success": "2026-11-25T21:50:17+00:00"
     }
   ],
   "cautions": [
