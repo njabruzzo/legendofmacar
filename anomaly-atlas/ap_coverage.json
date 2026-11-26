@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-25T21:51:02+00:00",
+  "checked_at": "2026-11-26T21:43:58+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-25T21:51:02+00:00",
-      "last_success_at": "2026-11-25T21:51:02+00:00",
+      "checked_at": "2026-11-26T21:43:58+00:00",
+      "last_success_at": "2026-11-26T21:43:58+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,10 +20,18 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-25T21:51:02+00:00",
-      "last_success_at": "2026-11-25T21:51:02+00:00",
+      "checked_at": "2026-11-26T21:43:58+00:00",
+      "last_success_at": "2026-11-26T21:43:58+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-98a79513406b0f2c8b5c",
+          "category": "cyber",
+          "title": "FIFA says it has been victim of a cyberattack accessing ‘personal and business information’",
+          "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNRmU3QldMZEZZTlB4bkUxZHRGMDc3MWlldjlWVG9jN2UyVFZUekZ4eDVKdmVLdTFkazFnQ3MtTUNwakJhVE95WXhmZEFzajlwc0dlOEpsUkVpSzFBZGp4YmZra08yMEh1SGw1WF91N25qaWRkN3E2OGlRcEl0Q2c5YjkydjQzVE5X?oc=5",
+          "indexed_date": "2026-11-26",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-1f68bedfb7ec875e1a27",
           "category": "cyber",
@@ -106,21 +114,45 @@
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 5,
+      "returned_this_check": 6,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-25T21:51:02+00:00",
-      "last_success_at": "2026-11-25T21:51:02+00:00",
+      "checked_at": "2026-11-26T21:43:58+00:00",
+      "last_success_at": "2026-11-26T21:43:58+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-5e2589aebf1dfc1be10c",
+          "category": "natural",
+          "title": "Heavy rain, wind and flooding plague much of US on Thanksgiving holiday",
+          "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPNkxMTUs5ZzFmZFBCR2pBVGg1TEYwSGlKdVI2LWhaYk4zSno0MTJud0xrNHpralVPQWFmdXhaM3dmUmJNNGRFQk9XSGdRSUpCdmx6ZXUtY2V0SWFxdHplbmh2NHlHVUpsUVlnXzRISDhVd203ZmpLb2F6bzdkQU11bm5jQklqb3FZRi1KeDZGWmxDWDhkYXI5VG9WMjFpWkxULUQ3S0dR?oc=5",
+          "indexed_date": "2026-11-26",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-297753b437e788266cc9",
+          "category": "natural",
+          "title": "King tides and strong waves destroy part of Pacifica pier as officials warn of coastal flooding",
+          "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPUnlsWDNmUjJoejRZUkJsYzktZEkxUW9UOEpyaVNfRUVHQWhtcHo4VVdzcVZ3VmE2eDNVNDZ6SXVEenRDdU1aQVlPMUZyWVlHNTNJckNqWkdGRUg0alIxUHVzOGFZdjhkZjhEOThLMmJGNjBUNTlZZTBmMlMxQVJXTzNQTEpTdmdEMnhCaFFYMDA2VGlmdGc?oc=5",
+          "indexed_date": "2026-11-26",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-e5f22d3a27b9fe418f7a",
           "category": "natural",
           "title": "What are king tides? These exceptionally high tides are increasingly flooding coastal communities",
           "url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxQb1RFOVgzWGcyaEI4Y1lLd2FZandJMS1naHVqQURsWGpUZmlUcC1zLTNHOUZydXlMY1dlZGF1ZGtYelNjRjdMRlJEcVFYbUZQd1VIZW1HWUJvSjRnNFlvS25JS2RCMmhYNF9YVkk4RkNxX2Y5Q0lsdVJDUDM3dUNIXzZmdWl5SkRWZVUzNkE3amtxX2ttaFNIYW0wam40cUxrZWFLNS15RDMxeG9JeWc?oc=5",
           "indexed_date": "2026-11-25",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-617272af478338bef2a7",
+          "category": "natural",
+          "title": "New cypress trees grow in Kerr County, bringing hope and healing after floods",
+          "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQTm4wcDQtSDNfMnAxXzZKYkpCcklvblRuNDYzeGlFdlZGenFhNjNPR2hzZ3Vxcng2cWxXSU8wRHdCQ0lLNHUyT2dSTFZ5VmRUOWZDYWlzZHd6Um02XzdyY0llSlI0SlktY1BGZFpuZmhlV0o0OTNLeEg0aDZYLV9vTk9WWTJkOHV0Q2dEb0x5a1pJRWJvSlZYT2ludGlUSUJoNVFuTmYyTFgxdnlEbEtF?oc=5",
+          "indexed_date": "2026-11-24",
           "discovered_via": "Google News RSS publisher index (AP story link)"
         },
         {
@@ -172,6 +204,14 @@
           "discovered_via": "Google News RSS publisher index (AP story link)"
         },
         {
+          "id": "ap-google-35dcaef4d3a31a7cd157",
+          "category": "natural",
+          "title": "Rainfall supercharged by El Niño floods roads and collapses a south Florida synagogue's roof",
+          "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxOY2hjT213Zm5QNUU1QkJIX1pEUWNsR1lCbUhOVm1IR3VWNmpoMVczbjBTVkFkbGUyWEQ2elJpT1BYUkNpLVZja3kwbzZHbXdLUGs1dGc5OFI2bVpQbEhqSS1WcUprOTZsTzU2Y2hxcm12UUdRTTdqektyNWZ2UTVpNWpoOEhqLXJBUHpPXzhxZFdFYzJ3ZVJfZzZuSThhRXB4Q0FWTURB?oc=5",
+          "indexed_date": "2026-11-18",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
           "id": "ap-google-fe9b2eb70ad0625aaab1",
           "category": "natural",
           "title": "Strong earthquake shakes central Japan, shattering store windows and injuring at least 22",
@@ -194,10 +234,18 @@
           "url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxQMTR0aVMxZVlMVng2bkYweTltU3c5SlZFbXVoMEZaRzlDdW1Bang2Tl81QnBla3ZyTDBtTDZJTURWTXdBLTAyYThKUURRdHBsaVJ5UlZKM1NVV3FmZDVWd3dQbndyTm9HOHhJMXh1UV93dVdIZFZqQmxIRlh3ZlFvTnRROHFXbXgyYkppbjBrNXU2MVMzTEExVkpkSU81ejVlZThzSFRfU0NLYk90MDFOUmFiUTdJNXJ1MDFRaUZseDhZUmtRR3NLaTgyWGR3LXAyWnc3ZW10eGo2Z1BOQUYySDZMOA?oc=5",
           "indexed_date": "2026-11-07",
           "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-128d30389fb60ac75cfb",
+          "category": "natural",
+          "title": "Hurricane Tracker",
+          "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE5tU0VWZWNtdkNDN1BpN3VIdXlEOVRPN3hXdTNldVdNd1hCSGVVUHE0N0pYTHdsUFNjM0lnMjI0c0VFOVR3YzlxdnY0VWlBdHFweXpKYkh3WWdUbUtaSExMa3hXZ050ME5feHJCMg?oc=5",
+          "indexed_date": "2023-08-30",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
         }
       ],
       "discovery_source": "Google News RSS AP publisher index",
-      "returned_this_check": 4,
+      "returned_this_check": 9,
       "caveat": "GDELT indexing can omit AP stories or misclassify keywords. No article bodies or incident counts."
     }
   }
