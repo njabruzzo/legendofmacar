@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "checked_at": "2026-11-26T21:43:58+00:00",
+  "checked_at": "2026-11-27T21:28:27+00:00",
   "kind": "news_discovery_only",
   "source": "https://api.gdeltproject.org/api/v2/doc/doc",
   "fallback_source": "https://news.google.com/rss/search",
@@ -10,8 +10,8 @@
   "feeds": {
     "uap": {
       "status": "ok",
-      "checked_at": "2026-11-26T21:43:58+00:00",
-      "last_success_at": "2026-11-26T21:43:58+00:00",
+      "checked_at": "2026-11-27T21:28:27+00:00",
+      "last_success_at": "2026-11-27T21:28:27+00:00",
       "search_window": "14 days",
       "items": [],
       "discovery_source": "Google News RSS AP publisher index",
@@ -20,8 +20,8 @@
     },
     "cyber": {
       "status": "ok",
-      "checked_at": "2026-11-26T21:43:58+00:00",
-      "last_success_at": "2026-11-26T21:43:58+00:00",
+      "checked_at": "2026-11-27T21:28:27+00:00",
+      "last_success_at": "2026-11-27T21:28:27+00:00",
       "search_window": "14 days",
       "items": [
         {
@@ -119,10 +119,18 @@
     },
     "natural": {
       "status": "ok",
-      "checked_at": "2026-11-26T21:43:58+00:00",
-      "last_success_at": "2026-11-26T21:43:58+00:00",
+      "checked_at": "2026-11-27T21:28:27+00:00",
+      "last_success_at": "2026-11-27T21:28:27+00:00",
       "search_window": "14 days",
       "items": [
+        {
+          "id": "ap-google-c4d67183f578186b5c11",
+          "category": "natural",
+          "title": "Heavy rain, wind and flooding hit much of the US on Thanksgiving",
+          "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPNkxMTUs5ZzFmZFBCR2pBVGg1TEYwSGlKdVI2LWhaYk4zSno0MTJud0xrNHpralVPQWFmdXhaM3dmUmJNNGRFQk9XSGdRSUpCdmx6ZXUtY2V0SWFxdHplbmh2NHlHVUpsUVlnXzRISDhVd203ZmpLb2F6bzdkQU11bm5jQklqb3FZRi1KeDZGWmxDWDhkYXI5VG9WMjFpWkxULUQ3S0dR?oc=5",
+          "indexed_date": "2026-11-27",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
         {
           "id": "ap-google-5e2589aebf1dfc1be10c",
           "category": "natural",
@@ -153,6 +161,14 @@
           "title": "New cypress trees grow in Kerr County, bringing hope and healing after floods",
           "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQTm4wcDQtSDNfMnAxXzZKYkpCcklvblRuNDYzeGlFdlZGenFhNjNPR2hzZ3Vxcng2cWxXSU8wRHdCQ0lLNHUyT2dSTFZ5VmRUOWZDYWlzZHd6Um02XzdyY0llSlI0SlktY1BGZFpuZmhlV0o0OTNLeEg0aDZYLV9vTk9WWTJkOHV0Q2dEb0x5a1pJRWJvSlZYT2ludGlUSUJoNVFuTmYyTFgxdnlEbEtF?oc=5",
           "indexed_date": "2026-11-24",
+          "discovered_via": "Google News RSS publisher index (AP story link)"
+        },
+        {
+          "id": "ap-google-3603b263319fd73b4347",
+          "category": "natural",
+          "title": "Fountains of lava pour from Hawaii’s Kilauea volcano",
+          "url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxOaU1wbEhtaUlscWo3UWhWVVpldFV2b1AwMEV1emtPajlfRkhvdVc3WmttdGVMQTRnTENwb3FNRUF3WWVvS2FGcG9YcWtqUHF4WmoxRXhkM09jRlAyV1k2YlBBQXF1bU4tUUgyaGZ6NHRaUTRudWxBUlRsMnhMQ2hqTUc0UHlfQlZhMnltMEkyaXowaVk0VXBwX0ZfOVpXSVRwS2U4Nkt5WDV0cXlHTGc?oc=5",
+          "indexed_date": "2026-11-23",
           "discovered_via": "Google News RSS publisher index (AP story link)"
         },
         {
@@ -233,14 +249,6 @@
           "title": "Displaced families in Gaza endure a difficult night as heavy rain floods tents and shelters",
           "url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxQMTR0aVMxZVlMVng2bkYweTltU3c5SlZFbXVoMEZaRzlDdW1Bang2Tl81QnBla3ZyTDBtTDZJTURWTXdBLTAyYThKUURRdHBsaVJ5UlZKM1NVV3FmZDVWd3dQbndyTm9HOHhJMXh1UV93dVdIZFZqQmxIRlh3ZlFvTnRROHFXbXgyYkppbjBrNXU2MVMzTEExVkpkSU81ejVlZThzSFRfU0NLYk90MDFOUmFiUTdJNXJ1MDFRaUZseDhZUmtRR3NLaTgyWGR3LXAyWnc3ZW10eGo2Z1BOQUYySDZMOA?oc=5",
           "indexed_date": "2026-11-07",
-          "discovered_via": "Google News RSS publisher index (AP story link)"
-        },
-        {
-          "id": "ap-google-128d30389fb60ac75cfb",
-          "category": "natural",
-          "title": "Hurricane Tracker",
-          "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE5tU0VWZWNtdkNDN1BpN3VIdXlEOVRPN3hXdTNldVdNd1hCSGVVUHE0N0pYTHdsUFNjM0lnMjI0c0VFOVR3YzlxdnY0VWlBdHFweXpKYkh3WWdUbUtaSExMa3hXZ050ME5feHJCMg?oc=5",
-          "indexed_date": "2023-08-30",
           "discovered_via": "Google News RSS publisher index (AP story link)"
         }
       ],
